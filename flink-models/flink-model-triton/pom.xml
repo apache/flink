@@ -113,6 +113,17 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- FactoryMocks (createModelContext) is published in the table-common test-jar; we
+			 use it to construct AbstractTritonModelFunction in unit tests without standing up a
+			 full TableEnvironment. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>

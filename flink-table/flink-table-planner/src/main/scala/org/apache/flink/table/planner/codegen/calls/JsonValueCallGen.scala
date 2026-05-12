@@ -21,6 +21,7 @@ import org.apache.flink.table.api.JsonValueOnEmptyOrError
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
+import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 
 import org.apache.calcite.sql.SqlJsonEmptyOrError
@@ -32,6 +33,23 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * built-in Calcite function is [[Object]] and needs to be cast based on the inferred return type
  * instead as users can change this using the RETURNING keyword. Furthermore, we need to provide the
  * proper default values in case not all arguments were given.
+ *
+ * When multiple JSON function calls share the same input expression, the parsed JSON context is
+ * reused via a shared member variable. For example, a query like:
+ * {{{
+ * SELECT JSON_VALUE(json_data, '$.type'), JSON_VALUE(json_data, '$.age') FROM t
+ * }}}
+ * generates code similar to:
+ * {{{
+ * // member variable (declared once)
+ * SqlJsonUtils.JsonValueContext jsonParsed$0;
+ *
+ * // in processElement (parse emitted only by the first function)
+ * jsonParsed$0 = SqlJsonUtils.jsonParse(field$0.toString());
+ * Object rawResult$1 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.type", ...);
+ * // second call reuses jsonParsed$0 without re-parsing
+ * Object rawResult$2 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.age", ...);
+ * }}}
  */
 class JsonValueCallGen extends CallGenerator {
   override def generate(
@@ -44,8 +62,26 @@ class JsonValueCallGen extends CallGenerator {
         {
           val emptyBehavior = getBehavior(operands, SqlJsonEmptyOrError.EMPTY)
           val errorBehavior = getBehavior(operands, SqlJsonEmptyOrError.ERROR)
+          val inputTerm = s"${argTerms.head}.toString()"
+
+          val (varName, parseCode) =
+            ctx.getReusableInputUnboxingExprs(inputTerm, Int.MinValue) match {
+              case Some(expr) => (expr.resultTerm, "")
+              case None =>
+                val newVarName = CodeGenUtils.newName(ctx, "jsonParsed")
+                val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
+                ctx.addReusableMember(s"$typeName $newVarName;")
+                ctx.addReusableInputUnboxingExprs(
+                  inputTerm,
+                  Int.MinValue,
+                  GeneratedExpression(newVarName, "false", "", null))
+                val assign =
+                  s"$newVarName = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}($inputTerm);"
+                (newVarName, assign)
+            }
+
           val terms = Seq(
-            s"${argTerms.head}.toString()",
+            varName,
             s"${argTerms(1)}.toString()",
             qualifyEnum(emptyBehavior._1),
             emptyBehavior._2,
@@ -55,8 +91,10 @@ class JsonValueCallGen extends CallGenerator {
 
           val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
           val call = s"""
+                        |$parseCode
                         |Object $rawResultTerm =
-                        |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms.mkString(", ")});
+                        |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
+                         .mkString(", ")});
            """.stripMargin
 
           val convertedResult = returnType.getTypeRoot match {

@@ -25,6 +25,8 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.util.Map;
+
 /** {@link TableTestProgram} definitions for testing {@link StreamExecCorrelate}. */
 public class CorrelateTestPrograms {
 
@@ -201,6 +203,51 @@ public class CorrelateTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT (SELECT name, nested FROM source_t, UNNEST(arr) AS T(nested)) FROM source_t")
+                    .build();
+
+    public static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST_PRIMITIVE_ARRAY =
+            TableTestProgram.of(
+                            "correlate-cross-join-unnest-primitive-array",
+                            "validate correlate with cross join and unnest of primitive array")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT", "vals ARRAY<INT NOT NULL>")
+                                    .producedBeforeRestore(
+                                            Row.of(1, new Integer[] {10, 20}),
+                                            Row.of(2, new Integer[] {30}))
+                                    .producedAfterRestore(Row.of(3, new Integer[] {40, 50}))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT", "val INT")
+                                    .consumedBeforeRestore("+I[1, 10]", "+I[1, 20]", "+I[2, 30]")
+                                    .consumedAfterRestore("+I[3, 40]", "+I[3, 50]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, val FROM source_t CROSS JOIN UNNEST(vals) AS u(val)")
+                    .build();
+
+    public static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST_MAP =
+            TableTestProgram.of(
+                            "correlate-cross-join-unnest-map",
+                            "validate correlate with cross join and unnest of map")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT", "m MAP<STRING, INT>")
+                                    .producedBeforeRestore(
+                                            Row.of(1, Map.of("a", 10, "b", 20)),
+                                            Row.of(2, Map.of("c", 30)))
+                                    .producedAfterRestore(Row.of(3, Map.of("d", 40)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT", "k STRING", "v INT")
+                                    .consumedBeforeRestore(
+                                            "+I[1, a, 10]", "+I[1, b, 20]", "+I[2, c, 30]")
+                                    .consumedAfterRestore("+I[3, d, 40]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, k, v FROM source_t CROSS JOIN UNNEST(m) AS u(k, v)")
                     .build();
 
     public static final TableTestProgram CORRELATE_WITH_LITERAL_AGG =

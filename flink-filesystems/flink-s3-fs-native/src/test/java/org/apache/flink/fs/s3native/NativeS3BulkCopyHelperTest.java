@@ -20,7 +20,14 @@ package org.apache.flink.fs.s3native;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.awssdk.core.exception.SdkClientException;
+
+import java.util.Collections;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
@@ -28,7 +35,9 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 /** Tests for {@link NativeS3BulkCopyHelper}. */
 class NativeS3BulkCopyHelperTest {
 
-    private static final NativeS3BulkCopyHelper helper = new NativeS3BulkCopyHelper(null, 1);
+    private static final NativeS3BulkCopyHelper helper = new NativeS3BulkCopyHelper(null, 1, 1);
+
+    // --- URI parsing tests ---
 
     @ParameterizedTest
     @CsvSource({
@@ -104,5 +113,47 @@ class NativeS3BulkCopyHelperTest {
         }
         path.append("file.txt");
         assertThat(helper.extractKey("s3://bucket/" + path)).isEqualTo(path.toString());
+    }
+
+    private static Stream<Arguments> connectionPoolExhaustedCases() {
+        return Stream.of(
+                Arguments.of(
+                        "direct message match",
+                        SdkClientException.builder()
+                                .message(
+                                        "Unable to execute HTTP request: "
+                                                + "Acquire operation took longer than the configured maximum time.")
+                                .build(),
+                        true),
+                Arguments.of(
+                        "nested causal chain",
+                        SdkClientException.builder()
+                                .message("Unable to execute HTTP request")
+                                .cause(
+                                        new RuntimeException(
+                                                "channel acquisition failed",
+                                                new TimeoutException(
+                                                        "Acquire operation took longer than 10000 milliseconds.")))
+                                .build(),
+                        true),
+                Arguments.of(
+                        "unrelated error",
+                        SdkClientException.builder().message("Access Denied").build(),
+                        false),
+                Arguments.of("null message", new RuntimeException((String) null), false),
+                Arguments.of("null throwable", null, false));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("connectionPoolExhaustedCases")
+    void testConnectionPoolExhaustedDetection(
+            String description, Throwable throwable, boolean expected) {
+        assertThat(NativeS3BulkCopyHelper.isConnectionPoolExhausted(throwable)).isEqualTo(expected);
+    }
+
+    @Test
+    void testEmptyRequestListIsNoOp() throws Exception {
+        NativeS3BulkCopyHelper noOpHelper = new NativeS3BulkCopyHelper(null, 16, 50);
+        noOpHelper.copyFiles(Collections.emptyList(), null);
     }
 }

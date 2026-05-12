@@ -27,6 +27,7 @@ import {
   CheckpointDetail,
   CheckpointSubTask,
   RescalesOverview,
+  RescalesSummary,
   RescalesHistory,
   JobRescaleDetails,
   JobRescaleConfigInfo,
@@ -184,6 +185,10 @@ export class JobService {
 
   public loadRescalesOverview(jobId: string): Observable<RescalesOverview> {
     return this.httpClient.get<RescalesOverview>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/overview`);
+  }
+
+  public loadRescalesSummary(jobId: string): Observable<RescalesSummary> {
+    return this.httpClient.get<RescalesSummary>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/summary`);
   }
 
   public loadRescalesHistory(jobId: string): Observable<RescalesHistory> {

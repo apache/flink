@@ -19,11 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.runtime.functions.table.UnnestRowsFunctionBase;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
@@ -33,22 +29,15 @@ import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Correlate;
-import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Uncollect;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.immutables.value.Value;
 
 import java.util.Collections;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType;
 
 /**
  * Planner rule that rewrites UNNEST to explode function.
@@ -106,10 +95,7 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
             relNode = convert(getRel(hepRelVertex), correlate);
         }
         if (relNode instanceof LogicalProject) {
-            final LogicalProject logicalProject =
-                    correlate.getJoinType() == JoinRelType.LEFT
-                            ? getLogicalProjectWithAdjustedNullability((LogicalProject) relNode)
-                            : (LogicalProject) relNode;
+            LogicalProject logicalProject = (LogicalProject) relNode;
             return logicalProject.copy(
                     logicalProject.getTraitSet(),
                     ImmutableList.of(convert(getRel(logicalProject.getInput()), correlate)));
@@ -123,13 +109,6 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
         if (relNode instanceof Uncollect) {
             Uncollect uncollect = (Uncollect) relNode;
             RelOptCluster cluster = correlate.getCluster();
-            FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
-            RelDataType relDataType =
-                    (RelDataType)
-                            ((Map.Entry) uncollect.getInput().getRowType().getFieldList().get(0))
-                                    .getValue();
-            LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
-
             BridgingSqlFunction sqlFunction =
                     BridgingSqlFunction.of(
                             cluster,
@@ -140,11 +119,7 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
             RexNode rexCall =
                     cluster.getRexBuilder()
                             .makeCall(
-                                    typeFactory.createFieldTypeFromLogicalType(
-                                            toRowType(
-                                                    UnnestRowsFunctionBase.getUnnestedType(
-                                                            logicalType,
-                                                            uncollect.withOrdinality))),
+                                    uncollect.getRowType(),
                                     sqlFunction,
                                     ((LogicalProject) getRel(uncollect.getInput())).getProjects());
             return new LogicalTableFunctionScan(
@@ -165,35 +140,6 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
             return ((HepRelVertex) rel).getCurrentRel();
         }
         return rel;
-    }
-
-    /**
-     * If unnesting type is {@code NOT NULL} however at the same time {@code LEFT JOIN} makes it
-     * nullable, this method adjusts nullability by inserting extra {@code CAST}.
-     */
-    private LogicalProject getLogicalProjectWithAdjustedNullability(LogicalProject logicalProject) {
-        final RelOptCluster cluster = logicalProject.getCluster();
-        FlinkTypeFactory typeFactory = (FlinkTypeFactory) cluster.getTypeFactory();
-        RexBuilder rexBuilder = cluster.getRexBuilder();
-        final RelDataType rowType = logicalProject.getRowType();
-        return logicalProject.copy(
-                logicalProject.getTraitSet(),
-                logicalProject.getInput(),
-                logicalProject.getProjects().stream()
-                        .map(
-                                t -> {
-                                    if (t.getType().isNullable()) {
-                                        return t;
-                                    }
-                                    return rexBuilder.makeCast(
-                                            createNullableType(typeFactory, t.getType()), t);
-                                })
-                        .collect(Collectors.toList()),
-                rowType.isNullable() ? rowType : createNullableType(typeFactory, rowType));
-    }
-
-    private static RelDataType createNullableType(FlinkTypeFactory typeFactory, RelDataType type) {
-        return typeFactory.createTypeWithNullability(type, true);
     }
 
     /** Rule configuration. */

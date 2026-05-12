@@ -129,7 +129,7 @@ public final class AdaptiveLoadBasedRecordWriter<T extends IOReadableWritable>
         ByteBuffer serializedRecord = serializeRecord(serializer, record);
         for (int channelIndex = 0; channelIndex < numberOfSubpartitions; channelIndex++) {
             serializedRecord.rewind();
-            emit(record, channelIndex);
+            emit(serializedRecord, channelIndex);
         }
 
         if (flushAlways) {

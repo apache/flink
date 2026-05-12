@@ -22,6 +22,8 @@ import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -143,6 +145,45 @@ public class TritonUtils {
             }
         }
         return String.format("%s/%s/versions/%s/infer", baseUrl, modelName, modelVersion);
+    }
+
+    /**
+     * Returns a representation of the given URL or endpoint that is safe to include in logs and
+     * user-visible error messages.
+     *
+     * <p>Any {@code user:password@} prefix in the URI's authority is stripped so that basic-auth
+     * credentials configured on the Triton endpoint cannot leak through INFO/WARN logs, exception
+     * stacks surfaced by Flink, or metrics consumed by monitoring dashboards.
+     *
+     * <p>Inputs that do not parse as URIs (for example, bare {@code host:port} strings, or values
+     * already containing a placeholder) are returned unchanged - such inputs cannot carry
+     * credentials in the {@code userInfo} component by format.
+     *
+     * <p>Returns {@code "<null>"} for a {@code null} input so that callers can embed the result in
+     * a format string without a separate null-check.
+     */
+    public static String sanitizeUrl(String url) {
+        if (url == null) {
+            return "<null>";
+        }
+        try {
+            URI uri = new URI(url);
+            if (uri.isAbsolute() && uri.getUserInfo() != null) {
+                URI sanitized =
+                        new URI(
+                                uri.getScheme(),
+                                null, // drop userInfo
+                                uri.getHost(),
+                                uri.getPort(),
+                                uri.getPath(),
+                                uri.getQuery(),
+                                uri.getFragment());
+                return sanitized.toString();
+            }
+        } catch (URISyntaxException ignored) {
+            // fall through: return the original string
+        }
+        return url;
     }
 
     private static class ClientValue {

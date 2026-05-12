@@ -86,23 +86,26 @@ public class SinkReuseITCase extends AbstractTestBase {
                 TestValuesTableFactory.registerData(
                         Arrays.asList(Row.of(1, 3.1d, "Jack"), Row.of(2, 3.2d, "Rose")));
 
-        createSourceTable("source1", getSourceOptions(dataId1));
-        createSourceTable("source2", getSourceOptions(dataId2));
-        createSourceTable("source3", getSourceOptions(dataId3));
+        createSourceTable("sinkReuseItCaseSource1", getSourceOptions(dataId1));
+        createSourceTable("sinkReuseItCaseSource2", getSourceOptions(dataId2));
+        createSourceTable("sinkReuseItCaseSource3", getSourceOptions(dataId3));
 
-        createSinkTable("sink1", getSinkOptions());
-        createSinkTable("sink2", getSinkOptions());
+        createSinkTable("sinkReuseItCaseSink1", getSinkOptions());
+        createSinkTable("sinkReuseItCaseSink2", getSinkOptions());
     }
 
     @TestTemplate
     public void testSinkMergeFromSameSource() throws Exception {
         setup(isBatch);
         StatementSet statementSet = tEnv.createStatementSet();
-        statementSet.addInsertSql("INSERT INTO sink1 SELECT * FROM source1");
-        statementSet.addInsertSql("INSERT INTO sink1 SELECT * FROM source1");
+        statementSet.addInsertSql(
+                "INSERT INTO sinkReuseItCaseSink1 SELECT * FROM sinkReuseItCaseSource1");
+        statementSet.addInsertSql(
+                "INSERT INTO sinkReuseItCaseSink1 SELECT * FROM sinkReuseItCaseSource1");
         statementSet.execute().await();
 
-        List<String> sink1Result = TestValuesTableFactory.getResultsAsStrings("sink1");
+        List<String> sink1Result =
+                TestValuesTableFactory.getResultsAsStrings("sinkReuseItCaseSink1");
         List<String> sink1Expected =
                 Arrays.asList(
                         "+I[1, 1.1, Tom]",
@@ -116,13 +119,18 @@ public class SinkReuseITCase extends AbstractTestBase {
     public void testMergeSink() throws Exception {
         setup(isBatch);
         StatementSet statementSet = tEnv.createStatementSet();
-        statementSet.addInsertSql("INSERT INTO sink1 SELECT * FROM source1");
-        statementSet.addInsertSql("INSERT INTO sink1 SELECT * FROM source2");
-        statementSet.addInsertSql("INSERT INTO sink2 SELECT * FROM source3");
+        statementSet.addInsertSql(
+                "INSERT INTO sinkReuseItCaseSink1 SELECT * FROM sinkReuseItCaseSource1");
+        statementSet.addInsertSql(
+                "INSERT INTO sinkReuseItCaseSink1 SELECT * FROM sinkReuseItCaseSource2");
+        statementSet.addInsertSql(
+                "INSERT INTO sinkReuseItCaseSink2 SELECT * FROM sinkReuseItCaseSource3");
         statementSet.execute().await();
 
-        List<String> sink1Result = TestValuesTableFactory.getResultsAsStrings("sink1");
-        List<String> sink2Result = TestValuesTableFactory.getResultsAsStrings("sink2");
+        List<String> sink1Result =
+                TestValuesTableFactory.getResultsAsStrings("sinkReuseItCaseSink1");
+        List<String> sink2Result =
+                TestValuesTableFactory.getResultsAsStrings("sinkReuseItCaseSink2");
 
         List<String> sink1Expected =
                 Arrays.asList(

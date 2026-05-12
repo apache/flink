@@ -87,7 +87,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   /** Creates a BinaryRowData DataStream from the given non-empty [[Seq]]. */
   def failingBinaryRowSource[T: TypeInformation](data: Seq[T]): DataStream[RowData] = {
     val typeInfo = implicitly[TypeInformation[_]].asInstanceOf[CompositeType[_]]
-    val result = new mutable.MutableList[RowData]
+    val result = new mutable.ListBuffer[RowData]
     val reuse = new BinaryRowData(typeInfo.getArity)
     val writer = new BinaryRowWriter(reuse)
     data.foreach {

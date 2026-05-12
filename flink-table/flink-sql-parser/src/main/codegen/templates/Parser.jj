@@ -2202,7 +2202,10 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
             [ tableRef = ExtendTable(tableRef) ]
             tableRef = Over(tableRef)
             [ tableRef = Snapshot(tableRef) ]
-            [ tableRef = MatchRecognize(tableRef) ]
+            [
+              LOOKAHEAD(3)
+              tableRef = MatchRecognize(tableRef)
+            ]
         )
     |
         LOOKAHEAD(2)
@@ -2210,7 +2213,10 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
         tableRef = ParenthesizedExpression(exprContext)
         tableRef = Over(tableRef)
         tableRef = addLateral(tableRef, lateral)
-        [ tableRef = MatchRecognize(tableRef) ]
+        [
+          LOOKAHEAD(3)
+          tableRef = MatchRecognize(tableRef)
+        ]
     |
         LOOKAHEAD(2)
         [ <LATERAL> ] // "LATERAL" is implicit with "UNNEST", so ignore
@@ -3059,6 +3065,7 @@ void AddUnpivotValue(List<SqlNode> list) :
 SqlMatchRecognize MatchRecognize(SqlNode tableRef) :
 {
     final Span s, s0, s1, s2;
+    final SqlIdentifier aliasBeforeMatch;
     final SqlNodeList measureList;
     final SqlNodeList partitionList;
     final SqlNodeList orderList;
@@ -3073,6 +3080,12 @@ SqlMatchRecognize MatchRecognize(SqlNode tableRef) :
     final SqlLiteral isStrictEnds;
 }
 {
+    [
+      <AS> aliasBeforeMatch = SimpleIdentifier() {
+          tableRef = SqlStdOperatorTable.AS.createCall(
+              Span.of(tableRef).end(this), tableRef, aliasBeforeMatch);
+      }
+    ]
     <MATCH_RECOGNIZE> { s = span(); checkNotJoin(tableRef); } <LPAREN>
     (
         <PARTITION> { s2 = span(); } <BY>
@@ -7210,7 +7223,7 @@ SqlCall MatchRecognizeCallWithModifier() :
 {
     final Span s;
     final SqlOperator runningOp;
-    final SqlNode func;
+    final SqlNode e;
 }
 {
     (
@@ -7219,8 +7232,8 @@ SqlCall MatchRecognizeCallWithModifier() :
         <FINAL> { runningOp = SqlStdOperatorTable.FINAL; }
     )
     { s = span(); }
-    func = NamedFunctionCall() {
-        return runningOp.createCall(s.end(func), func);
+    e = Expression3(ExprContext.ACCEPT_NON_QUERY) {
+        return runningOp.createCall(s.end(e), e);
     }
 }
 

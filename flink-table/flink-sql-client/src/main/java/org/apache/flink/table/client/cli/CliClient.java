@@ -36,9 +36,11 @@ import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
+import org.jline.reader.Reference;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
+import org.jline.terminal.impl.DumbTerminal;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.slf4j.Logger;
@@ -69,13 +71,7 @@ public class CliClient implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
     public static final Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
             TerminalUtils::createDefaultTerminal;
-    private static final String NEWLINE_PROMPT =
-            new AttributedStringBuilder()
-                    .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN))
-                    .append("Flink SQL")
-                    .style(AttributedStyle.DEFAULT)
-                    .append("> ")
-                    .toAnsi();
+
     private static final String SHOW_LINE_NUMBERS_PATTERN = "%N%M> ";
 
     private final Executor executor;
@@ -219,7 +215,12 @@ public class CliClient implements AutoCloseable {
             terminal.flush();
             try {
                 // read a statement from terminal and parse it
-                line = lineReader.readLine(NEWLINE_PROMPT, null, inputTransformer, null);
+                line =
+                        lineReader.readLine(
+                                newLinePrompt(terminal),
+                                null,
+                                terminal instanceof DumbTerminal ? null : inputTransformer,
+                                null);
                 lineReader.setVariable(
                         LineReader.SECONDARY_PROMPT_PATTERN,
                         (executor.getSessionConfig().get(SqlClientOptions.DISPLAY_SHOW_LINE_NUMBERS)
@@ -316,6 +317,15 @@ public class CliClient implements AutoCloseable {
         }
     }
 
+    private static String newLinePrompt(Terminal terminal) {
+        return new AttributedStringBuilder()
+                .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN))
+                .append("Flink SQL")
+                .style(AttributedStyle.DEFAULT)
+                .append("> ")
+                .toAnsi(terminal);
+    }
+
     private LineReader createLineReader(Terminal terminal, ExecutionMode mode) {
         SqlMultiLineParser parser =
                 new SqlMultiLineParser(new SqlCommandParserImpl(), executor, mode);
@@ -332,6 +342,11 @@ public class CliClient implements AutoCloseable {
             builder.highlighter(new SqlClientSyntaxHighlighter(executor));
         }
         LineReader lineReader = builder.build();
+
+        lineReader
+                .getKeyMaps()
+                .get(LineReader.MAIN)
+                .bind(new Reference(LineReader.EXPAND_OR_COMPLETE), "\t");
 
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash

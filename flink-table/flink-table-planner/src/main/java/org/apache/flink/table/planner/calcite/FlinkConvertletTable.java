@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.OrderByInfo;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -175,16 +177,26 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
                 final SqlBasicCall setSemanticsCall = (SqlBasicCall) operand;
                 final SqlNodeList partitionKeys = setSemanticsCall.operand(1);
                 final SqlNodeList orderKeys = setSemanticsCall.operand(2);
-                checkArgument(
-                        orderKeys.isEmpty(), "Table functions do not support order keys yet.");
-                final int[] keys = getPartitionKeyIndices(tableType, partitionKeys);
+                final int[] partitionKeyIndices = getPartitionKeyIndices(tableType, partitionKeys);
+                final OrderByInfo orderByInfo =
+                        RexTableArgCall.extractOrderByInfo(tableType.getFieldNames(), orderKeys);
 
                 rewrittenOperands.add(
-                        new RexTableArgCall(tableType, tableInputCount++, keys, new int[0]));
+                        new RexTableArgCall(
+                                tableType,
+                                tableInputCount++,
+                                partitionKeyIndices,
+                                orderByInfo.columns,
+                                orderByInfo.order));
             } else if (operand.isA(SqlKind.QUERY)) {
                 final RelDataType tableType = cx.getValidator().getValidatedNodeType(operand);
                 rewrittenOperands.add(
-                        new RexTableArgCall(tableType, tableInputCount++, new int[0], new int[0]));
+                        new RexTableArgCall(
+                                tableType,
+                                tableInputCount++,
+                                new int[0],
+                                new int[0],
+                                new SortOrder[0]));
             } else {
                 rewrittenOperands.add(cx.convertExpression(operand));
             }

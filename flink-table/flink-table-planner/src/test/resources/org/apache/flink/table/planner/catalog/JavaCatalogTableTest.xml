@@ -167,8 +167,8 @@ LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[order_id, customer_id, f0 AS product_id, ts])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
+Calc(select=[order_id, customer_id, product_ids0 AS product_id, ts])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,product_ids0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER product_ids0)], joinType=[INNER])
    +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
       +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>

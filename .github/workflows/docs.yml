@@ -35,7 +35,7 @@ jobs:
           - release-1.20
           - release-1.19
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ matrix.branch }}
 
@@ -54,7 +54,7 @@ jobs:
           fi
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-docs-${{ hashFiles('**/pom.xml') }}

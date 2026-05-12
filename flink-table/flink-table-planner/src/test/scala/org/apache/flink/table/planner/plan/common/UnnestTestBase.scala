@@ -282,6 +282,26 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
       "SELECT bd_name FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE")
   }
 
+  @Test
+  def testNullMismatchLeftJoinNoAliasList(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON TRUE")
+  }
+
+  @Test
+  def testNullMismatchLeftJoinOnPredicate(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON exploded_bd <> 'debug'")
+  }
+
+  @Test
+  def testNullMismatchLeftJoinWithOrdinalityOnPredicate(): Unit = {
+    util.verifyRelPlan(
+      "SELECT * FROM nested_not_null LEFT JOIN " +
+        "UNNEST(nested_not_null.business_data) WITH ORDINALITY AS v(bd_name, ord) " +
+        "ON v.bd_name <> 'debug'")
+  }
+
   def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)

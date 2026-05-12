@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.StringData;
 
 import javax.annotation.Nonnull;
@@ -81,18 +82,57 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
         }
     }
 
-    /** Creates a {@link BinaryStringData} instance from the given UTF-8 bytes. */
+    /**
+     * Creates a {@link BinaryStringData} instance by wrapping the given UTF-8 bytes in O(1) without
+     * copying or validating them. The caller is responsible for ensuring the bytes are well-formed
+     * UTF-8; use {@link #fromUtf8Bytes(byte[])} if validation is required.
+     */
     public static BinaryStringData fromBytes(byte[] bytes) {
         return fromBytes(bytes, 0, bytes.length);
     }
 
     /**
-     * Creates a {@link BinaryStringData} instance from the given UTF-8 bytes with offset and number
-     * of bytes.
+     * Creates a {@link BinaryStringData} instance by wrapping the given UTF-8 byte range in O(1)
+     * without copying or validating it. The caller is responsible for ensuring the bytes are
+     * well-formed UTF-8; use {@link #fromUtf8Bytes(byte[], int, int)} if validation is required.
      */
     public static BinaryStringData fromBytes(byte[] bytes, int offset, int numBytes) {
         return new BinaryStringData(
                 new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+    }
+
+    /**
+     * Creates a {@link BinaryStringData} instance from the given UTF-8 bytes, walking the input
+     * once in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code
+     * null}. Throws {@link TableRuntimeException} on invalid UTF-8. Use {@link #fromBytes(byte[])}
+     * when the bytes are already known to be valid and the O(n) check can be skipped; otherwise
+     * invalid UTF-8 propagates and is later silently substituted with {@code U+FFFD}.
+     *
+     * @see StringData#fromUtf8Bytes(byte[])
+     */
+    public static BinaryStringData fromUtf8Bytes(final byte[] bytes) {
+        return bytes == null ? null : fromUtf8Bytes(bytes, 0, bytes.length);
+    }
+
+    /**
+     * Creates a {@link BinaryStringData} instance from the given UTF-8 byte range, walking it once
+     * in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code null}.
+     * Throws {@link TableRuntimeException} on invalid UTF-8.
+     *
+     * @see StringData#fromUtf8Bytes(byte[], int, int)
+     */
+    public static BinaryStringData fromUtf8Bytes(
+            final byte[] bytes, final int offset, final int numBytes) {
+        if (bytes == null) {
+            return null;
+        }
+        final int badIndex = StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, offset, numBytes);
+        if (badIndex >= 0) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Invalid UTF-8 byte at index %d of %d.", badIndex - offset, numBytes));
+        }
+        return fromBytes(bytes, offset, numBytes);
     }
 
     /** Creates a {@link BinaryStringData} instance that contains `length` spaces. */

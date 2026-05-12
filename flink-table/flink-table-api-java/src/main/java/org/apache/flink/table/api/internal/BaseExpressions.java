@@ -138,6 +138,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
@@ -157,6 +158,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAKE_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_UNION;
@@ -1491,6 +1493,28 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType inetNtoa() {
         return toApiSpecificExpression(unresolvedCall(INET_NTOA, toExpr()));
+    }
+
+    /**
+     * Returns {@code true} if the input bytes are a well-formed UTF-8 sequence, {@code false}
+     * otherwise. Returns {@code null} if the input is {@code null}.
+     *
+     * <p>Specifically rejects: truncated multi-byte sequences (missing continuation bytes),
+     * "overlong" encodings (using more bytes than necessary for the code point), code points above
+     * the Unicode maximum U+10FFFF, and UTF-16 surrogate values U+D800-U+DFFF (which have no UTF-8
+     * representation).
+     */
+    public OutType isValidUtf8() {
+        return toApiSpecificExpression(unresolvedCall(IS_VALID_UTF8, toExpr()));
+    }
+
+    /**
+     * Decodes the input bytes as UTF-8, replacing each invalid sequence with the Unicode
+     * replacement character {@code U+FFFD}. The substitution is lossy and irreversible. Returns
+     * {@code null} if the input is {@code null}.
+     */
+    public OutType makeValidUtf8() {
+        return toApiSpecificExpression(unresolvedCall(MAKE_VALID_UTF8, toExpr()));
     }
 
     /**

@@ -170,7 +170,7 @@ class SetOperatorsITCase extends BatchTestBase {
   @Test
   def testIntersect(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    val data = new mutable.MutableList[(Int, Long, String)]
+    val data = new mutable.ListBuffer[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
     data.+=((2, 2L, "Hello"))
@@ -187,9 +187,9 @@ class SetOperatorsITCase extends BatchTestBase {
 
   @Test
   def testIntersectAll(): Unit = {
-    val data1 = new mutable.MutableList[Int]
+    val data1 = new mutable.ListBuffer[Int]
     data1 += (1, 1, 1, 2, 2)
-    val data2 = new mutable.MutableList[Int]
+    val data2 = new mutable.ListBuffer[Int]
     data2 += (1, 2, 2, 2, 3)
     val ds1 = BatchTableEnvUtil.fromCollection(tEnv, data1, "c")
     val ds2 = BatchTableEnvUtil.fromCollection(tEnv, data2, "c")

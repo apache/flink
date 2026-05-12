@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -42,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractRowSemanticFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -60,6 +62,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static java.util.Collections.singletonList;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -193,6 +196,16 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testOrderBy() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.verifyRelPlan(
+                "SELECT `out`, `rowtime` FROM f("
+                        + "r => TABLE t_watermarked PARTITION BY name ORDER BY (ts ASC, score DESC NULLS FIRST), "
+                        + "i => 42, "
+                        + "on_time => DESCRIPTOR(ts))");
+    }
+
+    @Test
     void testMissingUid() {
         // Function name contains special characters and can thus not be used as UID
         util.addTemporarySystemFunction("f*", SetSemanticTableFunction.class);
@@ -270,6 +283,13 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         .createStatementSet()
                         .addInsertSql("INSERT INTO t_sink SELECT * FROM f(r => TABLE t, i => 1)")
                         .addInsertSql("INSERT INTO t_sink SELECT * FROM f(r => TABLE t, i => 42)"));
+    }
+
+    @Test
+    void testRetractModeWithRowSemantics() {
+        util.addTemporarySystemFunction("f", UpdatingRetractRowSemanticFunction.class);
+        util.verifyRelPlan(
+                "SELECT * FROM f(r => TABLE t)", singletonList(ExplainDetail.CHANGELOG_MODE));
     }
 
     @ParameterizedTest
@@ -351,10 +371,45 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t PARTITION BY invalid, i => 1)",
                         "Invalid column 'invalid' for PARTITION BY clause. Available columns are: [name, score]"),
                 ErrorSpec.ofSelect(
-                        "unsupported order by",
+                        "order by on row semantic table",
+                        RowSemanticTableFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked ORDER BY ts, i => 1)",
+                        "Only tables with set semantics may be ordered."),
+                ErrorSpec.ofSelect(
+                        "order by on non-timestamp column",
                         SetSemanticTableFunction.class,
-                        "SELECT * FROM f(r => TABLE t PARTITION BY name ORDER BY score, i => 1)",
-                        "ORDER BY clause is currently not supported."),
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY score, i => 1)",
+                        "Invalid ORDER BY clause for table argument 'r'. "
+                                + "The first ORDER BY column must be a TIMESTAMP or TIMESTAMP_LTZ column (up to precision 3). "
+                                + "However, column 'score' has data type 'INT'."),
+                ErrorSpec.ofSelect(
+                        "order by descending timestamp",
+                        SetSemanticTableFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY ts DESC, i => 1)",
+                        "Invalid ORDER BY clause for table argument 'r'. "
+                                + "The first ORDER BY column on a timestamp column must be in ascending order."),
+                ErrorSpec.ofSelect(
+                        "order by mismatch with on_time",
+                        SetSemanticTableFunction.class,
+                        "WITH dual_ts AS (SELECT name, score, ts, TO_TIMESTAMP_LTZ(10000, 3) AS ts2 FROM t_watermarked) "
+                                + "SELECT * FROM f(r => TABLE dual_ts PARTITION BY name ORDER BY ts2, i => 1, on_time => DESCRIPTOR(ts))",
+                        "Invalid ORDER BY clause for table argument 'r'. When both ORDER BY and the 'on_time' "
+                                + "argument are defined, the referenced timestamp columns must match."),
+                ErrorSpec.ofSelect(
+                        "order by duplicate column",
+                        SetSemanticTableFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY (ts, score, ts), i => 1)",
+                        "Invalid ORDER BY clause for table argument 'r'. "
+                                + "Column 'ts' appears more than once in ORDER BY."),
+                ErrorSpec.ofSelect(
+                        "order by on non-time attribute",
+                        SetSemanticTableFunction.class,
+                        "WITH dual_ts AS (SELECT name, score, TO_TIMESTAMP_LTZ(10000, 3) AS ts FROM t_watermarked) "
+                                + "SELECT * FROM f(r => TABLE dual_ts PARTITION BY name ORDER BY ts, i => 1)",
+                        "Invalid ORDER BY clause for table argument 'r'. The first ORDER BY "
+                                + "column 'ts' is not a valid time attribute. Only columns with "
+                                + "a watermark declaration qualify for ORDER BY. Also, make sure "
+                                + "that the watermarked column is forwarded without any modification."),
                 ErrorSpec.ofSelect(
                         "updates into insert-only table arg",
                         SetSemanticTableFunction.class,
@@ -410,10 +465,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f()",
                         "Table arguments must not be optional."),
                 ErrorSpec.ofSelect(
-                        "no changelog support for tables with row semantics",
+                        "no upsert support for tables with row semantics",
                         InvalidUpdatingSemanticsFunction.class,
                         "SELECT * FROM f(r => TABLE t)",
-                        "PTFs that take table arguments with row semantics don't support updating output. "
+                        "PTFs that take table arguments with row semantics don't support upsert output. "
                                 + "Table argument 'r' of function 'f' must use set semantics."),
                 ErrorSpec.ofSelect(
                         "on_time is not supported on updating output",

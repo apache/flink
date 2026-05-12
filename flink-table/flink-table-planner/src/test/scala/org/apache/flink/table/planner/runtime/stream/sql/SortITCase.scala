@@ -37,7 +37,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @TestTemplate
   def testDisableSortNonTemporalField(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a2"
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("0", "4"))
     data.+=(("3", "3"))
     data.+=(("1", "2"))
@@ -54,7 +54,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @TestTemplate
   def testSort(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a2"
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("0", "4"))
     data.+=(("3", "3"))
     data.+=(("1", "2"))
@@ -79,7 +79,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSortOrderByDesc(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1 DESC"
 
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("0", "4"))
     data.+=(("3", "3"))
     data.+=(("1", "2"))
@@ -105,7 +105,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSortOrderByMultipleFields(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1, a2"
 
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("5", "1"))
     data.+=(("0", "4"))
     data.+=(("1", "7"))
@@ -130,7 +130,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSortOrderByRepeatedFields(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1, a1"
 
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("5", "1"))
     data.+=(("0", "4"))
     data.+=(("1", "7"))
@@ -155,7 +155,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSortOrderByWithRetract(): Unit = {
     val sqlQuery = "SELECT a1, count(*) as c FROM a GROUP BY a1 ORDER BY c"
 
-    val data = new mutable.MutableList[(String, String)]
+    val data = new mutable.ListBuffer[(String, String)]
     data.+=(("1", "1"))
     data.+=(("2", "1"))
     data.+=(("3", "1"))
@@ -189,7 +189,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |select * from a where a1 < all (select a1 * 2 from a) order by a1 desc
        """.stripMargin
 
-    val data = new mutable.MutableList[(Int, Int)]
+    val data = new mutable.ListBuffer[(Int, Int)]
     data.+=((8, 1))
     data.+=((7, 2))
     data.+=((6, 3))

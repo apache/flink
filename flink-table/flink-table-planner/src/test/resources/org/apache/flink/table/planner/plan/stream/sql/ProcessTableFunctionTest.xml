@@ -126,6 +126,49 @@ ProcessTableFunction(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOrderBy">
+    <Resource name="sql">
+      <![CDATA[SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY (ts ASC, score DESC NULLS FIRST), i => 42, on_time => DESCRIPTOR(ts))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$1], rowtime=[$2])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0) ORDER BY($2 ASC_NULLS_LAST, $1 DESC_NULLS_FIRST), 42, DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+   +- LogicalProject(name=[$0], score=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[out, rowtime])
++- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0) ORDER BY($2 ASC_NULLS_LAST, $1 DESC_NULLS_FIRST), 42, DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[f], select=[name,out,rowtime], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+   +- Exchange(distribution=[hash[name]])
+      +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked]], fields=[name, score, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRetractModeWithRowSemantics">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE t)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], count=[$1], mode=[$2])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name, BIGINT count, VARCHAR(2147483647) mode)])
+   +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[name,count,mode], rowType=[RecordType(VARCHAR(2147483647) name, BIGINT count, VARCHAR(2147483647) mode)], changelogMode=[I,UB,UA,D])
++- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowSemanticTableOptionalUid">
     <Resource name="ast">
       <![CDATA[

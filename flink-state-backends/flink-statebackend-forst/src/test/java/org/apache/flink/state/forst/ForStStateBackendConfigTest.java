@@ -42,7 +42,6 @@ import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.lang3.RandomUtils;
@@ -58,7 +57,6 @@ import org.forstdb.util.SizeUnit;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
@@ -375,7 +373,6 @@ public class ForStStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    @Category(FailsInGHAContainerWithRootUser.class)
     public void testFailWhenNoLocalStorageDir() throws Exception {
         final File targetDir = tempFolder.newFolder();
         Assume.assumeTrue(

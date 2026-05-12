@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.DataViewUtils
 import org.apache.flink.table.runtime.dataview.StateListView.KeyedStateListView
@@ -77,11 +76,8 @@ object ProcessTableRunnerGenerator {
     // For specialized functions, this call context is able to provide the final changelog modes.
     // Thus, functions can reconfigure themselves for the exact use case.
     // Including updating their state layout.
-    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
-      udfCall,
-      inputTimeColumns,
-      inputChangelogModes,
-      outputChangelogMode)
+    val callContext =
+      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
 
     // Create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(

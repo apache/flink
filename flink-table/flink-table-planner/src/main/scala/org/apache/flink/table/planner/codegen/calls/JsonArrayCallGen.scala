@@ -19,16 +19,17 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, NullNode}
 import org.apache.flink.table.api.JsonOnNull
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, primitiveTypeTermForType, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgram}
 
 /** [[CallGenerator]] for `JSON_ARRAY`. */
-class JsonArrayCallGen(call: RexCall) extends CallGenerator {
+class JsonArrayCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
+
   private def jsonUtils = className[SqlJsonUtils]
 
   override def generate(
@@ -47,7 +48,9 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
       .drop(1)
       .map {
         case (elementExpr, elementIdx) =>
-          val elementTerm = createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx))
+          val exprs = CodeGenUtils.getExprsFromProgramOrNull(rexProgram)
+          val elementTerm =
+            createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx), exprs)
 
           onNull match {
             case JsonOnNull.NULL =>

@@ -195,9 +195,14 @@ class NativeS3OutputStream extends FSDataOutputStream {
             if (encryptionConfig.isEnabled()) {
                 putRequestBuilder.serverSideEncryption(encryptionConfig.getServerSideEncryption());
                 if (encryptionConfig.getEncryptionType()
-                                == S3EncryptionConfig.EncryptionType.SSE_KMS
-                        && encryptionConfig.getKmsKeyId() != null) {
-                    putRequestBuilder.ssekmsKeyId(encryptionConfig.getKmsKeyId());
+                        == S3EncryptionConfig.EncryptionType.SSE_KMS) {
+                    if (encryptionConfig.getKmsKeyId() != null) {
+                        putRequestBuilder.ssekmsKeyId(encryptionConfig.getKmsKeyId());
+                    }
+                    if (encryptionConfig.hasEncryptionContext()) {
+                        putRequestBuilder.ssekmsEncryptionContext(
+                                encryptionConfig.serializeEncryptionContext());
+                    }
                 }
             }
 

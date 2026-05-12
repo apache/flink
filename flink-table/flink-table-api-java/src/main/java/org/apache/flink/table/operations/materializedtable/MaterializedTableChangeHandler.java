@@ -27,6 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.AddColumn;
 import org.apache.flink.table.catalog.TableChange.AddDistribution;
@@ -44,6 +45,7 @@ import org.apache.flink.table.catalog.TableChange.ModifyDistribution;
 import org.apache.flink.table.catalog.TableChange.ModifyPhysicalColumnType;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
+import org.apache.flink.table.catalog.TableChange.ModifyStartMode;
 import org.apache.flink.table.catalog.TableChange.ModifyUniqueConstraint;
 import org.apache.flink.table.catalog.TableChange.ModifyWatermark;
 import org.apache.flink.table.catalog.TableChange.ResetOption;
@@ -84,6 +86,7 @@ public class MaterializedTableChangeHandler {
     private int droppedPersistedCnt = 0;
     private String originalQuery;
     private String expandedQuery;
+    private StartMode startMode;
     private final Map<String, String> options;
     private final List<String> validationErrors = new ArrayList<>();
 
@@ -102,6 +105,7 @@ public class MaterializedTableChangeHandler {
         }
         originalQuery = oldTable.getOriginalQuery();
         expandedQuery = oldTable.getExpandedQuery();
+        startMode = oldTable.getStartMode().orElse(null);
         this.oldTable = oldTable;
         this.options = new HashMap<>(oldTable.getOptions());
     }
@@ -170,6 +174,7 @@ public class MaterializedTableChangeHandler {
                 .refreshStatus(context.getRefreshStatus())
                 .refreshHandlerDescription(context.getRefreshHandlerDesc())
                 .serializedRefreshHandler(context.getRefreshHandlerBytes())
+                .startMode(context.getStartMode())
                 .build();
     }
 
@@ -221,6 +226,8 @@ public class MaterializedTableChangeHandler {
         // Options
         registry.register(SetOption.class, MaterializedTableChangeHandler::setTableOption);
         registry.register(ResetOption.class, MaterializedTableChangeHandler::resetTableOption);
+
+        registry.register(ModifyStartMode.class, MaterializedTableChangeHandler::modifyStartMode);
 
         return registry;
     }
@@ -282,6 +289,10 @@ public class MaterializedTableChangeHandler {
 
     public byte[] getRefreshHandlerBytes() {
         return refreshHandlerBytes;
+    }
+
+    public StartMode getStartMode() {
+        return startMode;
     }
 
     @Nullable
@@ -407,6 +418,10 @@ public class MaterializedTableChangeHandler {
 
     private void modifyRefreshStatus(ModifyRefreshStatus modifyRefreshStatus) {
         refreshStatus = modifyRefreshStatus.getRefreshStatus();
+    }
+
+    private void modifyStartMode(ModifyStartMode modifyStartMode) {
+        startMode = modifyStartMode.getStartMode();
     }
 
     private void addDistribution(AddDistribution addDistribution) {

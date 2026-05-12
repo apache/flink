@@ -37,7 +37,8 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RexLiteralUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -55,8 +56,14 @@ import scala.collection.JavaConversions._
  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
  * It can also generate type conversion codes for the result converter.
  */
-class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
+class ExprCodeGenerator(
+    ctx: CodeGeneratorContext,
+    nullableInput: Boolean,
+    val rexProgram: RexProgram)
   extends RexVisitor[GeneratedExpression] {
+
+  def this(ctx: CodeGeneratorContext, nullableInput: Boolean) =
+    this(ctx, nullableInput, null)
 
   /** term of the [[ProcessFunction]]'s context, can be changed when needed */
   var contextTerm = "ctx"
@@ -344,7 +351,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
-    // for specific custom code generation
     if (input1Type == null) {
       return GeneratedExpression(
         inputRef.getName,
@@ -416,8 +422,53 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
-    throw new CodeGenException("RexLocalRef are not supported yet.")
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
+    // addReusableLocalVariable
+    // for specific custom code generation
+    if (input1Type == null) {
+      return GeneratedExpression(
+        localRef.getName,
+        localRef.getName + "IsNull",
+        NO_CODE,
+        FlinkTypeFactory.toLogicalType(localRef.getType))
+    }
+    // for the general cases with a previous call to bindInput()
+    val input1Arity = input1Type match {
+      case r: RowType => r.getFieldCount
+      case _ => 1
+    }
+    if (localRef.getIndex >= input1Arity) {
+      if (rexProgram == null) {
+        throw new CodeGenException(s"RexLocalRef(${localRef.getIndex}) requires a RexProgram.")
+      }
+      val idx = localRef.getIndex
+      val target = rexProgram.getExprList.get(idx)
+      if (!isDeterministicThroughProgram(target)) {
+        return target.accept(this)
+      }
+      val full = ctx.getReusableLocalRefExpr(idx) match {
+        case Some(cached) => cached
+        case None =>
+          val expr = target.accept(this)
+          ctx.addReusableLocalRefExpr(idx, expr)
+          expr
+      }
+      return GeneratedExpression(
+        full.resultTerm,
+        full.nullTerm,
+        NO_CODE,
+        full.resultType,
+        full.literalValue)
+    }
+
+    generateInputAccess(
+      ctx,
+      input1Type,
+      input1Term,
+      localRef.getIndex,
+      nullableInput,
+      deepCopy = true)
+  }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
     val internalType = FlinkTypeFactory.toLogicalType(variable.dataType)
@@ -462,7 +513,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
 
     // throw exception if json function is called outside JSON_OBJECT or JSON_ARRAY function
-    if (isJsonFunctionOperand(call)) {
+    if (isJsonFunctionOperand(call, CodeGenUtils.getExprsFromProgramOrNull(rexProgram))) {
       throw new ValidationException(
         "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param" +
           " of JSON_OBJECT(). Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
@@ -473,10 +524,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       return generateSearch(
         ctx,
         generateExpression(call.getOperands.get(0)),
-        call.getOperands.get(1).asInstanceOf[RexLiteral])
+        rexProgram,
+        call.getOperands)
     }
 
     // convert operands and help giving untyped NULL literals a type
+    val condIdxs = conditionalOperandIndices(call)
     val operands = call.getOperands.zipWithIndex.map {
 
       // this helps e.g. for AS(null)
@@ -487,13 +540,53 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateNullLiteral(resultType)
 
       // We only support the JSON function inside of JSON_OBJECT or JSON_ARRAY
-      case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
+      case (operand: RexNode, i)
+          if isSupportedJsonOperand(
+            operand,
+            call,
+            i,
+            CodeGenUtils.getExprsFromProgramOrNull(rexProgram)) =>
         generateJsonCall(operand)
+
+      case (o @ _, i) if condIdxs.contains(i) => visitOperandInScopedCache(o)
 
       case (o @ _, _) => o.accept(this)
     }
 
     generateCallExpression(ctx, call, operands, resultType)
+  }
+
+  /**
+   * Indices of `call`'s operands that are NOT unconditionally evaluated at runtime. Used to scope
+   * the RexLocalRef cache so that bodies cached while visiting these operands are not hoisted out
+   * of the surrounding short-circuit / if-block.
+   *
+   *   - `CASE(when_1, then_1, when_2, then_2, ..., else)`: only `when_1` is unconditional.
+   *   - `AND(a_0, a_1, ..., a_n)` / `OR(...)`: only `a_0` is unconditional; subsequent operands are
+   *     short-circuited by the operator semantics and the codegen.
+   */
+  private def conditionalOperandIndices(call: RexCall): Set[Int] = call.getKind match {
+    case SqlKind.CASE | SqlKind.AND | SqlKind.OR | SqlKind.COALESCE =>
+      (1 until call.getOperands.size).toSet
+    case _ => Set.empty
+  }
+
+  private def visitOperandInScopedCache(operand: RexNode): GeneratedExpression = {
+    ctx.pushLocalRefScope()
+    val (operandExpr, scopedBodies) = {
+      val expr = operand.accept(this)
+      val popped = ctx.popLocalRefScope()
+      (expr, popped.values.map(_.code).mkString("\n"))
+    }
+    if (scopedBodies.isEmpty) {
+      operandExpr
+    } else
+      GeneratedExpression(
+        operandExpr.resultTerm,
+        operandExpr.nullTerm,
+        scopedBodies + "\n" + operandExpr.code,
+        operandExpr.resultType,
+        operandExpr.literalValue)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
@@ -786,9 +879,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case JSON_QUERY => new JsonQueryCallGen().generate(ctx, operands, resultType)
 
-      case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
+      case JSON_OBJECT =>
+        new JsonObjectCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
-      case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
+      case JSON_ARRAY =>
+        new JsonArrayCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
       case _: SqlThrowExceptionFunction =>
         val nullValue = generateNullLiteral(resultType)
@@ -827,7 +922,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             generateGreatestLeast(ctx, resultType, operands, greatest = false)
 
           case BuiltInFunctionDefinitions.JSON_STRING =>
-            new JsonStringCallGen(call).generate(ctx, operands, resultType)
+            new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
@@ -847,7 +942,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
           case _ =>
-            new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+            new BridgingSqlFunctionCallGen(call, rexProgram).generate(ctx, operands, resultType)
         }
 
       // advanced scalar functions
@@ -875,7 +970,14 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   private def generateJsonCall(operand: RexNode) = {
-    val jsonCall = operand.asInstanceOf[RexCall]
+    // After unification of projections + condition into a single RexProgram, structurally
+    // identical sub-expressions are collapsed into one exprList entry referenced via
+    // RexLocalRef. JSON_OBJECT/JSON_ARRAY operands recognised as JSON via
+    // isSupportedJsonOperand may therefore arrive here as a RexLocalRef; resolve it back to
+    // the underlying RexCall before casting.
+    val jsonCall = FlinkRexUtil
+      .expandLocalRef(operand, CodeGenUtils.getExprsFromProgramOrNull(rexProgram))
+      .asInstanceOf[RexCall]
     val jsonOperands = jsonCall.getOperands.map(_.accept(this))
     generateCallExpression(
       ctx,
@@ -896,4 +998,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         }
     }.toArray
   }
+
+  private def isDeterministicThroughProgram(node: RexNode): Boolean =
+    ShortcutUtils.isDeterministicThroughProgram(
+      node,
+      CodeGenUtils.getExprsFromProgramOrNull(rexProgram))
 }

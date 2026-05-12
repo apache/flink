@@ -283,7 +283,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testBitmapDataType(): Unit = {
-    val data = new mutable.MutableList[Row]
+    val data = new mutable.ListBuffer[Row]
     val empty = Bitmap.empty()
     for (i <- 1 to 3) {
       val bitmap = Bitmap.fromArray(Array[Int](i, i + 1))

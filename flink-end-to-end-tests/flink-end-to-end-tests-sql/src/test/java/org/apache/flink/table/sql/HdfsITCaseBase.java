@@ -27,11 +27,9 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -41,38 +39,37 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 /** Base class for sql ITCase which depends on HDFS env. */
-public abstract class HdfsITCaseBase extends SqlITCaseBase {
+abstract class HdfsITCaseBase extends SqlITCaseBase {
 
     private static final Path HADOOP_CLASSPATH =
             ResourceTestUtils.getResource(".*hadoop.classpath");
 
-    protected Configuration hdConf;
-    protected MiniDFSCluster hdfsCluster;
+    Configuration hdConf;
+    MiniDFSCluster hdfsCluster;
 
-    public HdfsITCaseBase(String executionMode) {
-        super(executionMode);
+    @BeforeAll
+    static void verifyOS() {
+        assumeThat(OperatingSystem.isWindows())
+                .as("HDFS cluster cannot be started on Windows without extensions.")
+                .isFalse();
     }
 
-    @BeforeClass
-    public static void verifyOS() {
-        Assume.assumeTrue(
-                "HDFS cluster cannot be started on Windows without extensions.",
-                !OperatingSystem.isWindows());
-    }
-
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         super.before();
         createHDFS();
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         destroyHDFS();
     }
 
-    protected void createHDFS() {
+    void createHDFS() {
         try {
             hdConf = new Configuration();
             File baseDir =
@@ -83,16 +80,16 @@ public abstract class HdfsITCaseBase extends SqlITCaseBase {
             MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
             hdfsCluster = builder.build();
         } catch (Throwable e) {
-            Assert.fail("Failed to create HDFS env" + e.getMessage());
+            fail("Failed to create HDFS env" + e.getMessage(), e);
         }
     }
 
-    protected void destroyHDFS() {
+    void destroyHDFS() {
         hdfsCluster.shutdown();
     }
 
     @Override
-    protected void executeSqlStatements(
+    void executeSqlStatements(
             ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception {
         clusterController.submitSQLJob(
@@ -116,7 +113,7 @@ public abstract class HdfsITCaseBase extends SqlITCaseBase {
                                 "File that contains hadoop classpath %s does not exist.",
                                 HADOOP_CLASSPATH));
             } catch (FileNotFoundException e) {
-                Assert.fail("Test failed " + e.getMessage());
+                fail("Test failed " + e.getMessage(), e);
             }
         }
 
@@ -124,7 +121,7 @@ public abstract class HdfsITCaseBase extends SqlITCaseBase {
         try {
             classPathContent = FileUtils.readFileUtf8(hadoopClasspathFile);
         } catch (IOException e) {
-            Assert.fail("Test failed " + e.getMessage());
+            fail("Test failed " + e.getMessage(), e);
         }
         return classPathContent;
     }

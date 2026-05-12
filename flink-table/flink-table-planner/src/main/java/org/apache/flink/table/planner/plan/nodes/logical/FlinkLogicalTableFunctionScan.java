@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.TemporalTableFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
@@ -115,7 +116,14 @@ public class FlinkLogicalTableFunctionScan extends TableFunctionScan implements 
                     functionScan.getInputs().stream()
                             .map(input -> RelOptRule.convert(input, FlinkConventions.LOGICAL()))
                             .collect(Collectors.toList());
-            final RexCall rexCall = (RexCall) functionScan.getCall();
+
+            // Resolve any StaticArgument#withConditionalTrait rules on the operator against this
+            // call site (PARTITION BY, scalar literals). After this rewrite, downstream code sees a
+            // BridgingSqlFunction whose getStaticArguments() reports the effective signature, so
+            // simple staticArg.is(SET_SEMANTIC_TABLE) checks suffice.
+            final RexCall rexCall =
+                    BridgingSqlFunction.resolveCallTraits((RexCall) functionScan.getCall());
+
             return new FlinkLogicalTableFunctionScan(
                     functionScan.getCluster(),
                     traitSet,

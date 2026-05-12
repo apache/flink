@@ -59,7 +59,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     private static final int BUFFER_SIZE = 64 * 1024;
     private final ReentrantLock lock = new ReentrantLock();
 
-    private final NativeS3AccessHelper s3AccessHelper;
+    private final NativeS3ObjectOperations s3AccessHelper;
     private final String key;
     private final String uploadId;
     private final String localTmpDir;
@@ -77,7 +77,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     private volatile boolean closed;
 
     public NativeS3RecoverableFsDataOutputStream(
-            NativeS3AccessHelper s3AccessHelper,
+            NativeS3ObjectOperations s3AccessHelper,
             String key,
             String uploadId,
             String localTmpDir,
@@ -87,7 +87,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     }
 
     public NativeS3RecoverableFsDataOutputStream(
-            NativeS3AccessHelper s3AccessHelper,
+            NativeS3ObjectOperations s3AccessHelper,
             String key,
             String uploadId,
             String localTmpDir,
@@ -182,7 +182,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentOutputStream.close();
 
         int partNumber = nextPartNumber++;
-        NativeS3AccessHelper.UploadPartResult result =
+        NativeS3ObjectOperations.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, partNumber, currentTempFile, currentPartSize);
 

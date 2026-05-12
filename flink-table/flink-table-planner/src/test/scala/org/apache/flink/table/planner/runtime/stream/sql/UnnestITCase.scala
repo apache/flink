@@ -782,4 +782,41 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val expectedFieldNames = List("x", "y", "ord")
     assertThat(fieldNames).isEqualTo(expectedFieldNames)
   }
+
+  @TestTemplate
+  def testLeftJoinUnnestNoAliasList(): Unit = {
+    val data = List(
+      (1, Array(10, 20)),
+      (2, Array.empty[Int]),
+      (3, Array(30))
+    )
+    assertUnnest(
+      testData = data,
+      typeInfo = createTypeInformation[(Int, Array[Int])],
+      sqlQuery = "SELECT id, exploded_val FROM T LEFT JOIN UNNEST(T.vals) AS exploded_val ON TRUE",
+      expectedResults = List("1,10", "1,20", "2,null", "3,30"),
+      isRetract = false,
+      fieldNames = 'id,
+      'vals
+    )
+  }
+
+  @TestTemplate
+  def testLeftJoinUnnestOnPredicate(): Unit = {
+    val data = List(
+      (1, Array(1, 50, 100)),
+      (2, Array(1, 2)),
+      (3, Array.empty[Int])
+    )
+    assertUnnest(
+      testData = data,
+      typeInfo = createTypeInformation[(Int, Array[Int])],
+      sqlQuery =
+        "SELECT id, exploded_val FROM T LEFT JOIN UNNEST(T.vals) AS exploded_val ON exploded_val > 10",
+      expectedResults = List("1,50", "1,100", "2,null", "3,null"),
+      isRetract = false,
+      fieldNames = 'id,
+      'vals
+    )
+  }
 }

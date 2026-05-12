@@ -160,6 +160,22 @@ public class SqlJsonUtils {
                 defaultValueOnError);
     }
 
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Object jsonValue(
+            JsonValueContext parsedInput,
+            String pathSpec,
+            JsonValueOnEmptyOrError emptyBehavior,
+            Object defaultValueOnEmpty,
+            JsonValueOnEmptyOrError errorBehavior,
+            Object defaultValueOnError) {
+        return jsonValue(
+                jsonApiCommonSyntax(parsedInput, pathSpec),
+                emptyBehavior,
+                defaultValueOnEmpty,
+                errorBehavior,
+                defaultValueOnError);
+    }
+
     private static Object jsonValue(
             JsonPathContext context,
             JsonValueOnEmptyOrError emptyBehavior,
@@ -215,6 +231,22 @@ public class SqlJsonUtils {
             JsonQueryOnEmptyOrError errorBehavior) {
         return jsonQuery(
                 jsonApiCommonSyntax(input, pathSpec),
+                returnType,
+                wrapperBehavior,
+                emptyBehavior,
+                errorBehavior);
+    }
+
+    /** Like {@link #jsonQuery} but accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Object jsonQueryParsed(
+            JsonValueContext parsedInput,
+            String pathSpec,
+            JsonQueryReturnType returnType,
+            JsonQueryWrapper wrapperBehavior,
+            JsonQueryOnEmptyOrError emptyBehavior,
+            JsonQueryOnEmptyOrError errorBehavior) {
+        return jsonQuery(
+                jsonApiCommonSyntax(parsedInput, pathSpec),
                 returnType,
                 wrapperBehavior,
                 emptyBehavior,
@@ -412,6 +444,15 @@ public class SqlJsonUtils {
 
     private static Object dejsonize(String input) {
         return JSON_PATH_JSON_PROVIDER.parse(input);
+    }
+
+    /**
+     * Parses a JSON string into a reusable context object. The result can be passed to {@link
+     * #jsonValue} or {@link #jsonQueryParsed} to avoid re-parsing the same JSON string multiple
+     * times.
+     */
+    public static JsonValueContext jsonParse(String input) {
+        return jsonValueExpression(input);
     }
 
     private static JsonValueContext jsonValueExpression(String input) {
@@ -618,7 +659,7 @@ public class SqlJsonUtils {
         }
     }
 
-    private static class JsonValueContext {
+    public static class JsonValueContext {
         @JsonValue public final Object obj;
         public final Exception exc;
 

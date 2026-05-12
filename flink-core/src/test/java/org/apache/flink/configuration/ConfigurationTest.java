@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -481,7 +482,7 @@ class ConfigurationTest {
         ConfigOption<List<String>> secret =
                 ConfigOptions.key("secret").stringType().asList().noDefaultValue();
 
-        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key(), Collections.emptyList())).isTrue();
 
         final Configuration cfg = new Configuration();
         // missing closing quote
@@ -500,7 +501,7 @@ class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key(), Collections.emptyList())).isTrue();
 
         final Configuration cfg = new Configuration();
         // malformed map representation
@@ -519,7 +520,7 @@ class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key(), Collections.emptyList())).isTrue();
 
         final Configuration cfg = new Configuration();
         cfg.setString(secret.key(), "secret_value");

@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -137,6 +138,15 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 throw new ValidationException("Changing of REFRESH MODE is unsupported");
             }
 
+            final StartMode newStartMode = mergeContext.getMergedStartMode();
+            final StartMode oldStartMode =
+                    oldTable.getStartMode()
+                            .orElseThrow(
+                                    () -> new ValidationException("START_MODE must not be null"));
+            if (!Objects.equals(oldStartMode, newStartMode)) {
+                changes.add(TableChange.modifyStartMode(newStartMode));
+            }
+
             return changes;
         };
     }
@@ -213,7 +223,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
     private Optional<TableChange> getConstraintChange(
             final ResolvedSchema oldSchema,
             final ResolvedSchema newSchema,
-            boolean hasConstraintDefinition) {
+            final boolean hasConstraintDefinition) {
         final UniqueConstraint oldConstraint = oldSchema.getPrimaryKey().orElse(null);
         final UniqueConstraint newConstraint = newSchema.getPrimaryKey().orElse(null);
         if (hasConstraintDefinition && !Objects.equals(oldConstraint, newConstraint)) {
@@ -279,11 +289,8 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public boolean hasConstraintDefinition() {
-                if (!sqlCreateMaterializedTable.getTableConstraints().isEmpty()) {
-                    return true;
-                }
-
-                return hasSchemaDefinition();
+                return !sqlCreateMaterializedTable.getTableConstraints().isEmpty()
+                        || hasSchemaDefinition();
             }
 
             @Override
@@ -353,6 +360,11 @@ public class SqlCreateOrAlterMaterializedTableConverter
             public RefreshMode getMergedRefreshMode() {
                 return getDerivedRefreshMode(
                         getDerivedLogicalRefreshMode(sqlCreateMaterializedTable));
+            }
+
+            @Override
+            public StartMode getMergedStartMode() {
+                return getStartMode(sqlCreateMaterializedTable, context);
             }
         };
     }

@@ -258,6 +258,10 @@ The JobManager ensures consistency during recovery across TaskManagers. For the 
 
 {{< generated/common_high_availability_jrs_section >}}
 
+**Options for the ApplicationResultStore in high-availability setups**
+
+{{< generated/common_high_availability_ars_section >}}
+
 **Options for high-availability setups with ZooKeeper**
 
 {{< generated/common_high_availability_zk_section >}}

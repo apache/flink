@@ -64,7 +64,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     protected RowData inputRow;
 
     // Current time
-    private long currentWatermark = Long.MIN_VALUE;
+    private long tableWatermark = Long.MIN_VALUE;
     private @Nullable Long rowtime;
     private @Nullable StringData timerName;
 
@@ -104,7 +104,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         this.valueStateFromFunction = new RowData[stateHandles.length];
     }
 
-    public void ingestTableEvent(int pos, RowData row, int timeColumn) {
+    public void ingestTableEvent(int pos, RowData row, int timeColumn, long watermark) {
         evalCollector.setPrefix(pos, row);
         if (timeColumn == -1) {
             rowtime = null;
@@ -117,6 +117,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         }
         inputIndex = pos;
         inputRow = row;
+        tableWatermark = watermark;
     }
 
     public void ingestTimerEvent(RowData key, @Nullable StringData name, long timerTime) {
@@ -126,10 +127,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         }
         rowtime = timerTime;
         timerName = name;
-    }
-
-    public void ingestWatermarkEvent(long watermarkTime) {
-        currentWatermark = watermarkTime;
+        tableWatermark = Long.MIN_VALUE;
     }
 
     public void clearAllState() {
@@ -140,8 +138,8 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         stateCleared[statePos] = true;
     }
 
-    public long getCurrentWatermark() {
-        return currentWatermark;
+    public long getTableWatermark() {
+        return tableWatermark;
     }
 
     public @Nullable Long getTime() {
@@ -153,10 +151,6 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void processEval() throws Exception {
-        // Drop late events
-        if (rowtime != null && rowtime <= currentWatermark) {
-            return;
-        }
         processMethod(this::callEval);
     }
 

@@ -2057,7 +2057,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 getEnvironment().getTaskInfo().getIndexOfThisSubtask(),
                 getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
                 getEnvironment().getIOManager().getSpillingDirectoriesPaths(),
-                true);
+                true,
+                ConfigurationParserUtils.getPageSize(getEnvironment().getJobConfiguration()));
     }
 
     /** Check whether records can be emitted in batch. */

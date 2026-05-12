@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Factory for creating Native S3 FileSystem instances.
@@ -90,6 +92,22 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .withFallbackKeys("s3.path.style.access")
                     .withDescription("Use path-style access for S3 (for S3-compatible storage)");
 
+    public static final ConfigOption<Boolean> CHUNKED_ENCODING_ENABLED =
+            ConfigOptions.key("s3.chunked-encoding.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enable chunked encoding for S3 requests. "
+                                    + "Disable for S3-compatible servers that do not support chunked encoding.");
+
+    public static final ConfigOption<Boolean> CHECKSUM_VALIDATION_ENABLED =
+            ConfigOptions.key("s3.checksum-validation.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enable checksum validation for S3 requests. "
+                                    + "Disable for S3-compatible servers that do not support checksum validation.");
+
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
                     .longType()
@@ -121,6 +139,15 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .booleanType()
                     .defaultValue(true)
                     .withDescription("Enable bulk copy operations using S3TransferManager");
+
+    public static final ConfigOption<Integer> MAX_CONNECTIONS =
+            ConfigOptions.key("s3.connection.max")
+                    .intType()
+                    .defaultValue(50)
+                    .withDescription(
+                            "Maximum number of HTTP connections in the S3 client connection pool. "
+                                    + "Applies to both the sync client (Apache HTTP) and the async client (Netty). "
+                                    + "Must be at least as large as 's3.bulk-copy.max-concurrent'.");
 
     public static final ConfigOption<Integer> BULK_COPY_MAX_CONCURRENT =
             ConfigOptions.key("s3.bulk-copy.max-concurrent")
@@ -164,6 +191,16 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "If not specified with SSE-KMS, the default AWS-managed key (aws/s3) is used. "
                                     + "Example: 'arn:aws:kms:us-east-1:123456789:key/12345678-1234-1234-1234-123456789abc' "
                                     + "or 'alias/my-s3-key'");
+
+    public static final ConfigOption<Map<String, String>> SSE_KMS_ENCRYPTION_CONTEXT =
+            ConfigOptions.key("s3.sse.kms.encryption-context")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Encryption context key-value pairs for SSE-KMS. "
+                                    + "Provides additional authenticated data and enables "
+                                    + "fine-grained IAM policy conditions. "
+                                    + "Format: 'key1:value1,key2:value2'");
 
     // IAM Assume Role Configuration
     public static final ConfigOption<String> ASSUME_ROLE_ARN =
@@ -286,12 +323,12 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         String endpoint = config.get(ENDPOINT);
         boolean pathStyleAccess = config.get(PATH_STYLE_ACCESS);
 
-        if (endpoint != null && !pathStyleAccess) {
-            pathStyleAccess = true;
-        }
-
         S3EncryptionConfig encryptionConfig =
-                S3EncryptionConfig.fromConfig(config.get(SSE_TYPE), config.get(SSE_KMS_KEY_ID));
+                S3EncryptionConfig.fromConfig(
+                        config.get(SSE_TYPE),
+                        config.get(SSE_KMS_KEY_ID),
+                        config.getOptional(SSE_KMS_ENCRYPTION_CONTEXT)
+                                .orElse(Collections.emptyMap()));
         String entropyInjectionKey = config.get(ENTROPY_INJECT_KEY_OPTION);
         int numEntropyChars = -1;
         if (entropyInjectionKey != null) {
@@ -319,34 +356,37 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         // Validate part size: S3 requires minimum 5MB and maximum 5GB per part
         Preconditions.checkArgument(
                 s3minPartSize >= S3_MULTIPART_MIN_PART_SIZE,
-                "%s must be at least 5MB (5242880 bytes), but was %d bytes",
+                "%s must be at least 5MB (5242880 bytes), but was %s bytes",
                 PART_UPLOAD_MIN_SIZE.key(),
                 s3minPartSize);
         Preconditions.checkArgument(
                 s3minPartSize <= 5L * 1024 * 1024 * 1024,
-                "%s must not exceed 5GB (5368709120 bytes), but was %d bytes",
+                "%s must not exceed 5GB (5368709120 bytes), but was %s bytes",
                 PART_UPLOAD_MIN_SIZE.key(),
                 s3minPartSize);
         Preconditions.checkArgument(
                 maxConcurrentUploads > 0,
-                "%s must be positive, but was %d",
+                "%s must be positive, but was %s",
                 MAX_CONCURRENT_UPLOADS.key(),
                 maxConcurrentUploads);
 
         boolean useAsyncOperations = config.get(USE_ASYNC_OPERATIONS);
-
-        // Validate and clamp read buffer size to sensible range [64KB, 4MB]
-        // We clip rather than throw to provide flexibility while preventing extreme values
         int configuredReadBufferSize = config.get(READ_BUFFER_SIZE);
-        int readBufferSize =
-                Math.max(64 * 1024, Math.min(configuredReadBufferSize, 4 * 1024 * 1024));
+        int readBufferSize = Math.max(256 * 1024, configuredReadBufferSize);
         if (readBufferSize != configuredReadBufferSize) {
             LOG.warn(
-                    "{} value {} was outside valid range [64KB, 4MB]. Using {} instead.",
+                    "{} value {} was below 64KB. Using {} instead.",
                     READ_BUFFER_SIZE.key(),
                     configuredReadBufferSize,
                     readBufferSize);
         }
+
+        final int maxConnections = config.get(MAX_CONNECTIONS);
+        Preconditions.checkArgument(
+                maxConnections > 0,
+                "'%s' must be a positive integer, but was %s",
+                MAX_CONNECTIONS.key(),
+                maxConnections);
 
         S3ClientProvider clientProvider =
                 S3ClientProvider.builder()
@@ -355,6 +395,9 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .region(region)
                         .endpoint(endpoint)
                         .pathStyleAccess(pathStyleAccess)
+                        .chunkedEncoding(config.get(CHUNKED_ENCODING_ENABLED))
+                        .checksumValidation(config.get(CHECKSUM_VALIDATION_ENABLED))
+                        .maxConnections(maxConnections)
                         .connectionTimeout(config.get(CONNECTION_TIMEOUT))
                         .socketTimeout(config.get(SOCKET_TIMEOUT))
                         .connectionMaxIdleTime(config.get(CONNECTION_MAX_IDLE_TIME))
@@ -371,10 +414,17 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
 
         NativeS3BulkCopyHelper bulkCopyHelper = null;
         if (config.get(BULK_COPY_ENABLED)) {
+            final int bulkCopyMaxConcurrent = config.get(BULK_COPY_MAX_CONCURRENT);
+            Preconditions.checkArgument(
+                    bulkCopyMaxConcurrent > 0,
+                    "'%s' must be a positive integer, but was %s",
+                    BULK_COPY_MAX_CONCURRENT.key(),
+                    bulkCopyMaxConcurrent);
             bulkCopyHelper =
                     new NativeS3BulkCopyHelper(
                             clientProvider.getTransferManager(),
-                            config.get(BULK_COPY_MAX_CONCURRENT));
+                            bulkCopyMaxConcurrent,
+                            maxConnections);
         }
 
         return new NativeS3FileSystem(

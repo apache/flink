@@ -46,6 +46,8 @@ import org.apache.flink.types.{ColumnList, Row, RowKind}
 import org.apache.flink.types.bitmap.Bitmap
 import org.apache.flink.types.variant.Variant
 
+import org.apache.calcite.rex.{RexNode, RexProgram}
+
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.lang.reflect.Method
 import java.util.concurrent.atomic.AtomicLong
@@ -1118,6 +1120,14 @@ object CodeGenUtils {
       // For single operator codegen case, this is needed.
       case None =>
         GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
+    }
+  }
+
+  def getExprsFromProgramOrNull(rexProgram: RexProgram): java.util.List[RexNode] = {
+    if (rexProgram == null) {
+      null
+    } else {
+      rexProgram.getExprList
     }
   }
 }

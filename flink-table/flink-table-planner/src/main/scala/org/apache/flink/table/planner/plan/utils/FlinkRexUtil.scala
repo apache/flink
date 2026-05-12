@@ -525,6 +525,14 @@ object FlinkRexUtil {
       RexUtil.expandSearch(rexBuilder, program, program.expandLocalRef(program.getCondition)))
     RelOptUtil.conjunctions(condition)
   }
+
+  def expandLocalRef(operand: RexNode, localRefs: util.List[RexNode]): RexNode = {
+    var expanded = operand
+    while (expanded.isInstanceOf[RexLocalRef] && localRefs != null) {
+      expanded = localRefs.get(expanded.asInstanceOf[RexLocalRef].getIndex)
+    }
+    expanded
+  }
 }
 
 /**

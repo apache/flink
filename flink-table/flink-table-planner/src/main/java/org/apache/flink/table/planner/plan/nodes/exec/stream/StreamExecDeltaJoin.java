@@ -574,7 +574,8 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
                             lookupSidePassThroughCalcRowType,
-                            lookupTableSourceRowType);
+                            lookupTableSourceRowType,
+                            typeFactory);
         }
 
         Preconditions.checkState(!generatedFetcherCollector.containsKey(lookupTableOrdinal));

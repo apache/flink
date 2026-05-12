@@ -28,9 +28,11 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
+import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
 import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -94,6 +96,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NULL_AS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_OPERANDS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ORDER_DIRECTIONS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ORDER_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_PARTITION_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_RANGES;
@@ -338,7 +341,18 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             orderKeys[i] = orderKeysNode.get(i).asInt();
         }
 
-        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys);
+        final JsonNode orderDirectionsNode = jsonNode.get(FIELD_NAME_ORDER_DIRECTIONS);
+        final SortOrder[] order;
+        if (orderDirectionsNode != null && !orderDirectionsNode.isEmpty()) {
+            order = new SortOrder[orderDirectionsNode.size()];
+            for (int i = 0; i < orderDirectionsNode.size(); ++i) {
+                order[i] = SortOrder.valueOf(orderDirectionsNode.get(i).asText());
+            }
+        } else {
+            order = new SortOrder[0];
+        }
+
+        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, order);
     }
 
     private static RexNode deserializeCall(JsonNode jsonNode, SerdeContext serdeContext)
@@ -361,7 +375,13 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         } else {
             callType = serdeContext.getRexBuilder().deriveReturnType(operator, rexOperands);
         }
-        return serdeContext.getRexBuilder().makeCall(callType, operator, rexOperands);
+        // SqlDefaultArgOperator is constructed per-call site by FlinkSqlCallBinding and not
+        // registered in any operator table. Rebuild the typed Flink instance here.
+        final SqlOperator effectiveOperator =
+                operator.getKind() == SqlKind.DEFAULT
+                        ? new SqlDefaultArgOperator(callType)
+                        : operator;
+        return serdeContext.getRexBuilder().makeCall(callType, effectiveOperator, rexOperands);
     }
 
     // --------------------------------------------------------------------------------------------

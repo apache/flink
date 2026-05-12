@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.helpers.NOPLogger;
@@ -73,7 +72,6 @@ class RestServerEndpointTest {
         assertThat(Files.exists(testUploadDir)).isTrue();
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testCreateUploadDirFails(@TempDir File file) throws Exception {
         assertThat(file.setWritable(false));

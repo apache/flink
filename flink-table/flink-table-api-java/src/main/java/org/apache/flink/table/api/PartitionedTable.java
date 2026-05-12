@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 
@@ -36,6 +37,36 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 public interface PartitionedTable {
 
     /**
+     * Sorts the partitioned table within each partition.
+     *
+     * <p>This is useful for process table functions that need ordered input within each set scoped
+     * by the key.
+     *
+     * <p>Note: The first sorting column must be a time attribute column in ascending order for
+     * which a watermark has been declared. The watermarked column must be forwarded without any
+     * modification to ensure event-time sorting. Secondary ordering columns can differ and are used
+     * for deterministic ordering within the same timestamp.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * // Primary ordering by watermarked timestamp, secondary by score
+     * env.fromCall(
+     *   "MyPTF",
+     *   table
+     *     .partitionBy($("key"))
+     *     .orderBy($("ts").asc(), $("score").desc())
+     *     .asArgument("input_table")
+     * )
+     * }</pre>
+     *
+     * @param fields expressions for ordering (e.g., {@code $("ts").asc(), $("score").desc()})
+     * @return a partitioned and ordered table
+     * @see ProcessTableFunction
+     */
+    PartitionedTable orderBy(Expression... fields);
+
+    /**
      * Converts this table object into a named argument.
      *
      * <p>This method is intended for calls to process table functions (PTFs) that take table
@@ -50,8 +81,8 @@ public interface PartitionedTable {
      * )
      * }</pre>
      *
-     * @see ProcessTableFunction
      * @return an expression that can be passed into {@link TableEnvironment#fromCall}.
+     * @see ProcessTableFunction
      */
     ApiExpression asArgument(String name);
 

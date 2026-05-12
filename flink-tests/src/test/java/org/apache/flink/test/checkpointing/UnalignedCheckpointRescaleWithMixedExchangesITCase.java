@@ -33,6 +33,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -180,7 +181,9 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
         // enabled. All buffers(records) before barrier must be consumed for aligned checkpoint.
         // The smaller the buffer size means the fewer records are needed to be consumed during
         // aligned checkpoint.
-        conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1 kb"));
+        conf.set(
+                TaskManagerOptions.MEMORY_SEGMENT_SIZE,
+                new MemorySize(MemoryManager.MIN_PAGE_SIZE));
         if (recoveryPath != null) {
             conf.set(StateRecoveryOptions.SAVEPOINT_PATH, recoveryPath);
         }

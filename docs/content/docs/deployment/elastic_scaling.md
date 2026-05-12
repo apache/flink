@@ -198,4 +198,81 @@ Since Reactive Mode is a new, experimental feature, not all features supported b
 
 The [limitations of Adaptive Scheduler](#limitations-1) also apply to Reactive Mode.
 
+## Rescale History
+
+Before Flink 2.3, users and developers were unable to inspect the internal details of `AdaptiveScheduler` rescaling history,
+causing operational inconvenience.
+For instance, users need visibility into specific resource changes, parallelism adjustments,
+and the time spent on each internal state transition during the rescaling process.
+This information is crucial for tuning parameters to achieve lower latency and higher stability in rescaling.
+
+Therefore, Flink community introduced [FLIP-495](https://cwiki.apache.org/confluence/x/TQr0Ew) to support recording and storing rescaling history,
+and [FLIP-487](https://cwiki.apache.org/confluence/x/vZCMEw) to enable querying via the REST API and displaying this history on the Web UI.
+
+You can enable rescale history for stream jobs with the `AdaptiveScheduler` enabled by setting the following configuration item to a positive integer.
+This value indicates the number of recent rescale records retained for the job.
+
+- [`web.adaptive-scheduler.rescale-history.size`]({{< ref "docs/deployment/config" >}}#web-adaptive-scheduler-rescale-history-size): `4`
+
+The default value of the configuration option is `0`. When the configuration value is less than or equal to `0`, this feature will be disabled.
+
+### The Information and Style About Rescale History
+
+Since Flink version 2.3, a page for displaying `Rescales` has been introduced in the Web UI, 
+positioned at the same hierarchical level as the `Checkpoints` page and featuring a similar style.
+This primarily includes the following sub-pages:
+
+- `Overview`  
+  This sub-page displays recent rescale records across various rescale terminal states, 
+  along with fundamental job rescale statistics—such as the total number of rescales since job startup and the counts of failures or successes. 
+  Additionally, the page supports the display of detailed rescale information.
+
+- `History`  
+  This sub-page displays abbreviated information for the most recent rescale records (up to the configured [`web.adaptive-scheduler.rescale-history.size`]({{< ref "docs/deployment/config" >}}#web-adaptive-scheduler-rescale-history-size) limit). 
+  Additionally, the page supports the display of detailed rescale information as outlined below:
+    - The basic information of a rescale
+      - <u>Rescale UUID</u>: The unique ID in a rescale consists of 32 hexadecimal characters (The UUID definition below is identical to the one here).
+      - <u>Attempt ID</u>: The number of rescale attempts triggered on the same job resource requirements.
+      - <u>Requirements ID</u>: The unique UUID of resource requirements.
+      - <u>Trigger Cause</u>: The reason that triggered a rescale.
+      - <u>Terminal State</u>: The end state of a rescale.
+      - <u>Terminated Reason</u>: The reason of the rescale lifecycle termination.
+      - <u>Start Time</u>: The start time of a rescale.
+      - <u>Duration</u>: Duration from the start of the rescale to its completion or until now if the rescale operation hasn't completed, yet.
+      - <u>End Time</u>: The end time of a rescale if the rescale is terminated, current time else.
+    - The basic attributes and rescale change per `Job Vertex`
+      - <u>ID</u>: The unique UUID of target `Job Vertex`.
+      - <u>Name</u>: The short name of target vertex.
+      - <u>Slot Sharing Group ID</u>: The unique UUID of target `Slot Sharing Group`.
+      - <u>Previous Parallelism</u>: The parallelism of target vertex before the current rescale.
+      - <u>Acquired Parallelism</u>: The parallelism of target vertex after the current rescale.
+      - <u>Sufficient Parallelism</u>: The minimal parallelism of the vertex that would have allowed the rescale operation to go through even if the desired parallelism wasn't possible to be reached.
+      - <u>Desired Parallelism</u>: The desired parallelism of a `Job Vertex` that was specified in the initial change request that triggered the rescale operation.
+    - The basic attributes and rescale change per `Slot Sharing Group`
+      - <u>Slot Sharing Group ID</u>: The UUID of the `Slot Sharing Group` to which target slot belongs.
+      - <u>Slot Sharing Group Name</u>: The name of the `Slot Sharing Group` to which the slot belongs.
+      - <u>Previous Slot</u>: The number of slots before the rescale.
+      - <u>Acquired Slot</u>: The number of slots after the rescale.
+      - <u>Desired Slot</u>: The desired number of slots of the rescale.
+      - <u>Sufficient Slot</u>: The minimal number of slots to deploy tasks in the rescale.
+      - <u>Request Profile</u>: The request resource profile of the `Slot Sharing Group` in the rescale.
+      - <u>Acquired Profile</u>: The acquired resource profile of the `Slot Sharing Group` in the rescale.
+    - The internal `Scheduler State History`] of `AdaptiveScheduler` within a rescale (see [`AdaptiveScheduler states in FLIP-160`](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=173083547#FLIP160:AdaptiveScheduler-Statemachineofthescheduler) for further details)
+      - <u>State</u>: The scheduler state name.
+      - <u>Enter Time</u>: The time to enter the state.
+      - <u>Leave Time</u>: The time to leave the state.
+      - <u>Duration</u>: Time spent in the state (Leave Time − Enter Time).
+      - <u>Exception</u>: The exception information about current rescale within the state.
+- `Summary`  
+  This sub-page displays the total number of rescale events that have occurred since the job was launched,
+  along with the respective counts of failures and successes. 
+  Additionally, it provides statistical summaries of the rescale history, 
+  such as rescale duration statistics categorized by rescale status, including `Min`, `Max`, `Avg`, and `P50` metrics, etc.
+- `Configuration`  
+  This sub-page displays the relevant parameter values used by the `AdaptiveScheduler` during rescaling operations for the current streaming job.
+
+### More details
+
+See the [FLIP-495](https://cwiki.apache.org/confluence/x/TQr0Ew) and [FLIP-487](https://cwiki.apache.org/confluence/x/vZCMEw) for more details.
+
 {{< top >}}

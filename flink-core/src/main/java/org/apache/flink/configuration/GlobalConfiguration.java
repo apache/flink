@@ -58,7 +58,10 @@ public final class GlobalConfiguration {
                 "token",
                 "basic-auth",
                 "jaas.config",
-                "http-headers"
+                "http-headers",
+                "access-key",
+                "access.key",
+                "accesskey"
             };
 
     // the hidden content to be displayed
@@ -151,24 +154,27 @@ public final class GlobalConfiguration {
             configuration = loadYAMLResource(yamlConfigFile);
         }
 
-        logConfiguration("Loading", configuration);
+        final List<String> additionalKeys =
+                configuration.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS);
+        logConfiguration("Loading", configuration, additionalKeys);
 
         if (dynamicProperties != null) {
-            logConfiguration("Loading dynamic", dynamicProperties);
+            logConfiguration("Loading dynamic", dynamicProperties, additionalKeys);
             configuration.addAll(dynamicProperties);
         }
 
         return configuration;
     }
 
-    private static void logConfiguration(String prefix, Configuration config) {
+    private static void logConfiguration(
+            String prefix, Configuration config, List<String> additionalKeys) {
         config.confData.forEach(
                 (key, value) ->
                         LOG.info(
                                 "{} configuration property: {}, {}",
                                 prefix,
                                 key,
-                                isSensitive(key) ? HIDDEN_CONTENT : value));
+                                isSensitive(key, additionalKeys) ? HIDDEN_CONTENT : value));
     }
 
     /**
@@ -263,12 +269,21 @@ public final class GlobalConfiguration {
      * Check whether the key is a hidden key.
      *
      * @param key the config key
+     * @param additionalKeys user-defined additional sensitive key substrings to check in addition
+     *     to the built-in list; use {@link SecurityOptions#ADDITIONAL_SENSITIVE_KEYS} to obtain
+     *     these from a loaded {@link Configuration}
      */
-    public static boolean isSensitive(String key) {
+    public static boolean isSensitive(String key, List<String> additionalKeys) {
         Preconditions.checkNotNull(key, "key is null");
         final String keyInLower = key.toLowerCase();
         for (String hideKey : SENSITIVE_KEYS) {
             if (keyInLower.length() >= hideKey.length() && keyInLower.contains(hideKey)) {
+                return true;
+            }
+        }
+        for (String hideKey : additionalKeys) {
+            final String hideKeyLower = hideKey.toLowerCase();
+            if (keyInLower.length() >= hideKeyLower.length() && keyInLower.contains(hideKeyLower)) {
                 return true;
             }
         }

@@ -445,7 +445,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testRowType(): Unit = {
-    val data = new mutable.MutableList[(Int, Long, String)]
+    val data = new mutable.ListBuffer[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
@@ -541,7 +541,7 @@ class CalcITCase extends BatchTestBase {
       "{3=Hello world}\n"
     TestBaseUtils.compareResultAsText(result3.asJava, expected3)
 
-    val data = new mutable.MutableList[(String, BigDecimal, String, BigDecimal)]
+    val data = new mutable.ListBuffer[(String, BigDecimal, String, BigDecimal)]
     data.+=(("AAA", BigDecimal.valueOf(123.45), "BBB", BigDecimal.valueOf(234.56)))
     data.+=(("CCC", BigDecimal.valueOf(345.67), "DDD", BigDecimal.valueOf(456.78)))
     data.+=(("EEE", BigDecimal.valueOf(567.89), "FFF", BigDecimal.valueOf(678.99)))
@@ -557,7 +557,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testValueConstructor(): Unit = {
-    val data = new mutable.MutableList[(String, Int, LocalDateTime)]
+    val data = new mutable.ListBuffer[(String, Int, LocalDateTime)]
     data.+=(("foo", 12, localDateTime("1984-07-12 14:34:24")))
     val t = BatchTableEnvUtil
       .fromCollection(tEnv, data, "a, b, c")

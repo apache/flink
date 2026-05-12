@@ -86,7 +86,7 @@ jobs:
             os_name: macos
     steps:
       - name: "Checkout the repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -97,11 +97,14 @@ jobs:
           value: ${{ github.workflow }}
       # Used to host cibuildwheel
       - name: "Setup Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: "Install cibuildwheel"
-        run: python -m pip install cibuildwheel==2.16.5
+        # Need to limit setuptools here in order to apply limitations for transitive dependencies
+        run: |
+          python -m pip install cibuildwheel==2.16.5
+          echo "setuptools<82" > /tmp/build-constraints.txt
       - name: "Build python wheels for ${{ matrix.os_name }}"
         run: python -m cibuildwheel --output-dir flink-python/dist flink-python
         env:
@@ -116,8 +119,9 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
           # Skip repair on MacOS
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
+          PIP_CONSTRAINT: /tmp/build-constraints.txt
       - name: "Upload python wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
           path: flink-python/dist/**

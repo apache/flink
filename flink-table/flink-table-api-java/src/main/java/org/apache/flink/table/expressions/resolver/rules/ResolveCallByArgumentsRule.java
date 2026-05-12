@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
@@ -682,6 +683,23 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
+        public Optional<String> getArgumentName(int pos) {
+            final ResolvedExpression arg = getArgument(pos);
+
+            if (arg instanceof CallExpression) {
+                final CallExpression call = (CallExpression) arg;
+                if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
+                    final List<ResolvedExpression> children = call.getResolvedChildren();
+                    if (children.size() >= 2 && children.get(1) instanceof ValueLiteralExpression) {
+                        return ((ValueLiteralExpression) children.get(1)).getValueAs(String.class);
+                    }
+                }
+            }
+
+            return Optional.empty();
+        }
+
+        @Override
         public Optional<DataType> getOutputDataType() {
             return Optional.empty();
         }
@@ -728,16 +746,29 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
         @Override
         public int[] partitionByColumns() {
-            if (!(operation instanceof PartitionQueryOperation)) {
+            final PartitionQueryOperation partitionOperation = findPartitionOperation(operation);
+            if (partitionOperation == null) {
                 return new int[0];
             }
-            final PartitionQueryOperation partitionOperation = (PartitionQueryOperation) operation;
             return partitionOperation.getPartitionKeys();
         }
 
         @Override
         public int[] orderByColumns() {
-            return new int[0];
+            final PartitionQueryOperation partitionOperation = findPartitionOperation(operation);
+            if (partitionOperation == null) {
+                return new int[0];
+            }
+            return extractOrderByColumns(partitionOperation);
+        }
+
+        @Override
+        public SortDirection[] orderByDirections() {
+            final PartitionQueryOperation partitionOperation = findPartitionOperation(operation);
+            if (partitionOperation == null) {
+                return new SortDirection[0];
+            }
+            return extractOrderByDirections(partitionOperation);
         }
 
         @Override
@@ -748,6 +779,63 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
+        }
+
+        private PartitionQueryOperation findPartitionOperation(QueryOperation op) {
+            if (op instanceof PartitionQueryOperation) {
+                return (PartitionQueryOperation) op;
+            }
+            return null;
+        }
+
+        private int[] extractOrderByColumns(PartitionQueryOperation partitionOperation) {
+            return partitionOperation.getOrderExpressions().stream()
+                    .mapToInt(this::extractFieldIndex)
+                    .toArray();
+        }
+
+        private SortDirection[] extractOrderByDirections(
+                PartitionQueryOperation partitionOperation) {
+            return partitionOperation.getOrderExpressions().stream()
+                    .map(this::extractSortDirection)
+                    .toArray(SortDirection[]::new);
+        }
+
+        private int extractFieldIndex(ResolvedExpression orderExpr) {
+            // Order expressions are typically CallExpressions wrapping ORDER_ASC or ORDER_DESC
+            if (orderExpr instanceof CallExpression) {
+                final CallExpression call = (CallExpression) orderExpr;
+                if (call.getChildren().size() == 1) {
+                    final Expression child = call.getChildren().get(0);
+                    if (child instanceof FieldReferenceExpression) {
+                        return ((FieldReferenceExpression) child).getFieldIndex();
+                    }
+                }
+            }
+            // Fallback: if it's directly a field reference
+            if (orderExpr instanceof FieldReferenceExpression) {
+                return ((FieldReferenceExpression) orderExpr).getFieldIndex();
+            }
+            throw new TableException(
+                    "Unable to extract field index from order expression: " + orderExpr);
+        }
+
+        private SortDirection extractSortDirection(ResolvedExpression orderExpr) {
+            // Check if wrapped in ORDER_ASC or ORDER_DESC
+            if (orderExpr instanceof CallExpression) {
+                final CallExpression call = (CallExpression) orderExpr;
+                final FunctionDefinition functionDef = call.getFunctionDefinition();
+
+                if (functionDef == BuiltInFunctionDefinitions.ORDER_DESC) {
+                    // DESC defaults to NULLS FIRST in SQL
+                    return SortDirection.DESC_NULLS_FIRST;
+                } else if (functionDef == BuiltInFunctionDefinitions.ORDER_ASC) {
+                    // ASC defaults to NULLS LAST in SQL
+                    return SortDirection.ASC_NULLS_LAST;
+                }
+            }
+            // Default is ascending with nulls last
+            return SortDirection.ASC_NULLS_LAST;
         }
     }
 

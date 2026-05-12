@@ -37,7 +37,7 @@ LogicalProject(a=[$0], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
   </TestCase>
@@ -62,7 +62,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(k=[$0], v=[$1])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) KEY, VARCHAR(2147483647) VALUE)])
 ]]>
     </Resource>
   </TestCase>
@@ -98,7 +98,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
       :  +- LogicalFilter(condition=[<($0, 3)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(x=[$0], y=[$1])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -132,7 +132,7 @@ LogicalProject(a=[$0], s=[$2])
       :  +- LogicalProject(a=[$0], b=[$1])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType(VARCHAR(2147483647) set)])
 ]]>
     </Resource>
   </TestCase>
@@ -157,7 +157,7 @@ LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data)])
 ]]>
     </Resource>
   </TestCase>
@@ -181,8 +181,31 @@ LogicalProject(bd_name=[$3])
 LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalProject(bd_name=[$0])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data)])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullMismatchLeftJoinNoAliasList">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- Uncollect
+      +- LogicalProject(business_data=[$cor0.business_data])
+         +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data)])
 ]]>
     </Resource>
   </TestCase>
@@ -206,8 +229,8 @@ LogicalProject(bd_name=[$3])
 LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalProject(bd_name=[$0])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], rowType=[RecordType(VARCHAR(2147483647) data)])
 ]]>
     </Resource>
   </TestCase>
@@ -231,8 +254,60 @@ LogicalProject(bd_name=[$3])
 LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+   +- LogicalProject(bd_name=[$0])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullMismatchLeftJoinOnPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON exploded_bd <> 'debug']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalFilter(condition=[<>($0, _UTF-16LE'debug')])
+      +- Uncollect
+         +- LogicalProject(business_data=[$cor0.business_data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalFilter(condition=[<>($0, _UTF-16LE'debug')])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data)])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullMismatchLeftJoinWithOrdinalityOnPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) WITH ORDINALITY AS v(bd_name, ord) ON v.bd_name <> 'debug']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], bd_name=[$3], ord=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalFilter(condition=[<>($0, _UTF-16LE'debug')])
+      +- LogicalProject(bd_name=[$0], ord=[$1])
+         +- Uncollect(withOrdinality=[true])
+            +- LogicalProject(business_data=[$cor0.business_data])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], bd_name=[$3], ord=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalFilter(condition=[<>($0, _UTF-16LE'debug')])
+      +- LogicalProject(bd_name=[$0], ord=[$1])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -257,7 +332,7 @@ LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType(VARCHAR(2147483647) business_data)])
 ]]>
     </Resource>
   </TestCase>
@@ -282,7 +357,7 @@ LogicalProject(bd_name=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], rowType=[RecordType(VARCHAR(2147483647) data)])
 ]]>
     </Resource>
   </TestCase>
@@ -321,7 +396,7 @@ LogicalProject(b=[$0], s=[$2])
       :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(BIGINT f0)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType(BIGINT set)])
 ]]>
     </Resource>
   </TestCase>
@@ -346,7 +421,7 @@ LogicalProject(a=[$0], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(INTEGER ARRAY f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType(INTEGER ARRAY c)])
 ]]>
     </Resource>
   </TestCase>
@@ -380,7 +455,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
       :  +- LogicalProject(b=[$1], c=[$2])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(id=[$0], point=[$1])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -407,7 +482,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0], t=[$1])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -432,7 +507,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -457,7 +532,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER f0)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType(INTEGER b)])
 ]]>
     </Resource>
   </TestCase>
@@ -499,7 +574,7 @@ LogicalProject(a=[$0], b1=[$1], b2=[$2])
             :- LogicalProject(a=[$0], b=[$1])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalProject(b1=[$0], b2=[$1])
-               +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
+               +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -547,7 +622,7 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(number=[$0], ordinality=[$1])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType(INTEGER b, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -583,9 +658,9 @@ LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[
    :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    :  +- LogicalProject(array_val=[$0], array_pos=[$1])
-   :     +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array)], rowType=[RecordType:peek_no_expand(INTEGER ARRAY EXPR$0, INTEGER ORDINALITY)])
+   :     +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array)], rowType=[RecordType(INTEGER ARRAY nested_array, INTEGER ORDINALITY)])
    +- LogicalProject(elem=[$0], element_pos=[$1])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val)], rowType=[RecordType(INTEGER array_val, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -612,7 +687,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0], t=[$1], o=[$2])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -637,7 +712,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType(INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -673,7 +748,7 @@ LogicalProject(a=[$0], number=[$1], ordinality=[$2])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
          :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(number=[$0], ordinality=[$1])
-            +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
+            +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType(INTEGER b, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -698,7 +773,7 @@ LogicalProject(id=[$0], k=[$2], v=[$3], pos=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(k=[$0], v=[$1], pos=[$2])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, INTEGER ORDINALITY)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data)], rowType=[RecordType(VARCHAR(2147483647) KEY, VARCHAR(2147483647) VALUE, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -731,7 +806,7 @@ LogicalProject(a=[$0], word=[$2], pos=[$3])
    :  +- LogicalProject(a=[$0], c=[$2])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(word=[$0], pos=[$1])
-      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0, INTEGER ORDINALITY)])
+      +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words)], rowType=[RecordType(VARCHAR(2147483647) words, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>
@@ -763,7 +838,7 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(number=[$0], ordinality=[$1])
-         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
+         +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType(INTEGER b, INTEGER ORDINALITY)])
 ]]>
     </Resource>
   </TestCase>

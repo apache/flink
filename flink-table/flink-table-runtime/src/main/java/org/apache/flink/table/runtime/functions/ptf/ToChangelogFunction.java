@@ -24,10 +24,13 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
@@ -57,19 +60,24 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     RowKind.DELETE, "DELETE");
 
     private final Map<RowKind, String> rawOpMap;
+    private final int[] outputIndices;
 
     private transient Map<RowKind, StringData> opMap;
     private transient GenericRowData opRow;
     private transient JoinedRowData output;
+    private transient ProjectedRowData projectedOutput;
 
     @SuppressWarnings("unchecked")
     public ToChangelogFunction(final SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TO_CHANGELOG, context);
         final CallContext callContext = context.getCallContext();
+        // Table argument is guaranteed by the type strategy's validation phase.
+        final TableSemantics tableSemantics = callContext.getTableSemantics(0).get();
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
+        this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
     }
 
     @Override
@@ -79,6 +87,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         rawOpMap.forEach((kind, code) -> opMap.put(kind, StringData.fromString(code)));
         opRow = new GenericRowData(1);
         output = new JoinedRowData();
+        projectedOutput = ProjectedRowData.from(outputIndices);
     }
 
     /**
@@ -110,6 +119,6 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
 
         opRow.setField(0, opCode);
-        collect(output.replace(opRow, input));
+        collect(output.replace(opRow, projectedOutput.replaceRow(input)));
     }
 }

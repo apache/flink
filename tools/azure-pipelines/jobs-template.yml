@@ -195,3 +195,17 @@ jobs:
     environment: ${{parameters.environment}}
     jdk: ${{parameters.jdk}}
     group: 2
+- template: e2e-template.yml
+  parameters:
+    stage_name: ${{parameters.stage_name}}
+    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
+    environment: ${{parameters.environment}}
+    jdk: ${{parameters.jdk}}
+    group: 3
+- template: e2e-template.yml
+  parameters:
+    stage_name: ${{parameters.stage_name}}
+    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
+    environment: ${{parameters.environment}}
+    jdk: ${{parameters.jdk}}
+    group: 4

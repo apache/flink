@@ -143,7 +143,7 @@ different tasks, so long as they are from the same job. The result is that one
 slot may hold an entire pipeline of the job. Allowing this *slot sharing* has
 two main benefits:
 
-  - A Flink cluster needs exactly as many task slots as the highest parallelism
+  - A Flink job needs exactly as many task slots as the highest parallelism
     used in the job.  No need to calculate how many tasks (with varying
     parallelism) a program contains in total.
 
@@ -192,10 +192,10 @@ isolation guarantees.
 ### Flink Session Cluster
 
 * **Cluster Lifecycle**: in a Flink Session Cluster, the client connects to a
-  pre-existing, long-running cluster that can accept multiple job submissions.
-  Even after all jobs are finished, the cluster (and the JobManager) will
+  pre-existing, long-running cluster that can accept multiple application submissions.
+  Even after all applications are finished, the cluster (and the JobManager) will
   keep running until the session is manually stopped. The lifetime of a Flink
-  Session Cluster is therefore not bound to the lifetime of any Flink Job.
+  Session Cluster is therefore not bound to the lifetime of any Flink Application or Job.
 
 * **Resource Isolation**: TaskManager slots are allocated by the
   ResourceManager on job submission and released once the job is finished.

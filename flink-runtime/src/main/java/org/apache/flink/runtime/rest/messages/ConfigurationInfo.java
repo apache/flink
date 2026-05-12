@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
@@ -51,7 +52,8 @@ public class ConfigurationInfo extends ArrayList<ConfigurationInfoEntry> impleme
     public static ConfigurationInfo from(Configuration config) {
         final ConfigurationInfo clusterConfig = new ConfigurationInfo(config.keySet().size());
         final Map<String, String> configurationWithHiddenSensitiveValues =
-                ConfigurationUtils.hideSensitiveValues(config.toMap());
+                ConfigurationUtils.hideSensitiveValues(
+                        config.toMap(), config.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
 
         for (Map.Entry<String, String> keyValuePair :
                 configurationWithHiddenSensitiveValues.entrySet()) {

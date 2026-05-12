@@ -19,7 +19,7 @@
 # Minimum requirements for the build system to execute.
 requires = [
     "packaging>=20.5; platform_machine=='arm64'",  # macos M1
-    "setuptools>=75.3",
+    "setuptools>=75.3,<82",
     "wheel",
     "cython>=0.29.24,<3; sys_platform == 'darwin' and python_version == '3.8'",
     "fastavro==1.7.4; sys_platform == 'darwin' and python_version == '3.8'",
@@ -30,7 +30,7 @@ requires = [
 [dependency-groups]
 dev = [
   "pip>=20.3",
-  "setuptools>=75.3",
+  "setuptools>=75.3,<82",
   "wheel",
   "apache-beam>=2.54.0,<=2.61.0",
   "cython>=0.29.24",
@@ -45,7 +45,7 @@ dev = [
   "fastavro>=1.1.0,!=1.8.0",
   "grpcio>=1.29.0,<=1.71.0",
   "grpcio-tools>=1.29.0,<=1.71.0",
-  "pemja>=0.5.6,<0.5.7; platform_system != 'Windows'",
+  "pemja>=0.5.7,<0.5.8; platform_system != 'Windows'",
   "httplib2>=0.19.0",
   "protobuf~=4.25",
   "pytest~=8.0",

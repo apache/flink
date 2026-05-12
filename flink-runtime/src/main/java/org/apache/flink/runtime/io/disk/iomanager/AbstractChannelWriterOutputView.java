@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 
 import java.io.IOException;
 

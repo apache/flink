@@ -23,9 +23,10 @@ import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.functions.ChangelogFunction
+import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction}
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
@@ -852,10 +853,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                       !modifyKindSet.isInsertOnly && tableArg.is(
                         StaticArgumentTrait.SUPPORT_UPDATES)
                     ) {
-                      if (isPtfUpsert(tableArg, tableArgCall, child)) {
-                        UpdateKindTrait.ONLY_UPDATE_AFTER
-                      } else {
+                      if (ptfRequiresUpdateBefore(tableArg, tableArgCall, child)) {
                         UpdateKindTrait.BEFORE_AND_AFTER
+                      } else {
+                        UpdateKindTrait.ONLY_UPDATE_AFTER
                       }
                     } else {
                       UpdateKindTrait.NONE
@@ -1272,7 +1273,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     extractPtfTableArgComponents(process, child, inputArg)
                   if (
                     tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES)
-                    && isPtfUpsert(tableArg, tableArgCall, child)
+                    && !ptfRequiresUpdateBefore(tableArg, tableArgCall, child)
                     && !tableArg.is(StaticArgumentTrait.REQUIRE_FULL_DELETE)
                   ) {
                     this
@@ -1640,21 +1641,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     modeBuilder.build()
   }
 
-  private def isPtfUpsert(
+  /**
+   * Whether the PTF requires UPDATE_BEFORE from its input. Returns true unless partition keys cover
+   * the upsert keys (co-located) and the argument doesn't explicitly require UPDATE_BEFORE.
+   */
+  private def ptfRequiresUpdateBefore(
       tableArg: StaticArgument,
       tableArgCall: RexTableArgCall,
       input: StreamPhysicalRel): Boolean = {
     val partitionKeys = ImmutableBitSet.of(tableArgCall.getPartitionKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
     val upsertKeys = fmq.getUpsertKeys(input)
-    if (
-      upsertKeys == null || partitionKeys.isEmpty || !upsertKeys.contains(partitionKeys)
-      || tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
-    ) {
-      false
-    } else {
-      true
-    }
+    upsertKeys == null || partitionKeys.isEmpty ||
+    !upsertKeys.contains(partitionKeys) ||
+    tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
   }
 
   private def extractPtfTableArgComponents(
@@ -1674,11 +1674,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       outputChangelogMode: ChangelogMode): ChangelogContext = {
     val udfCall = StreamPhysicalProcessTableFunction.toUdfCall(process.getCall)
     val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
-    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
-      udfCall,
-      inputTimeColumns,
-      inputChangelogModes,
-      outputChangelogMode)
+    val function = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
+    val callContext =
+      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
 
     // Expose a simplified context to let users focus on important characteristics.
     // If necessary, we can expose the full CallContext in the future.
@@ -1711,16 +1709,36 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val changelogContext =
           toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
         val changelogMode = changelogFunction.getChangelogMode(changelogContext)
-        if (!changelogMode.containsOnly(RowKind.INSERT)) {
-          verifyPtfTableArgsForUpdates(call)
-        }
+        verifyPtfTableArgsForUpdates(call, changelogMode)
+        toTraitSet(changelogMode)
+      case builtIn: BuiltInFunctionDefinition if builtIn.getChangelogModeStrategy.isPresent =>
+        val inputChangelogModes = children.map(toChangelogMode(_, None, None))
+        val changelogContext =
+          toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
+        val changelogMode =
+          builtIn.getChangelogModeStrategy.get().inferChangelogMode(changelogContext)
+        verifyPtfTableArgsForUpdates(call, changelogMode)
         toTraitSet(changelogMode)
       case _ =>
         defaultTraitSet
     }
   }
 
-  private def verifyPtfTableArgsForUpdates(call: RexCall): Unit = {
+  /**
+   * Verifies that PTFs with upsert output (without UPDATE_BEFORE) use set semantics.
+   *
+   * Retract mode (with UPDATE_BEFORE) is self-describing — each update carries either the old and
+   * new value, so downstream can process it without a key. Row semantics is safe.
+   *
+   * Upsert mode (without UPDATE_BEFORE) requires a key to look up previous values, so set semantics
+   * with PARTITION BY is required.
+   */
+  private def verifyPtfTableArgsForUpdates(call: RexCall, changelogMode: ChangelogMode): Unit = {
+    if (
+      changelogMode.containsOnly(RowKind.INSERT) || changelogMode.contains(RowKind.UPDATE_BEFORE)
+    ) {
+      return
+    }
     StreamPhysicalProcessTableFunction
       .getProvidedInputArgs(call)
       .map(_.e)
@@ -1728,7 +1746,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         tableArg =>
           if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
             throw new ValidationException(
-              s"PTFs that take table arguments with row semantics don't support updating output. " +
+              s"PTFs that take table arguments with row semantics don't support upsert output. " +
                 s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +
                 s"must use set semantics.")
           }

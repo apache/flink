@@ -38,6 +38,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -160,7 +161,9 @@ class PythonEnvUtilsTest {
             String result = String.join(File.separator, tmpDirPath, "python_working_directory.txt");
             commands.add(pyPath);
             commands.add(result);
-            Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands, false);
+            Process pythonProcess =
+                    PythonEnvUtils.startPythonProcess(
+                            pythonEnv, commands, false, Collections.emptyList());
             int exitCode = pythonProcess.waitFor();
             if (exitCode != 0) {
                 throw new RuntimeException("Python process exits with code: " + exitCode);

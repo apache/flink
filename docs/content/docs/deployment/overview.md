@@ -73,8 +73,8 @@ When deploying Flink, there are often multiple options available for each buildi
                 JobManager is the name of the central work coordination component of Flink. It has implementations for different resource providers, which differ on high-availability, resource allocation behavior and supported job submission modes. <br />
                 JobManager <a href="#deployment-modes">modes for job submissions</a>:
                 <ul>
-                    <li><b>Application Mode</b>: runs the cluster exclusively for one application. The job's main method (or client) gets executed on the JobManager. Calling `execute`/`executeAsync` multiple times in an application is supported.</li>
-                    <li><b>Session Mode</b>: one JobManager instance manages multiple jobs sharing the same cluster of TaskManagers</li>
+                    <li><b>Application Mode</b>: runs the cluster exclusively for one application. The application's main method (or client) gets executed on the JobManager. Calling `execute`/`executeAsync` multiple times in an application is supported.</li>
+                    <li><b>Session Mode</b>: one JobManager instance manages multiple applications (and all jobs within them) sharing the same cluster of TaskManagers.</li>
                 </ul>
             </td>
             <td>
@@ -169,6 +169,10 @@ while subsuming them as part of the usual CompletedCheckpoint management. These 
 not covered by the repeatable cleanup, i.e. they have to be deleted manually, still. This is 
 covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
 
+The application resource cleanup is similar (see the
+[High Availability Services / ApplicationResultStore]({{< ref "docs/deployment/ha/overview#applicationresultstore" >}})
+section for further details).
+
 ## Deployment Modes
 
 Flink can execute applications in two modes:
@@ -184,14 +188,14 @@ Flink can execute applications in two modes:
 
 ### Application Mode
     
-In all the other modes, the application's `main()` method is executed on the client side. This process 
+If the application's `main()` method is executed on the client side, this process 
 includes downloading the application's dependencies locally, executing the `main()` to extract a representation
 of the application that Flink's runtime can understand (i.e. the `JobGraph`) and ship the dependencies and
 the `JobGraph(s)` to the cluster. This makes the Client a heavy resource consumer as it may need substantial
 network bandwidth to download dependencies and ship binaries to the cluster, and CPU cycles to execute the
 `main()`. This problem can be more pronounced when the Client is shared across users.
 
-Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
+Building on this observation, the *Application Mode* creates a cluster per submitted application, and
 the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
 seen as creating a session cluster shared only among the jobs of a particular application, and turning down when
 the application finishes. With this architecture, the *Application Mode* provides the application granularity resource isolation
@@ -216,12 +220,14 @@ execution of the "next"  job being postponed until "this" job finishes. Using `e
 non-blocking, will lead to the "next" job starting before "this" job finishes.
 
 {{< hint warning >}}
-The Application Mode allows for multi-`execute()` applications but 
-High-Availability is not supported in these cases. High-Availability in Application Mode is only
-supported for single-`execute()` applications.
+The Application Mode allows for multi-job applications (by calling `execute()` or `executeAsync()` multiple times in the `main()` method) but
+High-Availability is limited in these cases. High-Availability in Application Mode is only
+supported for applications with a single streaming job or multiple batch jobs.
+For more details, see [FLIP-560](https://cwiki.apache.org/confluence/display/FLINK/FLIP-560%3A+Application+Capability+Enhancement).
 
 Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
-`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down. 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down by default.
+This behavior can be configured through the [`execution.terminate-application-on-any-job-terminated-exceptionally`]({{< ref "docs/deployment/config" >}}#execution-terminate-application-on-any-job-terminated-exceptionally) option.
 Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
@@ -237,14 +243,21 @@ restarting jobs accessing the filesystem concurrently and making it unavailable 
 Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
 is responsible for the book-keeping of all the jobs in the cluster.
 
+In Session Mode, the application's `main()` method can be executed either on the client or on the cluster. 
+When submitting applications via Command-Line Interface (CLI) or the SQL Client, the `main()` method is executed on the client.
+However, when submitting applications via the REST API `/jars/:jarid/run-application`,
+the `main()` method is executed on the cluster.
+This provides the same benefits as Application Mode in terms of resource usage and network bandwidth for the client,
+while still maintaining the shared cluster resource model of Session Mode.
+
 ### Summary
 
-In *Session Mode*, the cluster lifecycle is independent of that of any job running on the cluster
-and the resources are shared across all jobs. 
-*Application Mode* creates a session cluster per application and executes the application's `main()` 
+In *Session Mode*, the cluster lifecycle is independent of that of any application running on the cluster
+and the resources are shared across all applications. The application's `main()` method can be executed either on the client or on the cluster.
+*Application Mode* creates a session cluster per application and executes the application's `main()`
 method on the cluster. 
-It thus comes with better resource isolation as the resources are only used by the job(s) launched from a single `main()` method. 
-This comes at the price of spining up a dedicated cluster for each application. 
+It thus comes with better resource isolation as the resources are only used by the job(s) launched from a single `main()` method.
+This comes at the price of spinning up a dedicated cluster for each application. 
 
 ## Vendor Solutions
 

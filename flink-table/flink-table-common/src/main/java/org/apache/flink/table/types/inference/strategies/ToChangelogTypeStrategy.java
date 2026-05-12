@@ -35,6 +35,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.ColumnList;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,10 +97,12 @@ public final class ToChangelogTypeStrategy {
 
                 final String opColumnName = resolveOpColumnName(callContext);
                 final List<Field> inputFields = DataType.getFields(semantics.dataType());
+                final int[] outputIndices =
+                        ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
 
                 final List<Field> outputFields = new ArrayList<>();
                 outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
-                outputFields.addAll(inputFields);
+                Arrays.stream(outputIndices).mapToObj(inputFields::get).forEach(outputFields::add);
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };

@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -99,10 +100,11 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
                         ctx,
-                        inputTransform,
+                        (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         JavaScalaConversionUtil.toScala(projection),
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
+                        ShortcutUtils.unwrapTypeFactory(planner),
                         retainHeader,
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(

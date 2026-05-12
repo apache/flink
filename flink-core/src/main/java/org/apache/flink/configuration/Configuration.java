@@ -376,7 +376,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    GlobalConfiguration.isSensitive(option.key())
+                    GlobalConfiguration.isSensitive(
+                                    option.key(),
+                                    this.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS))
                             ? String.format("Could not parse value for key '%s'.", option.key())
                             : String.format(
                                     "Could not parse value '%s' for key '%s'.",
@@ -680,7 +682,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                                 .collect(
                                         Collectors.toMap(
                                                 Map.Entry::getKey,
-                                                entry -> entry.getValue().toString())))
+                                                entry -> entry.getValue().toString())),
+                        this.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS))
                 .toString();
     }
 }

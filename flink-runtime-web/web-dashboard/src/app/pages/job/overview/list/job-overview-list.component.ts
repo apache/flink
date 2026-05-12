@@ -16,8 +16,20 @@
  * limitations under the License.
  */
 
-import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Output } from '@angular/core';
+import { DecimalPipe, NgForOf, NgIf, isPlatformBrowser } from '@angular/common';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Inject,
+  Input,
+  OnDestroy,
+  Output,
+  PLATFORM_ID
+} from '@angular/core';
 
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
@@ -63,7 +75,9 @@ const rescaleTimeout = 2500;
     NzBadgeModule
   ]
 })
-export class JobOverviewListComponent {
+export class JobOverviewListComponent implements AfterViewInit, OnDestroy {
+  private static readonly END_TIME_MIN_WIDTH = 200; // Minimum space for End Time column
+
   public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;
   public readonly webRescaleEnabled = this.statusService.configuration.features['web-rescale'];
 
@@ -79,6 +93,8 @@ export class JobOverviewListComponent {
 
   public innerNodes: NodesItemCorrect[] = [];
   public left = 390;
+  public dynamicResizeMin = 390;
+  public tableScrollX = 0;
 
   public desiredParallelism = new Map<string, number>();
 
@@ -104,7 +120,58 @@ export class JobOverviewListComponent {
     return this.innerNodes;
   }
 
-  constructor(public readonly elementRef: ElementRef, private readonly statusService: StatusService) {}
+  constructor(
+    public readonly elementRef: ElementRef,
+    private readonly statusService: StatusService,
+    @Inject(PLATFORM_ID) private platformId: object,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
+
+  public ngAfterViewInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      setTimeout(() => this.updateLeftBasedOnScreenSize(), 0);
+
+      window.addEventListener('resize', this.handleWindowResize);
+    }
+  }
+
+  public ngOnDestroy(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      window.removeEventListener('resize', this.handleWindowResize);
+    }
+  }
+
+  private readonly handleWindowResize = (): void => {
+    this.updateLeftBasedOnScreenSize();
+  };
+
+  /**
+   * Initialize table dimensions
+   */
+  private updateLeftBasedOnScreenSize(): void {
+    this.left = 390;
+    this.dynamicResizeMin = 390;
+
+    const tableHeaders = this.elementRef.nativeElement.querySelectorAll('thead th');
+    let fixedColumnsWidth = 0;
+    let foundRightColumn = false;
+
+    tableHeaders.forEach((th: HTMLElement, index: number) => {
+      if (index > 0 && !foundRightColumn) {
+        if (th.hasAttribute('nzright')) {
+          foundRightColumn = true;
+        } else {
+          const width = th.getAttribute('nzWidth');
+          if (width) {
+            fixedColumnsWidth += parseInt(width, 10);
+          }
+        }
+      }
+    });
+
+    this.tableScrollX = this.left + fixedColumnsWidth + JobOverviewListComponent.END_TIME_MIN_WIDTH;
+    this.cdr.detectChanges();
+  }
 
   public clickNode(node: NodesItemCorrect): void {
     this.nodeClick.emit(node);

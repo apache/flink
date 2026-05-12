@@ -115,7 +115,23 @@ class RowFunctionITCase extends BuiltInFunctionTestBase {
                                                 DataTypes.FIELD("b", DataTypes.TINYINT()),
                                                 DataTypes.FIELD("c", DataTypes.BIGINT()),
                                                 DataTypes.FIELD("d", DataTypes.BOOLEAN()))
-                                        .notNull()));
+                                        .notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.ROW, "with aliased fields using .as()")
+                        .onFieldsWithData(100, "abc", 75.50)
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING(), DataTypes.DOUBLE())
+                        .testTableApiResult(
+                                row($("f0").as("a"), $("f1").as("b"), $("f2").as("c")),
+                                Row.of(100, "abc", 75.50),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("a", DataTypes.INT()),
+                                                DataTypes.FIELD("b", DataTypes.STRING()),
+                                                DataTypes.FIELD("c", DataTypes.DOUBLE()))
+                                        .notNull())
+                        .testTableApiResult(
+                                row($("f0").as("a"), $("f1").as("b"), $("f2").as("c")).get("a"),
+                                100,
+                                DataTypes.INT()));
     }
 
     // --------------------------------------------------------------------------------------------

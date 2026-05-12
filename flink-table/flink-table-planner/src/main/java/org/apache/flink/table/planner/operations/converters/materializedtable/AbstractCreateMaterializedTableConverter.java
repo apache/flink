@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations.converters.materializedtable;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateMaterializedTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
@@ -29,6 +30,7 @@ import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -78,6 +80,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         ResolvedSchema getMergedQuerySchema();
 
         RefreshMode getMergedRefreshMode();
+
+        StartMode getMergedStartMode();
     }
 
     protected abstract MergeContext getMergeContext(
@@ -97,6 +101,17 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         return Optional.ofNullable(sqlCreateMaterializedTable.getFreshness())
                 .map(MaterializedTableUtils::getMaterializedTableFreshness)
                 .orElse(null);
+    }
+
+    protected final StartMode getStartMode(T sqlCreateMaterializedTable, ConvertContext context) {
+        StartMode startMode =
+                MaterializedTableUtils.getStartMode(sqlCreateMaterializedTable.getStartMode());
+        if (startMode != null) {
+            return startMode;
+        }
+        return StartMode.of(
+                context.getTableConfig()
+                        .get(MaterializedTableConfigOptions.MATERIALIZED_TABLE_DEFAULT_START_MODE));
     }
 
     protected final ResolvedSchema getQueryResolvedSchema(
@@ -160,6 +175,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
         final RefreshMode refreshMode = getDerivedRefreshMode(logicalRefreshMode);
 
+        final StartMode startMode = mergeContext.getMergedStartMode();
+
         return context.getCatalogManager()
                 .resolveCatalogMaterializedTable(
                         CatalogMaterializedTable.newBuilder()
@@ -174,6 +191,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
                                 .logicalRefreshMode(logicalRefreshMode)
                                 .refreshMode(refreshMode)
                                 .refreshStatus(RefreshStatus.INITIALIZING)
+                                .startMode(startMode)
                                 .build());
     }
 

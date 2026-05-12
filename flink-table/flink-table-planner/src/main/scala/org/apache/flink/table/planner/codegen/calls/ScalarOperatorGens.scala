@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableRuntimeException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.{BinaryArrayData, BinaryStringData}
 import org.apache.flink.table.data.util.MapDataUtil
@@ -1740,16 +1740,17 @@ object ScalarOperatorGens {
       resultTerm: String,
       nullTerm: String,
       tmpValue: String): String = {
+    val escapedFieldName = EncodingUtils.escapeJava(fieldName)
     s"""
        |  if ($variantTerm.isObject()){
-       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$fieldName");
+       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$escapedFieldName");
        |    if ($tmpValue == null) {
        |      $nullTerm = true;
        |    } else {
        |      $resultTerm = $tmpValue;
        |    }
        |  } else {
-       |    throw new org.apache.flink.table.api.TableRuntimeException("String key access on variant requires an object variant, but a non-object variant was provided.");
+       |    throw new ${className[TableRuntimeException]}("String key access on variant requires an object variant, but a non-object variant was provided.");
        |  }
     """.stripMargin
   }

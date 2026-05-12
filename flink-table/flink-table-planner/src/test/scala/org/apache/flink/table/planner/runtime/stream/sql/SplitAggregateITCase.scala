@@ -147,7 +147,7 @@ class SplitAggregateITCase(
 
     val chars = List("A", "B", null, "D", "E", "F", "H", null, null, "K", "L", "L", "N", "O", "P")
 
-    val data = new mutable.MutableList[Row]
+    val data = new mutable.ListBuffer[Row]
 
     for (i <- ids.indices) {
       val v = integers(i)

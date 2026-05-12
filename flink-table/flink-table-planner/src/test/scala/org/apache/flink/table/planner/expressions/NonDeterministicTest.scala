@@ -102,7 +102,7 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
         "LOCALTIME",
         "LOCALTIMESTAMP"))
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "1970-01-01",
       "08:00:01",
       "1970-01-01 08:00:01.123",

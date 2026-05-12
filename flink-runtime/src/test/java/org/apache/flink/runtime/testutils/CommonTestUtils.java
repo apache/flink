@@ -366,6 +366,26 @@ public class CommonTestUtils {
         return checkpointPath.get();
     }
 
+    /** Wait for at least {@code count} completed checkpoints that carry in-flight buffers. */
+    public static void waitForNCheckpointsWithInflightBuffers(
+            JobID jobID, MiniCluster miniCluster, int count) throws Exception {
+        waitForCheckpoints(
+                jobID,
+                miniCluster,
+                checkpointStatsSnapshot -> {
+                    if (checkpointStatsSnapshot == null) {
+                        return false;
+                    }
+                    long matched =
+                            checkpointStatsSnapshot.getHistory().getCheckpoints().stream()
+                                    .filter(cp -> cp instanceof CompletedCheckpointStats)
+                                    .map(cp -> (CompletedCheckpointStats) cp)
+                                    .filter(cp -> cp.getPersistedData() > 0)
+                                    .count();
+                    return matched >= count;
+                });
+    }
+
     /** Wait for (at least) the given number of successful checkpoints. */
     public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, int numCheckpoints)
             throws Exception {

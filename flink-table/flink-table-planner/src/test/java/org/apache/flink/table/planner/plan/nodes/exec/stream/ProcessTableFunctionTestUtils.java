@@ -46,6 +46,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_UPDATE_BEF
 import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testing functions for {@link ProcessTableFunction}. */
@@ -136,6 +138,27 @@ public class ProcessTableFunctionTestUtils {
                             Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
                             Row.of("Bob", 3, Instant.ofEpochMilli(3)),
                             Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                    .build();
+
+    public static final SourceTestStep TIMED_SOURCE_LATE_EVENTS_LARGE =
+            SourceTestStep.newBuilder("t_large")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.010' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(5)),
+                            Row.of("Alice", 2, Instant.ofEpochMilli(19)),
+                            // Late event
+                            Row.of("Alice", 3, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 5, Instant.ofEpochMilli(10)),
+                            Row.of("Bob", 6, Instant.ofEpochMilli(12)),
+                            Row.of("Bob", 7, Instant.ofEpochMilli(22)))
                     .build();
 
     /** Corresponds to {@link AppendProcessTableFunctionBase}. */
@@ -360,6 +383,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Same as {@link RowSemanticTablePassThroughFunction} but with the scalar argument before the
+     * pass-through table.
+     */
+    public static class ScalarBeforeRowSemanticTablePassThroughFunction
+            extends AppendProcessTableFunctionBase {
+        public void eval(
+                Integer i, @ArgumentHint({ROW_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH}) Row r) {
+            collectObjects(r, i);
+        }
+    }
+
     /** Testing function. */
     public static class SetSemanticTablePassThroughFunction extends AppendProcessTableFunctionBase {
         public void eval(
@@ -546,6 +581,10 @@ public class ProcessTableFunctionTestUtils {
     public static class NamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+
+            // For single inputs, the table watermark and current watermark always match
+            assertThat(timeCtx.tableWatermark()).isEqualTo(timeCtx.currentWatermark());
+
             collectEvalEvent(timeCtx, r);
 
             if (timeCtx.time() == 0) {
@@ -560,6 +599,8 @@ public class ProcessTableFunctionTestUtils {
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            // Firing timers don't reference a table
+            assertThat(timeCtx.tableWatermark()).isNull();
             // read
             collectOnTimerEvent(ctx);
             if (ctx.currentTimer().equals("timeout1")) {
@@ -579,6 +620,10 @@ public class ProcessTableFunctionTestUtils {
     public static class UnnamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+
+            // For single inputs, the table watermark and current watermark always match
+            assertThat(timeCtx.tableWatermark()).isEqualTo(timeCtx.currentWatermark());
+
             collectEvalEvent(timeCtx, r);
 
             if (timeCtx.time() == 0) {
@@ -591,6 +636,8 @@ public class ProcessTableFunctionTestUtils {
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            // Firing timers don't reference a table
+            assertThat(timeCtx.tableWatermark()).isNull();
             // read
             collectOnTimerEvent(ctx);
             if (timeCtx.time() == 1) {
@@ -610,20 +657,23 @@ public class ProcessTableFunctionTestUtils {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
-            // all timers should be executed once
-            if (timeCtx.time() == 99998) {
-                // will never be fired because it's late
-                collectCreateTimer(timeCtx, "late", 1L);
+            if (r.getFieldAs("name").equals("Bob")) {
+                // Bob registers timers at 0
+                collectCreateTimer(timeCtx, "bob", 0L);
+                collectCreateTimer(timeCtx, 0L);
+            } else {
+                // Alice registers timer at 1
+                collectCreateTimer(timeCtx, "alice", 1L);
             }
-            collectCreateTimer(timeCtx, "t", 0L);
-            collectCreateTimer(timeCtx, 0L);
         }
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectOnTimerEvent(ctx);
-            // will never be fired because it's late
-            collectCreateTimer(timeCtx, "again", timeCtx.time());
+            if (ctx.currentTimer() != null && ctx.currentTimer().equals("alice")) {
+                // register a timer in the past, which should fire immediately
+                collectCreateTimer(timeCtx, "alice-again", 0);
+            }
         }
     }
 
@@ -664,7 +714,12 @@ public class ProcessTableFunctionTestUtils {
         public void eval(Context ctx, @ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
-            collectCreateTimer(timeCtx, "t", 2);
+            Long wm = timeCtx.currentWatermark();
+            // Register at wm+1 to always target the immediate next watermark: the timer fires
+            // exactly once per watermark advance, and each new row re-registers the timer for the
+            // following watermark step, demonstrating repeated timer re-registration.
+            long timer = wm == null || wm < 0 ? 1 : wm + 1;
+            collectCreateTimer(timeCtx, "t", timer);
         }
 
         public void onTimer(OnTimerContext ctx) {
@@ -920,6 +975,21 @@ public class ProcessTableFunctionTestUtils {
 
         @Override
         public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert(false);
+        }
+    }
+
+    /** Testing function that uses row semantics with retract mode (valid). */
+    public static class UpdatingRetractRowSemanticFunction
+            extends ChangelogProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ROW_SEMANTIC_TABLE, SUPPORT_UPDATES, REQUIRE_UPDATE_BEFORE}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
             return ChangelogMode.all();
         }
     }
@@ -1038,6 +1108,54 @@ public class ProcessTableFunctionTestUtils {
                 t.f0 = o;
             } else {
                 t.f0 = null;
+            }
+        }
+    }
+
+    /** Captures the order and time how rows enter the function. */
+    public static class OrderByFunction extends AppendProcessTableFunctionBase {
+
+        public static class CapturedOrder {
+            public List<String> list = new ArrayList<>();
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CapturedOrder capturedOrder,
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r) {
+            capturedOrder.list.add(r.toString());
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            collectObjects(
+                    timeCtx.currentWatermark(),
+                    timeCtx.tableWatermark(),
+                    timeCtx.time(),
+                    capturedOrder.list);
+        }
+    }
+
+    /** Captures the order and time how rows enter the function from multiple inputs. */
+    public static class MultiInputOrderByFunction extends AppendProcessTableFunctionBase {
+
+        public static class CapturedOrder {
+            public List<String> list1 = new ArrayList<>();
+            public List<String> list2 = new ArrayList<>();
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CapturedOrder capturedOrder,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in1,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in2) {
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            if (in1 != null) {
+                capturedOrder.list1.add(in1.toString());
+                collectObjects(
+                        "in1", timeCtx.tableWatermark(), timeCtx.time(), capturedOrder.list1);
+            }
+            if (in2 != null) {
+                capturedOrder.list2.add(in2.toString());
+                collectObjects(
+                        "in2", timeCtx.tableWatermark(), timeCtx.time(), capturedOrder.list2);
             }
         }
     }

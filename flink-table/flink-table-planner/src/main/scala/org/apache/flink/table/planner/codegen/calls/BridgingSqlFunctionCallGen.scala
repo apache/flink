@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding}
+import org.apache.calcite.rex.{RexCall, RexCallBinding, RexProgram}
 
 import java.util.Collections
 
@@ -37,7 +37,7 @@ import java.util.Collections
  * generator will be a reference to a [[WrappingCollector]]. Furthermore, atomic types are wrapped
  * into a row by the collector.
  */
-class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
+class BridgingSqlFunctionCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
 
   override def generate(
       ctx: CodeGeneratorContext,
@@ -54,7 +54,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val callContext = new OperatorBindingCallContext(
       dataTypeFactory,
       definition,
-      RexCallBinding.create(function.getTypeFactory, call, Collections.emptyList()),
+      RexCallBinding.create(function.getTypeFactory, call, rexProgram, Collections.emptyList()),
       call.getType)
 
     // create the final UDF for runtime

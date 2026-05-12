@@ -25,7 +25,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -243,8 +242,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
         private Schema schema;
         private String comment;
         private TableDistribution distribution = null;
-        private List<String> partitionKeys = Collections.emptyList();
-        private Map<String, String> options = Collections.emptyMap();
+        private List<String> partitionKeys = List.of();
+        private Map<String, String> options = Map.of();
         private @Nullable Long snapshot;
         private String originalQuery;
         private String expandedQuery;
@@ -254,6 +253,7 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
         private RefreshStatus refreshStatus;
         private @Nullable String refreshHandlerDescription;
         private @Nullable byte[] serializedRefreshHandler;
+        private StartMode startMode;
 
         private Builder() {}
 
@@ -341,6 +341,11 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
+        public Builder startMode(StartMode startMode) {
+            this.startMode = startMode;
+            return this;
+        }
+
         public CatalogMaterializedTable build() {
             return new DefaultCatalogMaterializedTable(
                     schema,
@@ -356,7 +361,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
                     refreshMode,
                     refreshStatus,
                     refreshHandlerDescription,
-                    serializedRefreshHandler);
+                    serializedRefreshHandler,
+                    startMode);
         }
     }
 }

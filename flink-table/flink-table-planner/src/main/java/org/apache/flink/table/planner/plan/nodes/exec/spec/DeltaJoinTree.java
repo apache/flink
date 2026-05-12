@@ -228,7 +228,8 @@ public class DeltaJoinTree {
                                                 node.filter,
                                                 rowTypePassThroughCalc,
                                                 rowTypeBeforeCalc,
-                                                generatedCalcName))
+                                                generatedCalcName,
+                                                typeFactory))
                         .orElse(null);
 
         if (node instanceof BinaryInputNode) {

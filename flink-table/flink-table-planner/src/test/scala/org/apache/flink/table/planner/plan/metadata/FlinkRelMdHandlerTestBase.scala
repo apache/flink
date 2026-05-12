@@ -3305,7 +3305,7 @@ class FlinkRelMdHandlerTestBase {
         ImmutableList.of(calcOnStudentScan),
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
-          new RexTableArgCall(outputRowType, 0, Array(), Array()),
+          new RexTableArgCall(outputRowType, 0, Array(), Array(), Array()),
           relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.literal("ptime")),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),

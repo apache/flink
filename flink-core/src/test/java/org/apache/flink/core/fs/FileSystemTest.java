@@ -88,14 +88,15 @@ class FileSystemTest {
         exception should be:
         org.apache.flink.core.fs.UnsupportedFileSystemSchemeException: Could not find a file
         system implementation for scheme 's3'. The scheme is directly supported by Flink through the following
-        plugins: flink-s3-fs-hadoop, flink-s3-fs-presto. Please ensure that each plugin resides within its own
-        subfolder within the plugins directory.
+        plugins: flink-s3-fs-hadoop, flink-s3-fs-presto, flink-s3-fs-native. Please ensure that each plugin
+        resides within its own subfolder within the plugins directory.
         See https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/filesystems/plugins/ for more information. */
         assertThatThrownBy(() -> getFileSystemWithoutSafetyNet("s3://authority/"))
                 .isInstanceOf(UnsupportedFileSystemSchemeException.class)
                 .hasMessageContaining("is directly supported")
                 .hasMessageContaining("flink-s3-fs-hadoop")
                 .hasMessageContaining("flink-s3-fs-presto")
+                .hasMessageContaining("flink-s3-fs-native")
                 .hasMessageNotContaining("no Hadoop file system to support this scheme");
     }
 
@@ -110,14 +111,16 @@ class FileSystemTest {
             exception should be:
             org.apache.flink.core.fs.UnsupportedFileSystemSchemeException: Could not find a file
             system implementation for scheme 's3'. File system schemes are supported by Flink through the following
-            plugin(s): flink-s3-fs-hadoop, flink-s3-fs-presto. No file system to support this scheme could be loaded.
-            Please ensure that each plugin is configured properly and resides within its own subfolder in the plugins directory.
+            plugin(s): flink-s3-fs-hadoop, flink-s3-fs-presto, flink-s3-fs-native. No file system to support this
+            scheme could be loaded. Please ensure that each plugin is configured properly and resides within its own
+            subfolder in the plugins directory.
             See https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/filesystems/plugins/ for more information. */
             assertThatThrownBy(() -> getFileSystemWithoutSafetyNet("s3://authority/"))
                     .isInstanceOf(UnsupportedFileSystemSchemeException.class)
                     .hasMessageContaining("File system schemes are supported")
                     .hasMessageContaining("flink-s3-fs-hadoop")
                     .hasMessageContaining("flink-s3-fs-presto")
+                    .hasMessageContaining("flink-s3-fs-native")
                     .hasMessageContaining("Please ensure that each plugin is configured properly");
         } finally {
             FileSystem.initialize(new Configuration(), null);

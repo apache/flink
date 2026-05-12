@@ -36,7 +36,7 @@ public interface WorkflowScheduler<T extends RefreshHandler> {
      * Open this workflow scheduler instance. Used for any required preparation in initialization
      * phase.
      *
-     * @throws WorkflowException if initializing workflow scheduler occur exception
+     * @throws WorkflowException if initializing the workflow scheduler fails
      */
     void open() throws WorkflowException;
 

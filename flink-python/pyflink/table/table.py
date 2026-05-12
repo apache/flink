@@ -1187,6 +1187,83 @@ class Table(object):
                 t_env=self._t_env,
             )
 
+    def to_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this table into an append-only table with an explicit operation code
+        column using the built-in ``TO_CHANGELOG`` process table function.
+
+        Each input row - regardless of its original change operation - is emitted as an
+        INSERT-only row with a string ``op`` column indicating the original operation
+        (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import descriptor, map_
+            >>> # Default: adds 'op' column with standard change operation names
+            >>> result = table.to_changelog()
+            >>> # Custom op column name and mapping
+            >>> result = table.to_changelog(
+            ...     descriptor("op_code").as_argument("op"),
+            ...     map_("INSERT", "I", "UPDATE_AFTER", "U").as_argument("op_mapping")
+            ... )
+            >>> # Deletion flag pattern
+            >>> result = table.to_changelog(
+            ...     descriptor("deleted").as_argument("op"),
+            ...     map_("INSERT, UPDATE_AFTER", "false",
+            ...          "DELETE", "true").as_argument("op_mapping")
+            ... )
+
+        :param arguments: Optional named arguments for ``op`` and ``op_mapping``.
+        :return: An append-only :class:`~pyflink.table.Table` with an ``op`` column prepended
+                 to the input columns.
+        """
+        return Table(self._j_table.toChangelog(to_expression_jarray(arguments)), self._t_env)
+
+    def from_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this append-only table with an explicit operation code column into a
+        (potentially updating) dynamic table. Each input row is expected to have a string
+        column that indicates the change operation. The operation column is interpreted by
+        the engine and removed from the output.
+
+        The operation code column defaults to ``op``. By default, the codes ``INSERT``,
+        ``UPDATE_BEFORE``, ``UPDATE_AFTER``, and ``DELETE`` are recognized; pass
+        ``op_mapping`` to use custom codes. By default, the job fails at runtime with a
+        ``TableRuntimeException`` when an input row's op code is ``NULL`` or not present
+        in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
+        rows instead.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import descriptor, lit, map_
+            >>> # Default: reads 'op' column with standard change operation names
+            >>> result = cdc_stream.from_changelog()
+            >>> # With custom op column name
+            >>> result = cdc_stream.from_changelog(
+            ...     descriptor("operation").as_argument("op")
+            ... )
+            >>> # With custom op_mapping
+            >>> result = cdc_stream.from_changelog(
+            ...     descriptor("op").as_argument("op"),
+            ...     map_("c, r", "INSERT",
+            ...          "ub", "UPDATE_BEFORE",
+            ...          "ua", "UPDATE_AFTER",
+            ...          "d", "DELETE").as_argument("op_mapping")
+            ... )
+            >>> # Silently skip rows with NULL or unmapped op codes instead of failing
+            >>> result = cdc_stream.from_changelog(
+            ...     lit("SKIP").as_argument("error_handling")
+            ... )
+
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``error_handling``.
+        :return: A dynamic :class:`~pyflink.table.Table` with the ``op`` column removed and
+                 proper change operation semantics.
+        """
+        return Table(self._j_table.fromChangelog(to_expression_jarray(arguments)), self._t_env)
+
 
 @PublicEvolving()
 class GroupedTable(object):

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.workflow.WorkflowScheduler;
 import org.apache.flink.util.StringUtils;
@@ -84,7 +85,10 @@ public class WorkflowSchedulerFactoryUtil {
                                             optionEntry ->
                                                     stringifyOption(
                                                             optionEntry.getKey(),
-                                                            optionEntry.getValue()))
+                                                            optionEntry.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);

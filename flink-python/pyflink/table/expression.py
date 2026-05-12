@@ -1489,6 +1489,28 @@ class Expression(Generic[T]):
         """
         return _unary_op("inetNtoa")(self)
 
+    @property
+    def is_valid_utf8(self) -> 'Expression[bool]':
+        """
+        Returns true if the input bytes are a well-formed UTF-8 sequence, false otherwise.
+        Returns null if the input is null.
+
+        Specifically rejects: truncated multi-byte sequences (missing continuation bytes),
+        "overlong" encodings (using more bytes than necessary for the code point), code points
+        above the Unicode maximum U+10FFFF, and UTF-16 surrogate values U+D800-U+DFFF (which
+        have no UTF-8 representation).
+        """
+        return _unary_op("isValidUtf8")(self)
+
+    @property
+    def make_valid_utf8(self) -> 'Expression[str]':
+        """
+        Decodes the input bytes as UTF-8, replacing each invalid sequence with the Unicode
+        replacement character U+FFFD. The substitution is lossy and irreversible. Returns null
+        if the input is null.
+        """
+        return _unary_op("makeValidUtf8")(self)
+
     def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
                   key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """

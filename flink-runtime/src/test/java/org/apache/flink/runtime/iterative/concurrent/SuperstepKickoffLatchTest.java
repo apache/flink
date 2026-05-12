@@ -224,7 +224,9 @@ public class SuperstepKickoffLatchTest {
 
                     toWatch.join(2000);
                     if (toWatch.isAlive()) {
-                        toWatch.stop();
+                        this.failed =
+                                new Exception(
+                                        "Watched thread did not respond to interrupt within 2s");
                     }
                 }
             } catch (Throwable t) {

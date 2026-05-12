@@ -202,6 +202,10 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy TO_CHANGELOG_OUTPUT_TYPE_STRATEGY =
             ToChangelogTypeStrategy.OUTPUT_TYPE_STRATEGY;
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}. */
+    public static final TypeStrategy FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY =
+            FromChangelogTypeStrategy.OUTPUT_TYPE_STRATEGY;
+
     private SpecificTypeStrategies() {
         // no instantiation
     }

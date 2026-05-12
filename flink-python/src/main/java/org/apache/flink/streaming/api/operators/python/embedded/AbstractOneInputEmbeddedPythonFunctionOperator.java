@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.AbstractMessageLite;
-import pemja.core.object.PyIterator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -151,18 +150,17 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         timestamp = element.getTimestamp();
 
         IN value = element.getValue();
-        PyIterator results =
-                (PyIterator)
+        try (EmbeddedPythonIterator results =
+                EmbeddedPythonIterator.from(
                         interpreter.invokeMethod(
                                 "operation",
                                 "process_element",
-                                inputDataConverter.toExternal(value));
-
-        while (results.hasNext()) {
-            OUT result = outputDataConverter.toInternal(results.next());
-            collector.collect(result);
+                                inputDataConverter.toExternal(value)))) {
+            while (results.hasNext()) {
+                OUT result = outputDataConverter.toInternal(results.next());
+                collector.collect(result);
+            }
         }
-        results.close();
     }
 
     TypeInformation<IN> getInputTypeInfo() {

@@ -40,8 +40,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -321,6 +326,99 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
                 });
     }
 
+    /**
+     * Exercises all four attribute-limit config semantics in a single end-to-end run, proving that
+     * the reporter routes the transformer through to the exported OTLP payload:
+     *
+     * <ul>
+     *   <li>{@code task_name} — truncated by the global limit (5).
+     *   <li>{@code operator_name} — truncated by a per-attribute limit (3) overriding the global.
+     *   <li>{@code job_id} — dropped entirely via limit {@code 0}.
+     *   <li>{@code job_name} — kept at full length via limit {@code -1}, overriding the global.
+     * </ul>
+     */
+    @Test
+    public void testAttributeValueTruncation() throws Exception {
+        final MetricConfig metricConfig = createMetricConfig();
+        final String limitsPrefix =
+                OpenTelemetryReporterOptions.ATTRIBUTE_VALUE_LENGTH_LIMITS_PREFIX_KEY;
+        metricConfig.setProperty(limitsPrefix + "*", "5");
+        metricConfig.setProperty(limitsPrefix + "operator_name", "3");
+        metricConfig.setProperty(limitsPrefix + "job_id", "0");
+        metricConfig.setProperty(limitsPrefix + "job_name", "-1");
+
+        final String longTaskName = "task_name_longer_than_five";
+        final String longOperatorName = "operator_name_longer_than_three";
+        final String longJobId = "job_id_dropped_entirely";
+        final String longJobName = "job_name_kept_despite_global_limit";
+
+        final Map<String, String> rawVariables = new HashMap<>();
+        rawVariables.put("<task_name>", longTaskName);
+        rawVariables.put("<operator_name>", longOperatorName);
+        rawVariables.put("<job_id>", longJobId);
+        rawVariables.put("<job_name>", longJobName);
+        final MetricGroup group = new TestMetricGroupWithVariables(rawVariables);
+
+        reporter.open(metricConfig);
+        reporter.notifyOfAddedMetric(new SimpleCounter(), "trunc.counter", group);
+        reporter.report();
+        reporter.close();
+
+        final String metricName = "flink.logical.scope.trunc.counter";
+        eventuallyConsumeJson(
+                json -> {
+                    assertThat(extractMetricNames(json)).contains(metricName);
+
+                    assertThat(
+                                    collectAttributeValues(
+                                            json, metricName, "/sum/dataPoints", "task_name"))
+                            .as("task_name must be truncated to the global limit (5)")
+                            .containsExactly(longTaskName.substring(0, 5));
+
+                    assertThat(
+                                    collectAttributeValues(
+                                            json, metricName, "/sum/dataPoints", "operator_name"))
+                            .as("operator_name must be truncated by per-attribute limit (3)")
+                            .containsExactly(longOperatorName.substring(0, 3));
+
+                    assertThat(
+                                    collectAttributeValues(
+                                            json, metricName, "/sum/dataPoints", "job_id"))
+                            .as("job_id must be dropped entirely (limit 0)")
+                            .isEmpty();
+
+                    assertThat(
+                                    collectAttributeValues(
+                                            json, metricName, "/sum/dataPoints", "job_name"))
+                            .as(
+                                    "job_name must be kept at full length (negative limit overrides global)")
+                            .containsExactly(longJobName);
+                });
+    }
+
+    /**
+     * Collects the string values of attribute {@code attrKey} on every data point of the first
+     * metric in {@code json} matching {@code metricName}.
+     */
+    private static List<String> collectAttributeValues(
+            final JsonNode json,
+            final String metricName,
+            final String dataPointsPath,
+            final String attrKey) {
+        final List<String> values = new ArrayList<>();
+        streamOf(json.findPath("resourceMetrics").findPath("scopeMetrics").findPath("metrics"))
+                .filter(metric -> metricName.equals(metric.findPath("name").asText()))
+                .flatMap(metric -> streamOf(metric.at(dataPointsPath)))
+                .flatMap(dp -> streamOf(dp.findPath("attributes")))
+                .filter(attr -> attrKey.equals(attr.findPath("key").asText()))
+                .forEach(attr -> values.add(attr.at("/value/stringValue").asText()));
+        return values;
+    }
+
+    private static Stream<JsonNode> streamOf(final JsonNode node) {
+        return StreamSupport.stream(node.spliterator(), false);
+    }
+
     static class TestMetricGroup extends UnregisteredMetricsGroup implements LogicalScopeProvider {
 
         @Override
@@ -336,6 +434,24 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
         @Override
         public MetricGroup getWrappedMetricGroup() {
             return this;
+        }
+    }
+
+    /**
+     * A {@link TestMetricGroup} that additionally exposes a fixed set of variables via {@link
+     * #getAllVariables()}, enabling tests to verify attribute-level behaviour (e.g. truncation).
+     */
+    static class TestMetricGroupWithVariables extends TestMetricGroup {
+
+        private final Map<String, String> variables;
+
+        TestMetricGroupWithVariables(final Map<String, String> variables) {
+            this.variables = variables;
+        }
+
+        @Override
+        public Map<String, String> getAllVariables() {
+            return variables;
         }
     }
 }

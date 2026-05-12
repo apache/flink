@@ -50,7 +50,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |    t2.proctime + INTERVAL '5' SECOND
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
     data1.+=((1, 2L, "Hi2"))
     data1.+=((1, 5L, "Hi3"))
@@ -58,7 +58,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=((1, 9L, "Hi6"))
     data1.+=((1, 8L, "Hi8"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
@@ -97,7 +97,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |    t2.proctime + INTERVAL '5' SECOND
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
     data1.+=((1, 2L, "Hi2"))
     data1.+=((1, 5L, "Hi3"))
@@ -105,7 +105,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=((1, 9L, "Hi6"))
     data1.+=((1, 8L, "Hi8"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
@@ -146,7 +146,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |  t1.b = t2.b
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(String, Long, String)]
+    val data1 = new mutable.ListBuffer[(String, Long, String)]
     data1.+=(("1", 1L, "Hi1"))
     data1.+=(("1", 2L, "Hi2"))
     data1.+=(("1", 5L, "Hi3"))
@@ -154,7 +154,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("1", 9L, "Hi6"))
     data1.+=(("1", 8L, "Hi8"))
 
-    val data2 = new mutable.MutableList[(String, Long, String)]
+    val data2 = new mutable.ListBuffer[(String, Long, String)]
     data2.+=(("1", 5L, "HiHi"))
     data2.+=(("2", 2L, "HeHe"))
 
@@ -193,7 +193,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |    t2.rowtime + INTERVAL '6' SECOND
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "LEFT0.999", 999L))
     data1.+=(("A", "LEFT1", 1000L))
@@ -205,7 +205,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "RIGHT6", 6000L))
     data2.+=(("B", "RIGHT7", 7000L))
     // test null key
@@ -226,7 +226,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "A,RIGHT6,LEFT1",
       "A,RIGHT6,LEFT2",
       "A,RIGHT6,LEFT3",
@@ -248,7 +248,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |    t2.rowtime + INTERVAL '6' SECOND
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "LEFT0.999", 999L))
     data1.+=(("A", "LEFT1", 1000L))
@@ -260,7 +260,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "RIGHT6", 6000L))
     data2.+=(("B", "RIGHT7", 7000L))
     // test null key
@@ -281,7 +281,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "A,RIGHT6,LEFT1",
       "A,RIGHT6,LEFT2",
       "A,RIGHT6,LEFT3",
@@ -303,7 +303,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |    t2.rowtime + INTERVAL '6' SECOND
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "LEFT0.999", 999L))
     data1.+=(("A", "LEFT1", 1000L))
@@ -315,7 +315,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "RIGHT6", 6000L))
     data2.+=(("B", "RIGHT7", 7000L))
     // test null key
@@ -336,7 +336,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "A,RIGHT6,LEFT1",
       "A,RIGHT6,LEFT2",
       "A,RIGHT6,LEFT3",
@@ -371,7 +371,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT key, COUNT(DISTINCT id1), COUNT(DISTINCT id2) FROM (" +
       innerSql + ") GROUP BY key"
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "LEFT0.999", 999L))
     data1.+=(("A", "LEFT1", 1000L))
@@ -383,7 +383,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "RIGHT6", 6000L))
     data2.+=(("B", "RIGHT7", 7000L))
     // test null key
@@ -404,7 +404,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList("A,1,5", "B,1,1")
+    val expected = mutable.ListBuffer("A,1,5", "B,1,1")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
@@ -420,7 +420,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |t2.rowtime = t1.rowtime
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, Long, String)]
+    val data1 = new mutable.ListBuffer[(String, Long, String)]
     data1.+=(("K1", 1000L, "L1"))
     data1.+=(("K1", 1000L, "L2"))
     data1.+=(("K1", 1000L, "L3"))
@@ -433,7 +433,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // See https://issues.apache.org/jira/browse/FLINK-24466
     // data1.+=(("K2", 1000L, "should-be-discarded"))
 
-    val data2 = new mutable.MutableList[(String, Long, String)]
+    val data2 = new mutable.ListBuffer[(String, Long, String)]
     data2.+=(("K1", 1000L, "R1"))
     data2.+=(("K1", 1000L, "R2"))
     data2.+=(("K1", 1000L, "R3"))
@@ -462,7 +462,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "K1,1000,L1,R1",
       "K1,1000,L1,R2",
       "K1,1000,L1,R3",
@@ -494,7 +494,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |  t1.b > 2
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String, Long)]
     data1.+=((1, 4L, "LEFT1", 1000L))
     // for boundary test
     data1.+=((1, 8L, "LEFT1.1", 1001L))
@@ -507,7 +507,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=((1, 4L, "LEFT5", 5000L))
     data1.+=((1, 10L, "LEFT6", 6000L))
 
-    val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String, Long)]
     // just for watermark
     data2.+=((1, 1L, "RIGHT1", 1000L))
     data2.+=((1, 9L, "RIGHT6", 6000L))
@@ -531,7 +531,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
 
     // There may be two expected results according to the process order.
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "1,LEFT3,RIGHT6",
       "1,LEFT1.1,RIGHT6",
       "2,LEFT4,RIGHT7",
@@ -552,7 +552,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |  QUARTER(t1.rowtime) = t2.a
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String, Long)]
     data1.+=((1, 4L, "LEFT1", 1000L))
     data1.+=((1, 2L, "LEFT2", 2000L))
     data1.+=((1, 7L, "LEFT3", 3000L))
@@ -560,7 +560,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=((1, 4L, "LEFT5", 5000L))
     data1.+=((1, 10L, "LEFT6", 6000L))
 
-    val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String, Long)]
     data2.+=((1, 1L, "RIGHT1", 1000L))
     data2.+=((1, 9L, "RIGHT6", 6000L))
     data2.+=((2, 8, "RIGHT7", 7000L))
@@ -583,7 +583,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
 
     val expected = mutable
-      .MutableList[String]("1,LEFT3,RIGHT6", "1,LEFT5,RIGHT6", "1,LEFT5,RIGHT8", "1,LEFT6,RIGHT8")
+      .ListBuffer[String]("1,LEFT3,RIGHT6", "1,LEFT5,RIGHT6", "1,LEFT5,RIGHT8", "1,LEFT6,RIGHT8")
 
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.toList.sorted)
   }
@@ -601,7 +601,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |GROUP BY TUMBLE(t1.rowtime, INTERVAL '4' SECOND), t1.key
         |""".stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     data1.+=(("A", "L-1", 1000L)) // no joining record
     data1.+=(("A", "L-2", 2000L)) // 1 joining record
     data1.+=(("A", "L-3", 3000L)) // 2 joining records
@@ -611,7 +611,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("A", "L-6", 10000L)) // 2 joining records
     data1.+=(("A", "L-7", 13000L)) // 1 joining record
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-1", 7000L)) // 3 joining records
     data2.+=(("B", "R-4", 7000L)) // 1 joining records
     data2.+=(("A", "R-3", 8000L)) // 3 joining records
@@ -634,7 +634,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = t_r.toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,1970-01-01T00:00:04,3",
       "A,1970-01-01T00:00:12,2",
       "A,1970-01-01T00:00:16,1",
@@ -656,7 +656,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         | GROUP BY TUMBLE(t2.rowtime, INTERVAL '4' SECOND), t2.key
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     data1.+=(("A", "L-1", 1000L)) // no joining record
     data1.+=(("A", "L-2", 2000L)) // 1 joining record
     data1.+=(("A", "L-3", 3000L)) // 2 joining records
@@ -665,7 +665,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("A", "L-6", 10000L)) // 2 joining records
     data1.+=(("A", "L-7", 13000L)) // 1 joining record
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-1", 7000L)) // 3 joining records
     data2.+=(("B", "R-4", 7000L)) // 1 joining records
     data2.+=(("A", "R-3", 8000L)) // 3 joining records
@@ -687,7 +687,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,1970-01-01T00:00:08,3",
       "A,1970-01-01T00:00:12,3",
       "B,1970-01-01T00:00:08,1")
@@ -708,13 +708,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         | t2.proctime + INTERVAL '3' SECOND
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
     data1.+=((1, 2L, "Hi2"))
     data1.+=((1, 5L, "Hi3"))
     data1.+=((2, 7L, "Hi5"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
@@ -748,7 +748,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         | t1.id <> 'L-5'
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("A", "L-2", 2000L))
@@ -760,7 +760,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("A", "L-12", 12000L))
     data1.+=(("A", "L-20", 20000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
@@ -783,7 +783,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,R-6,L-1",
       "A,R-6,L-2",
       "A,R-6,L-6",
@@ -812,13 +812,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |  t2.rowtime + INTERVAL '1' SECOND
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("B", "L-4", 4000L))
     data1.+=(("C", "L-7", 7000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
@@ -840,7 +840,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "null,null,L-1",
       "null,null,L-4",
       "null,null,L-7"
@@ -862,13 +862,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         | t2.proctime + INTERVAL '3' SECOND
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
     data1.+=((1, 2L, "Hi2"))
     data1.+=((1, 5L, "Hi3"))
     data1.+=((2, 7L, "Hi5"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
@@ -901,7 +901,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         | t2.id <> 'R-5'
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("A", "L-2", 2000L))
@@ -911,7 +911,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("A", "L-10", 10000L))
     data1.+=(("A", "L-12", 12000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-5", 5000L))
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
@@ -934,7 +934,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,R-5,null",
       "A,R-6,L-1",
       "A,R-6,L-2",
@@ -960,13 +960,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |t2.rowtime + INTERVAL '1' SECOND
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("B", "L-4", 4000L))
     data1.+=(("C", "L-7", 7000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
@@ -988,7 +988,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,R-6,null",
       "B,R-7,null",
       "D,R-8,null"
@@ -1010,13 +1010,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |t2.proctime
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(Int, Long, String)]
+    val data1 = new mutable.ListBuffer[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
     data1.+=((1, 2L, "Hi2"))
     data1.+=((1, 5L, "Hi3"))
     data1.+=((2, 7L, "Hi5"))
 
-    val data2 = new mutable.MutableList[(Int, Long, String)]
+    val data2 = new mutable.ListBuffer[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
@@ -1048,7 +1048,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |NOT (t1.id = 'L-5' OR t2.id = 'R-5')
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("A", "L-2", 2000L))
@@ -1060,7 +1060,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=(("A", "L-12", 12000L))
     data1.+=(("A", "L-20", 20000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-5", 5000L))
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
@@ -1083,7 +1083,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "A,R-6,L-1",
       "A,R-6,L-2",
       "A,R-6,L-6",
@@ -1110,13 +1110,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
         |t2.rowtime + INTERVAL '4' SECOND
       """.stripMargin
 
-    val data1 = new mutable.MutableList[(String, String, Long)]
+    val data1 = new mutable.ListBuffer[(String, String, Long)]
     // for boundary test
     data1.+=(("A", "L-1", 1000L))
     data1.+=(("B", "L-4", 4000L))
     data1.+=(("C", "L-7", 7000L))
 
-    val data2 = new mutable.MutableList[(String, String, Long)]
+    val data2 = new mutable.ListBuffer[(String, String, Long)]
     data2.+=(("A", "R-6", 6000L))
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
@@ -1138,7 +1138,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList[String](
+    val expected = mutable.ListBuffer[String](
       "null,null,L-1",
       "null,null,L-4",
       "null,null,L-7",

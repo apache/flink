@@ -46,16 +46,47 @@ public interface StringData extends Comparable<StringData> {
         return BinaryStringData.fromString(str);
     }
 
-    /** Creates an instance of {@link StringData} from the given UTF-8 byte array. */
+    /**
+     * Creates an instance of {@link StringData} by wrapping the given UTF-8 byte array in O(1)
+     * without copying or validating it. The caller is responsible for ensuring the bytes are
+     * well-formed UTF-8; use {@link #fromUtf8Bytes(byte[])} if validation is required.
+     */
     static StringData fromBytes(byte[] bytes) {
         return BinaryStringData.fromBytes(bytes);
     }
 
     /**
-     * Creates an instance of {@link StringData} from the given UTF-8 byte array with offset and
-     * number of bytes.
+     * Creates an instance of {@link StringData} by wrapping the given UTF-8 byte range in O(1)
+     * without copying or validating it. The caller is responsible for ensuring the bytes are
+     * well-formed UTF-8; use {@link #fromUtf8Bytes(byte[], int, int)} if validation is required.
      */
     static StringData fromBytes(byte[] bytes, int offset, int numBytes) {
         return BinaryStringData.fromBytes(bytes, offset, numBytes);
+    }
+
+    /**
+     * Creates an instance of {@link StringData} from the given UTF-8 byte array, walking the input
+     * once in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code
+     * null}. Throws {@link org.apache.flink.table.api.TableRuntimeException} on invalid UTF-8.
+     *
+     * <p>Connector authors should prefer this method over {@link #fromBytes(byte[])} when ingesting
+     * data from external systems whose UTF-8 conformance is not guaranteed: the strict variant
+     * surfaces the error at the source rather than letting silent {@code U+FFFD} substitution
+     * propagate downstream. Use {@link #fromBytes(byte[])} when the bytes are already known to be
+     * valid and the O(n) check can be skipped.
+     */
+    static StringData fromUtf8Bytes(byte[] bytes) {
+        return BinaryStringData.fromUtf8Bytes(bytes);
+    }
+
+    /**
+     * Creates an instance of {@link StringData} from the given UTF-8 byte range, walking it once in
+     * O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code null}.
+     * Throws {@link org.apache.flink.table.api.TableRuntimeException} on invalid UTF-8.
+     *
+     * @see #fromUtf8Bytes(byte[])
+     */
+    static StringData fromUtf8Bytes(byte[] bytes, int offset, int numBytes) {
+        return BinaryStringData.fromUtf8Bytes(bytes, offset, numBytes);
     }
 }

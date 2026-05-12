@@ -922,8 +922,10 @@ conversion:
     description: |
       返回 value 被转换为类型 type 的新值。CAST错误会抛出异常并导致作业失败。为了处理错误，在使用可能失败的 CAST 操作时，例如 STRING 转换为 INT，建议使用 TRY_CAST 替代。
       如果开启了 "table.exec.legacy-cast-behaviour"，CAST 行为将变得与 TRY_CAST 一致。
-      
+
       例如, CAST('42' AS INT) 返回 42; CAST(NULL AS STRING) 返回字符串类型的 `NULL`; CAST('non-number' AS INT) 抛出异常且作业失败。
+
+      Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
     description: |
@@ -935,6 +937,22 @@ conversion:
       返回输入表达式的数据类型的字符串表示。默认情况下返回的字符串是一个摘要字符串，可能会为了可读性而省略某些细节。
       如果 force_serializable 设置为 TRUE，则字符串表示可以持久化保存在 catalog 中的完整数据类型。
       请注意，特别是匿名的内联数据类型没有可序列化的字符串表示。在这种情况下返回 `NULL`。
+  - sql: IS_VALID_UTF8(bytes)
+    table: BYTES.isValidUtf8()
+    description: |
+      Returns `TRUE` if the input is well-formed UTF-8, `FALSE` otherwise. Specifically rejects: truncated multi-byte sequences (missing continuation bytes), "overlong" encodings (using more bytes than necessary for the code point), code points above the Unicode maximum U+10FFFF, and UTF-16 surrogate values U+D800-U+DFFF (which have no UTF-8 representation). Returns `NULL` if the input is `NULL`.
+
+      Useful for filtering records with invalid UTF-8: `WHERE IS_VALID_UTF8(payload)` keeps clean rows; `WHERE NOT IS_VALID_UTF8(payload)` selects the rejects.
+
+      E.g., `IS_VALID_UTF8(x'48656C6C6F')` returns `TRUE`; `IS_VALID_UTF8(x'80')` returns `FALSE`.
+  - sql: MAKE_VALID_UTF8(bytes)
+    table: BYTES.makeValidUtf8()
+    description: |
+      Decodes the input as UTF-8, replacing each invalid sequence with the Unicode replacement character `U+FFFD` (rendered as `�`). The substitution is lossy and irreversible. Returns `NULL` if the input is `NULL`.
+
+      `MAKE_VALID_UTF8()` can fully replace a `CAST(bytes AS STRING)` which would error in case of invalid UTF-8.
+
+      E.g., `MAKE_VALID_UTF8(x'48656C6C6F')` returns `'Hello'`; `MAKE_VALID_UTF8(x'80')` returns `'�'` (the `U+FFFD` replacement character).
 
 collection:
   - sql: CARDINALITY(array)

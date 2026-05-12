@@ -126,6 +126,10 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TO_CHANGELOG_INPUT_TYPE_STRATEGY =
             ToChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
 
+    /** Input strategy for {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}. */
+    public static final InputTypeStrategy FROM_CHANGELOG_INPUT_TYPE_STRATEGY =
+            FromChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
+
     /** See {@link ExtractInputTypeStrategy}. */
     public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();
 

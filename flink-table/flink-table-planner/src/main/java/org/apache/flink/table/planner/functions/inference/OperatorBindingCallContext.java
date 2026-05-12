@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -280,6 +279,8 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
+        private final int[] orderByColumns;
+        private final SortDirection[] orderByDirections;
         private final int timeColumn;
         private final @Nullable ChangelogMode changelogMode;
 
@@ -289,10 +290,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 RexTableArgCall tableArgCall,
                 int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
-            checkNoOrderBy(tableArgCall);
             return new OperatorBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     tableArgCall.getPartitionKeys(),
+                    tableArgCall.getOrderKeys(),
+                    RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                     timeColumn,
                     changelogMode);
         }
@@ -300,18 +302,16 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         private OperatorBindingTableSemantics(
                 DataType dataType,
                 int[] partitionByColumns,
+                int[] orderByColumns,
+                SortDirection[] orderByDirections,
                 int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
+            this.orderByColumns = orderByColumns;
+            this.orderByDirections = orderByDirections;
             this.timeColumn = timeColumn;
             this.changelogMode = changelogMode;
-        }
-
-        private static void checkNoOrderBy(RexTableArgCall tableArgCall) {
-            if (tableArgCall.getOrderKeys().length > 0) {
-                throw new ValidationException("ORDER BY clause is currently not supported.");
-            }
         }
 
         private static DataType createDataType(DataType tableDataType, StaticArgument staticArg) {
@@ -336,7 +336,12 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         @Override
         public int[] orderByColumns() {
-            return new int[0];
+            return orderByColumns;
+        }
+
+        @Override
+        public SortDirection[] orderByDirections() {
+            return orderByDirections;
         }
 
         @Override
