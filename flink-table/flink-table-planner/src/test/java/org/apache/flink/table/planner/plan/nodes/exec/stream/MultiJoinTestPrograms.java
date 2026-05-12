@@ -137,7 +137,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-is-not-distinct",
                             "three way inner join with is not distinct")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -182,6 +181,61 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Orders o ON u.user_id IS NOT DISTINCT FROM o.user_id "
                                     + "INNER JOIN Payments p ON o.user_id IS NOT DISTINCT FROM p.user_id")
                     .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_IS_NOT_DISTINCT_RESTORE =
+                    TableTestProgram.of(
+                                    "three-way-inner-join-with-is-not-distinct-restore",
+                                    "three way inner join with is not distinct restore")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Users")
+                                            .addSchema("user_id STRING", "name STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "Gus"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "Bob"),
+                                                    Row.ofKind(RowKind.INSERT, null, "Steve"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Orders")
+                                            .addSchema("user_id STRING", "order_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "order1"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "order2"),
+                                                    Row.ofKind(RowKind.INSERT, null, "order3"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Payments")
+                                            .addSchema("user_id STRING", "payment_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "payment1"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "payment2"),
+                                                    Row.ofKind(RowKind.INSERT, null, "payment3"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema(
+                                                    "user_id STRING",
+                                                    "name STRING",
+                                                    "order_id STRING",
+                                                    "payment_id STRING")
+                                            .consumedBeforeRestore("+I[1, Gus, order1, payment1]")
+                                            .consumedAfterRestore(
+                                                    "+I[2, Bob, order2, payment2]",
+                                                    "+I[null, Steve, order3, payment3]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                            + "FROM Users u "
+                                            + "INNER JOIN Orders o ON u.user_id IS NOT DISTINCT FROM o.user_id "
+                                            + "INNER JOIN Payments p ON o.user_id IS NOT DISTINCT FROM p.user_id")
+                            .build();
 
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_WHERE =
             TableTestProgram.of(
