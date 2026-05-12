@@ -1015,8 +1015,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 // must be deterministic.
                 inputReq = ImmutableBitSet.range(input.getRowType().getFieldCount());
             } else {
-                // Retracts are routed by partition key only — only partition key columns must
-                // be deterministic.
+                // Inserts, update and deletions are routed by partition key only — thus the partition key columns must be deterministic.
                 inputReq =
                         ImmutableBitSet.of(
                                 Arrays.stream(tableArgCall.getPartitionKeys())
