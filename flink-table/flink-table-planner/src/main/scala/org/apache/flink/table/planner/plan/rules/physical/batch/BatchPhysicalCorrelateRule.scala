@@ -61,8 +61,6 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
     val convInput: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.BATCH_PHYSICAL)
     val right: RelNode = join.getInput(1)
 
-    // Walk through the right subtree to find the underlying TableFunctionScan and the
-    // Calc (if any) that sits between the Correlate and the TFS.
     val (scan, calcOpt) = unwrapToScan(right)
 
     val condition: Option[RexNode] = calcOpt.flatMap {
@@ -71,16 +69,10 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
         Option(program.getCondition).map(program.expandLocalRef)
     }
 
-    // The Correlate's output before any right-side projection is left ++ scan.rowType.
-    // When the Calc above the TFS has a non-identity projection, we cannot fold it into
-    // the physical Correlate's output rowType: the codegen concatenates left input with
-    // the *full* TFS output positionally, so a narrower rowType would cause downstream
-    // consumers to read the wrong fields. Build the physical Correlate with the full
-    // combined rowType and apply the projection via a wrapping Calc on top.
-    //
-    // Restricted to INNER/LEFT because SEMI/ANTI Correlates produce only the left fields;
-    // the right-side projection is only consumed by the join condition and never appears
-    // in the Correlate's output, so the bug cannot manifest there.
+    // Non-identity projection above the TFS cannot be folded into the physical Correlate's
+    // output rowType: the codegen concatenates the left input with the full TFS output
+    // positionally. Apply it via a wrapping Calc instead. SEMI/ANTI Correlates output only
+    // the left fields, so the projection has no effect there.
     val needsProjectionAbove =
       calcOpt.exists(calc => !calc.getProgram.projectsOnlyIdentity()) &&
         (join.getJoinType == JoinRelType.INNER || join.getJoinType == JoinRelType.LEFT)
@@ -128,10 +120,6 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
     }
   }
 
-  /**
-   * Walks past planner shells to expose the {@link FlinkLogicalTableFunctionScan} at the bottom of
-   * the right subtree, returning the immediate {@link FlinkLogicalCalc} above it (if any).
-   */
   private def unwrapToScan(
       rel: RelNode): (FlinkLogicalTableFunctionScan, Option[FlinkLogicalCalc]) = {
     rel match {

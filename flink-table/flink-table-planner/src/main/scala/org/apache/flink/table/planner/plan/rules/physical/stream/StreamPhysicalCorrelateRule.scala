@@ -73,7 +73,6 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
       RelOptRule.convert(correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
 
-    // Find the underlying TFS and the merged Calc above it (if any).
     val (scan, mergedCalc) = unwrapToScan(right)
 
     val condition: Option[RexNode] = mergedCalc.flatMap {
@@ -82,15 +81,10 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
         Option(program.getCondition).map(program.expandLocalRef)
     }
 
-    // When the Calc above the TFS has a non-identity projection, build the physical
-    // Correlate with the full combined rowType (left ++ scan.rowType) and apply the
-    // projection via a wrapping Calc on top. Otherwise, the codegen would concatenate
-    // the left input with the full TFS output positionally and downstream consumers
-    // would read the wrong fields when the claimed rowType is narrower.
-    //
-    // Restricted to INNER/LEFT because SEMI/ANTI Correlates produce only the left
-    // fields; the right-side projection is only consumed by the join condition and
-    // never appears in the Correlate's output.
+    // Non-identity projection above the TFS cannot be folded into the physical Correlate's
+    // output rowType: the codegen concatenates the left input with the full TFS output
+    // positionally. Apply it via a wrapping Calc instead. SEMI/ANTI Correlates output only
+    // the left fields, so the projection has no effect there.
     val needsProjectionAbove =
       mergedCalc.exists(calc => !calc.getProgram.projectsOnlyIdentity()) &&
         (correlate.getJoinType == JoinRelType.INNER ||
@@ -139,11 +133,6 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
     }
   }
 
-  /**
-   * Walks past planner shells to expose the {@link FlinkLogicalTableFunctionScan} at the bottom of
-   * the right subtree, returning the Calc (with chained Calcs already merged into one) immediately
-   * above it (if any).
-   */
   private def unwrapToScan(
       rel: RelNode): (FlinkLogicalTableFunctionScan, Option[FlinkLogicalCalc]) = {
     rel match {

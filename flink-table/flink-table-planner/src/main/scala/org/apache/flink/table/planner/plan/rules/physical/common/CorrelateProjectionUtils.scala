@@ -22,20 +22,12 @@ import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexNode, RexProgram, Rex
 
 import scala.collection.JavaConverters._
 
-/**
- * Shared helpers for the physical Correlate rules that need to preserve a right-side projection
- * (originally on a {@link org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc}
- * between the Correlate and the {@link
- * org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan}) by applying it
- * via a wrapping Calc on top of the physical Correlate.
- */
+/** Shared helpers for the physical Correlate rules. */
 object CorrelateProjectionUtils {
 
   /**
-   * Builds a {@link RexProgram} that re-applies the Calc's original projection to the output of the
-   * physical Correlate (left ++ scan.rowType). Left fields are passed through unchanged; right-side
-   * projection expressions have their input references shifted by {@code leftFieldCount} so they
-   * index the combined input row.
+   * Re-applies a Calc's projection above the physical Correlate. Left fields are passed through;
+   * right-side input refs are shifted by {@code leftFieldCount} to index the combined row.
    */
   def buildWrappingProgram(
       originalProgram: RexProgram,
@@ -51,15 +43,12 @@ object CorrelateProjectionUtils {
 
     val builder = new RexProgramBuilder(combinedRowType, rexBuilder)
 
-    // Pass through the left fields by name and type from the combined row.
     val combinedFields = combinedRowType.getFieldList
     for (i <- 0 until leftFieldCount) {
       val field = combinedFields.get(i)
       builder.addProject(new RexInputRef(i, field.getType), field.getName)
     }
 
-    // Append the original Calc's projection list, with input refs shifted to point at the
-    // right-hand portion of the combined row, and rename to match outputRowType.
     val originalProjects = originalProgram.getProjectList.asScala
     val outputFields = outputRowType.getFieldList
     require(
