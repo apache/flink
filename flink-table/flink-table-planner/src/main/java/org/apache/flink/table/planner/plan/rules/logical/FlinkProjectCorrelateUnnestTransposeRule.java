@@ -49,32 +49,25 @@ import java.util.stream.Collectors;
  * UNNEST rewrite, pruning unused left-side columns before the cross-product expansion.
  *
  * <p>This is a custom replacement for Calcite's {@link
- * org.apache.calcite.rel.rules.ProjectCorrelateTransposeRule}, which has two bugs that cause
- * runtime failures on UNNEST:
+ * org.apache.calcite.rel.rules.ProjectCorrelateTransposeRule}. Calcite's {@code
+ * RelShuttleImpl.visit(TableFunctionScan)} only walks {@code visitChildren(scan)} — it never
+ * applies the {@link RexShuttle} to the scan's {@code rexCall}, and {@code
+ * LogicalTableFunctionScan} doesn't override {@code accept(RelShuttle)}, so dispatch routes through
+ * {@code visit(RelNode)} instead. As a result, {@code RexFieldAccess($cor0.X)} indices inside the
+ * unnest call are never re-numbered when the left input is pruned, and runtime codegen reads from a
+ * stale field index. We work around this here by walking the right tree explicitly and applying our
+ * shuttle to every {@code TableFunctionScan} we find.
  *
- * <ol>
- *   <li><b>Bug 1.</b> {@code RelShuttleImpl.visit(TableFunctionScan)} only walks {@code
- *       visitChildren(scan)} — it never applies the {@link RexShuttle} to the scan's {@code
- *       rexCall}, and {@code LogicalTableFunctionScan} doesn't override {@code accept(RelShuttle)},
- *       so dispatch routes through {@code visit(RelNode)} instead. The result: {@code
- *       RexFieldAccess($cor0.X)} indices inside the unnest call are never re-numbered when the left
- *       input is pruned, and runtime codegen reads from a stale field index. We fix this here by
- *       walking the right tree explicitly and applying our shuttle to every {@code
- *       TableFunctionScan} we find.
- *   <li><b>Bug 2.</b> Calcite's {@code PushProjector} mishandles renumbering when the right side is
- *       {@code LogicalProject(named_fields...) over LogicalTableFunctionScan} and the wrapper
- *       Project has more than one output field — pruning produces a plan whose remaining wrapper
- *       output silently resolves to the wrong source field (e.g. {@code UNNEST(MAP)} returns keys
- *       where values were expected). We sidestep this entirely by NOT pruning the right side at
- *       all. Only the left input is pruned; the right side (TFS plus any wrapper Project) is passed
- *       through unchanged except for the {@code $cor0.X} index rewrite from Bug 1.
- * </ol>
- *
- * <p>The trade-off vs. a fully-general project pushdown: when a query reads only a subset of an
- * UNNEST's output columns (e.g. only {@code v} from {@code UNNEST(MAP) AS f(k, v)}), we still pass
- * both columns out of the Correlate. The unused column gets trimmed by downstream Calc-merging.
- * Pruning the (typically wide) source-table left input is the bigger win and is what this rule
- * delivers safely.
+ * <p>Scope: only the left input is pruned. The right side (TFS plus any wrapper Project) is passed
+ * through unchanged except for the {@code $cor0.X} index rewrite. Right-side pruning is deferred to
+ * a follow-up that depends on <a
+ * href="https://issues.apache.org/jira/browse/FLINK-39669">FLINK-39669</a> (otherwise Flink's
+ * {@code BatchPhysicalCorrelateRule} / {@code StreamPhysicalCorrelateRule} silently drop the
+ * wrapper Project's non-identity projection and the runtime returns the wrong TFS column). When a
+ * query reads only a subset of an UNNEST's output columns (e.g. only {@code v} from {@code
+ * UNNEST(MAP) AS f(k, v)}), we still pass both columns out of the Correlate; the unused column gets
+ * trimmed by downstream Calc-merging. Pruning the (typically wide) source-table left input is the
+ * bigger win and is what this rule delivers.
  */
 @Value.Enclosing
 public class FlinkProjectCorrelateUnnestTransposeRule
