@@ -100,7 +100,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[1 AS a, b, c])
+Calc(select=[1 AS a, 2 AS b, 3 AS c])
 +- Values(tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>

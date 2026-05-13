@@ -239,6 +239,7 @@ class BatchPhysicalOverAggregateRule
             group.isRows,
             group.lowerBound,
             group.upperBound,
+            group.exclude,
             group.orderKeys,
             newAggCalls))
       }

@@ -520,6 +520,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
         true,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
         RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        null,
         RelCollations.of(
           new RelFieldCollation(
             1,

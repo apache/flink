@@ -2435,6 +2435,7 @@ class FlinkRelMdHandlerTestBase {
       true,
       RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
       RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+      null,
       RelCollations.of(
         new RelFieldCollation(
           1,
@@ -2568,6 +2569,7 @@ class FlinkRelMdHandlerTestBase {
         true,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
         RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        null,
         RelCollations.of(
           new RelFieldCollation(
             1,
@@ -2589,6 +2591,7 @@ class FlinkRelMdHandlerTestBase {
         false,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(4, 15)), null),
         RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        null,
         RelCollations.of(
           new RelFieldCollation(
             2,
@@ -2634,6 +2637,7 @@ class FlinkRelMdHandlerTestBase {
         false,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(7, 19)), null),
         RexWindowBounds.create(SqlWindow.createUnboundedFollowing(new SqlParserPos(0, 0)), null),
+        null,
         RelCollations.EMPTY,
         ImmutableList.of(
           new Window.RexWinAggCall(

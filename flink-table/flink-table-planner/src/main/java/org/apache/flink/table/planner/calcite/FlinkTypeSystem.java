@@ -101,6 +101,16 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
     }
 
     @Override
+    public int getMinScale(SqlTypeName typeName) {
+        switch (typeName) {
+            case DECIMAL:
+                return -DecimalType.MAX_PRECISION;
+            default:
+                return super.getMinScale(typeName);
+        }
+    }
+
+    @Override
     public boolean shouldConvertRaggedUnionTypesToVarying() {
         // when union a number of CHAR types of different lengths, we should cast to a VARCHAR
         // this fixes the problem of CASE WHEN with different length string literals but get wrong

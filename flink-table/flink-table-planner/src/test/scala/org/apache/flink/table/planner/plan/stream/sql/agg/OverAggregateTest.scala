@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -54,6 +54,49 @@ class OverAggregateTest extends TableTestBase {
 
     assertThatExceptionOfType(classOf[TableException])
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+  }
+
+  @Test
+  def testExclusionGroupIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE GROUP)
+        |from MyTable
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Frame exclusion 'EXCLUDE GROUP' is not supported in over windows.")
+  }
+
+  @Test
+  def testExclusionTiesIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE TIES)
+        |from MyTable
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Frame exclusion 'EXCLUDE TIES' is not supported in over windows.")
+  }
+
+  @Test
+  def testExclusionCurrentRowIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE CURRENT ROW)
+        |from MyTable
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage(
+        "Frame exclusion 'EXCLUDE CURRENT ROW' is not supported in over windows.")
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */

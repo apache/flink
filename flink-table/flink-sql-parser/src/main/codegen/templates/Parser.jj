@@ -40,6 +40,7 @@ import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.JoinConditionType;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlAlter;
+import org.apache.calcite.sql.SqlAsofJoin;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlCall;
@@ -73,6 +74,7 @@ import org.apache.calcite.sql.SqlJsonQueryWrapperBehavior;
 import org.apache.calcite.sql.SqlJsonValueEmptyOrErrorBehavior;
 import org.apache.calcite.sql.SqlJsonValueReturning;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLambda;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlMerge;
@@ -1757,10 +1759,10 @@ SqlNode SqlInsert() :
     (
         LOOKAHEAD(2)
         p = ParenthesizedCompoundIdentifierList() {
-            if (p.right.size() > 0) {
+            if (!p.right.isEmpty()) {
                 tableRef = extend(tableRef, p.right);
             }
-            if (p.left.size() > 0) {
+            if (!p.left.isEmpty()) {
                 columnList = p.left;
             } else {
                 columnList = null;
@@ -1832,14 +1834,14 @@ SqlNode SqlUpdate() :
     ( tableRef = TableHints(tableName) | { tableRef = tableName; } )
     [ tableRef = ExtendTable(tableRef) ]
     ( [ <AS> ] alias = SimpleIdentifier() | { alias = null; } )
-    <SET> id = SimpleIdentifier() {
+    <SET> id = CompoundIdentifier() {
         targetColumnList.add(id);
     }
     // TODO:  support DEFAULT also
     <EQ> AddExpression(sourceExpressionList, ExprContext.ACCEPT_SUB_QUERY)
     (
         <COMMA>
-        id = SimpleIdentifier() { targetColumnList.add(id); }
+        id = CompoundIdentifier() { targetColumnList.add(id); }
         <EQ> AddExpression(sourceExpressionList, ExprContext.ACCEPT_SUB_QUERY)
     )*
     ( where = Where() | { where = null; } )
@@ -1957,13 +1959,19 @@ SqlInsert WhenNotMatchedClause(SqlNode table) :
  */
 void AddSelectItem(List<SqlNode> list) :
 {
-    final SqlNode e;
+    SqlNode e;
     final SqlIdentifier id;
 }
 {
     e = SelectExpression()
     (
-        [ <AS> ]
+        [ <AS>
+            [ <MEASURE> {
+                    e = SqlInternalOperators.MEASURE.createCall(
+                        e.getParserPosition(), e);
+                }
+            ]
+        ]
         (
             id = SimpleIdentifier()
         |
@@ -2006,6 +2014,7 @@ SqlLiteral Natural() :
 SqlLiteral JoinType() :
 {
     JoinType joinType;
+    boolean asof = false;
 }
 {
     (
@@ -2018,7 +2027,9 @@ SqlLiteral JoinType() :
     |
         <INNER> <JOIN> { joinType = JoinType.INNER; }
     |
-        <LEFT> [ <OUTER> ] <JOIN> { joinType = JoinType.LEFT; }
+        <ASOF> <JOIN> { joinType = JoinType.ASOF; }
+    |
+        <LEFT> [ <OUTER> | <ASOF> { asof = true; } ] <JOIN> { joinType = asof ? JoinType.LEFT_ASOF : JoinType.LEFT; }
     |
         <RIGHT> [ <OUTER> ] <JOIN> { joinType = JoinType.RIGHT; }
     |
@@ -2082,7 +2093,7 @@ SqlNode JoinOrCommaTable(SqlNode e) :
 /** Matches "LEFT JOIN t ON ...", "RIGHT JOIN t USING ...", "JOIN t". */
 SqlNode JoinTable(SqlNode e) :
 {
-    SqlNode e2, condition;
+    SqlNode e2, condition, matchCondition = null;
     final SqlLiteral natural, joinType, on, using;
     SqlNodeList list;
 }
@@ -2099,13 +2110,32 @@ SqlNode JoinTable(SqlNode e) :
     //
     // We allow CROSS JOIN (joinType = CROSS_JOIN) to have a join condition,
     // even though that is not valid SQL; the validator will catch it.
-    LOOKAHEAD(3)
+    LOOKAHEAD(4)
     natural = Natural()
     joinType = JoinType()
     e2 = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN)
     (
+        [ <MATCH_CONDITION> matchCondition = Expression(ExprContext.ACCEPT_SUB_QUERY) ]
         <ON> { on = JoinConditionType.ON.symbol(getPos()); }
         condition = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+            JoinType type = joinType.getValueAs(JoinType.class);
+            if (matchCondition != null) {
+                if (type != JoinType.ASOF && type != JoinType.LEFT_ASOF) {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.matchConditionRequiresAsof());
+                }
+                return new SqlAsofJoin(joinType.getParserPosition(),
+                    e,
+                    natural,
+                    joinType,
+                    e2,
+                    on,
+                    condition,
+                    matchCondition);
+            } else {
+                if (type == JoinType.ASOF || type == JoinType.LEFT_ASOF) {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.asofRequiresMatchCondition());
+                }
+            }
             return new SqlJoin(joinType.getParserPosition(),
                 e,
                 natural,
@@ -2754,6 +2784,7 @@ SqlWindow WindowSpecification() :
     final SqlNodeList orderList;
     final SqlLiteral isRows;
     final SqlNode lowerBound, upperBound;
+    final SqlLiteral exclude;
     final Span s, s1, s2;
     final SqlLiteral allowPartial;
 }
@@ -2786,9 +2817,11 @@ SqlWindow WindowSpecification() :
             lowerBound = WindowRange()
             { upperBound = null; }
         )
+        exclude = WindowExclusion()
     |
         {
             isRows = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+            exclude = SqlWindow.createExcludeNoOthers(getPos());
             lowerBound = upperBound = null;
         }
     )
@@ -2805,7 +2838,7 @@ SqlWindow WindowSpecification() :
     <RPAREN>
     {
         return SqlWindow.create(null, id, partitionList, orderList,
-            isRows, lowerBound, upperBound, allowPartial, s.end(this));
+            isRows, lowerBound, upperBound, allowPartial, exclude, s.end(this));
     }
 }
 
@@ -2841,6 +2874,27 @@ SqlNode WindowRange() :
         <FOLLOWING> {
             return SqlWindow.createFollowing(e, getPos());
         }
+    )
+}
+
+/** Parses an exclusion clause for WINDOW FRAME. */
+SqlLiteral WindowExclusion() :
+{
+}
+{
+    (
+        <EXCLUDE>
+        (
+            <CURRENT> <ROW> { return SqlWindow.createExcludeCurrentRow(getPos()); }
+        |
+            <NO> <OTHERS> { return SqlWindow.createExcludeNoOthers(getPos()); }
+        |
+            <GROUP> { return SqlWindow.createExcludeGroup(getPos()); }
+        |
+            <TIES> { return SqlWindow.createExcludeTies(getPos()); }
+        )
+    |
+        { return SqlWindow.createExcludeNoOthers(SqlParserPos.ZERO); }
     )
 }
 
@@ -3805,8 +3859,12 @@ List<Object> Expression2(ExprContext exprContext) :
                 AddExpression2b(list, ExprContext.ACCEPT_SUB_QUERY)
             |
                 <LBRACKET>
-                itemOp = getItemOp()
-                e = Expression(ExprContext.ACCEPT_SUB_QUERY)
+                ( <OFFSET> { itemOp = SqlLibraryOperators.OFFSET; } <LPAREN> { e = Expression(ExprContext.ACCEPT_SUB_QUERY); } <RPAREN>
+                | <ORDINAL> { itemOp = SqlLibraryOperators.ORDINAL; } <LPAREN> { e = Expression(ExprContext.ACCEPT_SUB_QUERY); } <RPAREN>
+                | <SAFE_OFFSET> { itemOp = SqlLibraryOperators.SAFE_OFFSET; } <LPAREN> { e = Expression(ExprContext.ACCEPT_SUB_QUERY); } <RPAREN>
+                | <SAFE_ORDINAL> { itemOp = SqlLibraryOperators.SAFE_ORDINAL; } <LPAREN> { e = Expression(ExprContext.ACCEPT_SUB_QUERY); } <RPAREN>
+                | { itemOp = SqlStdOperatorTable.ITEM; } e = Expression(ExprContext.ACCEPT_SUB_QUERY)
+                )
                 <RBRACKET> {
                     list.add(
                         new SqlParserUtil.ToTreeListItem(
@@ -3839,22 +3897,6 @@ List<Object> Expression2(ExprContext exprContext) :
             return list;
         }
     )
-}
-
-/** Returns the appropriate ITEM operator for indexing arrays. */
-SqlOperator getItemOp() :
-{
-}
-{
-    <OFFSET> { return SqlLibraryOperators.OFFSET; }
-|
-    <ORDINAL> { return SqlLibraryOperators.ORDINAL; }
-|
-    <SAFE_OFFSET> { return SqlLibraryOperators.SAFE_OFFSET; }
-|
-    <SAFE_ORDINAL> { return SqlLibraryOperators.SAFE_ORDINAL; }
-|
-    { return SqlStdOperatorTable.ITEM; }
 }
 
 /** Parses a comparison operator inside a SOME / ALL predicate. */
@@ -3975,7 +4017,7 @@ SqlNode Expression3(ExprContext exprContext) :
     {
         if (list1.size() == 1) {
             // interpret as single value or query
-            return list1.get(0);
+            return list1.get(0).clone(list1.getParserPosition());
         } else {
             // interpret as row constructor
             return SqlStdOperatorTable.ROW.createCall(span().end(list1),
@@ -4856,9 +4898,9 @@ SqlLiteral DateTimeLiteral() :
     }
 |
     LOOKAHEAD(2)
-        <TIME> { s = span(); } <WITH> ( <LOCAL> { local = true; } )? <TIME> <ZONE> p = SimpleStringLiteral() {
-            return SqlLiteral.createUnknown("TIME WITH " + (local ? "LOCAL " : "") + "TIME ZONE", p, s.end(this));
-        }
+    <TIME> { s = span(); } <WITH> ( <LOCAL> { local = true; } )? <TIME> <ZONE> p = SimpleStringLiteral() {
+        return SqlLiteral.createUnknown("TIME WITH " + (local ? "LOCAL " : "") + "TIME ZONE", p, s.end(this));
+    }
 |
     LOOKAHEAD(2)
     <TIMESTAMP> { s = span(); } <WITH> ( <LOCAL> { local = true; } )? <TIME> <ZONE> p = SimpleStringLiteral() {
@@ -4951,7 +4993,7 @@ SqlNode ArrayConstructor() :
         // by enumeration "ARRAY[e0, e1, ..., eN]"
         <LBRACKET> // TODO: do trigraph as well ??( ??)
         (
-            args = ExpressionCommaList(s, ExprContext.ACCEPT_NON_QUERY)
+            args = ExpressionCommaList(s, ExprContext.ACCEPT_SUB_QUERY)
         |
             { args = SqlNodeList.EMPTY; }
         )
@@ -5918,8 +5960,8 @@ SqlTypeNameSpec SqlTypeName2(Span s) :
 SqlTypeNameSpec SqlTypeName3(Span s) :
 {
     final SqlTypeName sqlTypeName;
-    int precision = -1;
-    int scale = -1;
+    int precision = RelDataType.PRECISION_NOT_SPECIFIED;
+    int scale = RelDataType.SCALE_NOT_SPECIFIED;
 }
 {
     (
@@ -5932,7 +5974,7 @@ SqlTypeNameSpec SqlTypeName3(Span s) :
         precision = UnsignedIntLiteral()
         [
             <COMMA>
-            scale = UnsignedIntLiteral()
+            scale = IntLiteral()
         ]
         <RPAREN>
     ]
@@ -8030,6 +8072,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < ARRAY_CONCAT_AGG: "ARRAY_CONCAT_AGG" >
 |   < ARRAY_MAX_CARDINALITY: "ARRAY_MAX_CARDINALITY" >
 |   < AS: "AS" >
+|   < ASOF: "ASOF" >
 |   < ASC: "ASC" >
 |   < ASENSITIVE: "ASENSITIVE" >
 |   < ASSERTION: "ASSERTION" >
@@ -8330,10 +8373,12 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < MATCH: "MATCH" >
 |   < MATCHED: "MATCHED" >
 |   < MATCHES: "MATCHES" >
+|   < MATCH_CONDITION: "MATCH_CONDITION">
 |   < MATCH_NUMBER: "MATCH_NUMBER">
 |   < MATCH_RECOGNIZE: "MATCH_RECOGNIZE">
 |   < MAX: "MAX" >
 |   < MAXVALUE: "MAXVALUE" >
+|   < MEASURE: "MEASURE" >
 |   < MEASURES: "MEASURES" >
 |   < MEMBER: "MEMBER" >
 |   < MERGE: "MERGE" > { beforeTableName(); }

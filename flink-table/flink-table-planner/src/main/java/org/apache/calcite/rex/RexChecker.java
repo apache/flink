@@ -34,23 +34,29 @@ import static java.util.Objects.requireNonNull;
  * <p>There are two modes of operation:
  *
  * <ul>
- *   <li>Use<code>fail=true</code> to throw an {@link AssertionError} as soon as an invalid node is
- *       detected:
+ *   <li>{@link Litmus#THROW} causes the checker to throw an {@link AssertionError} as soon as an
+ *       invalid node is detected. Note: This mode requires that assertions are enabled.
  *       <blockquote>
- *       <code>RexNode node;<br>
- * RelDataType rowType;<br>
- * assert new RexChecker(rowType, true).isValid(node);</code>
+ *       <pre>
+ * // Example usage of Litmus.THROW
+ * RexNode node;
+ * RelDataType rowType;
+ * RexChecker checker = new RexChecker(rowType, Litmus.THROW);
+ * node.accept(checker); // Will throw an AssertionError if node is invalid
+ * </pre>
  *       </blockquote>
- *       <p>This mode requires that assertions are enabled.
- *   <li>Use <code>fail=false</code> to test for validity without throwing an error.
+ *   <li>{@link Litmus#IGNORE} tests validity without throwing an error.
  *       <blockquote>
- *       <code>RexNode node;<br>
- * RelDataType rowType;<br>
- * RexChecker checker = new RexChecker(rowType, false);<br>
- * node.accept(checker);<br>
- * if (!checker.valid) {<br>
- * &nbsp;&nbsp;&nbsp;...<br>
- * }</code>
+ *       <pre>
+ * // Example usage of Litmus.IGNORE
+ * RexNode node;
+ * RelDataType rowType;
+ * RexChecker checker = new RexChecker(rowType, Litmus.IGNORE);
+ * node.accept(checker);
+ * if (!checker.isValid()) {
+ *     // Handle invalid node
+ * }
+ * </pre>
  *       </blockquote>
  * </ul>
  *

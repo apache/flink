@@ -18,7 +18,6 @@ package org.apache.calcite.sql.type;
 
 import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import org.apache.calcite.rel.type.RelDataType;
@@ -51,6 +50,7 @@ import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -61,6 +61,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.rel.type.RelDataTypeImpl.NON_NULLABLE_SUFFIX;
 import static org.apache.calcite.sql.type.NonNullableAccessors.getCharset;
@@ -74,8 +75,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1084-1087
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1108-1110
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1092-1096
+ *   <li>Should be removed after fixing CALCITE-7062: Lines 1116-1118
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -315,6 +316,10 @@ public abstract class SqlTypeUtil {
             RelDataType sourceRelDataType,
             RelDataType targetRelDataType,
             RelDataTypeFactory typeFactory) {
+        checkArgument(
+                (targetRelDataType.isStruct() && sourceRelDataType.isStruct())
+                        || (!targetRelDataType.isStruct() && !sourceRelDataType.isStruct()),
+                "one is a struct, while the other one is not");
         if (!targetRelDataType.isStruct()) {
             return typeFactory.createTypeWithNullability(
                     sourceRelDataType, targetRelDataType.isNullable());
@@ -1051,12 +1056,15 @@ public abstract class SqlTypeUtil {
                 || isNull(type)
                 || type.getSqlTypeName() == SqlTypeName.UNKNOWN
                 || type.getSqlTypeName() == SqlTypeName.GEOMETRY) {
-            int precision = typeName.allowsPrec() ? type.getPrecision() : -1;
+            int precision =
+                    typeName.allowsPrec()
+                            ? type.getPrecision()
+                            : RelDataType.PRECISION_NOT_SPECIFIED;
             // fix up the precision.
             if (maxPrecision > 0 && precision > maxPrecision) {
                 precision = maxPrecision;
             }
-            int scale = typeName.allowsScale() ? type.getScale() : -1;
+            int scale = typeName.allowsScale() ? type.getScale() : RelDataType.SCALE_NOT_SPECIFIED;
             if (maxScale > 0 && scale > maxScale) {
                 scale = maxScale;
             }
@@ -1107,7 +1115,7 @@ public abstract class SqlTypeUtil {
 
         // FLINK MODIFICATION BEGIN
         return new SqlDataTypeSpec(typeNameSpec, SqlParserPos.ZERO).withNullable(type.isNullable());
-        // FLINK MODIFICATION BEGIN
+        // FLINK MODIFICATION END
     }
 
     /**
@@ -1119,7 +1127,11 @@ public abstract class SqlTypeUtil {
     public static SqlDataTypeSpec convertTypeToSpec(RelDataType type) {
         // TODO jvs 28-Dec-2004:  collation
         String charSetName = inCharFamily(type) ? type.getCharset().name() : null;
-        return convertTypeToSpec(type, charSetName, -1, -1);
+        return convertTypeToSpec(
+                type,
+                charSetName,
+                RelDataType.PRECISION_NOT_SPECIFIED,
+                RelDataType.SCALE_NOT_SPECIFIED);
     }
 
     public static RelDataType createMultisetType(
@@ -1146,7 +1158,7 @@ public abstract class SqlTypeUtil {
     /** Creates a MAP type from a record type. The record type must have exactly two fields. */
     public static RelDataType createMapTypeFromRecord(
             RelDataTypeFactory typeFactory, RelDataType type) {
-        Preconditions.checkArgument(
+        checkArgument(
                 type.getFieldCount() == 2,
                 "MAP requires exactly two fields, got %s; row type %s",
                 type.getFieldCount(),
@@ -1257,8 +1269,8 @@ public abstract class SqlTypeUtil {
      */
     public static boolean equalAsCollectionSansNullability(
             RelDataTypeFactory factory, RelDataType type1, RelDataType type2) {
-        Preconditions.checkArgument(isCollection(type1), "Input type1 must be collection type");
-        Preconditions.checkArgument(isCollection(type2), "Input type2 must be collection type");
+        checkArgument(isCollection(type1), "Input type1 must be collection type");
+        checkArgument(isCollection(type2), "Input type2 must be collection type");
 
         return (type1 == type2)
                 || (type1.getSqlTypeName() == type2.getSqlTypeName()
@@ -1280,8 +1292,8 @@ public abstract class SqlTypeUtil {
      */
     public static boolean equalAsMapSansNullability(
             RelDataTypeFactory factory, RelDataType type1, RelDataType type2) {
-        Preconditions.checkArgument(isMap(type1), "Input type1 must be map type");
-        Preconditions.checkArgument(isMap(type2), "Input type2 must be map type");
+        checkArgument(isMap(type1), "Input type1 must be map type");
+        checkArgument(isMap(type2), "Input type2 must be map type");
 
         MapSqlType mType1 = (MapSqlType) type1;
         MapSqlType mType2 = (MapSqlType) type2;
@@ -1308,8 +1320,8 @@ public abstract class SqlTypeUtil {
             RelDataType type1,
             RelDataType type2,
             @Nullable SqlNameMatcher nameMatcher) {
-        Preconditions.checkArgument(type1.isStruct(), "Input type1 must be struct type");
-        Preconditions.checkArgument(type2.isStruct(), "Input type2 must be struct type");
+        checkArgument(type1.isStruct(), "Input type1 must be struct type");
+        checkArgument(type2.isStruct(), "Input type2 must be struct type");
 
         if (type1 == type2) {
             return true;
@@ -1412,7 +1424,8 @@ public abstract class SqlTypeUtil {
 
     /**
      * Returns whether two types are comparable. They need to be scalar types of the same family, or
-     * struct types whose fields are pairwise comparable.
+     * struct types whose fields are pairwise comparable. Note that types in the CHARACTER family
+     * are comparable with many other types (see {@link #canConvertStringInCompare}).
      *
      * @param type1 First type
      * @param type2 Second type
@@ -1766,6 +1779,33 @@ public abstract class SqlTypeUtil {
     }
 
     /**
+     * Returns whether the decimal value can be represented without information loss using the
+     * specified type. For example, 1111.11 - cannot be represented exactly using DECIMAL(3, 1)
+     * since it overflows. - cannot be represented exactly using DECIMAL(6, 3) since it overflows. -
+     * cannot be represented exactly using DECIMAL(6, 1) since it requires rounding. - can be
+     * represented exactly using DECIMAL(6, 2)
+     *
+     * @param value A decimal value
+     * @param toType A DECIMAL type.
+     * @return whether the value is valid for the type
+     */
+    public static boolean canBeRepresentedExactly(@Nullable BigDecimal value, RelDataType toType) {
+        assert toType.getSqlTypeName() == SqlTypeName.DECIMAL;
+        if (value == null) {
+            return true;
+        }
+        value = value.stripTrailingZeros();
+        if (value.scale() < 0) {
+            // Negative scale, convert to 0 scale.
+            // Rounding mode is irrelevant, since value is integer
+            value = value.setScale(0, RoundingMode.DOWN);
+        }
+        final int intDigits = value.precision() - value.scale();
+        final int maxIntDigits = toType.getPrecision() - toType.getScale();
+        return (intDigits <= maxIntDigits) && (value.scale() <= toType.getScale());
+    }
+
+    /**
      * Returns whether the decimal value is valid for the type. For example, 1111.11 is not valid
      * for DECIMAL(3, 1) since it overflows.
      *
@@ -1785,5 +1825,37 @@ public abstract class SqlTypeUtil {
             default:
                 return true;
         }
+    }
+
+    /**
+     * Strips MEASURE wrappers from a type.
+     *
+     * <p>For example:
+     *
+     * <ul>
+     *   <li>"{@code INTEGER}" remains "{@code INTEGER}";
+     *   <li>"{@code MEASURE<DECIMAL>}" becomes "{@code DECIMAL}";
+     *   <li>"{@code (empno INTEGER NOT NULL, rating MEASURE<DECIMAL>)}" becomes "{@code (empno
+     *       INTEGER NOT NULL, rating DECIMAL)}".
+     * </ul>
+     */
+    public static RelDataType fromMeasure(RelDataTypeFactory typeFactory, RelDataType type) {
+        if (type.isStruct()) {
+            final RelDataTypeFactory.Builder builder = typeFactory.builder();
+            int changeCount = 0;
+            for (RelDataTypeField field : type.getFieldList()) {
+                final RelDataType type2 = fromMeasure(typeFactory, field.getType());
+                if (type2 != field.getType()) {
+                    ++changeCount;
+                }
+                builder.add(field.getName(), type2);
+            }
+            // Avoid the effort of re-creating the same type
+            return changeCount == 0 ? type : builder.build();
+        }
+        if (type.isMeasure()) {
+            return ((MeasureSqlType) type).types.get(0);
+        }
+        return type;
     }
 }
