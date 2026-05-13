@@ -25,8 +25,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 @PublicEvolving
 public class ConnectionNotExistException extends Exception {
 
-    private static final String MSG = "Connection '`%s`.`%s`.`%s`' does not exist.";
-    private static final String MSG_WITHOUT_CATALOG = "Connection '`%s`.`%s`' does not exist.";
+    private static final String MSG = "Connection '%s' does not exist in catalog '%s'.";
+    private static final String MSG_WITHOUT_CATALOG = "Connection '%s' does not exist.";
 
     public ConnectionNotExistException(String catalogName, ObjectPath connectionPath) {
         this(catalogName, connectionPath, null);
@@ -39,15 +39,8 @@ public class ConnectionNotExistException extends Exception {
 
     private static String formatMsg(String catalogName, ObjectPath connectionPath) {
         if (catalogName != null) {
-            return String.format(
-                    MSG,
-                    catalogName,
-                    connectionPath.getDatabaseName(),
-                    connectionPath.getObjectName());
+            return String.format(MSG, connectionPath.getFullName(), catalogName);
         }
-        return String.format(
-                MSG_WITHOUT_CATALOG,
-                connectionPath.getDatabaseName(),
-                connectionPath.getObjectName());
+        return String.format(MSG_WITHOUT_CATALOG, connectionPath.getFullName());
     }
 }

@@ -1889,12 +1889,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         } catch (DatabaseNotExistException e) {
             throw new ValidationException(
                     String.format(
-                            "Database %s does not exist in catalog %s.", databaseName, catalogName),
+                            "Database '%s' does not exist in catalog '%s'.",
+                            databaseName, catalogName),
                     e);
         } catch (CatalogException e) {
             throw new TableException(
                     String.format(
-                            "Failed to list connections in catalog %s and database %s.",
+                            "Failed to list connections in catalog '%s' and database '%s'.",
                             catalogName, databaseName),
                     e);
         }
@@ -1981,7 +1982,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 return;
             }
             throw new ValidationException(
-                    String.format("Temporary connection '%s' already exists", objectIdentifier));
+                    String.format("Temporary connection '%s' already exists.", objectIdentifier));
         }
         // Temporary connections are session-scoped; store secrets in an in-memory store rather
         // than the configured (potentially persistent) writableSecretStore.

@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 @PublicEvolving
 public class ConnectionAlreadyExistException extends Exception {
 
-    private static final String MSG = "Connection %s already exists in Catalog %s.";
+    private static final String MSG = "Connection '%s' already exists in catalog '%s'.";
 
     public ConnectionAlreadyExistException(String catalogName, ObjectPath connectionPath) {
         this(catalogName, connectionPath, null);

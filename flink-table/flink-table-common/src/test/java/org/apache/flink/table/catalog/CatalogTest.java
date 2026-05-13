@@ -518,7 +518,9 @@ public abstract class CatalogTest {
                         () -> catalog.createConnection(connectionPath1, createConnection(), false))
                 .isInstanceOf(ConnectionAlreadyExistException.class)
                 .hasMessage(
-                        "Connection db1.c1 already exists in Catalog " + TEST_CATALOG_NAME + ".");
+                        "Connection 'db1.c1' already exists in catalog '"
+                                + TEST_CATALOG_NAME
+                                + "'.");
     }
 
     @Test
@@ -567,7 +569,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         assertThatThrownBy(() -> catalog.getConnection(connectionPath1))
                 .isInstanceOf(ConnectionNotExistException.class)
-                .hasMessage("Connection '`test-catalog`.`db1`.`c1`' does not exist.");
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
     }
 
     @Test
@@ -581,7 +583,7 @@ public abstract class CatalogTest {
         catalog.dropConnection(connectionPath1, false);
         assertThatThrownBy(() -> catalog.getConnection(connectionPath1))
                 .isInstanceOf(ConnectionNotExistException.class)
-                .hasMessage("Connection '`test-catalog`.`db1`.`c1`' does not exist.");
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
     }
 
     @Test
@@ -629,7 +631,7 @@ public abstract class CatalogTest {
                         "new connection");
         assertThatThrownBy(() -> catalog.alterConnection(connectionPath1, newConnection, false))
                 .isInstanceOf(ConnectionNotExistException.class)
-                .hasMessage("Connection '`test-catalog`.`db1`.`c1`' does not exist.");
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
     }
 
     @Test
@@ -658,7 +660,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         assertThatThrownBy(() -> catalog.dropConnection(connectionPath1, false))
                 .isInstanceOf(ConnectionNotExistException.class)
-                .hasMessage("Connection '`test-catalog`.`db1`.`c1`' does not exist.");
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
     }
 
     @Test
