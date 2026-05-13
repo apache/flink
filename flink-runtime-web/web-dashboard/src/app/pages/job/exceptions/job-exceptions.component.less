@@ -47,6 +47,18 @@
 
   nz-table {
     margin-top: -@margin-md;
+
+    .exception-cell {
+      word-break: break-all;
+
+      nz-tag {
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-all;
+        height: auto;
+        line-height: 1.4;
+      }
+    }
   }
 
   nz-tag {
@@ -59,6 +71,6 @@
   }
 
   .exception-select {
-    width: 300px;
+    width: 100%;
   }
 }
