@@ -586,6 +586,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             this.functionClass = checkNotNull(functionClass, "functionClass must not be null");
         }
 
+        private void validateArgumentNotYetConfigured(String argumentName) {
+            if (scalarArgs.containsKey(argumentName) || tableArgs.containsKey(argumentName)) {
+                throw new IllegalArgumentException("Argument already configured: " + argumentName);
+            }
+        }
+
         // ---------------------------------------------------------------------
         // Table & Scalar Arguments
         // ---------------------------------------------------------------------
@@ -604,15 +610,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             checkNotNull(argumentName, "argumentName must not be null");
             checkNotNull(dataType, "dataType must not be null");
 
-            if (scalarArgs.containsKey(argumentName)) {
-                throw new IllegalArgumentException(
-                        "Argument already configured as scalar: " + argumentName);
-            }
-
-            if (tableArgs.containsKey(argumentName)) {
-                throw new IllegalArgumentException(
-                        "Table argument already configured: " + argumentName);
-            }
+            validateArgumentNotYetConfigured(argumentName);
 
             tableArgs.put(argumentName, new TableArgumentConfiguration(dataType));
             return this;
@@ -630,15 +628,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public Builder<OUT> withTableArgument(String argumentName) {
             checkNotNull(argumentName, "argumentName must not be null");
 
-            if (scalarArgs.containsKey(argumentName)) {
-                throw new IllegalArgumentException(
-                        "Argument already configured as scalar: " + argumentName);
-            }
-
-            if (tableArgs.containsKey(argumentName)) {
-                throw new IllegalArgumentException(
-                        "Table argument already configured: " + argumentName);
-            }
+            validateArgumentNotYetConfigured(argumentName);
 
             tableArgs.put(argumentName, new TableArgumentConfiguration(null));
             return this;
@@ -656,9 +646,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public Builder<OUT> withScalarArgument(String argumentName, Object value) {
             checkNotNull(argumentName, "argumentName must not be null");
 
-            if (scalarArgs.containsKey(argumentName) || tableArgs.containsKey(argumentName)) {
-                throw new IllegalArgumentException("Argument already configured: " + argumentName);
-            }
+            validateArgumentNotYetConfigured(argumentName);
 
             ScalarArgumentConfiguration config = new ScalarArgumentConfiguration(value);
             scalarArgs.put(argumentName, config);
