@@ -349,11 +349,16 @@ class S3ClientProvider implements AutoCloseableAsync {
         }
 
         public Builder assumeRoleSessionName(String assumeRoleSessionName) {
-            this.assumeRoleSessionName = assumeRoleSessionName;
+            this.assumeRoleSessionName =
+                    Preconditions.checkNotNull(
+                            assumeRoleSessionName, "assumeRoleSessionName must not be null");
             return this;
         }
 
         public Builder assumeRoleSessionDurationSeconds(int assumeRoleSessionDurationSeconds) {
+            Preconditions.checkArgument(
+                    assumeRoleSessionDurationSeconds > 0,
+                    "assumeRoleSessionDurationSeconds must be greater than zero");
             this.assumeRoleSessionDurationSeconds = assumeRoleSessionDurationSeconds;
             return this;
         }
@@ -370,7 +375,7 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
-        public S3ClientProvider build() {
+        S3ClientProvider build() {
             if (endpoint == null) {
                 endpoint = System.getProperty("s3.endpoint");
             }
