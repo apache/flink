@@ -844,13 +844,34 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
 
-            // Parameter count should also match our arguments list
             if (parameters.length != arguments.size()) {
                 throw new IllegalStateException(
                         String.format(
                                 "Parameter count mismatch: eval() has %d parameters but only %d arguments were extracted. "
                                         + "This may indicate missing @ArgumentHint annotations.",
                                 parameters.length, arguments.size()));
+            }
+
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter param = parameters[i];
+                Class<?> paramType = param.getType();
+                ArgumentInfo arg = arguments.get(i);
+
+                if (arg.isScalar) {
+                    ScalarArgumentConfiguration config = scalarArgs.get(arg.name);
+                    if (config != null
+                            && config.value != null
+                            && !paramType.isAssignableFrom(config.value.getClass())) {
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Type mismatch for scalar argument '%s' at position %d: "
+                                                + "eval() parameter expects %s but provided value is %s",
+                                        arg.name,
+                                        i,
+                                        paramType.getName(),
+                                        config.value.getClass().getName()));
+                    }
+                }
             }
         }
 
@@ -916,35 +937,41 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         private DataType extractPartitionColumnType(ArgumentInfo arg, String columnName) {
-            if (arg.dataType instanceof FieldsDataType) {
-                FieldsDataType fieldsDataType = (FieldsDataType) arg.dataType;
-                LogicalType logicalType = fieldsDataType.getLogicalType();
-                List<DataType> fieldDataTypes = fieldsDataType.getChildren();
+            if (!(arg.dataType instanceof FieldsDataType)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Cannot extract data type for partition column '%s' of argument '%s': "
+                                        + "argument data type is not a FieldsDataType (actual: %s)",
+                                columnName, arg.name, arg.dataType.getClass().getSimpleName()));
+            }
 
-                if (logicalType instanceof RowType) {
-                    RowType rowType = (RowType) logicalType;
-                    int fieldIndex = 0;
-                    for (RowType.RowField field : rowType.getFields()) {
-                        if (field.getName().equals(columnName)) {
-                            return fieldDataTypes.get(fieldIndex);
-                        }
-                        fieldIndex++;
+            FieldsDataType fieldsDataType = (FieldsDataType) arg.dataType;
+            LogicalType logicalType = fieldsDataType.getLogicalType();
+            List<DataType> fieldDataTypes = fieldsDataType.getChildren();
+
+            if (logicalType instanceof RowType) {
+                RowType rowType = (RowType) logicalType;
+                int fieldIndex = 0;
+                for (RowType.RowField field : rowType.getFields()) {
+                    if (field.getName().equals(columnName)) {
+                        return fieldDataTypes.get(fieldIndex);
                     }
-                } else if (logicalType instanceof StructuredType) {
-                    StructuredType structuredType = (StructuredType) logicalType;
-                    int attrIndex = 0;
-                    for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                        if (attr.getName().equals(columnName)) {
-                            return fieldDataTypes.get(attrIndex);
-                        }
-                        attrIndex++;
+                    fieldIndex++;
+                }
+            } else if (logicalType instanceof StructuredType) {
+                StructuredType structuredType = (StructuredType) logicalType;
+                int attrIndex = 0;
+                for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
+                    if (attr.getName().equals(columnName)) {
+                        return fieldDataTypes.get(attrIndex);
                     }
+                    attrIndex++;
                 }
             }
 
             throw new IllegalStateException(
                     String.format(
-                            "Cannot extract data type for partition column '%s' of argument '%s'",
+                            "Partition column '%s' not found in argument '%s'",
                             columnName, arg.name));
         }
 
@@ -1049,7 +1076,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 String.format(
                                         "Type mismatch for table argument '%s': "
                                                 + "annotation declares type %s but builder declares type %s. "
-                                                + "Use either @ArgumentHint(type = ...) OR .withTableArgument(...), not both.",
+                                                + "If the PTF already explicitly declares type information, "
+                                                + "there is no need to specify it in the builder.",
                                         name, annotationType, builderType));
                     }
                     dataType = annotationType;
@@ -1068,8 +1096,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         throw new IllegalStateException(
                                 String.format(
                                         "Table argument '%s' requires explicit type configuration. "
-                                                + "Use @ArgumentHint(type = @DataTypeHint(\"ROW<...>\")) or "
-                                                + ".withTableArgument(\"%s\", DataTypes.of(\"ROW<...>\"))",
+                                                + "Use .withTableArgument(\"%s\", DataTypes.of(\"ROW<...>\")) "
+                                                + "to explicitly declare it.",
                                         name, name));
                     }
                 }
@@ -1112,7 +1140,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
                 throw new IllegalStateException(
                         String.format(
-                                "No partition configuration found for table argument '%s'. "
+                                "No partition configuration found for SET_SEMANTIC_TABLE argument '%s'. "
                                         + "Use withPartitionBy(\"%s\", ...) to configure partitioning.",
                                 name, name));
             }
@@ -1151,29 +1179,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return config.columnNames;
         }
 
+        /** Validates scalar argument values are configured and no unknown arguments exist. */
         private void validateArgumentConfiguration(List<ArgumentInfo> arguments) {
             for (ArgumentInfo arg : arguments) {
-                if (arg.isScalar) {
-                    if (!scalarArgs.containsKey(arg.name)) {
-                        throw new IllegalStateException(
-                                String.format(
-                                        "Missing required scalar argument '%s'. "
-                                                + "Use .withScalarArgument(\"%s\", ...)",
-                                        arg.name, arg.name));
-                    }
-                } else {
-                    // For table arguments: builder config is optional if type comes from annotation
-                    boolean hasBuilderConfig = tableArgs.containsKey(arg.name);
-                    boolean hasInlineType = arg.dataType != null;
-
-                    if (!hasBuilderConfig && !hasInlineType) {
-                        throw new IllegalStateException(
-                                String.format(
-                                        "Missing required table argument '%s'. "
-                                                + "Either specify @ArgumentHint(type = @DataTypeHint(...)) "
-                                                + "or use .withTableArgument(\"%s\", ...)",
-                                        arg.name, arg.name));
-                    }
+                if (arg.isScalar && !scalarArgs.containsKey(arg.name)) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Missing required scalar argument '%s'. "
+                                            + "Use .withScalarArgument(\"%s\", ...)",
+                                    arg.name, arg.name));
                 }
             }
 
