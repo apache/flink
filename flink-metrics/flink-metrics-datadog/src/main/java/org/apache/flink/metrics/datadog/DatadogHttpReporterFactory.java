@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
+import java.util.function.Function;
 
 /** {@link MetricReporterFactory} for {@link DatadogHttpReporter}. */
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
@@ -42,7 +44,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
     @Override
     public MetricReporter createMetricReporter(Properties config) {
-        final String apiKey = getApiKey(config);
+        final String apiKey = getApiKey(config, System::getenv);
         final String proxyHost = config.getProperty(PROXY_HOST, null);
         final int proxyPort = Integer.valueOf(config.getProperty(PROXY_PORT, "8080"));
         final String rawDataCenter = config.getProperty(DATA_CENTER, "US");
@@ -78,10 +80,12 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
      * </ol>
      *
      * @param config the configuration properties
+     * @param envLookup function used to read environment variables (injectable for tests)
      * @return the Datadog API key, or null if not found in either location
      */
-    private String getApiKey(Properties config) {
-        final String envApiKey = System.getenv(API_KEY_ENV_VAR);
+    @VisibleForTesting
+    String getApiKey(Properties config, Function<String, String> envLookup) {
+        final String envApiKey = envLookup.apply(API_KEY_ENV_VAR);
         if (envApiKey != null && !envApiKey.isEmpty()) {
             return envApiKey;
         }

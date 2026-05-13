@@ -22,13 +22,17 @@ import org.apache.flink.metrics.util.MetricReporterTestUtils;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DatadogHttpReporterFactory}. */
 class DatadogHttpReporterFactoryTest {
+
+    private static final String API_KEY_ENV_VAR = "DD_API_KEY";
+
+    private final DatadogHttpReporterFactory factory = new DatadogHttpReporterFactory();
 
     @Test
     void testMetricReporterSetupViaSPI() {
@@ -36,108 +40,41 @@ class DatadogHttpReporterFactoryTest {
     }
 
     @Test
-    void testApiKeyFromConfigurationProperty() throws Exception {
+    void testApiKeyFromConfigurationProperty() {
         final String apiKey = "test-api-key-from-config";
-        final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", apiKey));
-        assertThat(resolvedApiKey).isEqualTo(apiKey);
+        assertThat(factory.getApiKey(configWithApiKey(apiKey), envOf(null))).isEqualTo(apiKey);
     }
 
     @Test
-    void testEmptyConfigurationPropertyReturnsNull() throws Exception {
-        final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", ""));
-        // When config is empty, it falls back to System.getenv which returns null if not set
-        assertThat(resolvedApiKey).isNull();
+    void testEmptyConfigurationPropertyReturnsNull() {
+        assertThat(factory.getApiKey(configWithApiKey(""), envOf(null))).isNull();
     }
 
     @Test
-    void testNoConfigurationPropertyReturnsNull() throws Exception {
-        final String resolvedApiKey = getApiKeyViaReflection(createConfig());
-        // When no config is provided, it falls back to System.getenv which returns null if not set
-        assertThat(resolvedApiKey).isNull();
+    void testNoConfigurationPropertyReturnsNull() {
+        assertThat(factory.getApiKey(new Properties(), envOf(null))).isNull();
     }
 
     @Test
-    void testApiKeyFromEnvironmentVariable() throws Exception {
+    void testApiKeyFromEnvironmentVariable() {
         final String envKey = "env-api-key";
-        setEnv("DD_API_KEY", envKey);
-        try {
-            final String resolvedApiKey = getApiKeyViaReflection(createConfig());
-            assertThat(resolvedApiKey).isEqualTo(envKey);
-        } finally {
-            setEnv("DD_API_KEY", null);
-        }
+        assertThat(factory.getApiKey(new Properties(), envOf(envKey))).isEqualTo(envKey);
     }
 
     @Test
-    void testEnvironmentVariableTakesPrecedenceOverConfiguration() throws Exception {
+    void testEnvironmentVariableTakesPrecedenceOverConfiguration() {
         final String envKey = "env-api-key";
         final String configKey = "config-api-key";
-        setEnv("DD_API_KEY", envKey);
-        try {
-            final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", configKey));
-            assertThat(resolvedApiKey).isEqualTo(envKey);
-        } finally {
-            setEnv("DD_API_KEY", null);
-        }
+        assertThat(factory.getApiKey(configWithApiKey(configKey), envOf(envKey))).isEqualTo(envKey);
     }
 
-    private Properties createConfig(String key, String value) {
+    private static Properties configWithApiKey(String value) {
         Properties config = new Properties();
-        config.setProperty(key, value);
+        config.setProperty("apikey", value);
         return config;
     }
 
-    private Properties createConfig() {
-        return new Properties();
-    }
-
-    private String getApiKeyViaReflection(Properties config) throws Exception {
-        DatadogHttpReporterFactory factory = new DatadogHttpReporterFactory();
-        // Use reflection to call the private getApiKey method
-        java.lang.reflect.Method getApiKeyMethod =
-                DatadogHttpReporterFactory.class.getDeclaredMethod("getApiKey", Properties.class);
-        getApiKeyMethod.setAccessible(true);
-        return (String) getApiKeyMethod.invoke(factory, config);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void setEnv(String key, String value) throws Exception {
-        try {
-            Map<String, String> env = System.getenv();
-            Class<?> cl = env.getClass();
-            java.lang.reflect.Field field = cl.getDeclaredField("m");
-            field.setAccessible(true);
-            Map<String, String> writableEnv = (Map<String, String>) field.get(env);
-            if (value == null) {
-                writableEnv.remove(key);
-            } else {
-                writableEnv.put(key, value);
-            }
-        } catch (NoSuchFieldException e) {
-            // Fallback for other JVM implementations
-            try {
-                Class<?> pe = Class.forName("java.lang.ProcessEnvironment");
-                java.lang.reflect.Field theEnvironmentField = pe.getDeclaredField("theEnvironment");
-                theEnvironmentField.setAccessible(true);
-                Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
-                if (value == null) {
-                    env.remove(key);
-                } else {
-                    env.put(key, value);
-                }
-                java.lang.reflect.Field theCaseInsensitiveEnvironmentField =
-                        pe.getDeclaredField("theCaseInsensitiveEnvironment");
-                theCaseInsensitiveEnvironmentField.setAccessible(true);
-                Map<String, String> cienv =
-                        (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
-                if (value == null) {
-                    cienv.remove(key);
-                } else {
-                    cienv.put(key, value);
-                }
-            } catch (ClassNotFoundException | NoSuchFieldException ex) {
-                // ignore; best-effort environment mutation for tests
-            }
-        }
+    private static Function<String, String> envOf(String ddApiKeyValue) {
+        return name -> API_KEY_ENV_VAR.equals(name) ? ddApiKeyValue : null;
     }
 }
