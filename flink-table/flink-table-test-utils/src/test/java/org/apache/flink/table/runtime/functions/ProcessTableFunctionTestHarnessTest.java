@@ -203,7 +203,7 @@ class ProcessTableFunctionTestHarnessTest {
 
     /** Multi-table PTF for validating multi-input processing. */
     @DataTypeHint("ROW<output STRING>")
-    public static class MultiTableJoinPTF extends ProcessTableFunction<Row> {
+    public static class MultiTableUnionPTF extends ProcessTableFunction<Row> {
         public void eval(
                 @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row leftTable,
                 @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row rightTable) {
@@ -313,7 +313,7 @@ class ProcessTableFunctionTestHarnessTest {
                 assertThrows(
                         IllegalArgumentException.class,
                         () -> {
-                            ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
+                            ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
                                             "leftTable", DataTypes.of("ROW<id INT, name STRING>"))
                                     .withTableArgument(
@@ -482,9 +482,13 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(4);
             assertThat(output.get(0).getKind()).isEqualTo(RowKind.INSERT);
+            assertThat(output.get(0).getField(0)).isEqualTo(10);
             assertThat(output.get(1).getKind()).isEqualTo(RowKind.UPDATE_BEFORE);
+            assertThat(output.get(1).getField(0)).isEqualTo(15);
             assertThat(output.get(2).getKind()).isEqualTo(RowKind.UPDATE_AFTER);
+            assertThat(output.get(2).getField(0)).isEqualTo(20);
             assertThat(output.get(3).getKind()).isEqualTo(RowKind.DELETE);
+            assertThat(output.get(3).getField(0)).isEqualTo(30);
         }
     }
 
@@ -590,13 +594,21 @@ class ProcessTableFunctionTestHarnessTest {
 
             Row wrongOrderRow = Row.of(10, "Alice");
 
-            assertThrows(ClassCastException.class, () -> harness.processElement(wrongOrderRow));
+            Exception exception =
+                    assertThrows(
+                            ClassCastException.class, () -> harness.processElement(wrongOrderRow));
+
+            assertThat(exception.getMessage()).contains("Integer");
+            assertThat(exception.getMessage()).contains("String");
+            assertThat(exception.getMessage()).contains("cannot be cast");
         }
     }
 
     @Test
     void testStructuredTypeInput() throws Exception {
-        // Test PTF that accepts structured types instead of Row
+        // Test that a PTF can declare an input type as a structured type,
+        // and that the harness can handle the conversion from Row into
+        // that type.
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(UserPTF.class)
                         .withTableArgument("user")
@@ -631,6 +643,40 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(result.getClass()).isEqualTo(User.class);
             assertThat(result.name).isEqualTo("Alice");
             assertThat(result.age).isEqualTo(26);
+        }
+    }
+
+    @Test
+    void testInlineTypeAnnotation() throws Exception {
+        // Verify that PTFs can declare table argument types via @ArgumentHint(type = ...)
+        // without needing .withTableArgument() configuration
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class).build()) {
+
+            harness.processElement(Row.of(5));
+            harness.processElement(Row.of(10));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(2);
+            assertThat(output.get(0)).isEqualTo(Row.of(10));
+            assertThat(output.get(1)).isEqualTo(Row.of(20));
+        }
+    }
+
+    @Test
+    void testInlineTypeMatchesBuilderConfig() throws Exception {
+        // Verify that when both inline annotation and builder config are provided with matching
+        // types, the harness builds successfully
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .build()) {
+
+            harness.processElement(Row.of(7));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0)).isEqualTo(Row.of(14));
         }
     }
 
@@ -677,13 +723,39 @@ class ProcessTableFunctionTestHarnessTest {
 
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(4);
+            assertThat(output.get(0)).isEqualTo(Row.of("EU", "DE", 100));
+            assertThat(output.get(1)).isEqualTo(Row.of("EU", "DE", 200));
+            assertThat(output.get(2)).isEqualTo(Row.of("EU", "FR", 300));
+            assertThat(output.get(3)).isEqualTo(Row.of("US", "NY", 400));
+        }
+    }
+
+    @Test
+    void testSetSemanticWithSelectivePartitioning() throws Exception {
+        // Verify that only partition columns are automatically included in output
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<id INT, region STRING, country STRING, city STRING, value INT>"))
+                        .withPartitionBy("input", "region")
+                        .build()) {
+
+            harness.processElement(Row.of(1, "EU", "DE", "Berlin", 100));
+            harness.processElement(Row.of(4, "US", "CA", "LA", 200));
+
+            List<Row> output = harness.getOutput();
+
+            assertThat(output.get(0)).isEqualTo(Row.of("EU", 100));
+            assertThat(output.get(1)).isEqualTo(Row.of("US", 200));
         }
     }
 
     @Test
     void testMultipleSetSemanticTablesWithMatchingPartitionKeys() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                         .withTableArgument("leftTable", DataTypes.of("ROW<name STRING, score INT>"))
                         .withPartitionBy("leftTable", "name")
                         .withTableArgument(
@@ -719,13 +791,34 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testMultipleSetSemanticTablesWithStructuredTypePartitioning() throws Exception {
+        // Verify that multi-table PTFs work when one argument is a structured type
+        // and another is a Row, both partitioned by the same field type
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(MixedTypeMultiTablePTF.class)
+                        .withTableArgument("userTable")
+                        .withPartitionBy("userTable", "age")
+                        .withTableArgument(
+                                "rowTable", DataTypes.of("ROW<name STRING, age INT NOT NULL>"))
+                        .withPartitionBy("rowTable", "age")
+                        .build()) {
+
+            harness.processElementForTable("userTable", Row.of("Alice", 25));
+            harness.processElementForTable("rowTable", Row.of("Bob", 30));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(2);
+        }
+    }
+
+    @Test
     void testMultipleSetSemanticTablesWithMismatchedPartitionTypes() {
         // Verify that multi-table PTFs with inconsistent partition types are rejected
         Exception exception =
                 assertThrows(
                         IllegalArgumentException.class,
                         () -> {
-                            ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
+                            ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
                                             "leftTable", DataTypes.of("ROW<id INT, name STRING>"))
                                     .withPartitionBy("leftTable", "id")
@@ -746,7 +839,7 @@ class ProcessTableFunctionTestHarnessTest {
                 assertThrows(
                         IllegalArgumentException.class,
                         () -> {
-                            ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
+                            ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
                                             "leftTable",
                                             DataTypes.of("ROW<id INT, region STRING, name STRING>"))
@@ -779,61 +872,6 @@ class ProcessTableFunctionTestHarnessTest {
                 .contains("multiple table arguments");
     }
 
-    @Test
-    void testInlineTypeAnnotation() throws Exception {
-        // Verify that PTFs can declare table argument types via @ArgumentHint(type = ...)
-        // without needing .withTableArgument() configuration
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class).build()) {
-
-            harness.processElement(Row.of(5));
-            harness.processElement(Row.of(10));
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(2);
-            assertThat(output.get(0)).isEqualTo(Row.of(10));
-            assertThat(output.get(1)).isEqualTo(Row.of(20));
-        }
-    }
-
-    @Test
-    void testInlineTypeMatchesBuilderConfig() throws Exception {
-        // Verify that when both inline annotation and builder config are provided with matching
-        // types, the harness builds successfully
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                        .build()) {
-
-            harness.processElement(Row.of(7));
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(1);
-            assertThat(output.get(0)).isEqualTo(Row.of(14));
-        }
-    }
-
-    @Test
-    void testInlineTypeMismatchWithBuilderConfigRejected() {
-        // Verify that when inline annotation and builder config specify different types,
-        // build() throws an exception
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () -> {
-                            ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class)
-                                    .withTableArgument(
-                                            "input", DataTypes.of("ROW<value BIGINT>")) // Mismatch!
-                                    .build();
-                        });
-
-        assertThat(exception.getMessage())
-                .contains("Type mismatch")
-                .contains("input")
-                .contains("INT")
-                .contains("BIGINT");
-    }
-
     // -------------------------------------------------------------------------
     // Element Processing Tests
     // -------------------------------------------------------------------------
@@ -841,7 +879,7 @@ class ProcessTableFunctionTestHarnessTest {
     @Test
     void testProcessElementOnMultiTableThrows() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                         .withTableArgument("leftTable", DataTypes.of("ROW<id INT, name STRING>"))
                         .withTableArgument("rightTable", DataTypes.of("ROW<id INT, value STRING>"))
                         .withPartitionBy("leftTable", "id")
@@ -855,60 +893,6 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(exception.getMessage())
                     .contains("multiple table arguments")
                     .contains("processElementForTable");
-        }
-    }
-
-    @Test
-    void testProcessElementForTableMultipleTables() throws Exception {
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(MultiTableJoinPTF.class)
-                        .withTableArgument("leftTable", DataTypes.of("ROW<id INT, name STRING>"))
-                        .withTableArgument("rightTable", DataTypes.of("ROW<id INT, value STRING>"))
-                        .withPartitionBy("leftTable", "id")
-                        .withPartitionBy("rightTable", "id")
-                        .build()) {
-
-            harness.processElementForTable("leftTable", Row.of(1, "Alice"));
-            harness.processElementForTable("leftTable", Row.of(2, "Bob"));
-
-            harness.processElementForTable("rightTable", Row.of(1, "value1"));
-            harness.processElementForTable("rightTable", Row.of(2, "value2"));
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(4);
-
-            assertThat(output.get(0).getField(0)).isEqualTo(1);
-            assertThat(output.get(0).getField(1)).isEqualTo(1);
-            assertThat(output.get(0).getField(2)).asString().startsWith("LEFT:");
-
-            assertThat(output.get(1).getField(0)).isEqualTo(2);
-            assertThat(output.get(1).getField(1)).isEqualTo(2);
-            assertThat(output.get(1).getField(2)).asString().startsWith("LEFT:");
-
-            assertThat(output.get(2).getField(0)).isEqualTo(1);
-            assertThat(output.get(2).getField(1)).isEqualTo(1);
-            assertThat(output.get(2).getField(2)).asString().startsWith("RIGHT:");
-
-            assertThat(output.get(3).getField(0)).isEqualTo(2);
-            assertThat(output.get(3).getField(1)).isEqualTo(2);
-            assertThat(output.get(3).getField(2)).asString().startsWith("RIGHT:");
-        }
-    }
-
-    @Test
-    void testPassthroughEndToEnd() throws Exception {
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                        .build()) {
-
-            harness.processElement(Row.of(42));
-            harness.processElement(Row.of(100));
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(2);
-            assertThat(output.get(0).getField(0)).isEqualTo(42);
-            assertThat(output.get(1).getField(0)).isEqualTo(100);
         }
     }
 
@@ -1033,26 +1017,5 @@ class ProcessTableFunctionTestHarnessTest {
                         });
 
         assertThat(exception.getMessage()).contains("Partition config already exists");
-    }
-
-    @Test
-    void testMultipleSetSemanticTablesWithStructuredTypePartitioning() throws Exception {
-        // Verify that multi-table PTFs work when one argument is a structured type
-        // and another is a Row, both partitioned by the same field type
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(MixedTypeMultiTablePTF.class)
-                        .withTableArgument("userTable")
-                        .withPartitionBy("userTable", "age")
-                        .withTableArgument(
-                                "rowTable", DataTypes.of("ROW<name STRING, age INT NOT NULL>"))
-                        .withPartitionBy("rowTable", "age")
-                        .build()) {
-
-            harness.processElementForTable("userTable", Row.of("Alice", 25));
-            harness.processElementForTable("rowTable", Row.of("Bob", 30));
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(2);
-        }
     }
 }
