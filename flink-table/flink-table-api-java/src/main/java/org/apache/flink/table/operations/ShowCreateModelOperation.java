@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.internal.ShowCreateUtil;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -53,7 +54,11 @@ public class ShowCreateModelOperation implements ShowOperation {
     @Override
     public TableResultInternal execute(Context ctx) {
         String resultRow =
-                ShowCreateUtil.buildShowCreateModelRow(model, modelIdentifier, isTemporary);
+                ShowCreateUtil.buildShowCreateModelRow(
+                        model,
+                        modelIdentifier,
+                        isTemporary,
+                        ctx.getTableConfig().get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
         return buildStringArrayResult("result", new String[] {resultRow});
     }
 }
