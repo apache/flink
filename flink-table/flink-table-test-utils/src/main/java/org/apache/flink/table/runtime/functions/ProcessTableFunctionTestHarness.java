@@ -1239,13 +1239,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
      *
      * <p>Represents validated argument information combining PTF signature, type inference results,
      * and builder configuration.
-     *
-     * <p>Position in eval() signature is implicit from the list order.
      */
     private static class ArgumentInfo {
         final String name;
         final DataType dataType;
-        final String[] partitionColumnNames; // nullable - only for SET_SEMANTIC_TABLE
+        final String[] partitionColumnNames;
         final boolean isScalar;
         final boolean isTableArgument;
         final boolean isSetSemantic;
