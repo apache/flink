@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql.fun;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.BitmapRelDataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -235,6 +236,9 @@ public class SqlCastFunction extends SqlFunction {
 
         if (SqlUtil.isNullLiteral(left, false) || left instanceof SqlDynamicParam) {
             return true;
+        }
+        if (!SqlUtil.isNull(format)) {
+            throw new ValidationException("CAST with FORMAT is not yet supported");
         }
         RelDataType validatedNodeType = callBinding.getValidator().getValidatedNodeType(left);
         RelDataType returnType = SqlTypeUtil.deriveType(callBinding, right);

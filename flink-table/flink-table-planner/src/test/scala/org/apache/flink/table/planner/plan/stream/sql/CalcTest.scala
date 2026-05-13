@@ -271,6 +271,14 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testCastWithFormat(): Unit = {
+    val sqlQuery = "SELECT CAST('2017-12-11' AS INTEGER FORMAT 'YYYY')"
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessageContaining("CAST with FORMAT is not yet supported")
+  }
+
+  @Test
   def testCastOfTestToSameType(): Unit = {
     val rowDataType = "ROW<`data` ROW<`nested` ROW<`trId` STRING NOT NULL>>NOT NULL>"
     util.tableEnv.executeSql(
