@@ -35,14 +35,15 @@
         [nzData]="exceptionHistory"
         [nzShowPagination]="false"
         [nzFrontPagination]="false"
+        nzTableLayout="fixed"
       >
         <thead>
           <tr>
-            <th nzWidth="60px"></th>
-            <th>Time</th>
+            <th nzWidth="4%"></th>
+            <th nzWidth="12%">Time</th>
             <th>Exception</th>
-            <th>Task Name</th>
-            <th>Location</th>
+            <th nzWidth="18%">Task Name</th>
+            <th nzWidth="12%">Location</th>
           </tr>
         </thead>
         <tbody>
@@ -50,7 +51,7 @@
             <tr>
               <td nzShowExpand [(nzExpand)]="item.expand"></td>
               <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
-              <td>
+              <td class="exception-cell">
                 <div class="name">{{ item.selected.exceptionName }}</div>
                 <nz-tag
                   *ngFor="let label of item.selected.failureLabels | keyvalue"
