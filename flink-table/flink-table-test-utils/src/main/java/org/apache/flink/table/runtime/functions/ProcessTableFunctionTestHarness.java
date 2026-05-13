@@ -514,30 +514,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         /** Helper to get field index by name from a DataType. */
         private int getFieldIndex(DataType dataType, String fieldName) {
-            LogicalType logicalType = dataType.getLogicalType();
-
-            if (logicalType instanceof RowType) {
-                RowType rowType = (RowType) logicalType;
-                int index = 0;
-                for (RowType.RowField field : rowType.getFields()) {
-                    if (field.getName().equals(fieldName)) {
-                        return index;
-                    }
-                    index++;
-                }
-            } else if (logicalType instanceof StructuredType) {
-                StructuredType structuredType = (StructuredType) logicalType;
-                int index = 0;
-                for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                    if (attr.getName().equals(fieldName)) {
-                        return index;
-                    }
-                    index++;
-                }
+            List<String> fieldNames = getFieldNames(dataType);
+            int index = fieldNames.indexOf(fieldName);
+            if (index < 0) {
+                throw new IllegalStateException(
+                        String.format("Field '%s' not found in type %s", fieldName, dataType));
             }
-
-            throw new IllegalStateException(
-                    String.format("Field '%s' not found in type %s", fieldName, dataType));
+            return index;
         }
 
         @SuppressWarnings("unchecked")
@@ -567,6 +550,30 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         @Override
         public void close() {}
+    }
+
+    /** Extracts field names from RowType or StructuredType. */
+    private static List<String> getFieldNames(DataType dataType) {
+        LogicalType logicalType = dataType.getLogicalType();
+        List<String> fieldNames = new ArrayList<>();
+
+        if (logicalType instanceof RowType rowType) {
+            for (RowType.RowField field : rowType.getFields()) {
+                fieldNames.add(field.getName());
+            }
+        } else if (logicalType instanceof StructuredType structuredType) {
+            for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
+                fieldNames.add(attr.getName());
+            }
+        } else {
+            throw new IllegalStateException(
+                    String.format(
+                            "Unsupported data type: %s. "
+                                    + "Only Row and structured types are supported.",
+                            dataType));
+        }
+
+        return fieldNames;
     }
 
     /**
@@ -946,27 +953,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
 
             FieldsDataType fieldsDataType = (FieldsDataType) arg.dataType;
-            LogicalType logicalType = fieldsDataType.getLogicalType();
+            List<String> fieldNames = getFieldNames(arg.dataType);
             List<DataType> fieldDataTypes = fieldsDataType.getChildren();
 
-            if (logicalType instanceof RowType) {
-                RowType rowType = (RowType) logicalType;
-                int fieldIndex = 0;
-                for (RowType.RowField field : rowType.getFields()) {
-                    if (field.getName().equals(columnName)) {
-                        return fieldDataTypes.get(fieldIndex);
-                    }
-                    fieldIndex++;
-                }
-            } else if (logicalType instanceof StructuredType) {
-                StructuredType structuredType = (StructuredType) logicalType;
-                int attrIndex = 0;
-                for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                    if (attr.getName().equals(columnName)) {
-                        return fieldDataTypes.get(attrIndex);
-                    }
-                    attrIndex++;
-                }
+            int fieldIndex = fieldNames.indexOf(columnName);
+            if (fieldIndex >= 0) {
+                return fieldDataTypes.get(fieldIndex);
             }
 
             throw new IllegalStateException(
@@ -1145,26 +1137,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 name, name));
             }
 
-            LogicalType logicalType = dataType.getLogicalType();
-            List<String> fieldNames = new ArrayList<>();
-
-            if (logicalType instanceof RowType) {
-                RowType rowType = (RowType) logicalType;
-                for (RowType.RowField field : rowType.getFields()) {
-                    fieldNames.add(field.getName());
-                }
-            } else if (logicalType instanceof StructuredType) {
-                StructuredType structuredType = (StructuredType) logicalType;
-                for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                    fieldNames.add(attr.getName());
-                }
-            } else {
-                throw new IllegalStateException(
-                        String.format(
-                                "Unsupported data type for partitioning: %s. "
-                                        + "Only Row and structured types (POJOs) support partitioning.",
-                                dataType));
-            }
+            List<String> fieldNames = getFieldNames(dataType);
 
             for (String columnName : config.columnNames) {
                 if (!fieldNames.contains(columnName)) {
