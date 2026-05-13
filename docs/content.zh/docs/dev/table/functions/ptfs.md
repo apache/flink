@@ -2358,7 +2358,7 @@ void testPOJO() throws Exception {
 
 {{< top >}}
 
-### Unsupported Features
+### PTF Features Unsupported by the TestHarness
 
 | Feature                                                     | Support                   |
 |-------------------------------------------------------------|---------------------------|
