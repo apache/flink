@@ -111,7 +111,7 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[AVG($1)], EXPR$2=[VAR_POP($2)], EXPR$3=[STDDEV_SAMP($3)])
-+- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
++- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0.0E0:DOUBLE)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -120,7 +120,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[AVG($1)], EXPR$2=[VAR_POP($2)], EXPR$3=[ST
 LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[/($3, $4)], EXPR$3=[POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))])
 +- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
    +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($2)], agg#3=[COUNT($2)], agg#4=[$WELFORD_M2$1($3)], agg#5=[COUNT($3)])
-      +- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
+      +- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0.0E0:DOUBLE)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>

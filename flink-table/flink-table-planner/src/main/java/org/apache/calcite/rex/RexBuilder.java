@@ -42,6 +42,7 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.fun.SqlCountAggFunction;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.MapSqlType;
 import org.apache.calcite.sql.type.MultisetSqlType;
@@ -238,28 +239,60 @@ public class RexBuilder {
 
     /** Creates a call with a list of arguments and a predetermined type. */
     public RexNode makeCall(RelDataType returnType, SqlOperator op, List<RexNode> exprs) {
-        return new RexCall(returnType, op, exprs);
+        return makeCall(SqlParserPos.ZERO, returnType, op, exprs);
+    }
+
+    /**
+     * Creates a call with a list of arguments and a predetermined type.
+     *
+     * @param pos should be different from ZERO if the call can fail at runtime.
+     */
+    public RexNode makeCall(
+            SqlParserPos pos, RelDataType returnType, SqlOperator op, List<RexNode> exprs) {
+        return new RexCall(pos, returnType, op, exprs);
     }
 
     /**
      * Creates a call with an array of arguments.
      *
-     * <p>If you already know the return type of the call, then {@link
-     * #makeCall(org.apache.calcite.rel.type.RelDataType, org.apache.calcite.sql.SqlOperator,
-     * java.util.List)} is preferred.
+     * <p>If you already know the return type of the call, then {@link #makeCall(SqlParserPos,
+     * RelDataType, SqlOperator, List)} is preferred.
      */
     public RexNode makeCall(SqlOperator op, List<? extends RexNode> exprs) {
+        return makeCall(SqlParserPos.ZERO, op, exprs);
+    }
+
+    /**
+     * Creates a call with an array of arguments.
+     *
+     * @param pos should be different from ZERO if the call can fail at runtime.
+     *     <p>If you already know the return type of the call, then {@link #makeCall(SqlParserPos,
+     *     RelDataType, SqlOperator, List)} is preferred.
+     */
+    public RexNode makeCall(SqlParserPos pos, SqlOperator op, List<? extends RexNode> exprs) {
         final RelDataType type = deriveReturnType(op, exprs);
-        return new RexCall(type, op, exprs);
+        return new RexCall(pos, type, op, exprs);
     }
 
     /**
      * Creates a call with a list of arguments.
      *
-     * <p>Equivalent to <code>makeCall(op, exprList.toArray(new RexNode[exprList.size()]))</code>.
+     * <p>Equivalent to <code>makeCall(ZERO, op, exprList.toArray(new RexNode[exprList.size()]))
+     * </code>.
      */
     public final RexNode makeCall(SqlOperator op, RexNode... exprs) {
-        return makeCall(op, ImmutableList.copyOf(exprs));
+        return makeCall(SqlParserPos.ZERO, op, exprs);
+    }
+
+    /**
+     * Creates a call with a list of arguments.
+     *
+     * @param pos should be different from ZERO if the call can fail at runtime.
+     *     <p>Equivalent to <code>makeCall(pos, op, exprList.toArray(new RexNode[exprList.size()]))
+     *     </code>.
+     */
+    public final RexNode makeCall(SqlParserPos pos, SqlOperator op, RexNode... exprs) {
+        return makeCall(pos, op, ImmutableList.copyOf(exprs));
     }
 
     /**
@@ -384,9 +417,40 @@ public class RexBuilder {
             boolean nullWhenCountZero,
             boolean distinct,
             boolean ignoreNulls) {
-        final RexWindow window = makeWindow(partitionKeys, orderKeys, lowerBound, upperBound, rows);
-        final RexOver over = new RexOver(type, operator, exprs, window, distinct, ignoreNulls);
-        RexNode result = over;
+        return makeOver(
+                type,
+                operator,
+                exprs,
+                partitionKeys,
+                orderKeys,
+                lowerBound,
+                upperBound,
+                RexWindowExclusion.EXCLUDE_NO_OTHER,
+                rows,
+                allowPartial,
+                nullWhenCountZero,
+                distinct,
+                ignoreNulls);
+    }
+
+    /** Creates a call to a windowed agg. */
+    public RexNode makeOver(
+            RelDataType type,
+            SqlAggFunction operator,
+            List<RexNode> exprs,
+            List<RexNode> partitionKeys,
+            ImmutableList<RexFieldCollation> orderKeys,
+            RexWindowBound lowerBound,
+            RexWindowBound upperBound,
+            RexWindowExclusion exclude,
+            boolean rows,
+            boolean allowPartial,
+            boolean nullWhenCountZero,
+            boolean distinct,
+            boolean ignoreNulls) {
+        final RexWindow window =
+                makeWindow(partitionKeys, orderKeys, lowerBound, upperBound, rows, exclude);
+        RexNode result = new RexOver(type, operator, exprs, window, distinct, ignoreNulls);
 
         // This should be correct but need time to go over test results.
         // Also want to look at combing with section below.
@@ -459,17 +523,44 @@ public class RexBuilder {
             RexWindowBound lowerBound,
             RexWindowBound upperBound,
             boolean rows) {
-        if (lowerBound.isUnbounded()
-                && lowerBound.isPreceding()
-                && upperBound.isUnbounded()
-                && upperBound.isFollowing()) {
+        return makeWindow(
+                partitionKeys,
+                orderKeys,
+                lowerBound,
+                upperBound,
+                rows,
+                RexWindowExclusion.EXCLUDE_NO_OTHER);
+    }
+
+    /**
+     * Creates a window specification.
+     *
+     * @param partitionKeys Partition keys
+     * @param orderKeys Order keys
+     * @param lowerBound Lower bound
+     * @param upperBound Upper bound
+     * @param rows Whether physical. True if row-based, false if range-based
+     * @return window specification
+     */
+    public RexWindow makeWindow(
+            List<RexNode> partitionKeys,
+            ImmutableList<RexFieldCollation> orderKeys,
+            RexWindowBound lowerBound,
+            RexWindowBound upperBound,
+            boolean rows,
+            RexWindowExclusion exclude) {
+        if (orderKeys.isEmpty() && !rows) {
+            lowerBound = RexWindowBounds.UNBOUNDED_PRECEDING;
+            upperBound = RexWindowBounds.UNBOUNDED_FOLLOWING;
+        }
+        if (lowerBound.isUnboundedPreceding() && upperBound.isUnboundedFollowing()) {
             // RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
             //   is equivalent to
             // ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
             //   but we prefer "RANGE"
             rows = false;
         }
-        return new RexWindow(partitionKeys, orderKeys, lowerBound, upperBound, rows);
+        return new RexWindow(partitionKeys, orderKeys, lowerBound, upperBound, rows, exclude);
     }
 
     /**
@@ -516,9 +607,44 @@ public class RexBuilder {
         return makeCast(type, exp, false, false, constantNull);
     }
 
+    /**
+     * Creates a call to the CAST operator.
+     *
+     * @param pos Parser position of the cast.
+     * @param type Type to cast to
+     * @param exp Expression being cast
+     * @return Call to CAST operator
+     */
+    public RexNode makeCast(SqlParserPos pos, RelDataType type, RexNode exp) {
+        return makeCast(pos, type, exp, false, false, constantNull);
+    }
+
     @Deprecated // to be removed before 2.0
     public RexNode makeCast(RelDataType type, RexNode exp, boolean matchNullability) {
         return makeCast(type, exp, matchNullability, false, constantNull);
+    }
+
+    /**
+     * Creates a call to the CAST operator, expanding if possible, and optionally also preserving
+     * nullability, and optionally in safe mode.
+     *
+     * <p>Tries to expand the cast, and therefore the result may be something other than a {@link
+     * RexCall} to the CAST operator, such as a {@link RexLiteral}.
+     *
+     * @param pos Parser position
+     * @param type Type to cast to
+     * @param exp Expression being cast
+     * @param matchNullability Whether to ensure the result has the same nullability as {@code type}
+     * @param safe Whether to return NULL if cast fails
+     * @return Call to CAST operator
+     */
+    public RexNode makeCast(
+            SqlParserPos pos,
+            RelDataType type,
+            RexNode exp,
+            boolean matchNullability,
+            boolean safe) {
+        return makeCast(pos, type, exp, matchNullability, safe, constantNull);
     }
 
     /**
@@ -553,6 +679,31 @@ public class RexBuilder {
      * @return Call to CAST operator
      */
     public RexNode makeCast(
+            RelDataType type,
+            RexNode exp,
+            boolean matchNullability,
+            boolean safe,
+            RexLiteral format) {
+        return makeCast(SqlParserPos.ZERO, type, exp, matchNullability, safe, format);
+    }
+
+    /**
+     * Creates a call to the CAST operator, expanding if possible, and optionally also preserving
+     * nullability, and optionally in safe mode.
+     *
+     * <p>Tries to expand the cast, and therefore the result may be something other than a {@link
+     * RexCall} to the CAST operator, such as a {@link RexLiteral}.
+     *
+     * @param pos Parser position
+     * @param type Type to cast to
+     * @param exp Expression being cast
+     * @param matchNullability Whether to ensure the result has the same nullability as {@code type}
+     * @param safe Whether to return NULL if cast fails
+     * @param format Type Format to cast into
+     * @return Call to CAST operator
+     */
+    public RexNode makeCast(
+            SqlParserPos pos,
             RelDataType type,
             RexNode exp,
             boolean matchNullability,
@@ -622,19 +773,19 @@ public class RexBuilder {
                 }
                 final RexLiteral literal2 = makeLiteral(value, type, typeName);
                 if (type.isNullable() && !literal2.getType().isNullable() && matchNullability) {
-                    return makeAbstractCast(type, literal2, safe, format);
+                    return makeAbstractCast(pos, type, literal2, safe, format);
                 }
                 return literal2;
             }
         } else if (SqlTypeUtil.isExactNumeric(type) && SqlTypeUtil.isInterval(exp.getType())) {
-            return makeCastIntervalToExact(type, exp);
+            return makeCastIntervalToExact(pos, type, exp);
         } else if (sqlType == SqlTypeName.BOOLEAN && SqlTypeUtil.isExactNumeric(exp.getType())) {
             return makeCastExactToBoolean(type, exp);
         } else if (exp.getType().getSqlTypeName() == SqlTypeName.BOOLEAN
                 && SqlTypeUtil.isExactNumeric(type)) {
             return makeCastBooleanToExact(type, exp);
         }
-        return makeAbstractCast(type, exp, safe, format);
+        return makeAbstractCast(pos, type, exp, safe, format);
     }
 
     /**
@@ -650,16 +801,25 @@ public class RexBuilder {
     }
 
     boolean canRemoveCastFromLiteral(
-            RelDataType toType, @Nullable Comparable value, SqlTypeName fromTypeName) {
+            RelDataType toType,
+            @SuppressWarnings("rawtypes") @Nullable Comparable value,
+            SqlTypeName fromTypeName) {
         if (value == null) {
             return true;
         }
         final SqlTypeName sqlType = toType.getSqlTypeName();
+        if (sqlType == SqlTypeName.MEASURE) {
+            return false;
+        }
         if (!RexLiteral.valueMatchesType(value, sqlType, false)) {
             return false;
         }
         if (toType.getSqlTypeName() != fromTypeName
-                && SqlTypeFamily.DATETIME.getTypeNames().contains(fromTypeName)) {
+                && (SqlTypeFamily.DATETIME.getTypeNames().contains(fromTypeName)
+                        || SqlTypeFamily.INTERVAL_DAY_TIME.getTypeNames().contains(fromTypeName)
+                        || SqlTypeFamily.INTERVAL_YEAR_MONTH
+                                .getTypeNames()
+                                .contains(fromTypeName))) {
             return false;
         }
         if (value instanceof NlsString) {
@@ -685,31 +845,32 @@ public class RexBuilder {
             }
         }
 
-        if (toType.getSqlTypeName() == SqlTypeName.DECIMAL) {
+        if (toType.getSqlTypeName() == SqlTypeName.DECIMAL
+                && fromTypeName.getFamily() == SqlTypeFamily.NUMERIC) {
             final BigDecimal decimalValue = (BigDecimal) value;
             return SqlTypeUtil.isValidDecimalValue(decimalValue, toType);
         }
 
         if (SqlTypeName.INT_TYPES.contains(sqlType)) {
             final BigDecimal decimalValue = (BigDecimal) value;
-            final int s = decimalValue.scale();
-            if (s != 0) {
+            try {
+                // Will throw ArithmeticException if the value cannot be represented using a 'long'
+                long l = decimalValue.longValueExact();
+                switch (sqlType) {
+                    case TINYINT:
+                        return l >= Byte.MIN_VALUE && l <= Byte.MAX_VALUE;
+                    case SMALLINT:
+                        return l >= Short.MIN_VALUE && l <= Short.MAX_VALUE;
+                    case INTEGER:
+                        return l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE;
+                    case BIGINT:
+                    default:
+                        return true;
+                }
+            } catch (ArithmeticException ex) {
                 return false;
             }
-            long l = decimalValue.longValue();
-            switch (sqlType) {
-                case TINYINT:
-                    return l >= Byte.MIN_VALUE && l <= Byte.MAX_VALUE;
-                case SMALLINT:
-                    return l >= Short.MIN_VALUE && l <= Short.MAX_VALUE;
-                case INTEGER:
-                    return l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE;
-                case BIGINT:
-                default:
-                    return true;
-            }
         }
-
         return true;
     }
 
@@ -739,16 +900,21 @@ public class RexBuilder {
                         makeNullLiteral(toType)));
     }
 
-    private RexNode makeCastIntervalToExact(RelDataType toType, RexNode exp) {
+    private RexNode makeCastIntervalToExact(SqlParserPos pos, RelDataType toType, RexNode exp) {
         final TimeUnit endUnit = exp.getType().getSqlTypeName().getEndUnit();
         final TimeUnit baseUnit = baseUnit(exp.getType().getSqlTypeName());
         final BigDecimal multiplier = baseUnit.multiplier;
         final BigDecimal divider = endUnit.multiplier;
-        RexNode value = multiplyDivide(decodeIntervalOrDecimal(exp), multiplier, divider);
-        return ensureType(toType, value, false);
+        RexNode value = multiplyDivide(pos, decodeIntervalOrDecimal(pos, exp), multiplier, divider);
+        return ensureType(pos, toType, value, false);
     }
 
     public RexNode multiplyDivide(RexNode e, BigDecimal multiplier, BigDecimal divider) {
+        return multiplyDivide(SqlParserPos.ZERO, e, multiplier, divider);
+    }
+
+    public RexNode multiplyDivide(
+            SqlParserPos pos, RexNode e, BigDecimal multiplier, BigDecimal divider) {
         assert multiplier.signum() > 0;
         assert divider.signum() > 0;
         switch (multiplier.compareTo(divider)) {
@@ -757,12 +923,14 @@ public class RexBuilder {
             case 1:
                 // E.g. multiplyDivide(e, 1000, 10) ==> e * 100
                 return makeCall(
+                        pos,
                         SqlStdOperatorTable.MULTIPLY,
                         e,
                         makeExactLiteral(multiplier.divide(divider, RoundingMode.UNNECESSARY)));
             case -1:
                 // E.g. multiplyDivide(e, 10, 1000) ==> e / 100
                 return makeCall(
+                        pos,
                         SqlStdOperatorTable.DIVIDE_INTEGER,
                         e,
                         makeExactLiteral(divider.divide(multiplier, RoundingMode.UNNECESSARY)));
@@ -786,9 +954,14 @@ public class RexBuilder {
      * @return the integer reinterpreted as an opaque decimal type
      */
     public RexNode encodeIntervalOrDecimal(RexNode value, RelDataType type, boolean checkOverflow) {
+        return encodeIntervalOrDecimal(SqlParserPos.ZERO, value, type, checkOverflow);
+    }
+
+    public RexNode encodeIntervalOrDecimal(
+            SqlParserPos pos, RexNode value, RelDataType type, boolean checkOverflow) {
         RelDataType bigintType = typeFactory.createSqlType(SqlTypeName.BIGINT);
-        RexNode cast = ensureType(bigintType, value, true);
-        return makeReinterpretCast(type, cast, makeLiteral(checkOverflow));
+        RexNode cast = ensureType(pos, bigintType, value, true);
+        return makeReinterpretCast(pos, type, cast, makeLiteral(checkOverflow));
     }
 
     /**
@@ -798,9 +971,14 @@ public class RexBuilder {
      * @return an integer representation of the decimal value
      */
     public RexNode decodeIntervalOrDecimal(RexNode node) {
+        return decodeIntervalOrDecimal(SqlParserPos.ZERO, node);
+    }
+
+    public RexNode decodeIntervalOrDecimal(SqlParserPos pos, RexNode node) {
         assert SqlTypeUtil.isDecimal(node.getType()) || SqlTypeUtil.isInterval(node.getType());
         RelDataType bigintType = typeFactory.createSqlType(SqlTypeName.BIGINT);
-        return makeReinterpretCast(matchNullability(bigintType, node), node, makeLiteral(false));
+        return makeReinterpretCast(
+                pos, matchNullability(bigintType, node), node, makeLiteral(false));
     }
 
     @Deprecated // to be removed before 2.0
@@ -817,9 +995,22 @@ public class RexBuilder {
      * @return Call to CAST operator
      */
     public RexNode makeAbstractCast(RelDataType type, RexNode exp, boolean safe) {
+        return makeAbstractCast(SqlParserPos.ZERO, type, exp, safe);
+    }
+
+    /**
+     * Creates a call to CAST or SAFE_CAST operator.
+     *
+     * @param pos Parser position.
+     * @param type Type to cast to
+     * @param exp Expression being cast
+     * @param safe Whether to return NULL if cast fails
+     * @return Call to CAST operator Casts can fail at runtime, so we expect position information.
+     */
+    public RexNode makeAbstractCast(SqlParserPos pos, RelDataType type, RexNode exp, boolean safe) {
         final SqlOperator operator =
                 safe ? SqlLibraryOperators.SAFE_CAST : SqlStdOperatorTable.CAST;
-        return new RexCall(type, operator, ImmutableList.of(exp));
+        return new RexCall(pos, type, operator, ImmutableList.of(exp));
     }
 
     /**
@@ -833,12 +1024,27 @@ public class RexBuilder {
      */
     public RexNode makeAbstractCast(
             RelDataType type, RexNode exp, boolean safe, RexLiteral format) {
+        return makeAbstractCast(SqlParserPos.ZERO, type, exp, safe, format);
+    }
+
+    /**
+     * Creates a call to CAST or SAFE_CAST operator with a FORMAT clause.
+     *
+     * @param pos Parser position
+     * @param type Type to cast to
+     * @param exp Expression being cast
+     * @param safe Whether to return NULL if cast fails
+     * @param format Conversion format for target type
+     * @return Call to CAST operator
+     */
+    public RexNode makeAbstractCast(
+            SqlParserPos pos, RelDataType type, RexNode exp, boolean safe, RexLiteral format) {
         final SqlOperator operator =
                 safe ? SqlLibraryOperators.SAFE_CAST : SqlStdOperatorTable.CAST;
         if (format.isNull()) {
-            return new RexCall(type, operator, ImmutableList.of(exp));
+            return new RexCall(pos, type, operator, ImmutableList.of(exp));
         }
-        return new RexCall(type, operator, ImmutableList.of(exp, format));
+        return new RexCall(pos, type, operator, ImmutableList.of(exp, format));
     }
 
     /**
@@ -850,23 +1056,56 @@ public class RexBuilder {
      * @return a RexCall with two operands and a special return type
      */
     public RexNode makeReinterpretCast(RelDataType type, RexNode exp, RexNode checkOverflow) {
+        return makeReinterpretCast(SqlParserPos.ZERO, type, exp, checkOverflow);
+    }
+
+    /**
+     * Makes a reinterpret cast.
+     *
+     * @param pos parser position
+     * @param type type returned by the cast
+     * @param exp expression to be cast
+     * @param checkOverflow whether an overflow check is required
+     * @return a RexCall with two operands and a special return type
+     */
+    public RexNode makeReinterpretCast(
+            SqlParserPos pos, RelDataType type, RexNode exp, RexNode checkOverflow) {
         List<RexNode> args;
-        if ((checkOverflow != null) && checkOverflow.isAlwaysTrue()) {
+        if (checkOverflow.isAlwaysTrue()) {
             args = ImmutableList.of(exp, checkOverflow);
         } else {
             args = ImmutableList.of(exp);
         }
-        return new RexCall(type, SqlStdOperatorTable.REINTERPRET, args);
+        return new RexCall(pos, type, SqlStdOperatorTable.REINTERPRET, args);
     }
 
-    /** Makes a cast of a value to NOT NULL; no-op if the type already has NOT NULL. */
+    /**
+     * Makes a cast of an expression to nullable; returns the expression unchanged if its type is
+     * already nullable.
+     */
+    public RexNode makeNullable(RexNode exp) {
+        return makeNullable(exp, true);
+    }
+
+    /**
+     * Makes a cast of an expression to NOT NULL; returns the expression unchanged if its type
+     * already has NOT NULL.
+     */
     public RexNode makeNotNull(RexNode exp) {
+        return makeNullable(exp, false);
+    }
+
+    /**
+     * Makes a cast of an expression to the required nullability; returns the expression unchanged
+     * if its type already has the desired nullability.
+     */
+    public RexNode makeNullable(RexNode exp, boolean nullability) {
         final RelDataType type = exp.getType();
-        if (!type.isNullable()) {
+        if (type.isNullable() == nullability) {
             return exp;
         }
-        final RelDataType notNullType = typeFactory.createTypeWithNullability(type, false);
-        return makeAbstractCast(notNullType, exp, false);
+        final RelDataType type2 = typeFactory.createTypeWithNullability(type, nullability);
+        return makeAbstractCast(SqlParserPos.ZERO, type2, exp, false);
     }
 
     /**
@@ -952,8 +1191,10 @@ public class RexBuilder {
      * @param flag Flag value
      */
     public RexLiteral makeFlag(Enum flag) {
-        assert flag != null;
-        return makeLiteral(flag, typeFactory.createSqlType(SqlTypeName.SYMBOL), SqlTypeName.SYMBOL);
+        return makeLiteral(
+                requireNonNull(flag, "flag"),
+                typeFactory.createSqlType(SqlTypeName.SYMBOL),
+                SqlTypeName.SYMBOL);
     }
 
     /**
@@ -983,10 +1224,10 @@ public class RexBuilder {
                         || !Objects.equals(nlsString.getCollation(), type.getCollation())) {
                     assert type.getSqlTypeName() == SqlTypeName.CHAR
                             || type.getSqlTypeName() == SqlTypeName.VARCHAR;
-                    Charset charset = type.getCharset();
-                    assert charset != null : "type.getCharset() must not be null";
-                    assert type.getCollation() != null : "type.getCollation() must not be null";
-                    o = new NlsString(nlsString.getValue(), charset.name(), type.getCollation());
+                    Charset charset = requireNonNull(type.getCharset(), "type.getCharset()");
+                    final SqlCollation collation =
+                            requireNonNull(type.getCollation(), "type.getCollation()");
+                    o = new NlsString(nlsString.getValue(), charset.name(), collation);
                 }
                 break;
             case TIME:
@@ -1023,6 +1264,21 @@ public class RexBuilder {
                 }
                 o = ((TimestampWithTimeZoneString) o).round(p);
                 break;
+            /*
+            case DECIMAL:
+                if (o != null && type.getScale() != RelDataType.SCALE_NOT_SPECIFIED) {
+                    assert o instanceof BigDecimal;
+                    o =
+                            ((BigDecimal) o)
+                                    .setScale(
+                                            type.getScale(),
+                                            typeFactory.getTypeSystem().roundingMode());
+                    if (type.getScale() < 0) {
+                        o = new BigDecimal(((BigDecimal) o).toPlainString());
+                    }
+                }
+                break;
+                 */
             default:
                 break;
         }
@@ -1040,6 +1296,7 @@ public class RexBuilder {
     }
 
     /** Creates a numeric literal. */
+    @SuppressWarnings("deprecation") // [CALCITE-6598]
     public RexLiteral makeExactLiteral(BigDecimal bd) {
         RelDataType relType;
         int scale = bd.scale();
@@ -1102,7 +1359,19 @@ public class RexBuilder {
      */
     public RexLiteral makeApproxLiteral(@Nullable BigDecimal bd, RelDataType type) {
         assert SqlTypeFamily.APPROXIMATE_NUMERIC.getTypeNames().contains(type.getSqlTypeName());
-        return makeLiteral(bd, type, SqlTypeName.DOUBLE);
+        return makeLiteral(bd != null ? bd.doubleValue() : null, type, SqlTypeName.DOUBLE);
+    }
+
+    /**
+     * Creates an approximate numeric literal (double or float) from a Double value.
+     *
+     * @param val literal value
+     * @param type approximate numeric type
+     * @return new literal
+     */
+    public RexLiteral makeApproxLiteral(Double val, RelDataType type) {
+        assert SqlTypeFamily.APPROXIMATE_NUMERIC.getTypeNames().contains(type.getSqlTypeName());
+        return makeLiteral(val, type, SqlTypeName.DOUBLE);
     }
 
     /** Creates a search argument literal. */
@@ -1112,8 +1381,7 @@ public class RexBuilder {
 
     /** Creates a character string literal. */
     public RexLiteral makeLiteral(String s) {
-        assert s != null;
-        return makePreciseStringLiteral(s);
+        return makePreciseStringLiteral(requireNonNull(s, "s"));
     }
 
     /**
@@ -1123,8 +1391,7 @@ public class RexBuilder {
      * @return Character string literal
      */
     protected RexLiteral makePreciseStringLiteral(String s) {
-        assert s != null;
-        if (s.equals("")) {
+        if (s.isEmpty()) {
             return charEmpty;
         }
         return makeCharLiteral(new NlsString(s, null, null));
@@ -1155,6 +1422,23 @@ public class RexBuilder {
      * @return a casted expression or the original expression
      */
     public RexNode ensureType(RelDataType type, RexNode node, boolean matchNullability) {
+        return ensureType(SqlParserPos.ZERO, type, node, matchNullability);
+    }
+
+    /**
+     * Ensures expression is interpreted as a specified type. The returned expression may be wrapped
+     * with a cast.
+     *
+     * @param pos parser position
+     * @param type desired type
+     * @param node expression
+     * @param matchNullability whether to correct nullability of specified type to match the
+     *     expression; this usually should be true, except for explicit casts which can override
+     *     default nullability
+     * @return a casted expression or the original expression
+     */
+    public RexNode ensureType(
+            SqlParserPos pos, RelDataType type, RexNode node, boolean matchNullability) {
         RelDataType targetType = type;
         if (matchNullability) {
             targetType = matchNullability(type, node);
@@ -1166,7 +1450,7 @@ public class RexBuilder {
         }
 
         if (!node.getType().equals(targetType)) {
-            return makeCast(targetType, node);
+            return makeCast(pos, targetType, node);
         }
         return node;
     }
@@ -1187,7 +1471,6 @@ public class RexBuilder {
      * <p>If the string's charset and collation are not set, uses the system defaults.
      */
     public RexLiteral makeCharLiteral(NlsString str) {
-        assert str != null;
         RelDataType type = SqlUtil.createNlsStringType(typeFactory, str);
         return makeLiteral(str, type, SqlTypeName.CHAR);
     }
@@ -1395,7 +1678,6 @@ public class RexBuilder {
      * literal, {@code SEARCH(arg, SARG([lower..upper])}; otherwise creates a disjunction, {@code
      * arg >= lower AND arg <= upper}.
      */
-    @SuppressWarnings("BetaApi")
     public RexNode makeBetween(RexNode arg, RexNode lower, RexNode upper) {
         final Comparable lowerValue = toComparable(Comparable.class, lower);
         final Comparable upperValue = toComparable(Comparable.class, upper);
@@ -1421,7 +1703,6 @@ public class RexBuilder {
     }
 
     /** Converts a list of expressions to a search argument, or returns null if not possible. */
-    @SuppressWarnings({"BetaApi", "UnstableApiUsage"})
     private static <C extends Comparable<C>> @Nullable Sarg<C> toSarg(
             Class<C> clazz, List<? extends RexNode> ranges, RexUnknownAs unknownAs) {
         if (ranges.isEmpty()) {
@@ -1632,7 +1913,10 @@ public class RexBuilder {
             case FLOAT:
             case REAL:
             case DOUBLE:
-                return makeApproxLiteral((BigDecimal) value, type);
+                if (value instanceof Double) {
+                    return makeApproxLiteral((Double) value, type);
+                }
+                return makeApproxLiteral(((BigDecimal) value).doubleValue(), type);
             case BOOLEAN:
                 return (Boolean) value ? booleanTrue : booleanFalse;
             case TIME:
@@ -1782,22 +2066,31 @@ public class RexBuilder {
                 if (o instanceof BigDecimal) {
                     return o;
                 }
+                // Float values are stored as Doubles
+                if (o instanceof Float) {
+                    return ((Float) o).doubleValue();
+                }
+                if (o instanceof Double) {
+                    return o;
+                }
                 return new BigDecimal(((Number) o).doubleValue(), MathContext.DECIMAL32)
                         .stripTrailingZeros();
             case FLOAT:
             case DOUBLE:
-                if (o instanceof BigDecimal) {
+                if (o instanceof Double) {
                     return o;
                 }
-                return new BigDecimal(((Number) o).doubleValue(), MathContext.DECIMAL64)
-                        .stripTrailingZeros();
+                return ((Number) o).doubleValue();
             case CHAR:
             case VARCHAR:
                 if (o instanceof NlsString) {
                     return o;
                 }
-                assert type.getCharset() != null : type + ".getCharset() must not be null";
-                return new NlsString((String) o, type.getCharset().name(), type.getCollation());
+                final Charset charset = type.getCharset();
+                if (charset == null) {
+                    throw new AssertionError(type + ".getCharset() must not be null");
+                }
+                return new NlsString((String) o, charset.name(), type.getCollation());
             case TIME:
                 if (o instanceof TimeString) {
                     return o;

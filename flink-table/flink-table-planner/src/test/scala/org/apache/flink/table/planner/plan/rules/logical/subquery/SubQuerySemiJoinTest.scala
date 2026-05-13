@@ -964,25 +964,9 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testInWithCorrelatedOnHaving(): Unit = {
-    // TODO There are some bugs when converting SqlNode to RelNode:
     val sqlQuery = "SELECT SUM(a) AS s FROM x GROUP BY b " +
       "HAVING MAX(a) IN (SELECT d FROM y WHERE y.d = x.b)"
-
-    // the logical plan is:
-    //
-    // LogicalProject(s=[$1])
-    //  LogicalFilter(condition=[IN($2, {
-    //   LogicalProject(d=[$1])
-    //    LogicalFilter(condition=[=($1, $cor0.b)])
-    //     LogicalTableScan(table=[[builtin, default, r]])
-    //  })])
-    //   LogicalAggregate(group=[{0}], s=[SUM($1)], agg#1=[MAX($1)])
-    //    LogicalProject(b=[$1], a=[$0])
-    //     LogicalTableScan(table=[[builtin, default, l]])
-    //
-    // LogicalFilter lost variablesSet information.
-
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1622,25 +1606,9 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testExistsWithCorrelatedOnHaving(): Unit = {
-    // TODO There are some bugs when converting SqlNode to RelNode:
-    val sqlQuery1 =
+    val sqlQuery =
       "SELECT SUM(a) AS s FROM x GROUP BY b HAVING EXISTS (SELECT * FROM y WHERE y.d = x.b)"
-
-    // the logical plan is:
-    //
-    // LogicalProject(s=[$1])
-    //  LogicalFilter(condition=[IN($2, {
-    //   LogicalProject(d=[$1])
-    //    LogicalFilter(condition=[=($1, $cor0.b)])
-    //     LogicalTableScan(table=[[builtin, default, r]])
-    //  })])
-    //   LogicalAggregate(group=[{0}], s=[SUM($1)], agg#1=[MAX($1)])
-    //    LogicalProject(b=[$1], a=[$0])
-    //     LogicalTableScan(table=[[builtin, default, l]])
-    //
-    // LogicalFilter lost variablesSet information.
-
-    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1711,7 +1679,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO some bugs in SubQueryRemoveRule
     //  the result RelNode (LogicalJoin(condition=[=($1, $8)], joinType=[left]))
     //  after SubQueryRemoveRule is unexpected
-    assertThatExceptionOfType(classOf[AssertionError])
+    assertThatExceptionOfType(classOf[NullPointerException])
       .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
   }
 

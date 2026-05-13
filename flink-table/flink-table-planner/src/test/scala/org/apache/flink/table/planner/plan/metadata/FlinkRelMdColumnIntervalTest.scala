@@ -139,7 +139,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     // id <= 20
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(20))
     // id > 10.0 (note: the types of id and literal are different)
-    val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(10.0))
+    val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(bd(10.0)))
     // DIV(id, 2) > 3
     val expr3 = relBuilder.call(
       GREATER_THAN,

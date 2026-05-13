@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
@@ -173,12 +173,13 @@ class RowLevelUpdateTest extends TableTestBase {
                                         + ") ",
                                 updateMode));
 
-        assertThatExceptionOfType(SqlParserException.class)
+        assertThatExceptionOfType(ValidationException.class)
                 .isThrownBy(
                         () ->
                                 util.verifyExplainInsert(
                                         "UPDATE t SET b.b1 = 'v2', c.c1 = 1000 WHERE b = '123'",
-                                        explainDetails));
+                                        explainDetails))
+                .withMessageContaining("Unknown target column 'b.b1'");
     }
 
     private void createTableForUpdate() {
