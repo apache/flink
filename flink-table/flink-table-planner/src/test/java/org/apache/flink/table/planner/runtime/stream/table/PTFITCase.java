@@ -74,9 +74,7 @@ public class PTFITCase {
 
     /** A PTF that takes an int argument and returns a greeting. */
     public static class GreetingLongScalar extends ProcessTableFunction<String> {
-        public void eval(
-                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input,
-                long arg) {
+        public void eval(@ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input, long arg) {
             collect("Hello " + arg + "!");
         }
     }

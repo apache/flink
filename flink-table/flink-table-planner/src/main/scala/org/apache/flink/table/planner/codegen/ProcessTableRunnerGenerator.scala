@@ -47,9 +47,11 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
 import org.apache.flink.types.Row
+
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 import java.util
+
 import scala.collection.JavaConverters._
 
 /** Code generator for [[ProcessTableRunner]]. */
