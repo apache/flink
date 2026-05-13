@@ -927,6 +927,9 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
 
+          case BuiltInFunctionDefinitions.INTERNAL_COMPARE =>
+            new CompareCallGen().generate(ctx, operands, resultType)
+
           case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS |
               BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS =>
             val left = operands.head
