@@ -136,14 +136,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         }
         AvroSerializerSnapshot<?> oldAvroSerializerSnapshot =
                 (AvroSerializerSnapshot<?>) oldSerializerSnapshot;
-        final TypeSerializerSchemaCompatibility<T> compatibility =
-                resolveSchemaCompatibility(oldAvroSerializerSnapshot.schema, schema);
-        if (compatibility.isCompatibleAfterMigration()
-                && isGenericRecord(runtimeType)
-                && isGenericRecord(oldAvroSerializerSnapshot.runtimeType)) {
-            oldAvroSerializerSnapshot.runtimeSchema = schema;
-        }
-        return compatibility;
+        return resolveSchemaCompatibility(oldAvroSerializerSnapshot.schema, schema);
     }
 
     @Override

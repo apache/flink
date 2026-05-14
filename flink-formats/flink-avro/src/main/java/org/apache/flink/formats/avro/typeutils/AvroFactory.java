@@ -75,8 +75,8 @@ public final class AvroFactory<T> {
      *   <li>If type is an Avro generated class (an {@link SpecificRecord} then the reader would use
      *       the previousSchema for reading (if present) otherwise it would use the schema attached
      *       to the auto generated class.
-     *   <li>If the type is a GenericRecord then the reader would use the previousSchema for reading
-     *       (if present) and the supplied (mandatory) schema for writing.
+     *   <li>If the type is a GenericRecord then the reader and the writer would be created with the
+     *       supplied (mandatory) schema.
      *   <li>Otherwise, we use Avro's reflection based reader and writer that would deduce the
      *       schema via reflection. If the previous schema is also present (when restoring a
      *       serializer for example) then the reader would be created with both schemas.
@@ -90,7 +90,7 @@ public final class AvroFactory<T> {
             return fromSpecific(type, cl, Optional.ofNullable(previousSchema));
         }
         if (GenericRecord.class.isAssignableFrom(type)) {
-            return fromGeneric(cl, currentSchema, previousSchema);
+            return fromGeneric(cl, currentSchema);
         }
         return fromReflective(type, cl, Optional.ofNullable(previousSchema));
     }
@@ -115,8 +115,7 @@ public final class AvroFactory<T> {
                 new SpecificDatumWriter<>(newSchema, specificData));
     }
 
-    private static <T> AvroFactory<T> fromGeneric(
-            ClassLoader cl, Schema schema, @Nullable Schema previousSchema) {
+    private static <T> AvroFactory<T> fromGeneric(ClassLoader cl, Schema schema) {
         checkNotNull(
                 schema,
                 "Unable to create an AvroSerializer with a GenericRecord type without a schema");
@@ -125,8 +124,7 @@ public final class AvroFactory<T> {
         return new AvroFactory<>(
                 genericData,
                 schema,
-                new GenericDatumReader<>(
-                        previousSchema == null ? schema : previousSchema, schema, genericData),
+                new GenericDatumReader<>(schema, schema, genericData),
                 new GenericDatumWriter<>(schema, genericData));
     }
 
