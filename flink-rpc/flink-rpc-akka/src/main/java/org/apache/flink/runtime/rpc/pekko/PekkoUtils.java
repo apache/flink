@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -47,6 +48,8 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -352,7 +355,21 @@ class PekkoUtils {
                                 .collect(Collectors.joining("\",\"", "[\"", "\"]"))
                         : "[]";
 
-        final String sslProtocol = configuration.get(SecurityOptions.SSL_PROTOCOL);
+        final String sslProtocolsString = configuration.get(SecurityOptions.SSL_PROTOCOL);
+        final String[] sslProtocolsArray =
+                Arrays.stream(sslProtocolsString.split(","))
+                        .map(String::trim)
+                        .toArray(String[]::new);
+        // Pekko's ConfigSSLEngineProvider uses the "protocol" field for both
+        // SSLContext.getInstance() and engine.setEnabledProtocols(). The latter rejects the
+        // generic "TLS" alias and requires a specific version string (e.g. "TLSv1.3").
+        // We ask the JVM for the ordered list of supported protocols and pick the highest one
+        // that appears in the configured list, so this works correctly regardless of the order
+        // the user specifies the protocols and automatically adapts to future JVM versions.
+        // CustomSSLEngineProvider immediately overrides with the full list after super() returns.
+        final String sslContextProtocol = highestSupportedProtocol(sslProtocolsArray);
+        final String sslEnabledProtocols =
+                Arrays.stream(sslProtocolsArray).collect(Collectors.joining(",", "[", "]"));
 
         final String sslAlgorithmsString = configuration.get(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
@@ -378,7 +395,8 @@ class PekkoUtils {
                 .add("          trust-store = \"" + sslTrustStore + "\"")
                 .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
                 .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
-                .add("          protocol = " + sslProtocol + "")
+                .add("          protocol = " + sslContextProtocol)
+                .add("          enabled-protocols = " + sslEnabledProtocols + "")
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")
                 .add("          require-mutual-authentication = on")
@@ -608,6 +626,38 @@ class PekkoUtils {
 
     private static String booleanToOnOrOff(boolean flag) {
         return flag ? "on" : "off";
+    }
+
+    /**
+     * Returns the highest TLS protocol from {@code configuredProtocols} according to the JVM's own
+     * ordering of supported protocols.
+     *
+     * <p>The JVM's {@link SSLContext#getSupportedSSLParameters()} returns protocols ordered from
+     * lowest to highest, so this method is automatically correct for any future TLS version without
+     * requiring a manually maintained ranking list.
+     *
+     * @throws IllegalArgumentException if none of the configured protocols are supported by the JVM
+     */
+    private static String highestSupportedProtocol(String[] configuredProtocols) {
+        final String[] jvmOrdered;
+        try {
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(null, null, null);
+            jvmOrdered = ctx.getSupportedSSLParameters().getProtocols();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to query supported TLS protocols from JVM", e);
+        }
+        final Set<String> configured = new HashSet<>(Arrays.asList(configuredProtocols));
+        // getSupportedSSLParameters().getProtocols() returns protocols from highest to lowest,
+        // so the first match in that list is the highest configured protocol.
+        return Arrays.stream(jvmOrdered)
+                .filter(configured::contains)
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "None of the configured SSL protocols are supported by this JVM: "
+                                                + Arrays.toString(configuredProtocols)));
     }
 
     private static class ConfigBuilder {
