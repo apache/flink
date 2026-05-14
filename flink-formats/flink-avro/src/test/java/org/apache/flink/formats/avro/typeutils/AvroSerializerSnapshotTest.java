@@ -31,6 +31,7 @@ import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -209,6 +210,28 @@ class AvroSerializerSnapshotTest {
                                 .snapshotConfiguration()
                                 .resolveSchemaCompatibility(originalSnapshot))
                 .is(isCompatibleAfterMigration());
+    }
+
+    @Test
+    void migratedGenericRecordShouldBeSerializedWithNewSchema() throws IOException {
+        final AvroSerializer<GenericRecord> originalSerializer =
+                new AvroSerializer<>(GenericRecord.class, FIRST_NAME);
+        final AvroSerializer<GenericRecord> newSerializer =
+                new AvroSerializer<>(GenericRecord.class, FIRST_REQUIRED_LAST_OPTIONAL);
+
+        final GenericRecord oldRecord =
+                new GenericRecordBuilder(FIRST_NAME).set("first", "Flink").build();
+        final ByteBuffer oldBytes = serialize(originalSerializer, oldRecord);
+        final GenericRecord migratedRecord =
+                deserialize(
+                        originalSerializer.snapshotConfiguration().restoreSerializer(), oldBytes);
+
+        final GenericRecord restoredRecord =
+                deserialize(newSerializer, serialize(newSerializer, migratedRecord));
+
+        assertThat(restoredRecord.getSchema()).isEqualTo(FIRST_REQUIRED_LAST_OPTIONAL);
+        assertThat(restoredRecord.get("first").toString()).isEqualTo("Flink");
+        assertThat(restoredRecord.get("last")).isNull();
     }
 
     @Test
