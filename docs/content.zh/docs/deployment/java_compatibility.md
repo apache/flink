@@ -46,6 +46,9 @@ The following Flink features have not been tested with Java 11:
 We use Java 17 by default in Flink 2.0.0 and is the recommended Java version to run Flink on.
 This is the default version for docker images.
 
+Support for Java Records was added in Flink 1.19 ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380)).
+Java records are handled as [POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos) and serialized via their canonical constructor.
+
 ### Untested Flink features
 
 These Flink features have not been tested with Java 17:
