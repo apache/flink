@@ -51,7 +51,9 @@ The following Flink features have not been tested with Java 11:
 ## Java 17
 
 Experimental support for Java 17 was added in 1.18. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
-In Flink 1.19, we added support for Java Records. ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380))
+
+Support for Java Records was added in Flink 1.19 ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380)).
+Java records are handled as [POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos) and serialized via their canonical constructor.
 
 ### Untested Flink features
 
