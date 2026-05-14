@@ -90,7 +90,7 @@ public final class AvroFactory<T> {
             return fromSpecific(type, cl, Optional.ofNullable(previousSchema));
         }
         if (GenericRecord.class.isAssignableFrom(type)) {
-            return fromGeneric(cl, currentSchema, Optional.ofNullable(previousSchema));
+            return fromGeneric(cl, currentSchema, previousSchema);
         }
         return fromReflective(type, cl, Optional.ofNullable(previousSchema));
     }
@@ -115,9 +115,8 @@ public final class AvroFactory<T> {
                 new SpecificDatumWriter<>(newSchema, specificData));
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static <T> AvroFactory<T> fromGeneric(
-            ClassLoader cl, Schema schema, Optional<Schema> previousSchema) {
+            ClassLoader cl, Schema schema, @Nullable Schema previousSchema) {
         checkNotNull(
                 schema,
                 "Unable to create an AvroSerializer with a GenericRecord type without a schema");
@@ -126,7 +125,8 @@ public final class AvroFactory<T> {
         return new AvroFactory<>(
                 genericData,
                 schema,
-                new GenericDatumReader<>(previousSchema.orElse(schema), schema, genericData),
+                new GenericDatumReader<>(
+                        previousSchema == null ? schema : previousSchema, schema, genericData),
                 new GenericDatumWriter<>(schema, genericData));
     }
 
