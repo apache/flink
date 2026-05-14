@@ -23,7 +23,7 @@ import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction, TableSemantics}
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -1678,8 +1678,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     val callContext =
       function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
 
-    // Expose a simplified context to let users focus on important characteristics.
-    // If necessary, we can expose the full CallContext in the future.
+    // Expose a simplified context focused on changelog-relevant inputs: changelog modes,
+    // resolved literal arguments, and table semantics (e.g., partition-by columns).
     new ChangelogContext {
       override def getTableChangelogMode(pos: Int): ChangelogMode = {
         val tableSemantics = callContext.getTableSemantics(pos).orElse(null)
@@ -1691,6 +1691,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       override def getRequiredChangelogMode: ChangelogMode = {
         callContext.getOutputChangelogMode.orElse(null)
+      }
+
+      override def getArgumentValue[T](pos: Int, clazz: Class[T]): java.util.Optional[T] = {
+        callContext.getArgumentValue(pos, clazz)
+      }
+
+      override def getTableSemantics(pos: Int): java.util.Optional[TableSemantics] = {
+        callContext.getTableSemantics(pos)
       }
     }
   }

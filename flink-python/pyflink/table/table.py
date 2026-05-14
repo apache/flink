@@ -1234,6 +1234,12 @@ class Table(object):
         in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
         rows instead.
 
+        The output is a retract changelog. To emit an upsert changelog instead, combine
+        ``PARTITION BY`` (set semantics on the table argument) with an ``op_mapping`` that
+        maps to ``UPDATE_AFTER`` without ``UPDATE_BEFORE``. The partition key becomes the
+        upsert key. An upsert mapping without ``PARTITION BY`` is rejected at validation
+        time, since upsert mode requires a key.
+
         Example:
         ::
 

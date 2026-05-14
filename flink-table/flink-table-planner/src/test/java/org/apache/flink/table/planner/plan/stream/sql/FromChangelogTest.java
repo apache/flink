@@ -71,4 +71,23 @@ public class FromChangelogTest extends TableTestBase {
                 "SELECT * FROM FROM_CHANGELOG(input => TABLE cdc_stream PARTITION BY id)",
                 CHANGELOG_MODE);
     }
+
+    @Test
+    void testUpsertPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE cdc_stream ("
+                                + "  id INT,"
+                                + "  op STRING,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.verifyRelPlan(
+                "SELECT * FROM FROM_CHANGELOG("
+                        + "input => TABLE cdc_stream PARTITION BY id, "
+                        + "op_mapping => MAP["
+                        + "'INSERT', 'INSERT', "
+                        + "'UPDATE_AFTER', 'UPDATE_AFTER', "
+                        + "'DELETE', 'DELETE'])",
+                CHANGELOG_MODE);
+    }
 }

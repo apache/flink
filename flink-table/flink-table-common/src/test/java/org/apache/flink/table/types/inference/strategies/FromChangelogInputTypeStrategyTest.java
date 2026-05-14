@@ -139,11 +139,33 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(3, "FAIL")
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
 
-                // Error: UPDATE_AFTER without UPDATE_BEFORE not supported
+                // Valid: upsert mapping (INSERT + UPDATE_AFTER + DELETE, no UPDATE_BEFORE) with
+                // PARTITION BY. FROM_CHANGELOG emits an upsert changelog keyed on the partition
+                // column.
                 TestSpec.forStrategy(
-                                "UPDATE_AFTER requires UPDATE_BEFORE",
+                                "Valid upsert mapping with PARTITION BY",
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
+                        .calledWithTableSemanticsAt(
+                                0,
+                                new TableSemanticsMock(
+                                        TABLE_TYPE, new int[] {0}, new int[0], -1, null))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
+                        .calledWithLiteralAt(
+                                2,
+                                Map.of(
+                                        "c", "INSERT",
+                                        "u", "UPDATE_AFTER",
+                                        "d", "DELETE"))
+                        .calledWithLiteralAt(3, "FAIL")
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
+
+                // Error: upsert mapping (INSERT + UPDATE_AFTER + DELETE) without PARTITION BY.
+                // Upsert mode requires a key, so the call must use set semantics.
+                TestSpec.forStrategy(
+                                "Upsert mapping without PARTITION BY rejected",
+                                FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
@@ -152,7 +174,13 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "c", "INSERT",
                                         "u", "UPDATE_AFTER",
                                         "d", "DELETE"))
-                        .expectErrorMessage("must include UPDATE_BEFORE"),
+                        .calledWithLiteralAt(3, "FAIL")
+                        .expectErrorMessage(
+                                "An 'op_mapping' that produces UPDATE_AFTER without "
+                                        + "UPDATE_BEFORE describes an upsert changelog and "
+                                        + "requires a key. Add PARTITION BY to the input table "
+                                        + "to define the upsert key, or include UPDATE_BEFORE in "
+                                        + "the mapping for retract semantics."),
 
                 // Error: Invalid error_handling mode
                 TestSpec.forStrategy(
