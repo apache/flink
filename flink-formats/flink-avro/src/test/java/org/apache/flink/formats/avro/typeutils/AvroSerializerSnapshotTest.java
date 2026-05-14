@@ -222,9 +222,20 @@ class AvroSerializerSnapshotTest {
         final GenericRecord oldRecord =
                 new GenericRecordBuilder(FIRST_NAME).set("first", "Flink").build();
         final ByteBuffer oldBytes = serialize(originalSerializer, oldRecord);
+
+        final TypeSerializerSnapshot<GenericRecord> originalSnapshot =
+                originalSerializer.snapshotConfiguration();
+        assertThat(
+                        newSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(originalSnapshot))
+                .is(isCompatibleAfterMigration());
+
         final GenericRecord migratedRecord =
-                deserialize(
-                        originalSerializer.snapshotConfiguration().restoreSerializer(), oldBytes);
+                deserialize(originalSnapshot.restoreSerializer(), oldBytes);
+
+        assertThat(migratedRecord.getSchema()).isEqualTo(FIRST_REQUIRED_LAST_OPTIONAL);
+        assertThat(migratedRecord.get("last")).isNull();
 
         final GenericRecord restoredRecord =
                 deserialize(newSerializer, serialize(newSerializer, migratedRecord));

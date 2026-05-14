@@ -21,17 +21,13 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
@@ -44,7 +40,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -183,7 +178,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
         try {
             checkAvroInitialized();
             this.encoder.setOut(target);
-            this.writer.write(resolveGenericRecordSchema(value), this.encoder);
+            this.writer.write(value, this.encoder);
         } finally {
             if (CONCURRENT_ACCESS_CHECK) {
                 exitExclusiveThread();
@@ -328,30 +323,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
         this.encoder = factory.getEncoder();
         this.decoder = factory.getDecoder();
         this.avroData = factory.getAvroData();
-    }
-
-    private T resolveGenericRecordSchema(T value) throws IOException {
-        if (!isGenericRecord(type)) {
-            return value;
-        }
-
-        final GenericRecord record = (GenericRecord) value;
-        final Schema recordSchema = record.getSchema();
-        if (Objects.equals(recordSchema, runtimeSchema)) {
-            return value;
-        }
-
-        final DataOutputSerializer output = new DataOutputSerializer(128);
-        final DataOutputEncoder outputEncoder = new DataOutputEncoder();
-        outputEncoder.setOut(output);
-        new GenericDatumWriter<GenericRecord>(recordSchema, avroData).write(record, outputEncoder);
-
-        final DataInputDecoder inputDecoder = new DataInputDecoder();
-        inputDecoder.setIn(new DataInputDeserializer(output.wrapAsByteBuffer()));
-        final GenericRecord resolvedRecord =
-                new GenericDatumReader<GenericRecord>(recordSchema, runtimeSchema, avroData)
-                        .read(null, inputDecoder);
-        return type.cast(resolvedRecord);
     }
 
     // --------------------------------------------------------------------------------------------
