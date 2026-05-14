@@ -95,6 +95,8 @@ based on the following set of rules:
  3. Declared fields types cannot change.
  4. Class name of the POJO type cannot change, including the namespace of the class.
 
+The same rules apply to [Java records]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos), which Flink treats as POJO types since Flink 1.19.
+
 Note that the schema of POJO type state can only be evolved when restoring from a previous savepoint with Flink versions
 newer than 1.8.0. When restoring with Flink versions older than 1.8.0, the schema cannot be changed.
 
