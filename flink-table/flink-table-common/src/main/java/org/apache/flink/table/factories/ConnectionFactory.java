@@ -45,6 +45,14 @@ import org.apache.flink.table.secret.exceptions.SecretException;
 public interface ConnectionFactory extends Factory {
 
     /**
+     * The option key that identifies the connection type in a {@link SensitiveConnection}'s or
+     * {@link CatalogConnection}'s options. The value of this option is matched against the {@link
+     * #factoryIdentifier()} of registered {@code ConnectionFactory} implementations to discover the
+     * factory that handles a given connection (see FLIP-529).
+     */
+    String CONNECTION_TYPE_KEY = "type";
+
+    /**
      * Creates a {@link CatalogConnection} from a {@link SensitiveConnection} by extracting
      * sensitive fields and storing them in the provided {@link WritableSecretStore}.
      *

@@ -63,6 +63,7 @@ import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.factories.ConnectionFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -151,7 +152,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private final MaterializedTableEnricher materializedTableEnricher;
 
-    @Nullable private final ConnectionFactory connectionFactory;
+    private final ClassLoader userClassLoader;
 
     @Nullable private final WritableSecretStore writableSecretStore;
 
@@ -163,7 +164,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             CatalogStoreHolder catalogStoreHolder,
             SqlFactory sqlFactory,
             MaterializedTableEnricher materializedTableEnricher,
-            @Nullable ConnectionFactory connectionFactory,
+            ClassLoader userClassLoader,
             @Nullable WritableSecretStore writableSecretStore) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
@@ -191,8 +192,23 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         this.sqlFactory = sqlFactory;
         this.materializedTableEnricher =
                 checkNotNull(materializedTableEnricher, "MaterializedTableEnricher cannot be null");
-        this.connectionFactory = connectionFactory;
+        this.userClassLoader = checkNotNull(userClassLoader, "User class loader cannot be null");
         this.writableSecretStore = writableSecretStore;
+    }
+
+    /**
+     * Discovers the {@link ConnectionFactory} for the given connection options via SPI, using the
+     * {@code type} option as the factory identifier (see FLIP-529). Falls back to {@link
+     * DefaultConnectionFactory} when the {@code type} option is absent or empty.
+     *
+     * @param options the options of the connection being created / altered / dropped
+     * @return the discovered factory
+     */
+    private ConnectionFactory discoverConnectionFactory(Map<String, String> options) {
+        final String type = options.get(ConnectionFactory.CONNECTION_TYPE_KEY);
+        final String identifier =
+                (type == null || type.isEmpty()) ? DefaultConnectionFactory.IDENTIFIER : type;
+        return FactoryUtil.discoverFactory(userClassLoader, ConnectionFactory.class, identifier);
     }
 
     @VisibleForTesting
@@ -231,8 +247,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         private SqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
 
         private MaterializedTableEnricher materializedTableEnricher;
-
-        private @Nullable ConnectionFactory connectionFactory;
 
         private @Nullable WritableSecretStore writableSecretStore;
 
@@ -284,11 +298,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return this;
         }
 
-        public Builder connectionFactory(@Nullable ConnectionFactory connectionFactory) {
-            this.connectionFactory = connectionFactory;
-            return this;
-        }
-
         public Builder writableSecretStore(@Nullable WritableSecretStore writableSecretStore) {
             this.writableSecretStore = writableSecretStore;
             return this;
@@ -315,7 +324,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     materializedTableEnricher != null
                             ? materializedTableEnricher
                             : createDefaultMaterializedTableEnricher(),
-                    connectionFactory,
+                    classLoader,
                     writableSecretStore);
         }
 
@@ -1904,9 +1913,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     /**
      * Create a permanent connection in the given fully qualified path.
      *
-     * <p>If a {@link ConnectionFactory} and {@link WritableSecretStore} are configured, sensitive
-     * fields are extracted from the connection and stored in the secret store before persisting the
-     * non-sensitive {@link CatalogConnection} to the catalog.
+     * <p>The {@link ConnectionFactory} is discovered from the connection's {@code type} option (see
+     * FLIP-529). If a {@link WritableSecretStore} is configured, sensitive fields are extracted
+     * from the connection and stored in the secret store before persisting the non-sensitive {@link
+     * CatalogConnection} to the catalog.
      *
      * @param connection The connection with all options including sensitive fields.
      * @param objectIdentifier The fully qualified path where to create the connection.
@@ -1916,9 +1926,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             SensitiveConnection connection,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfExists) {
-        if (connectionFactory == null || writableSecretStore == null) {
+        if (writableSecretStore == null) {
             throw new ValidationException(
-                    "ConnectionFactory and WritableSecretStore must be configured to create connections.");
+                    "WritableSecretStore must be configured to create connections.");
         }
         if (getConnection(objectIdentifier).isPresent()) {
             if (ignoreIfExists) {
@@ -1929,6 +1939,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             "Connection with identifier '%s' already exists.",
                             objectIdentifier.asSummaryString()));
         }
+        final ConnectionFactory connectionFactory =
+                discoverConnectionFactory(connection.getOptions());
         final CatalogConnection catalogConnection =
                 connectionFactory.createConnection(connection, writableSecretStore);
         boolean persisted = false;
@@ -1973,10 +1985,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             SensitiveConnection connection,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfExists) {
-        if (connectionFactory == null) {
-            throw new ValidationException(
-                    "ConnectionFactory must be configured to create connections.");
-        }
         if (temporaryConnections.containsKey(objectIdentifier)) {
             if (ignoreIfExists) {
                 return;
@@ -1986,6 +1994,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
         // Temporary connections are session-scoped; store secrets in an in-memory store rather
         // than the configured (potentially persistent) writableSecretStore.
+        final ConnectionFactory connectionFactory =
+                discoverConnectionFactory(connection.getOptions());
         final CatalogConnection catalogConnection =
                 connectionFactory.createConnection(connection, temporarySecretStore);
         temporaryConnections.put(objectIdentifier, catalogConnection);
@@ -2014,9 +2024,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             SensitiveConnection newConnection,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists) {
-        if (connectionFactory == null || writableSecretStore == null) {
+        if (writableSecretStore == null) {
             throw new ValidationException(
-                    "ConnectionFactory and WritableSecretStore must be configured to alter connections.");
+                    "WritableSecretStore must be configured to alter connections.");
         }
         Optional<CatalogConnection> existingOpt = getConnection(objectIdentifier);
         if (!existingOpt.isPresent()) {
@@ -2029,6 +2039,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             objectIdentifier.asSummaryString()));
         }
         final CatalogConnection existing = existingOpt.get();
+        final ConnectionFactory connectionFactory =
+                discoverConnectionFactory(newConnection.getOptions());
         final CatalogConnection newCatalogConnection =
                 connectionFactory.createConnection(newConnection, writableSecretStore);
         boolean persisted = false;
@@ -2099,7 +2111,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 objectIdentifier,
                 ignoreIfNotExists,
                 "DropConnection");
-        if (connectionFactory != null && writableSecretStore != null) {
+        if (writableSecretStore != null) {
             tryDeleteSecrets(
                     existing, writableSecretStore, "post-drop cleanup for " + objectIdentifier);
         }
@@ -2128,12 +2140,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                             connection,
                                             ignoreIfNotExists,
                                             true)));
-            if (connectionFactory != null) {
-                tryDeleteSecrets(
-                        connection,
-                        temporarySecretStore,
-                        "post-drop cleanup of temporary " + objectIdentifier);
-            }
+            tryDeleteSecrets(
+                    connection,
+                    temporarySecretStore,
+                    "post-drop cleanup of temporary " + objectIdentifier);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
@@ -2150,8 +2160,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     private void tryDeleteSecrets(
             CatalogConnection connection, WritableSecretStore store, String context) {
         try {
-            connectionFactory.deleteSecrets(connection, store);
-        } catch (SecretException e) {
+            discoverConnectionFactory(connection.getOptions()).deleteSecrets(connection, store);
+        } catch (SecretException | ValidationException e) {
             LOG.warn(
                     "Failed to delete connection secrets during {}; the catalog state is correct, but the secret may be orphaned in the secret store.",
                     context,

@@ -57,6 +57,12 @@ import java.util.stream.Collectors;
 public class DefaultConnectionFactory implements ConnectionFactory {
 
     /**
+     * Factory identifier used to discover this factory via SPI. Also used as the fallback when a
+     * connection does not specify a {@link ConnectionFactory#CONNECTION_TYPE_KEY} option.
+     */
+    public static final String IDENTIFIER = "default";
+
+    /**
      * Reserved option key used to store the reference to secrets in the secret store. The
      * surrounding double underscores make collision with user-supplied option names unlikely; user
      * options containing this key will be rejected at create-time.
@@ -86,7 +92,7 @@ public class DefaultConnectionFactory implements ConnectionFactory {
 
     @Override
     public String factoryIdentifier() {
-        return "default";
+        return IDENTIFIER;
     }
 
     @Override

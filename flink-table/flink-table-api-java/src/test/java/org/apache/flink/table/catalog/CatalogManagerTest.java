@@ -36,7 +36,6 @@ import org.apache.flink.table.catalog.listener.DropConnectionEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
 import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
-import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.secret.GenericInMemorySecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -398,7 +397,6 @@ class CatalogManagerTest {
                                         .catalogStore(new GenericInMemoryCatalogStore())
                                         .config(new Configuration())
                                         .build())
-                        .connectionFactory(new DefaultConnectionFactory())
                         .writableSecretStore(secretStore)
                         .build();
 
@@ -408,7 +406,7 @@ class CatalogManagerTest {
         HashMap<String, String> options =
                 new HashMap<String, String>() {
                     {
-                        put("type", "kafka");
+                        put("type", "default");
                         put("bootstrap.servers", "localhost:9092");
                         put("password", "secret-pw");
                     }
@@ -447,7 +445,7 @@ class CatalogManagerTest {
         HashMap<String, String> alteredOptions =
                 new HashMap<String, String>() {
                     {
-                        put("type", "kafka");
+                        put("type", "default");
                         put("bootstrap.servers", "remote:9092");
                         put("password", "rotated-pw");
                     }
@@ -490,6 +488,60 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.isTemporary()).isTrue();
         assertThat(dropTemporaryEvent.ignoreIfNotExists()).isFalse();
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("conn2");
+    }
+
+    @Test
+    public void testCreateConnectionWithoutTypeFallsBackToDefaultFactory() throws Exception {
+        CompletableFuture<CreateConnectionEvent> createFuture = new CompletableFuture<>();
+        WritableSecretStore secretStore = new GenericInMemorySecretStore();
+        CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .catalogModificationListeners(
+                                Collections.singletonList(
+                                        new TestingConnectionModificationListener(
+                                                createFuture,
+                                                new CompletableFuture<>(),
+                                                new CompletableFuture<>(),
+                                                new CompletableFuture<>(),
+                                                new CompletableFuture<>())))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .build())
+                        .writableSecretStore(secretStore)
+                        .build();
+
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
+
+        // Omit the 'type' option entirely; discovery should fall back to DefaultConnectionFactory.
+        HashMap<String, String> options =
+                new HashMap<String, String>() {
+                    {
+                        put("bootstrap.servers", "localhost:9092");
+                        put("password", "secret-pw");
+                    }
+                };
+
+        catalogManager.createConnection(
+                SensitiveConnection.of(options, null),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "conn-no-type"),
+                false);
+
+        CreateConnectionEvent event = createFuture.get(10, TimeUnit.SECONDS);
+        assertThat(event.identifier().getObjectName()).isEqualTo("conn-no-type");
+        // Sensitive field stripped — proves DefaultConnectionFactory ran via the fallback path.
+        assertThat(event.connection().getOptions()).doesNotContainKey("password");
+        assertThat(event.connection().getOptions())
+                .containsEntry("bootstrap.servers", "localhost:9092");
     }
 
     private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {

@@ -85,7 +85,6 @@ import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
-import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -304,7 +303,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         .sqlFactory(
                                 settings.getSqlFactory()
                                         .orElseGet(() -> DefaultSqlFactory.INSTANCE))
-                        .connectionFactory(new DefaultConnectionFactory())
                         .writableSecretStore(writableSecretStore)
                         .build();
 
