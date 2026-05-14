@@ -216,10 +216,6 @@ class RedundantWatermarkAssignerRemoveRuleTest extends TableTestBase {
                         + "GROUP BY window_start, window_end, a");
     }
 
-    // ------------------------------------------------------------------------
-    // FLINK-14621 review follow-ups
-    // ------------------------------------------------------------------------
-
     /**
      * A statement set with two branches: one drops the assigner (plain select), one keeps it
      * (window aggregation). The rule fires once per sink, so each branch is optimized

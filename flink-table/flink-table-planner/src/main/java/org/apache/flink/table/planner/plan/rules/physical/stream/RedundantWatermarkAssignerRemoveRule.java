@@ -38,6 +38,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -196,7 +197,9 @@ public class RedundantWatermarkAssignerRemoveRule
         }
         Set<Integer> indexes = null;
         final List<RelDataType> fields =
-                rowType.getFieldList().stream().map(f -> f.getType()).collect(Collectors.toList());
+                rowType.getFieldList().stream()
+                        .map(RelDataTypeField::getType)
+                        .collect(Collectors.toList());
         for (int i = 0; i < fields.size(); i++) {
             final RelDataType t = fields.get(i);
             if (t instanceof TimeIndicatorRelDataType
@@ -253,7 +256,7 @@ public class RedundantWatermarkAssignerRemoveRule
                 // watermark column is lost; parents above will be retyped on the way back up.
                 return rewrite(unwrap(assigner.getInput()), false, protectedIndexes, rexBuilder);
             }
-            // Keep this assigner — its rowtime column is protected (reaches a root rowtime
+            // Keep this assigner - its rowtime column is protected (reaches a root rowtime
             // field). Fall through to the generic recursion to continue processing below.
         }
 
@@ -493,9 +496,9 @@ public class RedundantWatermarkAssignerRemoveRule
         try {
             node.accept(shuttle);
         } catch (Exception ignored) {
-            // Some rels' accept(RexShuttle) implementations may not be defensive; treat scan
-            // failures as "no CURRENT_WATERMARK found" — in the worst case we miss a marker, but
-            // the same rel will be examined again from the parent side via the recursion.
+            // Be conservative: if the scan fails, assume the rel may embed CURRENT_WATERMARK so
+            // that an upstream watermark assigner is not dropped incorrectly.
+            return true;
         }
         return found[0];
     }
