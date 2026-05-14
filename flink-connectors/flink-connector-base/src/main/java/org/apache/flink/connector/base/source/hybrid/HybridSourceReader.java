@@ -225,6 +225,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         } catch (Exception e) {
             throw new RuntimeException("Failed tp create reader", e);
         }
+        // currentReader must be switched before `addSplits` is called.
         currentSourceIndex = index;
         currentReader = reader;
         // add restored splits

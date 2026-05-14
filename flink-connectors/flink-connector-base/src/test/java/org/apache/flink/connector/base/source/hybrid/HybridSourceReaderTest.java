@@ -323,7 +323,7 @@ class HybridSourceReaderTest {
 
         recoveredReader.handleSourceEvents(new SwitchSourceEvent(0, spySource, false));
 
-        // Verify addSplits was called before start on the underlying reader
+        // Verify the contract: addSplits() must be called before start() during recovery
         InOrder inOrder = Mockito.inOrder(spyHolder[0]);
         inOrder.verify(spyHolder[0]).addSplits(Mockito.anyList());
         inOrder.verify(spyHolder[0]).start();
