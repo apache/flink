@@ -523,6 +523,57 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .isEqualTo("ALTER MATERIALIZED TABLE builtin.default.mtbl1 RESUME WITH (k1: [v1])");
     }
 
+
+    @Test
+    void testAlterMaterializedTableSet() {
+        final String sql =
+                "ALTER MATERIALIZED TABLE base_mtbl SET ('format' = 'json2', 'k1' = 'v1')";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+
+        AlterMaterializedTableChangeOperation op =
+                (AlterMaterializedTableChangeOperation) operation;
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableChanges())
+                .containsExactly(TableChange.set("format", "json2"), TableChange.set("k1", "v1"));
+        assertThat(op.getNewTable().getOptions())
+                .containsOnly(
+                        Map.entry("connector", "filesystem"),
+                        Map.entry("format", "json2"),
+                        Map.entry("k1", "v1"));
+        assertThat(op.asSummaryString())
+                .isEqualTo(
+                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
+                                + "  SET 'format' = 'json2',\n"
+                                + "  SET 'k1' = 'v1'");
+    }
+
+    @Test
+    void testAlterMaterializedTableSetWithEmptyOptions() {
+        final String sql = "ALTER MATERIALIZED TABLE base_mtbl SET ()";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "ALTER MATERIALIZED TABLE SET does not support empty options.");
+    }
+
+    @Test
+    void testAlterMaterializedTableSetOnUnknownTable() {
+        final String sql = "ALTER MATERIALIZED TABLE unknown_mtbl SET ('format' = 'json2')";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist.");
+    }
+
+    @Test
+    void testAlterMaterializedTableSetOnRegularTable() {
+        final String sql = "ALTER MATERIALIZED TABLE t3 SET ('format' = 'json2')";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("ALTER MATERIALIZED TABLE for a table is not allowed");
+    }
+
     @Test
     void testAlterMaterializedTableReset() {
         final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('format', 'unknown_key')";

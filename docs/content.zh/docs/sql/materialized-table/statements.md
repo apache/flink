@@ -398,6 +398,7 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
     | DROP {column_name | (column_name, column_name, ...) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | DISTRIBUTION }
     | SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)]
     | REFRESH [PARTITION partition_spec] |
+    | SET (key1=val1, key2=val2, ...)
     | RESET (key1, key2, ...)
     | AS <select_statement>
 <schema_component>:
@@ -548,6 +549,27 @@ ALTER MATERIALIZED TABLE my_materialized_table RESUME;
 -- 恢复指定的物化表并指定 sink 的并行度
 ALTER MATERIALIZED TABLE my_materialized_table RESUME WITH ('sink.parallelism'='10');
 ```
+
+## SET
+
+```
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
+```
+
+`SET` is used to add or overwrite table options of a materialized table. Existing options not listed in the statement are preserved.
+
+**Example:**
+
+```sql
+-- Add a new option and overwrite an existing one
+ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'sink.parallelism' = '4');
+```
+
+<span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
+- `FULL` mode: the change is applied to the catalog. The refresh workflow is not touched.
+- `CONTINUOUS` mode, `ACTIVATED` status: the running refresh job is stopped with savepoint, the change is applied to the catalog, and a new refresh job is started using the updated options. The new job does **not** restore from the savepoint taken during suspend, so streaming state is reset.
+- `CONTINUOUS` mode, `SUSPENDED` status: the change is applied to the catalog and the savepoint stored in the refresh handler is cleared, so the next `RESUME` will also start a fresh job.
+- `CONTINUOUS` mode, `INITIALIZING` status: the statement is rejected.
 
 ## RESET
 
