@@ -1095,6 +1095,8 @@ watermark for the given input table advances, at which point all buffered rows w
 less than or equal to the watermark are delivered to the eval() method in sorted order. Late
 events (arriving after the watermark) are dropped to maintain the ordering guarantee.
 
+This pattern is particularly useful for the built-in [`FROM_CHANGELOG`]({{< ref "docs/sql/reference/queries/changelog" >}}#from_changelog) PTF, which converts an append-only CDC stream into a changelog. Combining `PARTITION BY` on the primary key with `ORDER BY` on the event-time column reorders out-of-order CDC events per key before the operations are applied.
+
 The following example demonstrates ordered processing with secondary sorting. First, the function implementation:
 
 ```java

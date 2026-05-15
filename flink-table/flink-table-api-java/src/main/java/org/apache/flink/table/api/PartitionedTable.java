@@ -252,6 +252,14 @@ public interface PartitionedTable {
      * Table result = cdcStream
      *     .partitionBy($("id"))
      *     .fromChangelog(lit("SKIP").asArgument("error_handling"));
+     *
+     * // Reorder out-of-order CDC events per key by event time. The input must declare a
+     * // WATERMARK on the time attribute used in orderBy(); the first order column must be that
+     * // time attribute in ASC order.
+     * Table result = cdcStream
+     *     .partitionBy($("id"))
+     *     .orderBy($("event_time").asc())
+     *     .fromChangelog();
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
@@ -259,6 +267,7 @@ public interface PartitionedTable {
      * @return a dynamic {@link Table} with output schema {@code [partition_keys,
      *     non_partition_non_op_input_columns]}
      * @see Table#fromChangelog(Expression...)
+     * @see #orderBy(Expression...)
      */
     Table fromChangelog(Expression... arguments);
 }
