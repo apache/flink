@@ -32,6 +32,7 @@ import org.apache.calcite.sql.SqlNodeList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 /** A converter for {@link SqlAlterMaterializedTableReset}. */
@@ -53,13 +54,13 @@ public class SqlAlterMaterializedTableResetConverter
     protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
             SqlAlterMaterializedTableReset sqlAlterTable, ConvertContext context) {
         final SqlNodeList propertyKeyList = sqlAlterTable.getPropertyKeyList();
-        if (propertyKeyList.getList().isEmpty()) {
+        final Set<String> resetKeys =
+                SqlParseUtils.extractSet(
+                        propertyKeyList, key -> SqlParseUtils.extractString((SqlLiteral) key));
+        if (resetKeys.isEmpty()) {
             throw new ValidationException(
                     EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE RESET does not support empty key.");
         }
-        final List<String> resetKeys =
-                SqlParseUtils.extractList(
-                        propertyKeyList, key -> SqlParseUtils.extractString((SqlLiteral) key));
         if (resetKeys.contains(FactoryUtil.CONNECTOR.key())) {
             throw new ValidationException(
                     EX_MSG_PREFIX

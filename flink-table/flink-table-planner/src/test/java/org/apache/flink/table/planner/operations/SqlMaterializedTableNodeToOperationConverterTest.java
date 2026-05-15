@@ -533,15 +533,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (AlterMaterializedTableChangeOperation) operation;
         assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
         assertThat(op.getTableChanges())
-                .containsExactly(TableChange.reset("format"), TableChange.reset("unknown_key"));
+                .containsExactlyInAnyOrder(
+                        TableChange.reset("format"), TableChange.reset("unknown_key"));
         // resetting an unknown key is a no-op for the catalog state
         assertThat(op.getNewTable().getOptions())
                 .containsOnly(Map.entry("connector", "filesystem"));
         assertThat(op.asSummaryString())
-                .isEqualTo(
-                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
-                                + "  RESET 'format',\n"
-                                + "  RESET 'unknown_key'");
+                .startsWith("ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n")
+                .contains("  RESET 'format'", "  RESET 'unknown_key'");
     }
 
     @Test
