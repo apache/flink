@@ -111,8 +111,8 @@ Bucket names containing dots (e.g., `my.company.data`) are fully supported throu
 All global S3 configuration properties can be overridden at the bucket level:
 
 - **Connection:** `region`, `endpoint`, `path-style-access`
-- **Credentials:** `access-key`, `secret-key`, `credentials.provider`
-- **Encryption:** `sse.type`, `sse.kms-key-id`
+- **Credentials:** `access-key`, `secret-key`, `aws.credentials.provider`
+- **Encryption:** `sse.type`, `sse.kms.key-id`
 - **IAM Assume Role:** `assume-role.arn`, `assume-role.external-id`, `assume-role.session-name`, `assume-role.session-duration`
 
 ## Server-Side Encryption (SSE)

@@ -41,7 +41,7 @@ class BucketConfigProviderTest {
                 "s3.bucket.my-bucket.secret-key", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");
         config.setString("s3.bucket.my-bucket.sse.type", "sse-kms");
         config.setString(
-                "s3.bucket.my-bucket.sse.kms-key-id",
+                "s3.bucket.my-bucket.sse.kms.key-id",
                 "arn:aws:kms:us-east-1:123456789:key/12345678");
         config.setString(
                 "s3.bucket.my-bucket.assume-role.arn",
@@ -50,7 +50,7 @@ class BucketConfigProviderTest {
         config.setString("s3.bucket.my-bucket.assume-role.session-name", "flink-job");
         config.setString("s3.bucket.my-bucket.assume-role.session-duration", "7200");
         config.setString(
-                "s3.bucket.my-bucket.credentials.provider",
+                "s3.bucket.my-bucket.aws.credentials.provider",
                 "software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider");
 
         BucketConfigProvider provider = new BucketConfigProvider(config);
@@ -110,7 +110,7 @@ class BucketConfigProviderTest {
         config.setString("s3.bucket.my.company.data.endpoint", "https://s3-custom.example.com");
         config.setString("s3.bucket.my.company.data.region", "ap-southeast-1");
         config.setString("s3.bucket.my.company.data.sse.type", "sse-s3");
-        config.setString("s3.bucket.my.company.data.sse.kms-key-id", "key-123");
+        config.setString("s3.bucket.my.company.data.sse.kms.key-id", "key-123");
 
         BucketConfigProvider provider = new BucketConfigProvider(config);
 
@@ -205,6 +205,30 @@ class BucketConfigProviderTest {
         assertThatThrownBy(() -> new BucketConfigProvider(config))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Invalid assume-role.session-duration");
+    }
+
+    @Test
+    void testInvalidPathStyleAccessThrowsException() {
+        Configuration config = new Configuration();
+        config.setString("s3.bucket.my-bucket.path-style-access", "treu");
+        config.setString("s3.bucket.my-bucket.region", "us-east-1");
+
+        assertThatThrownBy(() -> new BucketConfigProvider(config))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Invalid path-style-access");
+    }
+
+    @Test
+    void testUnrecognizedBucketPropertyIsIgnoredWithoutThrow() {
+        Configuration config = new Configuration();
+        config.setString("s3.bucket.my-bucket.typo-region", "us-east-1");
+        config.setString("s3.bucket.my-bucket.region", "eu-west-1");
+
+        BucketConfigProvider provider = new BucketConfigProvider(config);
+
+        S3BucketConfig bucket = provider.getBucketConfig("my-bucket");
+        assertThat(bucket).isNotNull();
+        assertThat(bucket.getRegion()).isEqualTo("eu-west-1");
     }
 
     @Test

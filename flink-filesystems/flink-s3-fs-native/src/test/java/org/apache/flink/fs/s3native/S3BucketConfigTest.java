@@ -135,4 +135,36 @@ class S3BucketConfigTest {
         assertThat(str).doesNotContain("AKIAIOSFODNN7EXAMPLE");
         assertThat(str).doesNotContain("wJalrXUtnFEMI");
     }
+
+    @Test
+    void testToStringRedactsKmsKeyIdAndIncludesAllFields() {
+        S3BucketConfig config =
+                S3BucketConfig.builder("my-bucket")
+                        .region("us-west-2")
+                        .endpoint("https://s3.example.com")
+                        .pathStyleAccess(true)
+                        .accessKey("AKIAIOSFODNN7EXAMPLE")
+                        .secretKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+                        .sseType("sse-kms")
+                        .sseKmsKeyId("arn:aws:kms:us-east-1:123:key/abc")
+                        .assumeRoleArn("arn:aws:iam::123:role/R")
+                        .assumeRoleExternalId("ext-id")
+                        .assumeRoleSessionName("my-session")
+                        .assumeRoleSessionDurationSeconds(3600)
+                        .credentialsProvider("AnonymousCredentialsProvider")
+                        .build();
+
+        String str = config.toString();
+        assertThat(str).contains("region='us-west-2'");
+        assertThat(str).contains("endpoint='https://s3.example.com'");
+        assertThat(str).contains("pathStyleAccess=true");
+        assertThat(str).contains("sseType='sse-kms'");
+        assertThat(str).contains("sseKmsKeyId=" + GlobalConfiguration.HIDDEN_CONTENT);
+        assertThat(str).doesNotContain("arn:aws:kms:us-east-1:123:key/abc");
+        assertThat(str).contains("assumeRoleArn='arn:aws:iam::123:role/R'");
+        assertThat(str).contains("assumeRoleExternalId='ext-id'");
+        assertThat(str).contains("assumeRoleSessionName='my-session'");
+        assertThat(str).contains("assumeRoleSessionDurationSeconds=3600");
+        assertThat(str).contains("credentialsProvider='AnonymousCredentialsProvider'");
+    }
 }

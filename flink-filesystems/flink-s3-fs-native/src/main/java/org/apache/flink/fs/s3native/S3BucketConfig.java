@@ -209,8 +209,21 @@ final class S3BucketConfig {
         if (sseType != null) {
             sb.append(", sseType='").append(sseType).append("'");
         }
+        if (sseKmsKeyId != null) {
+            sb.append(", sseKmsKeyId=").append(GlobalConfiguration.HIDDEN_CONTENT);
+        }
         if (assumeRoleArn != null) {
             sb.append(", assumeRoleArn='").append(assumeRoleArn).append("'");
+        }
+        if (assumeRoleExternalId != null) {
+            sb.append(", assumeRoleExternalId='").append(assumeRoleExternalId).append("'");
+        }
+        if (assumeRoleSessionName != null) {
+            sb.append(", assumeRoleSessionName='").append(assumeRoleSessionName).append("'");
+        }
+        if (assumeRoleSessionDurationSeconds != null) {
+            sb.append(", assumeRoleSessionDurationSeconds=")
+                    .append(assumeRoleSessionDurationSeconds);
         }
         if (credentialsProvider != null) {
             sb.append(", credentialsProvider='").append(credentialsProvider).append("'");

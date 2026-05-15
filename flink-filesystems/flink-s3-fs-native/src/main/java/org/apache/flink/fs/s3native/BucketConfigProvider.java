@@ -57,9 +57,9 @@ final class BucketConfigProvider {
     static {
         final Map<String, BiConsumer<S3BucketConfig.Builder, String>> applicators =
                 new LinkedHashMap<>();
-        applicators.put("access-key", (b, v) -> b.accessKey(v));
-        applicators.put("assume-role.arn", (b, v) -> b.assumeRoleArn(v));
-        applicators.put("assume-role.external-id", (b, v) -> b.assumeRoleExternalId(v));
+        applicators.put("access-key", S3BucketConfig.Builder::accessKey);
+        applicators.put("assume-role.arn", S3BucketConfig.Builder::assumeRoleArn);
+        applicators.put("assume-role.external-id", S3BucketConfig.Builder::assumeRoleExternalId);
         applicators.put(
                 "assume-role.session-duration",
                 (b, v) -> {
@@ -74,14 +74,25 @@ final class BucketConfigProvider {
                                 e);
                     }
                 });
-        applicators.put("assume-role.session-name", (b, v) -> b.assumeRoleSessionName(v));
-        applicators.put("credentials.provider", (b, v) -> b.credentialsProvider(v));
-        applicators.put("endpoint", (b, v) -> b.endpoint(v));
-        applicators.put("path-style-access", (b, v) -> b.pathStyleAccess(Boolean.parseBoolean(v)));
-        applicators.put("region", (b, v) -> b.region(v));
-        applicators.put("sse.kms-key-id", (b, v) -> b.sseKmsKeyId(v));
-        applicators.put("sse.type", (b, v) -> b.sseType(v));
-        applicators.put("secret-key", (b, v) -> b.secretKey(v));
+        applicators.put("assume-role.session-name", S3BucketConfig.Builder::assumeRoleSessionName);
+        applicators.put("aws.credentials.provider", S3BucketConfig.Builder::credentialsProvider);
+        applicators.put("endpoint", S3BucketConfig.Builder::endpoint);
+        applicators.put(
+                "path-style-access",
+                (b, v) -> {
+                    if (!"true".equalsIgnoreCase(v) && !"false".equalsIgnoreCase(v)) {
+                        throw new IllegalConfigurationException(
+                                String.format(
+                                        "Invalid path-style-access '%s' for bucket '%s'. "
+                                                + "Must be 'true' or 'false'",
+                                        v, b.getBucketName()));
+                    }
+                    b.pathStyleAccess(Boolean.parseBoolean(v));
+                });
+        applicators.put("region", S3BucketConfig.Builder::region);
+        applicators.put("secret-key", S3BucketConfig.Builder::secretKey);
+        applicators.put("sse.kms.key-id", S3BucketConfig.Builder::sseKmsKeyId);
+        applicators.put("sse.type", S3BucketConfig.Builder::sseType);
         PROPERTY_APPLICATORS = Collections.unmodifiableMap(applicators);
 
         KNOWN_PROPERTIES_BY_LENGTH =
@@ -127,6 +138,7 @@ final class BucketConfigProvider {
                 continue;
             }
 
+            boolean matched = false;
             for (final String prop : KNOWN_PROPERTIES_BY_LENGTH) {
                 if (suffix.endsWith("." + prop)) {
                     final String bucketName =
@@ -143,8 +155,16 @@ final class BucketConfigProvider {
                                 .computeIfAbsent(bucketName, k -> new HashMap<>())
                                 .put(prop, value);
                     }
+                    matched = true;
                     break;
                 }
+            }
+            if (!matched) {
+                LOG.warn(
+                        "Ignoring unrecognized bucket config key '{}'. "
+                                + "Known bucket-level properties: {}",
+                        key,
+                        PROPERTY_APPLICATORS.keySet());
             }
         }
 
