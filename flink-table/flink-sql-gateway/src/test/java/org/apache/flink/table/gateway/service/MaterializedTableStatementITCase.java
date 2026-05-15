@@ -1156,6 +1156,35 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     @Test
+    void testAlterMaterializedTableResetInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+        assertThat(oldTable.getOptions()).containsKey("format");
+
+        String alterMaterializedTableResetDDL =
+                "ALTER MATERIALIZED TABLE users_shops RESET ('format', 'unknown_key')";
+        OperationHandle alterMaterializedTableResetHandle =
+                executeStatement(alterMaterializedTableResetDDL);
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResetHandle);
+
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+
+        // the existing key is removed, the unknown key is a no-op
+        assertThat(newTable.getOptions()).doesNotContainKey("format");
+
+        // unchanged: schema, query, distribution, freshness, refresh handler
+        assertThat(newTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        assertThat(newTable.getDistribution()).isEqualTo(oldTable.getDistribution());
+        assertThat(newTable.getDefinitionFreshness()).isEqualTo(oldTable.getDefinitionFreshness());
+        assertThat(newTable.getSerializedRefreshHandler())
+                .isEqualTo(oldTable.getSerializedRefreshHandler());
+    }
+
+    @Test
     void testAlterMaterializedTableAsQueryInFullModeWithSuspendStatus() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
                 "users_shops", List.of(), Map.of(), RefreshMode.FULL);

@@ -524,6 +524,63 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
+    void testAlterMaterializedTableReset() {
+        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('format', 'unknown_key')";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+
+        AlterMaterializedTableChangeOperation op =
+                (AlterMaterializedTableChangeOperation) operation;
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableChanges())
+                .containsExactly(TableChange.reset("format"), TableChange.reset("unknown_key"));
+        // resetting an unknown key is a no-op for the catalog state
+        assertThat(op.getNewTable().getOptions())
+                .containsOnly(Map.entry("connector", "filesystem"));
+        assertThat(op.asSummaryString())
+                .isEqualTo(
+                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
+                                + "  RESET 'format',\n"
+                                + "  RESET 'unknown_key'");
+    }
+
+    @Test
+    void testAlterMaterializedTableResetWithEmptyKey() {
+        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ()";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "ALTER MATERIALIZED TABLE RESET does not support empty key.");
+    }
+
+    @Test
+    void testAlterMaterializedTableResetConnector() {
+        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('connector')";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "ALTER MATERIALIZED TABLE RESET does not support changing 'connector'.");
+    }
+
+    @Test
+    void testAlterMaterializedTableResetOnUnknownTable() {
+        final String sql = "ALTER MATERIALIZED TABLE unknown_mtbl RESET ('format')";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist.");
+    }
+
+    @Test
+    void testAlterMaterializedTableResetOnRegularTable() {
+        final String sql = "ALTER MATERIALIZED TABLE t3 RESET ('format')";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("ALTER MATERIALIZED TABLE for a table is not allowed");
+    }
+
+    @Test
     void testAlterMaterializedTableAsQuery() throws TableNotExistException {
         String sql =
                 "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
