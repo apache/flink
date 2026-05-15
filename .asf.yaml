@@ -13,9 +13,22 @@ github:
     - sql
   collaborators:
     - flinkbot
+  rulesets:
+    - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes: []
+      bypass_teams:
+        - root
+      restrict_deletion: true
+      restrict_force_push: true
 notifications:
-  commits:      commits@flink.apache.org
-  issues:       issues@flink.apache.org
+  commits: commits@flink.apache.org
+  issues: issues@flink.apache.org
   pullrequests: issues@flink.apache.org
-  jobs:         builds@flink.apache.org
+  jobs: builds@flink.apache.org
   jira_options: link label
