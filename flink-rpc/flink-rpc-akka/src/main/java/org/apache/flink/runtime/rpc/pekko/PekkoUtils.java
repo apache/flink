@@ -48,9 +48,12 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -360,13 +363,6 @@ class PekkoUtils {
                 Arrays.stream(sslProtocolsString.split(","))
                         .map(String::trim)
                         .toArray(String[]::new);
-        // Pekko's ConfigSSLEngineProvider uses the "protocol" field for both
-        // SSLContext.getInstance() and engine.setEnabledProtocols(). The latter rejects the
-        // generic "TLS" alias and requires a specific version string (e.g. "TLSv1.3").
-        // We ask the JVM for the ordered list of supported protocols and pick the highest one
-        // that appears in the configured list, so this works correctly regardless of the order
-        // the user specifies the protocols and automatically adapts to future JVM versions.
-        // CustomSSLEngineProvider immediately overrides with the full list after super() returns.
         final String sslContextProtocol = highestSupportedProtocol(sslProtocolsArray);
         final String sslEnabledProtocols =
                 Arrays.stream(sslProtocolsArray).collect(Collectors.joining(",", "[", "]"));
@@ -629,35 +625,48 @@ class PekkoUtils {
     }
 
     /**
-     * Returns the highest TLS protocol from {@code configuredProtocols} according to the JVM's own
-     * ordering of supported protocols.
-     *
-     * <p>The JVM's {@link SSLContext#getSupportedSSLParameters()} returns protocols ordered from
-     * lowest to highest, so this method is automatically correct for any future TLS version without
-     * requiring a manually maintained ranking list.
+     * Returns the highest TLS protocol from {@code configuredProtocols} that is also supported by
+     * the current JVM.
      *
      * @throws IllegalArgumentException if none of the configured protocols are supported by the JVM
      */
     private static String highestSupportedProtocol(String[] configuredProtocols) {
-        final String[] jvmOrdered;
+        final Set<String> jvmSupported;
         try {
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, null, null);
-            jvmOrdered = ctx.getSupportedSSLParameters().getProtocols();
+            jvmSupported =
+                    new HashSet<>(
+                            Arrays.asList(
+                                    SSLContext.getDefault()
+                                            .getSupportedSSLParameters()
+                                            .getProtocols()));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to query supported TLS protocols from JVM", e);
         }
-        final Set<String> configured = new HashSet<>(Arrays.asList(configuredProtocols));
-        // getSupportedSSLParameters().getProtocols() returns protocols from highest to lowest,
-        // so the first match in that list is the highest configured protocol.
-        return Arrays.stream(jvmOrdered)
-                .filter(configured::contains)
-                .findFirst()
+        return Arrays.stream(configuredProtocols)
+                .filter(jvmSupported::contains)
+                .max(Comparator.comparingInt(PekkoUtils::tlsProtocolRank))
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(
                                         "None of the configured SSL protocols are supported by this JVM: "
                                                 + Arrays.toString(configuredProtocols)));
+    }
+
+    /** Matches {@code TLSv{major}} or {@code TLSv{major}.{minor}}. */
+    private static final Pattern TLS_VERSION_PATTERN = Pattern.compile("TLSv(\\d+)(?:\\.(\\d+))?");
+
+    /**
+     * Returns a numeric rank for a TLS protocol name so that higher versions compare greater.
+     * Unknown / non-TLS protocol strings receive rank {@code -1} and sort below any real version.
+     */
+    private static int tlsProtocolRank(String protocol) {
+        Matcher m = TLS_VERSION_PATTERN.matcher(protocol);
+        if (m.matches()) {
+            int major = Integer.parseInt(m.group(1));
+            int minor = m.group(2) != null ? Integer.parseInt(m.group(2)) : 0;
+            return major * 1000 + minor;
+        }
+        return -1;
     }
 
     private static class ConfigBuilder {
