@@ -1166,6 +1166,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         } finally {
             // ensure that native resources are also released in case of exception
             if (backend != null) {
+                IOUtils.closeQuietly(backend);
                 backend.dispose();
             }
         }
@@ -1297,6 +1298,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             snapshot.discardState();
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -1399,6 +1401,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             snapshot.discardState();
         } finally {
+            IOUtils.closeQuietly(backend);
             backend.dispose();
         }
     }
@@ -5443,20 +5446,25 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     public void testMapStateWithNullValue() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(new NullUnsafeTypeSerializer());
-        MapStateDescriptor<Integer, String> kvId =
-                new MapStateDescriptor<>(
-                        "id", IntSerializer.INSTANCE, new NullUnsafeTypeSerializer());
-        MapState<Integer, String> state =
-                keyedBackend.getPartitionedState(
-                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+        try {
+            MapStateDescriptor<Integer, String> kvId =
+                    new MapStateDescriptor<>(
+                            "id", IntSerializer.INSTANCE, new NullUnsafeTypeSerializer());
+            MapState<Integer, String> state =
+                    keyedBackend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-        String key = "key";
-        int userKey = 1;
-        keyedBackend.setCurrentKey(key);
-        // this should not throw an exception
-        state.put(userKey, null);
-        assertThat(state.contains(userKey)).isTrue();
-        assertThat(state.get(userKey)).isNull();
+            String key = "key";
+            int userKey = 1;
+            keyedBackend.setCurrentKey(key);
+            // this should not throw an exception
+            state.put(userKey, null);
+            assertThat(state.contains(userKey)).isTrue();
+            assertThat(state.get(userKey)).isNull();
+        } finally {
+            IOUtils.closeQuietly(keyedBackend);
+            keyedBackend.dispose();
+        }
     }
 
     /**
