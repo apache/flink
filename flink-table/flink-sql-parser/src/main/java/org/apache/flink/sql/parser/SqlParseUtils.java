@@ -101,16 +101,16 @@ public class SqlParseUtils {
         return result;
     }
 
-    public static List<String> extractList(
-            @Nullable SqlNodeList sqlNodeList, Function<SqlNode, String> mapper) {
+    public static <T> List<T> extractList(
+            @Nullable SqlNodeList sqlNodeList, Function<SqlNode, T> mapper) {
         if (sqlNodeList == null) {
             return List.of();
         }
         return sqlNodeList.getList().stream().map(mapper).collect(Collectors.toList());
     }
 
-    public static Set<String> extractSet(
-            @Nullable SqlNodeList sqlNodeList, Function<SqlNode, String> mapper) {
+    public static <T> Set<T> extractSet(
+            @Nullable SqlNodeList sqlNodeList, Function<SqlNode, T> mapper) {
         if (sqlNodeList == null) {
             return Set.of();
         }

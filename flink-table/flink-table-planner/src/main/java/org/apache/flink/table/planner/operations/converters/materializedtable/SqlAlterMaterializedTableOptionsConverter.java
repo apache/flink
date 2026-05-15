@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.materializedtable;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableOptions;
 import org.apache.flink.table.api.ValidationException;
@@ -29,7 +30,6 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -56,11 +56,14 @@ public class SqlAlterMaterializedTableOptionsConverter
             throw new ValidationException(
                     EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE SET does not support empty options.");
         }
-        final List<TableChange> changes = new ArrayList<>(propertyList.size());
-        for (SqlNode property : propertyList) {
-            final SqlTableOption option = (SqlTableOption) property;
-            changes.add(TableChange.set(option.getKeyString(), option.getValueString()));
-        }
+        final List<TableChange> changes =
+                SqlParseUtils.extractList(
+                        propertyList, SqlAlterMaterializedTableOptionsConverter::toSetOption);
         return oldTable -> changes;
+    }
+
+    private static TableChange.SetOption toSetOption(final SqlNode property) {
+        final SqlTableOption option = (SqlTableOption) property;
+        return TableChange.set(option.getKeyString(), option.getValueString());
     }
 }

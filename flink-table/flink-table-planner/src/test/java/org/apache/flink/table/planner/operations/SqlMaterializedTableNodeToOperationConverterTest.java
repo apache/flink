@@ -549,32 +549,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
-    void testAlterMaterializedTableSetWithEmptyOptions() {
-        final String sql = "ALTER MATERIALIZED TABLE base_mtbl SET ()";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "ALTER MATERIALIZED TABLE SET does not support empty options.");
-    }
-
-    @Test
-    void testAlterMaterializedTableSetOnUnknownTable() {
-        final String sql = "ALTER MATERIALIZED TABLE unknown_mtbl SET ('format' = 'json2')";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist.");
-    }
-
-    @Test
-    void testAlterMaterializedTableSetOnRegularTable() {
-        final String sql = "ALTER MATERIALIZED TABLE t3 SET ('format' = 'json2')";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("ALTER MATERIALIZED TABLE for a table is not allowed");
-    }
-
-    @Test
     void testAlterMaterializedTableReset() {
         final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('format', 'unknown_key')";
         Operation operation = parse(sql);
@@ -730,6 +704,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         list.addAll(alterModifyWithInvalidSchema());
         list.addAll(alterQuery());
         list.addAll(alterDrop());
+        list.addAll(alterSet());
         list.addAll(alterReset());
         return list;
     }
@@ -1071,6 +1046,19 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
                                 + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
+    }
+
+    private static Collection<TestSpec> alterSet() {
+        return List.of(
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl SET ()",
+                        "ALTER MATERIALIZED TABLE SET does not support empty options."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE unknown_mtbl SET ('format' = 'json2')",
+                        "Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE t3 SET ('format' = 'json2')",
+                        "ALTER MATERIALIZED TABLE for a table is not allowed"));
     }
 
     private static Collection<TestSpec> alterReset() {
