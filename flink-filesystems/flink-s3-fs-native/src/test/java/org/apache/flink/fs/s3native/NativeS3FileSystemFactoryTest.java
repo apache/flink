@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link NativeS3FileSystemFactory}. */
 class NativeS3FileSystemFactoryTest {
-
     private static Configuration baseConfig() {
         Configuration config = new Configuration();
         config.setString("s3.access-key", "test-access-key");
@@ -72,9 +72,12 @@ class NativeS3FileSystemFactoryTest {
 
     @Test
     void testCreateFileSystemWithCustomEndpoint() throws Exception {
+        // Global: endpoint A; bucket: endpoint B → bucket endpoint is used
         Configuration config = baseConfig();
-        config.setString("s3.endpoint", "http://localhost:9000");
-        assertThat(createFs(config)).isNotNull();
+        config.setString("s3.endpoint", "http://global.s3:9000");
+        config.setString("s3.bucket.test-bucket.endpoint", "http://bucket.s3:9000");
+        assertThat(createFs(config).getClientProvider().getEndpoint())
+                .isEqualTo("http://bucket.s3:9000");
     }
 
     @Test
@@ -85,9 +88,12 @@ class NativeS3FileSystemFactoryTest {
 
     @Test
     void testS3ACreateFileSystemWithCustomEndpoint() throws Exception {
+        // Global: endpoint A; bucket: endpoint B → bucket endpoint is used on s3a scheme
         Configuration config = baseConfig();
-        config.setString("s3.endpoint", "http://localhost:9000");
-        assertThat(createS3aFs(config)).isNotNull();
+        config.setString("s3.endpoint", "http://global.s3:9000");
+        config.setString("s3.bucket.test-bucket.endpoint", "http://bucket.s3:9000");
+        assertThat(createS3aFs(config).getClientProvider().getEndpoint())
+                .isEqualTo("http://bucket.s3:9000");
     }
 
     // --- Path-style access ---
@@ -98,9 +104,11 @@ class NativeS3FileSystemFactoryTest {
     }
 
     @Test
-    void testPathStyleAccessExplicitlyEnabled() throws Exception {
+    void testPathStyleAccessBucketOverridesGlobal() throws Exception {
+        // Global: false; bucket: true → bucket wins
         Configuration config = baseConfig();
-        config.set(NativeS3FileSystemFactory.PATH_STYLE_ACCESS, true);
+        config.set(NativeS3FileSystemFactory.PATH_STYLE_ACCESS, false);
+        config.setString("s3.bucket.test-bucket.path-style-access", "true");
         assertThat(createFs(config).getClientProvider().isPathStyleAccess()).isTrue();
     }
 
@@ -314,10 +322,12 @@ class NativeS3FileSystemFactoryTest {
     // --- Region ---
 
     @Test
-    void testExplicitRegionConfiguration() throws Exception {
+    void testRegionBucketOverridesGlobal() throws Exception {
+        // Global: us-east-1; bucket: eu-west-1 → bucket wins
         Configuration config = baseConfig();
-        config.setString("s3.region", "eu-west-1");
-        assertThat(createFs(config)).isNotNull();
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.bucket.test-bucket.region", "eu-west-1");
+        assertThat(createFs(config).getClientProvider().getRegion()).isEqualTo("eu-west-1");
     }
 
     @Test
@@ -361,10 +371,17 @@ class NativeS3FileSystemFactoryTest {
     // --- s3a scheme ---
 
     @Test
-    void testS3AWithSSEConfiguration() throws Exception {
+    void testS3AWithSSEBucketOverridesGlobal() throws Exception {
+        // Global: none; bucket: sse-s3 → bucket wins on the s3a scheme
         Configuration config = baseConfig();
-        config.setString("s3.sse.type", "sse-s3");
-        assertThat(createS3aFs(config)).isNotNull();
+        config.setString("s3.sse.type", "none");
+        config.setString("s3.bucket.test-bucket.sse.type", "sse-s3");
+        assertThat(
+                        createS3aFs(config)
+                                .getClientProvider()
+                                .getEncryptionConfig()
+                                .getEncryptionType())
+                .isEqualTo(S3EncryptionConfig.EncryptionType.SSE_S3);
     }
 
     @Test
@@ -405,16 +422,86 @@ class NativeS3FileSystemFactoryTest {
     }
 
     @Test
-    void testBucketOverrideAppliedForMatchingBucket() throws Exception {
-        Configuration config = baseConfig();
+    void testBucketOverrideWinsForConnectionAndEncryptionFields() throws Exception {
+        Configuration config = new Configuration();
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+        // Global
+        config.setString("s3.access-key", "global-access");
+        config.setString("s3.secret-key", "global-secret");
         config.setString("s3.region", "us-east-1");
         config.setString("s3.endpoint", "http://global.s3:9000");
+        config.set(NativeS3FileSystemFactory.PATH_STYLE_ACCESS, false);
+        config.setString("s3.sse.type", "sse-s3");
+        config.setString("s3.sse.kms.key-id", "global-kms-key");
+        // Bucket
+        config.setString("s3.bucket.test-bucket.access-key", "bucket-access");
+        config.setString("s3.bucket.test-bucket.secret-key", "bucket-secret");
         config.setString("s3.bucket.test-bucket.region", "eu-west-1");
         config.setString("s3.bucket.test-bucket.endpoint", "http://bucket.s3:9000");
+        config.setString("s3.bucket.test-bucket.path-style-access", "true");
+        config.setString("s3.bucket.test-bucket.sse.type", "sse-kms");
+        config.setString("s3.bucket.test-bucket.sse.kms.key-id", "bucket-kms-key");
 
-        NativeS3FileSystem fs = createFs(config);
-        assertThat(fs.getClientProvider().getRegion()).isEqualTo("eu-west-1");
-        assertThat(fs.getClientProvider().getEndpoint()).isEqualTo("http://bucket.s3:9000");
+        S3ClientProvider provider = createFs(config).getClientProvider();
+
+        // All bucket values win over global
+        assertThat(provider.getRegion()).isEqualTo("eu-west-1");
+        assertThat(provider.getEndpoint()).isEqualTo("http://bucket.s3:9000");
+        assertThat(provider.isPathStyleAccess()).isTrue();
+        assertThat(provider.getCredentialsProvider().resolveCredentials().accessKeyId())
+                .isEqualTo("bucket-access");
+        assertThat(provider.getCredentialsProvider().resolveCredentials().secretAccessKey())
+                .isEqualTo("bucket-secret");
+        assertThat(provider.getEncryptionConfig().getEncryptionType())
+                .isEqualTo(S3EncryptionConfig.EncryptionType.SSE_KMS);
+        assertThat(provider.getEncryptionConfig().getKmsKeyId()).isEqualTo("bucket-kms-key");
+    }
+
+    @Test
+    void testBucketOverrideWinsForAssumeRoleFields() throws Exception {
+        Configuration config = new Configuration();
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+        config.setString("s3.access-key", "global-access");
+        config.setString("s3.secret-key", "global-secret");
+        config.setString("s3.region", "us-east-1");
+        // Global assume-role
+        config.setString("s3.assume-role.arn", "arn:aws:iam::111111111111:role/GlobalRole");
+        config.setString("s3.assume-role.external-id", "global-ext-id");
+        config.setString("s3.assume-role.session-name", "global-session");
+        config.set(NativeS3FileSystemFactory.ASSUME_ROLE_SESSION_DURATION_SECONDS, 900);
+        // Bucket assume-role overrides
+        config.setString(
+                "s3.bucket.test-bucket.assume-role.arn",
+                "arn:aws:iam::222222222222:role/BucketRole");
+        config.setString("s3.bucket.test-bucket.assume-role.external-id", "bucket-ext-id");
+        config.setString("s3.bucket.test-bucket.assume-role.session-name", "bucket-session");
+        config.setString("s3.bucket.test-bucket.assume-role.session-duration", "1800");
+
+        S3ClientProvider provider = createFs(config).getClientProvider();
+        assertThat(provider.getAssumeRoleArn())
+                .isEqualTo("arn:aws:iam::222222222222:role/BucketRole");
+        assertThat(provider.getAssumeRoleExternalId()).isEqualTo("bucket-ext-id");
+        assertThat(provider.getAssumeRoleSessionName()).isEqualTo("bucket-session");
+        assertThat(provider.getAssumeRoleSessionDurationSeconds()).isEqualTo(1800);
+    }
+
+    @Test
+    void testBucketOverrideWinsForCredentialsProvider() throws Exception {
+        Configuration config = new Configuration();
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+        config.setString("s3.region", "us-east-1");
+        // Global: static credentials
+        config.setString("s3.access-key", "global-access");
+        config.setString("s3.secret-key", "global-secret");
+        // Bucket: AnonymousCredentialsProvider
+        config.setString(
+                "s3.bucket.test-bucket.aws.credentials.provider",
+                "software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider");
+        AwsCredentials creds =
+                createFs(config).getClientProvider().getCredentialsProvider().resolveCredentials();
+
+        // Bucket anonymous provider wins; global static key "global-access" must not be used
+        assertThat(creds.accessKeyId()).isNotEqualTo("global-access");
     }
 
     @Test
