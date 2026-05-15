@@ -148,6 +148,11 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          sparse-checkout: |
+            .github
+            .mvn
+            .scalafmt.conf
+            tools
 
       - name: "Initialize job"
         id: job-init
@@ -218,6 +223,11 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          sparse-checkout: |
+            .github
+            .mvn
+            .scalafmt.conf
+            tools
 
       - name: "Initialize job"
         id: job-init
@@ -363,6 +373,10 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          sparse-checkout: |
+            .github
+            .mvn
+            tools
 
       - name: "Initialize job"
         id: job-init
