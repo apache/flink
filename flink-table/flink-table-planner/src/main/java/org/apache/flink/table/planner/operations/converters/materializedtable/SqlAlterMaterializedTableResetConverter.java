@@ -28,13 +28,10 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 
 import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 /** A converter for {@link SqlAlterMaterializedTableReset}. */
@@ -60,10 +57,9 @@ public class SqlAlterMaterializedTableResetConverter
             throw new ValidationException(
                     EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE RESET does not support empty key.");
         }
-        final Set<String> resetKeys = new LinkedHashSet<>(propertyKeyList.size());
-        for (SqlNode key : propertyKeyList) {
-            resetKeys.add(SqlParseUtils.extractString((SqlLiteral) key));
-        }
+        final List<String> resetKeys =
+                SqlParseUtils.extractList(
+                        propertyKeyList, key -> SqlParseUtils.extractString((SqlLiteral) key));
         if (resetKeys.contains(FactoryUtil.CONNECTOR.key())) {
             throw new ValidationException(
                     EX_MSG_PREFIX

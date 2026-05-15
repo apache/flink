@@ -545,42 +545,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
-    void testAlterMaterializedTableResetWithEmptyKey() {
-        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ()";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "ALTER MATERIALIZED TABLE RESET does not support empty key.");
-    }
-
-    @Test
-    void testAlterMaterializedTableResetConnector() {
-        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('connector')";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "ALTER MATERIALIZED TABLE RESET does not support changing 'connector'.");
-    }
-
-    @Test
-    void testAlterMaterializedTableResetOnUnknownTable() {
-        final String sql = "ALTER MATERIALIZED TABLE unknown_mtbl RESET ('format')";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist.");
-    }
-
-    @Test
-    void testAlterMaterializedTableResetOnRegularTable() {
-        final String sql = "ALTER MATERIALIZED TABLE t3 RESET ('format')";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("ALTER MATERIALIZED TABLE for a table is not allowed");
-    }
-
-    @Test
     void testAlterMaterializedTableAsQuery() throws TableNotExistException {
         String sql =
                 "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
@@ -716,6 +680,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         list.addAll(alterModifyWithInvalidSchema());
         list.addAll(alterQuery());
         list.addAll(alterDrop());
+        list.addAll(alterReset());
         return list;
     }
 
@@ -1056,6 +1021,22 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
                                 + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
+    }
+
+    private static Collection<TestSpec> alterReset() {
+        return List.of(
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl RESET ()",
+                        "ALTER MATERIALIZED TABLE RESET does not support empty key."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl RESET ('connector')",
+                        "ALTER MATERIALIZED TABLE RESET does not support changing 'connector'."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE unknown_mtbl RESET ('format')",
+                        "Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE t3 RESET ('format')",
+                        "ALTER MATERIALIZED TABLE for a table is not allowed"));
     }
 
     private static Collection<TestSpec> alterSuccessCase() {
