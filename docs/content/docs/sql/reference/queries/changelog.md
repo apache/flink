@@ -193,6 +193,11 @@ Assume the watermark strategy advances the watermark `5` minutes behind the larg
 
 Late records can never be recovered after the watermark passes them. Choose the watermark allowed-lateness based on the upstream's expected out-of-orderness.
 
+FROM_CHANGELOG does not synthesize a replacement for a dropped event; downstream consequences depend on the output changelog mode:
+
+* **Retract output**: retract semantics rely on `UPDATE_BEFORE`/`UPDATE_AFTER` pairs. When `ORDER BY` drops a late `UPDATE_BEFORE` but its matching `UPDATE_AFTER` arrives on time, downstream sees the `UPDATE_AFTER` alone. Operators that rely on retract semantics (retract-style aggregations, retract sinks) miss the retract and may produce incorrect results.
+* **Upsert output** (`PARTITION BY` + `op_mapping` without `UPDATE_BEFORE`): a dropped `INSERT` or `UPDATE_AFTER` is recovered by the next `UPDATE_AFTER` for that key, since upserts are idempotent. A dropped `DELETE` has no recovery path — the row stays in downstream state until a future event for that key overwrites it.
+
 #### Invalid operation code handling
 
 Two `error_handling` modes are supported. The job can either fail upon an invalid or unknown op code, or skip the row and continue processing.
