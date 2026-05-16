@@ -23,7 +23,6 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  HostListener,
   Input,
   NgZone,
   Output,
@@ -91,14 +90,6 @@ export class DagreComponent extends NzGraph {
   @Input() pendingOperators: number = 0;
   @Output() nodeClick = new EventEmitter<LayoutNode | null>();
   @Output() showPendingChange = new EventEmitter<boolean>();
-
-  @HostListener('window:keydown', ['$event'])
-  handleKeyDown(event: KeyboardEvent): void {
-    if (event.ctrlKey && event.code === 'Space') {
-      event.preventDefault();
-      this.moveToCenter();
-    }
-  }
 
   /**
    * Update Node detail
