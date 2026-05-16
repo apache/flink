@@ -32,6 +32,7 @@ import org.apache.calcite.rel.type.DynamicRecordType;
 import org.apache.calcite.rel.type.RelCrossType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelRecordType;
@@ -178,37 +179,42 @@ import static org.apache.calcite.util.Util.first;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 230 ~ 233, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 234 ~ 237, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction.
  *
- * <p>Lines 1319 ~ 1321, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ * <p>Lines 1325 ~ 1327, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
  *
- * <p>Lines 2080 ~ 2094, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 2086 ~ 2100, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 2507 ~ 2509, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 2348 ~ 2359
  *
- * <p>Lines 2622 ~ 2641, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
+ * <p>Lines 2513 ~ 2515, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
+ *
+ * <p>Lines 2628 ~ 2647, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
  * 1.42.0.
  *
- * <p>Line 2672 ~2690, set the correct scope for VECTOR_SEARCH.
+ * <p>Line 2678 ~2696, set the correct scope for VECTOR_SEARCH.
  *
- * <p>Lines 4072 ~ 4076, 6766 ~ 6772 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 4078 ~ 4082, 6766 ~ 6772 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5492 ~ 5498, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5498 ~ 5504, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  *
- * <p>Lines 5913-5928, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5919-5934, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 5938-5940, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5944-5946, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 5994-5996, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6000-6002, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7422-7445, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6863-6873, Added in FLINK-39695 (backport of CALCITE-6764): propagate parent record
+ * nullability to nested fields.
  *
- * <p>Lines 7492-7509, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7438-7461, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7554-7562, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7508-7525, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ *
+ * <p>Lines 7570-7578, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -6854,7 +6860,17 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 if (field == null) {
                     throw newValidationError(id.getComponent(i), RESOURCE.unknownField(name));
                 }
+                // ----- FLINK MODIFICATION BEGIN -----
+                // Backport from Calcite (CALCITE-6764): if the parent record is
+                // nullable, the field must also be nullable.
+                boolean recordIsNullable = type.isNullable();
                 type = field.getType();
+                if (recordIsNullable) {
+                    type =
+                            ((RelDataTypeFactoryImpl) getTypeFactory())
+                                    .enforceTypeWithNullability(type, true);
+                }
+                // ----- FLINK MODIFICATION END -----
             }
             type = SqlTypeUtil.addCharsetAndCollation(type, getTypeFactory());
             return type;
