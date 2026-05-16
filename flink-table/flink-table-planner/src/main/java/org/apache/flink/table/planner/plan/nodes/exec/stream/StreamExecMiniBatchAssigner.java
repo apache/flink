@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.trait.MiniBatchInterval;
 import org.apache.flink.table.planner.plan.trait.MiniBatchMode;
 import org.apache.flink.table.runtime.operators.wmassigners.ProcTimeMiniBatchAssignerOperator;
-import org.apache.flink.table.runtime.operators.wmassigners.RowTimeMiniBatchAssginerOperator;
+import org.apache.flink.table.runtime.operators.wmassigners.RowTimeMiniBatchAssignerOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -113,7 +113,7 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
         if (miniBatchInterval.getMode() == MiniBatchMode.ProcTime) {
             operator = new ProcTimeMiniBatchAssignerOperator(miniBatchInterval.getInterval());
         } else if (miniBatchInterval.getMode() == MiniBatchMode.RowTime) {
-            operator = new RowTimeMiniBatchAssginerOperator(miniBatchInterval.getInterval());
+            operator = new RowTimeMiniBatchAssignerOperator(miniBatchInterval.getInterval());
         } else {
             throw new TableException(
                     String.format(
