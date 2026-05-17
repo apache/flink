@@ -201,6 +201,22 @@ class RedundantWatermarkAssignerRemoveRuleTest extends TableTestBase {
     }
 
     /**
+     * {@code CURRENT_WATERMARK} nested inside a {@code CASE} expression must still be detected: the
+     * scan in {@code containsCurrentWatermarkCall} relies on {@code RexShuttle} recursing into the
+     * arguments of every {@link org.apache.calcite.rex.RexCall}, including {@code CASE} branches.
+     * If recursion ever regressed, the assigner would be dropped here and the plan would fail at
+     * runtime.
+     */
+    @Test
+    void testCurrentWatermarkNestedInCaseKeepsAssigner() {
+        util.verifyRelPlanInsert(
+                "INSERT INTO plain_sink "
+                        + "SELECT a, b, CAST(CASE WHEN a > 0 THEN CURRENT_WATERMARK(rt) "
+                        + "ELSE CAST(NULL AS TIMESTAMP(3)) END AS STRING) "
+                        + "FROM src");
+    }
+
+    /**
      * Union where only the right branch feeds a window aggregation. The left branch's assigner is
      * redundant and must be removed; the right branch's assigner must be kept.
      */

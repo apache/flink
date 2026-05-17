@@ -80,6 +80,27 @@ Sink(table=[default_catalog.default_database.plain_sink], fields=[a, b, EXPR$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCurrentWatermarkNestedInCaseKeepsAssigner">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO plain_sink SELECT a, b, CAST(CASE WHEN a > 0 THEN CURRENT_WATERMARK(rt) ELSE CAST(NULL AS TIMESTAMP(3)) END AS STRING) FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.plain_sink], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CASE(>($0, 0), CURRENT_WATERMARK($3), null:TIMESTAMP(3))):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.plain_sink], fields=[a, b, EXPR$2])
++- Calc(select=[a, b, CAST(CASE(>(a, 0), CURRENT_WATERMARK(CAST(rt AS TIMESTAMP(3))), null:TIMESTAMP(3)) AS VARCHAR(2147483647)) AS EXPR$2])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, b, rt], metadata=[]]], fields=[a, b, rt])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testEventTimeTemporalJoinKeepsAssigner">
     <Resource name="sql">
       <![CDATA[INSERT INTO plain_sink SELECT o.a, o.b * r.rate, r.currency FROM src AS o JOIN rates FOR SYSTEM_TIME AS OF o.rt AS r ON CAST(o.a AS STRING) = r.currency]]>

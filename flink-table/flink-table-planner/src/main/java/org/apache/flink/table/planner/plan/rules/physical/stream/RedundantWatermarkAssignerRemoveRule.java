@@ -46,6 +46,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexShuttle;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -143,11 +145,22 @@ import java.util.stream.Collectors;
  *       is protected. This is required for correctness: at runtime a downstream operator advances
  *       watermarks as the minimum across all union inputs, so dropping the assigner on one branch
  *       would block (not skip) progress on that input.
+ *   <li><b>User-defined functions reading watermarks via runtime context.</b> A UDF that calls
+ *       {@code getRuntimeContext().getCurrentWatermark()} inside its {@code eval} method consumes
+ *       upstream watermarks, but the SQL plan exposes no static signal of this. The rule has no way
+ *       to detect such usage and may drop an assigner whose watermark the UDF expects. The
+ *       supported way to read the current watermark from SQL is the {@code CURRENT_WATERMARK(rt)}
+ *       built-in, which is detected; UDFs that need watermark visibility should rely on that
+ *       built-in (or disable the rule via {@code
+ *       table.optimizer.redundant-watermark-assigner-remove.enabled}).
  * </ul>
  */
 @Value.Enclosing
 public class RedundantWatermarkAssignerRemoveRule
         extends RelRule<RedundantWatermarkAssignerRemoveRule.Config> {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(RedundantWatermarkAssignerRemoveRule.class);
 
     public static final RelOptRule INSTANCE =
             new RedundantWatermarkAssignerRemoveRule(Config.DEFAULT);
@@ -495,9 +508,15 @@ public class RedundantWatermarkAssignerRemoveRule
                 };
         try {
             node.accept(shuttle);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // Be conservative: if the scan fails, assume the rel may embed CURRENT_WATERMARK so
-            // that an upstream watermark assigner is not dropped incorrectly.
+            // that an upstream watermark assigner is not dropped incorrectly. Log so a
+            // misbehaving RelNode (one that does not route its expressions through the shuttle,
+            // or throws while doing so) is debuggable rather than silently disabling the rule.
+            LOG.warn(
+                    "Failed to scan {} for CURRENT_WATERMARK calls; conservatively keeping upstream watermark assigner.",
+                    node.getClass().getName(),
+                    e);
             return true;
         }
         return found[0];

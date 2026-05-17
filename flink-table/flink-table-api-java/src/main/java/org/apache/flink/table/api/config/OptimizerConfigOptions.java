@@ -400,6 +400,30 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_OPTIMIZER_REDUNDANT_WATERMARK_ASSIGNER_REMOVE_ENABLED =
+                    key("table.optimizer.redundant-watermark-assigner-remove.enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When it is true, the optimizer drops watermark "
+                                                            + "assigners whose watermarks are not consumed "
+                                                            + "by any downstream operator. This avoids the "
+                                                            + "overhead of generating watermarks that no "
+                                                            + "operator reads (e.g. plain projections, "
+                                                            + "processing-time-only pipelines).")
+                                            .linebreak()
+                                            .linebreak()
+                                            .text(
+                                                    "Disabling this flag preserves the previous "
+                                                            + "behavior, which can be useful as an escape "
+                                                            + "hatch if the rewrite interacts poorly with a "
+                                                            + "specific plan or savepoint.")
+                                            .build());
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {
