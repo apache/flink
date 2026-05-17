@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.297</presto.version>
+		<presto.version>0.294</presto.version>
 		<surefire.module.config> <!--
 			S5CmdOnPrestoS3FileSystemITCase uses ArraysAsListSerializer indirectly
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
@@ -222,19 +222,19 @@ under the License.
 					<artifactId>cglib-nodep</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.facebook.airlift.drift</groupId>
+					<groupId>com.facebook.drift</groupId>
 					<artifactId>drift-api</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.facebook.airlift.drift</groupId>
+					<groupId>com.facebook.drift</groupId>
 					<artifactId>drift-codec</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.facebook.airlift.drift</groupId>
+					<groupId>com.facebook.drift</groupId>
 					<artifactId>drift-codec-utils</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.facebook.airlift.drift</groupId>
+					<groupId>com.facebook.drift</groupId>
 					<artifactId>drift-transport-netty</artifactId>
 				</exclusion>
 				<exclusion>
