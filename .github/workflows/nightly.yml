@@ -21,7 +21,9 @@ name: "Nightly (beta)"
 on:
   workflow_dispatch:
 
-permissions: read-all
+# Limit GITHUB_TOKEN to read-only access for the repository contents.
+permissions:
+  contents: read
 
 jobs:
   pre-compile-checks:

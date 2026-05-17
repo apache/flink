@@ -24,10 +24,13 @@ on:
   schedule:
     - cron: '00 00,08,16 * * *'
 
-# Same permission as stale Github action
+# The community review script needs write permissions to label PRs.
 permissions:
+  # Required to add/remove labels (indirectly via issues API for PRs).
   issues: write
+  # Required to add/remove labels on PRs via the GitHub API.
   pull-requests: write
+  # Required for the script to manage its execution state.
   actions: write
 jobs:
   label:

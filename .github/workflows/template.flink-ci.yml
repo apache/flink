@@ -40,7 +40,9 @@ on:
       s3_secret_key:
         required: false
 
-permissions: read-all
+# Limit GITHUB_TOKEN to read-only access for the repository contents.
+permissions:
+  contents: read
 
 # Running logic within a container comes with challenges around file permissions (e.g. when trying
 # to generate the hash for a certain set of files; see https://github.com/actions/cache/issues/753):

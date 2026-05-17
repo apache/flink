@@ -22,10 +22,14 @@ on:
   schedule:
     - cron: '0 2 * * *'
 
+# No workflow-level access needed; each job requests only what it requires.
+permissions: {}
+
 jobs:
   Trigger:
     if: github.repository == 'apache/flink'
     permissions:
+      # Required for github-script action to call createWorkflowDispatch API.
       actions: write
     strategy:
       matrix:
