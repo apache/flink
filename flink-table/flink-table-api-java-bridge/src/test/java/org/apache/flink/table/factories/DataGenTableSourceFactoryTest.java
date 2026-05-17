@@ -479,6 +479,104 @@ class DataGenTableSourceFactoryTest {
     }
 
     @Test
+    void testEffectiveCountIsCappedByRowCountWhenSmaller() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), 5);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.SEQUENCE);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START, 0);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END, 100);
+
+        DataGenTableSource source =
+                (DataGenTableSource)
+                        createTableSource(
+                                ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                descriptor.asMap());
+
+        // number-of-rows is the tighter bound, so it wins over the sequence range [0,100].
+        assertThat(source.computeEffectiveCount()).isEqualTo(5L);
+    }
+
+    @Test
+    void testEffectiveCountIsCappedBySequenceWhenRowCountLarger() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), 1000);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.SEQUENCE);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START, 1);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END, 10);
+
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical("f0", DataTypes.TINYINT()));
+        DataGenTableSource source =
+                (DataGenTableSource) createTableSource(schema, descriptor.asMap());
+
+        // The sequence range [1,10] is the tighter bound; without the cap the source would request
+        // indices up to 999 and SequenceGeneratorFunction.map(idx) would silently wrap past TINYINT
+        // bounds via (byte) (start + idx).
+        assertThat(source.computeEffectiveCount()).isEqualTo(10L);
+
+        List<RowData> results = runGenerator(schema, descriptor);
+        assertThat(results).hasSize(10);
+        Set<Byte> emitted = new HashSet<>();
+        for (RowData row : results) {
+            emitted.add(row.getByte(0));
+        }
+        Set<Byte> expected = new HashSet<>();
+        for (byte i = 1; i <= 10; i++) {
+            expected.add(i);
+        }
+        assertThat(emitted).isEqualTo(expected);
+    }
+
+    @Test
+    void testNumberOfRowsZero() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), 0);
+
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT()));
+        DataGenTableSource source =
+                (DataGenTableSource) createTableSource(schema, descriptor.asMap());
+
+        assertThat(source.computeEffectiveCount()).isZero();
+        assertThat(runGenerator(schema, descriptor)).isEmpty();
+    }
+
+    @Test
+    void testSequenceStartEqualsEnd() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.SEQUENCE);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
+                42);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END, 42);
+
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT()));
+        DataGenTableSource source =
+                (DataGenTableSource) createTableSource(schema, descriptor.asMap());
+
+        assertThat(source.computeEffectiveCount()).isEqualTo(1L);
+        assertThat(((SequenceGeneratorFunction<?>) source.getFieldGenerators()[0]).getTotalCount())
+                .isEqualTo(1L);
+
+        List<RowData> results = runGenerator(schema, descriptor);
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getLong(0)).isEqualTo(42L);
+    }
+
+    @Test
     void testLackStartForSequence() {
         assertThatThrownBy(
                         () -> {

@@ -91,16 +91,15 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     }
 
     /**
-     * Computes the bound passed to {@link DataGeneratorSource}. When {@code numberOfRows} is
-     * configured we honor it; otherwise we cap the source at the smallest sequence-field range to
-     * preserve the legacy "halt when any sequence field is exhausted" semantic, falling back to
-     * {@link Long#MAX_VALUE} when no sequence fields are present.
+     * Computes the bound passed to {@link DataGeneratorSource}, preserving the legacy "halt as soon
+     * as either the row count is reached or any sequence field is exhausted" semantic. When no
+     * sequence fields are present the bound is {@code numberOfRows} if configured and {@link
+     * Long#MAX_VALUE} otherwise; when sequence fields are present the bound additionally cannot
+     * exceed the smallest sequence-field range, which {@link SequenceGeneratorFunction} relies on
+     * to keep {@code start + idx} within {@code [start, end]}.
      */
     @VisibleForTesting
     public long computeEffectiveCount() {
-        if (numberOfRows != null) {
-            return numberOfRows;
-        }
         long minSequenceCount = Long.MAX_VALUE;
         boolean hasSequence = false;
         for (GeneratorFunction<Long, ?> generator : fieldGenerators) {
@@ -111,6 +110,9 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
                     minSequenceCount = total;
                 }
             }
+        }
+        if (numberOfRows != null) {
+            return hasSequence ? Math.min(numberOfRows, minSequenceCount) : numberOfRows;
         }
         return hasSequence ? minSequenceCount : Long.MAX_VALUE;
     }
