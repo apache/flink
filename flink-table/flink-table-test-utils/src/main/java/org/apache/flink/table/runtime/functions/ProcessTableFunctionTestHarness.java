@@ -239,24 +239,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         try {
             evalMethod.invoke(function, args);
-        } catch (IllegalArgumentException e) {
-            StringBuilder details = new StringBuilder();
-            details.append("Argument type mismatch during scalar-only PTF eval() invocation.\n");
-            details.append("Expected parameter types: ");
-            details.append(Arrays.toString(evalMethod.getParameterTypes()));
-            details.append("\nActual arguments:\n");
-            for (int i = 0; i < arguments.size(); i++) {
-                ArgumentInfo arg = arguments.get(i);
-                Object value = scalarArgumentValues.get(arg.name);
-                details.append(
-                        String.format(
-                                "  [%d] %s: %s (type: %s)\n",
-                                i,
-                                arg.name,
-                                value,
-                                value != null ? value.getClass().getName() : "null"));
-            }
-            throw new IllegalArgumentException(details.toString(), e);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
             if (cause instanceof Exception) {
@@ -353,24 +335,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         try {
             evalMethod.invoke(function, args);
-        } catch (IllegalArgumentException e) {
-            StringBuilder details = new StringBuilder();
-            details.append("Argument type mismatch during PTF eval() invocation.\n");
-            details.append("Expected parameter types: ");
-            details.append(Arrays.toString(evalMethod.getParameterTypes()));
-            details.append("\nActual arguments:\n");
-            for (int i = 0; i < arguments.size(); i++) {
-                ArgumentInfo arg = arguments.get(i);
-                Object value = args[i];
-                details.append(
-                        String.format(
-                                "  [%d] %s: %s (type: %s)\n",
-                                i,
-                                arg.name,
-                                value,
-                                value != null ? value.getClass().getName() : "null"));
-            }
-            throw new IllegalArgumentException(details.toString(), e);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
             if (cause instanceof Exception) {
