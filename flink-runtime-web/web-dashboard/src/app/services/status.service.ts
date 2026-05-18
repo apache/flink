@@ -17,7 +17,7 @@
  */
 
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { ChangeDetectorRef, inject, Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Observable, Subject } from 'rxjs';
 import { debounceTime, filter, map, share, startWith, switchMap, tap } from 'rxjs/operators';
@@ -36,6 +36,23 @@ export class StatusService {
 
   /** Error server response message cache list. */
   public listOfErrorMessage: string[] = [];
+
+  /** Threshold of consecutive network failures before surfacing an error to the user. */
+  public readonly networkFailureThreshold = 5;
+  /** Count of consecutive network failures (status 0 or >=500) across all requests. */
+  public networkFailureCount = 0;
+  /** messageId of the currently-visible network-error notification, if any. */
+  public networkErrorNotificationId: string | null = null;
+
+  private appCdr?: ChangeDetectorRef;
+
+  public registerAppCdr(cdr: ChangeDetectorRef): void {
+    this.appCdr = cdr;
+  }
+
+  public markAppForCheck(): void {
+    this.appCdr?.markForCheck();
+  }
 
   /** Flink configuration from backend. */
   public configuration: Configuration;

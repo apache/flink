@@ -84,5 +84,7 @@ export class AppComponent {
   constructor(
     public statusService: StatusService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    this.statusService.registerAppCdr(this.cdr);
+  }
 }
