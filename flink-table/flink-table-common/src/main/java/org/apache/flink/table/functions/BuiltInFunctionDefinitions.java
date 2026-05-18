@@ -1680,11 +1680,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP_REPLACE")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_REPLACE)
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .runtimeProvided()
                     .build();

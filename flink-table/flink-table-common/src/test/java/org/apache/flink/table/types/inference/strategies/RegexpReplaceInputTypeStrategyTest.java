@@ -23,37 +23,41 @@ import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.REGEXP_EXTRACT;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.REGEXP_REPLACE;
 
-/** Tests for {@link RegexpExtractInputTypeStrategy}. */
-class RegexpExtractInputTypeStrategyTest extends InputTypeStrategiesTestBase {
+/** Tests for {@link RegexpReplaceInputTypeStrategy}. */
+class RegexpReplaceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 // Non-literal regex skips the plan-time compile check and is deferred to runtime.
-                TestSpec.forStrategy("Non-literal regex defers compile to runtime", REGEXP_EXTRACT)
-                        .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.STRING())
-                        .expectArgumentTypes(DataTypes.STRING(), DataTypes.STRING()),
+                TestSpec.forStrategy("Non-literal regex defers compile to runtime", REGEXP_REPLACE)
+                        .calledWithArgumentTypes(
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .expectArgumentTypes(
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()),
 
                 // Valid literal regex compiles cleanly at plan time.
-                TestSpec.forStrategy("Valid literal regex compiles", REGEXP_EXTRACT)
+                TestSpec.forStrategy("Valid literal regex compiles", REGEXP_REPLACE)
                         .calledWithArgumentTypes(
-                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT())
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, "foo(.*?)bar")
                         .expectArgumentTypes(
-                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT()),
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()),
 
                 // Null literal regex short-circuits the plan-time check; runtime returns null.
-                TestSpec.forStrategy("Null regex literal is deferred", REGEXP_EXTRACT)
-                        .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.STRING())
+                TestSpec.forStrategy("Null regex literal is deferred", REGEXP_REPLACE)
+                        .calledWithArgumentTypes(
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, null)
-                        .expectArgumentTypes(DataTypes.STRING(), DataTypes.STRING()),
+                        .expectArgumentTypes(
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()),
 
-                // Invalid literal regex surfaces as a ValidationException at plan time
-                // instead of producing one log line per record at runtime.
-                TestSpec.forStrategy("Invalid literal regex fails at plan time", REGEXP_EXTRACT)
-                        .calledWithArgumentTypes(DataTypes.STRING(), DataTypes.STRING())
+                // Invalid literal regex surfaces as a ValidationException at plan time.
+                TestSpec.forStrategy("Invalid literal regex fails at plan time", REGEXP_REPLACE)
+                        .calledWithArgumentTypes(
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, "(")
                         .expectErrorMessage("Invalid regular expression for"));
     }

@@ -197,6 +197,9 @@ public final class SpecificInputTypeStrategies {
     /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT}. */
     public static final InputTypeStrategy REGEXP_EXTRACT = new RegexpExtractInputTypeStrategy();
 
+    /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_REPLACE}. */
+    public static final InputTypeStrategy REGEXP_REPLACE = new RegexpReplaceInputTypeStrategy();
+
     private SpecificInputTypeStrategies() {
         // no instantiation
     }
