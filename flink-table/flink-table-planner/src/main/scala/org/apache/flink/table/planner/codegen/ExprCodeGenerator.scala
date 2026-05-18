@@ -944,6 +944,9 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.REGEXP_EXTRACT =>
             StringCallGen.generateRegexpExtract(ctx, operands, resultType)
 
+          case BuiltInFunctionDefinitions.REGEXP_REPLACE =>
+            StringCallGen.generateRegexpReplace(ctx, operands, resultType)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call, rexProgram).generate(ctx, operands, resultType)
         }

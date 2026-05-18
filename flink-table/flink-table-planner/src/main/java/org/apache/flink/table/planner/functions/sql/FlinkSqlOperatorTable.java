@@ -494,20 +494,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                                     SqlTypeFamily.INTEGER)),
                     SqlFunctionCategory.STRING);
 
-    public static final SqlFunction REGEXP_REPLACE =
-            new SqlFunction(
-                    "REGEXP_REPLACE",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.TO_NULLABLE),
-                    null,
-                    OperandTypes.family(
-                            SqlTypeFamily.CHARACTER,
-                            SqlTypeFamily.CHARACTER,
-                            SqlTypeFamily.CHARACTER),
-                    SqlFunctionCategory.STRING);
-
     public static final SqlFunction HASH_CODE =
             new SqlFunction(
                     "HASH_CODE",

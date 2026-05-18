@@ -1678,8 +1678,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition REGEXP_REPLACE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("regexpReplace")
-                    .sqlName("REGEXP_REPLACE")
+                    .name("REGEXP_REPLACE")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -1687,6 +1686,7 @@ public final class BuiltInFunctionDefinitions {
                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                     logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition REVERSE =
