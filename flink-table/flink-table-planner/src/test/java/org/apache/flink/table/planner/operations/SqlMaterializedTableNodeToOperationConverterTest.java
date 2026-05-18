@@ -403,7 +403,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
                                     (AlterMaterializedTableChangeOperation) parse(spec.sql);
-                            operation.getNewTable();
+                            operation.validateChanges();
                         })
                 .as(spec.sql)
                 .isInstanceOf(spec.expectedException)
@@ -714,10 +714,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         return List.of(
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b FROM t3",
-                        "Failed to modify query because drop column is unsupported. When modifying "
-                                + "a query, you can only append new columns at the end of original "
-                                + "schema. The original schema has 4 columns, but the newly derived "
-                                + "schema from the query has 2 columns."),
+                        "Dropping of persisted column `c` is not supported."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, d, c FROM t3",
                         "When modifying the query of a materialized table, currently only support "
@@ -1045,8 +1042,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column(s) ('d') are used in query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
+                        "Dropping of persisted column `m_p` is not supported."));
     }
 
     private static Collection<TestSpec> alterSet() {

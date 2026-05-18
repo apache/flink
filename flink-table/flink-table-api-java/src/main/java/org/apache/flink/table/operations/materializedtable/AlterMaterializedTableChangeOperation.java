@@ -18,22 +18,34 @@
 
 package org.apache.flink.table.operations.materializedtable;
 
+import org.apache.flink.annotation.Confluent;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableChange.After;
+import org.apache.flink.table.catalog.TableChange.ColumnPosition;
+import org.apache.flink.table.catalog.TableChange.DropColumn;
+import org.apache.flink.table.catalog.TableChange.ModifyColumnPosition;
 import org.apache.flink.table.catalog.TableChange.ModifyDefinitionQuery;
+import org.apache.flink.table.catalog.TableChange.ModifyPhysicalColumnType;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
 import org.apache.flink.table.catalog.TableChange.ModifyStartMode;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Alter materialized table with new table definition and table changes represents the modification.
@@ -42,7 +54,7 @@ import java.util.stream.Collectors;
 public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation {
 
     private final Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable;
-    private final ResolvedCatalogMaterializedTable oldTable;
+    private ResolvedCatalogMaterializedTable oldTable;
     private MaterializedTableChangeHandler handler;
     private CatalogMaterializedTable newTable;
     private List<TableChange> tableChanges;
@@ -77,6 +89,17 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         return newTable;
     }
 
+    @Confluent
+    public ResolvedCatalogMaterializedTable getOldTable() {
+        return oldTable;
+    }
+
+    @Confluent
+    public void setOldTable(final ResolvedCatalogMaterializedTable oldTable) {
+        this.oldTable = oldTable;
+        this.newTable = null;
+    }
+
     protected MaterializedTableChangeHandler getHandlerWithChanges() {
         if (handler == null) {
             handler =
@@ -86,8 +109,105 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         return handler;
     }
 
+    @VisibleForTesting
+    public void validateChanges() {
+        final List<TableChange> changes = getTableChanges();
+        final boolean isQueryChange =
+                changes.stream().anyMatch(ModifyDefinitionQuery.class::isInstance);
+        final List<Column> oldColumns = oldTable.getResolvedSchema().getColumns();
+        final Map<String, Integer> columnIndex =
+                IntStream.range(0, oldColumns.size())
+                        .boxed()
+                        .collect(
+                                Collectors.toMap(
+                                        i -> oldColumns.get(i).getName(), Function.identity()));
+        final List<String> errors = new ArrayList<>();
+        for (final TableChange change : changes) {
+            if (change instanceof DropColumn) {
+                checkDroppedColumn((DropColumn) change, oldColumns, columnIndex, errors);
+            } else if (isQueryChange && change instanceof ModifyColumnPosition) {
+                checkPositionChange((ModifyColumnPosition) change, oldColumns, columnIndex, errors);
+            } else if (isQueryChange && change instanceof ModifyPhysicalColumnType) {
+                checkPhysicalTypeChange(
+                        (ModifyPhysicalColumnType) change, oldColumns, columnIndex, errors);
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new ValidationException(String.join("\n", errors));
+        }
+    }
+
+    private void checkDroppedColumn(
+            DropColumn change,
+            List<Column> oldColumns,
+            Map<String, Integer> columnIndex,
+            List<String> errors) {
+        final Integer idx = columnIndex.get(change.getColumnName());
+        if (idx != null && oldColumns.get(idx).isPersisted()) {
+            errors.add(
+                    String.format(
+                            "Dropping of persisted column `%s` is not supported.",
+                            change.getColumnName()));
+        }
+    }
+
+    private void checkPositionChange(
+            ModifyColumnPosition change,
+            List<Column> oldColumns,
+            Map<String, Integer> columnIndex,
+            List<String> errors) {
+        final int index = displacedColumnIndex(change.getNewPosition(), columnIndex);
+        if (index < 0) {
+            return;
+        }
+        errors.add(
+                positionChangeError(
+                        oldColumns.get(index).asSummaryString(),
+                        change.getNewColumn().asSummaryString(),
+                        index));
+    }
+
+    private void checkPhysicalTypeChange(
+            ModifyPhysicalColumnType change,
+            List<Column> oldColumns,
+            Map<String, Integer> columnIndex,
+            List<String> errors) {
+        final Integer idx = columnIndex.get(change.getOldColumn().getName());
+        if (idx != null) {
+            errors.add(
+                    positionChangeError(
+                            change.getOldColumn().asSummaryString(),
+                            change.getNewColumn().asSummaryString(),
+                            idx));
+        }
+    }
+
+    /**
+     * Returns the index in oldColumns of the column displaced by this position change, or -1 if
+     * positioned after a column absent from the old schema (i.e., appended after a new column).
+     */
+    private static int displacedColumnIndex(
+            ColumnPosition position, Map<String, Integer> columnIndex) {
+        if (position == ColumnPosition.first()) {
+            return 0;
+        }
+        final Integer afterIdx = columnIndex.get(((After) position).column());
+        // afterIdx == null  → after a new column not in the old schema → treat as append
+        // afterIdx == last  → after the last old column → also treat as append (no displacement)
+        return afterIdx != null && afterIdx < columnIndex.size() - 1 ? afterIdx + 1 : -1;
+    }
+
+    private static String positionChangeError(String oldColumn, String newColumn, int position) {
+        return String.format(
+                "When modifying the query of a materialized table, "
+                        + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                        + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
+                position + 1, oldColumn, newColumn);
+    }
+
     @Override
     public TableResultInternal execute(Context ctx) {
+        validateChanges();
         ctx.getCatalogManager()
                 .alterTable(getNewTable(), getTableChanges(), getTableIdentifier(), false);
         return TableResultImpl.TABLE_RESULT_OK;
