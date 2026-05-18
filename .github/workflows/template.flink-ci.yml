@@ -83,7 +83,7 @@ jobs:
       stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified_value }}
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -115,7 +115,7 @@ jobs:
           ./tools/azure-pipelines/create_build_artifact.sh
 
       - name: "Upload artifacts to make them available in downstream jobs"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified_value }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
@@ -135,7 +135,7 @@ jobs:
 
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -148,7 +148,7 @@ jobs:
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
@@ -197,7 +197,7 @@ jobs:
 
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -211,7 +211,7 @@ jobs:
 
       - name: "Setup python"
         if: matrix.module == 'python'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -224,7 +224,7 @@ jobs:
         run: sudo sysctl -w kernel.core_pattern=core.%p
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
@@ -236,7 +236,7 @@ jobs:
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: ${{ matrix.module }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
@@ -294,7 +294,7 @@ jobs:
         run: find ${{ steps.test-run.outputs.debug-files-output-dir }} -type f -exec rename 's/[:<>|*?]/-/' {} \;
 
       - name: "Upload build artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir }} != ''
         with:
           name: logs-test-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}-${{ matrix.stringified-module-name }}-${{ steps.test-run.outputs.debug-files-name }}
@@ -334,7 +334,7 @@ jobs:
 
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -345,7 +345,7 @@ jobs:
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
 
       - name: "Setup python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -362,7 +362,7 @@ jobs:
           sudo apt install ./libssl1.0.0_*.deb
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
@@ -379,13 +379,13 @@ jobs:
           mkdir -p ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
 
       - name: "Load E2E files from Cache"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.E2E_CACHE_FOLDER }}
           key: e2e-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.java', '!**/avro/**') }}
 
       - name: "Load E2E artifacts from Cache"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.E2E_TARBALL_CACHE }}
           key: e2e-artifact-cache-${{ matrix.group }}-${{ hashFiles('**/flink-end-to-end-tests/**/*.sh') }}
@@ -393,7 +393,7 @@ jobs:
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
           key: e2e-${{ matrix.group }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
@@ -420,7 +420,7 @@ jobs:
             flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
 
       - name: "Upload Logs"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir != '' }}
         with:
           name: logs-e2e-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}-${{ matrix.group }}-${{ steps.test-run.outputs.debug-files-name }}
