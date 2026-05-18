@@ -52,13 +52,14 @@ public class SqlAlterMaterializedTableOptionsConverter
     protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
             SqlAlterMaterializedTableOptions sqlAlterTable, ConvertContext context) {
         final SqlNodeList propertyList = sqlAlterTable.getPropertyList();
-        if (propertyList.getList().isEmpty()) {
-            throw new ValidationException(
-                    EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE SET does not support empty options.");
-        }
         final List<TableChange> changes =
                 SqlParseUtils.extractList(
                         propertyList, SqlAlterMaterializedTableOptionsConverter::toSetOption);
+        if (changes.isEmpty()) {
+            throw new ValidationException(
+                    EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE SET does not support empty options.");
+        }
+
         return oldTable -> changes;
     }
 
