@@ -614,7 +614,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /** Java-friendly overload that accepts a list of [[ExplainDetail]]s. */
   def verifyRelPlan(query: String, extraDetails: java.util.List[ExplainDetail]): Unit = {
-    verifyRelPlan(query, extraDetails.asScala.toSeq: _*)
+    verifyRelPlan(query, extraDetails.asScala: _*)
   }
 
   /**

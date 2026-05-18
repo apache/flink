@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /** Type strategies for the {@code FROM_CHANGELOG} process table function. */
@@ -108,9 +109,6 @@ public final class FromChangelogTypeStrategy {
      * {@code op_mapping} maps to {@code UPDATE_AFTER} without {@code UPDATE_BEFORE}. In all other
      * cases the output is a retract changelog. When upsert mode is selected, the partition key acts
      * as the upsert key.
-     *
-     * <p>Upsert mode uses full deletes by default ({@link ChangelogMode#upsert(boolean)
-     * upsert(false)}). Only changelog streams with full deletes are currently supported.
      */
     public static final ChangelogModeStrategy CHANGELOG_MODE_STRATEGY =
             ctx -> isUpsertConfig(ctx) ? ChangelogMode.upsert(false) : ChangelogMode.all();
@@ -121,16 +119,12 @@ public final class FromChangelogTypeStrategy {
      * without {@code UPDATE_BEFORE}. Falls back to {@code false} when the mapping is absent or
      * cannot be resolved as a literal. The default mapping maps to a retract table.
      */
-    @SuppressWarnings("unchecked")
-    static boolean isUpsertConfig(final ChangelogContext ctx) {
-        if (!isPartitioned(ctx)) {
+    private static boolean isUpsertConfig(final ChangelogContext ctx) {
+        if (!isPartitioned(ctx::getTableSemantics)) {
             return false;
         }
-        final Optional<Map> opMapping = ctx.getArgumentValue(ARG_OP_MAPPING, Map.class);
-        if (opMapping.isEmpty()) {
-            return false;
-        }
-        return describesUpsert(opMapping.get());
+        return ctx.getArgumentValue(ARG_OP_MAPPING, Map.class).stream()
+                .anyMatch(FromChangelogTypeStrategy::describesUpsert);
     }
 
     /**
@@ -148,14 +142,10 @@ public final class FromChangelogTypeStrategy {
                 .anyMatch(v -> rowKindName.equals(v.trim()));
     }
 
-    private static boolean isPartitioned(final ChangelogContext ctx) {
-        return ctx.getTableSemantics(ARG_TABLE)
-                .map(ts -> ts.partitionByColumns().length > 0)
-                .orElse(false);
-    }
-
-    private static boolean isPartitioned(final CallContext ctx) {
-        return ctx.getTableSemantics(ARG_TABLE)
+    private static boolean isPartitioned(
+            final IntFunction<Optional<TableSemantics>> tableSemantics) {
+        return tableSemantics
+                .apply(ARG_TABLE)
                 .map(ts -> ts.partitionByColumns().length > 0)
                 .orElse(false);
     }
@@ -268,7 +258,7 @@ public final class FromChangelogTypeStrategy {
             // A mapping that produces UPDATE_AFTER without UPDATE_BEFORE describes an upsert
             // changelog. Upsert mode requires a key, so PARTITION BY must be present on the
             // table argument; otherwise the call would produce key-less updates.
-            if (describesUpsert(mapping) && !isPartitioned(callContext)) {
+            if (describesUpsert(mapping) && !isPartitioned(callContext::getTableSemantics)) {
                 return callContext.fail(
                         throwOnFailure,
                         "An 'op_mapping' that produces UPDATE_AFTER without UPDATE_BEFORE "
