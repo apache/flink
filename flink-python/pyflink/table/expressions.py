@@ -346,19 +346,30 @@ def to_timestamp_ltz(*args) -> Expression:
        value represents units of 10^(-precision) seconds. The output type is
        TIMESTAMP_LTZ(3) for precision 0-3, and TIMESTAMP_LTZ(precision) for 4-9.
 
+       The output type is determined at plan time. If precision is supplied as a
+       non-literal expression (e.g., a column reference), the output defaults to
+       TIMESTAMP_LTZ(3) and any sub-millisecond digits are truncated to fit the
+       declared type.
+
     3. to_timestamp_ltz(string) -> TIMESTAMP_LTZ(3)
        Parses a timestamp string using default format 'yyyy-MM-dd HH:mm:ss'.
 
-    4. to_timestamp_ltz(string, format) -> TIMESTAMP_LTZ(max(fractional_digits, 3))
+    4. to_timestamp_ltz(string, format) -> TIMESTAMP_LTZ(precision)
        Parses a timestamp string using the given format pattern. The output precision
-       is inferred from the number of 'S' characters in the format (e.g., 'SSS' -> 3,
-       'SSSSSS' -> 6, 'SSSSSSSSS' -> 9), with a minimum of 3.
+       is inferred from the longest run of 'S' characters in the format pattern
+       (outside quoted literal sections), clamped to [3, 9]. E.g., 'SSS' -> 3,
+       'SSSSSS' -> 6, 'SSSSSSSSS' -> 9, 'SSSSSS X' -> 6.
 
-    5. to_timestamp_ltz(string, format, timezone) -> TIMESTAMP_LTZ(max(fractional_digits, 3))
+       This inference only applies when the format pattern is a literal at plan time.
+       If the format is supplied as a non-literal expression (e.g., a column
+       reference), the output defaults to TIMESTAMP_LTZ(3) and any sub-millisecond
+       digits are truncated to fit the declared type.
+
+    5. to_timestamp_ltz(string, format, timezone) -> TIMESTAMP_LTZ(precision)
        Parses a timestamp string using the given format pattern in the specified time zone.
        The output precision is inferred from the format pattern as in signature 4.
 
-    Returns NULL if any input is NULL.
+    Returns NULL if any input is NULL. Throws a runtime error if precision is outside [0, 9].
 
     Example:
     ::

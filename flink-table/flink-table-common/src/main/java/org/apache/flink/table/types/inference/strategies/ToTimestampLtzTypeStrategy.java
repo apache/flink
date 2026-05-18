@@ -40,6 +40,10 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
     private static final int MAX_PRECISION = 9;
     private static final int DEFAULT_PRECISION = 3;
 
+    private static final int EPOCH_OR_TIMESTAMP_ARG = 0;
+    private static final int PRECISION_OR_FORMAT_ARG = 1;
+    private static final int TIMEZONE_ARG = 2;
+
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
         List<DataType> argumentTypes = callContext.getArgumentDataTypes();
@@ -53,7 +57,7 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                             + " were provided.");
         }
 
-        LogicalType firstType = argumentTypes.get(0).getLogicalType();
+        LogicalType firstType = argumentTypes.get(EPOCH_OR_TIMESTAMP_ARG).getLogicalType();
         LogicalTypeRoot firstTypeRoot = firstType.getTypeRoot();
         int outputPrecision = DEFAULT_PRECISION;
 
@@ -66,7 +70,8 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                 }
                 break;
             case 2:
-                LogicalType secondType = argumentTypes.get(1).getLogicalType();
+                LogicalType secondType =
+                        argumentTypes.get(PRECISION_OR_FORMAT_ARG).getLogicalType();
                 LogicalTypeRoot secondTypeRoot = secondType.getTypeRoot();
                 if (firstType.is(LogicalTypeFamily.NUMERIC)) {
                     if (secondTypeRoot != LogicalTypeRoot.INTEGER) {
@@ -74,12 +79,7 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                                 "Unsupported argument type. "
                                         + "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) requires the second argument to be <INTEGER>.");
                     }
-                    Optional<Integer> precisionOpt = callContext.getArgumentValue(1, Integer.class);
-                    if (precisionOpt.isPresent()) {
-                        int precision = precisionOpt.get();
-                        validatePrecision(precision);
-                        outputPrecision = Math.max(precision, DEFAULT_PRECISION);
-                    }
+                    outputPrecision = inferPrecisionFromIntegerArg(callContext);
                 } else if (isCharacterType(firstTypeRoot)) {
                     if (!isCharacterType(secondTypeRoot)) {
                         throw new ValidationException(
@@ -95,8 +95,13 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                 break;
             case 3:
                 if (!isCharacterType(firstTypeRoot)
-                        || !isCharacterType(argumentTypes.get(1).getLogicalType().getTypeRoot())
-                        || !isCharacterType(argumentTypes.get(2).getLogicalType().getTypeRoot())) {
+                        || !isCharacterType(
+                                argumentTypes
+                                        .get(PRECISION_OR_FORMAT_ARG)
+                                        .getLogicalType()
+                                        .getTypeRoot())
+                        || !isCharacterType(
+                                argumentTypes.get(TIMEZONE_ARG).getLogicalType().getTypeRoot())) {
                     throw new ValidationException(
                             "Unsupported argument type. "
                                     + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <VARCHAR> or <CHAR>.");
@@ -108,15 +113,45 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
     }
 
     /**
-     * Infers the output precision from a format string literal. Returns at least {@link
+     * Infers the output precision from a precision integer literal.
+     *
+     * <p>Same plan-time literal constraint as {@link #inferPrecisionFromFormat(CallContext)}: when
+     * the precision argument is a non-literal expression, the output defaults to {@link
      * #DEFAULT_PRECISION}.
+     *
+     * @return precision in [{@link #DEFAULT_PRECISION}, {@link #MAX_PRECISION}]
      */
-    private static int inferPrecisionFromFormat(CallContext callContext) {
-        if (!callContext.isArgumentLiteral(1)) {
+    private static int inferPrecisionFromIntegerArg(CallContext callContext) {
+        if (!callContext.isArgumentLiteral(PRECISION_OR_FORMAT_ARG)) {
             return DEFAULT_PRECISION;
         }
         return callContext
-                .getArgumentValue(1, String.class)
+                .getArgumentValue(PRECISION_OR_FORMAT_ARG, Integer.class)
+                .map(
+                        precision -> {
+                            validatePrecision(precision);
+                            return Math.max(precision, DEFAULT_PRECISION);
+                        })
+                .orElse(DEFAULT_PRECISION);
+    }
+
+    /**
+     * Infers the output precision from a format string literal.
+     *
+     * <p>The output type must be deterministic at plan time, so this method can only inspect the
+     * format pattern when it is a literal. When the format is a non-literal expression (e.g., a
+     * column reference) the pattern is unknown until runtime and could vary per row, so we fall
+     * back to {@link #DEFAULT_PRECISION}. The runtime still parses with the actual row pattern, but
+     * any sub-millisecond digits are truncated by the implicit cast to the declared type.
+     *
+     * @return precision in [{@link #DEFAULT_PRECISION}, {@link #MAX_PRECISION}]
+     */
+    private static int inferPrecisionFromFormat(CallContext callContext) {
+        if (!callContext.isArgumentLiteral(PRECISION_OR_FORMAT_ARG)) {
+            return DEFAULT_PRECISION;
+        }
+        return callContext
+                .getArgumentValue(PRECISION_OR_FORMAT_ARG, String.class)
                 .map(DateTimeUtils::precisionFromFormat)
                 .orElse(DEFAULT_PRECISION);
     }

@@ -355,6 +355,14 @@ class ExpressionTest {
                 Arguments.of(
                         Instant.parse("2262-04-12T00:00:00Z"),
                         9,
-                        "TO_TIMESTAMP_LTZ('2262-04-12 00:00:00.000000000', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"));
+                        "TO_TIMESTAMP_LTZ('2262-04-12 00:00:00.000000000', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"),
+                Arguments.of(
+                        Instant.ofEpochSecond(9223372036L, 900_000_000),
+                        9,
+                        "TO_TIMESTAMP_LTZ('2262-04-11 23:47:16.900000000', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"),
+                Arguments.of(
+                        Instant.ofEpochSecond(-9223372036L, 0),
+                        9,
+                        "TO_TIMESTAMP_LTZ(-9223372036000000000, 9)"));
     }
 }
