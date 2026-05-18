@@ -36,6 +36,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.mock.Whitebox;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.util.Collections;
@@ -279,6 +280,55 @@ class HybridSourceReaderTest {
         assertThat(reader.snapshotState(1)).contains(hybridSplit);
 
         reader.close();
+    }
+
+    @Test
+    void testReaderRecoveryInitializationOrder() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
+
+        // First pass: create a snapshot with an in-progress split
+        HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
+
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        SwitchedSources switchedSources = new SwitchedSources();
+        switchedSources.put(0, source);
+        HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
+        reader.addSplits(Collections.singletonList(hybridSplit));
+        List<HybridSourceSplit> snapshot = reader.snapshotState(0);
+        reader.close();
+
+        // Recovery: capture the underlying reader as a spy to verify call order
+        readerContext.clearSentEvents();
+        SourceReader<Integer, MockSourceSplit>[] spyHolder = new SourceReader[1];
+        Source spySource =
+                new MockSource(null, 0) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext ctx) {
+                        SourceReader<Integer, MockSourceSplit> spy =
+                                Mockito.spy(source.createReader(ctx));
+                        spyHolder[0] = spy;
+                        return spy;
+                    }
+                };
+
+        HybridSourceReader<Integer> recoveredReader = new HybridSourceReader<>(readerContext);
+        recoveredReader.addSplits(snapshot);
+        recoveredReader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+
+        recoveredReader.handleSourceEvents(new SwitchSourceEvent(0, spySource, false));
+
+        // Verify the contract: addSplits() must be called before start() during recovery
+        InOrder inOrder = Mockito.inOrder(spyHolder[0]);
+        inOrder.verify(spyHolder[0]).addSplits(Mockito.anyList());
+        inOrder.verify(spyHolder[0]).start();
+
+        recoveredReader.close();
     }
 
     @Test
