@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations.converters.materializedtable;
 
 import org.apache.flink.sql.parser.SqlParseUtils;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -27,11 +26,10 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** A converter for {@link SqlAlterMaterializedTableOptions}. */
 public class SqlAlterMaterializedTableOptionsConverter
@@ -51,20 +49,16 @@ public class SqlAlterMaterializedTableOptionsConverter
     @Override
     protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
             SqlAlterMaterializedTableOptions sqlAlterTable, ConvertContext context) {
-        final SqlNodeList propertyList = sqlAlterTable.getPropertyList();
-        final List<TableChange> changes =
-                SqlParseUtils.extractList(
-                        propertyList, SqlAlterMaterializedTableOptionsConverter::toSetOption);
-        if (changes.isEmpty()) {
+        final Map<String, String> options =
+                SqlParseUtils.extractMap(sqlAlterTable.getPropertyList());
+        if (options.isEmpty()) {
             throw new ValidationException(
                     EX_MSG_PREFIX + "ALTER MATERIALIZED TABLE SET does not support empty options.");
         }
-
+        final List<TableChange> changes =
+                options.entrySet().stream()
+                        .map(e -> TableChange.set(e.getKey(), e.getValue()))
+                        .collect(Collectors.toList());
         return oldTable -> changes;
-    }
-
-    private static TableChange.SetOption toSetOption(final SqlNode property) {
-        final SqlTableOption option = (SqlTableOption) property;
-        return TableChange.set(option.getKeyString(), option.getValueString());
     }
 }

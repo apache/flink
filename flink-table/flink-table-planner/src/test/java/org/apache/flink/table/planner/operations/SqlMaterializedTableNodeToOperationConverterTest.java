@@ -527,7 +527,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @Test
     void testAlterMaterializedTableSet() {
         final String sql =
-                "ALTER MATERIALIZED TABLE base_mtbl SET ('format' = 'json2', 'k1' = 'v1')";
+                "ALTER MATERIALIZED TABLE base_mtbl SET ('format' = 'json2', 'k1' = 'v1', 'k2' = 'v2', 'k2' = 'newV2')";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
 
@@ -535,17 +535,19 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (AlterMaterializedTableChangeOperation) operation;
         assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
         assertThat(op.getTableChanges())
-                .containsExactly(TableChange.set("format", "json2"), TableChange.set("k1", "v1"));
+                .containsExactlyInAnyOrder(
+                        TableChange.set("format", "json2"),
+                        TableChange.set("k1", "v1"),
+                        TableChange.set("k2", "newV2"));
         assertThat(op.getNewTable().getOptions())
                 .containsOnly(
                         Map.entry("connector", "filesystem"),
                         Map.entry("format", "json2"),
-                        Map.entry("k1", "v1"));
+                        Map.entry("k1", "v1"),
+                        Map.entry("k2", "newV2"));
         assertThat(op.asSummaryString())
-                .isEqualTo(
-                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
-                                + "  SET 'format' = 'json2',\n"
-                                + "  SET 'k1' = 'v1'");
+                .startsWith("ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n")
+                .contains("  SET 'format' = 'json2'", "  SET 'k1' = 'v1'", "  SET 'k2' = 'newV2'");
     }
 
     @Test
