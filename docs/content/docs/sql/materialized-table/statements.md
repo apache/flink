@@ -558,11 +558,19 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key
 
 `SET` is used to add or overwrite table options of a materialized table. Existing options not listed in the statement are preserved.
 
+**Key handling:**
+- Keys are applied in the order they appear in the statement.
+- If the same key is listed multiple times, the last value in the list wins.
+- The empty option list `SET ()` is rejected with a validation error.
+
 **Example:**
 
 ```sql
 -- Add a new option and overwrite an existing one
 ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'sink.parallelism' = '4');
+
+-- Duplicate keys: the last value wins. After this statement, 'format' is 'csv'.
+ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'format' = 'csv');
 ```
 
 <span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
