@@ -22,26 +22,40 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.PathsCopyingFileSystem;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
-import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
-import software.amazon.awssdk.transfer.s3.model.FileDownload;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Helper class for performing bulk S3 to local file system copies using S3TransferManager.
+ * Helper class for performing bulk S3 to local file system copies using the S3 async client.
  *
  * <p><b>Concurrency Model:</b> Uses batch-based concurrency control with {@code
  * maxConcurrentCopies} to limit parallel downloads. The effective concurrency is clamped to the
@@ -51,18 +65,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * bounded executor) to allow continuous submission of new downloads as slots become available,
  * which would provide better throughput by avoiding the "slowest task in batch" bottleneck.
  *
- * <p><b>Retry Handling:</b> Relies on the S3TransferManager's built-in retry mechanism for
- * transient failures. If a download fails after retries:
+ * <p><b>Retry Handling:</b> Relies on the S3 async client's built-in retry mechanism for transient
+ * failures. If a download fails after retries:
  *
  * <ul>
  *   <li>The entire bulk copy operation fails with an IOException
  *   <li>Successfully downloaded files are NOT cleaned up (they remain on disk)
- *   <li>Partial downloads may leave incomplete files that should be cleaned up by the caller
+ *   <li>The failed file's temporary download is deleted before the method returns
  * </ul>
  *
- * <p><b>Cleanup:</b> No automatic cleanup is performed on failure. Callers are responsible for
- * cleaning up destination files if the bulk copy fails. Consider wrapping in a try-finally or using
- * a temp directory that can be deleted on failure.
+ * <p><b>Cleanup:</b> Each file is downloaded into a temporary file in the destination directory and
+ * atomically moved into place after the stream has been fully copied. Cancellation through the
+ * provided {@link ICloseableRegistry} aborts active S3 response streams, cancels pending futures,
+ * stops the worker pool, and deletes incomplete temporary files.
  *
  * <p><b>TODO:</b> Consider extracting URI parsing logic to a shared S3UriUtils utility class to
  * consolidate S3 URI handling across the codebase.
@@ -72,24 +87,32 @@ class NativeS3BulkCopyHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3BulkCopyHelper.class);
 
-    private final S3TransferManager transferManager;
+    private final S3AsyncClient asyncClient;
     private final int maxConcurrentCopies;
     private final int maxConnections;
+    private final int downloadBufferSize;
 
     /**
      * Creates a new bulk copy helper.
      *
-     * @param transferManager the S3 transfer manager for async downloads
+     * @param asyncClient the S3 async client used for downloads
      * @param maxConcurrentCopies the requested maximum number of concurrent copy operations
      * @param maxConnections the HTTP connection pool size; if {@code maxConcurrentCopies} exceeds
      *     this value, it is clamped down to prevent connection pool exhaustion
+     * @param downloadBufferSize the buffer size in bytes used to write each downloaded file to the
+     *     local filesystem; bounds the temporary direct buffers the JDK caches for channel writes
      */
     NativeS3BulkCopyHelper(
-            S3TransferManager transferManager, int maxConcurrentCopies, int maxConnections) {
+            S3AsyncClient asyncClient,
+            int maxConcurrentCopies,
+            int maxConnections,
+            int downloadBufferSize) {
         checkArgument(maxConcurrentCopies > 0, "maxConcurrentCopies must be positive");
         checkArgument(maxConnections > 0, "maxConnections must be positive");
-        this.transferManager = transferManager;
+        checkArgument(downloadBufferSize > 0, "downloadBufferSize must be positive");
+        this.asyncClient = asyncClient;
         this.maxConnections = maxConnections;
+        this.downloadBufferSize = downloadBufferSize;
         if (maxConcurrentCopies > maxConnections) {
             LOG.warn(
                     "{} ({}) exceeds {} ({}). "
@@ -109,16 +132,20 @@ class NativeS3BulkCopyHelper {
         return maxConcurrentCopies;
     }
 
+    @VisibleForTesting
+    int getDownloadBufferSize() {
+        return downloadBufferSize;
+    }
+
     /**
      * Copies files from S3 to local filesystem in batches.
      *
-     * <p><b>Error Handling:</b> If an unsupported URI scheme is encountered, all already-started
-     * copy operations are awaited to completion before throwing the exception. This ensures that no
-     * background copy tasks are left running when the method returns, allowing the caller to safely
-     * manage cleanup and resource lifecycle.
+     * <p><b>Error Handling:</b> If an unsupported URI scheme or copy failure is encountered,
+     * already-started copy operations are cancelled before throwing the exception. Successfully
+     * completed destination files are left in place; incomplete temporary files are deleted.
      *
      * @param requests List of copy requests (source S3 path to destination local path)
-     * @param closeableRegistry Registry for cleanup (currently unused, reserved for future use)
+     * @param closeableRegistry Registry for cancelling in-flight copies during task cancellation
      * @throws IOException if any copy operation fails or if an unsupported URI scheme is
      *     encountered
      */
@@ -133,24 +160,40 @@ class NativeS3BulkCopyHelper {
         int totalFiles = requests.size();
         int totalBatches = (totalFiles + maxConcurrentCopies - 1) / maxConcurrentCopies;
         LOG.info(
-                "Starting bulk copy of {} files using S3TransferManager "
-                        + "(batch size: {}, total batches: {})",
+                "Starting bulk copy of {} files (batch size: {}, total batches: {})",
                 totalFiles,
                 maxConcurrentCopies,
                 totalBatches);
 
-        List<CompletableFuture<CompletedCopy>> copyFutures = new ArrayList<>();
+        ExecutorService downloadPool =
+                Executors.newFixedThreadPool(
+                        maxConcurrentCopies,
+                        new ExecutorThreadFactory(
+                                "s3-native-bulk-copy",
+                                (thread, error) ->
+                                        LOG.error(
+                                                "Uncaught exception in S3 bulk-copy worker {}",
+                                                thread.getName(),
+                                                error)));
+        BulkCopyCancellation cancellation = new BulkCopyCancellation(downloadPool);
+        ICloseableRegistry registry =
+                closeableRegistry == null ? ICloseableRegistry.NO_OP : closeableRegistry;
+        List<CompletableFuture<Void>> copyFutures = new ArrayList<>();
         int batchNumber = 0;
 
-        try {
+        try (Closeable ignored = registry.registerCloseableTemporarily(cancellation)) {
             for (int i = 0; i < requests.size(); i++) {
                 PathsCopyingFileSystem.CopyRequest request = requests.get(i);
                 String sourceUri = request.getSource().toUri().toString();
-                if (sourceUri.startsWith("s3://") || sourceUri.startsWith("s3a://")) {
-                    copyFutures.add(copyS3ToLocal(request));
+                if (isSupportedS3Scheme(request.getSource())
+                        && isSupportedLocalScheme(request.getDestination())) {
+                    copyFutures.add(copyS3ToLocal(request, downloadPool, cancellation));
                 } else {
                     throw new UnsupportedOperationException(
-                            "Only S3 to local copies are currently supported: " + sourceUri);
+                            "Only S3 to local copies are currently supported: "
+                                    + sourceUri
+                                    + " -> "
+                                    + request.getDestination());
                 }
 
                 if (copyFutures.size() >= maxConcurrentCopies || i == requests.size() - 1) {
@@ -166,69 +209,168 @@ class NativeS3BulkCopyHelper {
             }
 
             LOG.info("Completed bulk copy of {} files", totalFiles);
-        } catch (Exception e) {
-            if (!copyFutures.isEmpty()) {
-                LOG.warn(
-                        "Error during bulk copy, waiting for {} in-flight operations to complete",
-                        copyFutures.size());
-                try {
-                    waitForCopies(copyFutures);
-                } catch (IOException waitError) {
-                    LOG.warn(
-                            "Error waiting for in-flight copy operations: {}",
-                            waitError.getMessage());
-                    e.addSuppressed(waitError);
-                }
-            }
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            } else {
-                throw new IOException(e);
-            }
+        } catch (Throwable e) {
+            cancellation.close();
+            ExceptionUtils.rethrowIOException(e);
+        } finally {
+            downloadPool.shutdownNow();
         }
     }
 
     /**
      * Initiates an async S3 to local file copy.
      *
-     * @param request The copy request containing source S3 path and destination local path
-     * @return A CompletableFuture that completes when the download finishes
+     * <p>The object body is streamed to disk through a bounded {@code byte[]} buffer (see {@code
+     * s3.bulk-copy.download-buffer-size}) rather than the SDK's {@code AsynchronousFileChannel}
+     * based {@code toFile} transformer, which caches an unbounded per-thread temporary direct
+     * buffer sized to each write and can exhaust direct memory during large restores.
+     *
+     * @param request the copy request containing source S3 path and destination local path
+     * @param downloadPool the executor on which the blocking stream copy runs
+     * @return a CompletableFuture that completes when the download finishes
      * @throws IOException if the destination directory cannot be created
      */
-    private CompletableFuture<CompletedCopy> copyS3ToLocal(
-            PathsCopyingFileSystem.CopyRequest request) throws IOException {
+    private CompletableFuture<Void> copyS3ToLocal(
+            PathsCopyingFileSystem.CopyRequest request,
+            ExecutorService downloadPool,
+            BulkCopyCancellation cancellation)
+            throws IOException {
 
         String sourceUri = request.getSource().toUri().toString();
         String bucket = extractBucket(sourceUri);
         String key = extractKey(sourceUri);
-        File destFile = new File(request.getDestination().getPath());
+        Path destination = new File(request.getDestination().getPath()).toPath().toAbsolutePath();
 
-        Files.createDirectories(destFile.getParentFile().toPath());
+        Path parent = destination.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Path tempDestination = NativeS3FileIoUtils.createTemporaryDownloadFile(parent, destination);
 
-        DownloadFileRequest downloadRequest =
-                DownloadFileRequest.builder()
-                        .getObjectRequest(req -> req.bucket(bucket).key(key))
-                        .destination(destFile.toPath())
-                        .build();
+        GetObjectRequest getObjectRequest =
+                GetObjectRequest.builder().bucket(bucket).key(key).build();
 
-        FileDownload download = transferManager.downloadFile(downloadRequest);
-
-        return download.completionFuture()
-                .thenApply(
-                        completed -> {
-                            LOG.debug("Successfully copied {} to {}", sourceUri, destFile);
-                            return null;
-                        });
+        CompletableFuture<ResponseInputStream<GetObjectResponse>> responseFuture;
+        try {
+            responseFuture =
+                    asyncClient.getObject(
+                            getObjectRequest, AsyncResponseTransformer.toBlockingInputStream());
+        } catch (RuntimeException | Error e) {
+            IOUtils.deleteFileQuietly(tempDestination);
+            throw e;
+        }
+        cancellation.registerFuture(responseFuture);
+        CompletableFuture<Void> copyFuture = new CompletableFuture<>();
+        cancellation.registerFuture(copyFuture);
+        responseFuture.whenComplete(
+                (responseStream, error) -> {
+                    cancellation.unregisterFuture(responseFuture);
+                    if (error != null) {
+                        IOUtils.deleteFileQuietly(tempDestination);
+                        copyFuture.completeExceptionally(error);
+                        return;
+                    }
+                    if (responseStream == null) {
+                        IOUtils.deleteFileQuietly(tempDestination);
+                        copyFuture.completeExceptionally(
+                                new IOException(
+                                        "S3 getObject completed without a response stream"));
+                        return;
+                    }
+                    submitDownload(
+                            responseStream,
+                            tempDestination,
+                            destination,
+                            sourceUri,
+                            downloadPool,
+                            cancellation,
+                            copyFuture);
+                });
+        copyFuture.whenComplete(
+                (ignored, error) -> {
+                    cancellation.unregisterFuture(copyFuture);
+                    if (copyFuture.isCancelled()) {
+                        responseFuture.cancel(true);
+                    }
+                    if (error != null) {
+                        IOUtils.deleteFileQuietly(tempDestination);
+                    }
+                });
+        return copyFuture;
     }
 
-    private void waitForCopies(List<CompletableFuture<CompletedCopy>> futures) throws IOException {
+    private void submitDownload(
+            ResponseInputStream<GetObjectResponse> responseStream,
+            Path tempDestination,
+            Path destination,
+            String sourceUri,
+            ExecutorService downloadPool,
+            BulkCopyCancellation cancellation,
+            CompletableFuture<Void> copyFuture) {
+        if (!cancellation.registerStream(responseStream)) {
+            abortAndClose(responseStream);
+            IOUtils.deleteFileQuietly(tempDestination);
+            copyFuture.completeExceptionally(new CancellationException("Bulk copy was cancelled"));
+            return;
+        }
         try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+            downloadPool.execute(
+                    () -> {
+                        boolean success = false;
+                        try {
+                            NativeS3FileIoUtils.copyStream(
+                                    responseStream, tempDestination, downloadBufferSize);
+                            NativeS3FileIoUtils.moveFile(tempDestination, destination);
+                            success = true;
+                            LOG.debug("Successfully copied {} to {}", sourceUri, destination);
+                            copyFuture.complete(null);
+                        } catch (Throwable t) {
+                            copyFuture.completeExceptionally(t);
+                        } finally {
+                            cancellation.unregisterStream(responseStream);
+                            // Close on success (stream fully read, connection reusable); abort on
+                            // failure to drop the connection immediately instead of draining a
+                            // large partially-read body.
+                            if (success) {
+                                closeQuietly(responseStream);
+                            } else {
+                                abortAndClose(responseStream);
+                            }
+                            IOUtils.deleteFileQuietly(tempDestination);
+                        }
+                    });
+        } catch (RejectedExecutionException e) {
+            cancellation.unregisterStream(responseStream);
+            abortAndClose(responseStream);
+            IOUtils.deleteFileQuietly(tempDestination);
+            copyFuture.completeExceptionally(e);
+        }
+    }
+
+    private void waitForCopies(List<CompletableFuture<Void>> futures) throws IOException {
+        try {
+            // Fail fast: complete as soon as either all downloads finish successfully or the first
+            // one fails, rather than waiting for every in-flight download to run to completion. The
+            // outer copyFiles handler aborts the remaining streams and shuts the pool down on the
+            // resulting exception.
+            CompletableFuture<Void> allDone =
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+            CompletableFuture<Void> firstFailure = new CompletableFuture<>();
+            for (CompletableFuture<Void> future : futures) {
+                future.whenComplete(
+                        (ignored, error) -> {
+                            if (error != null) {
+                                firstFailure.completeExceptionally(error);
+                            }
+                        });
+            }
+            CompletableFuture.anyOf(allDone, firstFailure).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Bulk copy interrupted", e);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
+            ExceptionUtils.rethrowIfFatalError(cause);
             if (isConnectionPoolExhausted(cause)) {
                 throw new IOException(
                         String.format(
@@ -243,6 +385,101 @@ class NativeS3BulkCopyHelper {
                         cause);
             }
             throw new IOException("Bulk copy failed", cause);
+        }
+    }
+
+    static boolean isSupportedS3Scheme(org.apache.flink.core.fs.Path path) {
+        String scheme = path.toUri().getScheme();
+        return "s3".equalsIgnoreCase(scheme) || "s3a".equalsIgnoreCase(scheme);
+    }
+
+    static boolean isSupportedLocalScheme(org.apache.flink.core.fs.Path path) {
+        String scheme = path.toUri().getScheme();
+        return scheme == null || "file".equalsIgnoreCase(scheme);
+    }
+
+    private static void abortAndClose(ResponseInputStream<GetObjectResponse> stream) {
+        try {
+            stream.abort();
+        } catch (RuntimeException e) {
+            LOG.debug("Error aborting S3 response stream during bulk-copy cancellation", e);
+        }
+        try {
+            stream.close();
+        } catch (IOException e) {
+            LOG.debug("Error closing S3 response stream during bulk-copy cancellation", e);
+        }
+    }
+
+    private static void closeQuietly(ResponseInputStream<GetObjectResponse> stream) {
+        try {
+            stream.close();
+        } catch (IOException e) {
+            LOG.debug("Error closing S3 response stream after successful bulk-copy download", e);
+        }
+    }
+
+    private static final class BulkCopyCancellation implements Closeable {
+        private static final long TERMINATION_TIMEOUT_SECONDS = 5L;
+
+        private final ExecutorService downloadPool;
+        private final Set<CompletableFuture<?>> futures =
+                Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        private final Set<ResponseInputStream<GetObjectResponse>> activeStreams =
+                Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        private final AtomicBoolean closed = new AtomicBoolean(false);
+
+        private BulkCopyCancellation(ExecutorService downloadPool) {
+            this.downloadPool = downloadPool;
+        }
+
+        private void registerFuture(CompletableFuture<?> future) {
+            if (closed.get()) {
+                future.cancel(true);
+                return;
+            }
+            futures.add(future);
+            if (closed.get() && futures.remove(future)) {
+                future.cancel(true);
+            }
+        }
+
+        private void unregisterFuture(CompletableFuture<?> future) {
+            futures.remove(future);
+        }
+
+        private boolean registerStream(ResponseInputStream<GetObjectResponse> stream) {
+            if (closed.get()) {
+                return false;
+            }
+            activeStreams.add(stream);
+            if (closed.get() && activeStreams.remove(stream)) {
+                return false;
+            }
+            return true;
+        }
+
+        private void unregisterStream(ResponseInputStream<GetObjectResponse> stream) {
+            activeStreams.remove(stream);
+        }
+
+        @Override
+        public void close() {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            futures.forEach(future -> future.cancel(true));
+            activeStreams.forEach(NativeS3BulkCopyHelper::abortAndClose);
+            downloadPool.shutdownNow();
+            try {
+                if (!downloadPool.awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    LOG.warn(
+                            "S3 bulk-copy worker pool did not terminate within {} seconds",
+                            TERMINATION_TIMEOUT_SECONDS);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
