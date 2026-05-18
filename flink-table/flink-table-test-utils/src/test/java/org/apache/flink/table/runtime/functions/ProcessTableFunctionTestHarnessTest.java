@@ -419,6 +419,23 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testScalarOnlyPTFWithWrongArgumentTypes() {
+        Exception exception =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> {
+                            ProcessTableFunctionTestHarness.ofClass(ScalarOnlyPTF.class)
+                                    .withScalarArgument("a", "not_an_integer")
+                                    .withScalarArgument("b", 20)
+                                    .build();
+                        });
+
+        assertThat(exception.getMessage()).contains("Type mismatch");
+        assertThat(exception.getMessage()).contains("java.lang.Integer");
+        assertThat(exception.getMessage()).contains("java.lang.String");
+    }
+
+    @Test
     void testInvokeRejectsTableArguments() throws Exception {
         // Verify that invoke() rejects PTFs with table arguments
         try (ProcessTableFunctionTestHarness<Row> harness =
@@ -460,6 +477,23 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output.get(1).getField(0)).isEqualTo(50);
             assertThat(output.get(2).getField(0)).isEqualTo(100);
         }
+    }
+
+    @Test
+    void testTableProcessingWithScalarArgumentWrongType() {
+        Exception exception =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> {
+                            ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
+                                    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                                    .withScalarArgument("threshold", "not_an_integer")
+                                    .build();
+                        });
+
+        assertThat(exception.getMessage()).contains("Type mismatch");
+        assertThat(exception.getMessage()).contains("java.lang.Integer");
+        assertThat(exception.getMessage()).contains("java.lang.String");
     }
 
     // -------------------------------------------------------------------------
@@ -807,7 +841,9 @@ class ProcessTableFunctionTestHarnessTest {
             harness.processElementForTable("rowTable", Row.of("Bob", 30));
 
             List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(2);
+            assertThat(output)
+                    .containsExactlyInAnyOrder(
+                            Row.of(25, 25, "USER", 25), Row.of(30, 30, "ROW", 30));
         }
     }
 
