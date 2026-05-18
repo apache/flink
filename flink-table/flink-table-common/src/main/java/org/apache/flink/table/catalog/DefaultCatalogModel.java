@@ -19,10 +19,12 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -107,7 +109,7 @@ public class DefaultCatalogModel implements CatalogModel {
                 + ", outputSchema="
                 + outputSchema
                 + ", modelOptions="
-                + modelOptions
+                + ConfigurationUtils.hideSensitiveValues(modelOptions, List.of())
                 + ", comment="
                 + comment
                 + "}";

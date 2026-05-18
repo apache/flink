@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.ShowCreateUtil;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -65,7 +66,8 @@ public class ShowCreateMaterializedTableOperation implements ShowOperation {
                         table.isTemporary(),
                         createOrAlter,
                         ctx.getTableConfig().getLocalTimeZone(),
-                        ctx.getCatalogManager().getSqlFactory());
+                        ctx.getCatalogManager().getSqlFactory(),
+                        ctx.getTableConfig().get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
 
         return buildStringArrayResult("result", new String[] {resultRow});
     }
