@@ -1266,13 +1266,10 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
+                        // Explicit DDL omits `m` and `calc` — CREATE OR ALTER is declarative,
+                        // so non-persisted columns absent from the DDL are dropped.
                         "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted (`EXPR$0` INT NOT NULL, `sec` CHAR(1)) AS SELECT 2, 'a' AS sec",
-                        "(\n"
-                                + "  `m` STRING METADATA VIRTUAL,\n"
-                                + "  `calc` AS ['a' || 'b'],\n"
-                                + "  `EXPR$0` INT NOT NULL,\n"
-                                + "  `sec` CHAR(1)\n"
-                                + ")"));
+                        "(\n" + "  `EXPR$0` INT NOT NULL,\n" + "  `sec` CHAR(1)\n" + ")"));
 
         list.add(
                 TestSpec.withExpectedSchema(

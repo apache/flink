@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.operations.materializedtable;
 
-import org.apache.flink.annotation.Confluent;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.ValidationException;
@@ -82,31 +81,21 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
 
     public CatalogMaterializedTable getNewTable() {
         if (newTable == null) {
-            newTable =
-                    MaterializedTableChangeHandler.buildNewMaterializedTable(
-                            getHandlerWithChanges());
+            newTable = computeNewTable();
         }
         return newTable;
     }
 
-    @Confluent
     public ResolvedCatalogMaterializedTable getOldTable() {
         return oldTable;
     }
 
-    @Confluent
     public void setOldTable(final ResolvedCatalogMaterializedTable oldTable) {
         this.oldTable = oldTable;
+        // All caches are derived from oldTable; invalidate them together.
+        this.tableChanges = null;
+        this.handler = null;
         this.newTable = null;
-    }
-
-    protected MaterializedTableChangeHandler getHandlerWithChanges() {
-        if (handler == null) {
-            handler =
-                    MaterializedTableChangeHandler.getHandlerWithChanges(
-                            oldTable, getTableChanges());
-        }
-        return handler;
     }
 
     @VisibleForTesting
@@ -137,18 +126,55 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         }
     }
 
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        validateChanges();
+        ctx.getCatalogManager()
+                .alterTable(getNewTable(), getTableChanges(), getTableIdentifier(), false);
+        return TableResultImpl.TABLE_RESULT_OK;
+    }
+
+    @Override
+    public String asSummaryString() {
+        String changes =
+                getTableChanges().stream()
+                        .map(AlterMaterializedTableChangeOperation::toString)
+                        .collect(Collectors.joining(",\n"));
+        return String.format(
+                "%s %s\n%s", getOperationName(), tableIdentifier.asSummaryString(), changes);
+    }
+
+    /** Hook for subclasses to provide a different new-table builder. */
+    protected CatalogMaterializedTable computeNewTable() {
+        return MaterializedTableChangeHandler.buildNewMaterializedTable(getHandlerWithChanges());
+    }
+
+    protected MaterializedTableChangeHandler getHandlerWithChanges() {
+        if (handler == null) {
+            handler =
+                    MaterializedTableChangeHandler.getHandlerWithChanges(
+                            oldTable, getTableChanges());
+        }
+        return handler;
+    }
+
+    protected String getOperationName() {
+        return "ALTER MATERIALIZED TABLE";
+    }
+
     private void checkDroppedColumn(
             DropColumn change,
             List<Column> oldColumns,
             Map<String, Integer> columnIndex,
             List<String> errors) {
-        final Integer idx = columnIndex.get(change.getColumnName());
-        if (idx != null && oldColumns.get(idx).isPersisted()) {
-            errors.add(
-                    String.format(
-                            "Dropping of persisted column `%s` is not supported.",
-                            change.getColumnName()));
+        final int idx = columnIndex.getOrDefault(change.getColumnName(), -1);
+        if (idx < 0 || !oldColumns.get(idx).isPersisted()) {
+            return;
         }
+        errors.add(
+                String.format(
+                        "Dropping of persisted column `%s` is not supported.",
+                        change.getColumnName()));
     }
 
     private void checkPositionChange(
@@ -172,14 +198,15 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             List<Column> oldColumns,
             Map<String, Integer> columnIndex,
             List<String> errors) {
-        final Integer idx = columnIndex.get(change.getOldColumn().getName());
-        if (idx != null) {
-            errors.add(
-                    positionChangeError(
-                            change.getOldColumn().asSummaryString(),
-                            change.getNewColumn().asSummaryString(),
-                            idx));
+        final int idx = columnIndex.getOrDefault(change.getOldColumn().getName(), -1);
+        if (idx < 0) {
+            return;
         }
+        errors.add(
+                positionChangeError(
+                        change.getOldColumn().asSummaryString(),
+                        change.getNewColumn().asSummaryString(),
+                        idx));
     }
 
     /**
@@ -203,28 +230,6 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                         + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
                         + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
                 position + 1, oldColumn, newColumn);
-    }
-
-    @Override
-    public TableResultInternal execute(Context ctx) {
-        validateChanges();
-        ctx.getCatalogManager()
-                .alterTable(getNewTable(), getTableChanges(), getTableIdentifier(), false);
-        return TableResultImpl.TABLE_RESULT_OK;
-    }
-
-    @Override
-    public String asSummaryString() {
-        String changes =
-                getTableChanges().stream()
-                        .map(AlterMaterializedTableChangeOperation::toString)
-                        .collect(Collectors.joining(",\n"));
-        return String.format(
-                "%s %s\n%s", getOperationName(), tableIdentifier.asSummaryString(), changes);
-    }
-
-    protected String getOperationName() {
-        return "ALTER MATERIALIZED TABLE";
     }
 
     private static String toString(TableChange tableChange) {
