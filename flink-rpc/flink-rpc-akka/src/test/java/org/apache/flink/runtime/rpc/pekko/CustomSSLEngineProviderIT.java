@@ -57,8 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Beyond checking {@link SSLEngine#getEnabledProtocols()}, the handshake tests perform a full
  * in-memory TLS handshake and assert the negotiated protocol via {@link
- * javax.net.ssl.SSLSession#getProtocol()}, which is the definitive proof that the protocol
- * restriction is effective at the socket level.
+ * javax.net.ssl.SSLSession#getProtocol()}.
  */
 class CustomSSLEngineProviderIT {
 
@@ -308,12 +307,13 @@ class CustomSSLEngineProviderIT {
 
             final String expectedProtocol =
                     "-tls1_2".equals(opensslVersionFlag) ? "TLSv1.2" : "TLSv1.3";
-            // OpenSSL 3.x prints "Protocol: TLSv1.3" (summary, no extra space) for TLSv1.3 and
-            // "Protocol  : TLSv1.2" (SSL-Session block, two spaces) for TLSv1.2.
+            // The SSL-Session block that contains "Protocol  :" is only printed when the server
+            // sends a session ticket, which may not happen before the socket closes.  The summary
+            // line "New, TLSv1.x, Cipher is ..." is unconditionally emitted after every successful
+            // handshake and is the most reliable signal across all OpenSSL versions.
             assertThat(output)
                     .as("openssl output should report negotiated protocol")
-                    .containsAnyOf(
-                            "Protocol  : " + expectedProtocol, "Protocol: " + expectedProtocol);
+                    .containsPattern("New, " + expectedProtocol + ", Cipher is");
             assertThat(serverProtocol.get())
                     .as("server-side SSLSession should report the same protocol")
                     .isEqualTo(expectedProtocol);
