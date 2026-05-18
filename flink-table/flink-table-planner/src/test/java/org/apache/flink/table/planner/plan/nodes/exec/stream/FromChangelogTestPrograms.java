@@ -232,37 +232,6 @@ public class FromChangelogTestPrograms {
                                     + "'DELETE', 'DELETE'])")
                     .build();
 
-    public static final TableTestProgram UPSERT_PARTITION_BY_CUSTOM_MAPPING =
-            TableTestProgram.of(
-                            "from-changelog-upsert-partition-by-custom-mapping",
-                            "PARTITION BY + custom upsert op codes produces an upsert changelog")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("cdc_stream")
-                                    .addSchema("name STRING", "id INT", "op STRING")
-                                    .producedValues(
-                                            Row.of("Alice", 1, "c"),
-                                            Row.of("Bob", 2, "c"),
-                                            Row.of("Alice2", 1, "ua"),
-                                            Row.of("Bob", 2, "d"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "name STRING")
-                                    .consumedValues(
-                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
-                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
-                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
-                                    + "input => TABLE cdc_stream PARTITION BY id, "
-                                    + "op_mapping => MAP["
-                                    + "'c', 'INSERT', "
-                                    + "'ua', 'UPDATE_AFTER', "
-                                    + "'d', 'DELETE'])")
-                    .build();
-
     public static final TableTestProgram DELETION_FLAG_PARTITION_BY =
             TableTestProgram.of(
                             "from-changelog-deletion-flag-partition-by",

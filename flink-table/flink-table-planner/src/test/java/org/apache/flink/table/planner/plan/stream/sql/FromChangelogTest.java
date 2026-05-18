@@ -81,7 +81,7 @@ public class FromChangelogTest extends TableTestBase {
                                 + "  op STRING,"
                                 + "  name STRING"
                                 + ") WITH ('connector' = 'values')");
-        util.verifyRelPlan(
+        util.verifyRelPlanWithUpsertKey(
                 "SELECT * FROM FROM_CHANGELOG("
                         + "input => TABLE cdc_stream PARTITION BY id, "
                         + "op_mapping => MAP["

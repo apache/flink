@@ -618,6 +618,31 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
+   * Verify the AST and the optimized rel plan for the given SELECT query. The rendered optimized
+   * rel plan includes the `upsertKeys=[...]` term for rel nodes that derive upsert keys.
+   */
+  def verifyRelPlanWithUpsertKey(query: String, extraDetails: ExplainDetail*): Unit = {
+    val table = getTableEnv.sqlQuery(query)
+    val relNode = TableTestUtil.toRelNode(table)
+    assertPlanEquals(
+      Array(relNode),
+      extraDetails.toArray,
+      withRowType = false,
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      () => assertEqualsOrExpand("sql", query),
+      withQueryBlockAlias = false,
+      withUpsertKey = true
+    )
+  }
+
+  /** Java-friendly overload that accepts a list of [[ExplainDetail]]s. */
+  def verifyRelPlanWithUpsertKey(
+      query: String,
+      extraDetails: java.util.List[ExplainDetail]): Unit = {
+    verifyRelPlanWithUpsertKey(query, extraDetails.asScala: _*)
+  }
+
+  /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan for the given INSERT
    * statement.
    */
@@ -1192,7 +1217,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       expectedPlans: Array[PlanKind],
       assertSqlEqualsOrExpandFunc: () => Unit,
       withQueryBlockAlias: Boolean = false,
-      withDuplicateChanges: Boolean = false): Unit = {
+      withDuplicateChanges: Boolean = false,
+      withUpsertKey: Boolean = false): Unit = {
 
     val expectedPlanKinds = new util.HashSet[PlanKind](expectedPlans.toSeq.asJava)
 
@@ -1219,7 +1245,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         optimizedRels.toArray,
         extraDetails,
         withRowType = withRowType,
-        withDuplicateChanges = withDuplicateChanges)
+        withDuplicateChanges = withDuplicateChanges,
+        withUpsertKey = withUpsertKey)
 
     // build optimized exec plan if `expectedPlanKinds` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlanKinds.contains(PlanKind.OPT_EXEC)) {
@@ -1276,7 +1303,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       optimizedRels: Array[RelNode],
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      withDuplicateChanges: Boolean): String = {
+      withDuplicateChanges: Boolean,
+      withUpsertKey: Boolean = false): String = {
     require(optimizedRels.nonEmpty)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -1303,7 +1331,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
                   detailLevel = explainLevel,
                   withChangelogTraits = withChangelogTraits,
                   withRowType = withRowType,
-                  withDuplicateChangesTrait = withDuplicateChanges)
+                  withUpsertKey = withUpsertKey,
+                  withDuplicateChangesTrait = withDuplicateChanges
+                )
             }
             .mkString("\n")
         }
