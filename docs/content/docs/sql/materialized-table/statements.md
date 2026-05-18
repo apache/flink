@@ -555,13 +555,26 @@ ALTER MATERIALIZED TABLE my_materialized_table RESUME WITH ('sink.parallelism'='
 ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name RESET (key1, key2, ...)
 ```
 
-`RESET` is used to remove table options from a materialized table. Keys that are not currently set on the table are silently ignored. The `connector` key cannot be reset.
+`RESET` is used to remove table options from a materialized table.
+
+**Key handling:**
+- Keys that are not currently set on the table are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `connector` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
 
 **Example:**
 
 ```sql
 -- Remove the 'format' and 'sink.parallelism' options
 ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'sink.parallelism');
+
+-- 'sink.parallelism' is not currently set on the table: this is a no-op for that key,
+-- 'format' is still removed and the statement succeeds.
+ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'sink.parallelism');
+
+-- Duplicates collapse to a single reset for 'format'.
+ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'format');
 ```
 
 <span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
