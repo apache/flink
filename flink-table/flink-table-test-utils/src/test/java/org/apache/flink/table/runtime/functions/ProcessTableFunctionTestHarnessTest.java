@@ -44,6 +44,14 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** Passthrough PTF for testing field ordering. */
+    @DataTypeHint("ROW<user STRING, value INT>")
+    public static class UserValuePassthroughPTF extends ProcessTableFunction<Row> {
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+            collect(input);
+        }
+    }
+
     /** Filter PTF for testing scalar argument handling. */
     @DataTypeHint("ROW<value INT>")
     public static class FilterPTF extends ProcessTableFunction<Row> {
@@ -62,7 +70,7 @@ class ProcessTableFunctionTestHarnessTest {
     @DataTypeHint("ROW<doubled INT, original INT>")
     public static class DoublePTF extends ProcessTableFunction<Row> {
         public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            int value = (Integer) input.getField(0);
+            int value = input.getFieldAs("value");
             collect(Row.of(value * 2, value));
         }
     }
@@ -85,7 +93,7 @@ class ProcessTableFunctionTestHarnessTest {
                                 value = ArgumentTrait.ROW_SEMANTIC_TABLE,
                                 type = @DataTypeHint("ROW<value INT>"))
                         Row input) {
-            int value = (Integer) input.getField(0);
+            int value = input.getFieldAs("value");
             collect(Row.of(value * 2));
         }
     }
@@ -108,7 +116,7 @@ class ProcessTableFunctionTestHarnessTest {
                             ArgumentTrait.PASS_COLUMNS_THROUGH
                         })
                         Row input) {
-            int value = (Integer) input.getField(1);
+            int value = input.getFieldAs("value");
             collect(Row.of(value * 2));
         }
     }
@@ -123,7 +131,7 @@ class ProcessTableFunctionTestHarnessTest {
                             ArgumentTrait.OPTIONAL_PARTITION_BY
                         })
                         Row input) {
-            int value = (Integer) input.getField(1);
+            int value = input.getFieldAs("value");
             collect(Row.of(value * 2));
         }
     }
@@ -395,8 +403,8 @@ class ProcessTableFunctionTestHarnessTest {
 
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(2);
-            assertThat(output.get(0).getField(0)).isEqualTo(42);
-            assertThat(output.get(1).getField(0)).isEqualTo(100);
+            assertThat(output.get(0).getField("value")).isEqualTo(42);
+            assertThat(output.get(1).getField("value")).isEqualTo(100);
         }
     }
 
@@ -414,7 +422,7 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
 
             assertThat(output).hasSize(1);
-            assertThat(output.get(0).getField(0)).isEqualTo(30);
+            assertThat(output.get(0).getField("sum")).isEqualTo(30);
         }
     }
 
@@ -473,9 +481,9 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
 
             assertThat(output).hasSize(3);
-            assertThat(output.get(0).getField(0)).isEqualTo(75);
-            assertThat(output.get(1).getField(0)).isEqualTo(50);
-            assertThat(output.get(2).getField(0)).isEqualTo(100);
+            assertThat(output.get(0).getField("value")).isEqualTo(75);
+            assertThat(output.get(1).getField("value")).isEqualTo(50);
+            assertThat(output.get(2).getField("value")).isEqualTo(100);
         }
     }
 
@@ -516,13 +524,13 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(4);
             assertThat(output.get(0).getKind()).isEqualTo(RowKind.INSERT);
-            assertThat(output.get(0).getField(0)).isEqualTo(10);
+            assertThat(output.get(0).getField("value")).isEqualTo(10);
             assertThat(output.get(1).getKind()).isEqualTo(RowKind.UPDATE_BEFORE);
-            assertThat(output.get(1).getField(0)).isEqualTo(15);
+            assertThat(output.get(1).getField("value")).isEqualTo(15);
             assertThat(output.get(2).getKind()).isEqualTo(RowKind.UPDATE_AFTER);
-            assertThat(output.get(2).getField(0)).isEqualTo(20);
+            assertThat(output.get(2).getField("value")).isEqualTo(20);
             assertThat(output.get(3).getKind()).isEqualTo(RowKind.DELETE);
-            assertThat(output.get(3).getField(0)).isEqualTo(30);
+            assertThat(output.get(3).getField("value")).isEqualTo(30);
         }
     }
 
@@ -597,7 +605,7 @@ class ProcessTableFunctionTestHarnessTest {
     void testNamedRowFieldOrdering() throws Exception {
         // Test what happens when Row field order differs from DataType schema order
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(UserValuePassthroughPTF.class)
                         .withTableArgument("input", DataTypes.of("ROW<user STRING, value INT>"))
                         .build()) {
 
@@ -612,9 +620,9 @@ class ProcessTableFunctionTestHarnessTest {
 
             Row result = output.get(0);
 
-            // Positional access follows schema order
-            assertThat(result.getField(0)).isEqualTo("Alice");
-            assertThat(result.getField(1)).isEqualTo(100);
+            // Named field access
+            assertThat(result.getField("user")).isEqualTo("Alice");
+            assertThat(result.getField("value")).isEqualTo(100);
         }
     }
 
@@ -622,7 +630,7 @@ class ProcessTableFunctionTestHarnessTest {
     void testPositionalRowWithWrongTypeOrder() throws Exception {
         // Verify that type mismatches are caught when Row values don't match schema types
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(UserValuePassthroughPTF.class)
                         .withTableArgument("input", DataTypes.of("ROW<user STRING, value INT>"))
                         .build()) {
 
@@ -655,8 +663,8 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output).hasSize(1);
 
             Row result = output.get(0);
-            assertThat(result.getField(0)).isEqualTo("Alice");
-            assertThat(result.getField(1)).isEqualTo(25);
+            assertThat(result.getField("name")).isEqualTo("Alice");
+            assertThat(result.getField("age")).isEqualTo(25);
         }
     }
 
@@ -806,21 +814,21 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(4);
 
-            assertThat(output.get(0).getField(0)).isEqualTo("Alice");
-            assertThat(output.get(0).getField(1)).isEqualTo("Alice");
-            assertThat(output.get(0).getField(2)).isEqualTo("LEFT: +I[Alice, 100]");
+            assertThat(output.get(0).getField("name")).isEqualTo("Alice");
+            assertThat(output.get(0).getField("name0")).isEqualTo("Alice");
+            assertThat(output.get(0).getField("output")).isEqualTo("LEFT: +I[Alice, 100]");
 
-            assertThat(output.get(1).getField(0)).isEqualTo("Bob");
-            assertThat(output.get(1).getField(1)).isEqualTo("Bob");
-            assertThat(output.get(1).getField(2)).isEqualTo("LEFT: +I[Bob, 200]");
+            assertThat(output.get(1).getField("name")).isEqualTo("Bob");
+            assertThat(output.get(1).getField("name0")).isEqualTo("Bob");
+            assertThat(output.get(1).getField("output")).isEqualTo("LEFT: +I[Bob, 200]");
 
-            assertThat(output.get(2).getField(0)).isEqualTo("Alice");
-            assertThat(output.get(2).getField(1)).isEqualTo("Alice");
-            assertThat(output.get(2).getField(2)).isEqualTo("RIGHT: +I[Alice, Berlin]");
+            assertThat(output.get(2).getField("name")).isEqualTo("Alice");
+            assertThat(output.get(2).getField("name0")).isEqualTo("Alice");
+            assertThat(output.get(2).getField("output")).isEqualTo("RIGHT: +I[Alice, Berlin]");
 
-            assertThat(output.get(3).getField(0)).isEqualTo("Bob");
-            assertThat(output.get(3).getField(1)).isEqualTo("Bob");
-            assertThat(output.get(3).getField(2)).isEqualTo("RIGHT: +I[Bob, London]");
+            assertThat(output.get(3).getField("name")).isEqualTo("Bob");
+            assertThat(output.get(3).getField("name0")).isEqualTo("Bob");
+            assertThat(output.get(3).getField("output")).isEqualTo("RIGHT: +I[Bob, London]");
         }
     }
 
