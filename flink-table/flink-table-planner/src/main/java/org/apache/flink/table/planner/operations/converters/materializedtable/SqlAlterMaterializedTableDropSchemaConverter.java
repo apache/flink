@@ -24,7 +24,6 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTab
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableDropSchema;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableDropWatermark;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
@@ -170,14 +169,6 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
                     OperationConverterUtils.validateAndGatherDropColumn(
                             oldTable, columnsToDrop, EX_MSG_PREFIX);
             validateColumnsUsedInQuery(oldTable, alterTableSchema, context);
-            for (Column column : oldTable.getResolvedSchema().getColumns()) {
-                if (column.isPersisted() && columnsToDrop.contains(column.getName())) {
-                    throw new ValidationException(
-                            String.format(
-                                    "%sThe column `%s` is a persisted column. Dropping of persisted columns is not supported.",
-                                    EX_MSG_PREFIX, column.getName()));
-                }
-            }
             return tableChanges;
         }
 

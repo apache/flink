@@ -58,7 +58,6 @@ import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
@@ -66,16 +65,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
-/** Applying table changes to old materialized table and gathering validation errors. */
+/** Applies table changes to a materialized table and builds the resulting definition. */
 @Internal
 public class MaterializedTableChangeHandler {
     private static final HandlerRegistry HANDLER_REGISTRY = createHandlerRegistry();
 
     private final List<UnresolvedColumn> columns;
     private final CatalogMaterializedTable oldTable;
-    private boolean isQueryChange;
     private @Nullable TableDistribution distribution;
     private CatalogMaterializedTable.RefreshStatus refreshStatus;
     private @Nullable String refreshHandlerDesc;
@@ -83,12 +80,10 @@ public class MaterializedTableChangeHandler {
     private List<UnresolvedWatermarkSpec> watermarkSpecs;
     private String primaryKeyName = null;
     private List<String> primaryKeyColumns = null;
-    private int droppedPersistedCnt = 0;
     private String originalQuery;
     private String expandedQuery;
     private StartMode startMode;
     private final Map<String, String> options;
-    private final List<String> validationErrors = new ArrayList<>();
 
     public MaterializedTableChangeHandler(CatalogMaterializedTable oldTable) {
         this.distribution = oldTable.getDistribution().orElse(null);
@@ -122,10 +117,10 @@ public class MaterializedTableChangeHandler {
         private void apply(MaterializedTableChangeHandler context, TableChange change) {
             HandlerRegistry.HandlerWrapper<?> wrapper = HANDLERS.get(change.getClass());
             if (wrapper == null) {
-                context.validationErrors.add("Unknown table change " + change.getClass());
-            } else {
-                wrapper.accept(context, change);
+                throw new ValidationException(
+                        "Unsupported table change: " + change.getClass().getName());
             }
+            wrapper.accept(context, change);
         }
 
         private static final class HandlerWrapper<T extends TableChange> {
@@ -141,24 +136,15 @@ public class MaterializedTableChangeHandler {
         }
     }
 
-    public List<String> getValidationErrors() {
-        return List.copyOf(validationErrors);
-    }
-
     public static MaterializedTableChangeHandler getHandlerWithChanges(
             CatalogMaterializedTable oldTable, List<TableChange> tableChanges) {
-        MaterializedTableChangeHandler handler = new MaterializedTableChangeHandler(oldTable);
+        final MaterializedTableChangeHandler handler = new MaterializedTableChangeHandler(oldTable);
         handler.applyTableChanges(tableChanges);
         return handler;
     }
 
     public static CatalogMaterializedTable buildNewMaterializedTable(
             MaterializedTableChangeHandler context) {
-        final List<String> validationErrors = context.getValidationErrors();
-        if (!validationErrors.isEmpty()) {
-            throw new ValidationException(String.join("\n", validationErrors));
-        }
-
         final CatalogMaterializedTable oldTable = context.getOldTable();
         return CatalogMaterializedTable.newBuilder()
                 .schema(context.retrieveSchema())
@@ -217,6 +203,9 @@ public class MaterializedTableChangeHandler {
         registry.register(
                 ModifyRefreshStatus.class, MaterializedTableChangeHandler::modifyRefreshStatus);
 
+        // Start mode
+        registry.register(ModifyStartMode.class, MaterializedTableChangeHandler::modifyStartMode);
+
         // Distribution operations
         registry.register(AddDistribution.class, MaterializedTableChangeHandler::addDistribution);
         registry.register(
@@ -233,24 +222,8 @@ public class MaterializedTableChangeHandler {
     }
 
     void applyTableChanges(List<TableChange> tableChanges) {
-        isQueryChange = tableChanges.stream().anyMatch(t -> t instanceof ModifyDefinitionQuery);
-        Schema oldSchema = oldTable.getUnresolvedSchema();
-        if (isQueryChange) {
-            checkForChangedPositionByQuery(tableChanges, oldSchema);
-        }
-
         for (TableChange tableChange : tableChanges) {
             HANDLER_REGISTRY.apply(this, tableChange);
-        }
-
-        if (droppedPersistedCnt > 0 && isQueryChange) {
-            final int schemaSize = oldSchema.getColumns().size();
-            validationErrors.add(
-                    String.format(
-                            "Failed to modify query because drop column is unsupported. "
-                                    + "When modifying a query, you can only append new columns at the end of original schema. "
-                                    + "The original schema has %d columns, but the newly derived schema from the query has %d columns.",
-                            schemaSize, schemaSize - droppedPersistedCnt));
         }
     }
 
@@ -324,15 +297,7 @@ public class MaterializedTableChangeHandler {
     }
 
     private void dropColumn(TableChange.DropColumn dropColumn) {
-        String droppedColumnName = dropColumn.getColumnName();
-        int index = getColumnIndex(droppedColumnName);
-        UnresolvedColumn column = columns.get(index);
-        if (isQueryChange && isNonPersistedColumn(column)) {
-            // noop
-        } else {
-            columns.remove(index);
-            droppedPersistedCnt++;
-        }
+        columns.remove(getColumnIndex(dropColumn.getColumnName()));
     }
 
     private void modifyPhysicalColumnType(ModifyPhysicalColumnType modifyPhysicalColumnType) {
@@ -350,15 +315,6 @@ public class MaterializedTableChangeHandler {
     private void modifyColumnPosition(ModifyColumnPosition columnWithChangedPosition) {
         Column column = columnWithChangedPosition.getOldColumn();
         int oldPosition = getColumnIndex(column.getName());
-        if (isQueryChange) {
-            validationErrors.add(
-                    String.format(
-                            "When modifying the query of a materialized table, "
-                                    + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                    + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                            oldPosition + 1, column, column));
-        }
-
         ColumnPosition position = columnWithChangedPosition.getNewPosition();
         UnresolvedColumn changedPositionColumn = columns.get(oldPosition);
         columns.remove(oldPosition);
@@ -368,12 +324,6 @@ public class MaterializedTableChangeHandler {
     private void modifyDefinitionQuery(ModifyDefinitionQuery queryChange) {
         expandedQuery = queryChange.getDefinitionQuery();
         originalQuery = queryChange.getOriginalQuery();
-    }
-
-    private boolean isNonPersistedColumn(UnresolvedColumn column) {
-        return column instanceof Schema.UnresolvedComputedColumn
-                || column instanceof Schema.UnresolvedMetadataColumn
-                        && ((Schema.UnresolvedMetadataColumn) column).isVirtual();
     }
 
     private void addUniqueConstraint(AddUniqueConstraint addUniqueConstraint) {
@@ -459,88 +409,6 @@ public class MaterializedTableChangeHandler {
             return new Schema.UnresolvedComputedColumn(
                     name, ((Column.ComputedColumn) column).getExpression(), comment);
         }
-    }
-
-    private void checkForChangedPositionByQuery(List<TableChange> tableChanges, Schema oldSchema) {
-        List<ModifyColumnPosition> positionChanges =
-                tableChanges.stream()
-                        .filter(t -> t instanceof ModifyColumnPosition)
-                        .map(t -> (ModifyColumnPosition) t)
-                        .collect(Collectors.toList());
-
-        List<ModifyPhysicalColumnType> physicalTypeChanges =
-                tableChanges.stream()
-                        .filter(t -> t instanceof ModifyPhysicalColumnType)
-                        .map(t -> (ModifyPhysicalColumnType) t)
-                        .collect(Collectors.toList());
-
-        if (positionChanges.isEmpty() && physicalTypeChanges.isEmpty()) {
-            return;
-        }
-
-        int persistedColumnOffset = 0;
-        List<UnresolvedColumn> oldColumns = oldSchema.getColumns();
-        for (UnresolvedColumn column : oldColumns) {
-            if (!isNonPersistedColumn(column)) {
-                persistedColumnOffset++;
-            }
-        }
-
-        Map<String, Column> afterToColumnName = new HashMap<>();
-        for (ModifyColumnPosition change : positionChanges) {
-            final ColumnPosition position = change.getNewPosition();
-            final Column newColumn = change.getNewColumn();
-            if (position == ColumnPosition.first()) {
-                if (persistedColumnOffset == 0) {
-                    positionChangeError(
-                            newColumn.asSummaryString(),
-                            oldColumns.get(persistedColumnOffset).toString(),
-                            persistedColumnOffset);
-                } else {
-                    afterToColumnName.put(
-                            oldColumns.get(persistedColumnOffset).getName(), newColumn);
-                }
-            } else {
-                afterToColumnName.put(((After) position).column(), newColumn);
-            }
-        }
-
-        for (int i = 0; i < oldColumns.size() - 1; i++) {
-            Column newColumn = afterToColumnName.get(oldColumns.get(i).getName());
-            if (newColumn != null) {
-                positionChangeError(oldColumns.get(i + 1), newColumn, i + 1);
-            }
-        }
-
-        Map<String, Integer> nameToIndex = new HashMap<>();
-        for (int i = 0; i < oldColumns.size(); i++) {
-            UnresolvedColumn column = oldColumns.get(i);
-            if (!isNonPersistedColumn(column)) {
-                nameToIndex.put(column.getName(), i);
-            }
-        }
-
-        for (ModifyPhysicalColumnType change : physicalTypeChanges) {
-            final int index = nameToIndex.get(change.getOldColumn().getName());
-            positionChangeError(change.getOldColumn(), change.getNewColumn(), index);
-        }
-    }
-
-    private void positionChangeError(UnresolvedColumn oldColumn, Column newColumn, int position) {
-        positionChangeError(oldColumn.toString(), newColumn.asSummaryString(), position);
-    }
-
-    private void positionChangeError(Column oldColumn, Column newColumn, int position) {
-        positionChangeError(oldColumn.asSummaryString(), newColumn.asSummaryString(), position);
-    }
-
-    private void positionChangeError(String oldColumn, String newColumn, int position) {
-        validationErrors.add(
-                String.format(
-                        "When modifying the query of a materialized table, "
-                                + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                        position + 1, oldColumn, newColumn));
     }
 
     private void setColumnAtPosition(UnresolvedColumn column, ColumnPosition position) {
