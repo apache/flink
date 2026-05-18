@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.operations.converters.materializedtable.Sq
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableSchemaDropColumnConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableModifyDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableRefreshConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableResetConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableResumeConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableAddSchemaConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableModifySchemaConverter;
@@ -148,6 +149,7 @@ public class SqlNodeConverters {
         register(new SqlAlterMaterializedTableDropWatermarkConverter());
         register(new SqlAlterMaterializedTableModifySchemaConverter());
         register(new SqlAlterMaterializedTableRefreshConverter());
+        register(new SqlAlterMaterializedTableResetConverter());
         register(new SqlAlterMaterializedTableResumeConverter());
         register(new SqlAlterMaterializedTableSuspendConverter());
         register(new SqlCreateOrAlterMaterializedTableConverter());
