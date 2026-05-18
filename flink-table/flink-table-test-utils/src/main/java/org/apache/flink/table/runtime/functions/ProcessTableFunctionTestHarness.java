@@ -97,7 +97,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final boolean isSingleTableFunction;
     private final Map<String, Object> scalarArgumentValues;
 
-    private final boolean hasTableArguments;
+    private boolean hasTableArguments = false;
     private final Map<String, DataStructureConverter<Object, Object>> inputConverters;
     private final Map<String, DataStructureConverter<Object, Object>> outputConverters;
 
@@ -132,6 +132,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         for (ArgumentInfo arg : arguments) {
             if (arg.isTableArgument) {
                 tableArguments.add(arg);
+                this.hasTableArguments = true;
             }
         }
 
@@ -142,8 +143,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             this.defaultTableArgument = null;
             this.isSingleTableFunction = false;
         }
-
-        this.hasTableArguments = arguments.stream().anyMatch(arg -> arg.isTableArgument);
 
         openFunction();
     }
