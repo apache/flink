@@ -81,7 +81,13 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
         RefreshMode getMergedRefreshMode();
 
+        LogicalRefreshMode getMergedLogicalRefreshMode();
+
         StartMode getMergedStartMode();
+
+        String getMergedComment();
+
+        IntervalFreshness getMergedFreshness();
     }
 
     protected abstract MergeContext getMergeContext(
