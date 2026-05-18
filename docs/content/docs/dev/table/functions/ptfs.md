@@ -1025,7 +1025,7 @@ class TimerFunction extends ProcessTableFunction<String> {
 ### Handling of Late Records
 
 A late record is a record with a time attribute value that is less than or equal to the current
-watermark. PTFs handle late records just like non-late records by calling the `eval()` method. If 
+watermark. PTFs handle late records just like non-late records by calling the `eval()` method. If
 the `on_time` argument is specified, the late timestamp is preserved in the output. This behavior is
 the same for PTFs with row and set semantics.
 
@@ -2037,3 +2037,322 @@ Limitations
 PTFs are in an early stage. The following limitations apply:
 - PTFs cannot run in batch mode.
 - Broadcast state
+
+Testing Process Table Functions
+-------------------------------
+
+The `ProcessTableFunctionTestHarness` provides a lightweight unit testing framework for Process Table
+Functions (PTFs). It is useful for unit testing and validating PTF business logic, multi-table PTF
+behaviour and validating errors.
+
+For end-to-end integration testing with the full Flink planner and runtime, use integration tests
+instead.
+
+{{< top >}}
+
+### Quick Start
+
+{{< tabs "quickstart" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.*;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.runtime.functions.ProcessTableFunctionTestHarness;
+import org.apache.flink.types.Row;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+// PTF under test
+@DataTypeHint("ROW<doubled INT>")
+public class DoublePTF extends ProcessTableFunction<Row> {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+    int value = input.getFieldAs("value");
+    collect(Row.of(value * 2));
+  }
+}
+
+// Test
+@Test
+void testDoublePTF() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(DoublePTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+    .build()) {
+
+    harness.processElement(Row.of(5));
+    harness.processElement(Row.of(10));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output).hasSize(2);
+    assertThat(output.get(0)).isEqualTo(Row.of(10));
+    assertThat(output.get(1)).isEqualTo(Row.of(20));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+### Common Testing Scenarios
+
+#### Testing Row-Semantic Tables
+
+Use `.withTableArgument()` to configure the input table schema:
+
+{{< tabs "row-semantic" >}}
+{{< tab "Java" >}}
+```java
+public class PassthroughPTF extends ProcessTableFunction<Integer> {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+    collect(input.getFieldAs("value"));
+  }
+}
+
+@Test
+void testPassthrough() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+    .build()) {
+
+    harness.processElement(Row.of(42));
+    harness.processElement(Row.of(100));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output).containsExactly(42, 100);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### Testing Set-Semantic Tables with Partitioning
+
+For `SET_SEMANTIC_TABLE`, use `.withPartitionBy()` to configure partition columns:
+
+{{< tabs "set-semantic" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<doubled INT>")
+public class PartitionedPTF extends ProcessTableFunction<Row> {
+  public void eval(@ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+    int value = input.getFieldAs("value");
+    collect(Row.of(value * 2));
+  }
+}
+
+@Test
+void testPartitionedPTF() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+    .withPartitionBy("input", "key")
+    .build()) {
+
+    harness.processElement(Row.of("A", 10));
+    harness.processElement(Row.of("B", 20));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output.get(0)).isEqualTo(Row.of("A", 20));
+    assertThat(output.get(1)).isEqualTo(Row.of("B", 40));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### Testing Multiple Table Arguments
+
+Use `processElementForTable()` to specify which table receives each row:
+
+{{< tabs "multi-table" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<output STRING>")
+public class JoinPTF extends ProcessTableFunction<Row> {
+  public void eval(
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row left,
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row right) {
+    if (left != null) {
+      collect(Row.of("LEFT: " + left));
+    }
+    if (right != null) {
+      collect(Row.of("RIGHT: " + right));
+    }
+  }
+}
+
+@Test
+void testMultiTable() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(JoinPTF.class)
+    .withTableArgument("left", DataTypes.of("ROW<id INT, name STRING>"))
+    .withPartitionBy("left", "id")
+    .withTableArgument("right", DataTypes.of("ROW<id INT, city STRING>"))
+    .withPartitionBy("right", "id")
+    .build()) {
+
+    // Use processElementForTable() to target specific tables
+    harness.processElementForTable("left", Row.of(1, "Alice"));
+    harness.processElementForTable("right", Row.of(1, "Berlin"));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output.get(0)).isEqualTo(Row.of(1, null, "LEFT: +I[1, Alice]"));
+    assertThat(output.get(1)).isEqualTo(Row.of(null, 1, "RIGHT: +I[1, Berlin]"));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### Testing with Scalar Arguments
+
+Use `.withScalarArgument()` to configure scalar parameter values:
+
+{{< tabs "scalar-args" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<value INT>")
+public class FilterPTF extends ProcessTableFunction<Row> {
+  public void eval(
+    @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input,
+    int threshold) {
+    int value = input.getFieldAs("value");
+    if (value > threshold) {
+      collect(Row.of(value));
+    }
+  }
+}
+
+@Test
+void testFilter() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+    .withScalarArgument("threshold", 50) // Configure scalar value
+    .build()) {
+
+    harness.processElement(Row.of(30));
+    harness.processElement(Row.of(70));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output).containsExactly(Row.of(70));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Scalar-Only PTFs**: For PTFs with only scalar arguments, use `process()` to trigger evaluation:
+
+{{< tabs "scalar-only" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<sum INT>")
+public class AddPTF extends ProcessTableFunction<Row> {
+  public void eval(int a, int b) {
+    collect(Row.of(a + b));
+  }
+}
+
+@Test
+void testScalarOnly() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(AddPTF.class)
+    .withScalarArgument("a", 5)
+    .withScalarArgument("b", 7)
+    .build()) {
+
+    harness.process(); // Use process() instead of processElement()
+
+    List<Row> output = harness.getOutput();
+    assertThat(output).containsExactly(Row.of(12));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### Configuring Table Argument Types
+
+In contexts where the harness can't infer the table argument types for table arguments (when using unannotated `Row` inputs,
+for example), it is possible to specify the input table type during the builder setup.
+
+{{< tabs "type-config" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<doubled INT, original INT>")
+// Note - An ArgumentHint without a DataTypeHint does not provide a type for the annotated input argument.
+// In cases like this, the harness cannot infer type, and so it needs to be declared
+// during harness setup.
+public static class DoublePTF extends ProcessTableFunction<Row> {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+    int value = (Integer) input.getField(0);
+    collect(Row.of(value * 2, value));
+  }
+}
+
+@Test
+void testBuilderType() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(DoublePTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+    .build()) {
+
+    harness.processElement(Row.of(5));
+    assertThat(harness.getOutput()).containsExactly(Row.of(10));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Structured Types**: The harness supports structured POJO types in addition to `Row`, both as PTF inputs
+and outputs:
+
+{{< tabs "pojo-types" >}}
+{{< tab "Java" >}}
+```java
+public static class Customer {
+  public String name;
+  public int age;
+}
+
+public class CustomerPTF extends ProcessTableFunction<Customer> {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Customer c) {
+    collect(c);
+  }
+}
+
+@Test
+void testPOJO() throws Exception {
+  try (ProcessTableFunctionTestHarness<Customer> harness =
+      ProcessTableFunctionTestHarness.ofClass(CustomerPTF.class)
+          .withTableArgument("input", DataTypes.of(Customer.class))
+          .build()) {
+
+    harness.processElement(Row.of("Alice", 30));
+
+    List<Customer> output = harness.getOutput();
+    assertThat(output.get(0).name).isEqualTo("Alice");
+    assertThat(output.get(0).age).isEqualTo(30);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+### PTF Features Unsupported by the TestHarness
+
+- `Context` paramter
+- State (`@StateHint`)
+- Timers (`onTimer`)
+- `on_time` / `rowtime`
+- Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
