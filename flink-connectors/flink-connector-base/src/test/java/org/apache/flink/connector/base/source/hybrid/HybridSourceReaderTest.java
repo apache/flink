@@ -283,6 +283,36 @@ class HybridSourceReaderTest {
     }
 
     @Test
+    void testReaderRecoverySnapshotBeforeSwitchSourceEvent() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
+
+        HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
+
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        SwitchedSources switchedSources = new SwitchedSources();
+        switchedSources.put(0, source);
+        HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
+        reader.addSplits(Collections.singletonList(hybridSplit));
+        List<HybridSourceSplit> snapshot = reader.snapshotState(0);
+        reader.close();
+
+        readerContext.clearSentEvents();
+        HybridSourceReader<Integer> recoveredReader = new HybridSourceReader<>(readerContext);
+        recoveredReader.addSplits(snapshot);
+        recoveredReader.start();
+        assertThat(currentReader(recoveredReader)).isNull();
+
+        List<HybridSourceSplit> recoverySnapshot = recoveredReader.snapshotState(1);
+        assertThat(recoverySnapshot).containsExactly(hybridSplit);
+
+        recoveredReader.close();
+    }
+
+    @Test
     void testReaderRecoveryInitializationOrder() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
