@@ -51,6 +51,9 @@ import software.amazon.awssdk.transfer.s3.model.CompletedFileUpload;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
+import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -93,6 +96,7 @@ import java.util.stream.Collectors;
  * https://bucket.s3.amazonaws.com/key}) are not currently supported.
  */
 @Internal
+@ThreadSafe
 public class NativeS3ObjectOperations {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3ObjectOperations.class);
@@ -446,6 +450,7 @@ public class NativeS3ObjectOperations {
         return path.toUri().getHost();
     }
 
+    @Immutable
     public static class UploadPartResult {
         private final int partNumber;
         private final String eTag;
@@ -464,6 +469,7 @@ public class NativeS3ObjectOperations {
         }
     }
 
+    @Immutable
     public static class PutObjectResult {
         private final String eTag;
 
@@ -476,6 +482,7 @@ public class NativeS3ObjectOperations {
         }
     }
 
+    @Immutable
     public static class CompleteMultipartUploadResult {
         private final String bucketName;
         private final String key;
@@ -507,6 +514,7 @@ public class NativeS3ObjectOperations {
         }
     }
 
+    @Immutable
     public static class ObjectMetadata {
         private final long contentLength;
         private final String eTag;

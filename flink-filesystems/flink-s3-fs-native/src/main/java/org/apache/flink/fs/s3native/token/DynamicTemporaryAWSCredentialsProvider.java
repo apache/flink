@@ -27,7 +27,10 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.services.sts.model.Credentials;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 @Internal
+@ThreadSafe
 public class DynamicTemporaryAWSCredentialsProvider implements AwsCredentialsProvider {
 
     private static final Logger LOG =

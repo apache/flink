@@ -35,10 +35,13 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 import software.amazon.awssdk.services.sts.model.GetSessionTokenRequest;
 import software.amazon.awssdk.services.sts.model.GetSessionTokenResponse;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.Optional;
 
 /** Provider for AWS S3 delegation tokens using STS session credentials. */
 @Internal
+@ThreadSafe
 public class NativeS3DelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG =

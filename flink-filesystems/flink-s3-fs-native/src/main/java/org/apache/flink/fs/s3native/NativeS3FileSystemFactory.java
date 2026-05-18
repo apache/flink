@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.net.URI;
@@ -54,6 +55,7 @@ import java.util.Map;
  * @see org.apache.flink.core.fs.FileSystemFactory
  */
 @Experimental
+@ThreadSafe
 public class NativeS3FileSystemFactory implements FileSystemFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystemFactory.class);
@@ -298,8 +300,8 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "When not set, the default chain is used: delegation tokens -> "
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
-    @Nullable private Configuration flinkConfig;
-    @Nullable private BucketConfigProvider bucketConfigProvider;
+    @Nullable private volatile Configuration flinkConfig;
+    @Nullable private volatile BucketConfigProvider bucketConfigProvider;
 
     @Override
     public String getScheme() {
@@ -343,8 +345,9 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         if (StringUtils.isNullOrWhitespaceOnly(bucketName)) {
             throw new IOException("Invalid S3 URI: missing or empty bucket name in URI: " + fsUri);
         }
-        if (bucketConfigProvider != null) {
-            S3BucketConfig overrides = bucketConfigProvider.getBucketConfig(bucketName);
+        BucketConfigProvider provider = this.bucketConfigProvider;
+        if (provider != null) {
+            S3BucketConfig overrides = provider.getBucketConfig(bucketName);
             if (overrides != null) {
                 LOG.debug(
                         "Applying bucket-specific configuration for bucket '{}': {}",

@@ -28,6 +28,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.BufferedInputStream;
 import java.io.EOFException;
@@ -41,7 +42,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * work is deferred to the next {@link #read()} call via {@link #lazySeek()}, so multiple seeks
  * between reads coalesce. When the seek is forward and within {@code readBufferSize}, bytes are
  * skipped in-buffer instead of reopening the HTTP connection.
+ *
+ * <p><b>Thread Safety:</b> The lock guards all mutable state so that {@link #close()} can be safely
+ * invoked from another thread (e.g. during task cancellation).
  */
+@ThreadSafe
 class NativeS3InputStream extends FSDataInputStream {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3InputStream.class);
@@ -78,7 +83,7 @@ class NativeS3InputStream extends FSDataInputStream {
     private long streamPos;
 
     @GuardedBy("lock")
-    private volatile boolean closed;
+    private boolean closed;
 
     public NativeS3InputStream(
             S3Client s3Client, String bucketName, String key, long contentLength) {

@@ -50,6 +50,8 @@ import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -70,6 +72,7 @@ import java.util.stream.Collectors;
  * atomic operations ({@link AtomicBoolean}).
  */
 @Internal
+@ThreadSafe
 class S3ClientProvider implements AutoCloseableAsync {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientProvider.class);
@@ -299,6 +302,8 @@ class S3ClientProvider implements AutoCloseableAsync {
         return new Builder();
     }
 
+    /** Mutable builder for {@link S3ClientProvider}. Not safe for concurrent use. */
+    @NotThreadSafe
     public static class Builder {
         private String accessKey;
         private String secretKey;

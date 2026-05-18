@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sts.model.Credentials;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Receiver for AWS S3 delegation tokens that stores credentials for use by the file system.
@@ -48,6 +49,7 @@ import javax.annotation.Nullable;
  * </ul>
  */
 @Internal
+@ThreadSafe
 public class NativeS3DelegationTokenReceiver implements DelegationTokenReceiver {
 
     private static final Logger LOG =
