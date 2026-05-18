@@ -523,7 +523,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .isEqualTo("ALTER MATERIALIZED TABLE builtin.default.mtbl1 RESUME WITH (k1: [v1])");
     }
 
-
     @Test
     void testAlterMaterializedTableSet() {
         final String sql =
