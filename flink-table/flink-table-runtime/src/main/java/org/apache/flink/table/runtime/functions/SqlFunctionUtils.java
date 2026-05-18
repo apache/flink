@@ -422,21 +422,20 @@ public class SqlFunctionUtils {
 
     /**
      * Returns a string resulting from replacing all substrings that match the regular expression
-     * with replacement.
+     * with replacement. Literal regexes are validated at planning time by the input type strategy.
      */
     public static String regexpReplace(String str, String regex, String replacement) {
         if (str == null || regex == null || replacement == null) {
             return null;
         }
         try {
-            return str.replaceAll(regex, Matcher.quoteReplacement(replacement));
-        } catch (Exception e) {
-            LOG.error(
-                    String.format(
-                            "Exception in regexpReplace('%s', '%s', '%s')",
-                            str, regex, replacement),
-                    e);
-            // return null if exception in regex replace
+            return REGEXP_PATTERN_CACHE
+                    .get(regex)
+                    .matcher(str)
+                    .replaceAll(Matcher.quoteReplacement(replacement));
+        } catch (PatternSyntaxException e) {
+            // Literals are rejected at planning time; non-literal invalid regex
+            // returns null to preserve the prior runtime contract.
             return null;
         }
     }

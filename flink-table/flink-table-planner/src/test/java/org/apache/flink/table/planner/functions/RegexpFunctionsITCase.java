@@ -37,6 +37,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         regexpExtractTestCases(),
                         regexpExtractAllTestCases(),
                         regexpInstrTestCases(),
+                        regexpReplaceTestCases(),
                         regexpSubstrTestCases())
                 .flatMap(s -> s);
     }
@@ -338,6 +339,43 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_INSTR(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "REGEXP_INSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> regexpReplaceTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_REPLACE)
+                        .onFieldsWithData(null, "foobar", "(")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .testResult(
+                                $("f0").regexpReplace("foo", "X"),
+                                "REGEXP_REPLACE(f0, 'foo', 'X')",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpReplace("foo", "X"),
+                                "REGEXP_REPLACE(f1, 'foo', 'X')",
+                                "Xbar",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpReplace("o+", "X"),
+                                "REGEXP_REPLACE(f1, 'o+', 'X')",
+                                "fXbar",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpReplace($("f2"), "X"),
+                                "REGEXP_REPLACE(f1, f2, 'X')",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpReplace(concat("fo", "o"), "X"),
+                                "REGEXP_REPLACE(f1, 'fo' || 'o', 'X')",
+                                "Xbar",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpReplace(concat("(", ""), "X"),
+                                "REGEXP_REPLACE(f1, '(' || '', 'X')",
+                                null,
+                                DataTypes.STRING().nullable()));
     }
 
     private Stream<TestSetSpec> regexpSubstrTestCases() {
