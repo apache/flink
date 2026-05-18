@@ -375,7 +375,18 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f1").regexpReplace(concat("(", ""), "X"),
                                 "REGEXP_REPLACE(f1, '(' || '', 'X')",
                                 null,
-                                DataTypes.STRING().nullable()));
+                                DataTypes.STRING().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_REPLACE,
+                                "Invalid literal regex fails at plan time")
+                        .onFieldsWithData("foobar")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").regexpReplace("(", "X"),
+                                "Invalid regular expression for REGEXP_REPLACE:")
+                        .testSqlValidationError(
+                                "REGEXP_REPLACE(f0, '(', 'X')",
+                                "Invalid regular expression for REGEXP_REPLACE:"));
     }
 
     private Stream<TestSetSpec> regexpSubstrTestCases() {

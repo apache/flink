@@ -37,8 +37,11 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.APPROXIMATE_NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.EXACT_NUMERIC;
@@ -217,6 +220,35 @@ final class StrategyUtils {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Validates that the argument at {@code regexArgPos} is a literal that compiles as a Java
+     * regex. Non-literal or null-literal regex arguments are deferred to runtime.
+     *
+     * @return {@link Optional#empty()} when the argument is not a literal, is a {@code NULL}
+     *     literal, or compiles cleanly; the result of {@link CallContext#fail} otherwise.
+     */
+    static Optional<List<DataType>> validateLiteralPattern(
+            final CallContext callContext, final int regexArgPos, final boolean throwOnFailure) {
+        if (!callContext.isArgumentLiteral(regexArgPos)
+                || callContext.isArgumentNull(regexArgPos)) {
+            return Optional.empty();
+        }
+        final Optional<String> pattern = callContext.getArgumentValue(regexArgPos, String.class);
+        if (pattern.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            Pattern.compile(pattern.get());
+            return Optional.empty();
+        } catch (PatternSyntaxException e) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "Invalid regular expression for %s: %s",
+                    callContext.getName(),
+                    e.getMessage());
+        }
     }
 
     private StrategyUtils() {

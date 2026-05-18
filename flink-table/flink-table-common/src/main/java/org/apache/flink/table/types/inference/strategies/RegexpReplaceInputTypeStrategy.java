@@ -30,7 +30,6 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,23 +37,22 @@ import java.util.Optional;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 
 /**
- * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT}. Validates literal
+ * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP_REPLACE}. Validates literal
  * regex patterns at planning time.
  */
 @Internal
-public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
+public class RegexpReplaceInputTypeStrategy implements InputTypeStrategy {
 
     private static final int ARG_STR = 0;
     private static final int ARG_REGEX = 1;
-    private static final int ARG_EXTRACT_INDEX = 2;
+    private static final int ARG_REPLACEMENT = 2;
 
     private static final ArgumentTypeStrategy STRING_ARG =
             logical(LogicalTypeFamily.CHARACTER_STRING);
-    private static final ArgumentTypeStrategy INT_ARG = logical(LogicalTypeRoot.INTEGER);
 
     @Override
     public ArgumentCount getArgumentCount() {
-        return ConstantArgumentCount.between(2, 3);
+        return ConstantArgumentCount.of(3);
     }
 
     @Override
@@ -66,9 +64,7 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
         if (STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure).isEmpty()) {
             return Optional.empty();
         }
-        if (callContext.getArgumentDataTypes().size() > ARG_EXTRACT_INDEX
-                && INT_ARG.inferArgumentType(callContext, ARG_EXTRACT_INDEX, throwOnFailure)
-                        .isEmpty()) {
+        if (STRING_ARG.inferArgumentType(callContext, ARG_REPLACEMENT, throwOnFailure).isEmpty()) {
             return Optional.empty();
         }
 
@@ -86,10 +82,7 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
         return List.of(
                 Signature.of(
                         Argument.ofGroup("str", LogicalTypeFamily.CHARACTER_STRING),
-                        Argument.ofGroup("regex", LogicalTypeFamily.CHARACTER_STRING)),
-                Signature.of(
-                        Argument.ofGroup("str", LogicalTypeFamily.CHARACTER_STRING),
                         Argument.ofGroup("regex", LogicalTypeFamily.CHARACTER_STRING),
-                        Argument.ofGroup("extractIndex", LogicalTypeRoot.INTEGER)));
+                        Argument.ofGroup("replacement", LogicalTypeFamily.CHARACTER_STRING)));
     }
 }
