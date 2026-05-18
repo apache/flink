@@ -1025,7 +1025,7 @@ class TimerFunction extends ProcessTableFunction<String> {
 ### Handling of Late Records
 
 A late record is a record with a time attribute value that is less than or equal to the current
-watermark. PTFs handle late records just like non-late records by calling the `eval()` method. If 
+watermark. PTFs handle late records just like non-late records by calling the `eval()` method. If
 the `on_time` argument is specified, the late timestamp is preserved in the output. This behavior is
 the same for PTFs with row and set semantics.
 
@@ -2285,6 +2285,9 @@ for example), it is possible to specify the input table type during the builder 
 {{< tab "Java" >}}
 ```java
 @DataTypeHint("ROW<doubled INT, original INT>")
+// Note - An ArgumentHint without a DataTypeHint does not provide a type for the annotated input argument.
+// In cases like this, the harness cannot infer type, and so it needs to be declared
+// during harness setup.
 public static class DoublePTF extends ProcessTableFunction<Row> {
   public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
     int value = (Integer) input.getField(0);
@@ -2346,10 +2349,8 @@ void testPOJO() throws Exception {
 
 ### PTF Features Unsupported by the TestHarness
 
-| Feature                                                     | Support                   |
-|-------------------------------------------------------------|---------------------------|
-| **Context parameter**                                       | ❌ Not currently supported |
-| **State (@StateHint)**                                      | ❌ Not currently supported |
-| **Timers (onTimer)**                                        | ❌ Not currently supported |
-| **on_time / rowtime**                                       | ❌ Not currently supported |
-| **Update traits (SUPPORTS_UPDATES, REQUIRE_UPDATE_BEFORE)** | ❌ Not currently supported |
+- `Context` paramter
+- State (`@StateHint`)
+- Timers (`onTimer`)
+- `on_time` / `rowtime`
+- Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
