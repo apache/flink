@@ -240,46 +240,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         try {
             evalMethod.invoke(function, args);
         } catch (InvocationTargetException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) {
-                Exception userException = (Exception) cause;
-                StringBuilder details = new StringBuilder();
-                details.append("Exception occurred during scalar-only PTF eval() invocation.\n");
-                details.append("Expected parameter types: ");
-                details.append(Arrays.toString(evalMethod.getParameterTypes()));
-                details.append("\nActual arguments:\n");
-                for (int i = 0; i < arguments.size(); i++) {
-                    ArgumentInfo arg = arguments.get(i);
-                    Object value = scalarArgumentValues.get(arg.name);
-                    details.append(
-                            String.format(
-                                    "  [%d] %s: %s (type: %s)\n",
-                                    i,
-                                    arg.name,
-                                    value,
-                                    value != null ? value.getClass().getName() : "null"));
-                }
-                userException.addSuppressed(new Exception(details.toString()));
-                throw userException;
-            } else {
-                StringBuilder details = new StringBuilder();
-                details.append("Error invoking scalar-only PTF eval() method.\n");
-                details.append("Expected parameter types: ");
-                details.append(Arrays.toString(evalMethod.getParameterTypes()));
-                details.append("\nActual arguments:\n");
-                for (int i = 0; i < arguments.size(); i++) {
-                    ArgumentInfo arg = arguments.get(i);
-                    Object value = scalarArgumentValues.get(arg.name);
-                    details.append(
-                            String.format(
-                                    "  [%d] %s: %s (type: %s)\n",
-                                    i,
-                                    arg.name,
-                                    value,
-                                    value != null ? value.getClass().getName() : "null"));
-                }
-                throw new RuntimeException(details.toString(), e);
-            }
+            handleEvalInvocationException(
+                    "Exception occurred during scalar-only PTF eval() invocation.\n", args, e);
         }
     }
 
@@ -336,66 +298,18 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         try {
             evalMethod.invoke(function, args);
         } catch (InvocationTargetException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) {
-                Exception userException = (Exception) cause;
-                StringBuilder details = new StringBuilder();
-                String partitionInfo =
-                        activeTableArg.partitionColumnNames != null
-                                        && activeTableArg.partitionColumnNames.length > 0
-                                ? String.format(
-                                        " (partition columns: %s)",
-                                        Arrays.toString(activeTableArg.partitionColumnNames))
-                                : "";
-                details.append(
-                        String.format(
-                                "Exception occurred during PTF eval() while processing table argument '%s'%s.\n",
-                                activeTableArg.name, partitionInfo));
-                details.append("Expected parameter types: ");
-                details.append(Arrays.toString(evalMethod.getParameterTypes()));
-                details.append("\nActual arguments:\n");
-                for (int i = 0; i < arguments.size(); i++) {
-                    ArgumentInfo arg = arguments.get(i);
-                    Object value = args[i];
-                    details.append(
-                            String.format(
-                                    "  [%d] %s: %s (type: %s)\n",
-                                    i,
-                                    arg.name,
-                                    value,
-                                    value != null ? value.getClass().getName() : "null"));
-                }
-                userException.addSuppressed(new Exception(details.toString()));
-                throw userException;
-            } else {
-                StringBuilder details = new StringBuilder();
-                String partitionInfo =
-                        activeTableArg.partitionColumnNames != null
-                                        && activeTableArg.partitionColumnNames.length > 0
-                                ? String.format(
-                                        " (partition columns: %s)",
-                                        Arrays.toString(activeTableArg.partitionColumnNames))
-                                : "";
-                details.append(
-                        String.format(
-                                "Error invoking PTF eval() method while processing table argument '%s'%s.\n",
-                                activeTableArg.name, partitionInfo));
-                details.append("Expected parameter types: ");
-                details.append(Arrays.toString(evalMethod.getParameterTypes()));
-                details.append("\nActual arguments:\n");
-                for (int i = 0; i < arguments.size(); i++) {
-                    ArgumentInfo arg = arguments.get(i);
-                    Object value = args[i];
-                    details.append(
-                            String.format(
-                                    "  [%d] %s: %s (type: %s)\n",
-                                    i,
-                                    arg.name,
-                                    value,
-                                    value != null ? value.getClass().getName() : "null"));
-                }
-                throw new RuntimeException(details.toString(), e);
-            }
+            String partitionInfo =
+                    activeTableArg.partitionColumnNames != null
+                                    && activeTableArg.partitionColumnNames.length > 0
+                            ? String.format(
+                                    " (partition columns: %s)",
+                                    Arrays.toString(activeTableArg.partitionColumnNames))
+                            : "";
+            String contextMessage =
+                    String.format(
+                            "Exception occurred during PTF eval() while processing table argument '%s'%s.\n",
+                            activeTableArg.name, partitionInfo);
+            handleEvalInvocationException(contextMessage, args, e);
         }
     }
 
@@ -520,11 +434,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         LogicalType logicalType = dataType.getLogicalType();
         List<String> fieldNames = new ArrayList<>();
 
-        if (logicalType instanceof RowType rowType) {
+        if (logicalType instanceof RowType) {
+            RowType rowType = (RowType) logicalType;
             for (RowType.RowField field : rowType.getFields()) {
                 fieldNames.add(field.getName());
             }
-        } else if (logicalType instanceof StructuredType structuredType) {
+        } else if (logicalType instanceof StructuredType) {
+            StructuredType structuredType = (StructuredType) logicalType;
             for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
                 fieldNames.add(attr.getName());
             }
@@ -1170,6 +1086,35 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         NONE,
         PARTITION_KEYS,
         ALL_COLUMNS
+    }
+
+    private void handleEvalInvocationException(
+            String contextMessage, Object[] args, InvocationTargetException e) throws Exception {
+        Throwable cause = e.getCause();
+        StringBuilder details = new StringBuilder();
+        details.append(contextMessage);
+        details.append("Expected parameter types: ");
+        details.append(Arrays.toString(evalMethod.getParameterTypes()));
+        details.append("\nActual arguments:\n");
+        for (int i = 0; i < arguments.size(); i++) {
+            ArgumentInfo arg = arguments.get(i);
+            Object value = args[i];
+            details.append(
+                    String.format(
+                            "  [%d] %s: %s (type: %s)\n",
+                            i,
+                            arg.name,
+                            value,
+                            value != null ? value.getClass().getName() : "null"));
+        }
+
+        if (cause instanceof Exception) {
+            Exception userException = (Exception) cause;
+            userException.addSuppressed(new Exception(details.toString()));
+            throw userException;
+        } else {
+            throw new RuntimeException(details.toString(), e);
+        }
     }
 
     /**
