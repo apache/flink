@@ -59,6 +59,9 @@ class AvroSerializerSnapshotTest {
                     .requiredString("first")
                     .endRecord();
 
+    private static final Schema NULL_OR_FIRST_NAME =
+            SchemaBuilder.unionOf().nullType().and().type(FIRST_NAME).endUnion();
+
     private static final Schema FIRST_REQUIRED_LAST_OPTIONAL =
             SchemaBuilder.record("name")
                     .namespace("org.apache.flink")
@@ -229,6 +232,27 @@ class AvroSerializerSnapshotTest {
                                 .snapshotConfiguration()
                                 .resolveSchemaCompatibility(originalSnapshot))
                 .is(isCompatibleAfterMigration());
+    }
+
+    @Test
+    void genericRecordWithSerializerSchemaShouldBeSerializedAsIs() throws IOException {
+        final AvroSerializer<GenericRecord> serializer =
+                new AvroSerializer<>(GenericRecord.class, FIRST_NAME);
+        final GenericRecord record =
+                new GenericRecordBuilder(FIRST_NAME).set("first", "Flink").build();
+
+        final GenericRecord restoredRecord = deserialize(serializer, serialize(serializer, record));
+
+        assertThat(restoredRecord.getSchema()).isEqualTo(FIRST_NAME);
+        assertThat(restoredRecord.get("first").toString()).isEqualTo("Flink");
+    }
+
+    @Test
+    void nullGenericRecordShouldBeSerializedWithNullableSchema() throws IOException {
+        final AvroSerializer<GenericRecord> serializer =
+                new AvroSerializer<>(GenericRecord.class, NULL_OR_FIRST_NAME);
+
+        assertThat(deserialize(serializer, serialize(serializer, null))).isNull();
     }
 
     @Test

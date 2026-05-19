@@ -330,6 +330,11 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
         this.avroData = factory.getAvroData();
     }
 
+    /**
+     * GenericRecord values restored during state migration can still carry the previous schema.
+     * Resolve them to this serializer's runtime schema before the writer indexes fields by
+     * position.
+     */
     private T resolveGenericRecord(T value) throws IOException {
         if (value == null || !isGenericRecord(type)) {
             return value;
