@@ -42,6 +42,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.INSERT,
                 ToChangelogTestPrograms.RETRACT,
                 ToChangelogTestPrograms.UPSERT,
+                ToChangelogTestPrograms.UPSERT_PARTITION_BY,
                 ToChangelogTestPrograms.RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.CUSTOM_OP_MAPPING,
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
@@ -52,6 +53,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.DELETION_FLAG,
                 ToChangelogTestPrograms.INVALID_DESCRIPTOR,
                 ToChangelogTestPrograms.INVALID_OP_MAPPING,
+                ToChangelogTestPrograms.OP_MAPPING_REFERENCES_UNSUPPORTED_KIND,
                 ToChangelogTestPrograms.DUPLICATE_ROW_KIND);
     }
 }

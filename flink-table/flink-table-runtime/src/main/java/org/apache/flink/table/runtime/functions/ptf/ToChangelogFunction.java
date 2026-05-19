@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
@@ -38,6 +40,9 @@ import javax.annotation.Nullable;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
@@ -77,6 +82,11 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
+        if (opMapping != null) {
+            // Only user-supplied mappings are validated. The default mapping covers all kinds by
+            // design and is harmless for insert-only or upsert inputs.
+            validateAgainstInputChangelogMode(this.rawOpMap, tableSemantics);
+        }
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
     }
 
@@ -106,6 +116,35 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     }
                 });
         return result;
+    }
+
+    /**
+     * Rejects mappings that reference change operations the input changelog cannot produce. Without
+     * this check the extra entries are dead code: the corresponding rows never arrive, so the user
+     * gets silently incorrect plans (for upsert input also a wasted {@code ChangelogNormalize}).
+     *
+     * <p>Lives here rather than in the input type strategy because {@link
+     * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
+     * specialization time, which is when this constructor runs.
+     */
+    private static void validateAgainstInputChangelogMode(
+            final Map<RowKind, String> mapping, final TableSemantics tableSemantics) {
+        final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
+        if (inputMode == null) {
+            return;
+        }
+        final Set<RowKind> unsupported =
+                mapping.keySet().stream()
+                        .filter(kind -> !inputMode.contains(kind))
+                        .collect(Collectors.toCollection(TreeSet::new));
+        if (!unsupported.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid 'op_mapping' for TO_CHANGELOG: the input table only produces "
+                                    + "%s and does not produce %s. Remove those entries from the "
+                                    + "mapping.",
+                            inputMode.getContainedKinds(), unsupported));
+        }
     }
 
     public void eval(

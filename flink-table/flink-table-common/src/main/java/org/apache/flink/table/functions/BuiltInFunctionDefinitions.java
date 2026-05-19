@@ -806,9 +806,10 @@ public final class BuiltInFunctionDefinitions {
                     .name("TO_CHANGELOG")
                     .kind(PROCESS_TABLE)
                     .staticArguments(
-                            // Row semantics (no PARTITION BY).
-                            // With PARTITION BY, switches to set
-                            // semantics for co-located parallel execution.
+                            // Row semantics by default; PARTITION BY switches to set semantics.
+                            // REQUIRE_UPDATE_BEFORE / REQUIRE_FULL_DELETE are conditional so the
+                            // planner can skip ChangelogNormalize for upsert sources whose
+                            // op_mapping does not emit UB or full deletes.
                             StaticArgument.table(
                                             "input",
                                             Row.class,
@@ -816,12 +817,18 @@ public final class BuiltInFunctionDefinitions {
                                             EnumSet.of(
                                                     StaticArgumentTrait.TABLE,
                                                     StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                                    StaticArgumentTrait.SUPPORT_UPDATES,
-                                                    StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
-                                                    StaticArgumentTrait.REQUIRE_FULL_DELETE))
+                                                    StaticArgumentTrait.SUPPORT_UPDATES))
                                     .withConditionalTrait(
                                             StaticArgumentTrait.SET_SEMANTIC_TABLE,
-                                            TraitCondition.hasPartitionBy()),
+                                            TraitCondition.hasPartitionBy())
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
+                                            TraitCondition.mapArgIncludesKey(
+                                                    "op_mapping", "UPDATE_BEFORE"))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.REQUIRE_FULL_DELETE,
+                                            TraitCondition.mapArgIncludesKey(
+                                                    "op_mapping", "DELETE")),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",

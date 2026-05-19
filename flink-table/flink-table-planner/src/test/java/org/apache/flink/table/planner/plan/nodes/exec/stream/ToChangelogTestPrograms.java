@@ -184,6 +184,37 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
+    public static final TableTestProgram UPSERT_PARTITION_BY =
+            TableTestProgram.of(
+                            "to-changelog-upsert-partition-by",
+                            "PARTITION BY upsert key + mapping without UB skips ChangelogNormalize")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "op STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, C, 10]",
+                                            "+I[Bob, C, 20]",
+                                            "+I[Alice, C, 30]",
+                                            "+I[Bob, D, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "op => DESCRIPTOR(op), "
+                                    + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])")
+                    .build();
+
     public static final TableTestProgram CUSTOM_OP_MAPPING =
             TableTestProgram.of(
                             "to-changelog-custom-op-mapping",
@@ -509,6 +540,19 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INVALID_KIND', 'X'])",
                             ValidationException.class,
                             "Unknown change operation: 'INVALID_KIND'")
+                    .build();
+
+    public static final TableTestProgram OP_MAPPING_REFERENCES_UNSUPPORTED_KIND =
+            TableTestProgram.of(
+                            "to-changelog-op-mapping-references-unsupported-kind",
+                            "fails when op_mapping references a change operation the input cannot produce")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t, "
+                                    + "op_mapping => MAP['INSERT', 'I', 'DELETE', 'D'])",
+                            ValidationException.class,
+                            "the input table only produces [INSERT] and does not produce [DELETE]")
                     .build();
 
     public static final TableTestProgram DUPLICATE_ROW_KIND =
