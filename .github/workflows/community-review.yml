@@ -26,12 +26,10 @@ on:
 
 # The community review script needs write permissions to label PRs.
 permissions:
-  # Required to add/remove labels (indirectly via issues API for PRs).
+  # Required for community-review.sh to create repository-level labels.
   issues: write
-  # Required to add/remove labels on PRs via the GitHub API.
+  # Required for community-review.sh to add/remove labels on PRs.
   pull-requests: write
-  # Required for the script to manage its execution state.
-  actions: write
 jobs:
   label:
     if: github.repository_owner == 'apache'
