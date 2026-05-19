@@ -37,19 +37,17 @@ The DataStream API has long offered `toChangelogStream()` and `fromChangelogStre
 with changelog streams; Flink 2.3 brings equivalent functionality to SQL via two new built-in
 Process Table Functions:
 
-- `FROM_CHANGELOG` converts an append-only stream that carries an operation column (and optional
-  before/after row descriptors) into a dynamic table. A configurable `op_mapping` makes it
-  straightforward to plug in custom CDC formats (e.g. Debezium-style `c`/`u`/`d` codes), and
-  `invalid_op_handling` (`FAIL`/`LOG`/`SKIP`) controls how rows with unmapped operation codes
-  are treated.
+- `FROM_CHANGELOG` converts an append-only stream that carries an operation column into a dynamic
+  table. A configurable `op_mapping` makes it straightforward to plug in custom CDC formats and
+  controls how rows with unmapped operation codes are treated.
 - `TO_CHANGELOG` is the inverse: it materializes a dynamic table back into an append-only
-  changelog stream. This is the first SQL-level operator that lets users convert
-  retract/upsert streams into append form, which is useful for archival, audit and writing to
-  append-only sinks. `produces_full_deletes` controls whether `-D` records carry the full row.
+  changelog stream. This is the first SQL-level operator that lets users convert retract or
+  upsert streams into append form — useful for archival, audit, writing to append-only sinks,
+  and working around pipelines that require an append-only table.
 
-The two PTFs are designed to be symmetric, so `FROM_CHANGELOG(TO_CHANGELOG(table))` round-trips
-correctly. Both support `PARTITION BY` for parallel execution and `uid` for query evolution, and
-they expose a `state_ttl` parameter for state retention.
+The 2.3 release covers limited basic use cases for both. Future versions will extend both
+functions with `PARTITION BY`, `invalid_op_handling`, `produces_full_deletes` and more to make
+both features powerful and extensive. See [FLIP-564](https://cwiki.apache.org/confluence/display/FLINK/FLIP-564%3A+Support+FROM_CHANGELOG+and+TO_CHANGELOG+built-in+PTFs).
 
 #### CREATE/ALTER for MATERIALIZED TABLE aligned with TABLE
 
@@ -114,13 +112,6 @@ with the DataStream API:
 - **Late data handling**: late records are no longer silently dropped; PTFs can react to them.
 - **`ORDER BY` on table arguments**: `MyPtf(input => TABLE t PARTITION BY k ORDER BY ts)` lets a
   PTF receive partitioned rows in deterministic temporal order.
-- **`ValueView`**: a new lazy single-value state primitive (`value()`, `update()`, `isEmpty()`,
-  `clear()`) joins the existing `MapView` and `ListView` for working with single-element state
-  efficiently.
-- **Broadcast state**: PTFs support broadcast state through the new
-  `@ArgumentHint(ArgumentTrait.BROADCAST_SEMANTIC_TABLE)` and `@StateHint(StateKind.BROADCAST)`
-  annotations, plus `@ArgumentHint(ArgumentTrait.NOTIFY_STATEFUL_SETS)` for re-evaluating keys
-  when broadcast state changes.
 
 ### Connectors
 
@@ -199,18 +190,23 @@ for details.
 
 ##### [FLINK-35761](https://issues.apache.org/jira/browse/FLINK-35761) (FLIP-547)
 
-When restoring from an unaligned checkpoint, a task previously stayed in `INITIALIZING` until
-*all* recovered input buffers had been processed before transitioning to `RUNNING`. For
-high-parallelism jobs with large numbers of in-flight buffers, this could leave the task unable
-to checkpoint for tens of minutes (30+ minutes in real cases), so any subsequent failure had to
-restart from the original checkpoint. Flink 2.3 fixes this by transitioning to `RUNNING` as
-soon as all input buffers have been added to `RecoveredInputChannel` and by allowing the
-recovered input channels to be snapshotted, so a new unaligned checkpoint can be taken during
-recovery. Two opt-in options are introduced:
+Flink now supports triggering checkpoints while a job is still recovering from unaligned
+checkpoints. Previously, a checkpoint could only be triggered after all restored channel state
+had been fully consumed; when the in-flight state was large, this meant no new checkpoint could
+complete for hours, and any restart or rescaling during that window forced the job to redo the
+entire recovery from the original checkpoint.
+
+With this feature enabled, jobs can checkpoint early during recovery, preserving work across
+subsequent restarts and scaling events. Exactly-once semantics are unchanged.
+
+The feature is disabled by default and can be enabled via two new options:
 
 - `execution.checkpointing.unaligned.recover-output-on-downstream.enabled` (default: `false`)
-- `execution.checkpointing.unaligned.during-recovery.enabled` (default: `false`; requires the
-  option above to be enabled).
+- `execution.checkpointing.unaligned.during-recovery.enabled` (default: `false`, requires the
+  option above to be enabled)
+
+Enabling both is recommended for jobs with large unaligned checkpoint state or frequent
+rescaling.
 
 #### Application Management
 
@@ -245,31 +241,13 @@ for details.
 
 ##### [FLINK-38972](https://issues.apache.org/jira/browse/FLINK-38972) (FLIP-560)
 
-Building on FLIP-549, FLIP-560 hardens the application layer for high availability and improves
-error visibility:
-
-- Job-name-based matching enables correct recovery of multi-job applications after a JobManager
-  failure; job recovery is deferred until the user `main` method reaches the corresponding
-  submission point.
-- Applications can execute zero or multiple jobs (with some limitations for streaming jobs and
-  certain APIs).
-- A new `ApplicationStore` and `ApplicationResultStore` persist application metadata and
-  cleanup state across HA recovery.
-- Application-level exceptions (errors thrown by user `main` code, not just job execution) are
-  exposed through a new REST endpoint and Web UI subpage.
-
-New REST APIs:
-
-- `GET /applications/:applicationid/exceptions`
-- `GET /applications/:applicationid/jobmanager/config`
-
-New configuration options:
-
-- `application-result-store.storage-path`
-- `application-result-store.delete-on-commit` (default: `true`)
-
-The application page in the Web UI now shows start/end times and duration, a cancel action,
-log links, and a new exceptions subpage.
+Building on the application management framework introduced in FLIP-549, Flink 2.3.0 further
+enhances application capabilities via FLIP-560. High-availability (HA) recovery is strengthened
+by improving the handling of applications and their constituent jobs, including the automatic
+re-execution of incomplete applications in session mode. Furthermore, Flink now supports
+multiple batch jobs within a single application, using job names to ensure correct matching
+during HA recovery. Finally, application-level failure exceptions and JobManager configurations
+are now exposed through the REST API to facilitate troubleshooting.
 
 #### Robust OTel gRPC metric exporter
 
@@ -277,17 +255,13 @@ log links, and a new exceptions subpage.
 
 Jobs with large numbers of tasks and operators can produce metric payloads big enough for the
 OTel gRPC backend to reject them, causing exported metric data to be dropped in production. The
-existing exporter had three concrete limitations: gzip compression was not exposed in Flink
-configuration, all data points went out in a single gRPC call without pagination, and metric
-attributes such as `task_name` could grow to contain hundreds of operator names and bloat the
-payload further. Flink 2.3 adds three opt-in robustness features to address these (all backward
-compatible):
+existing exporter had two concrete limitations: gzip compression was not exposed in Flink
+configuration, and all data points went out in a single gRPC call without pagination. Flink 2.3
+adds two opt-in robustness features to address these (all backward compatible):
 
 - `metrics.reporter.otel.exporter.compression` — `gzip` or `none` (default).
 - `metrics.reporter.otel.batch.size` — split a single export into multiple gRPC calls; default
   `0` (disabled).
-- `metrics.reporter.otel.transform.attribute-value-length-limits.<attribute_name>` — per-attribute
-  truncation; `*` applies a global default.
 
 ### Documentation
 
