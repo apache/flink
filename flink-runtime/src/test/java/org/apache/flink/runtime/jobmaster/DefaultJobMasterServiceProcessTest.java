@@ -268,6 +268,34 @@ class DefaultJobMasterServiceProcessTest {
                                         == JobStatus.FINISHED);
     }
 
+    @Test
+    void testTerminalResultPublishedDuringCloseWinsOverJobNotFinished() {
+        final CompletableFuture<JobMasterService> jobMasterServiceFuture =
+                new CompletableFuture<>();
+        DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
+        final CompletableFuture<Void> serviceTerminationFuture = new CompletableFuture<>();
+        jobMasterServiceFuture.complete(
+                new TestingJobMasterService("localhost", serviceTerminationFuture, null));
+
+        final CompletableFuture<Void> processTerminationFuture = serviceProcess.closeAsync();
+
+        assertThat(serviceProcess.getResultFuture()).isNotDone();
+
+        serviceProcess.jobReachedGloballyTerminalState(
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder().setState(JobStatus.FAILED).build()));
+
+        serviceTerminationFuture.complete(null);
+        processTerminationFuture.join();
+
+        assertThat(serviceProcess.getResultFuture())
+                .isCompletedWithValueMatching(JobManagerRunnerResult::isSuccess)
+                .isCompletedWithValueMatching(
+                        r ->
+                                r.getExecutionGraphInfo().getArchivedExecutionGraph().getState()
+                                        == JobStatus.FAILED);
+    }
+
     private DefaultJobMasterServiceProcess createTestInstance(
             CompletableFuture<JobMasterService> jobMasterServiceFuture) {
 
