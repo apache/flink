@@ -163,7 +163,6 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 
 ### Other
 
-- `flink-models` — AI model integration (sub-modules: `flink-model-openai`, `flink-model-triton`)
 - `flink-python` — PyFlink (Python API)
 - `flink-runtime-web` — Web UI for JobManager dashboard
 - `flink-external-resources` — External resource management (e.g., GPU)
@@ -333,7 +332,6 @@ This section maps common types of Flink changes to the modules they touch and th
 ## References
 
 - [README.md](README.md) — Build instructions and project overview
-- [DEVELOPMENT.md](DEVELOPMENT.md) — IDE setup and development environment
 - [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) — Contribution process
 - [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) — PR checklist
 - [Code Style Guide](https://flink.apache.org/how-to-contribute/code-style-and-quality-preamble/) — Detailed coding guidelines
