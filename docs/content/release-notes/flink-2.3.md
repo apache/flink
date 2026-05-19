@@ -113,6 +113,17 @@ with the DataStream API:
 - **`ORDER BY` on table arguments**: `MyPtf(input => TABLE t PARTITION BY k ORDER BY ts)` lets a
   PTF receive partitioned rows in deterministic temporal order.
 
+#### Fix for MiniBatchGroupAggFunction silently dropping records
+
+##### [FLINK-35661](https://issues.apache.org/jira/browse/FLINK-35661)
+
+When mini-batch aggregation is enabled and the planner falls back to a `ONE_PHASE` aggregation
+strategy (for example, because a UDAF does not implement `merge`), `MiniBatchGroupAggFunction`
+could silently drop records and produce incorrect aggregation results. The bug occurred when a
+key's bundle contained only retraction messages with no existing state for that key — the
+function would `return` from `finishBundle` instead of skipping the key, dropping all remaining
+keys in the bundle. Flink 2.3 fixes this so the remaining keys are processed correctly.
+
 ### Connectors
 
 #### Flink Native S3 FileSystem
@@ -185,6 +196,30 @@ and `jobType` fields so the UI can render adaptive-scheduler-specific informatio
 
 See the [Elastic Scaling documentation](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/deployment/elastic_scaling/)
 for details.
+
+#### Watermark alignment improvements for backlog processing
+
+##### [FLINK-37399](https://issues.apache.org/jira/browse/FLINK-37399)
+
+Prior to Flink 2.3, watermark alignment due to the announcement delays was inadvertently
+limiting how quickly a job could process a backlog. For example with max allowed drift
+configured to 30s and watermark alignment updated every ~1s, prior to Flink 2.3 watermark
+alignment was de facto capping the backlog processing speed to:
+
+> 30 "event time" seconds per each 1 "real world" second
+
+In Flink 2.3 the watermark alignment was redesigned to solve those announcement delays by an
+introduction of the watermark alignment buffer. By default this buffer has size of 3 and it
+delays the application of the watermark alignment algorithm by 3 update intervals. This means
+in Flink 2.3+ by default watermark alignment will be pausing sources a couple of seconds later
+than it used to, potentially slightly increasing state size of windowed and temporal operators.
+However this should be negligible for all practical use cases. Nevertheless, size of this
+buffer can be configured using:
+
+- `pipeline.watermark-alignment.buffer-size`
+
+Setting its value to zero restores the old behaviour from Flink 2.2. For more information
+please refer to the documentation of this config option.
 
 #### Checkpointing during recovery
 
