@@ -32,6 +32,7 @@ import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -467,6 +468,27 @@ class DataStructureConvertersTest {
         }
     }
 
+    @Test
+    void testStringEnumConverterRejectsInvalidEnumName() {
+        final DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(STRING().bridgedTo(ConverterEnum.class));
+
+        assertThatThrownBy(() -> converter.toExternal(StringData.fromString("INVALID")))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Unsupported enum value: INVALID for enum class ConverterEnum.");
+    }
+
+    @Test
+    void testStringEnumConverterUsesEnumName() {
+        final DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(STRING().bridgedTo(CustomStringEnum.class));
+
+        assertThat(converter.toInternal(CustomStringEnum.FIRST))
+                .isEqualTo(StringData.fromString("FIRST"));
+        assertThat(converter.toExternal(StringData.fromString("FIRST")))
+                .isEqualTo(CustomStringEnum.FIRST);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test utilities
     // --------------------------------------------------------------------------------------------
@@ -601,6 +623,15 @@ class DataStructureConvertersTest {
     private enum ConverterEnum {
         FIRST,
         SECOND
+    }
+
+    private enum CustomStringEnum {
+        FIRST {
+            @Override
+            public String toString() {
+                return "first";
+            }
+        }
     }
 
     // --------------------------------------------------------------------------------------------

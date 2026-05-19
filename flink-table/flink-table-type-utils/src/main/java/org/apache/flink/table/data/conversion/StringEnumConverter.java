@@ -47,7 +47,17 @@ public class StringEnumConverter implements DataStructureConverter<StringData, E
 
     @Override
     public Enum toExternal(StringData internal) {
-        return Enum.valueOf(enumClass, internal.toString());
+        try {
+            return Enum.valueOf(enumClass, internal.toString());
+        } catch (IllegalArgumentException e) {
+            throw new UnsupportedOperationException(
+                    "Unsupported enum value: "
+                            + internal
+                            + " for enum class "
+                            + enumClass.getSimpleName()
+                            + ".",
+                    e);
+        }
     }
 
     public static StringEnumConverter create(DataType dataType) {
