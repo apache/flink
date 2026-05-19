@@ -37,7 +37,8 @@ final class BuiltInCondition implements TraitCondition {
     enum Kind {
         HAS_PARTITION_BY,
         ARG_IS_EQUAL_TO,
-        NOT
+        NOT,
+        MAP_ARG_INCLUDES_KEY
     }
 
     private final Kind kind;

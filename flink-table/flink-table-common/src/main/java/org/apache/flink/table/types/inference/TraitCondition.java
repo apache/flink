@@ -20,7 +20,9 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
@@ -67,5 +69,31 @@ public interface TraitCondition {
     static TraitCondition not(final TraitCondition condition) {
         return new BuiltInCondition(
                 BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
+    }
+
+    /**
+     * True when the named {@code MAP<STRING, STRING>} scalar argument has a key that, after
+     * splitting on comma and trimming each part, equals {@code key}. Returns true when the argument
+     * is omitted, on the assumption that an absent argument means the function falls back to a
+     * default that includes all keys.
+     */
+    @SuppressWarnings("rawtypes")
+    static TraitCondition mapArgIncludesKey(final String argName, final String key) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.MAP_ARG_INCLUDES_KEY,
+                List.of(argName, key),
+                ctx ->
+                        ctx.getScalarArgument(argName, Map.class)
+                                .map(map -> mapKeysContain(map, key))
+                                .orElse(true));
+    }
+
+    /** True when any key in {@code map}, split on comma and trimmed, equals {@code expected}. */
+    private static boolean mapKeysContain(final Map<?, ?> map, final String expected) {
+        return map.keySet().stream()
+                .map(String.class::cast)
+                .flatMap(k -> Arrays.stream(k.split(",")))
+                .map(String::trim)
+                .anyMatch(expected::equals);
     }
 }
