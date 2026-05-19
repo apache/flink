@@ -481,7 +481,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec())
                 .containsExactly(Map.entry("ds1", "1"), Map.entry("ds2", "2"));
     }
@@ -495,7 +495,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec()).isEmpty();
     }
 
@@ -524,6 +524,32 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
+    void testAlterMaterializedTableSet() {
+        final String sql =
+                "ALTER MATERIALIZED TABLE base_mtbl SET ('format' = 'json2', 'k1' = 'v1', 'k2' = 'v2', 'k2' = 'newV2')";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+
+        AlterMaterializedTableChangeOperation op =
+                (AlterMaterializedTableChangeOperation) operation;
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableChanges())
+                .containsExactlyInAnyOrder(
+                        TableChange.set("format", "json2"),
+                        TableChange.set("k1", "v1"),
+                        TableChange.set("k2", "newV2"));
+        assertThat(op.getNewTable().getOptions())
+                .containsOnly(
+                        Map.entry("connector", "filesystem"),
+                        Map.entry("format", "json2"),
+                        Map.entry("k1", "v1"),
+                        Map.entry("k2", "newV2"));
+        assertThat(op.asSummaryString())
+                .startsWith("ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n")
+                .contains("  SET 'format' = 'json2'", "  SET 'k1' = 'v1'", "  SET 'k2' = 'newV2'");
+    }
+
+    @Test
     void testAlterMaterializedTableReset() {
         final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('format', 'unknown_key')";
         Operation operation = parse(sql);
@@ -531,7 +557,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableChangeOperation op =
                 (AlterMaterializedTableChangeOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
         assertThat(op.getTableChanges())
                 .containsExactlyInAnyOrder(
                         TableChange.reset("format"), TableChange.reset("unknown_key"));
@@ -679,6 +705,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         list.addAll(alterModifyWithInvalidSchema());
         list.addAll(alterQuery());
         list.addAll(alterDrop());
+        list.addAll(alterSet());
         list.addAll(alterReset());
         return list;
     }
@@ -1020,6 +1047,19 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
                                 + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
+    }
+
+    private static Collection<TestSpec> alterSet() {
+        return List.of(
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl SET ()",
+                        "ALTER MATERIALIZED TABLE SET does not support empty options."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE unknown_mtbl SET ('format' = 'json2')",
+                        "Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE t3 SET ('format' = 'json2')",
+                        "ALTER MATERIALIZED TABLE for a table is not allowed"));
     }
 
     private static Collection<TestSpec> alterReset() {
