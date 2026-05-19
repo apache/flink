@@ -254,7 +254,7 @@ class HybridSourceReaderTest {
         assertAndClearSourceReaderFinishedEvent(readerContext, -1);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
 
-        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, Integer.MAX_VALUE);
 
         SwitchedSources switchedSources = new SwitchedSources();
         switchedSources.put(0, source);
@@ -292,7 +292,7 @@ class HybridSourceReaderTest {
         assertAndClearSourceReaderFinishedEvent(readerContext, -1);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
 
-        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, Integer.MAX_VALUE);
         SwitchedSources switchedSources = new SwitchedSources();
         switchedSources.put(0, source);
         HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
@@ -323,7 +323,7 @@ class HybridSourceReaderTest {
         assertAndClearSourceReaderFinishedEvent(readerContext, -1);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
 
-        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, Integer.MAX_VALUE);
         SwitchedSources switchedSources = new SwitchedSources();
         switchedSources.put(0, source);
         HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
