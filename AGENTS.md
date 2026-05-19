@@ -23,7 +23,7 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 
 ## Prerequisites
 
-- Java 11, 17 (default), or 21. Java 11 syntax must be used in all modules. Java 17 syntax (records, sealed classes, pattern matching) is only permitted in the `flink-tests-java17` module.
+- Java 8 (default, deprecated), 11 (recommended), or 17 (experimental). Java 8 syntax must be used in all modules. Java 17 syntax (records, sealed classes, pattern matching) is only permitted in the `flink-tests-java17` module.
 - Maven 3.8.6 (Maven wrapper `./mvnw` included; prefer it)
 - Git
 - Unix-like environment (Linux, macOS, WSL, Cygwin)
@@ -153,7 +153,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 
 - `flink-metrics/`
   - `flink-metrics-core` — Metrics API and core implementation
-  - Reporter implementations: `flink-metrics-jmx`, `flink-metrics-prometheus`, `flink-metrics-datadog`, `flink-metrics-statsd`, `flink-metrics-graphite`, `flink-metrics-influxdb`, `flink-metrics-slf4j`, `flink-metrics-dropwizard`, `flink-metrics-otel`
+  - Reporter implementations: `flink-metrics-jmx`, `flink-metrics-prometheus`, `flink-metrics-datadog`, `flink-metrics-statsd`, `flink-metrics-graphite`, `flink-metrics-influxdb`, `flink-metrics-slf4j`, `flink-metrics-dropwizard`
 
 ### Libraries
 
@@ -163,7 +163,6 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 
 ### Other
 
-- `flink-models` — AI model integration (sub-modules: `flink-model-openai`, `flink-model-triton`)
 - `flink-python` — PyFlink (Python API)
 - `flink-runtime-web` — Web UI for JobManager dashboard
 - `flink-external-resources` — External resource management (e.g., GPU)
@@ -333,7 +332,6 @@ This section maps common types of Flink changes to the modules they touch and th
 ## References
 
 - [README.md](README.md) — Build instructions and project overview
-- [DEVELOPMENT.md](DEVELOPMENT.md) — IDE setup and development environment
 - [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) — Contribution process
 - [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) — PR checklist
 - [Code Style Guide](https://flink.apache.org/how-to-contribute/code-style-and-quality-preamble/) — Detailed coding guidelines
