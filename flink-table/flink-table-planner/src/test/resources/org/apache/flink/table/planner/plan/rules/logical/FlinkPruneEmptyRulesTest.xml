@@ -152,13 +152,7 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalMinus(all=[false])
-:- LogicalMinus(all=[false])
-:  :- LogicalValues(tuples=[[]])
-:  +- LogicalProject(EXPR$0=[20], EXPR$1=[2])
-:     +- LogicalValues(tuples=[[{ 20, 2 }]])
-+- LogicalProject(EXPR$0=[40], EXPR$1=[4])
-   +- LogicalValues(tuples=[[{ 40, 4 }]])
+LogicalValues(tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -194,14 +188,10 @@ LogicalMinus(all=[false])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalMinus(all=[false])
-:  :- LogicalMinus(all=[false])
-:  :  :- LogicalProject(x=[30], y=[3])
-:  :  :  +- LogicalValues(tuples=[[{ 30, 3 }]])
-:  :  +- LogicalValues(tuples=[[]])
-:  +- LogicalProject(EXPR$0=[40], EXPR$1=[4])
-:     +- LogicalValues(tuples=[[{ 40, 4 }]])
-+- LogicalValues(tuples=[[]])
+:- LogicalProject(x=[$0], y=[$1])
+:  +- LogicalValues(tuples=[[{ 30, 3 }]])
++- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+   +- LogicalValues(tuples=[[{ 40, 4 }]])
 ]]>
     </Resource>
   </TestCase>
@@ -225,10 +215,9 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalMinus(all=[false])
-:- LogicalProject(X=[30], Y=[3])
-:  +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
-+- LogicalValues(tuples=[[]])
+LogicalAggregate(group=[{0, 1}])
++- LogicalProject(X=[$0], Y=[$1])
+   +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
 ]]>
     </Resource>
   </TestCase>

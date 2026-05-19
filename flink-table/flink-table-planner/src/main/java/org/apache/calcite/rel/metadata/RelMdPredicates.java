@@ -18,9 +18,6 @@ package org.apache.calcite.rel.metadata;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Range;
-import com.google.common.collect.RangeSet;
-import com.google.common.collect.TreeRangeSet;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPredicateList;
@@ -62,7 +59,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.BitSets;
 import org.apache.calcite.util.Bug;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.Sarg;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.MappingType;
@@ -126,7 +122,9 @@ import static java.util.Objects.requireNonNull;
  *
  * The class contains CALCITE-6599 fix from 1.39.0, should be dropped after upgrade to that version
  *
- * <p>Lines 183 ~ 219
+ * <p>Lines 181 ~ 217
+ *
+ * <p>Lines 560 ~ 562 disable CALCITE-6044 optimization
  */
 public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicates> {
     public static final RelMetadataProvider SOURCE =
@@ -559,54 +557,9 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
      * null)} are {@code 'y = 2'} and {@code 'z is null'}.
      */
     public RelOptPredicateList getPredicates(Values values, RelMetadataQuery mq) {
-        ImmutableList<ImmutableList<RexLiteral>> tuples = values.tuples;
-        if (!tuples.isEmpty()) {
-            List<RexLiteral> firstTuple = tuples.get(0);
-            List<HashSet<RexLiteral>> valueList = new ArrayList<>();
-            for (int i = 0; i < firstTuple.size(); i++) {
-                valueList.add(i, new HashSet<>());
-            }
-            for (int i = 0; i < tuples.size(); i++) {
-                List<RexLiteral> tuple = tuples.get(i);
-                for (int j = 0; j < tuple.size(); j++) {
-                    RexLiteral rexLiteral = tuple.get(j);
-                    valueList.get(j).add(rexLiteral);
-                }
-            }
-            RexBuilder rexBuilder = values.getCluster().getRexBuilder();
-            List<RexNode> predicates = new ArrayList<>();
-            for (int i = 0; i < valueList.size(); i++) {
-                HashSet<RexLiteral> rexLiteralSet = valueList.get(i);
-                if (rexLiteralSet.size() == 1) {
-                    for (RexLiteral rexLiteral : rexLiteralSet) {
-                        predicates.add(i, eqConstant(values, rexBuilder, i, rexLiteral));
-                    }
-                } else {
-                    RexUnknownAs rexUnknownAs = RexUnknownAs.UNKNOWN;
-                    RangeSet<Comparable> rangeSet = TreeRangeSet.create();
-                    for (RexLiteral rexLiteral : rexLiteralSet) {
-                        if (RexUtil.isNull(rexLiteral)) {
-                            rexUnknownAs = RexUnknownAs.TRUE;
-                            continue;
-                        }
-                        rangeSet.add(
-                                Range.singleton(
-                                        requireNonNull(rexLiteral.getValueAs(Comparable.class))));
-                    }
-                    final Sarg sarg = Sarg.of(rexUnknownAs, rangeSet);
-                    predicates.add(
-                            i,
-                            rexBuilder.makeCall(
-                                    SqlStdOperatorTable.SEARCH,
-                                    rexBuilder.makeInputRef(values, i),
-                                    rexBuilder.makeSearchArgumentLiteral(
-                                            sarg,
-                                            values.getRowType().getFieldList().get(i).getType())));
-                }
-            }
-            return RelOptPredicateList.of(rexBuilder, predicates);
-        }
+        // FLINK MODIFICATION BEGIN
         return RelOptPredicateList.EMPTY;
+        // FLINK MODIFICATION END
     }
 
     // CHECKSTYLE: IGNORE 1
