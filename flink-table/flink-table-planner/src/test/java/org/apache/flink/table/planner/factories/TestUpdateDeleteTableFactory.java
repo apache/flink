@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsTruncate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -157,10 +158,29 @@ public class TestUpdateDeleteTableFactory
     private static final AtomicInteger idCounter = new AtomicInteger(0);
     private static final Map<String, Collection<RowData>> registeredRowData = new HashMap<>();
 
+    private static final Map<ObjectIdentifier, Optional<int[][]>> capturedUpdateTargetColumns =
+            new HashMap<>();
+
+    private static final Map<ObjectIdentifier, int[][]> capturedAppliedTargetColumns =
+            new HashMap<>();
+
     public static String registerRowData(Collection<RowData> data) {
         String id = String.valueOf(idCounter.incrementAndGet());
         registeredRowData.put(id, data);
         return id;
+    }
+
+    public static Optional<int[][]> getCapturedUpdateTargetColumns(ObjectIdentifier id) {
+        return capturedUpdateTargetColumns.get(id);
+    }
+
+    public static int[][] getCapturedAppliedTargetColumns(ObjectIdentifier id) {
+        return capturedAppliedTargetColumns.get(id);
+    }
+
+    public static void clearCapturedTargetColumns(ObjectIdentifier id) {
+        capturedUpdateTargetColumns.remove(id);
+        capturedAppliedTargetColumns.remove(id);
     }
 
     @Override
@@ -324,7 +344,7 @@ public class TestUpdateDeleteTableFactory
 
     /** A sink that supports row-level update. */
     private static class SupportsRowLevelUpdateSink
-            implements DynamicTableSink, SupportsRowLevelUpdate {
+            implements DynamicTableSink, SupportsRowLevelUpdate, SupportsTargetColumnWriting {
 
         protected final ObjectIdentifier tableIdentifier;
         protected final ResolvedCatalogTable resolvedCatalogTable;
@@ -377,6 +397,7 @@ public class TestUpdateDeleteTableFactory
 
         @Override
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+            capturedUpdateTargetColumns.put(tableIdentifier, context.getTargetColumns());
             return new DataStreamSinkProvider() {
 
                 @Override
@@ -416,6 +437,12 @@ public class TestUpdateDeleteTableFactory
         @Override
         public String asSummaryString() {
             return "SupportsRowLevelUpdateSink";
+        }
+
+        @Override
+        public boolean applyTargetColumns(int[][] targetColumns) {
+            capturedAppliedTargetColumns.put(tableIdentifier, targetColumns);
+            return false;
         }
 
         @Override

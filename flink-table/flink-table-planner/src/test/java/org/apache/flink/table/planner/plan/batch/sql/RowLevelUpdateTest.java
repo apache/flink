@@ -144,7 +144,7 @@ class RowLevelUpdateTest extends TableTestBase {
     }
 
     @TestTemplate
-    void testUpdateWithRequiredColumnsExcludingUpdatedColumns() {
+    void testUpdateColumnDisjointFromRequired() {
         util.tableEnv()
                 .executeSql(
                         String.format(
