@@ -123,8 +123,9 @@ public final class FromChangelogTypeStrategy {
         if (!isPartitioned(ctx::getTableSemantics)) {
             return false;
         }
-        return ctx.getArgumentValue(ARG_OP_MAPPING, Map.class).stream()
-                .anyMatch(FromChangelogTypeStrategy::describesUpsert);
+        return ctx.getArgumentValue(ARG_OP_MAPPING, Map.class)
+                .map(FromChangelogTypeStrategy::describesUpsert)
+                .orElse(false);
     }
 
     /**
