@@ -2275,6 +2275,110 @@ void testScalarOnly() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
+#### Testing with State
+
+The harness supports structured types, `ListView`, and `MapView`:
+
+{{< tabs "state-testing" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<name STRING, count BIGINT>")
+public class CounterPTF extends ProcessTableFunction<Row> {
+  public static class CountState {
+    public long count = 0L;
+  }
+
+  public void eval(
+    @StateHint CountState state,
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+    state.count++;
+    String name = input.getFieldAs("name");
+    collect(Row.of(name, state.count));
+  }
+}
+
+@Test
+void testWithState() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+    .withPartitionBy("input", "name")
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 10));
+    harness.processElement(Row.of("Alice", 20));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output.get(0)).isEqualTo(Row.of("Alice", 1L));
+    assertThat(output.get(1)).isEqualTo(Row.of("Alice", 2L));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Initial State Setup**: Use `.withInitialStateArgument()` to pre-populate state before processing:
+
+{{< tabs "initial-state" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testWithInitialState() throws Exception {
+  CounterPTF.CountState initialState = new CounterPTF.CountState();
+  initialState.count = 100L;
+
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+    .withPartitionBy("input", "name")
+    .withInitialStateArgument("state", Row.of("Alice"), initialState)
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 10));
+
+    List<Row> output = harness.getOutput();
+    assertThat(output).containsExactly(Row.of("Alice", 101L));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**State Introspection**: Use `getStateForKey()`, `getStateKeys()`, and `getAllState()` to inspect state during tests:
+
+{{< tabs "state-introspection" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testStateIntrospection() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+    .withPartitionBy("input", "name")
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 10));
+    harness.processElement(Row.of("Bob", 20));
+
+    // Check specific partition state
+    CounterPTF.CountState aliceState =
+      harness.getStateForKey("state", Row.of("Alice"));
+    assertThat(aliceState.count).isEqualTo(1L);
+
+    // Get all partition keys with state
+    Set<Row> keys = harness.getStateKeys("state");
+    assertThat(keys).containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"));
+
+    // Get all state across partitions
+    Map<Row, CounterPTF.CountState> allState =
+      harness.getAllState("state");
+    assertThat(allState.get(Row.of("Bob")).count).isEqualTo(1L);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### Configuring Table Argument Types
 
 In contexts where the harness can't infer the table argument types for table arguments (when using unannotated `Row` inputs,
@@ -2348,8 +2452,8 @@ void testPOJO() throws Exception {
 
 ### PTF Features Unsupported by the TestHarness
 
-- `Context` paramter
-- State (`@StateHint`)
+- `Context` parameter
 - Timers (`onTimer`)
 - `on_time` / `rowtime`
 - Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
+- State TTL (state is supported but TTL expiration is not yet implemented)
