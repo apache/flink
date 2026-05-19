@@ -156,10 +156,7 @@ To generate an upsert table, two requirements must be met:
 * **Key partitioning**: use `PARTITION BY <key>`, where the partition key corresponds to the unique/primary key of the dataset.
 * **Op mapping configuration**: the `op_mapping` must include `UPDATE_AFTER` and must NOT include `UPDATE_BEFORE`.
 
-The engine assumes that the keys provided in the `PARTITION BY` clause function as the unique upsert keys. The resulting output changelog becomes an upsert table keyed on these partition columns. Each incoming row is evaluated and produces `INSERT`, `UPDATE_AFTER`, or `DELETE` events, using the partition key as the explicit upsert key. Therefore, if the incoming changelog contains unique keys (such as a primary key), they **must** be used in the `PARTITION BY` clause.
-
-<span class="label label-danger">Note</span>
-- An `op_mapping` that produces `UPDATE_AFTER` without `UPDATE_BEFORE` describes an upsert changelog and requires a key. `PARTITION BY` must be present on the table argument; otherwise the call would produce key-less updates and is rejected at validation time with a `ValidationException`.
+An `op_mapping` that produces `UPDATE_AFTER` without `UPDATE_BEFORE` describes an upsert changelog and requires a key. The engine assumes that the keys provided in the `PARTITION BY` clause function as the unique upsert keys. The resulting output changelog becomes an upsert table keyed on these partition columns. Each incoming row is evaluated and produces `INSERT`, `UPDATE_AFTER`, or `DELETE` events, using the partition key as the explicit upsert key. Therefore, if the incoming changelog contains unique keys (such as a primary key), they **must** be used in the `PARTITION BY` clause.
 
 ```sql
 -- Upsert input: INSERT / UPDATE_AFTER / DELETE only

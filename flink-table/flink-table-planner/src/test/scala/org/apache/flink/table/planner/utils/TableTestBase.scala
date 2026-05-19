@@ -618,31 +618,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST and the optimized rel plan for the given SELECT query. The rendered optimized
-   * rel plan includes the `upsertKeys=[...]` term for rel nodes that derive upsert keys.
-   */
-  def verifyRelPlanWithUpsertKey(query: String, extraDetails: ExplainDetail*): Unit = {
-    val table = getTableEnv.sqlQuery(query)
-    val relNode = TableTestUtil.toRelNode(table)
-    assertPlanEquals(
-      Array(relNode),
-      extraDetails.toArray,
-      withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => assertEqualsOrExpand("sql", query),
-      withQueryBlockAlias = false,
-      withUpsertKey = true
-    )
-  }
-
-  /** Java-friendly overload that accepts a list of [[ExplainDetail]]s. */
-  def verifyRelPlanWithUpsertKey(
-      query: String,
-      extraDetails: java.util.List[ExplainDetail]): Unit = {
-    verifyRelPlanWithUpsertKey(query, extraDetails.asScala: _*)
-  }
-
-  /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan for the given INSERT
    * statement.
    */
@@ -1073,6 +1048,22 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
       withQueryBlockAlias: Boolean): Unit = {
+    doVerifyPlan(
+      query,
+      extraDetails,
+      withRowType,
+      expectedPlans,
+      withQueryBlockAlias,
+      withUpsertKey = false)
+  }
+
+  def doVerifyPlan(
+      query: String,
+      extraDetails: Array[ExplainDetail],
+      withRowType: Boolean,
+      expectedPlans: Array[PlanKind],
+      withQueryBlockAlias: Boolean,
+      withUpsertKey: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(query)
     val relNode = TableTestUtil.toRelNode(table)
 
@@ -1082,7 +1073,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType,
       expectedPlans,
       () => assertEqualsOrExpand("sql", query),
-      withQueryBlockAlias)
+      withQueryBlockAlias,
+      withUpsertKey = withUpsertKey)
   }
 
   /**

@@ -233,7 +233,7 @@ public interface PartitionedTable {
      *       or no updates at all. The output possibly emits {@code INSERT}, {@code UPDATE_BEFORE},
      *       {@code UPDATE_AFTER}, and {@code DELETE}.
      *   <li><b>Upsert</b>: the {@code op_mapping} maps {@code UPDATE_AFTER} without {@code
-     *       UPDATE_BEFORE}. The output emits {@code INSERT}, {@code UPDATE_AFTER}, and full {@code
+     *       UPDATE_BEFORE}. The output emits {@code INSERT}, {@code UPDATE_AFTER}, and {@code
      *       DELETE}, keyed on the partition columns. An upsert mapping without {@code PARTITION BY}
      *       is rejected at validation time, since upsert mode requires a key.
      * </ul>

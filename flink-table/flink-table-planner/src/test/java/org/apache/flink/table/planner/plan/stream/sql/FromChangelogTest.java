@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -28,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+
+import scala.Enumeration;
 
 /**
  * Plan tests for the FROM_CHANGELOG built-in process table function. Uses {@link
@@ -81,13 +84,17 @@ public class FromChangelogTest extends TableTestBase {
                                 + "  op STRING,"
                                 + "  name STRING"
                                 + ") WITH ('connector' = 'values')");
-        util.verifyRelPlanWithUpsertKey(
+        util.doVerifyPlan(
                 "SELECT * FROM FROM_CHANGELOG("
                         + "input => TABLE cdc_stream PARTITION BY id, "
                         + "op_mapping => MAP["
                         + "'INSERT', 'INSERT', "
                         + "'UPDATE_AFTER', 'UPDATE_AFTER', "
                         + "'DELETE', 'DELETE'])",
-                CHANGELOG_MODE);
+                new ExplainDetail[] {ExplainDetail.CHANGELOG_MODE},
+                false,
+                new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_REL()},
+                false,
+                true);
     }
 }
