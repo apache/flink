@@ -481,7 +481,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec())
                 .containsExactly(Map.entry("ds1", "1"), Map.entry("ds2", "2"));
     }
@@ -495,7 +495,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec()).isEmpty();
     }
 
@@ -532,7 +532,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableChangeOperation op =
                 (AlterMaterializedTableChangeOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
         assertThat(op.getTableChanges())
                 .containsExactlyInAnyOrder(
                         TableChange.set("format", "json2"),
@@ -557,7 +557,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableChangeOperation op =
                 (AlterMaterializedTableChangeOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
         assertThat(op.getTableChanges())
                 .containsExactlyInAnyOrder(
                         TableChange.reset("format"), TableChange.reset("unknown_key"));
