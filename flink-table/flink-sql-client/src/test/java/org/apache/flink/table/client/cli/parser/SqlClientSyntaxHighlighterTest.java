@@ -79,16 +79,25 @@ class SqlClientSyntaxHighlighterTest {
     }
 
     @Test
-    void ignoresNullConfigurationRefreshes() {
+    void keepsExistingConfigurationWhenStatementRefreshReturnsNull() {
         TestingExecutor executor = new TestingExecutor();
         executor.setColorSchema(DARK);
 
         SqlClientSyntaxHighlighter highlighter = new SqlClientSyntaxHighlighter(executor);
+        SqlMultiLineParser parser =
+                new SqlMultiLineParser(
+                        new SqlCommandParserImpl(),
+                        executor,
+                        CliClient.ExecutionMode.INTERACTIVE_EXECUTION,
+                        highlighter::updateSessionConfig);
 
-        highlighter.updateSessionConfig(null);
+        executor.returnNullSessionConfigAfterExecute();
 
+        parser.parse(SET_COLOR_SCHEMA, SET_COLOR_SCHEMA.length(), Parser.ParseContext.ACCEPT_LINE);
+
+        assertThat(executor.executedStatement).isEqualTo(SET_COLOR_SCHEMA);
         assertHighlightedAs(highlighter, DARK);
-        assertThat(executor.getSessionConfigCalls).isEqualTo(1);
+        assertThat(executor.getSessionConfigCalls).isEqualTo(3);
     }
 
     private static void assertHighlightedAs(
@@ -105,6 +114,8 @@ class SqlClientSyntaxHighlighterTest {
         private final Configuration configuration = new Configuration();
         private int getSessionConfigCalls;
         private SyntaxHighlightStyle.BuiltInStyle colorSchemaAfterExecute;
+        private boolean returnNullSessionConfigAfterExecute;
+        private boolean returnNullSessionConfig;
         private String executedStatement;
 
         private void setColorSchema(SyntaxHighlightStyle.BuiltInStyle style) {
@@ -115,12 +126,19 @@ class SqlClientSyntaxHighlighterTest {
             colorSchemaAfterExecute = style;
         }
 
+        private void returnNullSessionConfigAfterExecute() {
+            returnNullSessionConfigAfterExecute = true;
+        }
+
         @Override
         public void configureSession(String statement) {}
 
         @Override
         public ReadableConfig getSessionConfig() {
             getSessionConfigCalls++;
+            if (returnNullSessionConfig) {
+                return null;
+            }
             return Configuration.fromMap(configuration.toMap());
         }
 
@@ -134,6 +152,9 @@ class SqlClientSyntaxHighlighterTest {
             executedStatement = statement;
             if (colorSchemaAfterExecute != null) {
                 setColorSchema(colorSchemaAfterExecute);
+            }
+            if (returnNullSessionConfigAfterExecute) {
+                returnNullSessionConfig = true;
             }
             return new StatementResult(
                     ResolvedSchema.of(),
