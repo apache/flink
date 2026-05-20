@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext;
+import org.apache.flink.table.functions.ChangelogModeStrategy;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -36,9 +39,11 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /** Type strategies for the {@code FROM_CHANGELOG} process table function. */
@@ -94,6 +99,57 @@ public final class FromChangelogTypeStrategy {
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
+
+    // --------------------------------------------------------------------------------------------
+    // Changelog mode inference
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Emits an upsert changelog when the input is partitioned (set semantics) and the resolved
+     * {@code op_mapping} maps to {@code UPDATE_AFTER} without {@code UPDATE_BEFORE}. In all other
+     * cases the output is a retract changelog. When upsert mode is selected, the partition key acts
+     * as the upsert key.
+     */
+    public static final ChangelogModeStrategy CHANGELOG_MODE_STRATEGY =
+            ctx -> isUpsertConfig(ctx) ? ChangelogMode.upsert(false) : ChangelogMode.all();
+
+    /**
+     * Returns {@code true} when the FROM_CHANGELOG call should emit an upsert changelog: the input
+     * table is partitioned AND the resolved {@code op_mapping} contains {@code UPDATE_AFTER}
+     * without {@code UPDATE_BEFORE}. Falls back to {@code false} when the mapping is absent or
+     * cannot be resolved as a literal. The default mapping maps to a retract table.
+     */
+    private static boolean isUpsertConfig(final ChangelogContext ctx) {
+        if (!isPartitioned(ctx::getTableSemantics)) {
+            return false;
+        }
+        return ctx.getArgumentValue(ARG_OP_MAPPING, Map.class)
+                .map(FromChangelogTypeStrategy::describesUpsert)
+                .orElse(false);
+    }
+
+    /**
+     * Returns {@code true} if the mapping maps {@code UPDATE_AFTER} without {@code UPDATE_BEFORE},
+     * i.e. it describes an upsert changelog.
+     */
+    private static boolean describesUpsert(final Map<String, String> mapping) {
+        return mappingContains(mapping, UPDATE_AFTER) && !mappingContains(mapping, UPDATE_BEFORE);
+    }
+
+    private static boolean mappingContains(
+            final Map<String, String> mapping, final String rowKindName) {
+        return mapping.values().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(v -> rowKindName.equals(v.trim()));
+    }
+
+    private static boolean isPartitioned(
+            final IntFunction<Optional<TableSemantics>> tableSemantics) {
+        return tableSemantics
+                .apply(ARG_TABLE)
+                .map(ts -> ts.partitionByColumns().length > 0)
+                .orElse(false);
+    }
 
     // --------------------------------------------------------------------------------------------
     // Helpers
@@ -200,17 +256,17 @@ public final class FromChangelogTypeStrategy {
             if (validationError.isPresent()) {
                 return validationError;
             }
-
-            final boolean hasUpdateBefore =
-                    mapping.values().stream().anyMatch(v -> UPDATE_BEFORE.equals(v.trim()));
-            final boolean hasUpdateAfter =
-                    mapping.values().stream().anyMatch(v -> UPDATE_AFTER.equals(v.trim()));
-            if (hasUpdateAfter && !hasUpdateBefore) {
+            // A mapping that produces UPDATE_AFTER without UPDATE_BEFORE describes an upsert
+            // changelog. Upsert mode requires a key, so PARTITION BY must be present on the
+            // table argument; otherwise the call would produce key-less updates.
+            if (describesUpsert(mapping) && !isPartitioned(callContext::getTableSemantics)) {
                 return callContext.fail(
                         throwOnFailure,
-                        "The 'op_mapping' must include UPDATE_BEFORE for retract mode. "
-                                + "Upsert mode (without UPDATE_BEFORE) is not supported "
-                                + "in this version.");
+                        "An 'op_mapping' that produces UPDATE_AFTER without UPDATE_BEFORE "
+                                + "describes an upsert changelog and requires a key. Add "
+                                + "PARTITION BY to the input table to define the upsert key, "
+                                + "or include UPDATE_BEFORE in the mapping for retract "
+                                + "semantics.");
             }
         }
         return Optional.empty();

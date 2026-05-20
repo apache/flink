@@ -226,6 +226,18 @@ public interface PartitionedTable {
      * <p>For row semantics (each row processed independently), use {@link Table#fromChangelog} on
      * the unpartitioned table.
      *
+     * <p>Output changelog mode:
+     *
+     * <ul>
+     *   <li><b>Retract</b> (default): the active {@code op_mapping} includes {@code UPDATE_BEFORE}
+     *       or no updates at all. The output possibly emits {@code INSERT}, {@code UPDATE_BEFORE},
+     *       {@code UPDATE_AFTER}, and {@code DELETE}.
+     *   <li><b>Upsert</b>: the {@code op_mapping} maps {@code UPDATE_AFTER} without {@code
+     *       UPDATE_BEFORE}. The output emits {@code INSERT}, {@code UPDATE_AFTER}, and {@code
+     *       DELETE}, keyed on the partition columns. An upsert mapping without {@code PARTITION BY}
+     *       is rejected at validation time, since upsert mode requires a key.
+     * </ul>
+     *
      * <p>Examples:
      *
      * <pre>{@code

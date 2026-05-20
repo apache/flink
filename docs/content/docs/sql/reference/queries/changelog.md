@@ -149,6 +149,41 @@ Prefer row semantics, when possible. `PARTITION BY` is only necessary when downs
 
 If you are producing an upsert table — that is, you are emitting `UPDATE_AFTER` but no `UPDATE_BEFORE` from your CDC input stream — the partition key you select here will be considered both the primary key and the upsert key by the engine. Make sure the `PARTITION BY` key matches your primary key exactly.
 
+#### Upsert table
+
+To generate an upsert table, two requirements must be met:
+
+* **Key partitioning**: use `PARTITION BY <key>`, where the partition key corresponds to the unique/primary key of the dataset.
+* **Op mapping configuration**: the `op_mapping` must include `UPDATE_AFTER` and must NOT include `UPDATE_BEFORE`.
+
+An `op_mapping` that produces `UPDATE_AFTER` without `UPDATE_BEFORE` describes an upsert changelog and requires a key. The engine assumes that the keys provided in the `PARTITION BY` clause function as the unique upsert keys. The resulting output changelog becomes an upsert table keyed on these partition columns. Each incoming row is evaluated and produces `INSERT`, `UPDATE_AFTER`, or `DELETE` events, using the partition key as the explicit upsert key. Therefore, if the incoming changelog contains unique keys (such as a primary key), they **must** be used in the `PARTITION BY` clause.
+
+```sql
+-- Upsert input: INSERT / UPDATE_AFTER / DELETE only
+-- +I[id:1, op:'INSERT',       name:'Alice']
+-- +I[id:2, op:'INSERT',       name:'Bob']
+-- +I[id:1, op:'UPDATE_AFTER', name:'Alice2']
+-- +I[id:2, op:'DELETE',       name:'Bob']
+
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream PARTITION BY id,
+  op_mapping => MAP[
+    'INSERT',       'INSERT',
+    'UPDATE_AFTER', 'UPDATE_AFTER',
+    'DELETE',       'DELETE']
+)
+
+-- Output (upsert changelog, upsert key = id):
+-- +I[id:1, name:'Alice']
+-- +I[id:2, name:'Bob']
+-- +U[id:1, name:'Alice2']
+-- -D[id:2, name:'Bob']
+```
+
+The `FROM_CHANGELOG` PTF assumes events arrive in order. If the source itself does not guarantee ordering for events sharing the same `PARTITION BY` key, use [`ORDER BY`]({{< ref "docs/dev/table/functions/ptfs" >}}#ordering) to reorder them.
+
+By default, without `PARTITION BY`, or when the active `op_mapping` includes `UPDATE_BEFORE`, the output remains a retract changelog.
+
 #### Ordering CDC events with ORDER BY
 
 CDC streams can deliver events out of order. For example, a key's `UPDATE_AFTER` may arrive before its matching `UPDATE_BEFORE` when events are partitioned across upstream brokers. If the source itself does not guarantee ordering, applying such a changelog directly produces incorrect state.

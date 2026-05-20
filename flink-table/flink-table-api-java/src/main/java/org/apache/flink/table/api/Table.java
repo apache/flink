@@ -1489,6 +1489,11 @@ public interface Table extends Explainable<Table>, Executable {
      *     .fromChangelog();
      * }</pre>
      *
+     * <p>The output is a retract changelog. To emit an upsert changelog instead, combine {@code
+     * PARTITION BY} with an {@code op_mapping} that maps to {@code UPDATE_AFTER} without {@code
+     * UPDATE_BEFORE}. The partition key becomes the upsert key. See {@link
+     * PartitionedTable#fromChangelog(Expression...)} for details.
+     *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
