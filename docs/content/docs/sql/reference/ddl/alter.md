@@ -663,11 +663,19 @@ ALTER MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
 
 Set one or more properties in the specified model. If a particular property is already set in the model, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- The empty option list `SET ()` is rejected with a validation error.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set model properties
 ALTER MODEL MyModel SET ('model-version'='2.0', 'batch-size'='32');
+
+-- duplicate keys: the last value wins. After this statement, 'batch-size' is '64'.
+ALTER MODEL MyModel SET ('batch-size'='32', 'batch-size'='64');
 ```
 
 **IF EXISTS**
@@ -678,11 +686,20 @@ If the model does not exist, nothing happens.
 
 Reset one or more properties to its default value in the specified model.
 
+**Key handling:**
+- Keys that are not currently set on the model are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset model properties
 ALTER MODEL MyModel RESET ('model-version', 'batch-size');
+
+-- 'unknown-key' is not currently set on the model: this is a no-op for that key,
+-- 'model-version' is still reset and the statement succeeds.
+ALTER MODEL MyModel RESET ('model-version', 'unknown-key');
 ```
 
 ### RENAME TO

@@ -668,22 +668,39 @@ ALTER MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
 
 为指定的模型设置一个或多个属性。若个别属性已经存在，则使用新值覆盖旧值。
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- The empty option list `SET ()` is rejected with a validation error.
+
 `SET` 语句示例如下。
 
 ```sql
 -- 设置模型的属性
 ALTER MODEL MyModel SET ('model-type'='linear', 'version'='2.0');
+
+-- duplicate keys: the last value wins. After this statement, 'version' is '2.0'.
+ALTER MODEL MyModel SET ('version'='1.0', 'version'='2.0');
 ```
 
 ### RESET
 
 为指定的模型重置一个或多个属性。
 
+**Key handling:**
+- Keys that are not currently set on the model are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+
 `RESET` 语句示例如下。
 
 ```sql
 -- 重置模型的属性
 ALTER MODEL MyModel RESET ('model-type', 'version');
+
+-- 'unknown-key' is not currently set on the model: this is a no-op for that key,
+-- 'model-type' is still reset and the statement succeeds.
+ALTER MODEL MyModel RESET ('model-type', 'unknown-key');
 ```
 
 ### RENAME TO
