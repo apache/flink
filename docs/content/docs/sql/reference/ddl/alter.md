@@ -601,22 +601,40 @@ ALTER CATALOG catalog_name
 
 Set one or more properties in the specified catalog. If a particular property is already set in the catalog, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set 'default-database'
 ALTER CATALOG cat2 SET ('default-database'='db');
+
+-- duplicate keys: the last value wins. After this statement, 'default-database' is 'db2'.
+ALTER CATALOG cat2 SET ('default-database'='db', 'default-database'='db2');
 ```
 
 ### RESET
 
 Reset one or more properties to its default value in the specified catalog.
 
+**Key handling:**
+- Keys that are not currently set on the catalog are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `type` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset 'default-database'
 ALTER CATALOG cat2 RESET ('default-database');
+
+-- 'unknown-key' is not currently set on the catalog: this is a no-op for that key,
+-- 'default-database' is still reset and the statement succeeds.
+ALTER CATALOG cat2 RESET ('default-database', 'unknown-key');
 ```
 
 ### COMMENT
