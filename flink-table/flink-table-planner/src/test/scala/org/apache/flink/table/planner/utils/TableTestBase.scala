@@ -1073,8 +1073,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType,
       expectedPlans,
       () => assertEqualsOrExpand("sql", query),
-      withQueryBlockAlias,
-      withUpsertKey = withUpsertKey)
+      withQueryBlockAlias = withQueryBlockAlias,
+      withUpsertKey = withUpsertKey
+    )
   }
 
   /**
