@@ -30,6 +30,8 @@ import org.apache.calcite.plan.volcano.AbstractConverter
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.RelDistribution.Type._
 
+import scala.collection.JavaConverters._
+
 /** Rule which converts an [[AbstractConverter]] to a RelNode which satisfies the target traits. */
 class FlinkExpandConversionRule(flinkConvention: Convention)
   extends RelOptRule(
@@ -67,6 +69,9 @@ class FlinkExpandConversionRule(flinkConvention: Convention)
     if (definedTraitDefs.contains(RelCollationTraitDef.INSTANCE)) {
       val toCollation = requiredTraits.getTrait(RelCollationTraitDef.INSTANCE)
       transformedNode = satisfyCollation(flinkConvention, transformedNode, toCollation)
+    }
+    if (transformedNode == null) {
+      return
     }
     checkSatisfyRequiredTrait(transformedNode, requiredTraits)
     call.transformTo(transformedNode)
@@ -151,6 +156,12 @@ object FlinkExpandConversionRule {
       requiredCollation: RelCollation): RelNode = {
     val fromCollation = node.getTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     if (!fromCollation.satisfies(requiredCollation)) {
+      val fieldCount = node.getRowType.getFieldCount
+      val isValidCollation =
+        requiredCollation.getFieldCollations.asScala.forall(_.getFieldIndex < fieldCount)
+      if (!isValidCollation) {
+        return null
+      }
       val traitSet = node.getTraitSet.replace(requiredCollation).replace(flinkConvention)
       val sortCollation = RelCollationTraitDef.INSTANCE.canonize(requiredCollation)
       flinkConvention match {
