@@ -47,6 +47,12 @@ public interface TraitContext {
     <T> Optional<T> getScalarArgument(String name, Class<T> clazz);
 
     /**
+     * Whether the named scalar argument was provided by the caller. Returns false when the argument
+     * was omitted, or when an argument with the given name is not declared by the function.
+     */
+    boolean hasScalarArgument(String name);
+
+    /**
      * Builds a {@link TraitContext} from validation-time inputs.
      *
      * <p>Used by {@code SystemTypeInference} when wrapping a function's strategies. Planner-side
@@ -75,6 +81,17 @@ public interface TraitContext {
                     }
                 }
                 return Optional.empty();
+            }
+
+            @Override
+            public boolean hasScalarArgument(final String name) {
+                for (int i = 0; i < staticArgs.size(); i++) {
+                    final StaticArgument arg = staticArgs.get(i);
+                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
+                        return !callContext.isArgumentNull(i);
+                    }
+                }
+                return false;
             }
         };
     }

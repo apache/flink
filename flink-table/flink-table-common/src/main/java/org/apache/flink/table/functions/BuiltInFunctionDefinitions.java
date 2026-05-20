@@ -823,12 +823,20 @@ public final class BuiltInFunctionDefinitions {
                                             TraitCondition.hasPartitionBy())
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
-                                            TraitCondition.mapArgIncludesKey(
-                                                    "op_mapping", "UPDATE_BEFORE"))
+                                            TraitCondition.or(
+                                                    TraitCondition.not(
+                                                            TraitCondition.argIsPresent(
+                                                                    "op_mapping")),
+                                                    TraitCondition.mapArgIncludesKey(
+                                                            "op_mapping", "UPDATE_BEFORE")))
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE,
-                                            TraitCondition.mapArgIncludesKey(
-                                                    "op_mapping", "DELETE")),
+                                            TraitCondition.or(
+                                                    TraitCondition.not(
+                                                            TraitCondition.argIsPresent(
+                                                                    "op_mapping")),
+                                                    TraitCondition.mapArgIncludesKey(
+                                                            "op_mapping", "DELETE"))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",

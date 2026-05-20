@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
@@ -34,6 +35,9 @@ import java.util.Map;
  * <p>Implementations must implement {@code hashCode} and {@code equals} for {@link
  * StaticArgument#equals}/{@link StaticArgument#hashCode} to work correctly. The built-in factories
  * below return value-comparable instances; user-supplied lambdas do not - prefer the factories.
+ * {@link #argMatches} accepts a caller-supplied {@code Predicate} and is therefore only value-equal
+ * when the same {@code Predicate} reference is reused; build the predicate once and cache it if
+ * equality matters.
  *
  * <pre>{@code
  * import static org.apache.flink.table.types.inference.TraitCondition.*;
@@ -71,29 +75,57 @@ public interface TraitCondition {
                 BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
     }
 
-    /**
-     * True when the named {@code MAP<STRING, STRING>} scalar argument has a key that, after
-     * splitting on comma and trimming each part, equals {@code key}. Returns true when the argument
-     * is omitted, on the assumption that an absent argument means the function falls back to a
-     * default that includes all keys.
-     */
-    @SuppressWarnings("rawtypes")
-    static TraitCondition mapArgIncludesKey(final String argName, final String key) {
+    /** True when either {@code left} or {@code right} evaluates to true. */
+    static TraitCondition or(final TraitCondition left, final TraitCondition right) {
         return new BuiltInCondition(
-                BuiltInCondition.Kind.MAP_ARG_INCLUDES_KEY,
-                List.of(argName, key),
-                ctx ->
-                        ctx.getScalarArgument(argName, Map.class)
-                                .map(map -> mapKeysContain(map, key))
-                                .orElse(true));
+                BuiltInCondition.Kind.OR,
+                List.of(left, right),
+                ctx -> left.test(ctx) || right.test(ctx));
     }
 
-    /** True when any key in {@code map}, split on comma and trimmed, equals {@code expected}. */
-    private static boolean mapKeysContain(final Map<?, ?> map, final String expected) {
+    /** True when the named scalar argument was provided by the caller. */
+    static TraitCondition argIsPresent(final String argName) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.ARG_IS_PRESENT,
+                List.of(argName),
+                ctx -> ctx.hasScalarArgument(argName));
+    }
+
+    /**
+     * True when the named scalar argument is present and its value matches {@code predicate}. False
+     * when the argument is absent or cannot be resolved as a literal of {@code argClass}.
+     *
+     * <p>Use this for ad-hoc conditions on scalar literals. Prefer the named factories above when
+     * one fits.
+     */
+    static <X> TraitCondition argMatches(
+            final String argName, final Class<X> argClass, final Predicate<X> predicate) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.ARG_MATCHES,
+                List.of(argName, argClass, predicate),
+                ctx -> ctx.getScalarArgument(argName, argClass).stream().anyMatch(predicate));
+    }
+
+    /**
+     * True when the named {@code MAP<STRING, STRING>} scalar argument is present and contains
+     * {@code key} among its keys. False when the argument is absent or cannot be resolved as a
+     * literal {@link Map}.
+     *
+     * <p>Also matches compound keys: if a key contains commas (e.g. {@code "INSERT,UPDATE_AFTER"}),
+     * each comma-separated part is trimmed and compared against {@code key} - useful for mappings
+     * where one entry covers multiple kinds.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    static TraitCondition mapArgIncludesKey(final String argName, final String key) {
+        return argMatches(
+                argName, Map.class, map -> mapKeysContain((Map<String, String>) map, key));
+    }
+
+    /** True when any key in {@code map}, split on comma and trimmed, equals {@code key}. */
+    private static boolean mapKeysContain(final Map<String, String> map, final String key) {
         return map.keySet().stream()
-                .map(String.class::cast)
                 .flatMap(k -> Arrays.stream(k.split(",")))
                 .map(String::trim)
-                .anyMatch(expected::equals);
+                .anyMatch(key::equals);
     }
 }

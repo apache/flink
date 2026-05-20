@@ -315,6 +315,17 @@ public class BridgingSqlFunction extends SqlFunction {
                 }
                 return Optional.empty();
             }
+
+            @Override
+            public boolean hasScalarArgument(String name) {
+                for (int i = 0; i < declared.size(); i++) {
+                    final StaticArgument arg = declared.get(i);
+                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
+                        return !callContext.isArgumentNull(i);
+                    }
+                }
+                return false;
+            }
         };
     }
 
