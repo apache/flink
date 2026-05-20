@@ -39,10 +39,8 @@ import org.apache.flink.types.RowKind;
 import javax.annotation.Nullable;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
@@ -133,10 +131,8 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         if (inputMode == null) {
             return;
         }
-        final Set<RowKind> unsupported =
-                mapping.keySet().stream()
-                        .filter(kind -> !inputMode.contains(kind))
-                        .collect(Collectors.toCollection(TreeSet::new));
+        final List<RowKind> unsupported =
+                mapping.keySet().stream().filter(kind -> !inputMode.contains(kind)).toList();
         if (!unsupported.isEmpty()) {
             throw new ValidationException(
                     String.format(

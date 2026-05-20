@@ -381,13 +381,6 @@ When `PARTITION BY` is provided, **the output schema changes**. The partition ke
 
 Prefer row semantics, when possible. `PARTITION BY` is only necessary when downstream operators are keyed on that column and you want to co-locate rows for the same key in the same parallel operator instance.
 
-#### Avoiding ChangelogNormalize for upsert sources
-
-When the input is an upsert source (emits `UPDATE_AFTER` but no `UPDATE_BEFORE`), the planner inserts a `ChangelogNormalize` operator by default to materialize `UPDATE_BEFORE` rows and complete `DELETE` payloads. This operator is stateful and can be expensive. When `PARTITION BY` is provided, the planner skips `ChangelogNormalize` if `op_mapping` does not emit the corresponding kinds:
-
-* Omit `UPDATE_BEFORE` from `op_mapping` to skip `UPDATE_BEFORE` materialization.
-* If the source emits partial `DELETE` events (only the keys flow through, common with Flink's `upsert-kafka` connector or other key-compacted topics), it's necessary to omit `DELETE` from `op_mapping` to skip the full-`DELETE` materialization step that also happens in `ChangelogNormalize`.
-
 #### Table API
 
 ```java

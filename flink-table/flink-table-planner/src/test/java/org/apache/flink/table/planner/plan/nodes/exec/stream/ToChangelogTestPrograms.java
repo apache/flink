@@ -215,6 +215,37 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])")
                     .build();
 
+    public static final TableTestProgram UPSERT_PARTITION_BY_KEY_ONLY_DELETES =
+            TableTestProgram.of(
+                            "to-changelog-upsert-partition-by-key-only-deletes",
+                            "PARTITION BY upsert key + mapping without UB/DELETE handles key-only deletes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert(true))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            // Key-only delete: source only knows the key.
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "op STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, U, 10]",
+                                            "+I[Bob, U, 20]",
+                                            "+I[Alice, U, 30]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "op => DESCRIPTOR(op), "
+                                    + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'U'])")
+                    .build();
+
     public static final TableTestProgram CUSTOM_OP_MAPPING =
             TableTestProgram.of(
                             "to-changelog-custom-op-mapping",
