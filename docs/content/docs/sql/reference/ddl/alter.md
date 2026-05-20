@@ -489,22 +489,40 @@ ALTER TABLE MyTable RENAME TO MyTable2;
 
 Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set 'rows-per-second'
 ALTER TABLE DataGenSource SET ('rows-per-second' = '10');
+
+-- duplicate keys: the last value wins. After this statement, 'rows-per-second' is '20'.
+ALTER TABLE DataGenSource SET ('rows-per-second' = '10', 'rows-per-second' = '20');
 ```
 
 ### RESET
 
 Reset one or more properties to its default value.
 
+**Key handling:**
+- Keys that are not currently set on the table are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `connector` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset 'rows-per-second' to the default value
 ALTER TABLE DataGenSource RESET ('rows-per-second');
+
+-- 'invalid-key' is not currently set on the table: this is a no-op for that key,
+-- 'rows-per-second' is still reset and the statement succeeds.
+ALTER TABLE DataGenSource RESET ('rows-per-second', 'invalid-key');
 ```
 
 {{< top >}}
