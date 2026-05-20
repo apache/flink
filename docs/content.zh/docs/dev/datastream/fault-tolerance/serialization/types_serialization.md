@@ -85,6 +85,9 @@ Java classes are treated by Flink as a special POJO data type if they fulfill th
 
 - The type of a field must be supported by a registered serializer.
 
+[Java records](https://docs.oracle.com/en/java/javase/17/language/records.html) are also recognized as POJO types since Flink 1.19 ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380)).
+A `public` record class is serialized by `PojoSerializer` through its canonical constructor; the no-argument constructor and getter/setter requirements above do not apply.
+
 POJOs are generally represented with a `PojoTypeInfo` and serialized with the `PojoSerializer` (using [Kryo](https://github.com/EsotericSoftware/kryo) as configurable fallback).
 The exception is when the POJOs are actually Avro types (Avro Specific Records) or produced as "Avro Reflect Types". 
 In that case the POJO's are represented by an `AvroTypeInfo` and serialized with the `AvroSerializer`.
@@ -308,6 +311,10 @@ conditions are fulfilled:
 * All non-static, non-transient fields in the class (and all superclasses) are either public (and non-final)
   or have a public getter- and a setter- method that follows the Java beans
   naming conventions for getters and setters.
+
+Java records are also recognized as POJO types.
+The class must still be `public`, but the no-argument constructor and getter/setter rules above are waived.
+Java records are instantiated via their canonical constructor.
 
 Note that when a user-defined data type can't be recognized as a POJO type, it must be processed as GenericType and
 serialized with Kryo.
