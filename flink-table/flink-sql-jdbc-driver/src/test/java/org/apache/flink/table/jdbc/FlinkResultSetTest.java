@@ -45,6 +45,7 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -108,6 +109,67 @@ public class FlinkResultSetTest {
                         new StatementResult(
                                 SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             validateResultData(resultSet);
+        }
+    }
+
+    @Test
+    public void testWasNullReflectsPerColumnNullness() throws Exception {
+        Map<StringData, MapData> map = new HashMap<>();
+        Map<Integer, Long> valueMap = new HashMap<>();
+        valueMap.put(1, 1L);
+        map.put(StringData.fromString("1"), new GenericMapData(valueMap));
+        RowData mixedRow =
+                GenericRowData.of(
+                        true,
+                        null,
+                        (short) 2,
+                        null,
+                        4L,
+                        null,
+                        6.0d,
+                        null,
+                        StringData.fromString("v"),
+                        null,
+                        new GenericMapData(map));
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(mixedRow).iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
+            assertTrue(resultSet.next());
+
+            assertTrue(resultSet.getBoolean(1));
+            assertFalse(resultSet.wasNull());
+            resultSet.getByte(2);
+            assertTrue(resultSet.wasNull());
+            assertEquals((short) 2, resultSet.getShort(3));
+            assertFalse(resultSet.wasNull());
+            resultSet.getInt(4);
+            assertTrue(resultSet.wasNull());
+            assertEquals(4L, resultSet.getLong(5));
+            assertFalse(resultSet.wasNull());
+            resultSet.getFloat(6);
+            assertTrue(resultSet.wasNull());
+            assertEquals(6.0d, resultSet.getDouble(7));
+            assertFalse(resultSet.wasNull());
+            assertNull(resultSet.getBigDecimal(8));
+            assertTrue(resultSet.wasNull());
+            assertEquals("v", resultSet.getString(9));
+            assertFalse(resultSet.wasNull());
+            assertNull(resultSet.getBytes(10));
+            assertTrue(resultSet.wasNull());
+            assertNotNull(resultSet.getObject(11));
+            assertFalse(resultSet.wasNull());
+
+            assertNull(resultSet.getString(2));
+            assertTrue(resultSet.wasNull());
+            assertNull(resultSet.getObject(4));
+            assertTrue(resultSet.wasNull());
+            assertEquals(4L, resultSet.getLong(5));
+            assertFalse(resultSet.wasNull());
         }
     }
 
