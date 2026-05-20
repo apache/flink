@@ -554,6 +554,21 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 
 Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
+The following examples illustrate the usage of the `SET` statements.
+
+```sql
+-- set a database property
+ALTER DATABASE my_db SET ('k1' = 'v1');
+
+-- duplicate keys: the last value wins. After this statement, 'k1' is 'v2'.
+ALTER DATABASE my_db SET ('k1' = 'v1', 'k1' = 'v2');
+```
+
 {{< top >}}
 
 ## ALTER FUNCTION
