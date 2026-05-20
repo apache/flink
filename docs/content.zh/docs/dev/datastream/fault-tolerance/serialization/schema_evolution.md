@@ -85,6 +85,8 @@ Flink 基于下面的规则来支持 [POJO 类型]({{< ref "docs/dev/datastream/
  3. 不可以修改字段的声明类型。
  4. 不可以改变 POJO 类型的类名，包括类的命名空间。
 
+上述规则同样适用于 [Java records]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos)，自 Flink 1.19 起 records 被作为 POJO 类型处理。
+
 需要注意，只有从 1.8.0 及以上版本的 Flink 生产的 savepoint 进行恢复时，POJO 类型的状态才可以进行升级。
 对 1.8.0 版本之前的 Flink 是没有办法进行 POJO 类型升级的。
 
