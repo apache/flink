@@ -45,6 +45,7 @@ Out of the box, Flink bundles these state backends:
 
  - *HashMapStateBackend*
  - *EmbeddedRocksDBStateBackend*
+ - *ForStStateBackend*
 
 If nothing else is configured, the system will use the HashMapStateBackend.
 
