@@ -1,6 +1,0 @@
-AVG(SS_QUANTITY) AVG(SS_EXT_SALES_PRICE) AVG(SS_EXT_WHOLESALE_COST) SUM(SS_EXT_WHOLESALE_COST)
----------------- ----------------------- -------------------------- --------------------------
-              31              2551.86333                 2365.94333                   14195.66
-
-
-
