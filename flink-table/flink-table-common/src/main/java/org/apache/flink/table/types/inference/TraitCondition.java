@@ -73,7 +73,10 @@ public interface TraitCondition {
                 BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
     }
 
-    /** True when either {@code left} or {@code right} evaluates to true. */
+    /**
+     * True when either the {@code left} or the {@code right} {@link TraitCondition} evaluates to
+     * true.
+     */
     static TraitCondition or(final TraitCondition left, final TraitCondition right) {
         return new BuiltInCondition(
                 BuiltInCondition.Kind.OR,
@@ -91,14 +94,14 @@ public interface TraitCondition {
 
     /**
      * True when the named scalar argument is present and its value matches {@code predicate}. False
-     * when the argument is absent, cannot be resolved as a literal of {@code argClass},
-     * or {@code predicate} evaluates to `false`.
+     * when the argument is absent, cannot be resolved as a literal of {@code argClass}, or {@code
+     * predicate} evaluates to {@code false}.
      *
      * <p>Use this for ad-hoc conditions on scalar literals. Prefer the named factories above when
      * one fits.
      */
-    static <X> TraitCondition argMatches(
-            final String argName, final Class<X> argClass, final Predicate<X> predicate) {
+    static <T> TraitCondition argMatches(
+            final String argName, final Class<T> argClass, final Predicate<T> predicate) {
         return new BuiltInCondition(
                 BuiltInCondition.Kind.ARG_MATCHES,
                 List.of(argName, argClass, predicate),

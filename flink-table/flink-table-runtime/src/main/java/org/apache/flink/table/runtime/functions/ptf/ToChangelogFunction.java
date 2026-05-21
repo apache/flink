@@ -81,9 +81,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
         if (opMapping != null) {
-            // Only user-supplied mappings are validated. The default mapping covers all kinds by
-            // design and is harmless for insert-only or upsert inputs.
-            validateAgainstInputChangelogMode(this.rawOpMap, tableSemantics);
+            validateOpMap(this.rawOpMap, tableSemantics);
         }
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
     }
@@ -117,15 +115,16 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     }
 
     /**
-     * Rejects mappings that reference change operations the input changelog cannot produce. Without
-     * this check the extra entries are dead code: the corresponding rows never arrive, so the user
-     * gets silently incorrect plans (for upsert input also a wasted {@code ChangelogNormalize}).
+     * Rejects user-provided mappings that reference change operations the input changelog cannot
+     * produce. Without this check the extra entries are dead code: the corresponding rows never
+     * arrive. E.g., if the input is INSERT-only, then UPDATE_BEFORE and DELETE mappings are
+     * ignored, which is likely a user mistake.
      *
      * <p>Lives here rather than in the input type strategy because {@link
      * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
      * specialization time, which is when this constructor runs.
      */
-    private static void validateAgainstInputChangelogMode(
+    private static void validateOpMap(
             final Map<RowKind, String> mapping, final TableSemantics tableSemantics) {
         final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
         if (inputMode == null) {

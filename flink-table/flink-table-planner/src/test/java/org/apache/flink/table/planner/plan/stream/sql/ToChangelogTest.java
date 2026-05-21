@@ -126,7 +126,7 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testUpsertPartitionByNoUpdateBeforeOrDelete() {
+    void testUpsertPartitionByNoUpdateBeforeAndDelete() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE upsert_source ("

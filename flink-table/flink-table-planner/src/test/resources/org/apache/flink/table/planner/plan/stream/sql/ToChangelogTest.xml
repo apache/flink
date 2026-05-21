@@ -94,7 +94,7 @@ ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRI
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUpsertPartitionByNoUpdateBeforeOrDelete">
+  <TestCase name="testUpsertPartitionByNoUpdateBeforeAndDelete">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id, op => DESCRIPTOR(op), op_mapping => MAP['INSERT,UPDATE_AFTER', 'C'])]]>
     </Resource>

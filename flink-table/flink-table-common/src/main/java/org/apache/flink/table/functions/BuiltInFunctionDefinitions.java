@@ -3414,8 +3414,8 @@ public final class BuiltInFunctionDefinitions {
      * comma-separated list (e.g. {@code "INSERT,UPDATE_AFTER"}) - each part is trimmed and compared
      * against {@code key}, so one entry can cover multiple change kinds.
      *
-     * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the
-     * user-provided {@code op_mapping} argument.
+     * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
+     * op_mapping} argument.
      */
     private static boolean opMappingContainsKey(
             final Map<String, String> opMapping, final String key) {
