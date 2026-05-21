@@ -225,8 +225,8 @@ public class CorrelateTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("b BIGINT")
-                                    .consumedBeforeRestore(
-                                            "+I[2]", "+I[3]", "-D[2]", "-D[3]", "+I[2]", "+I[3]")
+                                    .consumedValues("+I[2]", "+I[3]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT b FROM source_t1 "
