@@ -356,11 +356,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return Row.of();
         }
 
-        Object[] keyValues = new Object[tableArg.partitionColumnNames.length];
-        for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
-            String colName = tableArg.partitionColumnNames[i];
-            keyValues[i] = row.getField(colName);
-        }
+        Object[] keyValues =
+                Arrays.stream(tableArg.partitionColumnNames).map(row::getField).toArray();
         return Row.of(keyValues);
     }
 
@@ -1420,33 +1417,24 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         static List<StateArgumentInfo> filterStateArguments(List<ArgumentInfo> arguments) {
-            List<StateArgumentInfo> result = new ArrayList<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg instanceof StateArgumentInfo) {
-                    result.add((StateArgumentInfo) arg);
-                }
-            }
-            return result;
+            return arguments.stream()
+                    .filter(arg -> arg instanceof StateArgumentInfo)
+                    .map(arg -> (StateArgumentInfo) arg)
+                    .toList();
         }
 
         static List<TableArgumentInfo> filterTableArguments(List<ArgumentInfo> arguments) {
-            List<TableArgumentInfo> result = new ArrayList<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg instanceof TableArgumentInfo) {
-                    result.add((TableArgumentInfo) arg);
-                }
-            }
-            return result;
+            return arguments.stream()
+                    .filter(arg -> arg instanceof TableArgumentInfo)
+                    .map(arg -> (TableArgumentInfo) arg)
+                    .toList();
         }
 
         static List<ScalarArgumentInfo> filterScalarArguments(List<ArgumentInfo> arguments) {
-            List<ScalarArgumentInfo> result = new ArrayList<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg instanceof ScalarArgumentInfo) {
-                    result.add((ScalarArgumentInfo) arg);
-                }
-            }
-            return result;
+            return arguments.stream()
+                    .filter(arg -> arg instanceof ScalarArgumentInfo)
+                    .map(arg -> (ScalarArgumentInfo) arg)
+                    .toList();
         }
     }
 
