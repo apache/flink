@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogConnection;
-import org.apache.flink.table.catalog.SensitiveConnection;
+import org.apache.flink.table.factories.ConnectionFactory;
 import org.apache.flink.table.secret.ReadableSecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
 import org.apache.flink.table.secret.exceptions.SecretException;
@@ -48,10 +47,7 @@ import java.util.stream.Collectors;
  * <p>During {@link #resolveConnection}, the secret reference is used to retrieve the sensitive
  * fields from the {@link ReadableSecretStore} and merge them back into the options.
  *
- * <p>The following field names are treated as sensitive by default: {@code password}, {@code
- * secret}, {@code fs.azure.account.key}, {@code apikey}, {@code api-key}, {@code auth-params},
- * {@code service-key}, {@code token}, {@code basic-auth}, {@code jaas.config}, {@code
- * http-headers}.
+ * <p>See {@link #SENSITIVE_FIELD_NAMES} for the default whitelist of sensitive field names.
  */
 @Internal
 public class DefaultConnectionFactory implements ConnectionFactory {

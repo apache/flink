@@ -14,4 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.table.module.CoreModuleFactory
-org.apache.flink.table.factories.DefaultConnectionFactory
+org.apache.flink.table.catalog.DefaultConnectionFactory

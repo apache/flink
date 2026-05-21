@@ -39,7 +39,7 @@ import org.apache.flink.table.secret.exceptions.SecretException;
  *       {@link ReadableSecretStore} and returning a complete {@link SensitiveConnection}.
  * </ul>
  *
- * @see org.apache.flink.table.factories.DefaultConnectionFactory
+ * @see org.apache.flink.table.catalog.DefaultConnectionFactory
  */
 @PublicEvolving
 public interface ConnectionFactory extends Factory {
