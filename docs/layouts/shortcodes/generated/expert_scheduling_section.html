@@ -114,7 +114,7 @@
             <td><h5>jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
-            <td>The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.</td>
+            <td>The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint. Only failures that count against the tolerable checkpoint-failure threshold (e.g. IO errors, async failures, expirations, declines, finalization errors) advance this counter; other failures such as tasks not being fully running, coordinator shutdown, or checkpoint subsumption are ignored to avoid spurious rescales during startup or recovery.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.rescale-trigger.max-delay</h5></td>

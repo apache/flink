@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +41,7 @@ public class TestingCheckpointStatsTracker implements CheckpointStatsTracker {
                     Collections.singletonMap(new JobVertexID(), 1));
 
     @Override
-    public void reportFailedCheckpointsWithoutInProgress() {
+    public void reportFailedCheckpointsWithoutInProgress(@Nullable CheckpointFailureReason reason) {
         numFailedCheckpoints.incrementAndGet();
     }
 
