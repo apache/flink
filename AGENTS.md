@@ -130,7 +130,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 
 - `flink-filesystems/`
   - `flink-hadoop-fs` — Hadoop FileSystem abstraction
-  - `flink-s3-fs-hadoop`, `flink-s3-fs-presto`, `flink-s3-fs-base` — S3 file systems
+  - `flink-s3-fs-native`, `flink-s3-fs-hadoop`, `flink-s3-fs-presto`, `flink-s3-fs-base` — S3 file systems
   - `flink-oss-fs-hadoop` — Alibaba OSS
   - `flink-azure-fs-hadoop` — Azure Blob Storage
   - `flink-gs-fs-hadoop` — Google Cloud Storage
