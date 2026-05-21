@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
@@ -37,6 +39,7 @@ import org.apache.flink.types.RowKind;
 import javax.annotation.Nullable;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,6 +80,9 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
+        if (opMapping != null) {
+            validateOpMap(this.rawOpMap, tableSemantics);
+        }
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
     }
 
@@ -106,6 +112,34 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     }
                 });
         return result;
+    }
+
+    /**
+     * Rejects user-provided mappings that reference change operations the input changelog cannot
+     * produce. Without this check the extra entries are dead code: the corresponding rows never
+     * arrive. E.g., if the input is INSERT-only, then UPDATE_BEFORE and DELETE mappings are
+     * ignored, which is likely a user mistake.
+     *
+     * <p>Lives here rather than in the input type strategy because {@link
+     * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
+     * specialization time, which is when this constructor runs.
+     */
+    private static void validateOpMap(
+            final Map<RowKind, String> mapping, final TableSemantics tableSemantics) {
+        final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
+        if (inputMode == null) {
+            return;
+        }
+        final List<RowKind> unsupported =
+                mapping.keySet().stream().filter(kind -> !inputMode.contains(kind)).toList();
+        if (!unsupported.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid 'op_mapping' for TO_CHANGELOG: the input table only produces "
+                                    + "%s and does not produce %s. Remove those entries from the "
+                                    + "mapping.",
+                            inputMode.getContainedKinds(), unsupported));
+        }
     }
 
     public void eval(

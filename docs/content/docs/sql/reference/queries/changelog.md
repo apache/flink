@@ -372,6 +372,18 @@ SELECT * FROM TO_CHANGELOG(
 -- op_code values are 'I' and 'U' instead of full names
 ```
 
+#### Upsert stream
+
+```sql
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE upsert_source PARTITION BY id,
+  op_mapping => MAP['INSERT, UPDATE_AFTER', 'u', 'DELETE', 'd']
+)
+-- INSERT and UPDATE_AFTER produce op='u' (upsert)
+-- DELETE produces op='d'
+-- UPDATE_BEFORE is omitted
+```
+
 #### Deletion flag pattern
 
 ```sql

@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
@@ -32,6 +33,9 @@ import java.util.List;
  * <p>Implementations must implement {@code hashCode} and {@code equals} for {@link
  * StaticArgument#equals}/{@link StaticArgument#hashCode} to work correctly. The built-in factories
  * below return value-comparable instances; user-supplied lambdas do not - prefer the factories.
+ * {@link #argMatches} accepts a caller-supplied {@code Predicate} and is therefore only value-equal
+ * when the same {@code Predicate} reference is reused; build the predicate once and cache it if
+ * equality matters.
  *
  * <pre>{@code
  * import static org.apache.flink.table.types.inference.TraitCondition.*;
@@ -67,5 +71,40 @@ public interface TraitCondition {
     static TraitCondition not(final TraitCondition condition) {
         return new BuiltInCondition(
                 BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
+    }
+
+    /**
+     * True when either the {@code left} or the {@code right} {@link TraitCondition} evaluates to
+     * true.
+     */
+    static TraitCondition or(final TraitCondition left, final TraitCondition right) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.OR,
+                List.of(left, right),
+                ctx -> left.test(ctx) || right.test(ctx));
+    }
+
+    /** True when the named scalar argument was provided by the caller. */
+    static TraitCondition argIsPresent(final String argName) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.ARG_IS_PRESENT,
+                List.of(argName),
+                ctx -> ctx.hasScalarArgument(argName));
+    }
+
+    /**
+     * True when the named scalar argument is present and its value matches {@code predicate}. False
+     * when the argument is absent, cannot be resolved as a literal of {@code argClass}, or {@code
+     * predicate} evaluates to {@code false}.
+     *
+     * <p>Use this for ad-hoc conditions on scalar literals. Prefer the named factories above when
+     * one fits.
+     */
+    static <T> TraitCondition argMatches(
+            final String argName, final Class<T> argClass, final Predicate<T> predicate) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.ARG_MATCHES,
+                List.of(argName, argClass, predicate),
+                ctx -> ctx.getScalarArgument(argName, argClass).stream().anyMatch(predicate));
     }
 }
