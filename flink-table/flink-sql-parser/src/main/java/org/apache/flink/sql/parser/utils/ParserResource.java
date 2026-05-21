@@ -83,4 +83,8 @@ public interface ParserResource {
 
     @Resources.BaseMessage("DROP TEMPORARY MATERIALIZED TABLE is not supported.")
     Resources.ExInst<ParseException> dropTemporaryMaterializedTableUnsupported();
+
+    @Resources.BaseMessage(
+            "USING CONNECTION clause is not supported with CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements.")
+    Resources.ExInst<ParseException> usingConnectionWithAsUnsupported();
 }

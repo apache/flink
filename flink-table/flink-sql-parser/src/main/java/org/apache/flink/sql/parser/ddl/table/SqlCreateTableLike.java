@@ -86,6 +86,7 @@ public class SqlCreateTableLike extends SqlCreateTable {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlIdentifier connection,
             SqlTableLike tableLike,
             boolean isTemporary,
             boolean ifNotExists) {
@@ -100,6 +101,7 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 partitionKeyList,
                 watermark,
                 comment,
+                connection,
                 isTemporary,
                 ifNotExists,
                 false);
