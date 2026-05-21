@@ -54,7 +54,8 @@ public class DefaultConnectionFactory implements ConnectionFactory {
 
     /**
      * Factory identifier used to discover this factory via SPI. Also used as the fallback when a
-     * connection does not specify a {@link ConnectionFactory#CONNECTION_TYPE_KEY} option.
+     * connection does not specify a {@link
+     * org.apache.flink.table.factories.FactoryUtil#CONNECTION_TYPE} option.
      */
     public static final String IDENTIFIER = "default";
 

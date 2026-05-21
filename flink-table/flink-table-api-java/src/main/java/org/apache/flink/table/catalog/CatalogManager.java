@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -197,16 +198,14 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     /**
      * Discovers the {@link ConnectionFactory} for the given connection options via SPI, using the
-     * {@code type} option as the factory identifier (see FLIP-529). Falls back to {@link
-     * DefaultConnectionFactory} when the {@code type} option is absent or empty.
+     * {@link FactoryUtil#CONNECTION_TYPE} option as the factory identifier. Falls back to {@link
+     * DefaultConnectionFactory} via the option's default value when {@code type} is absent.
      *
      * @param options the options of the connection being created / altered / dropped
      * @return the discovered factory
      */
     private ConnectionFactory discoverConnectionFactory(Map<String, String> options) {
-        final String type = options.get(ConnectionFactory.CONNECTION_TYPE_KEY);
-        final String identifier =
-                (type == null || type.isEmpty()) ? DefaultConnectionFactory.IDENTIFIER : type;
+        final String identifier = Configuration.fromMap(options).get(FactoryUtil.CONNECTION_TYPE);
         return FactoryUtil.discoverFactory(userClassLoader, ConnectionFactory.class, identifier);
     }
 

@@ -33,6 +33,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.catalog.DefaultConnectionFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -106,6 +107,14 @@ public final class FactoryUtil {
                     .withDescription(
                             "Uniquely identifies the provider of a model that is used for model inference."
                                     + " Its value is used during model provider discovery.");
+
+    public static final ConfigOption<String> CONNECTION_TYPE =
+            ConfigOptions.key("type")
+                    .stringType()
+                    .defaultValue(DefaultConnectionFactory.IDENTIFIER)
+                    .withDescription(
+                            "Identifies the type of a connection. Its value is used during"
+                                    + " ConnectionFactory discovery.");
 
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
