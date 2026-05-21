@@ -58,7 +58,8 @@ import static org.apache.calcite.util.ReflectUtil.isStatic;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-5199: Lines 242-244
+ *   <li>Should be removed after fixing CALCITE-5199: Lines 243-245
+ *   <li>Might be a subject to reconsider after bump to Calcite 1.38.0: Lines 568-570
  * </ol>
  */
 public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
@@ -563,7 +564,10 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
                 return createSqlType(SqlTypeName.DECIMAL, 38, 0);
             case REAL:
                 return createSqlType(SqlTypeName.DECIMAL, 14, 7);
-            case FLOAT: // sic
+            case FLOAT:
+                // FLINK MODIFICATION BEGIN
+                return createSqlType(SqlTypeName.DECIMAL, 14, 7);
+            // FLINK MODIFICATION END
             case DOUBLE:
                 // the default max precision is 19, so this is actually DECIMAL(19, 15)
                 // but derived system can override the max precision/scale.
