@@ -1103,6 +1103,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 keyConverter.open(classLoader);
                 valueConverter.open(classLoader);
                 return new MapViewStateConverter(mapType, keyConverter, valueConverter);
+            } else if (logicalType instanceof RowType) {
+                RowType rowType = (RowType) logicalType;
+                DataStructureConverter<Object, Object> converter =
+                        DataStructureConverters.getConverter(stateDataType);
+                converter.open(classLoader);
+                return new RowStateConverter(converter, rowType);
             } else {
                 DataStructureConverter<Object, Object> converter =
                         DataStructureConverters.getConverter(stateDataType);

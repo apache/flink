@@ -336,6 +336,21 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** PTF with Row state - mirrors the doc example using Row as state type. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithRowState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ROW<count BIGINT>")) Row memory,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            Long newCount = 1L;
+            if (memory.getField("count") != null) {
+                newCount += memory.<Long>getFieldAs("count");
+            }
+            memory.setField("count", newCount);
+            collect(Row.of(newCount));
+        }
+    }
+
     /** PTF with both value state and ListView state. */
     @DataTypeHint("ROW<count BIGINT, sum INT>")
     public static class PTFWithMultipleStates extends ProcessTableFunction<Row> {
@@ -1265,6 +1280,26 @@ class ProcessTableFunctionTestHarnessTest {
                 harness.getStateForKey("mapState", Row.of("P1"));
         assertThat(mapState.get("foo")).isEqualTo(2);
         assertThat(mapState.get("bar")).isEqualTo(1);
+
+        harness.close();
+    }
+
+    @Test
+    void testRowState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithRowState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 1L));
+
+        harness.processElementForTable("input", Row.of("Alice", 20));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("Alice", 2L));
+
+        Row state = harness.getStateForKey("memory", Row.of("Alice"));
+        assertThat((Long) state.getFieldAs("count")).isEqualTo(2L);
 
         harness.close();
     }
