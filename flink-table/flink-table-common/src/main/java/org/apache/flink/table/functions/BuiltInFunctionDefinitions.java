@@ -839,25 +839,35 @@ public final class BuiltInFunctionDefinitions {
                                                                             "UPDATE_BEFORE"))))
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE,
-                                            TraitCondition.or(
-                                                    // op_mapping omitted: default mapping includes
-                                                    // DELETE.
-                                                    TraitCondition.not(
-                                                            TraitCondition.argIsPresent(
-                                                                    "op_mapping")),
-                                                    TraitCondition.argMatches(
-                                                            "op_mapping",
-                                                            Map.class,
-                                                            mapping ->
-                                                                    opMappingContainsKey(
-                                                                            (Map<String, String>)
-                                                                                    mapping,
-                                                                            "DELETE")))),
+                                            // Require full deletes only when the user explicitly
+                                            // asks for them via produces_full_deletes=TRUE *and*
+                                            // the active op_mapping includes DELETE. Otherwise the
+                                            // planner can skip ChangelogNormalize for upsert
+                                            // sources that emit key-only deletes.
+                                            TraitCondition.and(
+                                                    TraitCondition.argIsEqualTo(
+                                                            "produces_full_deletes", Boolean.TRUE),
+                                                    TraitCondition.or(
+                                                            TraitCondition.not(
+                                                                    TraitCondition.argIsPresent(
+                                                                            "op_mapping")),
+                                                            TraitCondition.argMatches(
+                                                                    "op_mapping",
+                                                                    Map.class,
+                                                                    mapping ->
+                                                                            opMappingContainsKey(
+                                                                                    (Map<
+                                                                                                    String,
+                                                                                                    String>)
+                                                                                            mapping,
+                                                                                    "DELETE"))))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
-                                    true))
+                                    true),
+                            StaticArgument.scalar(
+                                    "produces_full_deletes", DataTypes.BOOLEAN(), true))
                     .inputTypeStrategy(TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(

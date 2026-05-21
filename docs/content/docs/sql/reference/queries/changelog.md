@@ -296,17 +296,19 @@ This is useful when you need to materialize changelog events into a downstream s
 SELECT * FROM TO_CHANGELOG(
   input => TABLE source_table [PARTITION BY key_col],
   [op => DESCRIPTOR(op_column_name),]
-  [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...]]
+  [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...],]
+  [produces_full_deletes => BOOLEAN]
 )
 ```
 
 ### Parameters
 
-| Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                              |
-|:-------------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `input`      | Yes      | The input table. With `PARTITION BY`, rows with the same key are co-located and run in the same operator instance. Without `PARTITION BY`, each row is processed independently. Accepts insert-only, retract, and upsert tables. For upsert tables, the provided `PARTITION BY` key should match or be a subset of the upsert key of the subquery.                                      |
-| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
+| Parameter               | Required | Description                                                                                                                                                                                                                                                                                                                                              |
+|:------------------------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input`                 | Yes      | The input table. With `PARTITION BY`, rows with the same key are co-located and run in the same operator instance. Without `PARTITION BY`, each row is processed independently. Accepts insert-only, retract, and upsert tables. For upsert tables, the provided `PARTITION BY` key should match or be a subset of the upsert key of the subquery.       |
+| `op`                    | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
+| `op_mapping`            | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
+| `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true`, the function requires fully-populated DELETE rows from the input. The planner inserts a `ChangelogNormalize` operator for upsert sources that emit key-only deletes, so downstream sees the full pre-image on DELETE. When `false` (default), no full-delete requirement is enforced. Partial DELETE rows from the input pass through unchanged. With `PARTITION BY` (set semantics), the function additionally nulls non-partition-key columns on DELETE rows even when the input row is fully populated, so the output always carries only the key on DELETE. |
 
 #### Default op_mapping
 
@@ -397,6 +399,42 @@ SELECT * FROM TO_CHANGELOG(
 -- UPDATE_BEFORE is dropped (not in the mapping)
 ```
 
+#### Delete handling
+
+The `produces_full_deletes` argument controls how DELETE rows are emitted and what the planner requires from the input. The behavior depends on whether `PARTITION BY` is used (set semantics) or not (row semantics).
+
+**With `produces_full_deletes => true`.** The planner requires the input to produce DELETE rows with all columns populated. For upsert sources, a `ChangelogNormalize` operator is inserted to materialize the full pre-image from state. The function then emits fully-populated DELETE rows downstream.
+
+```sql
+-- Upsert source: -D[id:5] (key-only).
+-- ChangelogNormalize materializes the full pre-image from state.
+-- Output: +I[op:'DELETE', id:5, name:'Alice']
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE upsert_source,
+  produces_full_deletes => true
+)
+```
+
+**With `produces_full_deletes => false` (default).** The planner does not require fully-populated DELETE rows on the input. For upsert sources that emit key-only deletes (e.g. Kafka compacted topics), this avoids the stateful `ChangelogNormalize` operator that would otherwise materialize the full pre-image of each deleted row.
+
+In **row semantics** (no `PARTITION BY`) the function passes the input row through unchanged. If the source emits partial DELETE rows they remain partial downstream; if it emits full DELETE rows they remain full.
+
+```sql
+-- Source emits -D[id:5] (key-only).
+-- Output: +I[op:'DELETE', id:5, name:null]
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)
+```
+
+In **set semantics** (`PARTITION BY`) the function additionally nulls every non-partition-key column on DELETE rows. This forces the output to carry only the partition key on DELETE even when the input row was fully populated, which matches the shape expected by upsert sinks and Kafka compacted topics.
+
+```sql
+-- Source emits -D[id:5, name:'Alice'] (full pre-image, e.g. from a retract source).
+-- Output: +I[id:5, op:'DELETE', name:null]
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)
+```
+
+There is no way to derive a partial DELETE in row semantics when the input emits a full pre-image, since the function has no key column to preserve. Use `PARTITION BY` for that case.
+
 #### Partitioning by a key
 
 ```sql
@@ -432,6 +470,14 @@ Table result = myTable.toChangelog(
 Table result = myTable.toChangelog(
     descriptor("deleted").asArgument("op"),
     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
+);
+
+// Require fully-populated DELETE rows from the input (inserts a ChangelogNormalize for
+// upsert sources). When false (default), no full-delete requirement is enforced; in row
+// semantics the input passes through unchanged, in set semantics non-partition-key columns
+// are nulled on DELETE.
+Table result = myTable.toChangelog(
+    lit(true).asArgument("produces_full_deletes")
 );
 
 // Set semantics: co-locate rows with the same key in the same parallel operator instance.

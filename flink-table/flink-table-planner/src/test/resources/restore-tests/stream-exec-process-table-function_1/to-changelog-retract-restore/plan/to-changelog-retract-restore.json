@@ -37,7 +37,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`op` VARCHAR(2147483647), `name` VARCHAR(2147483647) NOT NULL, `score` BIGINT>",
-    "description" : "ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,name,score], rowType=[RecordType(VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT score)])",
+    "description" : "ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,name,score], rowType=[RecordType(VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT score)])",
     "uid" : null,
     "functionCall" : {
       "kind" : "CALL",
@@ -59,6 +59,11 @@
         "syntax" : "SPECIAL",
         "internalName" : "$DEFAULT$1",
         "type" : "MAP<VARCHAR(2147483647), VARCHAR(2147483647)>"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "BOOLEAN"
       }, {
         "kind" : "CALL",
         "syntax" : "SPECIAL",

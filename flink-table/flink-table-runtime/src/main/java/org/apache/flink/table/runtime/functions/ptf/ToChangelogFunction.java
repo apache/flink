@@ -65,11 +65,13 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
 
     private final Map<RowKind, String> rawOpMap;
     private final int[] outputIndices;
+    private final boolean producesFullDelete;
 
     private transient Map<RowKind, StringData> opMap;
     private transient GenericRowData opRow;
     private transient JoinedRowData output;
     private transient ProjectedRowData projectedOutput;
+    private transient GenericRowData nullPayloadRow;
 
     @SuppressWarnings("unchecked")
     public ToChangelogFunction(final SpecializedContext context) {
@@ -84,7 +86,30 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         if (opMapping != null) {
             validateOpMap(this.rawOpMap, tableSemantics);
         }
+        final boolean producesFullDeletesArg =
+                callContext.getArgumentValue(3, Boolean.class).orElse(false);
+        validateProducesFullDeletes(producesFullDeletesArg, this.rawOpMap, tableSemantics);
+
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
+        this.producesFullDelete = resolveProducesFullDelete(producesFullDeletesArg, tableSemantics);
+    }
+
+    /**
+     * Decides whether this function emits full DELETE rows (input passed through unchanged) or
+     * partial DELETE rows (only identifying columns preserved, rest nulled).
+     *
+     * <p>The framework prepends partition-key columns to the output without consulting this
+     * function, so in set semantics partition keys are preserved on DELETE rows for free. In row
+     * semantics there is no key column to preserve, so the function passes the input through
+     * unchanged regardless of {@code produces_full_deletes}.
+     */
+    private static boolean resolveProducesFullDelete(
+            final boolean producesFullDeletesArg, final TableSemantics tableSemantics) {
+        if (producesFullDeletesArg) {
+            return true;
+        }
+        final boolean hasPartitionBy = tableSemantics.partitionByColumns().length > 0;
+        return !hasPartitionBy;
     }
 
     @Override
@@ -95,6 +120,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         opRow = new GenericRowData(1);
         output = new JoinedRowData();
         projectedOutput = ProjectedRowData.from(outputIndices);
+        nullPayloadRow = new GenericRowData(outputIndices.length);
     }
 
     /**
@@ -145,17 +171,59 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
     }
 
+    /**
+     * Rejects {@code produces_full_deletes=true} when the input changelog cannot produce DELETE
+     * rows (either the input mode does not contain DELETE, or the active {@code op_mapping} strips
+     * it). The parameter is then dead and likely a user mistake.
+     *
+     * <p>Lives here rather than in the input type strategy because {@link
+     * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
+     * specialization time, which is when this constructor runs.
+     */
+    private static void validateProducesFullDeletes(
+            final boolean producesFullDeletesArg,
+            final Map<RowKind, String> mapping,
+            final TableSemantics tableSemantics) {
+        if (!producesFullDeletesArg) {
+            return;
+        }
+        final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
+        if (inputMode == null) {
+            return;
+        }
+        if (!inputMode.contains(RowKind.DELETE)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid 'produces_full_deletes' for TO_CHANGELOG: the input table "
+                                    + "only produces %s and never emits DELETE rows. Remove the "
+                                    + "'produces_full_deletes' argument.",
+                            inputMode.getContainedKinds()));
+        }
+        if (!mapping.containsKey(RowKind.DELETE)) {
+            throw new ValidationException(
+                    "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active 'op_mapping' "
+                            + "does not map DELETE rows, so no DELETE rows are emitted. Remove "
+                            + "the 'produces_full_deletes' argument or add a DELETE entry to "
+                            + "'op_mapping'.");
+        }
+    }
+
     public void eval(
             final Context ctx,
             final RowData input,
             @Nullable final ColumnList op,
-            @Nullable final MapData opMapping) {
+            @Nullable final MapData opMapping,
+            @Nullable final Boolean producesFullDeletes) {
         final StringData opCode = opMap.get(input.getRowKind());
         if (opCode == null) {
             return;
         }
 
         opRow.setField(0, opCode);
-        collect(output.replace(opRow, projectedOutput.replaceRow(input)));
+        final RowData payload =
+                (input.getRowKind() == RowKind.DELETE && !producesFullDelete)
+                        ? nullPayloadRow
+                        : projectedOutput.replaceRow(input);
+        collect(output.replace(opRow, payload));
     }
 }
