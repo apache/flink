@@ -23,11 +23,7 @@ import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
-import java.util.List;
-
-/**
- * Converter for {@link Row}-typed state.
- */
+/** Converter for {@link Row}-typed state. */
 @Internal
 class RowStateConverter implements StateConverter {
 

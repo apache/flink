@@ -32,7 +32,11 @@ import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -164,12 +168,12 @@ class ProcessTableFunctionTestHarnessTest {
                 return false;
             }
             User user = (User) o;
-            return age == user.age && java.util.Objects.equals(name, user.name);
+            return age == user.age && Objects.equals(name, user.name);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(name, age);
+            return Objects.hash(name, age);
         }
     }
 
@@ -310,7 +314,7 @@ class ProcessTableFunctionTestHarnessTest {
             listState.add(value);
 
             // Collect all values as an array
-            java.util.List<Integer> values = new java.util.ArrayList<>();
+            List<Integer> values = new ArrayList<>();
             for (Integer v : listState.get()) {
                 values.add(v);
             }
@@ -981,7 +985,7 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify that PASS_COLUMNS_THROUGH is rejected when used with multiple table arguments
         Exception exception =
                 assertThrows(
-                        org.apache.flink.table.api.ValidationException.class,
+                        ValidationException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(
                                             InvalidPassColumnsThroughMultiTablePTF.class)
@@ -1210,7 +1214,7 @@ class ProcessTableFunctionTestHarnessTest {
         harness.processElementForTable("input", Row.of("Bob", 20));
         harness.processElementForTable("input", Row.of("Charlie", 30));
 
-        java.util.Set<Row> keys = harness.getStateKeys("state");
+        Set<Row> keys = harness.getStateKeys("state");
         assertThat(keys)
                 .containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"), Row.of("Charlie"));
 
@@ -1229,7 +1233,7 @@ class ProcessTableFunctionTestHarnessTest {
         harness.processElementForTable("input", Row.of("Alice", 15));
         harness.processElementForTable("input", Row.of("Bob", 20));
 
-        java.util.Map<Row, PTFWithPojoState.CounterState> allState = harness.getAllState("state");
+        Map<Row, PTFWithPojoState.CounterState> allState = harness.getAllState("state");
 
         assertThat(allState).hasSize(2);
         assertThat(allState.get(Row.of("Alice")).counter).isEqualTo(2L);
@@ -1252,8 +1256,7 @@ class ProcessTableFunctionTestHarnessTest {
         harness.processElementForTable("input", Row.of("A", 2));
         assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("A", new Integer[] {1, 2}));
 
-        org.apache.flink.table.api.dataview.ListView<Integer> listState =
-                harness.getStateForKey("listState", Row.of("A"));
+        ListView<Integer> listState = harness.getStateForKey("listState", Row.of("A"));
         assertThat(listState.get()).containsExactly(1, 2);
 
         harness.close();
@@ -1276,8 +1279,7 @@ class ProcessTableFunctionTestHarnessTest {
 
         harness.processElementForTable("input", Row.of("P1", "bar"));
 
-        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState =
-                harness.getStateForKey("mapState", Row.of("P1"));
+        MapView<String, Integer> mapState = harness.getStateForKey("mapState", Row.of("P1"));
         assertThat(mapState.get("foo")).isEqualTo(2);
         assertThat(mapState.get("bar")).isEqualTo(1);
 
