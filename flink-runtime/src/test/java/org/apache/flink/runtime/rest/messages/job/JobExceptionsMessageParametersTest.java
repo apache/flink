@@ -36,8 +36,7 @@ class JobExceptionsMessageParametersTest {
         parameters.jobPathParameter.resolve(jobId);
         parameters.upperLimitExceptionParameter.resolveFromString("20");
 
-        String resolvedUrl =
-                MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
+        String resolvedUrl = MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
 
         assertThat(resolvedUrl).isEqualTo("/jobs/" + jobId + "/exceptions?maxExceptions=20");
     }
@@ -49,8 +48,7 @@ class JobExceptionsMessageParametersTest {
         parameters.jobPathParameter.resolve(jobId);
         parameters.failureLabelExceptionParameter.resolveFromString("type:system");
 
-        String resolvedUrl =
-                MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
+        String resolvedUrl = MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
 
         assertThat(resolvedUrl).contains("failureLabelFilter=");
     }
@@ -61,8 +59,7 @@ class JobExceptionsMessageParametersTest {
         JobExceptionsMessageParameters parameters = new JobExceptionsMessageParameters();
         parameters.jobPathParameter.resolve(jobId);
 
-        String resolvedUrl =
-                MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
+        String resolvedUrl = MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
 
         assertThat(resolvedUrl).isEqualTo("/jobs/" + jobId + "/exceptions");
     }
