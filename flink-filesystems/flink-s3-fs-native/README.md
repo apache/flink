@@ -64,7 +64,7 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.secret-key | (none) | AWS secret key (fallback key: `s3.secret.key`) |
 | s3.region | (auto-detect) | AWS region (auto-detected via AWS_REGION, ~/.aws/config, EC2 metadata) |
 | s3.endpoint | (none) | Custom S3 endpoint (for MinIO, LocalStack, etc.) |
-| s3.path-style-access | false | Use path-style access (auto-enabled for custom endpoints; fallback key: `s3.path.style.access`) |
+| s3.path-style-access | false | Use path-style access for S3 (required by most S3-compatible servers such as MinIO; fallback key: `s3.path.style.access`) |
 | s3.chunked-encoding.enabled | true | Enable chunked encoding for S3 requests. Disable for S3-compatible servers that do not support it |
 | s3.checksum-validation.enabled | true | Enable checksum validation for S3 requests. Disable for S3-compatible servers that do not support it |
 | s3.upload.min.part.size | 5242880 | Minimum part size for multipart uploads (5MB to 5GB) |
@@ -98,7 +98,7 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| s3.sse.type | none | Encryption type: `none`, `sse-s3` (AES256), `sse-kms` (AWS KMS) |
+| s3.sse.type | none | Encryption type. Accepted values: `none`, `sse-s3` or `aes256` (S3-managed keys), `sse-kms` or `aws:kms` (KMS-managed keys). The `aes256` and `aws:kms` aliases match Hadoop S3A's `fs.s3a.server-side-encryption-algorithm` values to ease migration |
 | s3.sse.kms.key-id | (none) | KMS key ID/ARN/alias for SSE-KMS (uses default aws/s3 key if not specified) |
 | s3.sse.kms.encryption-context | (none) | Encryption context key-value pairs for SSE-KMS. Format: `key1:value1,key2:value2`. Keys/values containing `:` must be quoted. |
 
@@ -273,19 +273,23 @@ s3.assume-role.session-duration: 3600  # 1 hour
 
 ## MinIO and S3-Compatible Storage
 
-The filesystem auto-detects custom endpoints and configures appropriate settings:
+For S3-compatible servers (MinIO, LocalStack, Ceph RGW, etc.), set the endpoint plus any compatibility flags the server requires. These flags are not auto-detected from the endpoint value — the defaults target AWS S3 and must be overridden explicitly:
 
 ```yaml
 s3.access-key: minioadmin
-s3.secret-key: minioadmin  
+s3.secret-key: minioadmin
 s3.endpoint: http://localhost:9000
-s3.path-style-access: true  # Auto-enabled for custom endpoints
+
+# Required: MinIO does not support virtual-hosted-style addressing.
+s3.path-style-access: true
+
+# Required: MinIO does not support AWS chunked encoding or AWS-style
+# checksum trailers used by the SDK by default.
+s3.chunked-encoding.enabled: false
+s3.checksum-validation.enabled: false
 ```
 
-MinIO-specific optimizations are applied automatically:
-- Path-style access enabled
-- Chunked encoding disabled (compatibility)
-- Checksum validation disabled (compatibility)
+The exact subset of compatibility flags needed depends on the server and version — consult its documentation. The defaults in this filesystem (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) are tuned for AWS S3.
 
 ## Memory Optimization for Large Files
 
@@ -418,6 +422,8 @@ s3.endpoint: http://localhost:9000
 s3.access-key: minioadmin
 s3.secret-key: minioadmin
 s3.path-style-access: true
+s3.chunked-encoding.enabled: false
+s3.checksum-validation.enabled: false
 EOF
 
 $FLINK_HOME/bin/flink run YourJob.jar
