@@ -84,6 +84,17 @@ public interface TraitCondition {
                 ctx -> left.test(ctx) || right.test(ctx));
     }
 
+    /**
+     * True when both the {@code left} and the {@code right} {@link TraitCondition} evaluate to
+     * true.
+     */
+    static TraitCondition and(final TraitCondition left, final TraitCondition right) {
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.AND,
+                List.of(left, right),
+                ctx -> left.test(ctx) && right.test(ctx));
+    }
+
     /** True when the named scalar argument was provided by the caller. */
     static TraitCondition argIsPresent(final String argName) {
         return new BuiltInCondition(

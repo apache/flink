@@ -59,7 +59,7 @@ public final class ToChangelogTypeStrategy {
             new InputTypeStrategy() {
                 @Override
                 public ArgumentCount getArgumentCount() {
-                    return ConstantArgumentCount.between(1, 3);
+                    return ConstantArgumentCount.between(1, 4);
                 }
 
                 @Override
@@ -77,7 +77,12 @@ public final class ToChangelogTypeStrategy {
                             Signature.of(
                                     Argument.of("input", "TABLE"),
                                     Argument.of("op", "DESCRIPTOR"),
-                                    Argument.of("op_mapping", "MAP<STRING, STRING>")));
+                                    Argument.of("op_mapping", "MAP<STRING, STRING>")),
+                            Signature.of(
+                                    Argument.of("input", "TABLE"),
+                                    Argument.of("op", "DESCRIPTOR"),
+                                    Argument.of("op_mapping", "MAP<STRING, STRING>"),
+                                    Argument.of("produces_full_deletes", "BOOLEAN")));
                 }
             };
 
@@ -142,6 +147,13 @@ public final class ToChangelogTypeStrategy {
             if (validationError.isPresent()) {
                 return validationError;
             }
+        }
+
+        final boolean hasProducesFullDeletesArg = !callContext.isArgumentNull(3);
+        if (hasProducesFullDeletesArg && !callContext.isArgumentLiteral(3)) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "The 'produces_full_deletes' argument must be a constant BOOLEAN literal.");
         }
 
         return Optional.of(callContext.getArgumentDataTypes());

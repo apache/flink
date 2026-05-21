@@ -1459,9 +1459,17 @@ public interface Table extends Explainable<Table>, Executable {
      *     descriptor("deleted").asArgument("op"),
      *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      * );
+     *
+     * // Require fully-populated DELETE rows from the input (inserts a ChangelogNormalize for
+     * // upsert sources). When false (default), no full-delete requirement is enforced and partial
+     * // DELETE rows from the input pass through unchanged.
+     * Table result = table.toChangelog(
+     *     lit(true).asArgument("produces_full_deletes")
+     * );
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
+     *     produces_full_deletes}
      * @return an append-only {@link Table} with an {@code op} column prepended to the input columns
      */
     Table toChangelog(Expression... arguments);

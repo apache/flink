@@ -204,9 +204,17 @@ public interface PartitionedTable {
      *         descriptor("deleted").asArgument("op"),
      *         map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      *     );
+     *
+     * // Require fully-populated DELETE rows from the input (inserts a ChangelogNormalize for
+     * // upsert sources). When false (default), DELETE rows on upsert inputs may omit non-key
+     * // columns, which avoids the stateful normalization operator upstream.
+     * Table result = table
+     *     .partitionBy($("id"))
+     *     .toChangelog(lit(true).asArgument("produces_full_deletes"));
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
+     *     produces_full_deletes}
      * @return an append-only {@link Table} with output schema {@code [partition_keys, op,
      *     non_partition_input_columns]}
      * @see Table#toChangelog(Expression...)

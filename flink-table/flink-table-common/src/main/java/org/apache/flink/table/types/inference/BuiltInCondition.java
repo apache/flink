@@ -40,6 +40,7 @@ final class BuiltInCondition implements TraitCondition {
         ARG_IS_PRESENT,
         NOT,
         OR,
+        AND,
         ARG_MATCHES
     }
 

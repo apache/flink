@@ -144,4 +144,42 @@ public class ToChangelogTest extends TableTestBase {
                         + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C'])",
                 CHANGELOG_MODE);
     }
+
+    @Test
+    void testUpsertSourceProducesFullDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source, "
+                        + "produces_full_deletes => true)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertSourceKeyOnlyDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source, "
+                        + "produces_full_deletes => false)",
+                CHANGELOG_MODE);
+    }
 }

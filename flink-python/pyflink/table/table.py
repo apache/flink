@@ -1196,10 +1196,18 @@ class Table(object):
         INSERT-only row with a string ``op`` column indicating the original operation
         (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
 
+        The optional ``produces_full_deletes`` boolean controls how DELETE rows are
+        emitted. When ``True``, the planner inserts a ``ChangelogNormalize`` operator
+        for upsert sources that emit key-only deletes so the function emits fully
+        populated DELETE rows downstream. When ``False`` (default), no full-delete
+        requirement is enforced. In row semantics the input is passed through unchanged,
+        and in set semantics (``PARTITION BY``) non-partition-key columns are nulled on
+        DELETE rows.
+
         Example:
         ::
 
-            >>> from pyflink.table.expressions import descriptor, map_
+            >>> from pyflink.table.expressions import descriptor, map_, lit, col
             >>> # Default: adds 'op' column with standard change operation names
             >>> result = table.to_changelog()
             >>> # Custom op column name and mapping
@@ -1213,8 +1221,14 @@ class Table(object):
             ...     map_("INSERT, UPDATE_AFTER", "false",
             ...          "DELETE", "true").as_argument("op_mapping")
             ... )
+            >>> # Require fully populated DELETE rows from the input. Inserts a
+            >>> # ChangelogNormalize for upsert sources.
+            >>> result = table.to_changelog(
+            ...     lit(True).as_argument("produces_full_deletes")
+            ... )
 
-        :param arguments: Optional named arguments for ``op`` and ``op_mapping``.
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``produces_full_deletes``.
         :return: An append-only :class:`~pyflink.table.Table` with an ``op`` column prepended
                  to the input columns.
         """
