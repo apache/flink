@@ -60,6 +60,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -824,19 +825,35 @@ public final class BuiltInFunctionDefinitions {
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
                                             TraitCondition.or(
+                                                    // op_mapping omitted: default mapping includes
+                                                    // UPDATE_BEFORE.
                                                     TraitCondition.not(
                                                             TraitCondition.argIsPresent(
                                                                     "op_mapping")),
-                                                    TraitCondition.mapArgIncludesKey(
-                                                            "op_mapping", "UPDATE_BEFORE")))
+                                                    TraitCondition.argMatches(
+                                                            "op_mapping",
+                                                            Map.class,
+                                                            mapping ->
+                                                                    opMappingContainsKey(
+                                                                            (Map<String, String>)
+                                                                                    mapping,
+                                                                            "UPDATE_BEFORE"))))
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE,
                                             TraitCondition.or(
+                                                    // op_mapping omitted: default mapping includes
+                                                    // DELETE.
                                                     TraitCondition.not(
                                                             TraitCondition.argIsPresent(
                                                                     "op_mapping")),
-                                                    TraitCondition.mapArgIncludesKey(
-                                                            "op_mapping", "DELETE"))),
+                                                    TraitCondition.argMatches(
+                                                            "op_mapping",
+                                                            Map.class,
+                                                            mapping ->
+                                                                    opMappingContainsKey(
+                                                                            (Map<String, String>)
+                                                                                    mapping,
+                                                                            "DELETE")))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
@@ -3391,6 +3408,22 @@ public final class BuiltInFunctionDefinitions {
             new HashSet<>(Arrays.asList(PROCTIME, ROWTIME));
 
     public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
+
+    /**
+     * True when {@code key} appears among the {@code op_mapping} keys. Each map key may itself be a
+     * comma-separated list (e.g. {@code "INSERT,UPDATE_AFTER"}) - each part is trimmed and compared
+     * against {@code key}, so one entry can cover multiple change kinds.
+     *
+     * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the
+     * user-provided {@code op_mapping} argument.
+     */
+    private static boolean opMappingContainsKey(
+            final Map<String, String> opMapping, final String key) {
+        return opMapping.keySet().stream()
+                .flatMap(k -> Arrays.stream(k.split(",")))
+                .map(String::trim)
+                .anyMatch(key::equals);
+    }
 
     @Internal
     public static List<BuiltInFunctionDefinition> getDefinitions() {

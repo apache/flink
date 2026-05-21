@@ -20,9 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 
 /**
@@ -93,7 +91,8 @@ public interface TraitCondition {
 
     /**
      * True when the named scalar argument is present and its value matches {@code predicate}. False
-     * when the argument is absent or cannot be resolved as a literal of {@code argClass}.
+     * when the argument is absent, cannot be resolved as a literal of {@code argClass},
+     * or {@code predicate} evaluates to `false`.
      *
      * <p>Use this for ad-hoc conditions on scalar literals. Prefer the named factories above when
      * one fits.
@@ -104,28 +103,5 @@ public interface TraitCondition {
                 BuiltInCondition.Kind.ARG_MATCHES,
                 List.of(argName, argClass, predicate),
                 ctx -> ctx.getScalarArgument(argName, argClass).stream().anyMatch(predicate));
-    }
-
-    /**
-     * True when the named {@code MAP<STRING, STRING>} scalar argument is present and contains
-     * {@code key} among its keys. False when the argument is absent or cannot be resolved as a
-     * literal {@link Map}.
-     *
-     * <p>Also matches compound keys: if a key contains commas (e.g. {@code "INSERT,UPDATE_AFTER"}),
-     * each comma-separated part is trimmed and compared against {@code key} - useful for mappings
-     * where one entry covers multiple kinds.
-     */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    static TraitCondition mapArgIncludesKey(final String argName, final String key) {
-        return argMatches(
-                argName, Map.class, map -> mapKeysContain((Map<String, String>) map, key));
-    }
-
-    /** True when any key in {@code map}, split on comma and trimmed, equals {@code key}. */
-    private static boolean mapKeysContain(final Map<String, String> map, final String key) {
-        return map.keySet().stream()
-                .flatMap(k -> Arrays.stream(k.split(",")))
-                .map(String::trim)
-                .anyMatch(key::equals);
     }
 }
