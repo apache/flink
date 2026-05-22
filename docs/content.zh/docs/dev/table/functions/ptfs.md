@@ -2334,7 +2334,7 @@ void testWithState() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**Initial State Setup**: Use `.withInitialStateArgument()` to pre-populate state before processing.
+**Initial State Setup**: Use `.withInitialStateForKey()` to pre-populate state before processing.
 State initialization is scoped per partition key:
 
 {{< tabs "initial-state" >}}
@@ -2364,10 +2364,10 @@ void testWithInitialState() throws Exception {
     .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
     .withPartitionBy("input", "name")
     // Initial state is set per partition key
-    .withInitialStateArgument("valueState", Row.of("Alice"), initialValue)
-    .withInitialStateArgument("rowState", Row.of("Alice"), initialRow)
-    .withInitialStateArgument("listState", Row.of("Alice"), initialList)
-    .withInitialStateArgument("mapState", Row.of("Alice"), initialMap)
+    .withInitialStateForKey("valueState", Row.of("Alice"), initialValue)
+    .withInitialStateForKey("rowState", Row.of("Alice"), initialRow)
+    .withInitialStateForKey("listState", Row.of("Alice"), initialList)
+    .withInitialStateForKey("mapState", Row.of("Alice"), initialMap)
     .build()) {
 
     harness.processElement(Row.of("Alice", 10));

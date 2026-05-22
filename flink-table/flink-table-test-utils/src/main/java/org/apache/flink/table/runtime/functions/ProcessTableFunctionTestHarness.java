@@ -615,7 +615,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /** Sets initial state for a state parameter. */
-        public Builder<OUT> withInitialStateArgument(
+        public Builder<OUT> withInitialStateForKey(
                 String stateName, Row partitionKey, Object state) {
             checkNotNull(stateName, "stateName must not be null");
             checkNotNull(partitionKey, "partitionKey must not be null");

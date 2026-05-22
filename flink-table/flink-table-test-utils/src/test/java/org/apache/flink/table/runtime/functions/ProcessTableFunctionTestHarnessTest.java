@@ -1187,7 +1187,7 @@ class ProcessTableFunctionTestHarnessTest {
                 ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
                         .withTableArgument("input", DataTypes.of("ROW<id INT>"))
                         .withPartitionBy("input", "id")
-                        .withInitialStateArgument("state", Row.of(1), initialState)
+                        .withInitialStateForKey("state", Row.of(1), initialState)
                         .build();
 
         PTFWithPojoState.CounterState state = harness.getStateForKey("state", Row.of(1));
@@ -1400,7 +1400,7 @@ class ProcessTableFunctionTestHarnessTest {
                 ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
                         .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
                         .withPartitionBy("input", "key")
-                        .withInitialStateArgument("listState", Row.of("A"), initialList)
+                        .withInitialStateForKey("listState", Row.of("A"), initialList)
                         .build();
 
         ListView<Integer> listState = harness.getStateForKey("listState", Row.of("A"));
@@ -1422,7 +1422,7 @@ class ProcessTableFunctionTestHarnessTest {
                         .withTableArgument(
                                 "input", DataTypes.of("ROW<partition STRING, key STRING>"))
                         .withPartitionBy("input", "partition")
-                        .withInitialStateArgument("mapState", Row.of("P1"), initialMap)
+                        .withInitialStateForKey("mapState", Row.of("P1"), initialMap)
                         .build();
 
         MapView<String, Integer> mapState = harness.getStateForKey("mapState", Row.of("P1"));
@@ -1443,7 +1443,7 @@ class ProcessTableFunctionTestHarnessTest {
                                 ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
                                         .withTableArgument("input", DataTypes.of("ROW<id INT>"))
                                         .withPartitionBy("input", "id")
-                                        .withInitialStateArgument(
+                                        .withInitialStateForKey(
                                                 "nonExistentState", Row.of(1), "value")
                                         .build());
 
