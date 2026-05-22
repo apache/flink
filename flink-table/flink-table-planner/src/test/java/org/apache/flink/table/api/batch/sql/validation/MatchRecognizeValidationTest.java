@@ -249,6 +249,25 @@ class MatchRecognizeValidationTest extends TableTestBase {
                 .withMessageContaining("Columns ambiguously defined: {symbol, price}");
     }
 
+    @TestTemplate
+    void testValidatingDuplicateMeasure() {
+        String sqlQuery =
+                "SELECT *\n"
+                        + "FROM Ticker\n"
+                        + "MATCH_RECOGNIZE (\n"
+                        + "  MEASURES\n"
+                        + "    A.symbol AS col,\n"
+                        + "    A.price AS col\n"
+                        + "  PATTERN (A)\n"
+                        + "  DEFINE\n"
+                        + "    A AS A.symbol = 'a'\n"
+                        + ") AS T";
+        assertThatExceptionOfType(ValidationException.class)
+                .isThrownBy(() -> tEnv.executeSql(sqlQuery))
+                .withMessageContaining(
+                        "SQL validation failed. Duplicate name 'col' in MATCH_RECOGNIZE MEASURE alias list");
+    }
+
     // ***************************************************************************************
     // * Those validations are temporary. We should remove those tests once we support those *
     // * features.                                                                           *
