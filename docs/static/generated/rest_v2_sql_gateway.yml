@@ -478,6 +478,7 @@ components:
       - VARIANT
       - BITMAP
       - UUID
+      - GEOGRAPHY
     OpenSessionRequestBody:
       type: object
       properties:
