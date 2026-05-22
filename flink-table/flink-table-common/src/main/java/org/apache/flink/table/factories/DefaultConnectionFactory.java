@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.factories.ConnectionFactory;
+import org.apache.flink.table.catalog.CatalogConnection;
+import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.secret.ReadableSecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
 import org.apache.flink.table.secret.exceptions.SecretException;
@@ -54,8 +55,7 @@ public class DefaultConnectionFactory implements ConnectionFactory {
 
     /**
      * Factory identifier used to discover this factory via SPI. Also used as the fallback when a
-     * connection does not specify a {@link
-     * org.apache.flink.table.factories.FactoryUtil#CONNECTION_TYPE} option.
+     * connection does not specify a {@link FactoryUtil#CONNECTION_TYPE} option.
      */
     public static final String IDENTIFIER = "default";
 

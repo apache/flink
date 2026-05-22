@@ -64,6 +64,7 @@ import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.factories.ConnectionFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
