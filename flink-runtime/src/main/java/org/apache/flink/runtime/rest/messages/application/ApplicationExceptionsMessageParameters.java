@@ -30,7 +30,7 @@ import java.util.List;
 /** {@link MessageParameters} for {@link ApplicationExceptionsHandler}. */
 public class ApplicationExceptionsMessageParameters extends ApplicationMessageParameters {
 
-    private final UpperLimitExceptionParameter upperLimitExceptionParameter =
+    public final UpperLimitExceptionParameter upperLimitExceptionParameter =
             new UpperLimitExceptionParameter();
 
     @Override

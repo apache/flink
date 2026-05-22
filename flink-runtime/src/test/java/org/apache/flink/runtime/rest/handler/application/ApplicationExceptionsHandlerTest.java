@@ -27,9 +27,10 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.ApplicationExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.ApplicationIDPathParameter;
-import org.apache.flink.runtime.rest.messages.ApplicationMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.application.ApplicationExceptionsHeaders;
+import org.apache.flink.runtime.rest.messages.application.ApplicationExceptionsMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -57,13 +58,28 @@ class ApplicationExceptionsHandlerTest {
 
     private static HandlerRequest<EmptyRequestBody> createRequest(ApplicationID applicationId)
             throws HandlerRequestException {
+        return createRequest(applicationId, Collections.emptyMap());
+    }
+
+    private static HandlerRequest<EmptyRequestBody> createRequest(
+            ApplicationID applicationId, int maxExceptions) throws HandlerRequestException {
+        Map<String, List<String>> queryParameters = new HashMap<>();
+        queryParameters.put(
+                UpperLimitExceptionParameter.KEY,
+                Collections.singletonList(Integer.toString(maxExceptions)));
+        return createRequest(applicationId, queryParameters);
+    }
+
+    private static HandlerRequest<EmptyRequestBody> createRequest(
+            ApplicationID applicationId, Map<String, List<String>> queryParameters)
+            throws HandlerRequestException {
         Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(ApplicationIDPathParameter.KEY, applicationId.toString());
         return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
-                new ApplicationMessageParameters(),
+                new ApplicationExceptionsMessageParameters(),
                 pathParameters,
-                Collections.emptyMap(),
+                queryParameters,
                 Collections.emptyList());
     }
 
@@ -141,6 +157,43 @@ class ApplicationExceptionsHandlerTest {
         assertThat(exceptionInfo.getTimestamp()).isEqualTo(rootCauseTimestamp);
         assertThat(exceptionInfo.getJobId()).isNotNull();
         assertThat(exceptionInfo.getJobId()).isEqualTo(jobId);
+    }
+
+    @Test
+    void testMaxExceptionsLimitsHistorySize() throws Exception {
+        final List<ApplicationExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            exceptionHistory.add(
+                    new ApplicationExceptionHistoryEntry(
+                            new RuntimeException("exception #" + i),
+                            System.currentTimeMillis(),
+                            null));
+        }
+
+        final ArchivedApplication applicationWithExceptions =
+                new ArchivedApplication(
+                        archivedApplication.getApplicationId(),
+                        archivedApplication.getApplicationName(),
+                        ApplicationState.FAILED,
+                        new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
+                        Collections.emptyMap(),
+                        exceptionHistory);
+
+        testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        CompletableFuture.completedFuture(
+                                                applicationWithExceptions))
+                        .build();
+
+        final HandlerRequest<EmptyRequestBody> limitedRequest =
+                createRequest(archivedApplication.getApplicationId(), 2);
+
+        final ApplicationExceptionsInfoWithHistory response =
+                handler.handleRequest(limitedRequest, testingRestfulGateway).get();
+
+        assertThat(response.getExceptionHistory().getEntries()).hasSize(2);
     }
 
     @Test

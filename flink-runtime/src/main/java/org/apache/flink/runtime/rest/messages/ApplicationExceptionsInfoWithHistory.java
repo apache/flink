@@ -91,10 +91,11 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
     }
 
     public static ApplicationExceptionsInfoWithHistory fromApplicationExceptionHistory(
-            Collection<ApplicationExceptionHistoryEntry> exceptions) {
+            Collection<ApplicationExceptionHistoryEntry> exceptions, int maxSize) {
         return new ApplicationExceptionsInfoWithHistory(
                 new ApplicationExceptionHistory(
                         exceptions.stream()
+                                .limit(maxSize)
                                 .map(
                                         exception ->
                                                 new ApplicationExceptionInfo(
