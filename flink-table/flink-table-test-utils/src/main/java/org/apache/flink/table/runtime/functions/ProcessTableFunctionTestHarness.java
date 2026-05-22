@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1420,21 +1421,21 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return arguments.stream()
                     .filter(arg -> arg instanceof StateArgumentInfo)
                     .map(arg -> (StateArgumentInfo) arg)
-                    .toList();
+                    .collect(Collectors.toList());
         }
 
         static List<TableArgumentInfo> filterTableArguments(List<ArgumentInfo> arguments) {
             return arguments.stream()
                     .filter(arg -> arg instanceof TableArgumentInfo)
                     .map(arg -> (TableArgumentInfo) arg)
-                    .toList();
+                    .collect(Collectors.toList());
         }
 
         static List<ScalarArgumentInfo> filterScalarArguments(List<ArgumentInfo> arguments) {
             return arguments.stream()
                     .filter(arg -> arg instanceof ScalarArgumentInfo)
                     .map(arg -> (ScalarArgumentInfo) arg)
-                    .toList();
+                    .collect(Collectors.toList());
         }
     }
 
