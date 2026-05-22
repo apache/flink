@@ -272,9 +272,9 @@ under the License.
 			</build>
 		</profile>
 		<profile>
-			<id>java21</id>
+			<id>security-manager</id>
 			<activation>
-				<jdk>[21,)</jdk>
+				<jdk>[21,24)</jdk>
 			</activation>
 
 			<properties>
