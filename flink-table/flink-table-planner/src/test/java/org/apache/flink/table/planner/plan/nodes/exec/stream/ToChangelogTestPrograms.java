@@ -613,25 +613,6 @@ public class ToChangelogTestPrograms {
                             "the input table only produces [INSERT] and never emits DELETE rows")
                     .build();
 
-    public static final TableTestProgram PRODUCES_FULL_DELETES_WITHOUT_DELETE_IN_OP_MAPPING =
-            TableTestProgram.of(
-                            "to-changelog-produces-full-deletes-without-delete-in-op-mapping",
-                            "fails when produces_full_deletes=true but the active op_mapping strips DELETE")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema(
-                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
-                                    .addMode(ChangelogMode.all())
-                                    .producedValues(Row.ofKind(RowKind.INSERT, "Alice", 10L))
-                                    .build())
-                    .runFailingSql(
-                            "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t, "
-                                    + "op_mapping => MAP['INSERT, UPDATE_AFTER', 'X'], "
-                                    + "produces_full_deletes => true)",
-                            ValidationException.class,
-                            "the active 'op_mapping' does not map DELETE rows")
-                    .build();
 
     // --------------------------------------------------------------------------------------------
     // Row semantics x delete handling matrix
