@@ -93,9 +93,8 @@ class TestHarnessStateManager {
         }
     }
 
-    /** Set initial state for a given partition. */
-    void setInitialState(String stateName, Row partitionKey, Object externalState)
-            throws Exception {
+    /** Sets the state for a given partition key. */
+    void setStateForKey(String stateName, Row partitionKey, Object externalState) throws Exception {
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
         Object internalData = convertToInternal(externalState, stateArg);
 

@@ -279,7 +279,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     /** Set state for a specific partition key. */
     public void setStateForKey(String stateName, Row partitionKey, Object state) throws Exception {
-        stateManager.setInitialState(stateName, partitionKey, state);
+        stateManager.setStateForKey(stateName, partitionKey, state);
     }
 
     /** Get all partition keys that have a specific state entry. */
@@ -701,7 +701,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 String stateName = entry.getKey();
                 for (Map.Entry<Row, Object> stateEntry :
                         entry.getValue().initialValues.entrySet()) {
-                    stateManager.setInitialState(
+                    stateManager.setStateForKey(
                             stateName, stateEntry.getKey(), stateEntry.getValue());
                 }
             }
