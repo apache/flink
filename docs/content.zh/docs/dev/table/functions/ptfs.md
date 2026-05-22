@@ -2427,6 +2427,37 @@ void testStateIntrospection() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
+**State Mutation**: Use `setStateForKey()`, `clearStateForKey()`, and `clearStateEntryForKey()` to modify state during tests:
+
+{{< tabs "state-mutation" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testStateMutation() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(StatefulPTF.class)
+    .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+    .withPartitionBy("input", "name")
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 10));
+
+    // Overwrite a specific state entry for a partition key
+    StatefulPTF.ValueState newState = new StatefulPTF.ValueState();
+    newState.count = 100L;
+    harness.setStateForKey("valueState", Row.of("Alice"), newState);
+
+    // Clear a specific state entry (resets to default)
+    harness.clearStateEntryForKey("listState", Row.of("Alice"));
+
+    // Clear all state for a partition key
+    harness.clearStateForKey(Row.of("Alice"));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### Configuring Table Argument Types
 
 In contexts where the harness can't infer the table argument types for table arguments (when using unannotated `Row` inputs,
