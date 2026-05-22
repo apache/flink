@@ -178,35 +178,37 @@ import static org.apache.calcite.util.Util.first;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 228 ~ 231, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 230 ~ 233, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction.
  *
- * <p>Lines 1317 ~ 1319, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ * <p>Lines 1319 ~ 1321, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
  *
- * <p>Lines 2078 ~ 2092, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 2080 ~ 2094, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 2505 ~ 2507, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 2507 ~ 2509, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 2620 ~ 2639, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
+ * <p>Lines 2622 ~ 2641, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
  * 1.42.0.
  *
- * <p>Line 2670 ~2688, set the correct scope for VECTOR_SEARCH.
+ * <p>Line 2672 ~2690, set the correct scope for VECTOR_SEARCH.
  *
- * <p>Lines 4070 ~ 4074, 6758 ~ 6764 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 4072 ~ 4076, 6766 ~ 6772 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5490 ~ 5496, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5492 ~ 5498, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  *
- * <p>Lines 5930-5932, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5913-5928, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 5986-5988, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5938-5940, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7414-7437, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5994-5996, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7484-7501, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7422-7445, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7546-7554, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7492-7509, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ *
+ * <p>Lines 7554-7562, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -5908,7 +5910,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     private PairList<String, RelDataType> validateMeasure(
             SqlMatchRecognize mr, MatchRecognizeScope scope, boolean allRows) {
-        final List<String> aliases = new ArrayList<>();
+        // FLINK MODIFICATION BEGIN
+        final Set<String> aliases = new HashSet<>();
         final List<SqlNode> sqlNodes = new ArrayList<>();
         final SqlNodeList measures = mr.getMeasureList();
         final PairList<String, RelDataType> fields = PairList.of();
@@ -5916,8 +5919,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         for (SqlNode measure : measures) {
             assert measure instanceof SqlCall;
             final String alias = SqlValidatorUtil.alias(measure, aliases.size());
-            aliases.add(alias);
-
+            if (!aliases.add(alias)) {
+                throw new CalciteException(
+                        String.format(
+                                "Duplicate name '%s' in MATCH_RECOGNIZE MEASURE alias list", alias),
+                        null);
+            }
+            // FLINK MODIFICATION END
             SqlNode expand = expand(measure, scope);
             expand = navigationInMeasure(expand, allRows);
             setOriginal(expand, measure);
