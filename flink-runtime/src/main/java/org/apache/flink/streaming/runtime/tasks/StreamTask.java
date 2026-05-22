@@ -43,7 +43,10 @@ import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelState;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateDrainer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -62,7 +65,9 @@ import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoverableInputChannel;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
@@ -303,6 +308,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
     private final ExecutorService channelIOExecutor;
+
+    /**
+     * Completed (on the {@code channelIOExecutor}) once recovery setup finishes, carrying the
+     * resolved checkpoint trigger: the spill drainer when recovery carries channel state, otherwise
+     * {@link RecoveryCheckpointTrigger#NO_OP}. Two consumers ride on this single completion: the
+     * barrier handler, built before the drainer exists, holds the future and reads the trigger
+     * lazily via {@code getNow} once a checkpoint fires; and gate conversion waits on its
+     * completion to run {@code requestPartitions()} (buffer filtering is done by then).
+     */
+    private final CompletableFuture<RecoveryCheckpointTrigger> recoverySetupCompleteFuture =
+            new CompletableFuture<>();
 
     // ========================================================
     //  Final  checkpoint / savepoint
@@ -885,44 +901,36 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
 
         // Must set the flag on input gates BEFORE starting the async read task, because
-        // finishReadRecoveredState() checks this flag to complete bufferFilteringCompleteFuture.
+        // finishReadRecoveredState() reads this flag to decide whether to enqueue the legacy
+        // end-of-state sentinel.
         for (IndexedInputGate inputGate : inputGates) {
             inputGate.setCheckpointingDuringRecoveryEnabled(checkpointingDuringRecoveryEnabled);
         }
 
+        final CompletableFuture<List<RecoverableInputChannel>> physicalChannelsFuture =
+                new CompletableFuture<>();
+
         channelIOExecutor.execute(
-                () -> {
-                    try {
-                        reader.readInputData(inputGates, createRecordFilterContext());
-                    } catch (Exception e) {
-                        asyncExceptionHandler.handleAsyncException(
-                                "Unable to read channel state", e);
-                    }
-                });
+                () ->
+                        recoverChannelState(
+                                reader,
+                                inputGates,
+                                checkpointingDuringRecoveryEnabled,
+                                physicalChannelsFuture));
 
         // We wait for all input channel state to recover before we go into RUNNING state, and thus
         // start checkpointing. If we implement incremental checkpointing of input channel state
         // we must make sure it supports CheckpointType#FULL_CHECKPOINT.
-        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
-        for (InputGate inputGate : inputGates) {
-            CompletableFuture<?> requestPartitionsTrigger =
-                    checkpointingDuringRecoveryEnabled
-                            ? inputGate.getBufferFilteringCompleteFuture()
-                            : inputGate.getStateConsumedFuture();
-
-            recoveredFutures.add(requestPartitionsTrigger);
-
-            requestPartitionsTrigger.thenRun(
-                    () ->
-                            mainMailboxExecutor.execute(
-                                    inputGate::requestPartitions, "Input gate request partitions"));
-        }
+        List<CompletableFuture<?>> recoveredFutures =
+                checkpointingDuringRecoveryEnabled
+                        ? wireGateConversionWithCheckpointing(inputGates, physicalChannelsFuture)
+                        : wireGateConversion(inputGates);
 
         // Return allOf future instead of thenRun future. thenRun() returns a NEW future that
         // completes only after the callback finishes. CompletableFuture executes thenRun callbacks
         // synchronously on the thread that calls complete(). When recoveredFutures contains
-        // bufferFilteringCompleteFuture (checkpointingDuringRecovery enabled), complete() is called
-        // on channelIOExecutor (in finishReadRecoveredState), so thenRun(suspend) also runs on
+        // recoverySetupCompleteFuture (checkpointingDuringRecovery enabled), complete() is called
+        // on channelIOExecutor (in recoverChannelState), so thenRun(suspend) also runs on
         // channelIOExecutor. suspend() sends a poison mail, and the mailbox thread can pick it up
         // and exit runMailboxLoop() before the thenRun future completes — causing
         // checkState(isDone) to fail. With stateConsumedFuture (the default), complete() runs on
@@ -933,6 +941,183 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]));
         allRecoveredFuture.thenRun(mailboxProcessor::suspend);
         return allRecoveredFuture;
+    }
+
+    /**
+     * Runs on the {@code channelIOExecutor}: reads input channel state, wires the spill drainer
+     * when checkpointing-during-recovery is enabled, and drains recovered buffers into the physical
+     * channels. Setup failures complete {@code physicalChannelsFuture} exceptionally so the
+     * recovery mailbox loop stops waiting; the drain phase keeps its own handler because the future
+     * is already completed by then.
+     */
+    private void recoverChannelState(
+            SequentialChannelStateReader reader,
+            IndexedInputGate[] inputGates,
+            boolean checkpointingDuringRecoveryEnabled,
+            @Nullable CompletableFuture<List<RecoverableInputChannel>> physicalChannelsFuture) {
+        FetchedChannelStateDrainer drainer = null;
+        try {
+            reader.readInputData(inputGates, createRecordFilterContext());
+
+            if (checkpointingDuringRecoveryEnabled) {
+                Optional<FetchedChannelState> producedChannelState =
+                        reader.getProducedChannelState();
+                boolean needsRecovery = producedChannelState.isPresent();
+                for (IndexedInputGate gate : inputGates) {
+                    gate.setNeedsRecovery(needsRecovery);
+                }
+                if (needsRecovery) {
+                    FetchedChannelState channelState = producedChannelState.get();
+                    drainer = new FetchedChannelStateDrainer(channelState, physicalChannelsFuture);
+                    channelState.release();
+                }
+            }
+
+            for (IndexedInputGate gate : inputGates) {
+                gate.finishReadRecoveredState();
+            }
+            // Recovery setup is done: resolve the trigger for the barrier handler (the drainer when
+            // recovery carries channel state, NO_OP otherwise) and, by the same completion, release
+            // gate conversion. Completed before any checkpoint can fire during recovery, so the
+            // handler reads it via getNow.
+            recoverySetupCompleteFuture.complete(
+                    drainer != null ? drainer : RecoveryCheckpointTrigger.NO_OP);
+        } catch (Throwable t) {
+            asyncExceptionHandler.handleAsyncException(
+                    "Unable to set up recovered channel state", t);
+            recoverySetupCompleteFuture.completeExceptionally(t);
+            if (checkpointingDuringRecoveryEnabled) {
+                if (drainer == null) {
+                    try {
+                        Optional<FetchedChannelState> producedChannelState =
+                                reader.getProducedChannelState();
+                        if (producedChannelState.isPresent()) {
+                            producedChannelState.get().release();
+                        }
+                    } catch (Throwable ignored) {
+                        // Preserve the original recovery failure.
+                    }
+                }
+                physicalChannelsFuture.completeExceptionally(t);
+            }
+            return;
+        }
+
+        if (drainer == null) {
+            return;
+        }
+        try {
+            drainer.drain();
+        } catch (Throwable t) {
+            asyncExceptionHandler.handleAsyncException(
+                    "Unable to drain recovered channel state", t);
+        } finally {
+            try {
+                drainer.close();
+            } catch (Throwable closeError) {
+                asyncExceptionHandler.handleAsyncException(
+                        "Unable to close FetchedChannelStateDrainer after drain", closeError);
+            }
+        }
+    }
+
+    /**
+     * Wires each gate's {@code requestPartitions()} to run on the mailbox once its state-consumed
+     * trigger fires. Used when checkpointing-during-recovery is disabled, so no physical-channel
+     * conversion needs to be tracked.
+     *
+     * <p>Returns the futures the recovery mailbox loop must await before transitioning to RUNNING.
+     */
+    private List<CompletableFuture<?>> wireGateConversion(IndexedInputGate[] inputGates) {
+        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
+        for (InputGate inputGate : inputGates) {
+            CompletableFuture<?> requestPartitionsTrigger = inputGate.getStateConsumedFuture();
+            recoveredFutures.add(requestPartitionsTrigger);
+            requestPartitionsTrigger.thenRun(
+                    () ->
+                            mainMailboxExecutor.execute(
+                                    inputGate::requestPartitions, "Input gate request partitions"));
+        }
+        return recoveredFutures;
+    }
+
+    /**
+     * Wires each gate's {@code requestPartitions()} to run on the mailbox once recovery setup
+     * completes, and aggregates the per-gate completions into {@code physicalChannelsFuture}. Used
+     * when checkpointing-during-recovery is enabled. The trigger stays synchronous (no {@code
+     * *Async}): completing on the {@code channelIOExecutor} that fired {@code
+     * recoverySetupCompleteFuture} would let the poison mail outrun the suspend callback.
+     *
+     * <p>Returns the futures the recovery mailbox loop must await before transitioning to RUNNING.
+     */
+    private List<CompletableFuture<?>> wireGateConversionWithCheckpointing(
+            IndexedInputGate[] inputGates,
+            CompletableFuture<List<RecoverableInputChannel>> physicalChannelsFuture) {
+        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
+        // Keep the recovery mailbox loop alive until physical channels are converted; otherwise a
+        // checkpoint barrier mail could block on the channels future that only a later conversion
+        // mail can complete.
+        if (inputGates.length > 0) {
+            recoveredFutures.add(physicalChannelsFuture);
+        }
+        recoveredFutures.add(recoverySetupCompleteFuture);
+        CompletableFuture<Void> gateConverted = new CompletableFuture<>();
+        recoverySetupCompleteFuture.thenRun(
+                () ->
+                        mainMailboxExecutor.execute(
+                                () -> {
+                                    try {
+                                        for (InputGate inputGate : inputGates) {
+                                            inputGate.requestPartitions();
+                                        }
+                                        gateConverted.complete(null);
+                                    } catch (Throwable t) {
+                                        gateConverted.completeExceptionally(t);
+                                        throw t;
+                                    }
+                                },
+                                "Input gate request partitions"));
+        gateConverted
+                .thenApply(ignored -> collectPhysicalChannels(inputGates))
+                .whenComplete(
+                        (physicalChannels, failure) -> {
+                            if (failure != null) {
+                                physicalChannelsFuture.completeExceptionally(failure);
+                            } else {
+                                physicalChannelsFuture.complete(physicalChannels);
+                            }
+                        });
+        return recoveredFutures;
+    }
+
+    private static List<RecoverableInputChannel> collectPhysicalChannels(InputGate[] inputGates) {
+        List<RecoverableInputChannel> channels = new ArrayList<>();
+        for (InputGate gate : inputGates) {
+            int numberOfInputChannels = gate.getNumberOfInputChannels();
+            for (int i = 0; i < numberOfInputChannels; i++) {
+                InputChannel channel = gate.getChannel(i);
+                if (channel instanceof RecoverableInputChannel) {
+                    channels.add((RecoverableInputChannel) channel);
+                }
+            }
+        }
+        return channels;
+    }
+
+    /**
+     * Returns a trigger that resolves the real implementation lazily: the barrier handler is built
+     * before the spill drainer exists, so this defers reading {@link #recoverySetupCompleteFuture}
+     * until a checkpoint actually fires, by which point recovery setup has completed it. Resolving
+     * at construction time would block; an unresolved future at snapshot time means an invariant
+     * broke, so it fails loud.
+     */
+    public RecoveryCheckpointTrigger getRecoveryCheckpointTrigger() {
+        return cpId -> {
+            checkState(
+                    recoverySetupCompleteFuture.isDone(),
+                    "Recovery checkpoint trigger is not resolved at checkpoint start.");
+            return recoverySetupCompleteFuture.getNow(null).snapshotAndInsertBarriers(cpId);
+        };
     }
 
     private void ensureNotCanceled() {
@@ -1996,7 +2181,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         boolean checkpointingDuringRecoveryEnabled =
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
         if (!checkpointingDuringRecoveryEnabled) {
-            return RecordFilterContext.disabled();
+            return RecordFilterContext.disabled(
+                    getEnvironment().getIOManager().getSpillingDirectoriesPaths());
         }
 
         ClassLoader cl = getUserCodeClassLoader();
