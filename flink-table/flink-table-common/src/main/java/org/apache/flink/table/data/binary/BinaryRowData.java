@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -370,6 +371,14 @@ public final class BinaryRowData extends BinarySection
         int fieldOffset = getFieldOffset(pos);
         final long offsetAndLen = segments[0].getLong(fieldOffset);
         return BinarySegmentUtils.readBinary(segments, offset, fieldOffset, offsetAndLen);
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        assertIndexIsValid(pos);
+        int fieldOffset = getFieldOffset(pos);
+        final long offsetAndLen = segments[0].getLong(fieldOffset);
+        return BinarySegmentUtils.readGeographyData(segments, offset, fieldOffset, offsetAndLen);
     }
 
     @Override

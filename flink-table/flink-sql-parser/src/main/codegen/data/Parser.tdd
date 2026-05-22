@@ -173,6 +173,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlBitmapTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlGeographyTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlStructuredTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"
@@ -225,6 +226,7 @@
     "FROM_TIMESTAMP"
     "FUNCTIONS"
     "FRESHNESS"
+    "GEOGRAPHY"
     "HASH"
     "IF"
     "JSON_EXECUTION_PLAN"
@@ -719,6 +721,7 @@
     "ExtendedSqlRowTypeName()"
     "SqlStructuredTypeName()"
     "SqlBitmapTypeName()"
+    "SqlGeographyTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
