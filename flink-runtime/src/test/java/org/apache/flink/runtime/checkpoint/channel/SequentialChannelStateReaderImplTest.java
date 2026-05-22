@@ -51,10 +51,12 @@ import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -89,6 +91,8 @@ public class SequentialChannelStateReaderImplTest {
                 new Object[] {"ReadPermutedStateWithReducedBuffer", 10, 10, 10, 20, 10},
                 new Object[] {"ReadPermutedStateWithIncreasedBuffer", 10, 10, 10, 10, 20});
     }
+
+    @TempDir static Path tmpDir;
 
     @Parameter public String desc;
 
@@ -144,7 +148,10 @@ public class SequentialChannelStateReaderImplTest {
 
         withInputGates(
                 gates -> {
-                    reader.readInputData(gates, RecordFilterContext.disabled());
+                    reader.readInputData(
+                            gates,
+                            RecordFilterContext.disabled(
+                                    new String[] {tmpDir.toAbsolutePath().toString()}));
                     assertBuffersEquals(inputChannelsData, collectBuffers(gates));
                     assertConsumed(gates);
                 });
