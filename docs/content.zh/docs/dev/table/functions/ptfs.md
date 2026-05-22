@@ -2277,30 +2277,47 @@ void testScalarOnly() throws Exception {
 
 #### Testing with State
 
-The harness supports structured types, `ListView`, and `MapView`:
+The harness supports all PTF state types: structured types, `Row`, `ListView`, and `MapView`.
 
 {{< tabs "state-testing" >}}
 {{< tab "Java" >}}
 ```java
-@DataTypeHint("ROW<name STRING, count BIGINT>")
-public class CounterPTF extends ProcessTableFunction<Row> {
-  public static class CountState {
+// A PTF that uses all four state types: structured type, Row, ListView, and MapView.
+@DataTypeHint("ROW<count BIGINT>")
+public class StatefulPTF extends ProcessTableFunction<Row> {
+  public static class ValueState {
     public long count = 0L;
   }
 
   public void eval(
-    @StateHint CountState state,
-    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
-    state.count++;
+    @StateHint ValueState valueState,
+    @StateHint(type = @DataTypeHint("ROW<lastValue INT>")) Row rowState,
+    @StateHint(type = @DataTypeHint("ARRAY<INT>")) ListView<Integer> listState,
+    @StateHint MapView<String, Integer> mapState,
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) throws Exception {
+    // Structured type state — increment counter
+    valueState.count++;
+
+    // Row state — track the last value seen
+    int value = input.getFieldAs("value");
+    rowState.setField("lastValue", value);
+
+    // ListView state — accumulate values
+    listState.add(value);
+
+    // MapView state — count occurrences by name
     String name = input.getFieldAs("name");
-    collect(Row.of(name, state.count));
+    Integer tagCount = mapState.get(name);
+    mapState.put(name, tagCount == null ? 1 : tagCount + 1);
+
+    collect(Row.of(valueState.count));
   }
 }
 
 @Test
 void testWithState() throws Exception {
   try (ProcessTableFunctionTestHarness<Row> harness =
-    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    ProcessTableFunctionTestHarness.ofClass(StatefulPTF.class)
     .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
     .withPartitionBy("input", "name")
     .build()) {
@@ -2317,21 +2334,40 @@ void testWithState() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**Initial State Setup**: Use `.withInitialStateArgument()` to pre-populate state before processing:
+**Initial State Setup**: Use `.withInitialStateArgument()` to pre-populate state before processing.
+State initialization is scoped per partition key:
 
 {{< tabs "initial-state" >}}
 {{< tab "Java" >}}
 ```java
 @Test
 void testWithInitialState() throws Exception {
-  CounterPTF.CountState initialState = new CounterPTF.CountState();
-  initialState.count = 100L;
+  // Structured type state
+  StatefulPTF.ValueState initialValue = new StatefulPTF.ValueState();
+  initialValue.count = 100L;
+
+  // Row state
+  Row initialRow = Row.withNames();
+  initialRow.setField("lastValue", 42);
+
+  // ListView state
+  ListView<Integer> initialList = new ListView<>();
+  initialList.add(10);
+  initialList.add(20);
+
+  // MapView state
+  MapView<String, Integer> initialMap = new MapView<>();
+  initialMap.put("Alice", 5);
 
   try (ProcessTableFunctionTestHarness<Row> harness =
-    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    ProcessTableFunctionTestHarness.ofClass(StatefulPTF.class)
     .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
     .withPartitionBy("input", "name")
-    .withInitialStateArgument("state", Row.of("Alice"), initialState)
+    // Initial state is set per partition key
+    .withInitialStateArgument("valueState", Row.of("Alice"), initialValue)
+    .withInitialStateArgument("rowState", Row.of("Alice"), initialRow)
+    .withInitialStateArgument("listState", Row.of("Alice"), initialList)
+    .withInitialStateArgument("mapState", Row.of("Alice"), initialMap)
     .build()) {
 
     harness.processElement(Row.of("Alice", 10));
@@ -2352,7 +2388,7 @@ void testWithInitialState() throws Exception {
 @Test
 void testStateIntrospection() throws Exception {
   try (ProcessTableFunctionTestHarness<Row> harness =
-    ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+    ProcessTableFunctionTestHarness.ofClass(StatefulPTF.class)
     .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
     .withPartitionBy("input", "name")
     .build()) {
@@ -2360,18 +2396,30 @@ void testStateIntrospection() throws Exception {
     harness.processElement(Row.of("Alice", 10));
     harness.processElement(Row.of("Bob", 20));
 
-    // Check specific partition state
-    CounterPTF.CountState aliceState =
-      harness.getStateForKey("state", Row.of("Alice"));
+    // Check structured type state
+    StatefulPTF.ValueState aliceState =
+      harness.getStateForKey("valueState", Row.of("Alice"));
     assertThat(aliceState.count).isEqualTo(1L);
 
+    // Check Row state
+    Row aliceRowState = harness.getStateForKey("rowState", Row.of("Alice"));
+    assertThat(aliceRowState.getField("lastValue")).isEqualTo(10);
+
+    // Check ListView state
+    ListView<Integer> aliceList = harness.getStateForKey("listState", Row.of("Alice"));
+    assertThat(aliceList.getList()).containsExactly(10);
+
+    // Check MapView state
+    MapView<String, Integer> aliceMap = harness.getStateForKey("mapState", Row.of("Alice"));
+    assertThat(aliceMap.get("Alice")).isEqualTo(1);
+
     // Get all partition keys with state
-    Set<Row> keys = harness.getStateKeys("state");
+    Set<Row> keys = harness.getStateKeys("valueState");
     assertThat(keys).containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"));
 
     // Get all state across partitions
-    Map<Row, CounterPTF.CountState> allState =
-      harness.getAllState("state");
+    Map<Row, StatefulPTF.ValueState> allState =
+      harness.getAllState("valueState");
     assertThat(allState.get(Row.of("Bob")).count).isEqualTo(1L);
   }
 }

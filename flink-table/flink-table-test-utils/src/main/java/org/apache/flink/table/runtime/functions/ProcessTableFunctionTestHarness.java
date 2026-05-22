@@ -272,17 +272,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         output.clear();
     }
 
-    /** Get state for a specific partition key (test introspection). */
+    /** Get state for a specific partition key. */
     public <T> T getStateForKey(String stateName, Row partitionKey) {
         return stateManager.getStateForKey(stateName, partitionKey);
     }
 
-    /** Set state for a specific partition key (test introspection). */
+    /** Set state for a specific partition key. */
     public void setStateForKey(String stateName, Row partitionKey, Object state) throws Exception {
         stateManager.setInitialState(stateName, partitionKey, state);
     }
 
-    /** Get all partition keys that have a specific state entry (test introspection). */
+    /** Get all partition keys that have a specific state entry. */
     public Set<Row> getStateKeys(String stateName) {
         return stateManager.getStateKeys(stateName);
     }
