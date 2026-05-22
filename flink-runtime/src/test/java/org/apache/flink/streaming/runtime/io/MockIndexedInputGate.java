@@ -58,11 +58,6 @@ public class MockIndexedInputGate extends IndexedInputGate {
     }
 
     @Override
-    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
     public void finishReadRecoveredState() {}
 
     @Override
@@ -83,6 +78,11 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
     @Override
     public InputChannel getChannel(int channelIndex) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
         throw new UnsupportedOperationException();
     }
 
@@ -148,6 +148,14 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
     @Override
     public boolean isCheckpointingDuringRecoveryEnabled() {
+        return false;
+    }
+
+    @Override
+    public void setNeedsRecovery(boolean enabled) {}
+
+    @Override
+    public boolean needsRecovery() {
         return false;
     }
 }

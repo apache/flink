@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointBarrier;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -61,7 +63,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -669,7 +670,7 @@ class LocalInputChannelTest {
 
     @Test
     void testGetBuffersInUseCountIncludesToBeConsumedBuffers() throws Exception {
-        // given: Local input channel with recovered buffers in toBeConsumedBuffers
+        // given: Local input channel with recovered buffers in the recovery queue
         ResultSubpartitionView subpartitionView =
                 InputChannelTestUtils.createResultSubpartitionView(
                         createFilledFinishedBufferConsumer(4096),
@@ -677,12 +678,6 @@ class LocalInputChannelTest {
         TestingResultPartitionManager partitionManager =
                 new TestingResultPartitionManager(subpartitionView);
         final SingleInputGate inputGate = createSingleInputGate(1);
-
-        // Create 3 recovered buffers
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
 
         final LocalInputChannel localChannel =
                 new LocalInputChannel(
@@ -697,9 +692,15 @@ class LocalInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         ChannelStateWriter.NO_OP,
-                        recoveredBuffers);
+                        2,
+                        true);
 
         inputGate.setInputChannels(localChannel);
+
+        // Create 3 recovered buffers
+        localChannel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(32));
+        localChannel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(32));
+        localChannel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(32));
 
         // then: Before requesting subpartitions, buffers in use should include recovered buffers
         assertThat(localChannel.getBuffersInUseCount()).isEqualTo(3);
@@ -718,10 +719,6 @@ class LocalInputChannelTest {
         // given: LocalInputChannel with recovered buffers migrated from RecoveredInputChannel
         SingleInputGate inputGate = createSingleInputGate(1);
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
-
         LocalInputChannel channel =
                 new LocalInputChannel(
                         inputGate,
@@ -735,9 +732,15 @@ class LocalInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         ChannelStateWriter.NO_OP,
-                        recoveredBuffers);
+                        2,
+                        true);
 
         inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(10));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(20));
+        channel.completeUpstreamReadyForTest();
+        channel.finishRecoveredBufferDelivery();
 
         // then: Can read recovered buffers even before requestSubpartitions()
         Optional<InputChannel.BufferAndAvailability> first = channel.getNextBuffer();
@@ -755,11 +758,6 @@ class LocalInputChannelTest {
         // given: Local input channel with recovered buffers
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(30));
-
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
 
         LocalInputChannel channel =
@@ -775,19 +773,28 @@ class LocalInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         stateWriter,
-                        recoveredBuffers);
+                        2,
+                        true);
 
         inputGate.setInputChannels(channel);
 
-        // when: Checkpoint is started
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(10));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(20));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(30));
+        // Mirror snapshotAndInsertBarriers: push the sentinel before
+        // checkpointStarted scans recoveredQueue.
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+
         CheckpointOptions options =
                 CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
         stateWriter.start(1L, options);
         CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        // when: Checkpoint is started
         channel.checkpointStarted(barrier);
 
-        // then: All 3 recovered buffers should be persisted as inflight data
         List<Buffer> persistedBuffers = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        // then: All 3 recovered buffers should be persisted as inflight data
         assertThat(persistedBuffers).isNotNull().hasSize(3);
         assertThat(persistedBuffers.stream().mapToInt(Buffer::getSize).toArray())
                 .containsExactly(10, 20, 30);
@@ -824,9 +831,6 @@ class LocalInputChannelTest {
         // given: Local input channel with recovered buffers but NO subpartition view initialized
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
-
         LocalInputChannel channel =
                 new LocalInputChannel(
                         inputGate,
@@ -840,9 +844,11 @@ class LocalInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         ChannelStateWriter.NO_OP,
-                        recoveredBuffers);
+                        2,
+                        true);
 
         inputGate.setInputChannels(channel);
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(10));
         // Do NOT call channel.requestSubpartitions() — subpartitionView stays null
 
         channel.notifyPriorityEvent(0);
@@ -962,11 +968,6 @@ class LocalInputChannelTest {
         TestingResultPartitionManager partitionManager =
                 new TestingResultPartitionManager(subpartitionView);
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        for (int size : recoveredBufferSizes) {
-            recoveredBuffers.add(TestBufferFactory.createBuffer(size));
-        }
-
         LocalInputChannel channel =
                 new LocalInputChannel(
                         inputGate,
@@ -980,9 +981,15 @@ class LocalInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         stateWriter,
-                        recoveredBuffers);
+                        2,
+                        true);
 
         inputGate.setInputChannels(channel);
+
+        for (int size : recoveredBufferSizes) {
+            channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(size));
+        }
+
         channel.requestSubpartitions();
 
         return new ChannelAndSubpartition(channel, subpartition);
@@ -996,6 +1003,333 @@ class LocalInputChannelTest {
             this.channel = channel;
             this.subpartition = subpartition;
         }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // RecoverableInputChannel push-based recovery tests
+    // ---------------------------------------------------------------------------------------------
+
+    private static LocalInputChannel newPushOnlyLocalChannel(
+            SingleInputGate inputGate, ChannelStateWriter stateWriter) {
+        return new LocalInputChannel(
+                inputGate,
+                0,
+                new ResultPartitionID(),
+                new ResultSubpartitionIndexSet(0),
+                new ResultPartitionManager(),
+                new TaskEventDispatcher(),
+                0,
+                0,
+                new SimpleCounter(),
+                new SimpleCounter(),
+                stateWriter,
+                2,
+                true);
+    }
+
+    @Test
+    void testOnRecoveredStateBufferEnqueues() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(11));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(22));
+
+        Optional<InputChannel.BufferAndAvailability> first = channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getSize()).isEqualTo(11);
+        Optional<InputChannel.BufferAndAvailability> second = channel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().buffer().getSize()).isEqualTo(22);
+    }
+
+    @Test
+    void testOnRecoveredStateBufferOnReleasedChannelIsSilentlyRecycled() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+        channel.releaseAllResources();
+
+        Buffer b = TestBufferFactory.createBuffer(33);
+        channel.onRecoveredStateBuffer(b);
+        assertThat(b.isRecycled()).isTrue();
+    }
+
+    @Test
+    void testOnRecoveredStateBufferNotifiesChannelNonEmptyOnEmptyToNonEmptyTransition()
+            throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+
+        CompletableFuture<?> availability = inputGate.getAvailableFuture();
+        assertThat(availability).isNotDone();
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        assertThat(availability).isDone();
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagFalseQueueEmptyReturnsEmpty() throws Exception {
+        // Drive into the (flag=false, queue=empty) boundary by pushing one buffer, polling it,
+        // and verifying the channel does not yet expose a master-path result.
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.getNextBuffer();
+        // Queue is empty; no finishRecoveredBufferDelivery was called. Without the subpartitionView
+        // active, the channel returns empty.
+        Optional<InputChannel.BufferAndAvailability> result = channel.getNextBuffer();
+        assertThat(result).isNotPresent();
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagFalseQueueNonEmptyPolls() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(7));
+        Optional<InputChannel.BufferAndAvailability> r = channel.getNextBuffer();
+        assertThat(r).isPresent();
+        assertThat(r.get().buffer().getSize()).isEqualTo(7);
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagTrueQueueNonEmptyPolls() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(8));
+        channel.completeUpstreamReadyForTest();
+        channel.finishRecoveredBufferDelivery();
+        Optional<InputChannel.BufferAndAvailability> r = channel.getNextBuffer();
+        assertThat(r).isPresent();
+        assertThat(r.get().buffer().getSize()).isEqualTo(8);
+    }
+
+    @Test
+    void testFinishWithNoRecoveredBuffersEmitsSentinelThenFallsToMasterPath() throws Exception {
+        // With no recovered buffers, finish still appends the EndOfFetchedChannelStateEvent
+        // sentinel; getNextBuffer returns it. Consuming the sentinel flips the channel out of
+        // recovery, after which the master path takes over: without a subpartition view it raises
+        // IllegalStateException via checkAndWaitForSubpartitionView, proving the recovery branch is
+        // no longer swallowing the call.
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, ChannelStateWriter.NO_OP);
+        inputGate.setInputChannels(channel);
+        channel.completeUpstreamReadyForTest();
+        channel.finishRecoveredBufferDelivery();
+
+        Optional<InputChannel.BufferAndAvailability> sentinel = channel.getNextBuffer();
+        assertThat(sentinel).isPresent();
+        assertThat(EventSerializer.fromBuffer(sentinel.get().buffer(), getClass().getClassLoader()))
+                .isInstanceOf(EndOfFetchedChannelStateEvent.class);
+
+        channel.onRecoveredStateConsumed();
+        assertThatThrownBy(channel::getNextBuffer)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Queried for a buffer before requesting the subpartition");
+    }
+
+    @Test
+    void testPriorityEventDuringRecoveryFetchedFromSubpartitionView() throws Exception {
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10, 20);
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        ctx.subpartition.add(
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(1L, 0L, options), true));
+        ctx.channel.notifyPriorityEvent(0);
+
+        Optional<InputChannel.BufferAndAvailability> first = ctx.channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getDataType().hasPriority()).isTrue();
+    }
+
+    @Test
+    void testPriorityEventDuringRecoveryResetAfterNonPriority() throws Exception {
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10);
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        ctx.subpartition.add(
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(1L, 0L, options), true));
+        ctx.subpartition.add(createFilledFinishedBufferConsumer(32));
+        ctx.channel.notifyPriorityEvent(0);
+
+        Optional<InputChannel.BufferAndAvailability> priority = ctx.channel.getNextBuffer();
+        assertThat(priority).isPresent();
+        Optional<InputChannel.BufferAndAvailability> recovered = ctx.channel.getNextBuffer();
+        assertThat(recovered).isPresent();
+        assertThat(recovered.get().buffer().isBuffer()).isTrue();
+        assertThat(recovered.get().buffer().getSize()).isEqualTo(10);
+    }
+
+    @Test
+    void testCheckpointStartedScansRecoveredBuffersUpToBarrier() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        Buffer b2 = TestBufferFactory.createBuffer(2);
+        Buffer b3 = TestBufferFactory.createBuffer(3);
+        channel.onRecoveredStateBuffer(b1);
+        channel.onRecoveredStateBuffer(b2);
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(b3);
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+
+        List<Buffer> persisted = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persisted).hasSize(2);
+        assertThat(persisted.stream().mapToInt(Buffer::getSize).toArray()).containsExactly(1, 2);
+    }
+
+    @Test
+    void testCheckpointStartedFailsWhenRecoveryBarrierIsMissing() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        channel.onRecoveredStateBuffer(b1);
+        int refCntBefore = b1.refCnt();
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+
+        assertThatThrownBy(() -> channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options)))
+                .isInstanceOf(CheckpointException.class)
+                .hasMessageContaining("Failed to extract recovered buffers for checkpoint 1")
+                .hasRootCauseMessage(
+                        "Missing RecoveryCheckpointBarrier for checkpoint 1 in recoveredBuffers for channel "
+                                + channel.getChannelInfo());
+        assertThat(b1.refCnt()).isEqualTo(refCntBefore);
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).isEmpty();
+    }
+
+    @Test
+    void testCheckpointStartedRetainsPreBarrierBuffers() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        channel.onRecoveredStateBuffer(b1);
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+
+        int before = b1.refCnt();
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+        // Pre-barrier buffers are retained for the writer; their ref-count stays at or above the
+        // pre-checkpoint value.
+        assertThat(b1.refCnt()).isGreaterThanOrEqualTo(before);
+    }
+
+    @Test
+    void testCheckpointStartedRemovesSentinel() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(2));
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+
+        Optional<InputChannel.BufferAndAvailability> h1 = channel.getNextBuffer();
+        assertThat(h1).isPresent();
+        Optional<InputChannel.BufferAndAvailability> h2 = channel.getNextBuffer();
+        assertThat(h2).isPresent();
+        assertThat(h2.get().buffer().getSize()).isEqualTo(2);
+    }
+
+    @Test
+    void testCheckpointStartedNestedCpIds() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(2));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(2L), false));
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+
+        List<Buffer> persisted = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persisted).hasSize(1);
+        assertThat(persisted.get(0).getSize()).isEqualTo(1);
+    }
+
+    @Test
+    void testCheckpointStartedNotInRecoveryUsesMasterPath() throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+        // Channel starts in-recovery; finish appends the sentinel and consuming it flips the
+        // channel to not-in-recovery so checkpointStarted exercises the master path instead of the
+        // recovery branch.
+        channel.completeUpstreamReadyForTest();
+        channel.finishRecoveredBufferDelivery();
+        channel.getNextBuffer();
+        channel.onRecoveredStateConsumed();
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).isNullOrEmpty();
+    }
+
+    @Test
+    void testReceivedBuffersHasNoLiveDataBufferIsTrueOnLocal() throws Exception {
+        // Local has no receivedBuffers; the helper is trivially true. We exercise the
+        // in-recovery checkpointStarted branch without any "live data" infrastructure to confirm
+        // the channel does not crash.
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
     }
 
     // ---------------------------------------------------------------------------------------------

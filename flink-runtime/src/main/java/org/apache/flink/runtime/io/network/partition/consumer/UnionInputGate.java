@@ -177,6 +177,13 @@ public class UnionInputGate extends InputGate {
     }
 
     @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        // The member gate's local channel index is carried directly in channelInfo, so resolve
+        // through the owning gate instead of the gate-global getChannel(int) addressing.
+        return inputGatesByGateIndex.get(channelInfo.getGateIdx()).getChannel(channelInfo);
+    }
+
+    @Override
     public boolean isFinished() {
         return inputGatesWithRemainingData.isEmpty();
     }
@@ -346,15 +353,6 @@ public class UnionInputGate extends InputGate {
         return CompletableFuture.allOf(
                 inputGatesByGateIndex.values().stream()
                         .map(InputGate::getStateConsumedFuture)
-                        .collect(Collectors.toList())
-                        .toArray(new CompletableFuture[] {}));
-    }
-
-    @Override
-    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        return CompletableFuture.allOf(
-                inputGatesByGateIndex.values().stream()
-                        .map(InputGate::getBufferFilteringCompleteFuture)
                         .collect(Collectors.toList())
                         .toArray(new CompletableFuture[] {}));
     }

@@ -81,6 +81,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        return inputGate.getChannel(channelInfo);
+    }
+
+    @Override
     public int getGateIndex() {
         return inputGate.getGateIndex();
     }
@@ -118,11 +123,6 @@ public class InputGateWithMetrics extends IndexedInputGate {
     @Override
     public CompletableFuture<Void> getStateConsumedFuture() {
         return inputGate.getStateConsumedFuture();
-    }
-
-    @Override
-    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        return inputGate.getBufferFilteringCompleteFuture();
     }
 
     @Override
@@ -173,6 +173,16 @@ public class InputGateWithMetrics extends IndexedInputGate {
     @Override
     public boolean isCheckpointingDuringRecoveryEnabled() {
         return inputGate.isCheckpointingDuringRecoveryEnabled();
+    }
+
+    @Override
+    public void setNeedsRecovery(boolean enabled) {
+        inputGate.setNeedsRecovery(enabled);
+    }
+
+    @Override
+    public boolean needsRecovery() {
+        return inputGate.needsRecovery();
     }
 
     private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {

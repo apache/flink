@@ -19,13 +19,10 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
-
-import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -64,7 +61,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
     }
 
     @Override
-    protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers) {
+    protected InputChannel toInputChannelInternal(boolean needsRecovery) {
         return new LocalInputChannel(
                 inputGate,
                 getChannelIndex(),
@@ -77,6 +74,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 numBytesIn,
                 numBuffersIn,
                 channelStateWriter,
-                remainingBuffers);
+                networkBuffersPerChannel,
+                needsRecovery);
     }
 }

@@ -88,7 +88,7 @@ class CreditBasedSequenceNumberingViewReaderTest {
         channel.close();
         CreditBasedSequenceNumberingViewReader reader =
                 new CreditBasedSequenceNumberingViewReader(
-                        new InputChannelID(), initialCredit, queue);
+                        new InputChannelID(), initialCredit, false, queue);
         reader.notifySubpartitionsCreated(
                 TestingResultPartition.newBuilder()
                         .setCreateSubpartitionViewFunction(
