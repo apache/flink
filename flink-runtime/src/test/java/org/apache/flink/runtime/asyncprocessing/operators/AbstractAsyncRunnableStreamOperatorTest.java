@@ -253,8 +253,11 @@ public class AbstractAsyncRunnableStreamOperatorTest {
                             });
             ((AbstractAsyncRunnableStreamOperator<String>) testHarness.getOperator())
                     .postProcessElement();
-            assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
-            unblockAsyncRequest.complete(null);
+            try {
+                assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
+            } finally {
+                unblockAsyncRequest.complete(null);
+            }
             testHarness.drainAsyncRequests();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }

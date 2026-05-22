@@ -44,6 +44,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -1085,6 +1086,15 @@ public final class DataTypes {
      */
     public static DataType UUID() {
         return new AtomicDataType(new UuidType());
+    }
+
+    /**
+     * Data type of geography data.
+     *
+     * @see GeographyType
+     */
+    public static DataType GEOGRAPHY() {
+        return new AtomicDataType(new GeographyType());
     }
 
     // --------------------------------------------------------------------------------------------

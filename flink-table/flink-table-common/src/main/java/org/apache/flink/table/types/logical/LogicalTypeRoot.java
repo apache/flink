@@ -147,7 +147,9 @@ public enum LogicalTypeRoot {
 
     BITMAP(LogicalTypeFamily.EXTENSION),
 
-    UUID(LogicalTypeFamily.EXTENSION);
+    UUID(LogicalTypeFamily.EXTENSION),
+
+    GEOGRAPHY(LogicalTypeFamily.EXTENSION);
 
     private final Set<LogicalTypeFamily> families;
 

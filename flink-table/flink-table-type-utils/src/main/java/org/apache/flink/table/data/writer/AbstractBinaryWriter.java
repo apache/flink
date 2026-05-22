@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -139,6 +140,11 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
     public void writeBitmap(int pos, Bitmap bitmap) {
         byte[] bytes = bitmap.toBytes();
         writeBytesToVarLenPart(pos, bytes, bytes.length);
+    }
+
+    @Override
+    public void writeGeography(int pos, GeographyData geography) {
+        writeBinary(pos, geography.toBytes());
     }
 
     private DataOutputViewStreamWrapper getOutputView() {

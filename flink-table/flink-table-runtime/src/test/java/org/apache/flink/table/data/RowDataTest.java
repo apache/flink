@@ -33,11 +33,13 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -63,7 +65,11 @@ import static org.assertj.core.api.HamcrestCondition.matching;
 /** Test for {@link RowData}s. */
 class RowDataTest {
 
-    private static final int NUM_FIELDS = 19;
+    private static final int NUM_FIELDS = 20;
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
 
     private StringData str;
     private RawValueData<String> generic;
@@ -77,6 +83,7 @@ class RowDataTest {
     private TimestampData timestamp1;
     private TimestampData timestamp2;
     private Bitmap bitmap;
+    private GeographyData geography;
 
     @BeforeEach
     void before() {
@@ -105,6 +112,7 @@ class RowDataTest {
         timestamp2 =
                 TimestampData.fromLocalDateTime(LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789));
         bitmap = Bitmap.fromArray(new int[] {1, 2, 3});
+        geography = GeographyData.fromBytes(POINT_WKB);
     }
 
     @Test
@@ -152,6 +160,7 @@ class RowDataTest {
         writer.writeTimestamp(16, timestamp1, 3);
         writer.writeTimestamp(17, timestamp2, 9);
         writer.writeBitmap(18, bitmap);
+        writer.writeGeography(19, geography);
         return row;
     }
 
@@ -177,6 +186,7 @@ class RowDataTest {
         row.setField(16, timestamp1);
         row.setField(17, timestamp2);
         row.setField(18, bitmap);
+        row.setField(19, geography);
         testGetters(row);
     }
 
@@ -201,6 +211,7 @@ class RowDataTest {
         row.setNonPrimitiveValue(16, timestamp1);
         row.setNonPrimitiveValue(17, timestamp2);
         row.setNonPrimitiveValue(18, bitmap);
+        row.setNonPrimitiveValue(19, geography);
         testGetters(row);
         testSetters(row);
     }
@@ -230,6 +241,7 @@ class RowDataTest {
         row2.setField(11, timestamp1);
         row2.setField(12, timestamp2);
         row2.setField(13, bitmap);
+        row2.setField(14, geography);
         testGetters(new JoinedRowData(row1, row2));
     }
 
@@ -277,6 +289,14 @@ class RowDataTest {
                 .isEqualTo(timestamp1);
         assertThat(RowData.createFieldGetter(new TimestampType(9), 17).getFieldOrNull(row))
                 .isEqualTo(timestamp2);
+        assertThat(RowData.createFieldGetter(new BitmapType(), 18).getFieldOrNull(row))
+                .isEqualTo(bitmap);
+        assertThat(
+                        ((GeographyData)
+                                        RowData.createFieldGetter(new GeographyType(), 19)
+                                                .getFieldOrNull(row))
+                                .toBytes())
+                .isEqualTo(geography.toBytes());
     }
 
     @Test
@@ -355,6 +375,10 @@ class RowDataTest {
                         RowData.createFieldGetter(new TimestampType(nullable, 9), 17)
                                 .getFieldOrNull(row))
                 .isNull();
+        assertThat(RowData.createFieldGetter(new BitmapType(nullable), 18).getFieldOrNull(row))
+                .isNull();
+        assertThat(RowData.createFieldGetter(new GeographyType(nullable), 19).getFieldOrNull(row))
+                .isNull();
     }
 
     private void testGetters(RowData row) {
@@ -385,6 +409,7 @@ class RowDataTest {
         assertThat(row.getTimestamp(16, 3)).isEqualTo(timestamp1);
         assertThat(row.getTimestamp(17, 9)).isEqualTo(timestamp2);
         assertThat(row.getBitmap(18)).isEqualTo(bitmap);
+        assertThat(row.getGeography(19).toBytes()).isEqualTo(geography.toBytes());
     }
 
     private void testSetters(RowData row) {
@@ -435,7 +460,7 @@ class RowDataTest {
     }
 
     private static BinaryRowData getNullBinaryRow() {
-        BinaryRowData row = new BinaryRowData(18);
+        BinaryRowData row = new BinaryRowData(NUM_FIELDS);
         BinaryRowWriter binaryRowWriter = new BinaryRowWriter(row);
         for (int i = 0; i < row.getArity(); i++) {
             binaryRowWriter.setNullAt(i);

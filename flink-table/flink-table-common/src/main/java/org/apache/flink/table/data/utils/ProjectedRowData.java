@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -176,6 +177,11 @@ public class ProjectedRowData implements RowData {
     @Override
     public Bitmap getBitmap(int pos) {
         return row.getBitmap(indexMapping[pos]);
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        return row.getGeography(indexMapping[pos]);
     }
 
     @Override
