@@ -283,6 +283,7 @@ object CodeGenUtils {
     case DESCRIPTOR => className[ColumnList]
     case VARIANT => className[Variant]
     case BITMAP => className[Bitmap]
+    case GEOGRAPHY => className[GeographyData]
     case SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
   }
@@ -391,6 +392,8 @@ object CodeGenUtils {
       case VARIANT =>
         s"$term.hashCode()"
       case BITMAP =>
+        s"$term.hashCode()"
+      case GEOGRAPHY =>
         s"$term.hashCode()"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
@@ -544,6 +547,8 @@ object CodeGenUtils {
         s"$rowTerm.getVariant($indexTerm)"
       case BITMAP =>
         s"$rowTerm.getBitmap($indexTerm)"
+      case GEOGRAPHY =>
+        s"$rowTerm.getGeography($indexTerm)"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }
@@ -841,6 +846,8 @@ object CodeGenUtils {
       s"$writerTerm.writeVariant($indexTerm, $fieldValTerm)"
     case BITMAP =>
       s"$writerTerm.writeBitmap($indexTerm, $fieldValTerm)"
+    case GEOGRAPHY =>
+      s"$writerTerm.writeGeography($indexTerm, $fieldValTerm)"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t);
   }
