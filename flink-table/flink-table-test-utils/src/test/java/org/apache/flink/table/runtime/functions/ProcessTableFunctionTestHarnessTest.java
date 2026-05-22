@@ -142,6 +142,25 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** Stateful PTF with OPTIONAL_PARTITION_BY. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class StatefulOptionalPartitionPTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long counter = 0L;
+        }
+
+        public void eval(
+                @StateHint CounterState state,
+                @ArgumentHint({
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        })
+                        Row input) {
+            state.counter++;
+            collect(Row.of(state.counter));
+        }
+    }
+
     /** Simple POJO for testing structured type input/output. */
     public static class User {
         public String name;
@@ -677,6 +696,56 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output.get(0)).isEqualTo(Row.of("A", 20));
             assertThat(output.get(1)).isEqualTo(Row.of("A", 10));
             assertThat(output.get(2)).isEqualTo(Row.of("B", 40));
+        }
+    }
+
+    @Test
+    void testOptionalPartitionByWithStateNoPartition() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .build()) {
+
+            harness.processElement(Row.of("A", 10));
+            harness.processElement(Row.of("B", 20));
+            harness.processElement(Row.of("A", 30));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(3);
+            assertThat(output.get(0)).isEqualTo(Row.of(1L));
+            assertThat(output.get(1)).isEqualTo(Row.of(2L));
+            assertThat(output.get(2)).isEqualTo(Row.of(3L));
+
+            StatefulOptionalPartitionPTF.CounterState state =
+                    harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(3L);
+        }
+    }
+
+    @Test
+    void testOptionalPartitionByWithStateAndPartition() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build()) {
+
+            harness.processElement(Row.of("A", 10));
+            harness.processElement(Row.of("B", 20));
+            harness.processElement(Row.of("A", 30));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(3);
+            assertThat(output.get(0)).isEqualTo(Row.of("A", 1L));
+            assertThat(output.get(1)).isEqualTo(Row.of("B", 1L));
+            assertThat(output.get(2)).isEqualTo(Row.of("A", 2L));
+
+            StatefulOptionalPartitionPTF.CounterState stateA =
+                    harness.getStateForKey("state", Row.of("A"));
+            StatefulOptionalPartitionPTF.CounterState stateB =
+                    harness.getStateForKey("state", Row.of("B"));
+            assertThat(stateA.counter).isEqualTo(2L);
+            assertThat(stateB.counter).isEqualTo(1L);
         }
     }
 
@@ -1278,6 +1347,7 @@ class ProcessTableFunctionTestHarnessTest {
         assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("P1", "foo", 2));
 
         harness.processElementForTable("input", Row.of("P1", "bar"));
+        assertThat(harness.getOutput().get(2)).isEqualTo(Row.of("P1", "bar", 1));
 
         MapView<String, Integer> mapState = harness.getStateForKey("mapState", Row.of("P1"));
         assertThat(mapState.get("foo")).isEqualTo(2);
@@ -1340,6 +1410,10 @@ class ProcessTableFunctionTestHarnessTest {
         state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state).isNull();
 
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
+
         harness.close();
     }
 
@@ -1361,6 +1435,10 @@ class ProcessTableFunctionTestHarnessTest {
 
         state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(0L);
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
 
         harness.close();
     }
@@ -1477,6 +1555,33 @@ class ProcessTableFunctionTestHarnessTest {
         assertThat(exception.getMessage()).contains("Integer");
         assertThat(exception.getMessage()).contains("name");
         assertThat(exception.getMessage()).contains("String");
+    }
+
+    @Test
+    void testSetStateForKey() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 20));
+
+        PTFWithPojoState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        PTFWithPojoState.CounterState newState = new PTFWithPojoState.CounterState();
+        newState.counter = 50L;
+        harness.setStateForKey("state", Row.of("Alice"), newState);
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(50L);
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        assertThat(harness.getOutput().get(2)).isEqualTo(Row.of("Alice", 51L));
+
+        harness.close();
     }
 
     @Test
