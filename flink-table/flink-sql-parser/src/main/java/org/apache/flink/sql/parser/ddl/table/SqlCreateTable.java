@@ -225,11 +225,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
         SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseDistribution(distribution, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparsePartitionKeyList(partitionKeyList, writer, leftPrec, rightPrec);
-        if (connection != null) {
-            writer.newlineAndIndent();
-            writer.keyword("USING CONNECTION");
-            connection.unparse(writer, leftPrec, rightPrec);
-        }
+        SqlUnparseUtils.unparseUsingConnection(connection, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
     }
 }

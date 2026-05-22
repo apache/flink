@@ -25,6 +25,7 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlStartMode;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
@@ -98,6 +99,17 @@ public class SqlUnparseUtils {
         SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
         partitionKeyList.unparse(writer, leftPrec, rightPrec);
         writer.endList(partitionedByFrame);
+    }
+
+    public static void unparseUsingConnection(
+            SqlIdentifier connection, SqlWriter writer, int leftPrec, int rightPrec) {
+        if (connection == null) {
+            return;
+        }
+        writer.newlineAndIndent();
+        writer.keyword("USING");
+        writer.keyword("CONNECTION");
+        connection.unparse(writer, leftPrec, rightPrec);
     }
 
     public static void unparseFreshness(

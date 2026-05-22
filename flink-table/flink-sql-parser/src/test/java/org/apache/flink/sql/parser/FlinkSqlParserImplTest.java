@@ -1107,13 +1107,42 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testCreateTableAsWithUsingConnectionFails() {
+        // CTAS goes through SqlCreateTable with replace=false; the parser explicitly rejects
+        // USING CONNECTION + AS via ParserResource.usingConnectionWithAsUnsupported().
         final String sql =
                 "^CREATE^ TABLE t1\n"
                         + "USING CONNECTION cat1.db1.conn1\n"
                         + "WITH ('connector' = 'jdbc')\n"
                         + "AS SELECT 1 AS a";
         sql(sql).fails(
-                        "(?s).*USING CONNECTION clause is not supported with CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements.*");
+                        "(?s).*USING CONNECTION clause is not supported with "
+                                + "CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements\\..*");
+    }
+
+    @Test
+    void testReplaceTableAsWithUsingConnectionFails() {
+        // REPLACE TABLE always has an AS clause, so USING CONNECTION is never valid;
+        // it's not even accepted by the SqlReplaceTable production.
+        final String sql =
+                "REPLACE TABLE t1\n"
+                        + "^USING^ CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "AS SELECT 1 AS a";
+        sql(sql).fails("(?s).*Encountered \"USING\" at line 2, column 1.\n.*");
+    }
+
+    @Test
+    void testCreateOrReplaceTableAsWithUsingConnectionFails() {
+        // CREATE OR REPLACE TABLE AS goes through SqlCreateTable with replace=true and hits
+        // the same usingConnectionWithAsUnsupported() error path as CTAS.
+        final String sql =
+                "^CREATE^ OR REPLACE TABLE t1\n"
+                        + "USING CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "AS SELECT 1 AS a";
+        sql(sql).fails(
+                        "(?s).*USING CONNECTION clause is not supported with "
+                                + "CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements\\..*");
     }
 
     @Test
