@@ -41,6 +41,7 @@ import javax.annotation.Nullable;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
@@ -131,7 +132,9 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
             return;
         }
         final List<RowKind> unsupported =
-                mapping.keySet().stream().filter(kind -> !inputMode.contains(kind)).toList();
+                mapping.keySet().stream()
+                        .filter(kind -> !inputMode.contains(kind))
+                        .collect(Collectors.toList());
         if (!unsupported.isEmpty()) {
             throw new ValidationException(
                     String.format(
