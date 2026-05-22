@@ -1435,6 +1435,51 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testInitialStateKeyArityMismatch() {
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                                        .withTableArgument(
+                                                "input",
+                                                DataTypes.of("ROW<name STRING, value INT>"))
+                                        .withPartitionBy("input", "name")
+                                        .withInitialStateForKey(
+                                                "state",
+                                                Row.of("Alice", 42),
+                                                new PTFWithPojoState.CounterState())
+                                        .build());
+
+        assertThat(exception.getMessage()).contains("state");
+        assertThat(exception.getMessage()).contains("arity 2");
+        assertThat(exception.getMessage()).contains("arity 1");
+    }
+
+    @Test
+    void testInitialStateKeyTypeMismatch() {
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                                        .withTableArgument(
+                                                "input",
+                                                DataTypes.of("ROW<name STRING, value INT>"))
+                                        .withPartitionBy("input", "name")
+                                        .withInitialStateForKey(
+                                                "state",
+                                                Row.of(42),
+                                                new PTFWithPojoState.CounterState())
+                                        .build());
+
+        assertThat(exception.getMessage()).contains("state");
+        assertThat(exception.getMessage()).contains("Integer");
+        assertThat(exception.getMessage()).contains("name");
+        assertThat(exception.getMessage()).contains("String");
+    }
+
+    @Test
     void testInvalidStateNameInWithInitialState() {
         Exception exception =
                 assertThrows(

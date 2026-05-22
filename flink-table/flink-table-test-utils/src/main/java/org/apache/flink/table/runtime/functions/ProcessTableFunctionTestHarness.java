@@ -687,6 +687,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             validateEvalMethodSupported(evalMethod, arguments);
             validatePartitionConsistency(arguments);
+            validateInitialStateKeys(arguments);
 
             Map<String, TableArgumentConverters> argumentConverters = new HashMap<>();
             Map<String, StateConverter> stateConverters = new HashMap<>();
@@ -942,6 +943,61 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                         currentColName,
                                         current.name,
                                         currentColType));
+                    }
+                }
+            }
+        }
+
+        private void validateInitialStateKeys(List<ArgumentInfo> arguments) {
+            if (stateArgs.isEmpty()) {
+                return;
+            }
+
+            // all partitioned tables share the same partition key shape, so any one is
+            // sufficient for validation.
+            Optional<TableArgumentInfo> partitionedTable =
+                    arguments.stream()
+                            .filter(arg -> arg instanceof TableArgumentInfo)
+                            .map(arg -> (TableArgumentInfo) arg)
+                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .findFirst();
+
+            if (partitionedTable.isEmpty()) {
+                return;
+            }
+
+            TableArgumentInfo table = partitionedTable.get();
+            int expectedArity = table.partitionColumnNames.length;
+            LogicalType[] expectedTypes =
+                    Arrays.stream(table.partitionColumnNames)
+                            .map(col -> extractPartitionColumnType(table, col).getLogicalType())
+                            .toArray(LogicalType[]::new);
+
+            for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
+                for (Row key : entry.getValue().initialValues.keySet()) {
+                    if (key.getArity() != expectedArity) {
+                        throw new IllegalArgumentException(
+                                String.format(
+                                        "Initial state key for state '%s' has arity %d, "
+                                                + "but partition key has arity %d.",
+                                        entry.getKey(), key.getArity(), expectedArity));
+                    }
+
+                    for (int i = 0; i < expectedArity; i++) {
+                        Object value = key.getField(i);
+                        Class<?> expectedClass = expectedTypes[i].getDefaultConversion();
+                        if (value != null && !expectedClass.isInstance(value)) {
+                            throw new IllegalArgumentException(
+                                    String.format(
+                                            "Initial state key for state '%s' has type %s "
+                                                    + "at position %d, but partition column '%s' "
+                                                    + "expects %s.",
+                                            entry.getKey(),
+                                            value.getClass().getSimpleName(),
+                                            i,
+                                            table.partitionColumnNames[i],
+                                            expectedClass.getSimpleName()));
+                        }
                     }
                 }
             }
