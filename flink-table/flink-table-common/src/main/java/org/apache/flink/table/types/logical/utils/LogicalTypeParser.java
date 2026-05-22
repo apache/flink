@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -336,7 +337,8 @@ public final class LogicalTypeParser {
         DESCRIPTOR,
         STRUCTURED,
         VARIANT,
-        BITMAP
+        BITMAP,
+        GEOGRAPHY
     }
 
     private static final Set<String> KEYWORDS =
@@ -586,6 +588,8 @@ public final class LogicalTypeParser {
                     return new VariantType();
                 case BITMAP:
                     return new BitmapType();
+                case GEOGRAPHY:
+                    return new GeographyType();
                 default:
                     throw parsingError("Unsupported type: " + token().value);
             }
