@@ -19,8 +19,12 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 
+import javax.annotation.Nullable;
+
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,12 +43,61 @@ class TestHarnessStateManager {
     private final Map<Row, Map<String, Object>> stateByKey = new HashMap<>();
     private final List<ProcessTableFunctionTestHarness.StateArgumentInfo> stateArguments;
     private final Map<String, StateConverter> stateConverters;
+    private final PartitionKeyInfo partitionKeyInfo;
 
     TestHarnessStateManager(
             List<ProcessTableFunctionTestHarness.StateArgumentInfo> stateArguments,
-            Map<String, StateConverter> stateConverters) {
+            Map<String, StateConverter> stateConverters,
+            PartitionKeyInfo partitionKeyInfo) {
         this.stateArguments = stateArguments;
         this.stateConverters = stateConverters;
+        this.partitionKeyInfo = partitionKeyInfo;
+    }
+
+    static class PartitionKeyInfo {
+        final int arity;
+        @Nullable final String[] columnNames;
+        @Nullable final Class<?>[] columnTypes;
+
+        PartitionKeyInfo(
+                int arity,
+                @Nullable String[] columnNames,
+                @Nullable LogicalType[] columnLogicalTypes) {
+            this.arity = arity;
+            this.columnNames = columnNames;
+            this.columnTypes =
+                    columnLogicalTypes != null
+                            ? Arrays.stream(columnLogicalTypes)
+                                    .map(LogicalType::getDefaultConversion)
+                                    .toArray(Class<?>[]::new)
+                            : null;
+        }
+
+        void validate(Row key) {
+            if (key.getArity() != arity) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Partition key has arity %d, but expected arity %d.",
+                                key.getArity(), arity));
+            }
+            if (columnTypes == null) {
+                return;
+            }
+            for (int i = 0; i < arity; i++) {
+                Object value = key.getField(i);
+                if (value != null && !columnTypes[i].isInstance(value)) {
+                    String columnName = columnNames != null ? columnNames[i] : "position " + i;
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Partition key has type %s at position %d, "
+                                            + "but partition column '%s' expects %s.",
+                                    value.getClass().getSimpleName(),
+                                    i,
+                                    columnName,
+                                    columnTypes[i].getSimpleName()));
+                }
+            }
+        }
     }
 
     /**
@@ -79,11 +132,13 @@ class TestHarnessStateManager {
 
     /** Clear all state for a partition key. */
     void clearStateForKey(Row key) {
+        partitionKeyInfo.validate(key);
         stateByKey.remove(key);
     }
 
     /** Clear specific state entry for a given partition key, resetting it to its default value. */
     void clearStateEntryForKey(String stateName, Row key) {
+        partitionKeyInfo.validate(key);
         Map<String, Object> internalState = stateByKey.get(key);
         if (internalState != null) {
             ProcessTableFunctionTestHarness.StateArgumentInfo stateArg =
@@ -94,6 +149,7 @@ class TestHarnessStateManager {
 
     /** Sets the state for a given partition key. */
     void setStateForKey(String stateName, Row key, Object externalState) throws Exception {
+        partitionKeyInfo.validate(key);
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
         Object internalData = convertToInternal(externalState, stateArg);
 
@@ -105,6 +161,7 @@ class TestHarnessStateManager {
     /** Get the state for a given partition key. */
     @SuppressWarnings("unchecked")
     <T> T getStateForKey(String stateName, Row key) {
+        partitionKeyInfo.validate(key);
         Map<String, Object> internalState = stateByKey.get(key);
         if (internalState == null) {
             return null;

@@ -1602,4 +1602,92 @@ class ProcessTableFunctionTestHarnessTest {
         assertThat(exception.getMessage()).contains("Available states");
         assertThat(exception.getMessage()).contains("state");
     }
+
+    // -------------------------------------------------------------------------
+    // Partition Key Validation Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testPartitionKeyValidationWrongArity() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> harness.getStateForKey("state", Row.of("Alice", "extra")));
+        assertThat(exception.getMessage()).contains("arity 2");
+        assertThat(exception.getMessage()).contains("expected arity 1");
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationWrongType() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> harness.getStateForKey("state", Row.of(123)));
+        assertThat(exception.getMessage()).contains("Integer");
+        assertThat(exception.getMessage()).contains("name");
+        assertThat(exception.getMessage()).contains("String");
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnSetState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        PTFWithPojoState.CounterState state = new PTFWithPojoState.CounterState();
+        state.counter = 1L;
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.setStateForKey("state", Row.of(1, 2), state));
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnClearState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        assertThrows(
+                IllegalArgumentException.class, () -> harness.clearStateForKey(Row.of("a", "b")));
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnClearStateEntry() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.clearStateEntryForKey("state", Row.of(42)));
+
+        harness.close();
+    }
 }

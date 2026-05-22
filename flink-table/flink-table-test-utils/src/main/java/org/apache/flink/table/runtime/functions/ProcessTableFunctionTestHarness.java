@@ -696,7 +696,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             // Create state manager
             List<StateArgumentInfo> stateArguments = ArgumentInfo.filterStateArguments(arguments);
             TestHarnessStateManager stateManager =
-                    new TestHarnessStateManager(stateArguments, stateConverters);
+                    new TestHarnessStateManager(
+                            stateArguments, stateConverters, extractPartitionKeyInfo(arguments));
 
             // Populate initial state
             for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
@@ -1027,6 +1028,29 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     String.format(
                             "Partition column '%s' not found in argument '%s'",
                             columnName, tableArg.name));
+        }
+
+        private TestHarnessStateManager.PartitionKeyInfo extractPartitionKeyInfo(
+                List<ArgumentInfo> arguments) {
+            Optional<TableArgumentInfo> partitionedTable =
+                    arguments.stream()
+                            .filter(arg -> arg instanceof TableArgumentInfo)
+                            .map(arg -> (TableArgumentInfo) arg)
+                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .findFirst();
+
+            if (partitionedTable.isEmpty()) {
+                return new TestHarnessStateManager.PartitionKeyInfo(0, null, null);
+            }
+
+            TableArgumentInfo table = partitionedTable.get();
+            String[] columnNames = table.partitionColumnNames;
+            LogicalType[] columnTypes =
+                    Arrays.stream(columnNames)
+                            .map(col -> extractPartitionColumnType(table, col).getLogicalType())
+                            .toArray(LogicalType[]::new);
+            return new TestHarnessStateManager.PartitionKeyInfo(
+                    columnNames.length, columnNames, columnTypes);
         }
 
         // ---------------------------------------------------------------------
