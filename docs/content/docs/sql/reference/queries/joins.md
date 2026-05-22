@@ -186,6 +186,8 @@ o_002     12.51  EUR       1.10             12:06:00
 The `INTERVAL` time subtraction is used to wait for late events in order to make sure the join will meet the expectation. 
 Please ensure both sides of the join have set watermark correctly.
 
+**Note:** Probe-side (left) records that arrive late (their event time is less than or equal to the current watermark) are dropped on arrival and counted by the `numLateRecordsDropped` operator metric. They are not joined or emitted, not even as null-padded results for `LEFT JOIN`, because the matching build-side version may already have been cleaned up.
+
 **Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `currency_rates.currency` of table `currency_rates` to be constrained in the condition `orders.currency = currency_rates.currency`.
 
 In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
