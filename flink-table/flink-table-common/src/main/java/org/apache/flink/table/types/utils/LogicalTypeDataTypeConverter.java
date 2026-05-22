@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -263,6 +264,11 @@ public final class LogicalTypeDataTypeConverter {
         @Override
         public DataType visit(BitmapType bitmapType) {
             return new AtomicDataType(bitmapType);
+        }
+
+        @Override
+        public DataType visit(GeographyType geographyType) {
+            return new AtomicDataType(geographyType);
         }
 
         @Override
