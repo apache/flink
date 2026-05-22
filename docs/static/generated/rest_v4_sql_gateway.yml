@@ -516,6 +516,7 @@ components:
       - DESCRIPTOR
       - VARIANT
       - BITMAP
+      - GEOGRAPHY
     OpenSessionRequestBody:
       type: object
       properties:

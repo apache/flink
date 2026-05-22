@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -627,6 +628,20 @@ public class LogicalTypesTest {
                                 new Class[] {Bitmap.class, RoaringBitmapData.class},
                                 new LogicalType[] {},
                                 new BitmapType(false)));
+    }
+
+    @Test
+    void testGeographyType() {
+        assertThat(new GeographyType())
+                .isJavaSerializable()
+                .satisfies(
+                        baseAssertions(
+                                "GEOGRAPHY",
+                                "GEOGRAPHY",
+                                new Class[] {Object.class},
+                                new Class[] {Object.class},
+                                new LogicalType[] {},
+                                new GeographyType(false)));
     }
 
     @Test
