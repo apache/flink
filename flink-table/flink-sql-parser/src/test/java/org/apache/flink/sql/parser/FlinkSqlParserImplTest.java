@@ -4074,4 +4074,23 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("CREATE TABLE t (\n" + "^bitmap^ INT" + "\n)")
                 .fails("(?s).*Encountered \"bitmap\" at line 2, column 1.\n.*");
     }
+
+    @Test
+    void testGeographyType() {
+        sql("CREATE TABLE t (\n" + "g geography" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `G` GEOGRAPHY\n" + ")");
+
+        sql("CREATE TABLE t (\n" + "g geography NOT NULL" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `G` GEOGRAPHY NOT NULL\n" + ")");
+
+        // GEOGRAPHY takes no parameters
+        sql("CREATE TABLE t (\n" + "g geography^(^1)" + "\n)")
+                .fails("(?s).*Encountered \"\\(\" at line 2, column 12.\n.*");
+        sql("CREATE TABLE t (\n" + "g geography^(^4326)" + "\n)")
+                .fails("(?s).*Encountered \"\\(\" at line 2, column 12.\n.*");
+
+        // GEOGRAPHY is a reserved keyword and cannot be used as an identifier without escaping
+        sql("CREATE TABLE t (\n" + "^geography^ INT" + "\n)")
+                .fails("(?s).*Encountered \"geography\" at line 2, column 1.\n.*");
+    }
 }

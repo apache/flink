@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.BitmapRelDataType;
+import org.apache.flink.table.planner.plan.schema.GeographyRelDataType;
 import org.apache.flink.table.planner.plan.schema.RawRelDataType;
 import org.apache.flink.table.planner.plan.schema.StructuredRelDataType;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -467,6 +469,11 @@ public final class LogicalRelDataTypeConverter {
         }
 
         @Override
+        public RelDataType visit(GeographyType geographyType) {
+            return new GeographyRelDataType(geographyType);
+        }
+
+        @Override
         public RelDataType visit(LogicalType other) {
             throw new TableException(
                     String.format(
@@ -596,6 +603,8 @@ public final class LogicalRelDataTypeConverter {
                     return ((RawRelDataType) relDataType).getRawType();
                 } else if (relDataType instanceof BitmapRelDataType) {
                     return ((BitmapRelDataType) relDataType).getBitmapType();
+                } else if (relDataType instanceof GeographyRelDataType) {
+                    return ((GeographyRelDataType) relDataType).getGeographyType();
                 }
             // fall through
             case REAL:
