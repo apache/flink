@@ -81,6 +81,8 @@ import static org.apache.calcite.rel.type.RelDataType.PRECISION_NOT_SPECIFIED;
  *
  * <p>Lines 402 ~ 404, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
  * RexNode, Map, Set, RexBuilder)}.
+ *
+ * <p>FLINK modifications (backport of CALCITE-6764): Line 2481~2485
  */
 public class RexUtil {
 
@@ -2489,7 +2491,11 @@ public class RexUtil {
             expr.accept(this);
             final RexNode normalizedExpr = lookup(expr);
             if (normalizedExpr != expr) {
-                fieldAccess = new RexFieldAccess(normalizedExpr, fieldAccess.getField());
+                // ----- FLINK MODIFICATION BEGIN -----
+                fieldAccess =
+                        new RexFieldAccess(
+                                normalizedExpr, fieldAccess.getField(), fieldAccess.getType());
+                // ----- FLINK MODIFICATION END -----
             }
             return register(fieldAccess);
         }

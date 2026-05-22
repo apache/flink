@@ -18,12 +18,19 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rex.RexNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test rule {@link SimplifyCoalesceWithEquiJoinConditionRule}. */
 class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
@@ -175,5 +182,24 @@ class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
                         + "FROM orders a LEFT JOIN order_details_row b ON a.order_id = b.r.order_id");
+    }
+
+    @Test
+    void testNestedRowFieldAccessNullableAfterLeftJoin() {
+        // b.r.order_id must be nullable after a LEFT JOIN even though
+        // the ROW field is declared NOT NULL, because the ROW itself
+        // is null-padded on the non-preserved side.
+        Table table =
+                util.tableEnv()
+                        .sqlQuery(
+                                "SELECT b.r.order_id "
+                                        + "FROM orders a LEFT JOIN order_details_row b "
+                                        + "ON a.order_id = b.r.order_id");
+        RelNode relNode = TableTestUtil.toRelNode(table);
+        LogicalProject project = (LogicalProject) relNode;
+        RexNode expr = project.getProjects().get(0);
+        assertThat(expr.getType().isNullable())
+                .as("Field access on nullable ROW from LEFT JOIN should be nullable, got: " + expr)
+                .isTrue();
     }
 }

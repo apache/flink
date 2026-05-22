@@ -116,7 +116,7 @@ LogicalProject(field2=[$1], transactionId=[COALESCE($0.data.nested.trId)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[field1 AS field2, CAST(field1.data.nested.trId AS VARCHAR(2147483647)) AS transactionId])
+Calc(select=[field1 AS field2, COALESCE(field1.data.nested.trId) AS transactionId])
 +- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameType]], fields=[field1])
 ]]>
     </Resource>
@@ -134,7 +134,7 @@ LogicalProject(field2=[$1], transactionId=[COALESCE(ITEM($0.data, 0).nested.trId
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[field1 AS field2, CAST(ITEM(field1.data, 0).nested.trId AS VARCHAR(2147483647)) AS transactionId])
+Calc(select=[field1 AS field2, COALESCE(ITEM(field1.data, 0).nested.trId) AS transactionId])
 +- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithArray]], fields=[field1])
 ]]>
     </Resource>
@@ -295,8 +295,8 @@ GROUP BY t.data[1].nested[0].trId]]>
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalProject($f0=[CAST(ITEM(ITEM($0.data, 1).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], $f1=[CAST(ITEM(ITEM($0.data, 0).nested, 1).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-      +- LogicalFilter(condition=[=(CAST(ITEM(ITEM($0.data, 0).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", CAST($1.data1.nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+   +- LogicalProject($f0=[ITEM(ITEM($0.data, 1).nested, 0).trId], $f1=[ITEM(ITEM($0.data, 0).nested, 1).trId])
+      +- LogicalFilter(condition=[=(ITEM(ITEM($0.data, 0).nested, 0).trId, $1.data1.nested.trId)])
          +- LogicalJoin(condition=[true], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested]])
             +- LogicalTableScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested2]])
@@ -307,7 +307,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[$f0], select=[$f0, COUNT($f1) AS EXPR$0])
    +- Exchange(distribution=[hash[$f0]])
-      +- Calc(select=[CAST(ITEM(ITEM(field1.data, 1).nested, 0).trId AS VARCHAR(2147483647)) AS $f0, CAST(ITEM(ITEM(field1.data, 0).nested, 1).trId AS VARCHAR(2147483647)) AS $f1])
+      +- Calc(select=[ITEM(ITEM(field1.data, 1).nested, 0).trId AS $f0, ITEM(ITEM(field1.data, 0).nested, 1).trId AS $f1])
          +- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[field1, $f1, $f10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
             :- Exchange(distribution=[hash[$f1]])
             :  +- Calc(select=[field1, ITEM(ITEM(field1.data, 0).nested, 0).trId AS $f1])
@@ -325,7 +325,7 @@ Calc(select=[EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(dt=[$0])
-+- LogicalFilter(condition=[=(CAST(ITEM(ITEM($0.data, 0).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", CAST($1.data1.nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
++- LogicalFilter(condition=[=(ITEM(ITEM($0.data, 0).nested, 0).trId, $1.data1.nested.trId)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, testJoinOnNested]])
       +- LogicalTableScan(table=[[default_catalog, default_database, testJoinOnNested2]])

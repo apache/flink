@@ -268,4 +268,36 @@ public class CalcTestPrograms {
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT name, ts, CURRENT_WATERMARK(ts) AS w FROM t")
                     .build();
+
+    public static final TableTestProgram COALESCE_NESTED_ROW_LEFT_JOIN =
+            TableTestProgram.of(
+                            "calc-coalesce-nested-row-left-join",
+                            "validates coalesce on nested ROW field from LEFT JOIN")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders")
+                                    .addSchema(
+                                            "`order_id` BIGINT NOT NULL",
+                                            "`amount` DOUBLE",
+                                            "PRIMARY KEY (`order_id`) NOT ENFORCED")
+                                    .producedValues(Row.of(1L, 10.0), Row.of(2L, 20.0))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("order_details_row")
+                                    .addSchema(
+                                            "`r` ROW<`order_id` BIGINT NOT NULL, `name` STRING NOT NULL> NOT NULL",
+                                            "`detail` STRING",
+                                            "PRIMARY KEY (`r`) NOT ENFORCED")
+                                    .producedValues(Row.of(Row.of(1L, "first"), "d1"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("coalesce_sink")
+                                    .addSchema("order_id_str STRING")
+                                    .consumedValues("+I[1]", "+I[2]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO coalesce_sink "
+                                    + "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
+                                    + "FROM orders a LEFT JOIN order_details_row b "
+                                    + "ON a.order_id = b.r.order_id")
+                    .build();
 }

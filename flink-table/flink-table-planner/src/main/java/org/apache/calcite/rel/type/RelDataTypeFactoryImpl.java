@@ -58,8 +58,8 @@ import static org.apache.calcite.util.ReflectUtil.isStatic;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-5199: Lines 243-245
- *   <li>Might be a subject to reconsider after bump to Calcite 1.38.0: Lines 568-570
+ *   <li>Should be removed after fixing CALCITE-5199: Lines 242-244
+ *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 407 ~ 438
  * </ol>
  */
 public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
@@ -404,6 +404,39 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         }
         return canonize(newType);
     }
+
+    // ----- FLINK MODIFICATION BEGIN -----
+    // Backport from Calcite (CALCITE-6764): creates a type with specified nullability
+    // without deep-copying record field types. For record types, makes the struct
+    // itself nullable/not-nullable while keeping field types unchanged.
+    public RelDataType enforceTypeWithNullability(final RelDataType type, final boolean nullable) {
+        requireNonNull(type, "type");
+        RelDataType newType;
+        if (type.isNullable() == nullable) {
+            newType = type;
+        } else if (type instanceof RelRecordType) {
+            return createStructType(
+                    type.getStructKind(),
+                    new AbstractList<RelDataType>() {
+                        @Override
+                        public RelDataType get(int index) {
+                            return type.getFieldList().get(index).getType();
+                        }
+
+                        @Override
+                        public int size() {
+                            return type.getFieldCount();
+                        }
+                    },
+                    type.getFieldNames(),
+                    nullable);
+        } else {
+            newType = copySimpleType(type, nullable);
+        }
+        return canonize(newType);
+    }
+
+    // ----- FLINK MODIFICATION END -----
 
     /**
      * Registers a type, or returns the existing type if it is already registered.

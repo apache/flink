@@ -1,0 +1,284 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 27,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "amount",
+              "dataType" : "DOUBLE"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_order_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ] ],
+        "producedType" : "ROW<`order_id` BIGINT NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`order_id` BIGINT NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`order_id` BIGINT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])"
+  }, {
+    "id" : 28,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[order_id]])"
+  }, {
+    "id" : 29,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`order_details_row`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "r",
+              "dataType" : "ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL"
+            }, {
+              "name" : "detail",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_r",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "r" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ] ],
+        "producedType" : "ROW<`r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, order_details_row, project=[r], metadata=[]]], fields=[r])"
+  }, {
+    "id" : 30,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL"
+    }, {
+      "kind" : "FIELD_ACCESS",
+      "name" : "order_id",
+      "expr" : {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL, `$f2` BIGINT NOT NULL>",
+    "description" : "Calc(select=[r, r.order_id AS $f2])"
+  }, {
+    "id" : 31,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL> NOT NULL, `$f2` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[$f2]])"
+  }, {
+    "id" : 32,
+    "type" : "stream-exec-join_1",
+    "joinSpec" : {
+      "joinType" : "LEFT",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 1 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "leftUpsertKeys" : [ [ 0 ] ],
+    "rightUpsertKeys" : [ [ 0 ] ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` BIGINT NOT NULL, `r` ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL>, `$f2` BIGINT>",
+    "description" : "Join(joinType=[LeftOuterJoin], where=[(order_id = $f2)], select=[order_id, r, $f2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])"
+  }, {
+    "id" : 33,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "internalName" : "$COALESCE$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$CAST$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 1,
+            "type" : "ROW<`order_id` BIGINT NOT NULL, `name` VARCHAR(2147483647) NOT NULL>"
+          } ],
+          "type" : "BIGINT"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "BIGINT NOT NULL"
+        } ],
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id_str` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Calc(select=[CAST(COALESCE(CAST(r AS BIGINT), order_id) AS VARCHAR(2147483647)) AS order_id_str])"
+  }, {
+    "id" : 34,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`coalesce_sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id_str",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id_str` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.coalesce_sink], fields=[order_id_str])"
+  } ],
+  "edges" : [ {
+    "source" : 27,
+    "target" : 28,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 29,
+    "target" : 30,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 30,
+    "target" : 31,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 28,
+    "target" : 32,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 31,
+    "target" : 32,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 32,
+    "target" : 33,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 33,
+    "target" : 34,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
