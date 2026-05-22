@@ -265,6 +265,11 @@ public final class GenericArrayData implements ArrayData {
         return (Bitmap) getObject(pos);
     }
 
+    @Override
+    public GeographyData getGeography(int pos) {
+        return (GeographyData) getObject(pos);
+    }
+
     private Object getObject(int pos) {
         return ((Object[]) array)[pos];
     }
