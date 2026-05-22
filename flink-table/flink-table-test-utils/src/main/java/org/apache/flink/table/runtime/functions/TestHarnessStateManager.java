@@ -102,7 +102,7 @@ class TestHarnessStateManager {
 
     /**
      * Load state for a partition key. Creates new state instances if none exist. Converts internal
-     * storage to external objects (POJOs, ListView, MapView).
+     * storage to external objects (value state, ListView, MapView).
      */
     Map<String, Object> loadStateForKey(Row key) {
         Map<String, Object> internalState =

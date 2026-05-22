@@ -2280,12 +2280,12 @@ void testScalarOnly() throws Exception {
 
 #### Testing with State
 
-The harness supports all PTF state types: structured types, `Row`, `ListView`, and `MapView`.
+The harness supports all PTF state types: value state, `Row`, `ListView`, and `MapView`.
 
 {{< tabs "state-testing" >}}
 {{< tab "Java" >}}
 ```java
-// A PTF that uses all four state types: structured type, Row, ListView, and MapView.
+// A PTF that uses all four state types: value state, Row, ListView, and MapView.
 @DataTypeHint("ROW<count BIGINT>")
 public class StatefulPTF extends ProcessTableFunction<Row> {
   public static class ValueState {
@@ -2298,7 +2298,7 @@ public class StatefulPTF extends ProcessTableFunction<Row> {
     @StateHint(type = @DataTypeHint("ARRAY<INT>")) ListView<Integer> listState,
     @StateHint MapView<String, Integer> mapState,
     @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) throws Exception {
-    // Structured type state — increment counter
+    // Value state — increment counter
     valueState.count++;
 
     // Row state — track the last value seen
@@ -2345,7 +2345,7 @@ State initialization is scoped per partition key:
 ```java
 @Test
 void testWithInitialState() throws Exception {
-  // Structured type state
+  // Value state
   StatefulPTF.ValueState initialValue = new StatefulPTF.ValueState();
   initialValue.count = 100L;
 
@@ -2399,7 +2399,7 @@ void testStateIntrospection() throws Exception {
     harness.processElement(Row.of("Alice", 10));
     harness.processElement(Row.of("Bob", 20));
 
-    // Check structured type state
+    // Check value state
     StatefulPTF.ValueState aliceState =
       harness.getStateForKey("valueState", Row.of("Alice"));
     assertThat(aliceState.count).isEqualTo(1L);

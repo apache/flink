@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 
 /**
- * Converter for Structured Type state.
+ * Converter for value state backed by structured types.
  *
- * <p>Converts between external structured type objects and internal RowData representation.
+ * <p>Converts between external value state objects and internal RowData representation.
  */
 @Internal
 class StructuredTypeStateConverter implements StateConverter {

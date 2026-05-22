@@ -1191,8 +1191,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 DataStructureConverter<Object, Object> converter =
                         DataStructureConverters.getConverter(stateDataType);
                 converter.open(classLoader);
-                Class<?> pojoClass = stateDataType.getConversionClass();
-                return new StructuredTypeStateConverter(converter, pojoClass);
+                Class<?> stateClass = stateDataType.getConversionClass();
+                return new StructuredTypeStateConverter(converter, stateClass);
             }
         }
 
