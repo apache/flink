@@ -2380,7 +2380,7 @@ void testWithInitialState() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**State Introspection**: Use `getStateForKey()`, `getStateKeys()`, and `getAllState()` to inspect state during tests:
+**State Introspection**: Use `getStateForKey()`, `getKeysForState()`, and `getStateForAllKeys()` to inspect state during tests:
 
 {{< tabs "state-introspection" >}}
 {{< tab "Java" >}}
@@ -2414,12 +2414,12 @@ void testStateIntrospection() throws Exception {
     assertThat(aliceMap.get("Alice")).isEqualTo(1);
 
     // Get all partition keys with state
-    Set<Row> keys = harness.getStateKeys("valueState");
+    Set<Row> keys = harness.getKeysForState("valueState");
     assertThat(keys).containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"));
 
-    // Get all state across partitions
+    // Get all state across partition keys
     Map<Row, StatefulPTF.ValueState> allState =
-      harness.getAllState("valueState");
+      harness.getStateForAllKeys("valueState");
     assertThat(allState.get(Row.of("Bob")).count).isEqualTo(1L);
   }
 }

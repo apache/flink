@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @Internal
 class TestHarnessStateManager {
 
-    private final Map<Row, Map<String, Object>> stateByPartition = new HashMap<>();
+    private final Map<Row, Map<String, Object>> stateByKey = new HashMap<>();
     private final List<ProcessTableFunctionTestHarness.StateArgumentInfo> stateArguments;
     private final Map<String, StateConverter> stateConverters;
 
@@ -51,9 +51,9 @@ class TestHarnessStateManager {
      * Load state for a partition key. Creates new state instances if none exist. Converts internal
      * storage to external objects (POJOs, ListView, MapView).
      */
-    Map<String, Object> loadStateForPartition(Row partitionKey) {
+    Map<String, Object> loadStateForKey(Row key) {
         Map<String, Object> internalState =
-                stateByPartition.computeIfAbsent(partitionKey, k -> createNewPartitionState());
+                stateByKey.computeIfAbsent(key, k -> createEmptyKeyState());
 
         Map<String, Object> externalState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
@@ -67,25 +67,24 @@ class TestHarnessStateManager {
     /**
      * Update mutated state after eval() invocation. Converts external objects to internal format.
      */
-    void updateStateForPartition(Row partitionKey, Map<String, Object> externalState)
-            throws Exception {
+    void updateStateForKey(Row key, Map<String, Object> externalState) throws Exception {
         Map<String, Object> internalState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
             Object external = externalState.get(stateArg.name);
             Object internalData = convertToInternal(external, stateArg);
             internalState.put(stateArg.name, internalData);
         }
-        stateByPartition.put(partitionKey, internalState);
+        stateByKey.put(key, internalState);
     }
 
-    /** Clear all state for a partition. */
-    void clearStateForPartition(Row partitionKey) {
-        stateByPartition.remove(partitionKey);
+    /** Clear all state for a partition key. */
+    void clearStateForKey(Row key) {
+        stateByKey.remove(key);
     }
 
-    /** Clear specific state entry for a given partition, resetting it to its default value. */
-    void clearStateEntry(Row partitionKey, String stateName) {
-        Map<String, Object> internalState = stateByPartition.get(partitionKey);
+    /** Clear specific state entry for a given partition key, resetting it to its default value. */
+    void clearStateEntryForKey(String stateName, Row key) {
+        Map<String, Object> internalState = stateByKey.get(key);
         if (internalState != null) {
             ProcessTableFunctionTestHarness.StateArgumentInfo stateArg =
                     findStateArgument(stateName);
@@ -94,19 +93,19 @@ class TestHarnessStateManager {
     }
 
     /** Sets the state for a given partition key. */
-    void setStateForKey(String stateName, Row partitionKey, Object externalState) throws Exception {
+    void setStateForKey(String stateName, Row key, Object externalState) throws Exception {
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
         Object internalData = convertToInternal(externalState, stateArg);
 
         Map<String, Object> internalState =
-                stateByPartition.computeIfAbsent(partitionKey, k -> createNewPartitionState());
+                stateByKey.computeIfAbsent(key, k -> createEmptyKeyState());
         internalState.put(stateName, internalData);
     }
 
-    /** Get the state for given partition. */
+    /** Get the state for a given partition key. */
     @SuppressWarnings("unchecked")
-    <T> T getStateForKey(String stateName, Row partitionKey) {
-        Map<String, Object> internalState = stateByPartition.get(partitionKey);
+    <T> T getStateForKey(String stateName, Row key) {
+        Map<String, Object> internalState = stateByKey.get(key);
         if (internalState == null) {
             return null;
         }
@@ -118,19 +117,19 @@ class TestHarnessStateManager {
     }
 
     /** Get all partition keys that have a specific state entry. */
-    Set<Row> getStateKeys(String stateName) {
-        return stateByPartition.entrySet().stream()
+    Set<Row> getKeysForState(String stateName) {
+        return stateByKey.entrySet().stream()
                 .filter(entry -> entry.getValue().containsKey(stateName))
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
     }
 
-    /** Get all state values for a state name across all partitions. */
+    /** Get all state values for a state name across all partition keys. */
     @SuppressWarnings("unchecked")
-    <T> Map<Row, T> getAllState(String stateName) {
+    <T> Map<Row, T> getStateForAllKeys(String stateName) {
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
         Map<Row, T> result = new HashMap<>();
-        for (Map.Entry<Row, Map<String, Object>> entry : stateByPartition.entrySet()) {
+        for (Map.Entry<Row, Map<String, Object>> entry : stateByKey.entrySet()) {
             Object internalData = entry.getValue().get(stateName);
             if (internalData != null) {
                 result.put(entry.getKey(), (T) convertToExternal(internalData, stateArg));
@@ -139,7 +138,7 @@ class TestHarnessStateManager {
         return result;
     }
 
-    private Map<String, Object> createNewPartitionState() {
+    private Map<String, Object> createEmptyKeyState() {
         Map<String, Object> newState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
             newState.put(stateArg.name, createNewStateInternalData(stateArg));

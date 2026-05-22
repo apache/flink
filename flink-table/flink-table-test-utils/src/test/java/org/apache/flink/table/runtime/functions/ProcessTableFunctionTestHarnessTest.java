@@ -1214,7 +1214,7 @@ class ProcessTableFunctionTestHarnessTest {
         harness.processElementForTable("input", Row.of("Bob", 20));
         harness.processElementForTable("input", Row.of("Charlie", 30));
 
-        Set<Row> keys = harness.getStateKeys("state");
+        Set<Row> keys = harness.getKeysForState("state");
         assertThat(keys)
                 .containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"), Row.of("Charlie"));
 
@@ -1233,7 +1233,7 @@ class ProcessTableFunctionTestHarnessTest {
         harness.processElementForTable("input", Row.of("Alice", 15));
         harness.processElementForTable("input", Row.of("Bob", 20));
 
-        Map<Row, PTFWithPojoState.CounterState> allState = harness.getAllState("state");
+        Map<Row, PTFWithPojoState.CounterState> allState = harness.getStateForAllKeys("state");
 
         assertThat(allState).hasSize(2);
         assertThat(allState.get(Row.of("Alice")).counter).isEqualTo(2L);
@@ -1322,7 +1322,7 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testClearStateForPartition() throws Exception {
+    void testClearStateForKey() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
                         .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
@@ -1335,7 +1335,7 @@ class ProcessTableFunctionTestHarnessTest {
         PTFWithPojoState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(2L);
 
-        harness.clearStateForPartition(Row.of("Alice"));
+        harness.clearStateForKey(Row.of("Alice"));
 
         state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state).isNull();
@@ -1357,7 +1357,7 @@ class ProcessTableFunctionTestHarnessTest {
         PTFWithPojoState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(2L);
 
-        harness.clearStateEntry(Row.of("Alice"), "state");
+        harness.clearStateEntryForKey("state", Row.of("Alice"));
 
         state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(0L);

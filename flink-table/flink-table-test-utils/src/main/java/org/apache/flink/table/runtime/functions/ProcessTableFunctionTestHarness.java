@@ -284,23 +284,23 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /** Get all partition keys that have a specific state entry. */
-    public Set<Row> getStateKeys(String stateName) {
-        return stateManager.getStateKeys(stateName);
+    public Set<Row> getKeysForState(String stateName) {
+        return stateManager.getKeysForState(stateName);
     }
 
-    /** Get all state values for a state name across all partitions. */
-    public <T> Map<Row, T> getAllState(String stateName) {
-        return stateManager.getAllState(stateName);
+    /** Get all state values for a state name across all partition keys. */
+    public <T> Map<Row, T> getStateForAllKeys(String stateName) {
+        return stateManager.getStateForAllKeys(stateName);
     }
 
-    /** Clear all state for a given partition. */
-    public void clearStateForPartition(Row partitionKey) {
-        stateManager.clearStateForPartition(partitionKey);
+    /** Clear all state for a given partition key. */
+    public void clearStateForKey(Row partitionKey) {
+        stateManager.clearStateForKey(partitionKey);
     }
 
-    /** Clear specific state entry for a given partition. */
-    public void clearStateEntry(Row partitionKey, String stateName) {
-        stateManager.clearStateEntry(partitionKey, stateName);
+    /** Clear specific state entry for a given partition key. */
+    public void clearStateEntryForKey(String stateName, Row partitionKey) {
+        stateManager.clearStateEntryForKey(stateName, partitionKey);
     }
 
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
@@ -313,7 +313,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         collector.setContext(activeTableArg, namedRow);
 
         Row partitionKey = extractPartitionKey(activeTableArg, namedRow);
-        Map<String, Object> stateMap = stateManager.loadStateForPartition(partitionKey);
+        Map<String, Object> stateMap = stateManager.loadStateForKey(partitionKey);
 
         Object[] args = new Object[arguments.size()];
         int i = 0;
@@ -335,7 +335,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         try {
             evalMethod.invoke(function, args);
-            stateManager.updateStateForPartition(partitionKey, stateMap);
+            stateManager.updateStateForKey(partitionKey, stateMap);
         } catch (InvocationTargetException e) {
             String partitionInfo =
                     activeTableArg.partitionColumnNames != null
