@@ -88,7 +88,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
         final boolean producesFullDeletesArg =
                 callContext.getArgumentValue(3, Boolean.class).orElse(false);
-        validateProducesFullDeletes(producesFullDeletesArg, this.rawOpMap, tableSemantics);
+        validateProducesFullDeletes(producesFullDeletesArg, tableSemantics);
 
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
         this.producesFullDelete = resolveProducesFullDelete(producesFullDeletesArg, tableSemantics);
@@ -172,18 +172,15 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     }
 
     /**
-     * Rejects {@code produces_full_deletes=true} when the input changelog cannot produce DELETE
-     * rows (either the input mode does not contain DELETE, or the active {@code op_mapping} strips
-     * it). The parameter is then dead and likely a user mistake.
+     * Rejects {@code produces_full_deletes=true} when the input changelog never emits DELETE rows.
      *
      * <p>Lives here rather than in the input type strategy because {@link
      * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
-     * specialization time, which is when this constructor runs.
+     * specialization time. The complementary check against the literal {@code op_mapping}
+     * argument runs earlier in {@code ToChangelogTypeStrategy}.
      */
     private static void validateProducesFullDeletes(
-            final boolean producesFullDeletesArg,
-            final Map<RowKind, String> mapping,
-            final TableSemantics tableSemantics) {
+            final boolean producesFullDeletesArg, final TableSemantics tableSemantics) {
         if (!producesFullDeletesArg) {
             return;
         }
@@ -198,13 +195,6 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                                     + "only produces %s and never emits DELETE rows. Remove the "
                                     + "'produces_full_deletes' argument.",
                             inputMode.getContainedKinds()));
-        }
-        if (!mapping.containsKey(RowKind.DELETE)) {
-            throw new ValidationException(
-                    "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active 'op_mapping' "
-                            + "does not map DELETE rows, so no DELETE rows are emitted. Remove "
-                            + "the 'produces_full_deletes' argument or add a DELETE entry to "
-                            + "'op_mapping'.");
         }
     }
 

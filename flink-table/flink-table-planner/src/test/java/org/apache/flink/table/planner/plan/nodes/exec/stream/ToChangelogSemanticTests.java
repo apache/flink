@@ -57,7 +57,6 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.OP_MAPPING_REFERENCES_UNSUPPORTED_KIND,
                 ToChangelogTestPrograms.DUPLICATE_ROW_KIND,
                 ToChangelogTestPrograms.PRODUCES_FULL_DELETES_ON_APPEND_ONLY_INPUT,
-                ToChangelogTestPrograms.PRODUCES_FULL_DELETES_WITHOUT_DELETE_IN_OP_MAPPING,
                 ToChangelogTestPrograms.ROW_SEM_PARTIAL_DELETES,
                 ToChangelogTestPrograms.ROW_SEM_FORCE_FULL_DELETES,
                 ToChangelogTestPrograms.SET_SEM_PARTIAL_DELETES,
