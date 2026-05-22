@@ -33,11 +33,12 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -88,6 +89,9 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final boolean checksumValidation;
     private final int maxConnections;
     private final int maxRetries;
+    private final Duration retryBaseDelay;
+    private final Duration retryThrottleBaseDelay;
+    private final Duration retryMaxBackoff;
     @Nullable private final String region;
     @Nullable private final String endpoint;
     @Nullable private final String assumeRoleArn;
@@ -111,6 +115,9 @@ class S3ClientProvider implements AutoCloseableAsync {
             boolean checksumValidation,
             int maxConnections,
             int maxRetries,
+            Duration retryBaseDelay,
+            Duration retryThrottleBaseDelay,
+            Duration retryMaxBackoff,
             @Nullable String region,
             @Nullable String endpoint,
             @Nullable String assumeRoleArn,
@@ -141,6 +148,13 @@ class S3ClientProvider implements AutoCloseableAsync {
         this.checksumValidation = checksumValidation;
         this.maxConnections = maxConnections;
         this.maxRetries = maxRetries;
+        this.retryBaseDelay =
+                Preconditions.checkNotNull(retryBaseDelay, "retryBaseDelay must not be null");
+        this.retryThrottleBaseDelay =
+                Preconditions.checkNotNull(
+                        retryThrottleBaseDelay, "retryThrottleBaseDelay must not be null");
+        this.retryMaxBackoff =
+                Preconditions.checkNotNull(retryMaxBackoff, "retryMaxBackoff must not be null");
         this.region = region;
         this.endpoint = endpoint;
         this.assumeRoleArn = assumeRoleArn;
@@ -212,6 +226,26 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     int getMaxRetries() {
         return maxRetries;
+    }
+
+    @VisibleForTesting
+    int getMaxAttempts() {
+        return maxRetries + 1;
+    }
+
+    @VisibleForTesting
+    Duration getRetryBaseDelay() {
+        return retryBaseDelay;
+    }
+
+    @VisibleForTesting
+    Duration getRetryThrottleBaseDelay() {
+        return retryThrottleBaseDelay;
+    }
+
+    @VisibleForTesting
+    Duration getRetryMaxBackoff() {
+        return retryMaxBackoff;
     }
 
     @VisibleForTesting
@@ -312,6 +346,11 @@ class S3ClientProvider implements AutoCloseableAsync {
         private Duration socketTimeout = Duration.ofSeconds(60);
         private Duration connectionMaxIdleTime = Duration.ofSeconds(60);
         private int maxRetries = 3;
+        private Duration retryBaseDelay = NativeS3FileSystemFactory.RETRY_BASE_DELAY.defaultValue();
+        private Duration retryThrottleBaseDelay =
+                NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue();
+        private Duration retryMaxBackoff =
+                NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue();
         private Duration clientCloseTimeout = Duration.ofSeconds(30);
 
         // AssumeRole configuration
@@ -391,6 +430,37 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder retryBaseDelay(Duration retryBaseDelay) {
+            Preconditions.checkNotNull(retryBaseDelay, "retryBaseDelay must not be null");
+            Preconditions.checkArgument(
+                    !retryBaseDelay.isNegative(),
+                    "retryBaseDelay must not be negative, but was %s",
+                    retryBaseDelay);
+            this.retryBaseDelay = retryBaseDelay;
+            return this;
+        }
+
+        public Builder retryThrottleBaseDelay(Duration retryThrottleBaseDelay) {
+            Preconditions.checkNotNull(
+                    retryThrottleBaseDelay, "retryThrottleBaseDelay must not be null");
+            Preconditions.checkArgument(
+                    !retryThrottleBaseDelay.isNegative(),
+                    "retryThrottleBaseDelay must not be negative, but was %s",
+                    retryThrottleBaseDelay);
+            this.retryThrottleBaseDelay = retryThrottleBaseDelay;
+            return this;
+        }
+
+        public Builder retryMaxBackoff(Duration retryMaxBackoff) {
+            Preconditions.checkNotNull(retryMaxBackoff, "retryMaxBackoff must not be null");
+            Preconditions.checkArgument(
+                    retryMaxBackoff.toMillis() > 0,
+                    "retryMaxBackoff must be positive, but was %s",
+                    retryMaxBackoff);
+            this.retryMaxBackoff = retryMaxBackoff;
+            return this;
+        }
+
         public Builder assumeRoleArn(@Nullable String assumeRoleArn) {
             this.assumeRoleArn = assumeRoleArn;
             return this;
@@ -458,9 +528,30 @@ class S3ClientProvider implements AutoCloseableAsync {
                             .checksumValidationEnabled(checksumValidation)
                             .build();
 
+            Preconditions.checkArgument(
+                    retryMaxBackoff.compareTo(retryBaseDelay) >= 0,
+                    "retryMaxBackoff (%s) must be >= retryBaseDelay (%s)",
+                    retryMaxBackoff,
+                    retryBaseDelay);
+            Preconditions.checkArgument(
+                    retryMaxBackoff.compareTo(retryThrottleBaseDelay) >= 0,
+                    "retryMaxBackoff (%s) must be >= retryThrottleBaseDelay (%s)",
+                    retryMaxBackoff,
+                    retryThrottleBaseDelay);
+
             ClientOverrideConfiguration overrideConfig =
                     ClientOverrideConfiguration.builder()
-                            .retryPolicy(RetryPolicy.builder().numRetries(maxRetries).build())
+                            .retryStrategy(
+                                    StandardRetryStrategy.builder()
+                                            .maxAttempts(maxRetries + 1)
+                                            .backoffStrategy(
+                                                    BackoffStrategy.exponentialDelay(
+                                                            retryBaseDelay, retryMaxBackoff))
+                                            .throttlingBackoffStrategy(
+                                                    BackoffStrategy.exponentialDelay(
+                                                            retryThrottleBaseDelay,
+                                                            retryMaxBackoff))
+                                            .build())
                             .build();
 
             ApacheHttpClient.Builder httpClientBuilder =
@@ -516,6 +607,9 @@ class S3ClientProvider implements AutoCloseableAsync {
                     checksumValidation,
                     maxConnections,
                     maxRetries,
+                    retryBaseDelay,
+                    retryThrottleBaseDelay,
+                    retryMaxBackoff,
                     region,
                     endpoint,
                     assumeRoleArn,

@@ -178,6 +178,57 @@ class NativeS3FileSystemFactoryTest {
         assertThat(createFs(config).getClientProvider().getMaxRetries()).isEqualTo(5);
     }
 
+    @Test
+    void testMaxAttemptsIsMaxRetriesPlusOne() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.MAX_RETRIES, 4);
+        assertThat(createFs(config).getClientProvider().getMaxAttempts()).isEqualTo(5);
+    }
+
+    // --- Retry backoff ---
+
+    @Test
+    void testRetryBaseDelayDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().getRetryBaseDelay())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_BASE_DELAY.defaultValue());
+    }
+
+    @Test
+    void testRetryBaseDelayExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.RETRY_BASE_DELAY, Duration.ofMillis(200));
+        assertThat(createFs(config).getClientProvider().getRetryBaseDelay())
+                .isEqualTo(Duration.ofMillis(200));
+    }
+
+    @Test
+    void testRetryThrottleBaseDelayDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().getRetryThrottleBaseDelay())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue());
+    }
+
+    @Test
+    void testRetryThrottleBaseDelayExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY, Duration.ofSeconds(2));
+        assertThat(createFs(config).getClientProvider().getRetryThrottleBaseDelay())
+                .isEqualTo(Duration.ofSeconds(2));
+    }
+
+    @Test
+    void testRetryMaxBackoffDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().getRetryMaxBackoff())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue());
+    }
+
+    @Test
+    void testRetryMaxBackoffExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.RETRY_MAX_BACKOFF, Duration.ofSeconds(30));
+        assertThat(createFs(config).getClientProvider().getRetryMaxBackoff())
+                .isEqualTo(Duration.ofSeconds(30));
+    }
+
     // --- Timeouts ---
 
     @Test
