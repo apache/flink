@@ -287,6 +287,11 @@ public class SqlCastFunction extends SqlFunction {
                     FlinkTypeFactory.toLogicalType(fromType),
                     FlinkTypeFactory.toLogicalType(toType));
         }
+        if (toTypeName == SqlTypeName.OTHER) {
+            return LogicalTypeCasts.supportsExplicitCast(
+                    FlinkTypeFactory.toLogicalType(fromType),
+                    FlinkTypeFactory.toLogicalType(toType));
+        }
         switch (fromTypeName) {
             case ARRAY:
             case MAP:
