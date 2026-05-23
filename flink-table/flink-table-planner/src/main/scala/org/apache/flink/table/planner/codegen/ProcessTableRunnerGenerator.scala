@@ -65,7 +65,8 @@ object ProcessTableRunnerGenerator {
       udfCall: RexCall,
       inputTimeColumns: java.util.List[Integer],
       inputChangelogModes: java.util.List[ChangelogMode],
-      outputChangelogMode: ChangelogMode): GeneratedRunnerResult = {
+      outputChangelogMode: ChangelogMode,
+      inputUpsertKeys: java.util.List[Array[Int]]): GeneratedRunnerResult = {
     val function: BridgingSqlFunction = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
@@ -77,7 +78,12 @@ object ProcessTableRunnerGenerator {
     // Thus, functions can reconfigure themselves for the exact use case.
     // Including updating their state layout.
     val callContext =
-      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
+      function.toCallContext(
+        udfCall,
+        inputTimeColumns,
+        inputChangelogModes,
+        outputChangelogMode,
+        inputUpsertKeys)
 
     // Create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(

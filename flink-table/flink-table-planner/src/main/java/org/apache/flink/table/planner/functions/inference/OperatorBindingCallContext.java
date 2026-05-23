@@ -64,13 +64,14 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     private final @Nullable List<Integer> inputTimeColumns;
     private final @Nullable List<ChangelogMode> inputChangelogModes;
     private final @Nullable ChangelogMode outputChangelogMode;
+    private final @Nullable List<int[]> inputUpsertKeys;
 
     public OperatorBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
             SqlOperatorBinding binding,
             RelDataType returnRelDataType) {
-        this(dataTypeFactory, definition, binding, returnRelDataType, null, null, null);
+        this(dataTypeFactory, definition, binding, returnRelDataType, null, null, null, null);
     }
 
     public OperatorBindingCallContext(
@@ -80,7 +81,8 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             RelDataType returnRelDataType,
             @Nullable List<Integer> inputTimeColumns,
             @Nullable List<ChangelogMode> inputChangelogModes,
-            @Nullable ChangelogMode outputChangelogMode) {
+            @Nullable ChangelogMode outputChangelogMode,
+            @Nullable List<int[]> inputUpsertKeys) {
         super(
                 dataTypeFactory,
                 definition,
@@ -109,6 +111,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         this.inputTimeColumns = inputTimeColumns;
         this.inputChangelogModes = inputChangelogModes;
         this.outputChangelogMode = outputChangelogMode;
+        this.inputUpsertKeys = inputUpsertKeys;
     }
 
     @Override
@@ -173,13 +176,18 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 Optional.ofNullable(inputChangelogModes)
                         .map(m -> m.get(tableArgCall.getInputIndex()))
                         .orElse(null);
+        final int[] upsertKeyColumns =
+                Optional.ofNullable(inputUpsertKeys)
+                        .map(m -> m.get(tableArgCall.getInputIndex()))
+                        .orElse(new int[0]);
         return Optional.of(
                 OperatorBindingTableSemantics.create(
                         argumentDataTypes.get(pos),
                         staticArg,
                         tableArgCall,
                         timeColumn,
-                        changelogMode));
+                        changelogMode,
+                        upsertKeyColumns));
     }
 
     @Override
@@ -283,20 +291,23 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         private final SortDirection[] orderByDirections;
         private final int timeColumn;
         private final @Nullable ChangelogMode changelogMode;
+        private final int[] upsertKeyColumns;
 
         public static OperatorBindingTableSemantics create(
                 DataType tableDataType,
                 StaticArgument staticArg,
                 RexTableArgCall tableArgCall,
                 int timeColumn,
-                @Nullable ChangelogMode changelogMode) {
+                @Nullable ChangelogMode changelogMode,
+                int[] upsertKeyColumns) {
             return new OperatorBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     tableArgCall.getPartitionKeys(),
                     tableArgCall.getOrderKeys(),
                     RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                     timeColumn,
-                    changelogMode);
+                    changelogMode,
+                    upsertKeyColumns);
         }
 
         private OperatorBindingTableSemantics(
@@ -305,13 +316,15 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 int[] orderByColumns,
                 SortDirection[] orderByDirections,
                 int timeColumn,
-                @Nullable ChangelogMode changelogMode) {
+                @Nullable ChangelogMode changelogMode,
+                int[] upsertKeyColumns) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
             this.orderByColumns = orderByColumns;
             this.orderByDirections = orderByDirections;
             this.timeColumn = timeColumn;
             this.changelogMode = changelogMode;
+            this.upsertKeyColumns = upsertKeyColumns;
         }
 
         private static DataType createDataType(DataType tableDataType, StaticArgument staticArg) {
@@ -347,6 +360,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         @Override
         public int timeColumn() {
             return timeColumn;
+        }
+
+        @Override
+        public int[] upsertKeyColumns() {
+            return upsertKeyColumns;
         }
 
         @Override

@@ -246,7 +246,8 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                 RuntimeChangelogMode.serialize(ChangelogMode.insertOnly()),
                 /* passColumnsThrough */ false,
                 /* hasSetSemantics */ true,
-                /* timeColumn */ 1);
+                /* timeColumn */ 1,
+                /* upsertKeyColumns */ new int[0]);
     }
 
     // --------------------------------------------------------------------------------------------

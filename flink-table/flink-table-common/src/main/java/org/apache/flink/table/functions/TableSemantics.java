@@ -87,6 +87,27 @@ public interface TableSemantics {
     int[] partitionByColumns();
 
     /**
+     * Returns the upsert key of the passed table as derived by the planner from primary key
+     * constraints and the rewritten relational plan. The upsert key uniquely identifies a row
+     * within the input changelog and survives planner transformations that preserve key semantics
+     * (e.g. filters, projections that retain key columns). Applies to both table arguments with row
+     * and set semantics.
+     *
+     * <p>This complements {@link #partitionByColumns()}: a caller is not required to repeat the
+     * primary key via {@code PARTITION BY} just so a PTF can identify rows - the planner already
+     * knows the key from the input table's declaration.
+     *
+     * @return An array of indexes (0-based) that specify the upsert key columns. Returns an empty
+     *     array if the planner could not derive an upsert key for the input (e.g., append-only
+     *     sources without a declared primary key, or operations that destroyed the key). Returns an
+     *     empty array during the type inference phase as the upsert key is still unknown at that
+     *     point.
+     */
+    default int[] upsertKeyColumns() {
+        return new int[0];
+    }
+
+    /**
      * Returns information about how the passed table is ordered. Applies only to table arguments
      * with set semantics.
      *

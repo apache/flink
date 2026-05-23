@@ -27,11 +27,13 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
+import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.inference.StaticArgument;
@@ -165,6 +167,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
         final List<Ord<StaticArgument>> providedInputArgs = getProvidedInputArgs(call);
         verifyPassThroughColumnsForUpdates(providedInputArgs, outputChangelogMode);
+        final List<int[]> inputUpsertKeys = deriveInputUpsertKeys(getInputs());
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -173,7 +176,26 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 uid,
                 call,
                 inputChangelogModes,
-                outputChangelogMode);
+                outputChangelogMode,
+                inputUpsertKeys);
+    }
+
+    /**
+     * Derives an upsert key (collapsed to one candidate via {@link UpsertKeyUtil#smallestKey}) for
+     * each input. Returns an empty array entry for inputs without a derivable upsert key
+     * (append-only sources without a declared primary key, or operations that destroyed the key).
+     * Surfaces as {@link org.apache.flink.table.functions.TableSemantics#upsertKeyColumns()} so
+     * PTFs can identify rows without requiring callers to repeat the key via PARTITION BY.
+     */
+    private static List<int[]> deriveInputUpsertKeys(List<RelNode> inputs) {
+        final List<int[]> perInput = new ArrayList<>(inputs.size());
+        for (RelNode input : inputs) {
+            final FlinkRelMetadataQuery fmq =
+                    FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
+            final Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(input);
+            perInput.add(UpsertKeyUtil.smallestKey(upsertKeys).orElse(new int[0]));
+        }
+        return perInput;
     }
 
     @Override

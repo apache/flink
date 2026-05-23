@@ -35,9 +35,10 @@ public class TableSemanticsMock implements TableSemantics {
     private final SortDirection[] orderByDirections;
     private final int timeColumn;
     private final ChangelogMode changelogMode;
+    private final int[] upsertKeyColumns;
 
     public TableSemanticsMock(DataType dataType) {
-        this(dataType, new int[0], new int[0], -1, null);
+        this(dataType, new int[0], new int[0], -1, null, new int[0]);
     }
 
     public TableSemanticsMock(
@@ -46,6 +47,16 @@ public class TableSemanticsMock implements TableSemantics {
             int[] orderByColumns,
             int timeColumn,
             @Nullable ChangelogMode changelogMode) {
+        this(dataType, partitionByColumns, orderByColumns, timeColumn, changelogMode, new int[0]);
+    }
+
+    public TableSemanticsMock(
+            DataType dataType,
+            int[] partitionByColumns,
+            int[] orderByColumns,
+            int timeColumn,
+            @Nullable ChangelogMode changelogMode,
+            int[] upsertKeyColumns) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.orderByColumns = orderByColumns;
@@ -55,6 +66,7 @@ public class TableSemanticsMock implements TableSemantics {
         }
         this.timeColumn = timeColumn;
         this.changelogMode = changelogMode;
+        this.upsertKeyColumns = upsertKeyColumns;
     }
 
     @Override
@@ -80,6 +92,11 @@ public class TableSemanticsMock implements TableSemantics {
     @Override
     public int timeColumn() {
         return timeColumn;
+    }
+
+    @Override
+    public int[] upsertKeyColumns() {
+        return upsertKeyColumns;
     }
 
     @Override

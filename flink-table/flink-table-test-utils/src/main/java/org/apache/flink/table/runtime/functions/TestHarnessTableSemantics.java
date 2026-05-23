@@ -30,10 +30,17 @@ import java.util.Optional;
 class TestHarnessTableSemantics implements TableSemantics {
     private final DataType dataType;
     private final int[] partitionByColumns;
+    private final int[] upsertKeyColumns;
 
     TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns) {
+        this(dataType, partitionByColumns, new int[0]);
+    }
+
+    TestHarnessTableSemantics(
+            DataType dataType, int[] partitionByColumns, int[] upsertKeyColumns) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
+        this.upsertKeyColumns = upsertKeyColumns;
     }
 
     @Override
@@ -59,6 +66,11 @@ class TestHarnessTableSemantics implements TableSemantics {
     @Override
     public int timeColumn() {
         return -1;
+    }
+
+    @Override
+    public int[] upsertKeyColumns() {
+        return upsertKeyColumns;
     }
 
     @Override
