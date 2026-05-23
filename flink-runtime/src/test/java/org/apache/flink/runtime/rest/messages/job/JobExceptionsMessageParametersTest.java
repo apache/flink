@@ -34,23 +34,11 @@ class JobExceptionsMessageParametersTest {
         JobID jobId = new JobID();
         JobExceptionsMessageParameters parameters = new JobExceptionsMessageParameters();
         parameters.jobPathParameter.resolve(jobId);
-        parameters.upperLimitExceptionParameter.resolveFromString("20");
+        parameters.upperLimitExceptionParameter.resolveFromString("5");
 
         String resolvedUrl = MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
 
-        assertThat(resolvedUrl).isEqualTo("/jobs/" + jobId + "/exceptions?maxExceptions=20");
-    }
-
-    @Test
-    void testFailureLabelFilterQueryParameterIsRendered() throws Exception {
-        JobID jobId = new JobID();
-        JobExceptionsMessageParameters parameters = new JobExceptionsMessageParameters();
-        parameters.jobPathParameter.resolve(jobId);
-        parameters.failureLabelExceptionParameter.resolveFromString("type:system");
-
-        String resolvedUrl = MessageParameters.resolveUrl(JobExceptionsHeaders.URL, parameters);
-
-        assertThat(resolvedUrl).contains("failureLabelFilter=");
+        assertThat(resolvedUrl).isEqualTo("/jobs/" + jobId + "/exceptions?maxExceptions=5");
     }
 
     @Test

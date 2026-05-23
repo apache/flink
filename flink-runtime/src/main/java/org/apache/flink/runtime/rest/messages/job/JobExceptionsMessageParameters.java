@@ -33,7 +33,7 @@ public class JobExceptionsMessageParameters extends JobMessageParameters {
     public final UpperLimitExceptionParameter upperLimitExceptionParameter =
             new UpperLimitExceptionParameter();
 
-    public final FailureLabelFilterParameter failureLabelExceptionParameter =
+    private final FailureLabelFilterParameter failureLabelExceptionParameter =
             new FailureLabelFilterParameter();
 
     @Override
