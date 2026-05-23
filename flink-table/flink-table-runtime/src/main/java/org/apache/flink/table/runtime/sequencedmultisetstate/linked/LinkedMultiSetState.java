@@ -185,8 +185,8 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                 isNewRowKey
                         ? new Node(row, newSqn, highSqn, null, null, timestamp)
                         : sqnToNodeState.get(oldSqn).withRow(row, timestamp));
-        highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
         if (isNewRowKey) {
+            highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
             rowToSqnState.put(key, RowSqnInfo.ofSingle(newSqn));
             if (!isNewContextKey) {
                 sqnToNodeState.put(highSqn, sqnToNodeState.get(highSqn).withNext(newSqn));
