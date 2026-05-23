@@ -456,6 +456,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Testing function for FLINK-39735: surfaces the planner-derived upsert key on {@link
+     * TableSemantics}. Used by tests to assert that {@code upsertKeyColumns()} reports the
+     * primary-key columns of the input even when the caller did not write {@code PARTITION BY}.
+     */
+    public static class UpsertKeyContextFunction extends AppendProcessTableFunctionBase {
+        public void eval(Context ctx, @ArgumentHint(ROW_SEMANTIC_TABLE) Row r) {
+            final TableSemantics semantics = ctx.tableSemanticsFor("r");
+            collectObjects(r, semantics.upsertKeyColumns());
+        }
+    }
+
     /** Testing function. */
     public static class PojoStateFunction extends AppendProcessTableFunctionBase {
         public void eval(@StateHint Score s, @ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
