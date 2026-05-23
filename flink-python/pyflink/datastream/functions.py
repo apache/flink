@@ -272,7 +272,7 @@ class CoMapFunction(Function, Generic[IN, OUT]):
         pass
 
 
-class FlatMapFunction(Function):
+class FlatMapFunction(Function, Generic[IN, OUT]):
     """
     Base class for flatMap functions. FlatMap functions take elements and transform them, into zero,
     one, or more elements. Typical applications can be splitting elements, or unnesting lists and
@@ -304,7 +304,7 @@ class FlatMapFunction(Function):
         pass
 
 
-class CoFlatMapFunction(Function):
+class CoFlatMapFunction(Function, Generic[IN, OUT]):
     """
     A CoFlatMapFunction implements a flat-map transformation over two connected streams.
 
@@ -356,7 +356,7 @@ class CoFlatMapFunction(Function):
         pass
 
 
-class ReduceFunction(Function):
+class ReduceFunction(Function, Generic[IN]):
     """
     Base interface for Reduce functions. Reduce functions combine groups of elements to a single
     value, by taking always two elements and combining them into one. Reduce functions may be
@@ -489,7 +489,7 @@ class NullByteKeySelector(KeySelector):
         return 0
 
 
-class FilterFunction(Function):
+class FilterFunction(Function, Generic[IN]):
     """
     A filter function is a predicate applied individually to each record. The predicate decides
     whether to keep the element, or to discard it.
