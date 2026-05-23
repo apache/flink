@@ -282,6 +282,8 @@ public class FlinkImageBuilder {
                     return "17";
                 case "21":
                     return "21";
+                case "25":
+                    return "25";
                 default:
                     throw new IllegalStateException("Unexpected Java version: " + javaSpecVersion);
             }
