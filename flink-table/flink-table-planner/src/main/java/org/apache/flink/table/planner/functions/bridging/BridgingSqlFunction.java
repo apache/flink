@@ -340,8 +340,8 @@ public class BridgingSqlFunction extends SqlFunction {
 
     /**
      * Variant of {@link #toCallContext(RexCall)} that additionally exposes the call's input time
-     * columns, changelog modes, and per-input upsert keys - needed by the streaming codegen path
-     * so PTFs can specialize themselves to the exact call.
+     * columns, changelog modes, and per-input upsert keys - needed by the streaming codegen path so
+     * PTFs can specialize themselves to the exact call.
      */
     public CallContext toCallContext(
             RexCall call,
