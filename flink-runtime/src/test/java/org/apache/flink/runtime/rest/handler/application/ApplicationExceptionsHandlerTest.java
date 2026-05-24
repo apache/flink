@@ -197,6 +197,79 @@ class ApplicationExceptionsHandlerTest {
     }
 
     @Test
+    void testDefaultCapAppliedWhenMaxExceptionsNotProvided() throws Exception {
+        final int totalExceptions = ApplicationExceptionsHandler.MAX_NUMBER_EXCEPTION_TO_REPORT + 5;
+        final List<ApplicationExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
+        for (int i = 0; i < totalExceptions; i++) {
+            exceptionHistory.add(
+                    new ApplicationExceptionHistoryEntry(
+                            new RuntimeException("exception #" + i),
+                            System.currentTimeMillis(),
+                            null));
+        }
+
+        final ArchivedApplication applicationWithExceptions =
+                new ArchivedApplication(
+                        archivedApplication.getApplicationId(),
+                        archivedApplication.getApplicationName(),
+                        ApplicationState.FAILED,
+                        new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
+                        Collections.emptyMap(),
+                        exceptionHistory);
+
+        testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        CompletableFuture.completedFuture(
+                                                applicationWithExceptions))
+                        .build();
+
+        final ApplicationExceptionsInfoWithHistory response =
+                handler.handleRequest(handlerRequest, testingRestfulGateway).get();
+
+        assertThat(response.getExceptionHistory().getEntries())
+                .hasSize(ApplicationExceptionsHandler.MAX_NUMBER_EXCEPTION_TO_REPORT);
+    }
+
+    @Test
+    void testMaxExceptionsLargerThanHistorySizeReturnsAllEntries() throws Exception {
+        final List<ApplicationExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            exceptionHistory.add(
+                    new ApplicationExceptionHistoryEntry(
+                            new RuntimeException("exception #" + i),
+                            System.currentTimeMillis(),
+                            null));
+        }
+
+        final ArchivedApplication applicationWithExceptions =
+                new ArchivedApplication(
+                        archivedApplication.getApplicationId(),
+                        archivedApplication.getApplicationName(),
+                        ApplicationState.FAILED,
+                        new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
+                        Collections.emptyMap(),
+                        exceptionHistory);
+
+        testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        CompletableFuture.completedFuture(
+                                                applicationWithExceptions))
+                        .build();
+
+        final HandlerRequest<EmptyRequestBody> oversizedRequest =
+                createRequest(archivedApplication.getApplicationId(), 10);
+
+        final ApplicationExceptionsInfoWithHistory response =
+                handler.handleRequest(oversizedRequest, testingRestfulGateway).get();
+
+        assertThat(response.getExceptionHistory().getEntries()).hasSize(3);
+    }
+
+    @Test
     void testExceptionWithoutJobId() throws Exception {
         final RuntimeException rootCause = new RuntimeException("exception #0");
         final long rootCauseTimestamp = System.currentTimeMillis();
