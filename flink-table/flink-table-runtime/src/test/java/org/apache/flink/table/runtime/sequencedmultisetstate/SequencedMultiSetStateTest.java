@@ -202,9 +202,9 @@ public class SequencedMultiSetStateTest {
 
     @TestTemplate
     public void testAddAfterReplacingNonHighestRow() throws Exception {
-        // Regression test for FLINK-39740: replacing an existing row by key must not regress
-        // highestSqnAndSizeState.highSqn. Otherwise, the next genuinely new row reuses an SQN
-        // already taken by an existing row, overwriting its node in sqnToNodeState.
+        // Replacing an existing row by key must not regress highestSqnAndSizeState.highSqn.
+        // Otherwise, the next genuinely new row reuses an SQN already taken by an existing row,
+        // overwriting its node in sqnToNodeState.
         runTest(
                 state -> {
                     state.add(row("k1", "v1"), 1L); // SQN 0
