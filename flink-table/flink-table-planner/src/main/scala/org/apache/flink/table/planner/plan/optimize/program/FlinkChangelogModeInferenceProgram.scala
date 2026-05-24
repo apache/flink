@@ -1676,7 +1676,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
     val function = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
     val callContext =
-      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
+      function.toCallContext(
+        udfCall,
+        inputTimeColumns,
+        inputChangelogModes,
+        outputChangelogMode,
+        null)
 
     // Expose a simplified context focused on changelog-relevant inputs: changelog modes,
     // resolved literal arguments, and table semantics (e.g., partition-by columns).
