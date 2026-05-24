@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -638,8 +640,8 @@ public class LogicalTypesTest {
                         baseAssertions(
                                 "GEOGRAPHY",
                                 "GEOGRAPHY",
-                                new Class[] {Object.class},
-                                new Class[] {Object.class},
+                                new Class[] {GeographyData.class, BinaryGeographyData.class},
+                                new Class[] {GeographyData.class, BinaryGeographyData.class},
                                 new LogicalType[] {},
                                 new GeographyType(false)));
     }
