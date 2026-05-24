@@ -36,8 +36,7 @@ class TestHarnessTableSemantics implements TableSemantics {
         this(dataType, partitionByColumns, new int[0]);
     }
 
-    TestHarnessTableSemantics(
-            DataType dataType, int[] partitionByColumns, int[] upsertKeyColumns) {
+    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns, int[] upsertKeyColumns) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.upsertKeyColumns = upsertKeyColumns;
