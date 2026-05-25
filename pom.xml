@@ -1055,28 +1055,6 @@ under the License.
 			<activation>
 				<jdk>[11,)</jdk>
 			</activation>
-
-			<properties>
-				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava11</surefire.excludedGroups.jdk>
-			</properties>
-
-			<build>
-				<pluginManagement>
-					<plugins>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-surefire-plugin</artifactId>
-							<configuration>
-								<excludedGroups>
-									${surefire.excludedGroups.github-actions},
-									${surefire.excludedGroups.adaptive-scheduler},
-									${surefire.excludedGroups.jdk},
-								</excludedGroups>
-							</configuration>
-						</plugin>
-					</plugins>
-				</pluginManagement>
-			</build>
 		</profile>
 
 		<profile>
