@@ -1192,6 +1192,10 @@ under the License.
 				<jdk>[25,)</jdk>
 			</activation>
 
+			<properties>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava25</surefire.excludedGroups.jdk>
+			</properties>
+
 			<build>
 				<pluginManagement>
 					<plugins>
