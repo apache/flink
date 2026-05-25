@@ -27,6 +27,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -39,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@code FlinkUserSecurityManager}. */
+@Tag("org.apache.flink.testutils.junit.FailsOnJava25")
 class FlinkSecurityManagerTest {
 
     @RegisterExtension
