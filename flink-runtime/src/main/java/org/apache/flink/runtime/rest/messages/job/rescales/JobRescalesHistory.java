@@ -24,6 +24,7 @@ import org.apache.flink.runtime.scheduler.adaptive.timeline.Rescale;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesStatsSnapshot;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 
 /** Response body for {@link JobRescalesHistoryHandler}. */
 @Schema(name = "JobRescalesHistory")
+@JsonIgnoreProperties({"first", "last"})
 public class JobRescalesHistory extends ArrayList<JobRescaleDetails>
         implements ResponseBody, Serializable {
 
