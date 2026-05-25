@@ -519,7 +519,14 @@ function check_logs_for_non_empty_out_files {
     -e "WARNING: Please consider reporting"\
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
+    -e "WARNING: A terminally deprecated method"\
+    -e "WARNING: sun.misc.Unsafe::"\
+    -e "WARNING: A restricted method"\
+    -e "WARNING: java.lang.System::"\
+    -e "WARNING: Restricted methods will be blocked"\
+    -e "WARNING: Use --enable-native-access"\
     -e "Picked up JAVA_TOOL_OPTIONS"\
+    -e "^$"\
     $FLINK_LOG_DIR/*.out\
    | grep "." \
    > /dev/null; then
