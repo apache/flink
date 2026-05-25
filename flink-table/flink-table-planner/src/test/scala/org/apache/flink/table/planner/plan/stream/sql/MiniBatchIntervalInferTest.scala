@@ -76,6 +76,21 @@ class MiniBatchIntervalInferTest extends TableTestBase {
                      |) LIKE MyTable1 (INCLUDING ALL)
                      |""".stripMargin)
 
+    // sink used by tests that exercise the post-FLINK-14621 behavior of
+    // RedundantWatermarkAssignerRemoveRule (which only fires when an enclosing sink is present).
+    util.addTable(s"""
+                     |CREATE TABLE aggSink (
+                     |  `b` STRING,
+                     |  `cnt_distinct_a` BIGINT,
+                     |  `max_b` STRING,
+                     |  `sum_c` BIGINT,
+                     |  PRIMARY KEY (`b`) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-changelog-mode-enforced' = 'I,UA,UB,D'
+                     |)
+                     |""".stripMargin)
+
     // enable mini-batch
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
@@ -101,8 +116,15 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   def testRedundantWatermarkDefinition(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b"
-    util.verifyExecPlan(sql)
+    // Anchor on a sink so RedundantWatermarkAssignerRemoveRule (FLINK-14621) fires and the
+    // redundant WatermarkAssigner is dropped from the plan. The mini-batch (ProcTime) assigner
+    // is then attached directly above the table source scan.
+    val sql =
+      """
+        |INSERT INTO aggSink
+        |SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b
+        |""".stripMargin
+    util.verifyExecPlanInsert(sql)
   }
 
   @Test

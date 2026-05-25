@@ -43,3 +43,23 @@ To support these and future JDK versions, the default value for the Flink config
 
 This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements. 
 If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
+
+### SQL & Table API
+
+#### Drop redundant watermark assigners during stream optimization
+
+##### [FLINK-14621](https://issues.apache.org/jira/browse/FLINK-14621)
+
+The streaming optimizer now removes `WatermarkAssigner` operators whose watermarks are not consumed by any
+downstream operator (for example, plain projections, filters, or processing-time-only pipelines that never
+reach a windowed aggregate, an event-time join, an event-time temporal sort, or a `CURRENT_WATERMARK(...)`
+SQL call). Pipelines that do consume watermarks &mdash; window aggregates, event-time joins, rowtime sinks,
+`CURRENT_WATERMARK` &mdash; are unaffected.
+
+The optimization is enabled by default and can be turned off via the new
+`table.optimizer.redundant-watermark-assigner-remove.enabled` configuration option.
+
+Because the rewrite changes the operator topology, jobs that restore from a savepoint **without** a
+compiled plan ([FLIP-190](https://cwiki.apache.org/confluence/display/FLINK/FLIP-190%3A+Support+Version+Upgrades+for+Table+API+%26+SQL+Programs))
+may need `--allowNonRestoredState` on the first restart after upgrading to 2.3, or can disable the rule
+with the option above. Compiled-plan jobs are not affected because the plan is frozen at compile time.

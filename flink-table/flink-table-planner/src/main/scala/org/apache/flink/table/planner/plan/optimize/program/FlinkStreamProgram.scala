@@ -300,10 +300,23 @@ object FlinkStreamProgram {
     )
 
     // physical rewrite
+    val physicalRewriteBuilder = FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+    if (
+      tableConfig.get(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_REDUNDANT_WATERMARK_ASSIGNER_REMOVE_ENABLED)
+    ) {
+      physicalRewriteBuilder.addProgram(
+        FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+          .add(FlinkStreamRuleSets.REMOVE_REDUNDANT_WATERMARK_RULES)
+          .build(),
+        "remove redundant watermarks"
+      )
+    }
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
-      FlinkGroupProgramBuilder
-        .newBuilder[StreamOptimizeContext]
+      physicalRewriteBuilder
         .addProgram(
           new FlinkMarkChangelogNormalizeProgram,
           "mark changelog normalize reusing same source")

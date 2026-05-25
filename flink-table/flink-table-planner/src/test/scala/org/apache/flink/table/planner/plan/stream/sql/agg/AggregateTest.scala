@@ -37,6 +37,20 @@ class AggregateTest extends TableTestBase {
     'c,
     'proctime.proctime,
     'rowtime.rowtime)
+  // Sink used by tests that need an explicit sink to anchor RedundantWatermarkAssignerRemoveRule
+  // (FLINK-14621) when the upstream watermark is unused by any event-time operator.
+  util.tableEnv.executeSql(s"""
+                              |CREATE TABLE aggSink (
+                              |  `b` STRING,
+                              |  `cnt_distinct_a` BIGINT,
+                              |  `max_b` STRING,
+                              |  `sum_c` BIGINT,
+                              |  PRIMARY KEY (`b`) NOT ENFORCED
+                              |) WITH (
+                              |  'connector' = 'values',
+                              |  'sink-changelog-mode-enforced' = 'I,UA,UB,D'
+                              |)
+                              |""".stripMargin)
   util.addTableSource[(Int, Long, String, Boolean)]("T", 'a, 'b, 'c, 'd)
   util.addTableSource[(Long, Int, String)]("T1", 'a, 'b, 'c)
   util.addTableSource[(Long, Int, String)]("T2", 'a, 'b, 'c)
@@ -100,7 +114,10 @@ class AggregateTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
-    util.verifyExplain("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b")
+    // Anchored on a sink so RedundantWatermarkAssignerRemoveRule (FLINK-14621) drops the
+    // watermark assigner that the proctime-only group aggregate does not consume.
+    util.verifyExplainInsert(
+      "INSERT INTO aggSink SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b")
   }
 
   @Test

@@ -34,10 +34,8 @@ LogicalProject(EXPR$0=[$1])
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, proctime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- Calc(select=[proctime])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-         +- Calc(select=[PROCTIME() AS proctime, rowtime])
-            +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime], metadata=[]]], fields=[rowtime])
+   +- Calc(select=[PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime], metadata=[]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -56,9 +54,8 @@ LogicalProject(EXPR$0=[$0])
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-      +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
-         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+   +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
     </Resource>
   </TestCase>

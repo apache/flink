@@ -401,6 +401,25 @@ CREATE TABLE Orders (
 ) WITH ( . . . );
 ```
 
+{{< hint info >}}
+A `WATERMARK` declaration adds a watermark
+assigner operator to the streaming pipeline, but watermarks only have an
+effect when some downstream operator consumes them: a windowed aggregate, an
+event-time interval or temporal join, an event-time temporal sort, a
+`CURRENT_WATERMARK(...)` SQL call, or a sink that forwards the rowtime
+column. When none of these are present (for example, a plain projection or a
+processing-time-only pipeline that happens to read from a table with a
+watermark), the streaming optimizer drops the redundant assigner so no
+watermarks are generated at runtime. Pipelines that do consume watermarks
+are not affected.
+
+The optimization is enabled by default and can be disabled with the
+[`table.optimizer.redundant-watermark-assigner-remove.enabled`]({{< ref "docs/dev/table/config" >}}#table-optimizer-redundant-watermark-assigner-remove-enabled)
+option. Note that because the rewrite changes the operator topology, jobs
+restored from a savepoint without a compiled plan may require
+`--allowNonRestoredState` on the first restart after upgrading.
+{{< /hint >}}
+
 ### `PRIMARY KEY`
 
 Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.

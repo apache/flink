@@ -92,10 +92,8 @@ LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+Calc(select=[PROCTIME_MATERIALIZE(PROCTIME()) AS ptime, name, val, id])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>

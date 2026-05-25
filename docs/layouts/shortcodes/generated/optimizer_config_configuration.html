@@ -96,6 +96,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF can accept an arbitrary number of input tables. In practice, however, each input requires reserving network buffers, which impacts memory usage. For this reason, the number of input tables is limited to 20.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.redundant-watermark-assigner-remove.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer drops watermark assigners whose watermarks are not consumed by any downstream operator. This avoids the overhead of generating watermarks that no operator reads (e.g. plain projections, processing-time-only pipelines).<br /><br />Disabling this flag preserves the previous behavior, which can be useful as an escape hatch if the rewrite interacts poorly with a specific plan or savepoint.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.reuse-optimize-block-with-digest-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

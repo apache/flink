@@ -47,14 +47,18 @@ import java.util.stream.Collectors;
 /**
  * Planner rule that infers the mini-batch interval of minibatch assigner.
  *
- * <p>This rule could handle the following two kinds of operator: 1. supports operators which
- * supports mini-batch and does not require watermark, e.g. group aggregate. In this case, {@link
- * StreamPhysicalMiniBatchAssigner} with Proctime mode will be created if not exist, and the
- * interval value will be set as {@link ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY}.
- * 2. supports operators which requires watermark, e.g. window join, window aggregate. In this case,
- * {@link StreamPhysicalWatermarkAssigner} already exists, and its MiniBatchIntervalTrait will be
- * updated as the merged intervals from its outputs. Currently, mini-batched window aggregate is not
- * supported, and will be introduced later.
+ * <p>This rule could handle the following two kinds of operator:
+ *
+ * <ol>
+ *   <li>Operators which support mini-batch and do not require watermark, e.g. group aggregate. In
+ *       this case, {@link StreamPhysicalMiniBatchAssigner} with Proctime mode will be created if
+ *       not exist, and the interval value will be set as {@link
+ *       ExecutionConfigOptions#TABLE_EXEC_MINIBATCH_ALLOW_LATENCY}.
+ *   <li>Operators which require watermark, e.g. window join, window aggregate. In this case, {@link
+ *       StreamPhysicalWatermarkAssigner} already exists, and its {@code MiniBatchIntervalTrait}
+ *       will be updated as the merged intervals from its outputs. Currently, mini-batched window
+ *       aggregate is not supported, and will be introduced later.
+ * </ol>
  *
  * <p>NOTES: This rule only supports HepPlanner with TOP_DOWN match order.
  */
@@ -178,12 +182,11 @@ public class MiniBatchIntervalInferRule
             return mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime;
         }
         if (node instanceof StreamPhysicalWatermarkAssigner) {
-            // append minibatch node if it is rowtime mode and the child is watermark assigner
-            // TODO: if it is ProcTime mode, we also append a minibatch node for now.
-            //  Because the downstream can be a regular aggregate and the watermark assigner
-            //  might be redundant. In FLINK-14621, we will remove redundant watermark assigner,
-            //  then we can remove the ProcTime condition.
-            return mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime;
+            // Append minibatch node only when the watermark assigner is rowtime-driven. Any
+            // assigner whose watermarks are not consumed by an event-time operator is removed
+            // upstream by RedundantWatermarkAssignerRemoveRule (FLINK-14621), so a surviving
+            // assigner here always corresponds to a real rowtime consumer downstream.
+            return mode == MiniBatchMode.RowTime;
         }
         // others do not append minibatch node
         return false;
