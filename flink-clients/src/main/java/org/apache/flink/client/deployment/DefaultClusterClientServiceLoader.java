@@ -52,14 +52,21 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
         final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
         final Iterator<ClusterClientFactory> factories = loader.iterator();
-        while (factories.hasNext()) {
+        while (true) {
             try {
+                // hasNext might lead to error in java 24, 25
+                // for more details take a look at https://bugs.openjdk.org/browse/JDK-8196182
+                // and https://bugs.openjdk.org/browse/JDK-8350481
+                if (!factories.hasNext()) {
+                    break;
+                }
                 final ClusterClientFactory factory = factories.next();
                 if (factory != null && factory.isCompatibleWith(configuration)) {
                     compatibleFactories.add(factory);
                 }
             } catch (Throwable e) {
-                if (e.getCause() instanceof NoClassDefFoundError) {
+                if (e instanceof NoClassDefFoundError
+                        || e.getCause() instanceof NoClassDefFoundError) {
                     LOG.info("Could not load factory due to missing dependencies.");
                 } else {
                     throw e;
@@ -98,8 +105,14 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
         final List<String> result = new ArrayList<>();
 
         final Iterator<ClusterClientFactory> it = loader.iterator();
-        while (it.hasNext()) {
+        while (true) {
             try {
+                // hasNext might lead to error in java 24, 25
+                // for more details take a look at https://bugs.openjdk.org/browse/JDK-8196182
+                // and https://bugs.openjdk.org/browse/JDK-8350481
+                if (!it.hasNext()) {
+                    break;
+                }
                 final ClusterClientFactory clientFactory = it.next();
 
                 final Optional<String> applicationName = clientFactory.getApplicationTargetName();
@@ -107,7 +120,7 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
                     result.add(applicationName.get());
                 }
 
-            } catch (ServiceConfigurationError e) {
+            } catch (ServiceConfigurationError | NoClassDefFoundError e) {
                 // cannot be loaded, most likely because Hadoop is not
                 // in the classpath, we can ignore it for now.
             }
