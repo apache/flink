@@ -542,8 +542,19 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                     unsupportedCorConditions);
             assert unsupportedCorConditions.isEmpty();
 
-            final RexNode remainingCondition =
+            RexNode remainingCondition =
                     RexUtil.composeConjunction(rexBuilder, nonCorConditions, false);
+
+            // Re-index the remaining (non-correlated) condition against the rewritten input.
+            // The child may have shifted its row type during decorrelation (e.g. an Aggregate
+            // injects correlated columns into its group key), so RexInputRefs in HAVING /
+            // Filter predicates that survive in nonCorConditions must be remapped through
+            // frame.oldToNewOutputs. Otherwise they silently point at the wrong column.
+            if (remainingCondition != null) {
+                remainingCondition =
+                        adjustInputRefs(
+                                remainingCondition, frame.oldToNewOutputs, frame.r.getRowType());
+            }
 
             // Using LogicalFilter.create instead of RelBuilder.filter to create Filter
             // because RelBuilder.filter method does not have VariablesSet arg.
