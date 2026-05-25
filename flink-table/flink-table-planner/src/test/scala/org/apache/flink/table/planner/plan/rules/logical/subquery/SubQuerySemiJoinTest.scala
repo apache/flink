@@ -1324,6 +1324,51 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   }
 
   @Test
+  def testExistsWithCorrelatedOnWhere_Having1(): Unit = {
+    // Correlated WHERE plus HAVING on a single aggregate output.
+    // Regression for SubQueryDecorrelator: the non-correlated HAVING predicate must be
+    // re-indexed against the rewritten Aggregate (which receives the correlated column
+    // injected into its group key).
+    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+      "(SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testExistsWithCorrelatedOnWhere_Having2(): Unit = {
+    // Compound HAVING with multiple aggregate refs.
+    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+      "(SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3 AND MAX(r.e) < 100)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testExistsWithCorrelatedOnWhere_Having3(): Unit = {
+    // HAVING that mixes an aggregate ref with COUNT(*).
+    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+      "(SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3 AND COUNT(*) > 1)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testExistsWithCorrelatedOnWhere_Having4(): Unit = {
+    // Multiple correlated WHERE columns combined with a HAVING on aggregate output.
+    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+      "(SELECT 1 FROM r WHERE l.a = r.d AND l.b = r.e GROUP BY r.f HAVING COUNT(r.d) >= 2)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testExistsWithCorrelatedOnWhere_Aggregate_LocalWhere(): Unit = {
+    // Mixed correlated + local WHERE, no HAVING. Guards against an over-eager fix:
+    // the local predicate `r.e > 10` sits below the Aggregate, so its RexInputRef must
+    // remain stable through decorrelation.
+    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+      "(SELECT 1 FROM r WHERE l.a = r.d AND r.e > 10 GROUP BY r.f)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
   def testExistsWithCorrelatedOnWhere_UnsupportedAggregate1(): Unit = {
     util.addTableSource[(Int, Long)]("l1", 'a, 'b)
     util.addTableSource[(Int, Long, Double, String)]("r1", 'c, 'd, 'e, 'f)
