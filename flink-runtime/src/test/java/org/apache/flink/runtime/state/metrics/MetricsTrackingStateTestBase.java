@@ -50,10 +50,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for latency tracking state. */
 abstract class MetricsTrackingStateTestBase<K> {
-    protected static final int SAMPLE_INTERVAL = 10;
+    protected static final int DEFAULT_SAMPLE_INTERVAL = 10;
 
     protected AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer)
             throws Exception {
+        return createKeyedBackend(keySerializer, DEFAULT_SAMPLE_INTERVAL);
+    }
+
+    protected AbstractKeyedStateBackend<K> createKeyedBackend(
+            TypeSerializer<K> keySerializer, int sampleInterval) throws Exception {
 
         Environment env = new DummyEnvironment();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 127);
@@ -61,8 +66,8 @@ abstract class MetricsTrackingStateTestBase<K> {
         Configuration configuration = new Configuration();
         configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
         configuration.set(StateSizeTrackOptions.SIZE_TRACK_ENABLED, true);
-        configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
-        configuration.set(StateSizeTrackOptions.SIZE_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
+        configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_SAMPLE_INTERVAL, sampleInterval);
+        configuration.set(StateSizeTrackOptions.SIZE_TRACK_SAMPLE_INTERVAL, sampleInterval);
         // use a very large value to not let metrics data overridden.
         int historySize = 1000_000;
         configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
@@ -127,8 +132,8 @@ abstract class MetricsTrackingStateTestBase<K> {
             assertThat(latencyTrackingStateMetric.getClearCount()).isZero();
 
             setCurrentKey(keyedBackend);
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.clear();
                 assertThat(latencyTrackingStateMetric.getClearCount()).isEqualTo(expectedResult);
             }

@@ -69,8 +69,8 @@ class MetricsTrackingReducingStateTest extends MetricsTrackingStateTestBase<Inte
 
             setCurrentKey(keyedBackend);
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.add(random.nextLong());
                 assertThat(latencyTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
 
@@ -108,8 +108,8 @@ class MetricsTrackingReducingStateTest extends MetricsTrackingStateTestBase<Inte
 
             setCurrentKey(keyedBackend);
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 sizeTrackingState.add(random.nextLong());
                 assertThat(sizeTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
 

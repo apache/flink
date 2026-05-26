@@ -65,8 +65,8 @@ class MetricsTrackingValueStateTest extends MetricsTrackingStateTestBase<Integer
             assertThat(latencyTrackingStateMetric.getGetCount()).isZero();
 
             setCurrentKey(keyedBackend);
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.update(ThreadLocalRandom.current().nextLong());
                 assertThat(latencyTrackingStateMetric.getUpdateCount()).isEqualTo(expectedResult);
 
@@ -97,13 +97,57 @@ class MetricsTrackingValueStateTest extends MetricsTrackingStateTestBase<Integer
             assertThat(sizeTrackingStateMetric.getGetCount()).isZero();
 
             setCurrentKey(keyedBackend);
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 sizeTrackingState.update(ThreadLocalRandom.current().nextLong());
                 assertThat(sizeTrackingStateMetric.getUpdateCount()).isEqualTo(expectedResult);
 
                 sizeTrackingState.value();
                 assertThat(sizeTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
+            }
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void testTrackingWithoutSampling() throws Exception {
+        final int noSamplingSampleInterval = 1;
+        AbstractKeyedStateBackend<Integer> keyedBackend =
+                createKeyedBackend(getKeySerializer(), noSamplingSampleInterval);
+        try {
+            MetricsTrackingValueState<Integer, VoidNamespace, Long> latencyTrackingState =
+                    (MetricsTrackingValueState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingValueState.ValueStateMetrics latencyTrackingStateMetric =
+                    latencyTrackingState.getLatencyTrackingStateMetric();
+
+            assertThat(latencyTrackingStateMetric.getUpdateCount()).isZero();
+            assertThat(latencyTrackingStateMetric.getGetCount()).isZero();
+
+            setCurrentKey(keyedBackend);
+            for (int index = 1; index <= 3; index++) {
+                int expectedResult = index;
+                latencyTrackingState.update(ThreadLocalRandom.current().nextLong());
+                assertThat(
+                                latencyTrackingStateMetric
+                                        .getHistogramMetrics()
+                                        .get("valueStateUpdateLatency")
+                                        .getCount())
+                        .isEqualTo(expectedResult);
+
+                latencyTrackingState.value();
+                assertThat(
+                                latencyTrackingStateMetric
+                                        .getHistogramMetrics()
+                                        .get("valueStateGetLatency")
+                                        .getCount())
+                        .isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {
