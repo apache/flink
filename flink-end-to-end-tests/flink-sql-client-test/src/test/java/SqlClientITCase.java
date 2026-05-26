@@ -81,6 +81,7 @@ class SqlClientITCase {
     @Container
     private static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
+                    .withKraft()
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withLogConsumer(LOG_CONSUMER);
