@@ -27,7 +27,7 @@ import java.util.Objects;
 /** Column statistics value of date type. */
 @PublicEvolving
 public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsDataBase {
-    /** mim value. */
+    /** min value. */
     private final Date min;
 
     /** max value. */
