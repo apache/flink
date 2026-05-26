@@ -287,8 +287,9 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
     FLINK_ENV_JAVA_OPTS="-XX:+IgnoreUnrecognizedVMOptions $( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 
     JAVA_SPEC_VERSION=`"${JAVA_RUN}" -XshowSettings:properties 2>&1 | grep "java.specification.version" | cut -d "=" -f 2 | tr -d '[:space:]' | rev | cut -d "." -f 1 | rev`
-    if [[ $(( $JAVA_SPEC_VERSION > 17 )) == 1 ]]; then
+    if [[ $(( $JAVA_SPEC_VERSION > 17 )) == 1 ]] && [[ $(( $JAVA_SPEC_VERSION < 24 )) == 1 ]]; then
       # set security manager property to allow calls to System.setSecurityManager() at runtime
+      # JDK 24+ (JEP-486) permanently removed SecurityManager; this flag is rejected on 24+
       FLINK_ENV_JAVA_OPTS="$FLINK_ENV_JAVA_OPTS -Djava.security.manager=allow"
     fi
 fi

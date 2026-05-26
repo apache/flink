@@ -68,6 +68,21 @@ runs:
           fi
         done
 
+    - name: "Install JDK 25 (Zulu) if requested"
+      if: ${{ inputs.jdk_version == 25 }}
+      shell: bash
+      run: |
+        echo "::group::Installing Zulu JDK 25"
+        curl -sL -o /tmp/zulu25.tar.gz \
+          "https://cdn.azul.com/zulu/bin/zulu25.30.17-ca-jdk25.0.1-linux_x64.tar.gz"
+        sudo mkdir -p /usr/lib/jvm
+        sudo tar -xzf /tmp/zulu25.tar.gz -C /usr/lib/jvm
+        ZULU_DIR=$(ls -d /usr/lib/jvm/zulu25* | head -1)
+        echo "JAVA_HOME_25_X64=${ZULU_DIR}" >> "${GITHUB_ENV}"
+        echo "::endgroup::"
+        echo "Installed JDK 25 at ${ZULU_DIR}"
+        "${ZULU_DIR}/bin/java" -version
+
     - name: "Set JDK version to ${{ inputs.jdk_version }}"
       shell: bash
       run: |
