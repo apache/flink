@@ -81,8 +81,8 @@ class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> 
 
             setCurrentKey(keyedBackend);
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.put(random.nextLong(), random.nextDouble());
                 assertThat(latencyTrackingStateMetric.getPutCount()).isEqualTo(expectedResult);
 
@@ -153,8 +153,8 @@ class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> 
 
             setCurrentKey(keyedBackend);
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 sizeTrackingState.put(random.nextLong(), random.nextDouble());
                 assertThat(sizeTrackingStateMetric.getPutCount()).isEqualTo(expectedResult);
 
@@ -270,13 +270,13 @@ class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> 
             boolean removeIterator)
             throws Exception {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+        for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
             latencyTrackingState.put((long) index, random.nextDouble());
         }
         int count = 1;
         Iterator<E> iterator = iteratorSupplier.get();
         while (iterator.hasNext()) {
-            int expectedResult = count == SAMPLE_INTERVAL ? 0 : count;
+            int expectedResult = count == DEFAULT_SAMPLE_INTERVAL ? 0 : count;
             assertThat(latencyTrackingStateMetric.getIteratorHasNextCount())
                     .isEqualTo(expectedResult);
 
@@ -303,13 +303,13 @@ class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> 
             boolean removeIterator)
             throws Exception {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+        for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
             sizeTrackingState.put((long) index, random.nextDouble());
         }
         int count = 1;
         Iterator<E> iterator = iteratorSupplier.get();
         while (iterator.hasNext()) {
-            int expectedResult = count == SAMPLE_INTERVAL ? 0 : count;
+            int expectedResult = count == DEFAULT_SAMPLE_INTERVAL ? 0 : count;
 
             iterator.next();
             assertThat(sizeTrackingStateMetric.getIteratorNextCount()).isEqualTo(expectedResult);
