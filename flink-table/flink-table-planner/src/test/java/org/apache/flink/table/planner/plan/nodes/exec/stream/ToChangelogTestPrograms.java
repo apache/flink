@@ -187,8 +187,7 @@ public class ToChangelogTestPrograms {
     public static final TableTestProgram UPSERT_PARTITION_BY =
             TableTestProgram.of(
                             "to-changelog-upsert-partition-by",
-                            "PARTITION BY upsert key + mapping without UB skips ChangelogNormalize; "
-                                    + "default produces_full_deletes=false nulls non-key columns on DELETE")
+                            "PARTITION BY upsert key + mapping without UB skips ChangelogNormalize")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -207,7 +206,7 @@ public class ToChangelogTestPrograms {
                                             "+I[Alice, C, 10]",
                                             "+I[Bob, C, 20]",
                                             "+I[Alice, C, 30]",
-                                            "+I[Bob, D, null]")
+                                            "+I[Bob, D, 20]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
@@ -600,9 +599,9 @@ public class ToChangelogTestPrograms {
                             "Duplicate change operation: 'DELETE'")
                     .build();
 
-    public static final TableTestProgram PRODUCES_FULL_DELETES_ON_APPEND_ONLY_INPUT =
+    public static final TableTestProgram INVALID_PRODUCES_FULL_DELETES_FOR_APPEND_ONLY =
             TableTestProgram.of(
-                            "to-changelog-produces-full-deletes-on-append-only-input",
+                            "to-changelog-invalid-produces-full-deletes-for-append-only",
                             "fails when produces_full_deletes=true on an input that never emits DELETE rows")
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
@@ -613,15 +612,14 @@ public class ToChangelogTestPrograms {
                             "the input table only produces [INSERT] and never emits DELETE rows")
                     .build();
 
-
     // --------------------------------------------------------------------------------------------
-    // Row semantics x delete handling matrix
+    // Full vs partial deletes matrix (input kind x PARTITION BY x produces_full_deletes)
     // --------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram ROW_SEM_PARTIAL_DELETES =
+    public static final TableTestProgram RETRACT_PRODUCES_PARTIAL_DELETES =
             TableTestProgram.of(
-                            "to-changelog-row-sem-partial-deletes",
-                            "row semantics: produces_full_deletes=false skips ChangelogNormalize and a partial DELETE row from the input passes through unchanged")
+                            "to-changelog-retract-produces-partial-deletes",
+                            "retract input in row semantics with produces_full_deletes=false: skips ChangelogNormalize and the partial DELETE row from the input passes through unchanged")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -650,10 +648,10 @@ public class ToChangelogTestPrograms {
                                     + "produces_full_deletes => false)")
                     .build();
 
-    public static final TableTestProgram ROW_SEM_FORCE_FULL_DELETES =
+    public static final TableTestProgram UPSERT_PRODUCES_FULL_DELETES =
             TableTestProgram.of(
-                            "to-changelog-row-sem-force-full-deletes",
-                            "row semantics: produces_full_deletes=true forces ChangelogNormalize to materialize the full DELETE row from an upsert source emitting key-only deletes")
+                            "to-changelog-upsert-produces-full-deletes",
+                            "upsert input in row semantics with produces_full_deletes=true: ChangelogNormalize materializes the full DELETE row from a key-only delete")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -676,14 +674,37 @@ public class ToChangelogTestPrograms {
                                     + "produces_full_deletes => true)")
                     .build();
 
-    // --------------------------------------------------------------------------------------------
-    // Set semantics x delete handling matrix
-    // --------------------------------------------------------------------------------------------
-
-    public static final TableTestProgram SET_SEM_FORCE_PARTIAL_DELETES =
+    public static final TableTestProgram UPSERT_PRODUCES_PARTIAL_DELETES =
             TableTestProgram.of(
-                            "to-changelog-set-sem-force-partial-deletes",
-                            "set semantics: produces_full_deletes=false nulls non-partition-key columns on DELETE even when the input row is fully populated")
+                            "to-changelog-upsert-produces-partial-deletes",
+                            "upsert input in row semantics with single-column upsert key + "
+                                    + "produces_full_deletes=false: DELETE preserves the upsert key "
+                                    + "column and nulls the rest without requiring PARTITION BY")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.DELETE, "Alice", 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[INSERT, Alice, 10]", "+I[DELETE, Alice, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t, "
+                                    + "produces_full_deletes => false)")
+                    .build();
+
+    public static final TableTestProgram RETRACT_PARTITION_BY_PRODUCES_PARTIAL_DELETES =
+            TableTestProgram.of(
+                            "to-changelog-retract-partition-by-produces-partial-deletes",
+                            "retract input in set semantics with produces_full_deletes=false: nulls non-partition-key columns on DELETE even when the input row is fully populated")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -710,34 +731,10 @@ public class ToChangelogTestPrograms {
                                     + "produces_full_deletes => false)")
                     .build();
 
-    public static final TableTestProgram SET_SEM_PARTIAL_DELETES =
+    public static final TableTestProgram RETRACT_PARTITION_BY_PRODUCES_FULL_DELETES =
             TableTestProgram.of(
-                            "to-changelog-set-sem-partial-deletes",
-                            "set semantics: produces_full_deletes=false (default) lets a partial DELETE row from the input pass through with non-partition-key columns null")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema(
-                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
-                                    .addMode(ChangelogMode.all())
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
-                                            Row.ofKind(RowKind.DELETE, "Alice", null))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("name STRING", "op STRING", "score BIGINT")
-                                    .consumedValues(
-                                            "+I[Alice, INSERT, 10]", "+I[Alice, DELETE, null]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY name)")
-                    .build();
-
-    public static final TableTestProgram SET_SEM_FULL_DELETES =
-            TableTestProgram.of(
-                            "to-changelog-set-sem-full-deletes",
-                            "set semantics: produces_full_deletes=true on an input that already emits full deletes is a no-op for the planner and the full DELETE row reaches the output")
+                            "to-changelog-retract-partition-by-produces-full-deletes",
+                            "retract input in set semantics with produces_full_deletes=true (default): the input row passes through unchanged, full DELETE pre-image reaches the output")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -759,10 +756,10 @@ public class ToChangelogTestPrograms {
                                     + "produces_full_deletes => true)")
                     .build();
 
-    public static final TableTestProgram SET_SEM_FORCE_FULL_DELETES =
+    public static final TableTestProgram UPSERT_PARTITION_BY_PRODUCES_FULL_DELETES =
             TableTestProgram.of(
-                            "to-changelog-set-sem-force-full-deletes",
-                            "set semantics: produces_full_deletes=true forces ChangelogNormalize to materialize the full DELETE row from an upsert source emitting key-only deletes")
+                            "to-changelog-upsert-partition-by-produces-full-deletes",
+                            "upsert input in set semantics with produces_full_deletes=true: ChangelogNormalize materializes the full DELETE row from a key-only delete")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(

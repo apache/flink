@@ -33,21 +33,31 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.utils.UpsertKeyUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_TABLE;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
  *
- * <p>Converts each input row into an INSERT-only output row with an operation code column. The
- * output schema is {@code [op_column, ...all_input_columns...]}.
+ * <p>Converts each input row into an INSERT-only output row with an operation code column. Output
+ * schema is {@code [op_column, ...projected_input_columns...]}. Partition columns are prepended by
+ * the framework outside this function and are not part of the projection.
  *
  * <p>Uses {@link JoinedRowData} to combine the op column with the full input row.
  */
@@ -65,51 +75,55 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
 
     private final Map<RowKind, String> rawOpMap;
     private final int[] outputIndices;
+    private final RowType inputRowType;
     private final boolean producesFullDelete;
+    private final boolean[] upsertKeyColumn;
 
     private transient Map<RowKind, StringData> opMap;
     private transient GenericRowData opRow;
     private transient JoinedRowData output;
     private transient ProjectedRowData projectedOutput;
-    private transient GenericRowData nullPayloadRow;
+    private transient GenericRowData partialDeletePayload;
+    private transient RowData.FieldGetter[] preservedFieldGetters;
 
     @SuppressWarnings("unchecked")
     public ToChangelogFunction(final SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TO_CHANGELOG, context);
         final CallContext callContext = context.getCallContext();
         // Table argument is guaranteed by the type strategy's validation phase.
-        final TableSemantics tableSemantics = callContext.getTableSemantics(0).get();
+        final TableSemantics tableSemantics = callContext.getTableSemantics(ARG_TABLE).get();
 
         final Map<String, String> opMapping =
-                callContext.getArgumentValue(2, Map.class).orElse(null);
+                callContext.getArgumentValue(ARG_OP_MAPPING, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
         if (opMapping != null) {
             validateOpMap(this.rawOpMap, tableSemantics);
         }
         final boolean producesFullDeletesArg =
-                callContext.getArgumentValue(3, Boolean.class).orElse(false);
-        validateProducesFullDeletes(producesFullDeletesArg, tableSemantics);
+                callContext.getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class).orElse(true);
+        final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
+        validateProducesFullDeletes(producesFullDeletesArg, isExplicit, tableSemantics);
 
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
-        this.producesFullDelete = resolveProducesFullDelete(producesFullDeletesArg, tableSemantics);
+        this.inputRowType = (RowType) tableSemantics.dataType().getLogicalType();
+        this.producesFullDelete = producesFullDeletesArg;
+        this.upsertKeyColumn =
+                computeUpsertKeyColumn(
+                        this.outputIndices,
+                        UpsertKeyUtils.smallestKey(tableSemantics.upsertKeyColumns()));
     }
 
-    /**
-     * Decides whether this function emits full DELETE rows (input passed through unchanged) or
-     * partial DELETE rows (only identifying columns preserved, rest nulled).
-     *
-     * <p>The framework prepends partition-key columns to the output without consulting this
-     * function, so in set semantics partition keys are preserved on DELETE rows for free. In row
-     * semantics there is no key column to preserve, so the function passes the input through
-     * unchanged regardless of {@code produces_full_deletes}.
-     */
-    private static boolean resolveProducesFullDelete(
-            final boolean producesFullDeletesArg, final TableSemantics tableSemantics) {
-        if (producesFullDeletesArg) {
-            return true;
+    private static boolean[] computeUpsertKeyColumn(
+            final int[] outputIndices, final int[] upsertKey) {
+        final Set<Integer> keepInputIndices = new HashSet<>();
+        for (final int key : upsertKey) {
+            keepInputIndices.add(key);
         }
-        final boolean hasPartitionBy = tableSemantics.partitionByColumns().length > 0;
-        return !hasPartitionBy;
+        final boolean[] mask = new boolean[outputIndices.length];
+        for (int i = 0; i < outputIndices.length; i++) {
+            mask[i] = keepInputIndices.contains(outputIndices[i]);
+        }
+        return mask;
     }
 
     @Override
@@ -120,7 +134,16 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         opRow = new GenericRowData(1);
         output = new JoinedRowData();
         projectedOutput = ProjectedRowData.from(outputIndices);
-        nullPayloadRow = new GenericRowData(outputIndices.length);
+        partialDeletePayload = new GenericRowData(outputIndices.length);
+        preservedFieldGetters = new RowData.FieldGetter[outputIndices.length];
+        final List<LogicalType> inputFieldTypes = inputRowType.getChildren();
+        for (int i = 0; i < outputIndices.length; i++) {
+            if (upsertKeyColumn[i]) {
+                preservedFieldGetters[i] =
+                        RowData.createFieldGetter(
+                                inputFieldTypes.get(outputIndices[i]), outputIndices[i]);
+            }
+        }
     }
 
     /**
@@ -172,29 +195,48 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     }
 
     /**
-     * Rejects {@code produces_full_deletes=true} when the input changelog never emits DELETE rows.
+     * Validates an explicit {@code produces_full_deletes} argument against the input.
+     *
+     * <p>For {@code produces_full_deletes=true}, the input changelog must emit DELETE rows;
+     * otherwise the parameter is dead. For {@code produces_full_deletes=false}, the input must
+     * declare an upsert key or the call must use {@code PARTITION BY}; otherwise the function has
+     * no identifying columns to preserve when nulling the rest.
+     *
+     * <p>No validation runs when the argument is absent, since the default (full deletes) is safe
+     * for any input.
      *
      * <p>Lives here rather than in the input type strategy because {@link
-     * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
-     * specialization time. The complementary check against the literal {@code op_mapping}
-     * argument runs earlier in {@code ToChangelogTypeStrategy}.
+     * TableSemantics#changelogMode()} and {@link TableSemantics#upsertKeyColumns()} are only
+     * populated at specialization time.
      */
     private static void validateProducesFullDeletes(
-            final boolean producesFullDeletesArg, final TableSemantics tableSemantics) {
-        if (!producesFullDeletesArg) {
+            final boolean producesFullDeletesArg,
+            final boolean isExplicit,
+            final TableSemantics tableSemantics) {
+        if (!isExplicit) {
             return;
         }
-        final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
-        if (inputMode == null) {
+        if (producesFullDeletesArg) {
+            final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
+            if (inputMode != null && !inputMode.contains(RowKind.DELETE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid 'produces_full_deletes' for TO_CHANGELOG: the input "
+                                        + "table only produces %s and never emits DELETE rows. "
+                                        + "Remove the 'produces_full_deletes' argument.",
+                                inputMode.getContainedKinds()));
+            }
             return;
         }
-        if (!inputMode.contains(RowKind.DELETE)) {
+        final boolean hasPartitionBy = tableSemantics.partitionByColumns().length > 0;
+        final boolean hasUpsertKey = !tableSemantics.upsertKeyColumns().isEmpty();
+        if (!hasPartitionBy && !hasUpsertKey) {
             throw new ValidationException(
-                    String.format(
-                            "Invalid 'produces_full_deletes' for TO_CHANGELOG: the input table "
-                                    + "only produces %s and never emits DELETE rows. Remove the "
-                                    + "'produces_full_deletes' argument.",
-                            inputMode.getContainedKinds()));
+                    "Invalid 'produces_full_deletes=false' for TO_CHANGELOG: the input has no "
+                            + "upsert key and the call has no PARTITION BY, so the function has "
+                            + "no identifying columns to preserve on DELETE rows. Remove the "
+                            + "argument (the default emits full DELETE rows) or add a "
+                            + "PARTITION BY.");
         }
     }
 
@@ -210,10 +252,28 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
 
         opRow.setField(0, opCode);
-        final RowData payload =
-                (input.getRowKind() == RowKind.DELETE && !producesFullDelete)
-                        ? nullPayloadRow
-                        : projectedOutput.replaceRow(input);
+        final RowData payload;
+        if (input.getRowKind() == RowKind.DELETE && !producesFullDelete) {
+            payload = buildPartialDeletePayload(input);
+        } else {
+            payload = projectedOutput.replaceRow(input);
+        }
         collect(output.replace(opRow, payload));
+    }
+
+    /**
+     * Builds the payload for a partial DELETE row: upsert-key columns are copied from the input,
+     * all other columns are emitted as {@code null}. Partition-key columns are not included here
+     * since the framework prepends them outside the function's projected output.
+     */
+    private RowData buildPartialDeletePayload(final RowData input) {
+        for (int i = 0; i < outputIndices.length; i++) {
+            if (upsertKeyColumn[i]) {
+                partialDeletePayload.setField(i, preservedFieldGetters[i].getFieldOrNull(input));
+            } else {
+                partialDeletePayload.setField(i, null);
+            }
+        }
+        return partialDeletePayload;
     }
 }

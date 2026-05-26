@@ -28,6 +28,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.ColumnList;
+import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +52,8 @@ public final class ToChangelogTypeStrategy {
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
+
+    private static final String DELETE = RowKind.DELETE.name();
 
     // --------------------------------------------------------------------------------------------
     // Input validation
@@ -152,7 +155,8 @@ public final class ToChangelogTypeStrategy {
 
         final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
         if (opMapping.isPresent()) {
-            return validateOpMappingKeys(callContext, opMapping.get(), throwOnFailure);
+            return validateOpMappingKeys(
+                    callContext, (Map<String, String>) opMapping.get(), throwOnFailure);
         }
         return Optional.empty();
     }
@@ -163,16 +167,13 @@ public final class ToChangelogTypeStrategy {
      * trimmed. Names are case-sensitive and must match exactly (e.g., {@code INSERT}, not {@code
      * insert}). Each name must be valid and appear at most once across all entries.
      */
-    @SuppressWarnings("rawtypes")
     private static Optional<List<DataType>> validateOpMappingKeys(
-            final CallContext callContext, final Map opMapping, final boolean throwOnFailure) {
+            final CallContext callContext,
+            final Map<String, String> opMapping,
+            final boolean throwOnFailure) {
         final Set<String> allRowKindsSeen = new HashSet<>();
-        for (final Object key : opMapping.keySet()) {
-            if (!(key instanceof String)) {
-                return callContext.fail(
-                        throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
-            }
-            final String[] rowKindNames = ((String) key).split(",");
+        for (final String key : opMapping.keySet()) {
+            final String[] rowKindNames = key.split(",");
             for (final String rawName : rowKindNames) {
                 final String rowKindName = rawName.trim();
                 if (!VALID_ROW_KIND_NAMES.contains(rowKindName)) {
@@ -180,7 +181,7 @@ public final class ToChangelogTypeStrategy {
                             throwOnFailure,
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
-                                            + "Unknown change operation: '%s'. Valid values are: %s.",
+                                            + "Unknown change operation: '%s'. Operations are case-sensitive. Valid values are: %s.",
                                     rowKindName, VALID_ROW_KIND_NAMES));
                 }
                 final boolean isDuplicate = !allRowKindsSeen.add(rowKindName);
@@ -200,24 +201,27 @@ public final class ToChangelogTypeStrategy {
     @SuppressWarnings("rawtypes")
     private static Optional<List<DataType>> validateProducesFullDeletes(
             final CallContext callContext, final boolean throwOnFailure) {
-        final boolean hasArgProvided = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
-        if (hasArgProvided && !callContext.isArgumentLiteral(ARG_PRODUCES_FULL_DELETES)) {
+        final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
+        if (!isExplicit) {
+            return Optional.empty();
+        }
+        if (!callContext.isArgumentLiteral(ARG_PRODUCES_FULL_DELETES)) {
             return callContext.fail(
                     throwOnFailure,
                     "The 'produces_full_deletes' argument must be a constant BOOLEAN literal.");
         }
         final boolean producesFullDeletes =
-                callContext
-                        .getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class)
-                        .orElse(false);
+                callContext.getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class).orElse(true);
         if (!producesFullDeletes) {
             return Optional.empty();
         }
         // The check against the input changelog mode lives in the function constructor since
         // TableSemantics#changelogMode() returns empty here at type-inference time. The mapping
-        // check below only needs the literal op_mapping argument, so it lives here.
+        // check below only needs the literal op_mapping argument, so it lives here. Only runs
+        // when the user explicitly set produces_full_deletes=true; the default true is not
+        // validated since it is a safe no-op for any input.
         final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
-        if (opMapping.isPresent() && !mapsDelete(opMapping.get())) {
+        if (opMapping.isPresent() && !mapsDelete((Map<String, String>) opMapping.get())) {
             return callContext.fail(
                     throwOnFailure,
                     "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active 'op_mapping' "
@@ -229,17 +233,13 @@ public final class ToChangelogTypeStrategy {
     }
 
     /**
-     * Returns {@code true} when at least one {@code op_mapping} key references {@code DELETE}.
-     * Keys may be comma-separated (e.g., {@code "INSERT, DELETE"}) per the user-facing contract.
+     * Returns {@code true} when at least one {@code op_mapping} key references {@code DELETE}. Keys
+     * may be comma-separated (e.g., {@code "INSERT, DELETE"}) per the user-facing contract.
      */
-    @SuppressWarnings("rawtypes")
-    private static boolean mapsDelete(final Map opMapping) {
-        for (final Object key : opMapping.keySet()) {
-            if (!(key instanceof String)) {
-                continue;
-            }
-            for (final String rawName : ((String) key).split(",")) {
-                if ("DELETE".equals(rawName.trim())) {
+    private static boolean mapsDelete(final Map<String, String> opMapping) {
+        for (final String key : opMapping.keySet()) {
+            for (final String rawName : key.split(",")) {
+                if (DELETE.equals(rawName.trim())) {
                     return true;
                 }
             }

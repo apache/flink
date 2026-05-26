@@ -205,12 +205,14 @@ public interface PartitionedTable {
      *         map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      *     );
      *
-     * // Require fully-populated DELETE rows from the input (inserts a ChangelogNormalize for
-     * // upsert sources). When false (default), DELETE rows on upsert inputs may omit non-key
-     * // columns, which avoids the stateful normalization operator upstream.
+     * // Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
+     * // pre-image. When `false`, only the identifying key columns are preserved and the rest
+     * // are nulled. See [Full vs partial deletes](
+     * // https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/changelog/#full-vs-partial-deletes)
+     * // for more details.
      * Table result = table
      *     .partitionBy($("id"))
-     *     .toChangelog(lit(true).asArgument("produces_full_deletes"));
+     *     .toChangelog(lit(false).asArgument("produces_full_deletes"));
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
