@@ -28,6 +28,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_TABLE;
 
 /** Tests for {@link ToChangelogTypeStrategy#INPUT_TYPE_STRATEGY}. */
 class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
@@ -52,12 +56,11 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, null)
-                        .calledWithLiteralAt(3, true)
-                        .expectArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, null)
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
 
                 // Valid: produces_full_deletes=true with op_mapping that includes DELETE
                 TestSpec.forStrategy(
@@ -65,12 +68,11 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INSERT", "I", "DELETE", "D"))
-                        .calledWithLiteralAt(3, true)
-                        .expectArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INSERT", "I", "DELETE", "D"))
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
 
                 // Valid: produces_full_deletes=true with comma-separated DELETE key
                 TestSpec.forStrategy(
@@ -78,12 +80,11 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INSERT, DELETE", "X"))
-                        .calledWithLiteralAt(3, true)
-                        .expectArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INSERT, DELETE", "X"))
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
 
                 // Valid: produces_full_deletes=false with op_mapping that omits DELETE
                 TestSpec.forStrategy(
@@ -91,12 +92,11 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INSERT, UPDATE_AFTER", "X"))
-                        .calledWithLiteralAt(3, false)
-                        .expectArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INSERT, UPDATE_AFTER", "X"))
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, false)
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
 
                 // Error: produces_full_deletes=true with op_mapping that strips DELETE
                 TestSpec.forStrategy(
@@ -104,22 +104,22 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INSERT, UPDATE_AFTER", "X"))
-                        .calledWithLiteralAt(3, true)
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INSERT, UPDATE_AFTER", "X"))
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
                         .expectErrorMessage(
                                 "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active "
                                         + "'op_mapping' does not map DELETE rows"),
 
-                // Error: multi-column descriptor
+                // Error: multi-column descriptor for `op`
                 TestSpec.forStrategy(
                                 "Descriptor with multiple columns",
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("a", "b"))
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("a", "b"))
                         .expectErrorMessage("must contain exactly one column name"),
 
                 // Error: invalid RowKind in op_mapping key
@@ -127,9 +127,9 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Invalid RowKind in mapping key", TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INVALID_KIND", "X"))
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INVALID_KIND", "X"))
                         .expectErrorMessage("Unknown change operation: 'INVALID_KIND'"),
 
                 // Error: duplicate RowKind across entries
@@ -138,9 +138,10 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of("op"))
-                        .calledWithLiteralAt(2, Map.of("INSERT, DELETE", "A", "DELETE", "B"))
+                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(
+                                ARG_OP_MAPPING, Map.of("INSERT, DELETE", "A", "DELETE", "B"))
                         .expectErrorMessage("Duplicate change operation: 'DELETE'"));
     }
 }

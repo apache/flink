@@ -839,14 +839,20 @@ public final class BuiltInFunctionDefinitions {
                                                                             "UPDATE_BEFORE"))))
                                     .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE,
-                                            // Require full deletes only when the user explicitly
-                                            // asks for them via produces_full_deletes=TRUE *and*
-                                            // the active op_mapping includes DELETE. Otherwise the
-                                            // planner can skip ChangelogNormalize for upsert
-                                            // sources that emit key-only deletes.
+                                            // Require full deletes by default. The user can opt
+                                            // out via produces_full_deletes=FALSE.
+                                            // REQUIRE_FULL_DELETE
+                                            // still gates on the active op_mapping mapping DELETE;
+                                            // otherwise no DELETE rows reach the function and there
+                                            // is no point inserting ChangelogNormalize upstream.
                                             TraitCondition.and(
-                                                    TraitCondition.argIsEqualTo(
-                                                            "produces_full_deletes", Boolean.TRUE),
+                                                    TraitCondition.or(
+                                                            TraitCondition.not(
+                                                                    TraitCondition.argIsPresent(
+                                                                            "produces_full_deletes")),
+                                                            TraitCondition.argIsEqualTo(
+                                                                    "produces_full_deletes",
+                                                                    Boolean.TRUE)),
                                                     TraitCondition.or(
                                                             TraitCondition.not(
                                                                     TraitCondition.argIsPresent(

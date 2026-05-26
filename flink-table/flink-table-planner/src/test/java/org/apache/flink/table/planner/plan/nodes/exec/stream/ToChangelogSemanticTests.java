@@ -56,12 +56,12 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.INVALID_OP_MAPPING,
                 ToChangelogTestPrograms.OP_MAPPING_REFERENCES_UNSUPPORTED_KIND,
                 ToChangelogTestPrograms.DUPLICATE_ROW_KIND,
-                ToChangelogTestPrograms.PRODUCES_FULL_DELETES_ON_APPEND_ONLY_INPUT,
-                ToChangelogTestPrograms.ROW_SEM_PARTIAL_DELETES,
-                ToChangelogTestPrograms.ROW_SEM_FORCE_FULL_DELETES,
-                ToChangelogTestPrograms.SET_SEM_PARTIAL_DELETES,
-                ToChangelogTestPrograms.SET_SEM_FULL_DELETES,
-                ToChangelogTestPrograms.SET_SEM_FORCE_FULL_DELETES,
-                ToChangelogTestPrograms.SET_SEM_FORCE_PARTIAL_DELETES);
+                ToChangelogTestPrograms.INVALID_PRODUCES_FULL_DELETES_FOR_APPEND_ONLY,
+                ToChangelogTestPrograms.RETRACT_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PRODUCES_FULL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY_PRODUCES_FULL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PARTITION_BY_PRODUCES_FULL_DELETES);
     }
 }

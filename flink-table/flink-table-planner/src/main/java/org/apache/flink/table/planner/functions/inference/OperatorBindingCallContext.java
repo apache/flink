@@ -195,10 +195,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 Optional.ofNullable(inputChangelogModes)
                         .map(m -> m.get(tableArgCall.getInputIndex()))
                         .orElse(null);
+        final int inputIndex = tableArgCall.getInputIndex();
         final List<int[]> upsertKeys =
-                Optional.ofNullable(inputUpsertKeys)
-                        .map(m -> m.get(tableArgCall.getInputIndex()))
-                        .orElse(List.of());
+                inputUpsertKeys != null && inputIndex < inputUpsertKeys.size()
+                        ? inputUpsertKeys.get(inputIndex)
+                        : List.of();
         return Optional.of(
                 OperatorBindingTableSemantics.create(
                         argumentDataTypes.get(pos),

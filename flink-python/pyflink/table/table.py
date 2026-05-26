@@ -1197,12 +1197,13 @@ class Table(object):
         (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
 
         The optional ``produces_full_deletes`` boolean controls how DELETE rows are
-        emitted. When ``True``, the planner inserts a ``ChangelogNormalize`` operator
-        for upsert sources that emit key-only deletes so the function emits fully
-        populated DELETE rows downstream. When ``False`` (default), no full-delete
-        requirement is enforced. In row semantics the input is passed through unchanged,
-        and in set semantics (``PARTITION BY``) non-partition-key columns are nulled on
-        DELETE rows.
+        emitted. When ``True`` (default), the planner inserts a ``ChangelogNormalize``
+        operator for upsert sources that emit key-only deletes so the function emits
+        fully populated DELETE rows downstream. When ``False``, the function emits
+        partial DELETE rows: row semantics preserves the planner-derived upsert key
+        columns and nulls the rest, set semantics (``PARTITION BY``) preserves the
+        partition key and nulls the rest. Requires an upsert key or ``PARTITION BY``;
+        otherwise the call is rejected.
 
         Example:
         ::
@@ -1221,10 +1222,10 @@ class Table(object):
             ...     map_("INSERT, UPDATE_AFTER", "false",
             ...          "DELETE", "true").as_argument("op_mapping")
             ... )
-            >>> # Require fully populated DELETE rows from the input. Inserts a
-            >>> # ChangelogNormalize for upsert sources.
+            >>> # Opt out of full-delete semantics to emit partial DELETE rows.
+            >>> # Requires an upsert key or PARTITION BY; otherwise rejected.
             >>> result = table.to_changelog(
-            ...     lit(True).as_argument("produces_full_deletes")
+            ...     lit(False).as_argument("produces_full_deletes")
             ... )
 
         :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
