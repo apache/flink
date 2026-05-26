@@ -335,7 +335,7 @@ public class BridgingSqlFunction extends SqlFunction {
      * scalar arguments through the same coercion path as validation.
      */
     public CallContext toCallContext(RexCall call) {
-        return toCallContext(call, null, null, null);
+        return toCallContext(call, null, null, null, null);
     }
 
     /**
@@ -348,6 +348,20 @@ public class BridgingSqlFunction extends SqlFunction {
             @Nullable List<Integer> inputTimeColumns,
             @Nullable List<ChangelogMode> inputChangelogModes,
             @Nullable ChangelogMode outputChangelogMode) {
+        return toCallContext(
+                call, inputTimeColumns, inputChangelogModes, outputChangelogMode, null);
+    }
+
+    /**
+     * Variant that additionally exposes the call's input upsert keys. Used by the streaming codegen
+     * path so PTFs can specialize themselves on the input's row-identity information.
+     */
+    public CallContext toCallContext(
+            RexCall call,
+            @Nullable List<Integer> inputTimeColumns,
+            @Nullable List<ChangelogMode> inputChangelogModes,
+            @Nullable ChangelogMode outputChangelogMode,
+            @Nullable List<List<int[]>> inputUpsertKeys) {
         return new OperatorBindingCallContext(
                 dataTypeFactory,
                 getDefinition(),
@@ -355,7 +369,8 @@ public class BridgingSqlFunction extends SqlFunction {
                 call.getType(),
                 inputTimeColumns,
                 inputChangelogModes,
-                outputChangelogMode);
+                outputChangelogMode,
+                inputUpsertKeys);
     }
 
     /**

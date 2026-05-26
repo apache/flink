@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
@@ -62,6 +63,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -165,6 +167,20 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
         final List<Ord<StaticArgument>> providedInputArgs = getProvidedInputArgs(call);
         verifyPassThroughColumnsForUpdates(providedInputArgs, outputChangelogMode);
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(getCluster().getMetadataQuery());
+        final List<List<int[]>> inputUpsertKeys =
+                getInputs().stream()
+                        .map(
+                                input -> {
+                                    final Set<ImmutableBitSet> keys = fmq.getUpsertKeys(input);
+                                    return keys == null
+                                            ? Collections.<int[]>emptyList()
+                                            : keys.stream()
+                                                    .map(ImmutableBitSet::toArray)
+                                                    .collect(Collectors.toList());
+                                })
+                        .collect(Collectors.toList());
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -173,7 +189,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 uid,
                 call,
                 inputChangelogModes,
-                outputChangelogMode);
+                outputChangelogMode,
+                inputUpsertKeys);
     }
 
     @Override

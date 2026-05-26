@@ -69,6 +69,7 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.linq4j.Ord;
@@ -108,6 +109,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODES = "inputChangelogModes";
     public static final String FIELD_NAME_OUTPUT_CHANGELOG_MODE = "outputChangelogMode";
+    public static final String FIELD_NAME_INPUT_UPSERT_KEYS = "inputUpsertKeys";
 
     @JsonProperty(FIELD_NAME_UID)
     private final @Nullable String uid;
@@ -121,6 +123,10 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE)
     private final ChangelogMode outputChangelogMode;
 
+    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private final List<List<int[]>> inputUpsertKeys;
+
     public StreamExecProcessTableFunction(
             ReadableConfig tableConfig,
             List<InputProperty> inputProperties,
@@ -129,7 +135,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @Nullable String uid,
             RexCall invocation,
             List<ChangelogMode> inputChangelogModes,
-            ChangelogMode outputChangelogMode) {
+            ChangelogMode outputChangelogMode,
+            List<List<int[]>> inputUpsertKeys) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecProcessTableFunction.class),
@@ -141,7 +148,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 uid,
                 invocation,
                 inputChangelogModes,
-                outputChangelogMode);
+                outputChangelogMode,
+                inputUpsertKeys);
     }
 
     @JsonCreator
@@ -155,7 +163,9 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_UID) @Nullable String uid,
             @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES) List<ChangelogMode> inputChangelogModes,
-            @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE) ChangelogMode outputChangelogMode) {
+            @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE) ChangelogMode outputChangelogMode,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
+                    @Nullable List<List<int[]>> inputUpsertKeys) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uid = uid;
         // Mirror the FlinkLogicalTableFunctionScan converter for the compiled-plan restore path:
@@ -164,6 +174,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         this.invocation = BridgingSqlFunction.resolveCallTraits((RexCall) invocation);
         this.inputChangelogModes = inputChangelogModes;
         this.outputChangelogMode = outputChangelogMode;
+        this.inputUpsertKeys = inputUpsertKeys != null ? inputUpsertKeys : List.of();
     }
 
     public @Nullable String getUid() {
@@ -202,7 +213,12 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final RexCall udfCall = StreamPhysicalProcessTableFunction.toUdfCall(invocation);
         final GeneratedRunnerResult generated =
                 ProcessTableRunnerGenerator.generate(
-                        ctx, udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode);
+                        ctx,
+                        udfCall,
+                        inputTimeColumns,
+                        inputChangelogModes,
+                        outputChangelogMode,
+                        inputUpsertKeys);
         final GeneratedProcessTableRunner generatedRunner = generated.runner();
         final LinkedHashMap<String, StateInfo> stateInfos = generated.stateInfos();
 
@@ -310,9 +326,12 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
 
         final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
 
+        final int inputIndex = tableArgCall.getInputIndex();
+        final List<int[]> upsertKeys =
+                inputIndex < inputUpsertKeys.size() ? inputUpsertKeys.get(inputIndex) : List.of();
         return new RuntimeTableSemantics(
                 tableArg.getName(),
-                tableArgCall.getInputIndex(),
+                inputIndex,
                 dataType,
                 tableArgCall.getPartitionKeys(),
                 tableArgCall.getOrderKeys(),
@@ -320,7 +339,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 consumedChangelogMode,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
-                timeColumn);
+                timeColumn,
+                upsertKeys);
     }
 
     private Transformation<RowData> createKeyedTransformation(
