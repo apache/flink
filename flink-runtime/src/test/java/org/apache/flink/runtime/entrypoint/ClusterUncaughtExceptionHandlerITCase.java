@@ -28,30 +28,31 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.util.ClusterUncaughtExceptionHandler;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration test to check exit behaviour for the {@link ClusterUncaughtExceptionHandler}. */
-public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ClusterUncaughtExceptionHandlerITCase {
 
-    @Before
-    public void ensureSupportedOS() {
+    @BeforeEach
+    void ensureSupportedOS() {
         // based on the assumption in JvmExitOnFatalErrorTest, and manual testing on Mac, we do not
         // support all platforms (in particular not Windows)
-        assumeTrue(OperatingSystem.isLinux() || OperatingSystem.isMac());
+        assumeThat(OperatingSystem.isLinux() || OperatingSystem.isMac()).isTrue();
     }
 
     @Test
-    public void testExitDueToUncaughtException() throws Exception {
+    void testExitDueToUncaughtException() throws Exception {
         final ForcedJVMExitProcess testProcess =
                 new ForcedJVMExitProcess(ClusterTestingEntrypoint.class);
 
@@ -64,7 +65,7 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
                     FatalExitExceptionHandler
                             .EXIT_CODE; // for FAIL mode, exit is done using this handler.
             int unsignedIntegerExitCode = ((byte) signedIntegerExitCode) & 0xFF;
-            assertThat(testProcess.exitCode(), is(unsignedIntegerExitCode));
+            assertThat(testProcess.exitCode()).isEqualTo(unsignedIntegerExitCode);
             success = true;
         } finally {
             if (!success) {
