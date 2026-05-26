@@ -313,6 +313,9 @@ class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
                         .withFunction(ThrowingFunction.class)
                         .testTableApiRuntimeError(
                                 coalesce($("f0"), call("ThrowingFunction", $("f1"))),
+                                "ThrowingFunction was called")
+                        .testSqlRuntimeError(
+                                "COALESCE(f0, ThrowingFunction(f1))",
                                 "ThrowingFunction was called"));
     }
 

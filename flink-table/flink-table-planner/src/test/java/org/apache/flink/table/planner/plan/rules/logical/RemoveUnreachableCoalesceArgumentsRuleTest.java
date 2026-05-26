@@ -30,7 +30,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.STRING;
 
-/** Test rule {@link RemoveUnreachableCoalesceArgumentsRule}. */
+/**
+ * Tests that {@code COALESCE} arguments appearing after the first {@code NOT NULL} argument are
+ * pruned from the plan, since they can never be reached.
+ */
 class RemoveUnreachableCoalesceArgumentsRuleTest extends TableTestBase {
 
     private StreamTableTestUtil util;
