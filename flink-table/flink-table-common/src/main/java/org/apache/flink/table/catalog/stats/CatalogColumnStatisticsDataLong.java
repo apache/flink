@@ -27,7 +27,7 @@ import java.util.Objects;
 /** Column statistics value of long type. */
 @PublicEvolving
 public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsDataBase {
-    /** mim value. */
+    /** min value. */
     private final Long min;
 
     /** max value. */

@@ -27,7 +27,7 @@ import java.util.Objects;
 /** Column statistics value of double type. */
 @PublicEvolving
 public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDataBase {
-    /** mim value. */
+    /** min value. */
     private final Double min;
 
     /** max value. */
