@@ -23,6 +23,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /** {@link TableSemantics} implementation for {@link ProcessTableFunctionTestHarness}. */
@@ -30,10 +32,17 @@ import java.util.Optional;
 class TestHarnessTableSemantics implements TableSemantics {
     private final DataType dataType;
     private final int[] partitionByColumns;
+    private final List<int[]> upsertKeyColumns;
 
     TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns) {
+        this(dataType, partitionByColumns, Collections.emptyList());
+    }
+
+    TestHarnessTableSemantics(
+            DataType dataType, int[] partitionByColumns, List<int[]> upsertKeyColumns) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
+        this.upsertKeyColumns = upsertKeyColumns;
     }
 
     @Override
@@ -64,5 +73,10 @@ class TestHarnessTableSemantics implements TableSemantics {
     @Override
     public Optional<ChangelogMode> changelogMode() {
         return Optional.empty();
+    }
+
+    @Override
+    public List<int[]> upsertKeyColumns() {
+        return upsertKeyColumns;
     }
 }

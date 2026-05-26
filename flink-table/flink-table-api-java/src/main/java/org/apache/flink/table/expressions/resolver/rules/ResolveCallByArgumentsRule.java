@@ -781,6 +781,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             return Optional.empty();
         }
 
+        @Override
+        public List<int[]> upsertKeyColumns() {
+            return Collections.emptyList();
+        }
+
         private PartitionQueryOperation findPartitionOperation(QueryOperation op) {
             if (op instanceof PartitionQueryOperation) {
                 return (PartitionQueryOperation) op;

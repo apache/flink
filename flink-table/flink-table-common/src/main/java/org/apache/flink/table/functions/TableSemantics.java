@@ -24,6 +24,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -127,6 +128,29 @@ public interface TableSemantics {
      *     type inference phase as the changelog mode is still unknown.
      */
     Optional<ChangelogMode> changelogMode();
+
+    /**
+     * Upsert key candidates derived from the passed table's metadata.
+     *
+     * <p>Returns a list of 0-based column index arrays that uniquely identify a row for upsert
+     * semantics. This is distinct from {@link #partitionByColumns()}: partition keys describe
+     * distribution and co-location, upsert keys describe row identity. Useful for functions that
+     * need to emit key-only deletes, match UPDATE_BEFORE / UPDATE_AFTER pairs, or want to have a
+     * unique identifier to interact with state.
+     *
+     * <p>Returns an empty list when no upsert key is derivable, or when the planner has not yet
+     * computed metadata (during type inference).
+     *
+     * <p>When the planner derives multiple candidate upsert keys for the same input (e.g., a table
+     * with several primary key constraints), all of them are returned. Picking which candidate to
+     * use is the function's responsibility, and the choice must be stable across releases to keep
+     * PTF state consistent after job restarts and upgrades. The order of the returned list is not
+     * part of the contract; PTF authors should not depend on it. A typical choice is the smallest
+     * candidate by cardinality, with ties broken by the column indices in ascending order.
+     *
+     * @return Candidate upsert keys of the passed table, or an empty list if none.
+     */
+    List<int[]> upsertKeyColumns();
 
     /** The sort direction for ORDER BY columns in table arguments with set semantics. */
     @PublicEvolving

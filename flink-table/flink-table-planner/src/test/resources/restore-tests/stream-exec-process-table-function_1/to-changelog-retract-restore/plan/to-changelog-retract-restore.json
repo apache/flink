@@ -78,7 +78,8 @@
       "type" : "ROW<`op` VARCHAR(2147483647), `name` VARCHAR(2147483647) NOT NULL, `score` BIGINT> NOT NULL"
     },
     "inputChangelogModes" : [ [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ] ],
-    "outputChangelogMode" : [ "INSERT" ]
+    "outputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKeys" : [ [ [ 0 ] ] ]
   }, {
     "id" : 3,
     "type" : "stream-exec-sink_2",

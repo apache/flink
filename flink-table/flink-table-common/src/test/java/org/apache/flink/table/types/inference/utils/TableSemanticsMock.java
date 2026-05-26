@@ -24,6 +24,8 @@ import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /** Mock implementation of {@link TableSemantics} for testing purposes. */
@@ -35,6 +37,7 @@ public class TableSemanticsMock implements TableSemantics {
     private final SortDirection[] orderByDirections;
     private final int timeColumn;
     private final ChangelogMode changelogMode;
+    private final List<int[]> upsertKeyColumns;
 
     public TableSemanticsMock(DataType dataType) {
         this(dataType, new int[0], new int[0], -1, null);
@@ -46,6 +49,22 @@ public class TableSemanticsMock implements TableSemantics {
             int[] orderByColumns,
             int timeColumn,
             @Nullable ChangelogMode changelogMode) {
+        this(
+                dataType,
+                partitionByColumns,
+                orderByColumns,
+                timeColumn,
+                changelogMode,
+                Collections.emptyList());
+    }
+
+    public TableSemanticsMock(
+            DataType dataType,
+            int[] partitionByColumns,
+            int[] orderByColumns,
+            int timeColumn,
+            @Nullable ChangelogMode changelogMode,
+            List<int[]> upsertKeyColumns) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.orderByColumns = orderByColumns;
@@ -55,6 +74,7 @@ public class TableSemanticsMock implements TableSemantics {
         }
         this.timeColumn = timeColumn;
         this.changelogMode = changelogMode;
+        this.upsertKeyColumns = upsertKeyColumns;
     }
 
     @Override
@@ -85,5 +105,10 @@ public class TableSemanticsMock implements TableSemantics {
     @Override
     public Optional<ChangelogMode> changelogMode() {
         return Optional.ofNullable(changelogMode);
+    }
+
+    @Override
+    public List<int[]> upsertKeyColumns() {
+        return upsertKeyColumns;
     }
 }

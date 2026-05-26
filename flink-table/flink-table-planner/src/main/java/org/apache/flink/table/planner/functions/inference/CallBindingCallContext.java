@@ -50,6 +50,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import javax.annotation.Nullable;
 
 import java.util.AbstractList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -311,6 +312,11 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
+        }
+
+        @Override
+        public List<int[]> upsertKeyColumns() {
+            return Collections.emptyList();
         }
     }
 
