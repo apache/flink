@@ -107,6 +107,14 @@ public final class FactoryUtil {
                             "Uniquely identifies the provider of a model that is used for model inference."
                                     + " Its value is used during model provider discovery.");
 
+    public static final ConfigOption<String> CONNECTION_TYPE =
+            ConfigOptions.key("type")
+                    .stringType()
+                    .defaultValue(DefaultConnectionFactory.IDENTIFIER)
+                    .withDescription(
+                            "Identifies the type of a connection. Its value is used during"
+                                    + " ConnectionFactory discovery.");
+
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
                     .stringType()
