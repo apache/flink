@@ -298,6 +298,9 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.ARRAY_ELEMENT, FlinkSqlOperatorTable.ELEMENT);
 
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.COALESCE, FlinkSqlOperatorTable.COALESCE);
+
         // crypto hash
         definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);
         definitionSqlOperatorHashMap.put(

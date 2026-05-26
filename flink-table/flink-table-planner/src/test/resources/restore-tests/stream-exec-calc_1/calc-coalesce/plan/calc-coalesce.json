@@ -10,45 +10,64 @@
           "schema" : {
             "columns" : [ {
               "name" : "a",
-              "dataType" : "BIGINT"
+              "dataType" : "DECIMAL(2, 1)"
+            }, {
+              "name" : "b",
+              "dataType" : "DECIMAL(4, 2)"
+            }, {
+              "name" : "c",
+              "dataType" : "TIMESTAMP(0)"
+            }, {
+              "name" : "d",
+              "dataType" : "TIMESTAMP(3)"
             } ]
           }
         }
       }
     },
-    "outputType" : "ROW<`a` BIGINT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a])"
+    "outputType" : "ROW<`a` DECIMAL(2, 1), `b` DECIMAL(4, 2), `c` TIMESTAMP(0), `d` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "CALL",
-      "syntax" : "BINARY",
-      "internalName" : "$/$1",
+      "internalName" : "$COALESCE$1",
       "operands" : [ {
         "kind" : "CALL",
-        "internalName" : "$EXTRACT$1",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
         "operands" : [ {
-          "kind" : "LITERAL",
-          "symbol" : "TIME_UNIT_RANGE",
-          "value" : "YEAR",
-          "type" : {
-            "type" : "SYMBOL",
-            "nullable" : false
-          }
-        }, {
-          "kind" : "CALL",
-          "syntax" : "FUNCTION_ID",
-          "internalName" : "$CURRENT_TIMESTAMP$1",
-          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL"
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "DECIMAL(2, 1)"
         } ],
-        "type" : "BIGINT NOT NULL"
+        "type" : "DECIMAL(4, 2)"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 0,
-        "type" : "BIGINT"
+        "inputIndex" : 1,
+        "type" : "DECIMAL(4, 2)"
       } ],
-      "type" : "BIGINT"
+      "type" : "DECIMAL(4, 2)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$COALESCE$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "TIMESTAMP(0)"
+        } ],
+        "type" : "TIMESTAMP(3)"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "TIMESTAMP(3)"
+      } ],
+      "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -58,8 +77,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`EXPR$0` BIGINT>",
-    "description" : "Calc(select=[(EXTRACT(YEAR, CURRENT_TIMESTAMP()) / a) AS EXPR$0])"
+    "outputType" : "ROW<`x` DECIMAL(4, 2), `y` TIMESTAMP(3)>",
+    "description" : "Calc(select=[COALESCE(CAST(a AS DECIMAL(4, 2)), b) AS x, COALESCE(CAST(c AS TIMESTAMP(3)), d) AS y])"
   }, {
     "id" : 3,
     "type" : "stream-exec-sink_2",
@@ -76,15 +95,18 @@
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
-              "name" : "a",
-              "dataType" : "BIGINT"
+              "name" : "x",
+              "dataType" : "DECIMAL(4, 2)"
+            }, {
+              "name" : "y",
+              "dataType" : "TIMESTAMP(3)"
             } ]
           }
         }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "upsertMaterializeStrategy" : "ADAPTIVE",
+    "upsertMaterializeStrategy" : "MAP",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -92,8 +114,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`EXPR$0` BIGINT>",
-    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[EXPR$0])"
+    "outputType" : "ROW<`x` DECIMAL(4, 2), `y` TIMESTAMP(3)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[x, y])"
   } ],
   "edges" : [ {
     "source" : 1,
