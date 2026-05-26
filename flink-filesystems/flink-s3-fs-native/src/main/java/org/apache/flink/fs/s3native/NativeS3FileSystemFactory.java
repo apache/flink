@@ -243,9 +243,32 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .intType()
                     .defaultValue(3)
                     .withDescription(
-                            "Maximum number of retry attempts for failed S3 requests. "
-                                    + "Uses the AWS SDK's default retry strategy (exponential backoff with jitter). "
+                            "Maximum number of retries for failed S3 requests (excluding the initial attempt). "
                                     + "Set to 0 to disable retries.");
+
+    public static final ConfigOption<Duration> RETRY_BASE_DELAY =
+            ConfigOptions.key("s3.retry.base-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription(
+                            "Base delay for exponential backoff on non-throttle retries. "
+                                    + "Uses exponential backoff with full jitter, capped by s3.retry.max-backoff.");
+
+    public static final ConfigOption<Duration> RETRY_THROTTLE_BASE_DELAY =
+            ConfigOptions.key("s3.retry.throttle.base-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "Base delay for exponential backoff on throttle retries (HTTP 429, 503). "
+                                    + "Uses exponential backoff with full jitter, capped by s3.retry.max-backoff.");
+
+    public static final ConfigOption<Duration> RETRY_MAX_BACKOFF =
+            ConfigOptions.key("s3.retry.max-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(20))
+                    .withDescription(
+                            "Maximum delay cap for exponential backoff, applied to both "
+                                    + "normal and throttle retry paths.");
 
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("s3.connection.timeout")
@@ -458,6 +481,9 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .assumeRoleSessionName(assumeRoleSessionName)
                         .assumeRoleSessionDurationSeconds(assumeRoleSessionDuration)
                         .maxRetries(config.get(MAX_RETRIES))
+                        .retryBaseDelay(config.get(RETRY_BASE_DELAY))
+                        .retryThrottleBaseDelay(config.get(RETRY_THROTTLE_BASE_DELAY))
+                        .retryMaxBackoff(config.get(RETRY_MAX_BACKOFF))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
                         .build();
