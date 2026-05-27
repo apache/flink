@@ -1596,6 +1596,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
+    SqlIdentifier connection = null;
     SqlParserPos pos = startPos;
     boolean isColumnsIdentifiersOnly = false;
 }
@@ -1630,6 +1631,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
     [
+        <USING> <CONNECTION>
+        connection = CompoundIdentifier()
+    ]
+    [
         <WITH>
         propertyList = Properties()
     ]
@@ -1652,6 +1657,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 partitionColumns,
                 watermark,
                 comment,
+                connection,
                 tableLike,
                 isTemporary,
                 ifNotExists);
@@ -1660,6 +1666,11 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         <AS>
         asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         {
+            if (connection != null) {
+                throw SqlUtil.newContextException(
+                    pos,
+                    ParserResource.RESOURCE.usingConnectionWithAsUnsupported());
+            }
             if (replace) {
                 return new SqlReplaceTableAs(startPos.plus(getPos()),
                     tableName,
@@ -1706,6 +1717,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
             partitionColumns,
             watermark,
             comment,
+            connection,
             isTemporary,
             ifNotExists);
     }

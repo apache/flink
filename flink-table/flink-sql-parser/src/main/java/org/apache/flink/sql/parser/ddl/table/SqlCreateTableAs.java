@@ -99,6 +99,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 partitionKeyList,
                 watermark,
                 comment,
+                null,
                 isTemporary,
                 ifNotExists,
                 false);
