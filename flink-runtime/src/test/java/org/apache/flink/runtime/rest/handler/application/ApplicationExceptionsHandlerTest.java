@@ -194,11 +194,13 @@ class ApplicationExceptionsHandlerTest {
         final ApplicationExceptionsInfoWithHistory response =
                 handler.handleRequest(limitedRequest, testingRestfulGateway).get();
 
+        // newest entries are returned first when truncating, so with historySize=5 and
+        // maxExceptions=2 we expect entries #4 and #3 (in that order)
         assertThat(response.getExceptionHistory().getEntries())
                 .hasSize(maxExceptions)
                 .extracting(
                         ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo::getTimestamp)
-                .containsExactly(baseTimestamp, baseTimestamp + 1);
+                .containsExactly(baseTimestamp + historySize - 1, baseTimestamp + historySize - 2);
     }
 
     @Test
