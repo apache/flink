@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -1079,6 +1080,34 @@ public interface TableEnvironment {
      * @see TableEnvironment#useDatabase(String)
      */
     Table from(String path);
+
+    /**
+     * Reads a registered table and applies dynamic options, returning the corresponding {@link
+     * Table}.
+     *
+     * <p>Dynamic options override the table's static options defined at creation time (DDL).
+     * This is the Table API equivalent of SQL's {@code OPTIONS} hint:
+     *
+     * <pre>{@code
+     * // Table API (this method)
+     * Table tab = tableEnv.from("kafka_table1", Map.of("scan.startup.mode", "earliest-offset"));
+     *
+     * // Equivalent SQL
+     * // SELECT * FROM kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') * /
+     * }</pre>
+     *
+     * <p>The configuration option {@code table.dynamic-table-options.enabled} must be set to
+     * {@code true} (the default) for dynamic options to take effect.
+     *
+     * <p>Note: Dynamic options cannot be applied to views.
+     *
+     * @param path The path of a table API object to scan.
+     * @param dynamicOptions A map of option key-value pairs to override on the table.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @throws ValidationException if the table is not found, is a view, or dynamic options are
+     *     disabled.
+     */
+    Table from(String path, Map<String, String> dynamicOptions);
 
     /**
      * Returns a {@link Table} backed by the given {@link TableDescriptor descriptor}.
