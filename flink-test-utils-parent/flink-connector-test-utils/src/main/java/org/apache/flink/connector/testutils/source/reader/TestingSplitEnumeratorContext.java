@@ -18,6 +18,9 @@
 
 package org.apache.flink.connector.testutils.source.reader;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -57,6 +60,8 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
 
     private final int parallelism;
 
+    private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "test-job");
+
     public TestingSplitEnumeratorContext(int parallelism) {
         this.parallelism = parallelism;
     }
@@ -90,6 +95,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
     // ------------------------------------------------------------------------
     //  SplitEnumeratorContext methods
     // ------------------------------------------------------------------------
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
 
     @Override
     public SplitEnumeratorMetricGroup metricGroup() {

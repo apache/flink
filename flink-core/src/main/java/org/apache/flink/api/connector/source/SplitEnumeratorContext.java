@@ -20,6 +20,7 @@ package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
@@ -40,6 +41,16 @@ import java.util.function.BiConsumer;
  */
 @Public
 public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
+
+    /**
+     * Get the meta information of the current job.
+     *
+     * @return the job meta information.
+     */
+    @PublicEvolving
+    default JobInfo getJobInfo() {
+        throw new UnsupportedOperationException();
+    }
 
     SplitEnumeratorMetricGroup metricGroup();
 

@@ -19,6 +19,8 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
@@ -27,6 +29,16 @@ import org.apache.flink.util.UserCodeClassLoader;
 /** The interface that exposes some context from runtime to the {@link SourceReader}. */
 @Public
 public interface SourceReaderContext {
+
+    /**
+     * Get the meta information of the current job.
+     *
+     * @return the job meta information.
+     */
+    @PublicEvolving
+    default JobInfo getJobInfo() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * @return The metric group this source belongs to.

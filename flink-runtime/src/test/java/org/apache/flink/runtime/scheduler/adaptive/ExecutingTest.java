@@ -1195,6 +1195,11 @@ class ExecutingTest {
         }
 
         @Override
+        public String getJobName() {
+            return null;
+        }
+
+        @Override
         public BlobWriter getBlobWriter() {
             return null;
         }
