@@ -82,6 +82,10 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -97,6 +101,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -128,6 +136,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
