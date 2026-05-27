@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -179,6 +180,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     @Override
     public SplitEnumeratorMetricGroup metricGroup() {
         return new InternalSplitEnumeratorMetricGroup(operatorCoordinatorContext.metricGroup());
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return operatorCoordinatorContext.getJobInfo();
     }
 
     @Override

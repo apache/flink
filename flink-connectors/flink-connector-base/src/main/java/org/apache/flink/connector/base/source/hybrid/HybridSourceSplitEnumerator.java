@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.hybrid;
 
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -338,6 +339,11 @@ public class HybridSourceSplitEnumerator
             this.readerSourceIndex = readerSourceIndex;
             this.switchedSources = switchedSources;
             this.sourceSize = sourceSize;
+        }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return realContext.getJobInfo();
         }
 
         @Override
