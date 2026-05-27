@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -61,9 +62,14 @@ import java.util.TreeMap;
  * idea is that between watermarks we are collecting those elements and once we are sure that there
  * will be no updates we emit the correct result and clean up the expired data in state.
  *
- * <p>Cleaning up the state drops all of the "old" values from the probe side, where "old" is
- * defined as older then the current watermark. Build side is also cleaned up in the similar
- * fashion, however we always keep at least one record - the latest one - even if it's past the last
+ * <p>Probe-side records that arrive late (their event time is less than or equal to the current
+ * watermark) are dropped on arrival and counted via the {@code numLateRecordsDropped} metric; they
+ * are not joined or emitted (not even as null-padded results for left outer joins), because the
+ * matching build-side version may already have been cleaned up.
+ *
+ * <p>Cleaning up the state drops all the "old" values from the probe side, where "old" is defined
+ * as older than the current watermark. Build side is also cleaned up in the similar fashion,
+ * however we always keep at least one record - the latest one - even if it's past the last
  * watermark.
  *
  * <p>One more trick is how the emitting results and cleaning up is triggered. It is achieved by
@@ -84,6 +90,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     private static final String RIGHT_STATE_NAME = "right";
     private static final String REGISTERED_TIMER_STATE_NAME = "timer";
     private static final String TIMERS_STATE_NAME = "timers";
+    private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 
     private final boolean isLeftOuterJoin;
     private final InternalTypeInfo<RowData> leftType;
@@ -122,6 +129,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     private transient JoinCondition joinCondition;
     private transient JoinedRowData outRow;
     private transient GenericRowData rightNullRow;
+
+    private transient Counter numLateRecordsDropped;
 
     public TemporalRowTimeJoinOperator(
             InternalTypeInfo<RowData> leftType,
@@ -174,13 +183,23 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         outRow = new JoinedRowData();
         rightNullRow = new GenericRowData(rightType.toRowType().getFieldCount());
         collector = new TimestampedCollector<>(output);
+
+        numLateRecordsDropped =
+                getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData row = element.getValue();
+        long leftTime = getLeftTime(row);
+        if (leftTime <= timerService.currentWatermark()) {
+            // The probe-side record is late. Drop it, because the matching build-side version may
+            // already have been cleaned up.
+            numLateRecordsDropped.inc();
+            return;
+        }
         leftState.put(getNextLeftIndex(), row);
-        registerSmallestTimer(getLeftTime(row)); // Timer to emit and clean up the state
+        registerSmallestTimer(leftTime); // Timer to emit and clean up the state
 
         registerProcessingCleanupTimer();
     }
@@ -440,5 +459,10 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     @VisibleForTesting
     static String getRegisteredTimerStateName() {
         return REGISTERED_TIMER_STATE_NAME;
+    }
+
+    @VisibleForTesting
+    Counter getNumLateRecordsDropped() {
+        return numLateRecordsDropped;
     }
 }
