@@ -25,6 +25,7 @@ import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -95,6 +96,29 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             List<PartETag> existingParts,
             long numBytesInParts)
             throws IOException {
+        this(
+                s3AccessHelper,
+                key,
+                uploadId,
+                localTmpDir,
+                minPartSize,
+                existingParts,
+                numBytesInParts,
+                null,
+                0L);
+    }
+
+    public NativeS3RecoverableFsDataOutputStream(
+            NativeS3ObjectOperations s3AccessHelper,
+            String key,
+            String uploadId,
+            String localTmpDir,
+            long minPartSize,
+            List<PartETag> existingParts,
+            long numBytesInParts,
+            @Nullable File seedTailFile,
+            long seedTailLength)
+            throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
         this.uploadId = uploadId;
@@ -106,7 +130,32 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.currentPartSize = 0;
         this.closed = false;
 
-        createNewTempFile();
+        if (seedTailFile != null) {
+            adoptSeedTailFile(seedTailFile, seedTailLength);
+        } else {
+            createNewTempFile();
+        }
+    }
+
+    private void adoptSeedTailFile(File seedFile, long expectedLength) throws IOException {
+        if (!seedFile.exists()) {
+            throw new IOException("Seed tail file does not exist: " + seedFile);
+        }
+        long actualLength = seedFile.length();
+        if (actualLength != expectedLength) {
+            throw new IOException(
+                    "Seed tail file "
+                            + seedFile
+                            + " has unexpected length: expected "
+                            + expectedLength
+                            + " got "
+                            + actualLength);
+        }
+        currentTempFile = seedFile;
+        // Append mode so subsequent writes land after the seeded bytes.
+        currentFileStream = new FileOutputStream(currentTempFile, true);
+        currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
+        currentPartSize = expectedLength;
     }
 
     private void createNewTempFile() throws IOException {
