@@ -161,13 +161,14 @@ class ApplicationExceptionsHandlerTest {
 
     @Test
     void testMaxExceptionsLimitsHistorySize() throws Exception {
+        final int historySize = 5;
+        final int maxExceptions = 2;
+        final long baseTimestamp = System.currentTimeMillis();
         final List<ApplicationExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < historySize; i++) {
             exceptionHistory.add(
                     new ApplicationExceptionHistoryEntry(
-                            new RuntimeException("exception #" + i),
-                            System.currentTimeMillis(),
-                            null));
+                            new RuntimeException("exception #" + i), baseTimestamp + i, null));
         }
 
         final ArchivedApplication applicationWithExceptions =
@@ -188,12 +189,16 @@ class ApplicationExceptionsHandlerTest {
                         .build();
 
         final HandlerRequest<EmptyRequestBody> limitedRequest =
-                createRequest(archivedApplication.getApplicationId(), 2);
+                createRequest(archivedApplication.getApplicationId(), maxExceptions);
 
         final ApplicationExceptionsInfoWithHistory response =
                 handler.handleRequest(limitedRequest, testingRestfulGateway).get();
 
-        assertThat(response.getExceptionHistory().getEntries()).hasSize(2);
+        assertThat(response.getExceptionHistory().getEntries())
+                .hasSize(maxExceptions)
+                .extracting(
+                        ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo::getTimestamp)
+                .containsExactly(baseTimestamp, baseTimestamp + 1);
     }
 
     @Test
@@ -234,8 +239,10 @@ class ApplicationExceptionsHandlerTest {
 
     @Test
     void testMaxExceptionsLargerThanHistorySizeReturnsAllEntries() throws Exception {
+        final int historySize = 3;
+        final int oversizedMaxExceptions = historySize + 7;
         final List<ApplicationExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < historySize; i++) {
             exceptionHistory.add(
                     new ApplicationExceptionHistoryEntry(
                             new RuntimeException("exception #" + i),
@@ -261,12 +268,12 @@ class ApplicationExceptionsHandlerTest {
                         .build();
 
         final HandlerRequest<EmptyRequestBody> oversizedRequest =
-                createRequest(archivedApplication.getApplicationId(), 10);
+                createRequest(archivedApplication.getApplicationId(), oversizedMaxExceptions);
 
         final ApplicationExceptionsInfoWithHistory response =
                 handler.handleRequest(oversizedRequest, testingRestfulGateway).get();
 
-        assertThat(response.getExceptionHistory().getEntries()).hasSize(3);
+        assertThat(response.getExceptionHistory().getEntries()).hasSize(historySize);
     }
 
     @Test
