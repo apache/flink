@@ -449,6 +449,10 @@ SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)
 
 The planner skips `ChangelogNormalize` and the function emits partial DELETE rows. This avoids the stateful normalization operator for upsert sources (e.g. Kafka compacted topics) where the full pre-image is not needed downstream. This requires an [upsert key](#upsert-key) to be present for the input table (row semantics) or `PARTITION BY` (set semantics); otherwise the call is rejected with a validation error.
 
+{{< hint warning >}}
+**Output nullability changes when `produces_full_deletes => false`.** Columns that are not part of the upsert key (or `PARTITION BY`) are nulled on DELETE rows at runtime, so the type system widens them to nullable in the output schema. Columns declared `NOT NULL` on the input therefore appear as nullable in the output of a `TO_CHANGELOG(..., produces_full_deletes => false)` call. The upsert-key (or partition-key) columns keep their declared nullability. Use the default `produces_full_deletes => true` if you need the output to preserve the input's `NOT NULL` types.
+{{< /hint >}}
+
 **Row semantics** (no `PARTITION BY`): the function preserves the planner-derived upsert key columns on DELETE rows and nulls the rest. The upsert key is typically a declared `PRIMARY KEY` when directly reading from a source or the key provided in a `GROUP BY <key>`.
 
 ```sql

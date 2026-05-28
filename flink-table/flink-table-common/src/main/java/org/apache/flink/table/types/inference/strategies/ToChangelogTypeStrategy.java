@@ -32,6 +32,7 @@ import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -84,8 +85,13 @@ public final class ToChangelogTypeStrategy {
 
                 final String opColumnName =
                         ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
+                final boolean producesFullDeletes =
+                        callContext
+                                .getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class)
+                                .orElse(true);
 
-                final List<Field> outputFields = buildOutputFields(semantics, opColumnName);
+                final List<Field> outputFields =
+                        buildOutputFields(semantics, opColumnName, producesFullDeletes);
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
@@ -208,14 +214,41 @@ public final class ToChangelogTypeStrategy {
         return false;
     }
 
+    /**
+     * Builds the output {@link Field}s for the {@code TO_CHANGELOG} call.
+     *
+     * <p>When the function emits partial DELETE rows ({@code produces_full_deletes=false}), columns
+     * that are not part of the upsert key (or {@code PARTITION BY}) are nulled out at runtime.
+     * Those columns are widened to nullable here so the output schema matches what the operator can
+     * emit; preserved columns keep their declared nullability.
+     *
+     * <p>At type inference time the upsert key may not be exposed yet; in that case the helper
+     * returns only the partition keys and all projected columns are widened conservatively.
+     */
     private static List<Field> buildOutputFields(
-            final TableSemantics semantics, final String opColumnName) {
+            final TableSemantics semantics,
+            final String opColumnName,
+            final boolean producesFullDeletes) {
         final List<Field> inputFields = DataType.getFields(semantics.dataType());
         final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
         final List<Field> outputFields = new ArrayList<>();
         outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
-        Arrays.stream(outputIndices).mapToObj(inputFields::get).forEach(outputFields::add);
+        final Set<Integer> preserved =
+                producesFullDeletes
+                        ? Collections.emptySet()
+                        : ChangelogTypeStrategyUtils.computePreservedColumnIndices(semantics);
+        Arrays.stream(outputIndices)
+                .mapToObj(
+                        idx ->
+                                producesFullDeletes || preserved.contains(idx)
+                                        ? inputFields.get(idx)
+                                        : asNullable(inputFields.get(idx)))
+                .forEach(outputFields::add);
         return outputFields;
+    }
+
+    private static Field asNullable(final Field field) {
+        return DataTypes.FIELD(field.getName(), field.getDataType().nullable());
     }
 
     private ToChangelogTypeStrategy() {}
