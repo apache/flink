@@ -30,7 +30,10 @@ The Avro Variant Schema Registry (``avro-variant-confluent``) format allows you 
 
 Unlike the [Confluent Avro]({{< ref "docs/connectors/table/formats/avro-confluent" >}}) format which requires the table schema to match the Avro schema, this format reads the entire Avro record into a single ``VARIANT`` column. The writer schema is resolved dynamically per record from the configured Confluent Schema Registry based on the schema version id encoded in the record. The Avro schema does not need to be known at table creation time and can evolve across records.
 
-This format is deserialization-only and does not support writing.
+Writing is not supported currently. Support will be added in the future to handle scenarios similar to the read path, such as:
+- Evolving the schema for writes to a topic
+- Writing records of multiple schemas into a single topic
+- Dynamically routing records to different topics
 
 Dependencies
 ------------
@@ -147,80 +150,10 @@ Format Options
             <td>String</td>
             <td>The URL of the Confluent Schema Registry to fetch schemas.</td>
         </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.properties</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>Map</td>
-            <td>Properties map that is forwarded to the underlying Schema Registry. This is useful for options that are not officially exposed via Flink config options. However, note that Flink options have higher precedence.</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.ssl.keystore.location</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Location / File of SSL keystore</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.ssl.keystore.password</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Password for SSL keystore</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.ssl.truststore.location</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Location / File of SSL truststore</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.ssl.truststore.password</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Password for SSL truststore</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.basic-auth.credentials-source</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Basic auth credentials source for Schema Registry</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.basic-auth.user-info</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Basic auth user info for Schema Registry</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.bearer-auth.credentials-source</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Bearer auth credentials source for Schema Registry</td>
-        </tr>
-        <tr>
-            <td><h5>avro-variant-confluent.bearer-auth.token</h5></td>
-            <td>optional</td>
-            <td>yes</td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Bearer auth token for Schema Registry</td>
-        </tr>
     </tbody>
 </table>
+
+For all other Schema Registry options (authentication, SSL, properties), refer to the [Confluent Avro]({{< ref "docs/connectors/table/formats/avro-confluent" >}}#format-options) format. The same options are supported, but they must be prefixed with `avro-variant-confluent.` instead of `avro-confluent.` (for example, `avro-variant-confluent.basic-auth.user-info`).
 
 Metadata
 --------
