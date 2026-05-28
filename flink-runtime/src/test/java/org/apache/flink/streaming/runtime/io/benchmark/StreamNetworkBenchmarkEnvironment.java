@@ -50,7 +50,6 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.newUnregisteredInputChannelMetrics;
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
@@ -61,15 +60,7 @@ import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
  */
 public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
-    private static final InetAddress LOCAL_ADDRESS;
-
-    static {
-        try {
-            LOCAL_ADDRESS = InetAddress.getLocalHost();
-        } catch (UnknownHostException e) {
-            throw new Error(e);
-        }
-    }
+    private static final InetAddress LOCAL_ADDRESS = InetAddress.getLoopbackAddress();
 
     private final ResourceID location = ResourceID.generate();
     protected final JobID jobId = new JobID();
