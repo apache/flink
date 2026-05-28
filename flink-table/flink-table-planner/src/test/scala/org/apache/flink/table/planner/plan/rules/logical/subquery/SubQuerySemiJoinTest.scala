@@ -39,7 +39,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   @Test
   def testInOnWhere_NotSubQuery(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE a IN (1, 2, 3, 4)"
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -210,9 +210,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END) IN (SELECT d FROM r)"
 
-    // TODO some bugs in SubQueryRemoveRule
-    assertThatExceptionOfType(classOf[RuntimeException])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1676,11 +1674,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       " (CASE WHEN b IN (SELECT m FROM t2) THEN 3 ELSE 4 END)) " +
       " IN (SELECT d, e FROM r)"
 
-    // TODO some bugs in SubQueryRemoveRule
-    //  the result RelNode (LogicalJoin(condition=[=($1, $8)], joinType=[left]))
-    //  after SubQueryRemoveRule is unexpected
-    assertThatExceptionOfType(classOf[NullPointerException])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

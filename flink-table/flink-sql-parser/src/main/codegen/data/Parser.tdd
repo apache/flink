@@ -633,6 +633,7 @@
     "OVERWRITING"
     "PARTITIONED"
     "PARTITIONS"
+    "UUID"
     "VIRTUAL"
     "ANALYZE"
     "COMPUTE"
@@ -771,6 +772,9 @@
   # Example: LeftSemiJoin()
   joinTypes: [
   ]
+
+  # Method for parsing "SET [OR RESET]" calls.
+  setOptionParserMethod: "SqlSetOption"
 
   includePosixOperators: false
   includeCompoundIdentifier: true

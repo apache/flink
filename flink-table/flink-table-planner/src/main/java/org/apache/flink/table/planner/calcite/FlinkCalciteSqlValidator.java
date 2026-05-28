@@ -459,6 +459,14 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         return super.maybeCast(node, currentType, desiredType);
     }
 
+    @Override
+    public @Nullable SqlCall makeNullaryCall(SqlIdentifier id) {
+        if (id.names.size() == 1 && !id.isComponentQuoted(0)) {
+            return super.makeNullaryCall(id);
+        }
+        return null;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Column expansion
     // --------------------------------------------------------------------------------------------

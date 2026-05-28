@@ -77,7 +77,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 /**
  * Flink modification because of CALCITE-7027
  *
- * <p>Lines 827 ~ 833, should be removed after upgrading to 1.40.
+ * <p>Lines 830 ~ 836, should be removed after upgrading to 1.40.
  */
 public abstract class SqlUtil {
     // ~ Constants --------------------------------------------------------------
@@ -315,6 +315,7 @@ public abstract class SqlUtil {
                     // when it has 0 args, not "LOCALTIME()".
                     return;
                 case FUNCTION_STAR: // E.g. "COUNT(*)"
+                case FUNCTION_ID_CONSTANT: // E.g. "PI()"
                 case FUNCTION: // E.g. "RANK()"
                 case ORDERED_FUNCTION: // E.g. "STRING_AGG(x)"
                     // fall through - dealt with below
@@ -382,7 +383,9 @@ public abstract class SqlUtil {
             // look up in the standard sql operator table to see if it is a function
             // with empty argument list, e.g. LOCALTIME, we should not quote
             // such identifier cause quoted `LOCALTIME` always represents a sql identifier.
-            if (asFunctionID || operator.getSyntax() == SqlSyntax.FUNCTION_ID) {
+            if (asFunctionID
+                    || operator.getSyntax() == SqlSyntax.FUNCTION_ID
+                    || operator.getSyntax() == SqlSyntax.FUNCTION_ID_CONSTANT) {
                 writer.keyword(identifier.getSimple());
                 unparsedAsFunc = true;
             }
@@ -1023,7 +1026,6 @@ public abstract class SqlUtil {
      * @param charset charset
      * @throws RuntimeException If the given value cannot be represented in the given charset
      */
-    @SuppressWarnings("BetaApi")
     public static void validateCharset(ByteString value, Charset charset) {
         if (charset == StandardCharsets.UTF_8) {
             final byte[] bytes = value.getBytes();

@@ -443,9 +443,6 @@ object TemporalJoinUtil {
     while (true) {
       var expr = rexProgram.getExprList.get(index)
       expr match {
-        case call: RexCall if call.getOperator == SqlStdOperatorTable.IN_FENNEL =>
-          // drill through identity function
-          expr = call.getOperands.get(0)
         case call: RexCall if call.getOperator == SqlStdOperatorTable.CAST =>
           // drill through identity function
           val outputType = call.getType

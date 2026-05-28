@@ -68,6 +68,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public boolean isSupportedDualTable() {
+        return SqlConformanceEnum.DEFAULT.isSupportedDualTable();
+    }
+
+    @Override
     public boolean isFromRequired() {
         return false;
     }
@@ -114,6 +119,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean allowNiladicParentheses() {
+        return true;
+    }
+
+    @Override
+    public boolean allowNiladicConstantWithoutParentheses() {
         return true;
     }
 
@@ -170,6 +180,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     @Override
     public boolean allowLenientCoercion() {
         return SqlConformanceEnum.DEFAULT.allowLenientCoercion();
+    }
+
+    @Override
+    public boolean checkedArithmetic() {
+        return SqlConformanceEnum.DEFAULT.checkedArithmetic();
     }
 
     @Override

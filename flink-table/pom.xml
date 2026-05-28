@@ -79,7 +79,7 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<calcite.version>1.38.0</calcite.version>
+		<calcite.version>1.39.0</calcite.version>
 		<janino.version>3.1.11</janino.version>
 		<guava.version>33.4.0-jre</guava.version>
 		<quartz.version>2.5.2</quartz.version>
