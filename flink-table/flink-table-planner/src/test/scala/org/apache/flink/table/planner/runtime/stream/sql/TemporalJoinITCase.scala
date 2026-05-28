@@ -212,7 +212,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
                        |  currency_no STRING,
                        |  amount BIGINT,
                        |  order_time TIMESTAMP(3),
-                       |  WATERMARK FOR order_time AS order_time,
+                       |  WATERMARK FOR order_time AS order_time - interval '2' DAYS,
                        |  PRIMARY KEY (order_id) NOT ENFORCED
                        |) WITH (
                        |  'connector' = 'values',
