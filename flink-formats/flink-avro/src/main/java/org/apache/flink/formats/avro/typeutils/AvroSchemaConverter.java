@@ -192,6 +192,11 @@ public class AvroSchemaConverter {
                 }
                 return Types.INT;
             case LONG:
+                // Local timestamps are unambiguous per the Avro spec; honor in both mappings.
+                if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
+                        || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                    return Types.LOCAL_DATE_TIME;
+                }
                 if (legacyTimestampMapping) {
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
                             || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
@@ -201,13 +206,9 @@ public class AvroSchemaConverter {
                         return Types.SQL_TIME;
                     }
                 } else {
-                    // Avro logical timestamp types to Flink DataStream timestamp types
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
                             || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return Types.INSTANT;
-                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
-                            || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
-                        return Types.LOCAL_DATE_TIME;
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
                             || schema.getLogicalType() == LogicalTypes.timeMillis()) {
                         return Types.SQL_TIME;
