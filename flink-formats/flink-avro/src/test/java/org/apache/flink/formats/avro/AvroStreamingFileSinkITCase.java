@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -41,6 +40,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +51,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,13 +59,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Avro.
  */
-@Timeout(value = 20)
+@Timeout(value = 20, unit = TimeUnit.SECONDS)
 class AvroStreamingFileSinkITCase extends AbstractTestBase {
 
     @Test
-    void testWriteAvroSpecific() throws Exception {
-        File folder = TempDirUtils.newFolder(temporaryFolder.toPath());
-
+    void testWriteAvroSpecific(@TempDir File folder) throws Exception {
         List<Address> data =
                 Arrays.asList(
                         new Address(1, "a", "b", "c", "12345"),
@@ -93,9 +92,7 @@ class AvroStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    void testWriteAvroGeneric() throws Exception {
-        File folder = TempDirUtils.newFolder(temporaryFolder.toPath());
-
+    void testWriteAvroGeneric(@TempDir File folder) throws Exception {
         Schema schema = Address.getClassSchema();
         Collection<GenericRecord> data = new GenericTestDataCollection();
 
@@ -121,9 +118,7 @@ class AvroStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    void testWriteAvroReflect() throws Exception {
-        File folder = TempDirUtils.newFolder(temporaryFolder.toPath());
-
+    void testWriteAvroReflect(@TempDir File folder) throws Exception {
         List<Datum> data = Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
