@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.ACCESS_KEY;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.ENDPOINT;
+import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_ADJUST_PART_SIZE;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_BATCH_MAX_FILES;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_BATCH_MAX_SIZE;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_EXTRA_ARGS;
@@ -92,6 +93,12 @@ public class FlinkS3FileSystem extends HadoopFileSystem
     /** The minimum size of a part in the multipart upload, except for the last part: 5 MIBytes. */
     public static final long S3_MULTIPART_MIN_PART_SIZE = 5L << 20;
 
+    /** The maximum allowed part size by AWS: 5 GIBytes. */
+    public static final long S3_MULTIPART_MAX_PART_SIZE = 5L << 30;
+
+    public static final long DEFAULT_S5CMD_PART_SIZE_MB = 50;
+    public static final long DEFAULT_S5CMD_CONCURRENCY = 5;
+
     private final String localTmpDir;
 
     private final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileCreator;
@@ -113,6 +120,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         @Nullable private final String accessArtifact;
         @Nullable private final String secretArtifact;
         @Nullable private final String endpoint;
+        private final boolean adjustPartSize;
         private long maxBatchSizeFiles;
         private long maxBatchSizeBytes;
 
@@ -124,7 +132,8 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                 @Nullable String secretArtifact,
                 @Nullable String endpoint,
                 int maxBatchSizeFiles,
-                long maxBatchSizeBytes) {
+                long maxBatchSizeBytes,
+                boolean adjustPartSize) {
             if (!path.isEmpty()) {
                 File s5CmdFile = new File(path);
                 checkArgument(s5CmdFile.isFile(), "Unable to find s5cmd binary under [%s]", path);
@@ -138,6 +147,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
             this.endpoint = endpoint;
             this.maxBatchSizeFiles = maxBatchSizeFiles;
             this.maxBatchSizeBytes = maxBatchSizeBytes;
+            this.adjustPartSize = adjustPartSize;
         }
 
         public static Optional<S5CmdConfiguration> of(Configuration flinkConfig) {
@@ -152,7 +162,8 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                                             flinkConfig.get(SECRET_KEY),
                                             flinkConfig.get(ENDPOINT),
                                             flinkConfig.get(S5CMD_BATCH_MAX_FILES),
-                                            flinkConfig.get(S5CMD_BATCH_MAX_SIZE).getBytes()));
+                                            flinkConfig.get(S5CMD_BATCH_MAX_SIZE).getBytes(),
+                                            flinkConfig.get(S5CMD_ADJUST_PART_SIZE)));
         }
 
         private void configureEnvironment(Map<String, String> environment) {
@@ -204,6 +215,12 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                     + ", endpoint='"
                     + endpoint
                     + '\''
+                    + ", maxBatchSizeFiles="
+                    + maxBatchSizeFiles
+                    + ", maxBatchSizeBytes="
+                    + maxBatchSizeBytes
+                    + ", adjustPartSize="
+                    + adjustPartSize
                     + '}';
         }
     }
@@ -301,13 +318,27 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         }
     }
 
+    private long partSizeFrom(long fileSizeBytes) {
+        return Math.max(
+                        S3_MULTIPART_MIN_PART_SIZE,
+                        Math.min(
+                                S3_MULTIPART_MAX_PART_SIZE,
+                                fileSizeBytes / DEFAULT_S5CMD_CONCURRENCY))
+                / (1L << 20);
+    }
+
     private List<String> convertToSpells(List<CopyRequest> requests) throws IOException {
         List<String> spells = new ArrayList<>();
         for (CopyRequest request : requests) {
             Files.createDirectories(Paths.get(request.getDestination().toUri()).getParent());
+            final long partSize =
+                    s5CmdConfiguration.adjustPartSize
+                            ? partSizeFrom(request.getSize())
+                            : DEFAULT_S5CMD_PART_SIZE_MB;
             spells.add(
                     String.format(
-                            "cp %s %s",
+                            "cp --part-size %s %s %s",
+                            partSize,
                             request.getSource().toUri().toString(),
                             request.getDestination().getPath()));
         }
@@ -320,7 +351,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         int exitCode = 0;
         final AtomicReference<IOException> maybeCloseableRegistryException =
                 new AtomicReference<>();
-
+        LOG.debug("Casting spells: {}", spells);
         // Setup temporary working directory for the process
         File tmpWorkingDir = new File(localTmpDir, "s5cmd_" + UUID.randomUUID());
         java.nio.file.Path tmpWorkingPath = Files.createDirectories(tmpWorkingDir.toPath());

@@ -90,6 +90,19 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
                     .defaultValue(100)
                     .withDescription("Maximum number of files to download per one call to s5cmd");
 
+    public static final ConfigOption<Boolean> S5CMD_ADJUST_PART_SIZE =
+            ConfigOptions.key("s3.s5cmd.adjust-part-size")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When set to true, s5cmd will dynamically adjust the part size for copy commands to fully utilize all "
+                                    + FlinkS3FileSystem.DEFAULT_S5CMD_CONCURRENCY
+                                    + " channels. "
+                                    + "A smaller part size will improve operations speed but might incur in increased S3 request costs. "
+                                    + "When set to false, part size will default to "
+                                    + FlinkS3FileSystem.DEFAULT_S5CMD_PART_SIZE_MB
+                                    + " MiB.");
+
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
                     .longType()
