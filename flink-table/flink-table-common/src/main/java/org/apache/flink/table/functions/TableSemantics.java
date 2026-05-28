@@ -133,20 +133,29 @@ public interface TableSemantics {
      * Upsert key candidates derived from the passed table's metadata.
      *
      * <p>Returns a list of 0-based column index arrays that uniquely identify a row for upsert
-     * semantics. This is distinct from {@link #partitionByColumns()}: partition keys describe
-     * distribution and co-location, upsert keys describe row identity. Useful for functions that
-     * need to emit key-only deletes, match UPDATE_BEFORE / UPDATE_AFTER pairs, or want to have a
-     * unique identifier to interact with state.
+     * semantics. Useful for functions that need to emit key-only deletes, match UPDATE_BEFORE /
+     * UPDATE_AFTER pairs, or use a stable identifier to interact with state.
+     *
+     * <p>The upsert key describes row identity and is distinct from {@link #partitionByColumns()},
+     * which describes distribution and co-location. They are independent and frequently disagree:
+     *
+     * <pre>{@code
+     * -- Source declares PRIMARY KEY (id); the call partitions by region.
+     * -- partitionByColumns() = [region]   (chosen by the caller)
+     * -- upsertKeyColumns()   = [[id]]     (derived from the source's PK)
+     * TO_CHANGELOG(input => TABLE source PARTITION BY region)
+     * }</pre>
      *
      * <p>Returns an empty list when no upsert key is derivable, or when the planner has not yet
      * computed metadata (during type inference).
      *
-     * <p>When the planner derives multiple candidate upsert keys for the same input (e.g., a table
-     * with several primary key constraints), all of them are returned. Picking which candidate to
-     * use is the function's responsibility, and the choice must be stable across releases to keep
-     * PTF state consistent after job restarts and upgrades. The order of the returned list is not
-     * part of the contract; PTF authors should not depend on it. A typical choice is the smallest
-     * candidate by cardinality, with ties broken by the column indices in ascending order.
+     * <p>The planner may derive more than one candidate for the same input. For example, an inner
+     * join of two tables each carrying their own primary key produces a result with both keys as
+     * separate candidates. Picking which candidate to use is the function's responsibility, and the
+     * choice must be stable across releases so PTF state stays consistent after job restarts and
+     * upgrades. The order of the returned list is not part of the contract; PTF authors should not
+     * depend on it. A typical stable choice is the smallest candidate by cardinality, with ties
+     * broken by the column indices in ascending order.
      *
      * @return Candidate upsert keys of the passed table, or an empty list if none.
      */

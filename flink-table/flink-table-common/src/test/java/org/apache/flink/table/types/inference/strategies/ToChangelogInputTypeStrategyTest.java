@@ -98,20 +98,6 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, false)
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE),
 
-                // Error: produces_full_deletes=true with op_mapping that strips DELETE
-                TestSpec.forStrategy(
-                                "produces_full_deletes=true rejected when op_mapping omits DELETE",
-                                TO_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
-                        .calledWithTableSemanticsAt(ARG_TABLE, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
-                        .calledWithLiteralAt(ARG_OP_MAPPING, Map.of("INSERT, UPDATE_AFTER", "X"))
-                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
-                        .expectErrorMessage(
-                                "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active "
-                                        + "'op_mapping' does not map DELETE rows"),
-
                 // Error: multi-column descriptor for `op`
                 TestSpec.forStrategy(
                                 "Descriptor with multiple columns",

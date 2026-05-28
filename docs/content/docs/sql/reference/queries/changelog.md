@@ -308,18 +308,18 @@ SELECT * FROM TO_CHANGELOG(
 | `input`                 | Yes      | The input table. With `PARTITION BY`, rows with the same key are co-located and run in the same operator instance. Without `PARTITION BY`, each row is processed independently. Accepts insert-only, retract, and upsert tables. For upsert tables, the provided `PARTITION BY` key should match or be a subset of the upsert key of the subquery.       |
 | `op`                    | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
 | `op_mapping`            | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
-| `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true` (default), DELETE rows carry all columns, the full image. When `false`, only the identifying key columns are preserved and the rest are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details. |
+| `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true` (default), DELETE rows carry all columns, the full image. When `false`, only the identifying key columns are preserved and the rest are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details.                                                     |
 
 #### Default op_mapping
 
 When `op_mapping` is omitted, all four change operations are mapped to their standard names:
 
 | Change Operation | Output value      |
-|:----------------|:------------------|
-| INSERT          | `'INSERT'`        |
-| UPDATE_BEFORE   | `'UPDATE_BEFORE'` |
-| UPDATE_AFTER    | `'UPDATE_AFTER'`  |
-| DELETE          | `'DELETE'`        |
+|:-----------------|:------------------|
+| INSERT           | `'INSERT'`        |
+| UPDATE_BEFORE    | `'UPDATE_BEFORE'` |
+| UPDATE_AFTER     | `'UPDATE_AFTER'`  |
+| DELETE           | `'DELETE'`        |
 
 ### Output Schema
 
@@ -406,12 +406,8 @@ An **upsert key** is a column or set of columns that uniquely identifies a row a
 The planner derives the upsert key from the input table:
 
 * A declared `PRIMARY KEY` on the source table when reading directly.
-* The grouping columns of an upstream `GROUP BY <key>`.
+* The grouping columns of an upstream `GROUP BY <key>` or `PARTITION BY <key>`.
 * The keys propagated by operators that preserve them (e.g. lookup joins, calc-projections that keep the key columns).
-
-When no upsert key can be derived (e.g. a plain append-only source with no key constraint and no grouping upstream), the input has no row identity and downstream operators must treat it as append-only or fall back to retract semantics.
-
-`TO_CHANGELOG` consumes the upsert key to decide which columns to preserve when emitting partial DELETE rows. See [Full vs partial deletes](#full-vs-partial-deletes) below.
 
 #### Full vs partial deletes
 
@@ -419,13 +415,13 @@ The `produces_full_deletes` argument controls how DELETE rows are emitted and wh
 
 ##### `produces_full_deletes => true` (default)
 
-The planner requires fully-populated DELETE rows on the input. For upsert sources that emit key-only deletes, a `ChangelogNormalize` operator is inserted upstream to materialize the full pre-image from state. For sources that already emit a full pre-image (e.g. retract), the flag is a no-op. The function then passes the input row through unchanged on DELETE.
+The planner requires fully-populated DELETE rows on the input. For upsert sources that emit key-only deletes, a `ChangelogNormalize` operator is inserted upstream to calculate the full pre-image from state. For sources that already emit a full pre-image (e.g. retract), the flag is a no-op. The function then passes the input row through unchanged on DELETE.
 
 **Row semantics** (no `PARTITION BY`):
 
 ```sql
--- Upsert source: -D[id:5] (key-only).
--- ChangelogNormalize materializes the full pre-image from state.
+-- Upsert source: -D[id:5, name: null] (key-only).
+-- ChangelogNormalize calculates the full pre-image from state.
 -- Output: +I[op:'DELETE', id:5, name:'Alice']
 SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)
 
@@ -438,8 +434,8 @@ SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)
 **Set semantics** (`PARTITION BY`):
 
 ```sql
--- Upsert source: -D[id:5] (key-only).
--- ChangelogNormalize materializes the full pre-image from state.
+-- Upsert source: -D[id:5, name: null] (key-only).
+-- ChangelogNormalize calculates the full pre-image from state.
 -- Output: +I[id:5, op:'DELETE', name:'Alice']
 SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)
 
@@ -451,7 +447,7 @@ SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)
 
 ##### `produces_full_deletes => false`
 
-The planner skips `ChangelogNormalize` and the function emits partial DELETE rows. This avoids the stateful normalization operator for upsert sources (e.g. Kafka compacted topics) where the full pre-image is not needed downstream. Requires an [upsert key](#upsert-key) to be present for the input table (row semantics) or `PARTITION BY` (set semantics); otherwise the call is rejected with a validation error.
+The planner skips `ChangelogNormalize` and the function emits partial DELETE rows. This avoids the stateful normalization operator for upsert sources (e.g. Kafka compacted topics) where the full pre-image is not needed downstream. This requires an [upsert key](#upsert-key) to be present for the input table (row semantics) or `PARTITION BY` (set semantics); otherwise the call is rejected with a validation error.
 
 **Row semantics** (no `PARTITION BY`): the function preserves the planner-derived upsert key columns on DELETE rows and nulls the rest. The upsert key is typically a declared `PRIMARY KEY` when directly reading from a source or the key provided in a `GROUP BY <key>`.
 
@@ -465,7 +461,7 @@ SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source, produces_full_deletes =
 SELECT * FROM TO_CHANGELOG(input => TABLE retract_source, produces_full_deletes => false)
 ```
 
-**Set semantics** (`PARTITION BY`): the function preserves the partition key and nulls every non-partition-key column on DELETE rows. The key used as the partition-key column should be the unique key that will be used as the record identifier. This matches the shape expected by upsert sinks and Kafka compacted topics.
+**Set semantics** (`PARTITION BY`): the function preserves the partition key and nulls every non-partition-key column on DELETE rows. The key used as the partition-key column should be the unique key that will be used as the record identifier. This matches the shape expected by upsert sinks such as Kafka compacted topics.
 
 ```sql
 -- Upsert source: -D[id:5] (key-only).

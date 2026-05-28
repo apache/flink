@@ -314,9 +314,9 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
             StaticArgument tableArg, RexTableArgCall tableArgCall, List<Integer> inputTimeColumns) {
+        final int inputIndex = tableArgCall.getInputIndex();
         final RuntimeChangelogMode consumedChangelogMode =
-                RuntimeChangelogMode.serialize(
-                        inputChangelogModes.get(tableArgCall.getInputIndex()));
+                RuntimeChangelogMode.serialize(inputChangelogModes.get(inputIndex));
         final DataType dataType;
         if (tableArg.getDataType().isPresent()) {
             dataType = tableArg.getDataType().get();
@@ -324,9 +324,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             dataType = DataTypes.of(FlinkTypeFactory.toLogicalRowType(tableArgCall.type));
         }
 
-        final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
-
-        final int inputIndex = tableArgCall.getInputIndex();
+        final int timeColumn = inputTimeColumns.get(inputIndex);
         final List<int[]> upsertKeys =
                 inputIndex < inputUpsertKeys.size() ? inputUpsertKeys.get(inputIndex) : List.of();
         return new RuntimeTableSemantics(
