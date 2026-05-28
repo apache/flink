@@ -26,7 +26,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable.{DIVIDE, EQUALS, GREATER_T
 import org.junit.jupiter.api.{BeforeEach, Test}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNull}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   private var ts: RelNode = _
@@ -202,7 +202,8 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
         new BooleanType()
       )
     )
-    val calc = createLogicalCalc(ts, outputRowType, projects, List(expr1))
+    val calc =
+      createLogicalCalc(ts, outputRowType, projects.asJava, java.util.List.of[RexNode](expr1))
     assertEquals(ValueInterval(bd(-5), bd(2)), mq.getFilteredColumnInterval(calc, 0, -1))
     assertEquals(ValueInterval(bd(0d), bd(6.1d)), mq.getFilteredColumnInterval(calc, 1, -1))
     assertEquals(ValueInterval(bd(-5), bd(2)), mq.getFilteredColumnInterval(calc, 0, 2))

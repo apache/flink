@@ -29,8 +29,6 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
-import scala.collection.JavaConversions._
-
 class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
 
   @Test
@@ -93,7 +91,7 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
 
     // project: id, cast(id as long not null), name, cast(name as varchar not null)
     relBuilder.push(studentLogicalScan)
-    val exprs = List(
+    val exprs = java.util.List.of(
       relBuilder.field(0),
       relBuilder.cast(relBuilder.field(0), BIGINT),
       relBuilder.field(1),

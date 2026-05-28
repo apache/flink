@@ -31,7 +31,7 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
 
@@ -47,7 +47,7 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
       List("1", "9.0", "true", "2"),
       List("2", "6.0", "false", "3"),
       List("3", "3.0", "true", "4")
-    ).map(createLiteralList(valuesType, _))
+    ).map(createLiteralList(valuesType, _)).asJava
     relBuilder.clear()
     relBuilder.values(tupleList, valuesType)
     relBuilder.build().asInstanceOf[LogicalValues]
@@ -61,11 +61,20 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
 
     // Test intermediate table scan.
     val flinkLogicalIntermediateTableScan: FlinkLogicalIntermediateTableScan =
-      createIntermediateScan(flinkLogicalSort, flinkLogicalTraits, Set(ImmutableBitSet.of(0)))
+      createIntermediateScan(
+        flinkLogicalSort,
+        flinkLogicalTraits,
+        java.util.Set.of[ImmutableBitSet](ImmutableBitSet.of(0)))
     val batchPhysicalIntermediateTableScan: BatchPhysicalIntermediateTableScan =
-      createIntermediateScan(batchSort, batchPhysicalTraits, Set(ImmutableBitSet.of(0)))
+      createIntermediateScan(
+        batchSort,
+        batchPhysicalTraits,
+        java.util.Set.of[ImmutableBitSet](ImmutableBitSet.of(0)))
     val streamPhysicalIntermediateTableScan: StreamPhysicalIntermediateTableScan =
-      createIntermediateScan(streamSort, streamPhysicalTraits, Set(ImmutableBitSet.of(0)))
+      createIntermediateScan(
+        streamSort,
+        streamPhysicalTraits,
+        java.util.Set.of[ImmutableBitSet](ImmutableBitSet.of(0)))
     Array(
       flinkLogicalIntermediateTableScan,
       batchPhysicalIntermediateTableScan,
@@ -104,7 +113,7 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
 
     val project: LogicalProject = {
       relBuilder.push(collationValues)
-      val projects = List(
+      val projects = java.util.List.of(
         // a + b
         relBuilder.call(PLUS, relBuilder.field(0), relBuilder.literal(1)),
         // c
@@ -125,7 +134,8 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
       .add("a", SqlTypeName.BIGINT)
       .add("ts", SqlTypeName.VARCHAR)
       .build()
-    val tupleList = List(List("3", "2015-07-24 10:00:00")).map(createLiteralList(valuesType, _))
+    val tupleList =
+      List(List("3", "2015-07-24 10:00:00")).map(createLiteralList(valuesType, _)).asJava
     relBuilder.values(tupleList, valuesType)
     val project2 = relBuilder
       .project(

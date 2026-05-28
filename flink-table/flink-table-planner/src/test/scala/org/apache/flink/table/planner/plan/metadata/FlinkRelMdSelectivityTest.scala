@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test
 import java.util
 import java.util.Collections
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
@@ -72,9 +72,9 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(-1))
     val expr3 = relBuilder.call(LESS_THAN, relBuilder.field(1), relBuilder.literal(1.1d))
-    relBuilder.filter(List(expr1, expr2, expr3))
+    relBuilder.filter(java.util.List.of(expr1, expr2, expr3))
     // top projects: $0==1, $0, $1, true, 2.1, 2
-    val projects = List(
+    val projects = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       relBuilder.field(1),
@@ -101,7 +101,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(-1))
     val expr3 = relBuilder.call(LESS_THAN, relBuilder.field(1), relBuilder.literal(1.1d))
-    val filter = relBuilder.filter(List(expr1, expr2, expr3)).build()
+    val filter = relBuilder.filter(java.util.List.of(expr1, expr2, expr3)).build()
     relBuilder.push(filter)
     val pred1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(1))
     assertEquals((1.0 + 1.0) / (2.0 + 1.0), mq.getSelectivity(filter, pred1))
@@ -115,7 +115,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
     relBuilder.push(ts)
     // projects: $0==1, $0, $1, true, 2.1, 2
-    val projects = List(
+    val projects = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       relBuilder.field(1),
@@ -132,7 +132,8 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(-1))
     val expr3 = relBuilder.call(LESS_THAN, relBuilder.field(1), relBuilder.literal(1.1d))
     val rexBuilder = relBuilder.getRexBuilder
-    val predicate = RexUtil.composeConjunction(rexBuilder, List(expr1, expr2, expr3), true)
+    val predicate =
+      RexUtil.composeConjunction(rexBuilder, java.util.List.of(expr1, expr2, expr3), true)
     val program = RexProgram.create(ts.getRowType, projects, predicate, outputRowType, rexBuilder)
 
     val calc = new BatchPhysicalCalc(cluster, batchPhysicalTraits, ts, program, outputRowType)
@@ -331,14 +332,14 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     val aggWithAuxGroupAndExpand = relBuilder
       .push(expand)
       .aggregate(
-        relBuilder.groupKey(relBuilder.fields(Seq[Integer](0, 4).toList)),
+        relBuilder.groupKey(relBuilder.fields(Seq[Integer](0, 4).toList.asJava)),
         Lists.newArrayList(
           AggregateCall.create(
             FlinkSqlOperatorTable.AUXILIARY_GROUP,
             false,
             false,
             false,
-            List[Integer](1),
+            java.util.List.of[Integer](1),
             -1,
             null,
             RelCollations.EMPTY,
@@ -351,7 +352,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             false,
             false,
             false,
-            List[Integer](2),
+            java.util.List.of[Integer](2),
             -1,
             null,
             RelCollations.EMPTY,
@@ -364,7 +365,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
             false,
             false,
             false,
-            List[Integer](3),
+            java.util.List.of[Integer](3),
             -1,
             null,
             RelCollations.EMPTY,
@@ -544,9 +545,9 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
         )
       ))
     val scan: FlinkLogicalDataStreamTableScan =
-      createDataStreamScan(List("MyTable4"), flinkLogicalTraits)
+      createDataStreamScan(java.util.List.of[String]("MyTable4"), flinkLogicalTraits)
     val builder = typeFactory.builder
-    scan.getRowType.getFieldList.foreach(f => builder.add(f.getName, f.getType))
+    scan.getRowType.getFieldList.stream().forEach(f => builder.add(f.getName, f.getType))
     builder.add(rankAggCall.getName, rankAggCall.getType)
     builder.add(maxAggCall.getName, maxAggCall.getType)
     val overWindow = new FlinkLogicalOverAggregate(
@@ -607,7 +608,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     relBuilder.push(ts).push(right)
     val joinCondition = RexUtil.composeConjunction(
       rexBuilder,
-      List(
+      java.util.List.of(
         relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)),
         relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.literal(-1)),
         relBuilder.call(GREATER_THAN, relBuilder.field(2, 1, 1), relBuilder.literal(0.1d))
@@ -619,7 +620,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       right,
       Collections.emptyList(),
       joinCondition,
-      Set.empty[CorrelationId],
+      java.util.Set.of[CorrelationId],
       JoinRelType.INNER)
 
     relBuilder.push(join)
