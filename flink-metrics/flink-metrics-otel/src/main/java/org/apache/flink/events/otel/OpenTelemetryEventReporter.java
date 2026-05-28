@@ -65,6 +65,7 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
     @Override
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryEventReporter");
+        super.open(metricConfig);
         final String protocol =
                 Optional.ofNullable(
                                 metricConfig.getProperty(
