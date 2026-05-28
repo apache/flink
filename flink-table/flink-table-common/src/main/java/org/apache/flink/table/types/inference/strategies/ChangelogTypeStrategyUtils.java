@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.utils.UpsertKeyUtils;
 import org.apache.flink.types.ColumnList;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -78,6 +80,28 @@ public final class ChangelogTypeStrategyUtils {
             final TableSemantics tableSemantics, final String opColumnName) {
         final int opIndex = DataType.getFieldNames(tableSemantics.dataType()).indexOf(opColumnName);
         return computeOutputIndices(tableSemantics, opIndex);
+    }
+
+    /**
+     * Returns the set of input column indices whose values the function preserves on partial DELETE
+     * rows (i.e. those that {@code TO_CHANGELOG} keeps when {@code produces_full_deletes=false}).
+     * The set is the union of {@code PARTITION BY} columns (the framework prepends them outside the
+     * projected output) and the smallest upsert-key candidate exposed by {@link
+     * TableSemantics#upsertKeyColumns()}.
+     *
+     * <p>Returns only the partition keys when no upsert key candidate is exposed yet, for example
+     * during type inference where planner-derived metadata is not yet populated.
+     */
+    public static Set<Integer> computePreservedColumnIndices(final TableSemantics tableSemantics) {
+        final Set<Integer> preserved = new HashSet<>(collectPartitionKeyIndices(tableSemantics));
+        final List<int[]> upsertKeys = tableSemantics.upsertKeyColumns();
+        if (upsertKeys == null || upsertKeys.isEmpty()) {
+            return preserved;
+        }
+        for (final int column : UpsertKeyUtils.smallestKey(upsertKeys)) {
+            preserved.add(column);
+        }
+        return preserved;
     }
 
     private static int[] computeOutputIndices(
