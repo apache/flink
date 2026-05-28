@@ -207,9 +207,7 @@ public interface PartitionedTable {
      *
      * // Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
      * // pre-image. When `false`, only the identifying key columns are preserved and the rest
-     * // are nulled. See [Full vs partial deletes](
-     * // https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/changelog/#full-vs-partial-deletes)
-     * // for more details.
+     * // are nulled. See in documentation for more details.
      * Table result = table
      *     .partitionBy($("id"))
      *     .toChangelog(lit(false).asArgument("produces_full_deletes"));

@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
@@ -46,7 +45,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
@@ -96,17 +94,14 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(ARG_OP_MAPPING, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
-        if (opMapping != null) {
-            validateOpMap(this.rawOpMap, tableSemantics);
-        }
-        final boolean producesFullDeletesArg =
+
+        this.producesFullDelete =
                 callContext.getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class).orElse(true);
         final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
-        validateProducesFullDeletes(producesFullDeletesArg, isExplicit, tableSemantics);
+        validateProducesPartialDeletes(producesFullDelete, isExplicit, tableSemantics);
 
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
         this.inputRowType = (RowType) tableSemantics.dataType().getLogicalType();
-        this.producesFullDelete = producesFullDeletesArg;
         this.upsertKeyColumn =
                 computeUpsertKeyColumn(
                         this.outputIndices,
@@ -165,69 +160,26 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     }
 
     /**
-     * Rejects user-provided mappings that reference change operations the input changelog cannot
-     * produce. Without this check the extra entries are dead code: the corresponding rows never
-     * arrive. E.g., if the input is INSERT-only, then UPDATE_BEFORE and DELETE mappings are
-     * ignored, which is likely a user mistake.
-     *
-     * <p>Lives here rather than in the input type strategy because {@link
-     * TableSemantics#changelogMode()} returns empty during type inference and is only populated at
-     * specialization time, which is when this constructor runs.
-     */
-    private static void validateOpMap(
-            final Map<RowKind, String> mapping, final TableSemantics tableSemantics) {
-        final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
-        if (inputMode == null) {
-            return;
-        }
-        final List<RowKind> unsupported =
-                mapping.keySet().stream()
-                        .filter(kind -> !inputMode.contains(kind))
-                        .collect(Collectors.toList());
-        if (!unsupported.isEmpty()) {
-            throw new ValidationException(
-                    String.format(
-                            "Invalid 'op_mapping' for TO_CHANGELOG: the input table only produces "
-                                    + "%s and does not produce %s. Remove those entries from the "
-                                    + "mapping.",
-                            inputMode.getContainedKinds(), unsupported));
-        }
-    }
-
-    /**
      * Validates an explicit {@code produces_full_deletes} argument against the input.
      *
-     * <p>For {@code produces_full_deletes=true}, the input changelog must emit DELETE rows;
-     * otherwise the parameter is dead. For {@code produces_full_deletes=false}, the input must
-     * declare an upsert key or the call must use {@code PARTITION BY}; otherwise the function has
-     * no identifying columns to preserve when nulling the rest.
+     * <p>For {@code produces_full_deletes=false}, the input must declare an upsert key or the call
+     * must use {@code PARTITION BY}; otherwise the function has no identifying columns to preserve
+     * when nulling the rest.
      *
-     * <p>No validation runs when the argument is absent, since the default (full deletes) is safe
-     * for any input.
+     * <p>No validation runs when the argument is absent or is set to true (default).
      *
      * <p>Lives here rather than in the input type strategy because {@link
      * TableSemantics#changelogMode()} and {@link TableSemantics#upsertKeyColumns()} are only
      * populated at specialization time.
      */
-    private static void validateProducesFullDeletes(
+    private static void validateProducesPartialDeletes(
             final boolean producesFullDeletesArg,
             final boolean isExplicit,
             final TableSemantics tableSemantics) {
-        if (!isExplicit) {
+        if (!isExplicit || producesFullDeletesArg) {
             return;
         }
-        if (producesFullDeletesArg) {
-            final ChangelogMode inputMode = tableSemantics.changelogMode().orElse(null);
-            if (inputMode != null && !inputMode.contains(RowKind.DELETE)) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid 'produces_full_deletes' for TO_CHANGELOG: the input "
-                                        + "table only produces %s and never emits DELETE rows. "
-                                        + "Remove the 'produces_full_deletes' argument.",
-                                inputMode.getContainedKinds()));
-            }
-            return;
-        }
+
         final boolean hasPartitionBy = tableSemantics.partitionByColumns().length > 0;
         final boolean hasUpsertKey = !tableSemantics.upsertKeyColumns().isEmpty();
         if (!hasPartitionBy && !hasUpsertKey) {

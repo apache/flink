@@ -113,11 +113,6 @@ public final class ToChangelogTypeStrategy {
             return error;
         }
 
-        error = validateProducesFullDeletes(callContext, throwOnFailure);
-        if (error.isPresent()) {
-            return error;
-        }
-
         return Optional.of(callContext.getArgumentDataTypes());
     }
 
@@ -194,40 +189,6 @@ public final class ToChangelogTypeStrategy {
                                     rowKindName));
                 }
             }
-        }
-        return Optional.empty();
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static Optional<List<DataType>> validateProducesFullDeletes(
-            final CallContext callContext, final boolean throwOnFailure) {
-        final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
-        if (!isExplicit) {
-            return Optional.empty();
-        }
-        if (!callContext.isArgumentLiteral(ARG_PRODUCES_FULL_DELETES)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "The 'produces_full_deletes' argument must be a constant BOOLEAN literal.");
-        }
-        final boolean producesFullDeletes =
-                callContext.getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class).orElse(true);
-        if (!producesFullDeletes) {
-            return Optional.empty();
-        }
-        // The check against the input changelog mode lives in the function constructor since
-        // TableSemantics#changelogMode() returns empty here at type-inference time. The mapping
-        // check below only needs the literal op_mapping argument, so it lives here. Only runs
-        // when the user explicitly set produces_full_deletes=true; the default true is not
-        // validated since it is a safe no-op for any input.
-        final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
-        if (opMapping.isPresent() && !mapsDelete((Map<String, String>) opMapping.get())) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Invalid 'produces_full_deletes' for TO_CHANGELOG: the active 'op_mapping' "
-                            + "does not map DELETE rows, so no DELETE rows are emitted. Remove "
-                            + "the 'produces_full_deletes' argument or add a DELETE entry to "
-                            + "'op_mapping'.");
         }
         return Optional.empty();
     }

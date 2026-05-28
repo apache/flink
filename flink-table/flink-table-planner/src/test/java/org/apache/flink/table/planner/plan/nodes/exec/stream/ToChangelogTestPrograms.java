@@ -573,19 +573,6 @@ public class ToChangelogTestPrograms {
                             "Unknown change operation: 'INVALID_KIND'")
                     .build();
 
-    public static final TableTestProgram OP_MAPPING_REFERENCES_UNSUPPORTED_KIND =
-            TableTestProgram.of(
-                            "to-changelog-op-mapping-references-unsupported-kind",
-                            "fails when op_mapping references a change operation the input cannot produce")
-                    .setupTableSource(SIMPLE_SOURCE)
-                    .runFailingSql(
-                            "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t, "
-                                    + "op_mapping => MAP['INSERT', 'I', 'DELETE', 'D'])",
-                            ValidationException.class,
-                            "the input table only produces [INSERT] and does not produce [DELETE]")
-                    .build();
-
     public static final TableTestProgram DUPLICATE_ROW_KIND =
             TableTestProgram.of(
                             "to-changelog-duplicate-rowkind",
@@ -597,19 +584,6 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
                             ValidationException.class,
                             "Duplicate change operation: 'DELETE'")
-                    .build();
-
-    public static final TableTestProgram INVALID_PRODUCES_FULL_DELETES_FOR_APPEND_ONLY =
-            TableTestProgram.of(
-                            "to-changelog-invalid-produces-full-deletes-for-append-only",
-                            "fails when produces_full_deletes=true on an input that never emits DELETE rows")
-                    .setupTableSource(SIMPLE_SOURCE)
-                    .runFailingSql(
-                            "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t, "
-                                    + "produces_full_deletes => true)",
-                            ValidationException.class,
-                            "the input table only produces [INSERT] and never emits DELETE rows")
                     .build();
 
     // --------------------------------------------------------------------------------------------
