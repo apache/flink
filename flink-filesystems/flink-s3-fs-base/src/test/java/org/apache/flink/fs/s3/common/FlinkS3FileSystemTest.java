@@ -33,6 +33,8 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nonnull;
@@ -53,6 +55,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.ACCESS_KEY;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.ENDPOINT;
+import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_ADJUST_PART_SIZE;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_BATCH_MAX_FILES;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_EXTRA_ARGS;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.S5CMD_PATH;
@@ -184,5 +187,75 @@ class FlinkS3FileSystemTest {
                         "The total number of issued s5cmd subcommands did not match the number of copy tasks:\n%s,\n%s",
                         totalSubcommands, tasks)
                 .isEqualTo(numFiles);
+    }
+
+    private static List<Arguments> partSizeTestArguments() {
+        return List.of(
+                Arguments.of(true, 123L * (1L << 20), 24L),
+                Arguments.of(
+                        true,
+                        25_605L * (1L << 20),
+                        FlinkS3FileSystem.S3_MULTIPART_MAX_PART_SIZE / (1L << 20)),
+                Arguments.of(
+                        true,
+                        25_600L * (1L << 20),
+                        FlinkS3FileSystem.S3_MULTIPART_MAX_PART_SIZE / (1L << 20)),
+                Arguments.of(
+                        true,
+                        10L * (1L << 20),
+                        FlinkS3FileSystem.S3_MULTIPART_MIN_PART_SIZE / (1L << 20)),
+                Arguments.of(
+                        false, 123L * (1L << 20), FlinkS3FileSystem.DEFAULT_S5CMD_PART_SIZE_MB));
+    }
+
+    @ParameterizedTest
+    @MethodSource("partSizeTestArguments")
+    @EnabledOnOs({OS.LINUX, OS.MAC}) // POSIX OS only to run shell script
+    public void testCopyUsesPartSize(
+            boolean adjustPartSize,
+            long copyRequestSize,
+            long expectedPartSize,
+            @TempDir File temporaryDirectory)
+            throws Exception {
+        File cmdFile = new File(temporaryDirectory, "cmd");
+        File inputToCmd = new File(temporaryDirectory, "input");
+        Preconditions.checkState(inputToCmd.mkdir());
+
+        String cmd =
+                String.format(
+                        "file=$(mktemp %s/s5cmd-input-XXX)\n"
+                                + "while read line; do echo $line >> $file; done < /dev/stdin",
+                        inputToCmd.getAbsolutePath());
+
+        FileUtils.writeStringToFile(cmdFile, cmd);
+        Preconditions.checkState(cmdFile.setExecutable(true), "Cannot set script file executable.");
+
+        final Configuration conf = new Configuration();
+        conf.set(S5CMD_PATH, cmdFile.getAbsolutePath());
+        conf.set(S5CMD_EXTRA_ARGS, "");
+        conf.set(S5CMD_ADJUST_PART_SIZE, adjustPartSize);
+        conf.set(ACCESS_KEY, "test-access-key");
+        conf.set(SECRET_KEY, "test-secret-key");
+        conf.set(ENDPOINT, "test-endpoint");
+
+        TestS3FileSystemFactory factory = new TestS3FileSystemFactory();
+        factory.configure(conf);
+
+        FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
+        List<CopyRequest> tasks =
+                Collections.singletonList(
+                        CopyRequest.of(
+                                new Path("file:///src-file"),
+                                new Path("file:///dst-file"),
+                                copyRequestSize));
+        fs.copyFiles(tasks, ICloseableRegistry.NO_OP);
+        File[] files = inputToCmd.listFiles();
+        Assertions.assertThat(files).isNotNull().hasSize(1);
+        List<String> subcommands = FileUtils.readLines(files[0], StandardCharsets.UTF_8);
+        Assertions.assertThat(subcommands).hasSize(1);
+        String command = subcommands.get(0);
+        Assertions.assertThat(command)
+                .describedAs("s5cmd command should contain --part-size %d", expectedPartSize)
+                .contains("--part-size " + expectedPartSize);
     }
 }
