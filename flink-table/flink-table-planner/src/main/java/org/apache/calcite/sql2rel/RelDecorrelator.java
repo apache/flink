@@ -18,6 +18,7 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
@@ -42,6 +43,7 @@ import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
@@ -83,6 +85,7 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.runtime.PairList;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlFunction;
@@ -93,6 +96,7 @@ import org.apache.calcite.sql.fun.SqlSingleValueAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.util.Holder;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
@@ -131,9 +135,9 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * <p>TODO:
  *
  * <ol>
- *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 222 ~ 229, Line 277 ~ 292
- *   <li>Should be removed after fix of FLINK-29540: Line 297 ~ 303
- *   <li>Should be removed after fix of FLINK-29540: Line 315 ~ 321
+ *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 246 ~ 253, Line 305 ~ 320
+ *   <li>Should be removed after fix of FLINK-29540: Line 325 ~ 331
+ *   <li>Should be removed after fix of FLINK-29540: Line 343 ~ 349
  * </ol>
  */
 public class RelDecorrelator implements ReflectiveVisitor {
@@ -195,6 +199,23 @@ public class RelDecorrelator implements ReflectiveVisitor {
      *     removed
      */
     public static RelNode decorrelateQuery(RelNode rootRel, RelBuilder relBuilder) {
+        return decorrelateQuery(rootRel, relBuilder, null);
+    }
+
+    /**
+     * Decorrelates a query specifying a set of rules to be used in the "remove correlation via
+     * rules" pre-processing.
+     *
+     * @param rootRel Root node of the query
+     * @param relBuilder Builder for relational expressions
+     * @param decorrelationRules Rules to be used in the decorrelation, if <code>null</code> a
+     *     default rule set will be used
+     * @return Equivalent query with all {@link org.apache.calcite.rel.core.Correlate} instances
+     *     removed
+     * @see #removeCorrelationViaRule(RelNode, RuleSet)
+     */
+    public static RelNode decorrelateQuery(
+            RelNode rootRel, RelBuilder relBuilder, @Nullable RuleSet decorrelationRules) {
         final CorelMap corelMap = new CorelMapBuilder().build(rootRel);
         if (!corelMap.hasCorrelation()) {
             return rootRel;
@@ -204,7 +225,10 @@ public class RelDecorrelator implements ReflectiveVisitor {
         final RelDecorrelator decorrelator =
                 new RelDecorrelator(corelMap, cluster.getPlanner().getContext(), relBuilder);
 
-        RelNode newRootRel = decorrelator.removeCorrelationViaRule(rootRel);
+        RelNode newRootRel =
+                decorrelationRules == null
+                        ? decorrelator.removeCorrelationViaRule(rootRel)
+                        : decorrelator.removeCorrelationViaRule(rootRel, decorrelationRules);
 
         if (SQL2REL_LOGGER.isDebugEnabled()) {
             SQL2REL_LOGGER.debug(
@@ -248,9 +272,13 @@ public class RelDecorrelator implements ReflectiveVisitor {
         HepProgram program =
                 HepProgram.builder()
                         .addRuleInstance(
-                                AdjustProjectForCountAggregateRule.config(false, this, f).toRule())
+                                AdjustProjectForCountAggregateRule.DEFAULT_WITHOUT_FAVLOR
+                                        .withRelBuilderFactory(f)
+                                        .toRule())
                         .addRuleInstance(
-                                AdjustProjectForCountAggregateRule.config(true, this, f).toRule())
+                                AdjustProjectForCountAggregateRule.DEFAULT_WITH_FAVLOR
+                                        .withRelBuilderFactory(f)
+                                        .toRule())
                         .addRuleInstance(
                                 FilterJoinRule.FilterIntoJoinRule.FilterIntoJoinRuleConfig.DEFAULT
                                         .withRelBuilderFactory(f)
@@ -378,22 +406,54 @@ public class RelDecorrelator implements ReflectiveVisitor {
     private HepPlanner createPlanner(HepProgram program) {
         // Create a planner with a hook to update the mapping tables when a
         // node is copied when it is registered.
-        return new HepPlanner(program, context, true, createCopyHook(), RelOptCostImpl.FACTORY);
+        HepPlanner planner =
+                new HepPlanner(program, context, true, createCopyHook(), RelOptCostImpl.FACTORY);
+        planner.setDecorrelator(this);
+        return planner;
     }
 
+    /**
+     * Remove some instances of {@link org.apache.calcite.rel.core.Correlate} from a query plan by
+     * applying a default set of rules (only some of the {@link
+     * org.apache.calcite.rel.core.Correlate}s might be removable in such way).
+     */
     public RelNode removeCorrelationViaRule(RelNode root) {
         final RelBuilderFactory f = relBuilderFactory();
         HepProgram program =
                 HepProgram.builder()
-                        .addRuleInstance(RemoveSingleAggregateRule.config(f).toRule())
+                        .addRuleInstance(RemoveSingleAggregateRule.DEFAULT.toRule())
                         .addRuleInstance(
-                                RemoveCorrelationForScalarProjectRule.config(this, f).toRule())
+                                RemoveCorrelationForScalarProjectRule.DEFAULT
+                                        .withRelBuilderFactory(f)
+                                        .toRule())
                         .addRuleInstance(
-                                RemoveCorrelationForScalarAggregateRule.config(this, f).toRule())
+                                RemoveCorrelationForScalarAggregateRule.DEFAULT
+                                        .withRelBuilderFactory(f)
+                                        .toRule())
                         .build();
+        return removeCorrelationViaRule(root, program);
+    }
 
+    /**
+     * Remove some instances of {@link org.apache.calcite.rel.core.Correlate} from a query plan by
+     * applying a certain {@link RuleSet} (only some of the {@link
+     * org.apache.calcite.rel.core.Correlate}s might be removable in such way).
+     */
+    public RelNode removeCorrelationViaRule(RelNode root, RuleSet ruleSet) {
+        final RelBuilderFactory f = relBuilderFactory();
+        final HepProgramBuilder builder = HepProgram.builder();
+        for (RelOptRule rule : ruleSet) {
+            if (rule instanceof RelRule) {
+                rule = ((RelRule<?>) rule).config.withRelBuilderFactory(f).toRule();
+            }
+            builder.addRuleInstance(rule);
+        }
+        final HepProgram program = builder.build();
+        return removeCorrelationViaRule(root, program);
+    }
+
+    private RelNode removeCorrelationViaRule(RelNode root, HepProgram program) {
         HepPlanner planner = createPlanner(program);
-
         planner.setRoot(root);
         return planner.findBestExp();
     }
@@ -494,6 +554,17 @@ public class RelDecorrelator implements ReflectiveVisitor {
         final Frame frame = getInvoke(oldInput, isCorVarDefined, rel);
         if (frame == null) {
             // If input has not been rewritten, do not rewrite this rel.
+            return null;
+        }
+
+        if (isCorVarDefined && (rel.fetch != null || rel.offset != null)) {
+            if (rel.fetch != null && rel.offset == null && RexLiteral.intValue(rel.fetch) == 1) {
+                return decorrelateFetchOneSort(rel, frame);
+            }
+            // Can not decorrelate if the sort has per-correlate-key attributes like
+            // offset or fetch limit, because these attributes scope would change to
+            // global after decorrelation. They should take effect within the scope
+            // of the correlation key actually.
             return null;
         }
 
@@ -748,16 +819,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
     public @Nullable Frame getInvoke(RelNode r, boolean isCorVarDefined, @Nullable RelNode parent) {
         final Frame frame = dispatcher.invoke(r, isCorVarDefined);
         currentRel = parent;
-        if (frame != null && isCorVarDefined && r instanceof Sort) {
-            final Sort sort = (Sort) r;
-            // Can not decorrelate if the sort has per-correlate-key attributes like
-            // offset or fetch limit, because these attributes scope would change to
-            // global after decorrelation. They should take effect within the scope
-            // of the correlation key actually.
-            if (sort.offset != null || sort.fetch != null) {
-                return null;
-            }
-        }
         if (frame != null) {
             map.put(r, frame);
         }
@@ -772,6 +833,153 @@ public class RelDecorrelator implements ReflectiveVisitor {
             if (node instanceof RexLiteral) {
                 return (RexLiteral) node;
             }
+        }
+        return null;
+    }
+
+    protected @Nullable Frame decorrelateFetchOneSort(Sort sort, final Frame frame) {
+        Frame aggFrame = decorrelateSortAsAggregate(sort, frame);
+        if (aggFrame != null) {
+            return aggFrame;
+        }
+        //
+        // Rewrite logic:
+        //
+        // If sorted without offset and fetch = 1 (enforced by the caller), rewrite the sort to be
+        //   Aggregate(group=(corVar.. , field..))
+        //     project(first_value(field) over (partition by corVar order by (sort collation)))
+        //       input
+        //
+        // 1. For the original sorted input, apply the FIRST_VALUE window function to produce
+        //    the result of sorting with LIMIT 1, and the same as the decorrelate of aggregate,
+        //    add correlated variables in partition list to maintain semantic consistency.
+        // 2. To ensure that there is at most one row of output for
+        //    any combination of correlated variables, distinct for correlated variables.
+        // 3. Since we have partitioned by all correlated variables
+        //    in the sorted output field window, so for any combination of correlated variables,
+        //    all other field values are unique. So the following two are equivalent:
+        //      - group by corVar1, covVar2, field1, field2
+        //      - any_value(fields1), any_value(fields2) group by corVar1, covVar2
+        //    Here we use the first.
+        final Map<Integer, Integer> mapOldToNewOutputs = new HashMap<>();
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
+
+        final PairList<RexNode, String> corVarProjects = PairList.of();
+        List<RelDataTypeField> fieldList = frame.r.getRowType().getFieldList();
+        for (Map.Entry<CorDef, Integer> entry : frame.corDefOutputs.entrySet()) {
+            corDefOutputs.put(
+                    entry.getKey(), sort.getRowType().getFieldCount() + corVarProjects.size());
+            RexInputRef.add2(corVarProjects, entry.getValue(), fieldList);
+        }
+
+        final List<RexNode> sortExprs =
+                new ArrayList<>(sort.getCollation().getFieldCollations().size());
+        for (RelFieldCollation collation : sort.getCollation().getFieldCollations()) {
+            Integer newIdx = requireNonNull(frame.oldToNewOutputs.get(collation.getFieldIndex()));
+            RexNode node = RexInputRef.of(newIdx, fieldList);
+            if (collation.direction == RelFieldCollation.Direction.DESCENDING) {
+                node = relBuilder.desc(node);
+            }
+            if (collation.nullDirection == RelFieldCollation.NullDirection.FIRST) {
+                node = relBuilder.nullsFirst(node);
+            } else if (collation.nullDirection == RelFieldCollation.NullDirection.LAST) {
+                node = relBuilder.nullsLast(node);
+            }
+            sortExprs.add(node);
+        }
+
+        final PairList<RexNode, String> newProjExprs = PairList.of();
+        for (RelDataTypeField field : sort.getRowType().getFieldList()) {
+            final int newIdx = requireNonNull(frame.oldToNewOutputs.get(field.getIndex()));
+
+            RelBuilder.AggCall aggCall =
+                    relBuilder.aggregateCall(
+                            SqlStdOperatorTable.FIRST_VALUE, RexInputRef.of(newIdx, fieldList));
+
+            // Convert each field from the sorted output to a window function that partitions by
+            // correlated variables, orders by the collation, and return the first_value.
+            RexNode winCall =
+                    aggCall.over()
+                            .orderBy(sortExprs)
+                            .partitionBy(corVarProjects.leftList())
+                            .toRex();
+            mapOldToNewOutputs.put(newProjExprs.size(), newProjExprs.size());
+            newProjExprs.add(winCall, field.getName());
+        }
+        newProjExprs.addAll(corVarProjects);
+        RelNode result =
+                relBuilder
+                        .push(frame.r)
+                        .project(newProjExprs.leftList(), newProjExprs.rightList())
+                        .distinct()
+                        .build();
+
+        return register(sort, result, mapOldToNewOutputs, corDefOutputs);
+    }
+
+    protected @Nullable Frame decorrelateSortAsAggregate(Sort sort, final Frame frame) {
+        final Map<Integer, Integer> mapOldToNewOutputs = new HashMap<>();
+        final NavigableMap<CorDef, Integer> corDefOutputs = new TreeMap<>();
+        if (sort.getCollation().getFieldCollations().size() == 1
+                && sort.getRowType().getFieldCount() == 1
+                && !frame.corDefOutputs.isEmpty()) {
+            //
+            // Rewrite logic:
+            //
+            // If sorted with no OFFSET and FETCH = 1, and only one collation field,
+            // rewrite the Sort as Aggregate using MIN/MAX function.
+            // Example:
+            //  Sort(sort0=[$0], dir0=[ASC], fetch=[1])
+            //   input
+            // Rewrite to:
+            //  Aggregate(group=(corVar), agg=[min($0))
+            //
+            // Note: MIN/MAX is not strictly equivalent to LIMIT 1. When the input has 0 rows,
+            // MIN/MAX returns NULL, while LIMIT 1 returns 0 rows.
+            // However, in the decorrelate, we add correlated variables to the group list
+            // to ensure equivalence when Correlate is transformed to Join. When the group list
+            // is non-empty, MIN/MAX will also return 0 rows if the input has 0 rows.
+            // So in this case, the transformation is legal.
+            RelFieldCollation collation = Util.first(sort.getCollation().getFieldCollations());
+
+            if (collation.nullDirection != RelFieldCollation.NullDirection.LAST) {
+                return null;
+            }
+
+            SqlAggFunction aggFunction;
+            switch (collation.getDirection()) {
+                case ASCENDING:
+                case STRICTLY_ASCENDING:
+                    aggFunction = SqlStdOperatorTable.MIN;
+                    break;
+                case DESCENDING:
+                case STRICTLY_DESCENDING:
+                    aggFunction = SqlStdOperatorTable.MAX;
+                    break;
+                default:
+                    return null;
+            }
+
+            final int newIdx = requireNonNull(frame.oldToNewOutputs.get(collation.getFieldIndex()));
+            RelBuilder.AggCall aggCall =
+                    relBuilder
+                            .push(frame.r)
+                            .aggregateCall(
+                                    aggFunction, relBuilder.fields(ImmutableList.of(newIdx)));
+
+            // As with the aggregate decorrelate, add correlated variables to the group list.
+            final List<RexInputRef> groupKey = new ArrayList<>();
+            for (Map.Entry<CorDef, Integer> entry : frame.corDefOutputs.entrySet()) {
+                groupKey.add(RexInputRef.of(entry.getValue(), frame.r.getRowType()));
+                corDefOutputs.put(entry.getKey(), corDefOutputs.size());
+            }
+
+            RelNode aggregate =
+                    relBuilder.aggregate(relBuilder.groupKey(groupKey), aggCall).build();
+
+            // Add the mapping for the added aggregate fields.
+            mapOldToNewOutputs.put(0, groupKey.size());
+            return register(sort, aggregate, mapOldToNewOutputs, corDefOutputs);
         }
         return null;
     }
@@ -1910,23 +2118,22 @@ public class RelDecorrelator implements ReflectiveVisitor {
      */
     public static final class RemoveSingleAggregateRule
             extends RelRule<RemoveSingleAggregateRule.RemoveSingleAggregateRuleConfig> {
-        static RemoveSingleAggregateRuleConfig config(RelBuilderFactory f) {
-            return ImmutableRemoveSingleAggregateRuleConfig.builder()
-                    .withRelBuilderFactory(f)
-                    .withOperandSupplier(
-                            b0 ->
-                                    b0.operand(Aggregate.class)
-                                            .oneInput(
-                                                    b1 ->
-                                                            b1.operand(Project.class)
-                                                                    .oneInput(
-                                                                            b2 ->
-                                                                                    b2.operand(
-                                                                                                    Aggregate
-                                                                                                            .class)
-                                                                                            .anyInputs())))
-                    .build();
-        }
+
+        static final RemoveSingleAggregateRuleConfig DEFAULT =
+                ImmutableRemoveSingleAggregateRuleConfig.builder()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(Aggregate.class)
+                                                .oneInput(
+                                                        b1 ->
+                                                                b1.operand(Project.class)
+                                                                        .oneInput(
+                                                                                b2 ->
+                                                                                        b2.operand(
+                                                                                                        Aggregate
+                                                                                                                .class)
+                                                                                                .anyInputs())))
+                        .build();
 
         /** Creates a RemoveSingleAggregateRule. */
         RemoveSingleAggregateRule(RemoveSingleAggregateRuleConfig config) {
@@ -1982,42 +2189,37 @@ public class RelDecorrelator implements ReflectiveVisitor {
             extends RelRule<
                     RemoveCorrelationForScalarProjectRule
                             .RemoveCorrelationForScalarProjectRuleConfig> {
-        private final RelDecorrelator d;
 
-        static RemoveCorrelationForScalarProjectRuleConfig config(
-                RelDecorrelator decorrelator, RelBuilderFactory relBuilderFactory) {
-            return ImmutableRemoveCorrelationForScalarProjectRuleConfig.builder()
-                    .withRelBuilderFactory(relBuilderFactory)
-                    .withOperandSupplier(
-                            b0 ->
-                                    b0.operand(Correlate.class)
-                                            .inputs(
-                                                    b1 -> b1.operand(RelNode.class).anyInputs(),
-                                                    b2 ->
-                                                            b2.operand(Aggregate.class)
-                                                                    .oneInput(
-                                                                            b3 ->
-                                                                                    b3.operand(
-                                                                                                    Project
-                                                                                                            .class)
-                                                                                            .oneInput(
-                                                                                                    b4 ->
-                                                                                                            b4.operand(
-                                                                                                                            RelNode
-                                                                                                                                    .class)
-                                                                                                                    .anyInputs()))))
-                    .withDecorrelator(decorrelator)
-                    .build();
-        }
+        static final RemoveCorrelationForScalarProjectRuleConfig DEFAULT =
+                ImmutableRemoveCorrelationForScalarProjectRuleConfig.builder()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(Correlate.class)
+                                                .inputs(
+                                                        b1 -> b1.operand(RelNode.class).anyInputs(),
+                                                        b2 ->
+                                                                b2.operand(Aggregate.class)
+                                                                        .oneInput(
+                                                                                b3 ->
+                                                                                        b3.operand(
+                                                                                                        Project
+                                                                                                                .class)
+                                                                                                .oneInput(
+                                                                                                        b4 ->
+                                                                                                                b4.operand(
+                                                                                                                                RelNode
+                                                                                                                                        .class)
+                                                                                                                        .anyInputs()))))
+                        .build();
 
         /** Creates a RemoveCorrelationForScalarProjectRule. */
         RemoveCorrelationForScalarProjectRule(RemoveCorrelationForScalarProjectRuleConfig config) {
             super(config);
-            this.d = requireNonNull(config.decorrelator());
         }
 
         @Override
         public void onMatch(RelOptRuleCall call) {
+            final RelDecorrelator d = call.getPlanner().getDecorrelator();
             final Correlate correlate = call.rel(0);
             final RelNode left = call.rel(1);
             final Aggregate aggregate = call.rel(2);
@@ -2187,14 +2389,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
             d.removeCorVarFromTree(correlate);
         }
 
-        /**
-         * Rule configuration.
-         *
-         * <p>Extends {@link RelDecorrelator.Config} because rule needs a decorrelator instance.
-         */
+        /** Rule configuration. */
         @Value.Immutable(singleton = false)
-        public interface RemoveCorrelationForScalarProjectRuleConfig
-                extends RelDecorrelator.Config {
+        public interface RemoveCorrelationForScalarProjectRuleConfig extends RelRule.Config {
             @Override
             default RemoveCorrelationForScalarProjectRule toRule() {
                 return new RemoveCorrelationForScalarProjectRule(this);
@@ -2207,51 +2404,46 @@ public class RelDecorrelator implements ReflectiveVisitor {
             extends RelRule<
                     RemoveCorrelationForScalarAggregateRule
                             .RemoveCorrelationForScalarAggregateRuleConfig> {
-        private final RelDecorrelator d;
 
-        static RemoveCorrelationForScalarAggregateRuleConfig config(
-                RelDecorrelator d, RelBuilderFactory relBuilderFactory) {
-            return ImmutableRemoveCorrelationForScalarAggregateRuleConfig.builder()
-                    .withRelBuilderFactory(relBuilderFactory)
-                    .withOperandSupplier(
-                            b0 ->
-                                    b0.operand(Correlate.class)
-                                            .inputs(
-                                                    b1 -> b1.operand(RelNode.class).anyInputs(),
-                                                    b2 ->
-                                                            b2.operand(Project.class)
-                                                                    .oneInput(
-                                                                            b3 ->
-                                                                                    b3.operand(
-                                                                                                    Aggregate
-                                                                                                            .class)
-                                                                                            .predicate(
-                                                                                                    Aggregate
-                                                                                                            ::isSimple)
-                                                                                            .oneInput(
-                                                                                                    b4 ->
-                                                                                                            b4.operand(
-                                                                                                                            Project
-                                                                                                                                    .class)
-                                                                                                                    .oneInput(
-                                                                                                                            b5 ->
-                                                                                                                                    b5.operand(
-                                                                                                                                                    RelNode
-                                                                                                                                                            .class)
-                                                                                                                                            .anyInputs())))))
-                    .withDecorrelator(d)
-                    .build();
-        }
+        static final RemoveCorrelationForScalarAggregateRuleConfig DEFAULT =
+                ImmutableRemoveCorrelationForScalarAggregateRuleConfig.builder()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(Correlate.class)
+                                                .inputs(
+                                                        b1 -> b1.operand(RelNode.class).anyInputs(),
+                                                        b2 ->
+                                                                b2.operand(Project.class)
+                                                                        .oneInput(
+                                                                                b3 ->
+                                                                                        b3.operand(
+                                                                                                        Aggregate
+                                                                                                                .class)
+                                                                                                .predicate(
+                                                                                                        Aggregate
+                                                                                                                ::isSimple)
+                                                                                                .oneInput(
+                                                                                                        b4 ->
+                                                                                                                b4.operand(
+                                                                                                                                Project
+                                                                                                                                        .class)
+                                                                                                                        .oneInput(
+                                                                                                                                b5 ->
+                                                                                                                                        b5.operand(
+                                                                                                                                                        RelNode
+                                                                                                                                                                .class)
+                                                                                                                                                .anyInputs())))))
+                        .build();
 
         /** Creates a RemoveCorrelationForScalarAggregateRule. */
         RemoveCorrelationForScalarAggregateRule(
                 RemoveCorrelationForScalarAggregateRuleConfig config) {
             super(config);
-            d = requireNonNull(config.decorrelator());
         }
 
         @Override
         public void onMatch(RelOptRuleCall call) {
+            final RelDecorrelator d = call.getPlanner().getDecorrelator();
             final Correlate correlate = call.rel(0);
             final RelNode left = call.rel(1);
             final Project aggOutputProject = call.rel(2);
@@ -2584,14 +2776,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
             d.removeCorVarFromTree(correlate);
         }
 
-        /**
-         * Rule configuration.
-         *
-         * <p>Extends {@link RelDecorrelator.Config} because rule needs a decorrelator instance.
-         */
+        /** Rule configuration. */
         @Value.Immutable(singleton = false)
-        public interface RemoveCorrelationForScalarAggregateRuleConfig
-                extends RelDecorrelator.Config {
+        public interface RemoveCorrelationForScalarAggregateRuleConfig extends RelRule.Config {
             @Override
             default RemoveCorrelationForScalarAggregateRule toRule() {
                 return new RemoveCorrelationForScalarAggregateRule(this);
@@ -2611,41 +2798,46 @@ public class RelDecorrelator implements ReflectiveVisitor {
     public static final class AdjustProjectForCountAggregateRule
             extends RelRule<
                     AdjustProjectForCountAggregateRule.AdjustProjectForCountAggregateRuleConfig> {
-        final RelDecorrelator d;
 
-        static AdjustProjectForCountAggregateRuleConfig config(
-                boolean flavor, RelDecorrelator decorrelator, RelBuilderFactory relBuilderFactory) {
-            return ImmutableAdjustProjectForCountAggregateRuleConfig.builder()
-                    .withRelBuilderFactory(relBuilderFactory)
-                    .withOperandSupplier(
-                            b0 ->
-                                    b0.operand(Correlate.class)
-                                            .inputs(
-                                                    b1 -> b1.operand(RelNode.class).anyInputs(),
-                                                    b2 ->
-                                                            flavor
-                                                                    ? b2.operand(Project.class)
-                                                                            .oneInput(
-                                                                                    b3 ->
-                                                                                            b3.operand(
-                                                                                                            Aggregate
-                                                                                                                    .class)
-                                                                                                    .anyInputs())
-                                                                    : b2.operand(Aggregate.class)
-                                                                            .anyInputs()))
-                    .withFlavor(flavor)
-                    .withDecorrelator(decorrelator)
-                    .build();
-        }
+        static final AdjustProjectForCountAggregateRuleConfig DEFAULT_WITH_FAVLOR =
+                ImmutableAdjustProjectForCountAggregateRuleConfig.builder()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(Correlate.class)
+                                                .inputs(
+                                                        b1 -> b1.operand(RelNode.class).anyInputs(),
+                                                        b2 ->
+                                                                b2.operand(Project.class)
+                                                                        .oneInput(
+                                                                                b3 ->
+                                                                                        b3.operand(
+                                                                                                        Aggregate
+                                                                                                                .class)
+                                                                                                .anyInputs())))
+                        .withFlavor(true)
+                        .build();
+
+        static final AdjustProjectForCountAggregateRuleConfig DEFAULT_WITHOUT_FAVLOR =
+                ImmutableAdjustProjectForCountAggregateRuleConfig.builder()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(Correlate.class)
+                                                .inputs(
+                                                        b1 -> b1.operand(RelNode.class).anyInputs(),
+                                                        b2 ->
+                                                                b2.operand(Aggregate.class)
+                                                                        .anyInputs()))
+                        .withFlavor(false)
+                        .build();
 
         /** Creates an AdjustProjectForCountAggregateRule. */
         AdjustProjectForCountAggregateRule(AdjustProjectForCountAggregateRuleConfig config) {
             super(config);
-            this.d = requireNonNull(config.decorrelator());
         }
 
         @Override
         public void onMatch(RelOptRuleCall call) {
+            final RelDecorrelator d = call.getPlanner().getDecorrelator();
             final Correlate correlate = call.rel(0);
             final RelNode left = call.rel(1);
             final Project aggOutputProject;
@@ -2668,10 +2860,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
                         .projectNamed(projects.leftList(), projects.rightList(), true);
                 aggOutputProject = (Project) relBuilder.build();
             }
-            onMatch2(call, correlate, left, aggOutputProject, aggregate);
+            onMatch2(d, call, correlate, left, aggOutputProject, aggregate);
         }
 
         private void onMatch2(
+                RelDecorrelator d,
                 RelOptRuleCall call,
                 Correlate correlate,
                 RelNode leftInput,
@@ -2770,7 +2963,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         /** Rule configuration. */
         @Value.Immutable(singleton = false)
-        public interface AdjustProjectForCountAggregateRuleConfig extends RelDecorrelator.Config {
+        public interface AdjustProjectForCountAggregateRuleConfig extends RelRule.Config {
             @Override
             default AdjustProjectForCountAggregateRule toRule() {
                 return new AdjustProjectForCountAggregateRule(this);
@@ -3092,15 +3285,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
             assert allLessThan(
                     this.oldToNewOutputs.values(), r.getRowType().getFieldCount(), Litmus.THROW);
         }
-    }
-
-    /** Base configuration for rules that are non-static in a RelDecorrelator. */
-    public interface Config extends RelRule.Config {
-        /** Returns the RelDecorrelator that will be context for the created rule instance. */
-        RelDecorrelator decorrelator();
-
-        /** Sets {@link #decorrelator}. */
-        Config withDecorrelator(RelDecorrelator decorrelator);
     }
 
     // -------------------------------------------------------------------------

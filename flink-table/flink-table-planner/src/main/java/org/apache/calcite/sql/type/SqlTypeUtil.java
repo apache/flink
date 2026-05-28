@@ -89,7 +89,7 @@ public abstract class SqlTypeUtil {
      *     same charset and collation of same charset
      */
     public static boolean isCharTypeComparable(List<RelDataType> argTypes) {
-        assert argTypes != null;
+        requireNonNull(argTypes, "argTypes");
         assert argTypes.size() >= 2;
 
         // Filter out ANY and NULL elements.
@@ -574,17 +574,34 @@ public abstract class SqlTypeUtil {
             }
             return true;
         }
-        RelDataType comp1 = t1.getComponentType();
-        RelDataType comp2 = t2.getComponentType();
-        if ((comp1 != null) || (comp2 != null)) {
-            if ((comp1 == null) || (comp2 == null)) {
+        SqlTypeName t1Name = t1.getSqlTypeName();
+        SqlTypeName t2Name = t2.getSqlTypeName();
+        if (t1Name == SqlTypeName.ARRAY || t1Name == SqlTypeName.MULTISET) {
+            if (t1Name != t2Name) {
                 return false;
             }
-            if (!sameNamedType(comp1, comp2)) {
-                return false;
-            }
+
+            RelDataType comp1 = requireNonNull(t1.getComponentType());
+            RelDataType comp2 = requireNonNull(t2.getComponentType());
+            return sameNamedType(comp1, comp2);
         }
-        return t1.getSqlTypeName() == t2.getSqlTypeName();
+
+        if (t1Name == SqlTypeName.MAP) {
+            if (t1Name != t2Name) {
+                return false;
+            }
+
+            RelDataType keyType1 = requireNonNull(t1.getKeyType());
+            RelDataType keyType2 = requireNonNull(t2.getKeyType());
+            if (!sameNamedType(keyType1, keyType2)) {
+                return false;
+            }
+            RelDataType valueType1 = requireNonNull(t1.getValueType());
+            RelDataType valueType2 = requireNonNull(t2.getValueType());
+            return sameNamedType(valueType1, valueType2);
+        }
+
+        return t1Name == t2Name;
     }
 
     /**
@@ -751,6 +768,10 @@ public abstract class SqlTypeUtil {
         return t.getFamily() == SqlTypeFamily.ANY;
     }
 
+    private static boolean isVariant(RelDataType t) {
+        return t.getFamily() == SqlTypeFamily.VARIANT;
+    }
+
     public static boolean isMeasure(RelDataType t) {
         return t instanceof MeasureSqlType;
     }
@@ -861,7 +882,7 @@ public abstract class SqlTypeUtil {
             return canCastFrom(
                     toType, requireNonNull(fromType.getMeasureElementType()), typeMappingRule);
         }
-        if (isAny(toType) || isAny(fromType)) {
+        if (isAny(toType) || isAny(fromType) || isVariant(toType) || isVariant(fromType)) {
             return true;
         }
 
@@ -869,6 +890,11 @@ public abstract class SqlTypeUtil {
         final SqlTypeName toTypeName = toType.getSqlTypeName();
         if (toTypeName == SqlTypeName.UNKNOWN) {
             return true;
+        }
+        if (toType.getSqlTypeName() == SqlTypeName.UUID) {
+            return fromType.getSqlTypeName() == SqlTypeName.UUID
+                    || fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getFamily() == SqlTypeFamily.BINARY;
         }
         if (toType.isStruct() || fromType.isStruct()) {
             if (toTypeName == SqlTypeName.DISTINCT) {
@@ -1049,7 +1075,7 @@ public abstract class SqlTypeUtil {
 
         // TODO jvs 28-Dec-2004:  support row types, user-defined types,
         // interval types, multiset types, etc
-        assert typeName != null;
+        requireNonNull(typeName, "typeName");
 
         final SqlTypeNameSpec typeNameSpec;
         if (isAtomic(type)
@@ -1432,6 +1458,15 @@ public abstract class SqlTypeUtil {
      * @return Whether types are comparable
      */
     public static boolean isComparable(RelDataType type1, RelDataType type2) {
+        // FLINK MODIFICATION BEGIN Calcite-7230
+        final RelDataTypeFamily family1 = family(type1);
+        final RelDataTypeFamily family2 = family(type2);
+
+        // If one of the arguments is of type 'NULL', return true.
+        if (family1 == SqlTypeFamily.NULL || family2 == SqlTypeFamily.NULL) {
+            return true;
+        }
+        // FLINK MODIFICATION END
         if (type1.isStruct() != type2.isStruct()) {
             return false;
         }
@@ -1450,8 +1485,28 @@ public abstract class SqlTypeUtil {
             return true;
         }
 
-        final RelDataTypeFamily family1 = family(type1);
-        final RelDataTypeFamily family2 = family(type2);
+        SqlTypeName type1Name = type1.getSqlTypeName();
+        SqlTypeName type2Name = type2.getSqlTypeName();
+        if (type1Name == SqlTypeName.ARRAY || type1Name == SqlTypeName.MULTISET) {
+            if (type2Name != type1Name) {
+                return false;
+            }
+            RelDataType elementType1 = requireNonNull(type1.getComponentType());
+            RelDataType elementType2 = requireNonNull(type2.getComponentType());
+            return isComparable(elementType1, elementType2);
+        }
+
+        if (type1Name == SqlTypeName.MAP) {
+            if (type2Name != type1Name) {
+                return false;
+            }
+            RelDataType keyType1 = requireNonNull(type1.getKeyType());
+            RelDataType keyType2 = requireNonNull(type2.getKeyType());
+            RelDataType valueType1 = requireNonNull(type1.getValueType());
+            RelDataType valueType2 = requireNonNull(type2.getValueType());
+            return isComparable(keyType1, keyType2) && isComparable(valueType1, valueType2);
+        }
+
         if (family1 == family2) {
             return true;
         }
@@ -1467,12 +1522,8 @@ public abstract class SqlTypeUtil {
         }
 
         // We can implicitly convert from character to date
-        if (family1 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family2)
-                || family2 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family1)) {
-            return true;
-        }
-
-        return false;
+        return family1 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family2)
+                || family2 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family1);
     }
 
     /**
@@ -1760,6 +1811,7 @@ public abstract class SqlTypeUtil {
     }
 
     /** Returns a DECIMAL type with the maximum precision for the current type system. */
+    @SuppressWarnings("deprecation") // [CALCITE-6598]
     public static RelDataType getMaxPrecisionScaleDecimal(RelDataTypeFactory factory) {
         int maxPrecision = factory.getTypeSystem().getMaxNumericPrecision();
         int maxScale = factory.getTypeSystem().getMaxNumericScale();

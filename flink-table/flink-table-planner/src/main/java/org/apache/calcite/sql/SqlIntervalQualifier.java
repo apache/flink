@@ -44,26 +44,10 @@ import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * The class copied from Calcite because of <a
- * href="https://issues.apache.org/jira/browse/CALCITE-6581">CALCITE-6581</a>. Lines:
+ * href="https://issues.apache.org/jira/browse/CALCITE-6345">CALCITE-6345</a>. Lines:
  *
  * <ul>
- *   <li>513~515
- *   <li>526~528
- *   <li>576~578
- *   <li>618~620
- *   <li>655~657
- *   <li>692~695
- *   <li>730~733
- *   <li>768~770
- *   <li>812~812
- *   <li>855~857
- *   <li>926~928
- *   <li>963~965
- *   <li>1005~1007
- *   <li>1071~1073
- *   <li>1108~1110
- *   <li>1171~1173
- *   <li>1230~1232
+ *   <li>Flink modification 267~269
  * </ul>
  */
 public class SqlIntervalQualifier extends SqlNode {
@@ -280,7 +264,9 @@ public class SqlIntervalQualifier extends SqlNode {
 
     public int getStartPrecision(RelDataTypeSystem typeSystem) {
         if (startPrecision == RelDataType.PRECISION_NOT_SPECIFIED) {
+            // FLINK MODIFICATION BEGIN
             return typeSystem.getDefaultPrecision(typeName());
+            // FLINK MODIFICATION END
         } else {
             return startPrecision;
         }
@@ -559,9 +545,7 @@ public class SqlIntervalQualifier extends SqlNode {
         return new BigDecimal("0." + secondFracStr).multiply(THOUSAND);
     }
 
-    // FLINK MODIFICATION BEGIN
     private static int[] fillYearMonthIntervalValueArray(
-            // FLINK MODIFICATION END
             int sign, BigDecimal year, BigDecimal month) {
         int[] ret = new int[3];
 
@@ -572,9 +556,7 @@ public class SqlIntervalQualifier extends SqlNode {
         return ret;
     }
 
-    // FLINK MODIFICATION BEGIN
     private static int[] fillDayTimeIntervalValueArray(
-            // FLINK MODIFICATION END
             int sign,
             BigDecimal day,
             BigDecimal hour,
@@ -622,9 +604,7 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, year, TimeUnit.YEAR, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillYearMonthIntervalValueArray(sign, year, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -664,9 +644,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillYearMonthIntervalValueArray(sign, year, month);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -701,9 +679,7 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, month, TimeUnit.MONTH, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillYearMonthIntervalValueArray(sign, ZERO, month);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -738,10 +714,8 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, quarter, TimeUnit.QUARTER, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             final BigDecimal months = quarter.multiply(BigDecimal.valueOf(3));
             return fillYearMonthIntervalValueArray(sign, ZERO, months);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -776,10 +750,8 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, week, TimeUnit.WEEK, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             final BigDecimal days = week.multiply(BigDecimal.valueOf(7));
             return fillDayTimeIntervalValueArray(sign, days, ZERO, ZERO, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -814,9 +786,7 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, day, TimeUnit.DAY, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, day, ZERO, ZERO, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -856,9 +826,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, day, hour, ZERO, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -901,9 +869,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, day, hour, minute, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -972,9 +938,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, day, hour, minute, second, secondFrac);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1009,9 +973,7 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, hour, TimeUnit.HOUR, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, hour, ZERO, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1051,9 +1013,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, hour, minute, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1117,9 +1077,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, hour, minute, second, secondFrac);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1154,9 +1112,7 @@ public class SqlIntervalQualifier extends SqlNode {
             checkLeadFieldInRange(typeSystem, sign, minute, TimeUnit.MINUTE, pos);
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, ZERO, minute, ZERO, ZERO);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1217,9 +1173,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, ZERO, minute, second, secondFrac);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }
@@ -1276,9 +1230,7 @@ public class SqlIntervalQualifier extends SqlNode {
             }
 
             // package values up for return
-            // FLINK MODIFICATION BEGIN
             return fillDayTimeIntervalValueArray(sign, ZERO, ZERO, ZERO, second, secondFrac);
-            // FLINK MODIFICATION END
         } else {
             throw invalidValueException(pos, originalValue);
         }

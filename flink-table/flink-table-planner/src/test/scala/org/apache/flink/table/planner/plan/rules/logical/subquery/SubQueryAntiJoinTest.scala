@@ -39,7 +39,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
   @Test
   def testNotInOnWhere_NotSubQuery(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE a NOT IN (1, 2, 3, 4)"
-    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]")
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -215,9 +215,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       "(CASE WHEN a NOT IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END) " +
       "NOT IN (SELECT d FROM r)"
 
-    // TODO some bugs in SubQueryRemoveRule
-    assertThatExceptionOfType(classOf[RuntimeException])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -734,11 +732,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       " (CASE WHEN b NOT IN (SELECT m FROM t2) THEN 3 ELSE 4 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
 
-    // TODO some bugs in SubQueryRemoveRule
-    //  the result RelNode (LogicalJoin(condition=[=($1, $11)], joinType=[left]))
-    //  after SubQueryRemoveRule is unexpected
-    assertThatExceptionOfType(classOf[NullPointerException])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -764,9 +758,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
       "       WHEN EXISTS (select i FROM t) THEN 4 ELSE 5 END)) " +
       "  NOT IN (SELECT d, e FROM r)"
 
-    // TODO some bugs in SubQueryRemoveRule
-    assertThatExceptionOfType(classOf[RuntimeException])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[anti]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.util.Static.RESOURCE;
 
@@ -39,10 +40,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-6342: Lines 113-115
- *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 243 ~ 266
- *   <li>Should be removed after fix of FLINK-31350: Lines 527-539.
- *   <li>Should be removed after fixing CALCITE-6342: Lines 606-618
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 527-529.
+ *   <li>Should be removed after fix of FLINK-31350: Lines 604-616.
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
@@ -67,7 +66,7 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
     @Override
     public RelDataType createSqlType(SqlTypeName typeName, int precision) {
         if (typeName.allowsScale()) {
-            return createSqlType(typeName, precision, typeName.getDefaultScale());
+            return createSqlType(typeName, precision, typeSystem.getDefaultScale(typeName));
         }
         final int maxPrecision = typeSystem.getMaxPrecision(typeName);
         if (maxPrecision >= 0 && precision > maxPrecision) {
@@ -84,24 +83,27 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
         return canonize(newType);
     }
 
+    @SuppressWarnings("deprecation") // [CALCITE-6598]
     @Override
     public RelDataType createSqlType(SqlTypeName typeName, int precision, int scale) {
         assertBasic(typeName);
         assert (precision >= 0) || (precision == RelDataType.PRECISION_NOT_SPECIFIED);
-        final int maxPrecision = typeSystem.getMaxPrecision(typeName);
-        if (maxPrecision >= 0 && precision > maxPrecision) {
-            precision = maxPrecision;
+        if (precision != RelDataType.PRECISION_NOT_SPECIFIED) {
+            final int minPrecision = typeSystem.getMinPrecision(typeName);
+            final int maxPrecision = typeSystem.getMaxPrecision(typeName);
+            if (maxPrecision >= 0 && precision > maxPrecision) {
+                precision = maxPrecision;
+            }
+            if (precision < minPrecision) {
+                throw RESOURCE.invalidPrecisionForDecimalType(precision, maxPrecision).ex();
+            }
         }
-        if (precision != RelDataType.PRECISION_NOT_SPECIFIED
-                && precision < typeSystem.getMinPrecision(typeName)) {
-            throw RESOURCE.invalidPrecisionForDecimalType(precision, maxPrecision).ex();
-        }
-        if (scale != RelDataType.SCALE_NOT_SPECIFIED && scale < typeSystem.getMinScale(typeName)) {
-            throw RESOURCE.invalidScaleForDecimalType(
-                            scale,
-                            typeSystem.getMinScale(typeName),
-                            typeSystem.getMaxNumericScale())
-                    .ex();
+        if (scale != RelDataType.SCALE_NOT_SPECIFIED) {
+            final int minScale = typeSystem.getMinScale(typeName);
+            final int maxScale = typeSystem.getMaxNumericScale();
+            if (scale < minScale) {
+                throw RESOURCE.invalidScaleForDecimalType(scale, minScale, maxScale).ex();
+            }
         }
         RelDataType newType = new BasicSqlType(typeSystem, typeName, precision, scale);
         newType = SqlTypeUtil.addCharsetAndCollation(newType, this);
@@ -110,9 +112,7 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
 
     @Override
     public RelDataType createUnknownType() {
-        // FLINK MODIFICATION BEGIN
-        return canonize(new UnknownSqlType(this));
-        // FLINK MODIFICATION END
+        return createSqlType(SqlTypeName.UNKNOWN);
     }
 
     @Override
@@ -174,9 +174,11 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
     }
 
     @Override
-    public @Nullable RelDataType leastRestrictive(List<RelDataType> types) {
-        assert types != null;
-        assert types.size() >= 1;
+    public @Nullable RelDataType leastRestrictive(
+            List<RelDataType> types, SqlTypeMappingRule mappingRule) {
+        requireNonNull(types, "types");
+        requireNonNull(mappingRule, "mappingRule");
+        checkArgument(types.size() >= 1, "types.size >= 1");
 
         RelDataType type0 = types.get(0);
         if (type0.getSqlTypeName() != null) {
@@ -184,13 +186,14 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
             if (resultType != null) {
                 return resultType;
             }
-            return leastRestrictiveByCast(types);
+            return leastRestrictiveByCast(types, mappingRule);
         }
 
-        return super.leastRestrictive(types);
+        return super.leastRestrictive(types, mappingRule);
     }
 
-    private @Nullable RelDataType leastRestrictiveByCast(List<RelDataType> types) {
+    private @Nullable RelDataType leastRestrictiveByCast(
+            List<RelDataType> types, SqlTypeMappingRule mappingRule) {
         RelDataType resultType = types.get(0);
         boolean anyNullable = resultType.isNullable();
         for (int i = 1; i < types.size(); i++) {
@@ -204,10 +207,10 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                 anyNullable = true;
             }
 
-            if (SqlTypeUtil.canCastFrom(type, resultType, false)) {
+            if (SqlTypeUtil.canCastFrom(type, resultType, mappingRule)) {
                 resultType = type;
             } else {
-                if (!SqlTypeUtil.canCastFrom(resultType, type, false)) {
+                if (!SqlTypeUtil.canCastFrom(resultType, type, mappingRule)) {
                     return null;
                 }
             }
@@ -240,8 +243,6 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
         return canonize(newType);
     }
 
-    // ----- FLINK MODIFICATION BEGIN -----
-    // Backport from Calcite (CALCITE-6764)
     @Override
     public RelDataType enforceTypeWithNullability(final RelDataType type, final boolean nullable) {
         final RelDataType newType;
@@ -263,8 +264,6 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
         return canonize(newType);
     }
 
-    // ----- FLINK MODIFICATION END -----
-
     private static void assertBasic(SqlTypeName typeName) {
         assert typeName != null;
         assert typeName != SqlTypeName.MULTISET : "use createMultisetType() instead";
@@ -275,6 +274,7 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                 : "use createSqlIntervalType() instead";
     }
 
+    @SuppressWarnings("deprecation") // [CALCITE-6598]
     private @Nullable RelDataType leastRestrictiveSqlType(List<RelDataType> types) {
         RelDataType resultType = null;
         int nullCount = 0;
@@ -525,9 +525,8 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                 }
 
                 // FLINK MODIFICATION BEGIN
-                // in case we compare TIME(STAMP) and TIME(STAMP)_LTZ we should adjust the precision
-                // as well
                 if (type.getSqlTypeName().getFamily() == resultType.getSqlTypeName().getFamily()
+                        // FLINK MODIFICATION END
                         && type.getSqlTypeName().allowsPrec()
                         && type.getPrecision() != resultType.getPrecision()) {
                     final int precision =
@@ -536,7 +535,6 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
 
                     resultType = createSqlType(type.getSqlTypeName(), precision);
                 }
-                // FLINK MODIFICATION END
             } else {
                 return null;
             }

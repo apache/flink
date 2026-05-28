@@ -73,6 +73,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
@@ -86,10 +87,6 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * Factory for row expressions.
  *
  * <p>Some common literal values (NULL, TRUE, FALSE, 0, 1, '') are cached.
- *
- * <p>FLINK modifications (backport of CALCITE-6764): Lines 237, 243, 247, 251 ~ 255
- *
- * <p>FLINK modifications (backport of FLINK-39945): Lines 1270-1284
  */
 public class RexBuilder {
     /**
@@ -189,6 +186,10 @@ public class RexBuilder {
      */
     public RexNode makeFieldAccess(RexNode expr, String fieldName, boolean caseSensitive) {
         final RelDataType type = expr.getType();
+        if (type.getSqlTypeName() == SqlTypeName.VARIANT) {
+            // VARIANT.field is rewritten as an VARIANT[field]
+            return this.makeCall(SqlStdOperatorTable.ITEM, expr, this.makeLiteral(fieldName));
+        }
         final RelDataTypeField field = type.getField(fieldName, caseSensitive, false);
         if (field == null) {
             throw new AssertionError("Type '" + type + "' has no field '" + fieldName + "'");
@@ -234,7 +235,7 @@ public class RexBuilder {
         }
 
         if (expr.getType().isNullable()) {
-            fieldType = typeFactory.createTypeWithNullability(fieldType, true);
+            fieldType = typeFactory.enforceTypeWithNullability(fieldType, true);
         }
         return new RexFieldAccess(expr, field, fieldType);
     }
@@ -810,7 +811,9 @@ public class RexBuilder {
             return true;
         }
         final SqlTypeName sqlType = toType.getSqlTypeName();
-        if (sqlType == SqlTypeName.MEASURE) {
+        if (sqlType == SqlTypeName.MEASURE
+                || sqlType == SqlTypeName.VARIANT
+                || sqlType == SqlTypeName.UUID) {
             return false;
         }
         if (!RexLiteral.valueMatchesType(value, sqlType, false)) {
@@ -850,7 +853,9 @@ public class RexBuilder {
         if (toType.getSqlTypeName() == SqlTypeName.DECIMAL
                 && fromTypeName.getFamily() == SqlTypeFamily.NUMERIC) {
             final BigDecimal decimalValue = (BigDecimal) value;
+            // FLINK MODIFICATION BEGIN
             return SqlTypeUtil.isValidDecimalValue(decimalValue, toType);
+            // FLINK MODIFICATION END
         }
 
         if (SqlTypeName.INT_TYPES.contains(sqlType)) {
@@ -1269,19 +1274,22 @@ public class RexBuilder {
             /*
             FLINK MODIFICATION BEGIN
             case DECIMAL:
-                if (o != null && type.getScale() != RelDataType.SCALE_NOT_SPECIFIED) {
-                    assert o instanceof BigDecimal;
-                    o =
-                            ((BigDecimal) o)
-                                    .setScale(
-                                            type.getScale(),
-                                            typeFactory.getTypeSystem().roundingMode());
+                if (o == null) {
+                    break;
+                }
+                assert o instanceof BigDecimal;
+                if (type instanceof IntervalSqlType) {
+                    SqlIntervalQualifier qualifier = ((IntervalSqlType) type).getIntervalQualifier();
+                    o = ((BigDecimal) o).multiply(qualifier.getUnit().multiplier);
+                    typeName = type.getSqlTypeName();
+                } else if (type.getScale() != RelDataType.SCALE_NOT_SPECIFIED) {
+                    o = ((BigDecimal) o).setScale(type.getScale(), typeFactory.getTypeSystem().roundingMode());
                     if (type.getScale() < 0) {
                         o = new BigDecimal(((BigDecimal) o).toPlainString());
                     }
                 }
                 break;
-                FLINK MODIFICATION ENF
+                FLINK MODIFICATION END
                  */
             default:
                 break;
@@ -1297,6 +1305,10 @@ public class RexBuilder {
     /** Creates a boolean literal. */
     public RexLiteral makeLiteral(boolean b) {
         return b ? booleanTrue : booleanFalse;
+    }
+
+    public RexLiteral makeUuidLiteral(@Nullable UUID uuid) {
+        return new RexLiteral(uuid, typeFactory.createSqlType(SqlTypeName.UUID), SqlTypeName.UUID);
     }
 
     /** Creates a numeric literal. */
@@ -1639,11 +1651,16 @@ public class RexBuilder {
      * <p>If all of the expressions are literals, creates a call {@link Sarg} literal, "SEARCH(arg,
      * SARG([point0..point0], [point1..point1], ...)"; otherwise creates a disjunction, "arg =
      * point0 OR arg = point1 OR ...".
+     *
+     * <p>If there is only a single expression, creates a plain equality {@code arg = point0}.
      */
     public RexNode makeIn(RexNode arg, List<? extends RexNode> ranges) {
         if (areAssignable(arg, ranges)) {
             final Sarg sarg = toSarg(Comparable.class, ranges, RexUnknownAs.UNKNOWN);
             if (sarg != null) {
+                if (sarg.isPoints() && sarg.pointCount == 1) {
+                    return makeCall(SqlStdOperatorTable.EQUALS, arg, ranges.get(0));
+                }
                 final List<RelDataType> types =
                         ranges.stream().map(RexNode::getType).collect(Collectors.toList());
                 RelDataType sargType =
@@ -1884,7 +1901,7 @@ public class RexBuilder {
             case CHAR:
                 final NlsString nlsString = (NlsString) value;
                 if (trim) {
-                    return makeCharLiteral(nlsString.rtrim());
+                    return makeCharLiteral(nlsString.rtrim(type.getPrecision()));
                 } else {
                     return makeCharLiteral(padRight(nlsString, type.getPrecision()));
                 }
