@@ -26,7 +26,7 @@ import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.postfixOps
 
 class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
@@ -60,8 +60,9 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     relBuilder.push(inputAgg)
 
     // project `age` field and corresponding output type
-    val projection = List(relBuilder.field("age"))
-    val ageFieldType = inputAgg.getRowType.getFieldList.filter(x => x.getName.equals("age"))
+    val projection = java.util.List.of[RexInputRef](relBuilder.field("age"))
+    val ageFieldType =
+      inputAgg.getRowType.getFieldList.stream().filter(x => x.getName.equals("age")).toList
     val outputType = new RelRecordType(ageFieldType)
 
     // select age from (select id, age, count() from student by id, age) where ...
@@ -250,7 +251,7 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
       projectWithMaxAgg,
       ImmutableBitSet.of(0),
       null,
-      Seq(tableAggCall)
+      Seq(tableAggCall).toList.asJava
     )
     assertEquals(null, mq.getRelModifiedMonotonicity(tableAggregate))
   }

@@ -20,12 +20,11 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
 
@@ -187,7 +186,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       logicalProject.getRowType,
       logicalProject.getProjects,
-      List(expr1))
+      java.util.List.of[RexNode](expr1))
 
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), null))
     assertEquals(25.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), null))

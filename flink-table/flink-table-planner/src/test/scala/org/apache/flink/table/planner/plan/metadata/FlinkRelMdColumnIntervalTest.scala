@@ -27,15 +27,13 @@ import org.apache.flink.table.types.logical.IntType
 import org.apache.calcite.rel.RelDistributions
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalExchange
-import org.apache.calcite.rex.{RexCall, RexUtil}
+import org.apache.calcite.rex.{RexCall, RexNode, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{DateString, TimestampString, TimeString}
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import java.sql.{Date, Time, Timestamp}
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
@@ -238,7 +236,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val expr7 = relBuilder.call(GREATER_THAN, relBuilder.field(2), relBuilder.literal(1.9d))
 
     // calc => projects + filter(id <= 20)
-    val calc1 = createLogicalCalc(studentLogicalScan, outputRowType, projects, List(expr1))
+    val calc1 = createLogicalCalc(
+      studentLogicalScan,
+      outputRowType,
+      projects,
+      java.util.List.of[RexNode](expr1))
     assertEquals(ValueInterval(bd(0), bd(20)), mq.getColumnInterval(calc1, 0))
     assertNull(mq.getColumnInterval(calc1, 1))
     assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc1, 2))
@@ -254,7 +256,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
     // calc => project + filter(id <= 20 AND id > 10 AND DIV(id, 2) > 3)
     val calc2 =
-      createLogicalCalc(studentLogicalScan, outputRowType, projects, List(expr1, expr2, expr3))
+      createLogicalCalc(
+        studentLogicalScan,
+        outputRowType,
+        projects,
+        java.util.List.of(expr1, expr2, expr3))
     assertEquals(
       ValueInterval(bd(10), bd(20), includeLower = false),
       mq.getColumnInterval(calc2, 0))
@@ -262,7 +268,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
     // calc => project + filter(id <= 20 AND id > 10 AND score < 4.1)
     val calc3 =
-      createLogicalCalc(studentLogicalScan, outputRowType, projects, List(expr1, expr2, expr4))
+      createLogicalCalc(
+        studentLogicalScan,
+        outputRowType,
+        projects,
+        java.util.List.of(expr1, expr2, expr4))
     assertEquals(
       ValueInterval(bd(10), bd(20), includeLower = false),
       mq.getColumnInterval(calc3, 0))
@@ -272,7 +282,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       outputRowType,
       projects,
-      List(relBuilder.call(OR, expr5, expr6)))
+      java.util.List.of[RexNode](relBuilder.call(OR, expr5, expr6)))
     assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc4, 2))
 
     // calc => project + filter(score > 6.0 OR score <= 4.0 OR id < 20)
@@ -280,7 +290,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       outputRowType,
       projects,
-      List(relBuilder.call(OR, expr5, expr6, expr1)))
+      java.util.List.of[RexNode](relBuilder.call(OR, expr5, expr6, expr1)))
     assertEqualsAsDouble(ValueInterval(bd(2.9), bd(5.0)), mq.getColumnInterval(calc5, 2))
 
     // calc => project + filter((id <= 20 AND score < 4.1) OR NOT(DIV(id, 2) > 3 OR score > 1.9))
@@ -288,7 +298,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       outputRowType,
       projects,
-      List(
+      java.util.List.of[RexNode](
         relBuilder.call(
           OR,
           relBuilder.call(AND, expr1, expr4),
@@ -301,7 +311,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       outputRowType,
       projects,
-      List(
+      java.util.List.of[RexNode](
         relBuilder.call(
           OR,
           relBuilder.call(AND, expr1, expr4),
@@ -331,7 +341,11 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       Array("f0", "f1", "f2", "f3"),
       Array(new IntType(), new IntType(), new IntType(), new IntType()))
     val calc8 =
-      createLogicalCalc(studentLogicalScan, rowType, List(expr8, expr9, expr10, expr11), List())
+      createLogicalCalc(
+        studentLogicalScan,
+        rowType,
+        java.util.List.of(expr8, expr9, expr10, expr11),
+        java.util.List.of())
 
     assertEquals(ValueInterval(bd(0), bd(1)), mq.getColumnInterval(calc8, 0))
     assertEquals(ValueInterval(bd(10), bd(12)), mq.getColumnInterval(calc8, 1))
