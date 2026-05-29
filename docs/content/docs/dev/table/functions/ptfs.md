@@ -2430,7 +2430,7 @@ void testStateIntrospection() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**State Mutation**: Use `setStateForKey()`, `clearStateForKey()`, and `clearStateEntryForKey()` to modify state during tests:
+**State Mutation**: Use `setStateForKey()`, `clearAllStatesForKey()`, and `clearStateForKey()` to modify state during tests:
 
 {{< tabs "state-mutation" >}}
 {{< tab "Java" >}}
@@ -2451,10 +2451,10 @@ void testStateMutation() throws Exception {
     harness.setStateForKey("valueState", Row.of("Alice"), newState);
 
     // Clear a specific state entry (resets to default)
-    harness.clearStateEntryForKey("listState", Row.of("Alice"));
+    harness.clearStateForKey("listState", Row.of("Alice"));
 
     // Clear all state for a partition key
-    harness.clearStateForKey(Row.of("Alice"));
+    harness.clearAllStatesForKey(Row.of("Alice"));
   }
 }
 ```

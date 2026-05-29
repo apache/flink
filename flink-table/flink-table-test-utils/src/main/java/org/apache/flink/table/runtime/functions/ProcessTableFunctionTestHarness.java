@@ -294,13 +294,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /** Clear all state for a given partition key. */
-    public void clearStateForKey(Row partitionKey) {
-        stateManager.clearStateForKey(partitionKey);
+    public void clearAllStatesForKey(Row partitionKey) {
+        stateManager.clearAllStatesForKey(partitionKey);
     }
 
     /** Clear specific state entry for a given partition key. */
-    public void clearStateEntryForKey(String stateName, Row partitionKey) {
-        stateManager.clearStateEntryForKey(stateName, partitionKey);
+    public void clearStateForKey(String stateName, Row partitionKey) {
+        stateManager.clearStateForKey(stateName, partitionKey);
     }
 
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {

@@ -1393,6 +1393,32 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testClearAllStatesForKey() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 15));
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        harness.clearAllStatesForKey(Row.of("Alice"));
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state).isNull();
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
+
+        harness.close();
+    }
+
+    @Test
     void testClearStateForKey() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
@@ -1406,33 +1432,7 @@ class ProcessTableFunctionTestHarnessTest {
         PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(2L);
 
-        harness.clearStateForKey(Row.of("Alice"));
-
-        state = harness.getStateForKey("state", Row.of("Alice"));
-        assertThat(state).isNull();
-
-        harness.processElementForTable("input", Row.of("Alice", 30));
-        state = harness.getStateForKey("state", Row.of("Alice"));
-        assertThat(state.counter).isEqualTo(1L);
-
-        harness.close();
-    }
-
-    @Test
-    void testClearStateEntry() throws Exception {
-        ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
-                        .build();
-
-        harness.processElementForTable("input", Row.of("Alice", 10));
-        harness.processElementForTable("input", Row.of("Alice", 15));
-
-        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
-        assertThat(state.counter).isEqualTo(2L);
-
-        harness.clearStateEntryForKey("state", Row.of("Alice"));
+        harness.clearStateForKey("state", Row.of("Alice"));
 
         state = harness.getStateForKey("state", Row.of("Alice"));
         assertThat(state.counter).isEqualTo(0L);
@@ -1664,21 +1664,7 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testPartitionKeyValidationOnClearState() throws Exception {
-        ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
-                        .build();
-
-        assertThrows(
-                IllegalArgumentException.class, () -> harness.clearStateForKey(Row.of("a", "b")));
-
-        harness.close();
-    }
-
-    @Test
-    void testPartitionKeyValidationOnClearStateEntry() throws Exception {
+    void testPartitionKeyValidationOnClearAllStates() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
                         .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
@@ -1687,7 +1673,22 @@ class ProcessTableFunctionTestHarnessTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> harness.clearStateEntryForKey("state", Row.of(42)));
+                () -> harness.clearAllStatesForKey(Row.of("a", "b")));
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnClearState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.clearStateForKey("state", Row.of(42)));
 
         harness.close();
     }

@@ -131,13 +131,13 @@ class TestHarnessStateManager {
     }
 
     /** Clear all state for a partition key. */
-    void clearStateForKey(Row key) {
+    void clearAllStatesForKey(Row key) {
         partitionKeyInfo.validate(key);
         stateByKey.remove(key);
     }
 
     /** Clear specific state entry for a given partition key, resetting it to its default value. */
-    void clearStateEntryForKey(String stateName, Row key) {
+    void clearStateForKey(String stateName, Row key) {
         partitionKeyInfo.validate(key);
         Map<String, Object> internalState = stateByKey.get(key);
         if (internalState != null) {
