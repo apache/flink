@@ -964,6 +964,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             .findFirst();
 
             if (partitionedTable.isEmpty()) {
+                // In cases of PTFs with OPTIONAL_PARTITION_BY and harness setups with no partition
+                // setup, all data shares the same Row.of() key, so there is no schema to validate
                 return;
             }
 

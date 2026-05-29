@@ -749,6 +749,30 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    @Test
+    void testOptionalPartitionByWithInitialStateNoPartition() throws Exception {
+        StatefulOptionalPartitionPTF.CounterState initialState =
+                new StatefulOptionalPartitionPTF.CounterState();
+        initialState.counter = 10L;
+
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withInitialStateForKey("state", Row.of(), initialState)
+                        .build()) {
+
+            harness.processElement(Row.of("A", 1));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0)).isEqualTo(Row.of(11L));
+
+            StatefulOptionalPartitionPTF.CounterState state =
+                    harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(11L);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Data Type Conversion Tests
     // -------------------------------------------------------------------------
