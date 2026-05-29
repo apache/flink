@@ -981,9 +981,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     if (key.getArity() != expectedArity) {
                         throw new IllegalArgumentException(
                                 String.format(
-                                        "Initial state key for state '%s' has arity %d, "
+                                        "Initial state key '%s' for state '%s' has arity %d, "
                                                 + "but partition key has arity %d.",
-                                        entry.getKey(), key.getArity(), expectedArity));
+                                        key, entry.getKey(), key.getArity(), expectedArity));
                     }
 
                     for (int i = 0; i < expectedArity; i++) {
@@ -992,9 +992,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         if (value != null && !expectedClass.isInstance(value)) {
                             throw new IllegalArgumentException(
                                     String.format(
-                                            "Initial state key for state '%s' has type %s "
+                                            "Initial state key '%s' for state '%s' has type %s "
                                                     + "at position %d, but partition column '%s' "
                                                     + "expects %s.",
+                                            key,
                                             entry.getKey(),
                                             value.getClass().getSimpleName(),
                                             i,
