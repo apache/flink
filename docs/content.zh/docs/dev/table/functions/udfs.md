@@ -1088,7 +1088,7 @@ env.sqlQuery("SELECT GetBeverageName(beverageId) FROM Beverages");
 
 在 Table API 中，表值函数是通过 `.joinLateral(...)` 或者 `.leftOuterJoinLateral(...)` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟跟表值函数返回的所有行（位于算子右侧）进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数返回的所有行（位于算子右侧）进行（cross）join，并且如果表值函数返回 0 行也会保留外表的这一行。
 
-在 SQL 里面用 `JOIN` 或者 以 `ON TRUE` 为条件的 `LEFT JOIN` 来配合 `LATERAL TABLE(<TableFunction>)` 的使用。
+在 SQL 里面用 `JOIN` 或者 以 `ON TRUE` 为条件的 `LEFT JOIN` 来配合 `LATERAL <TableFunction>(...)` 的使用（等价的写法为 `LATERAL TABLE(<TableFunction>(...))`）。
 
 下面的例子展示了如何实现一个分隔函数并在查询里调用它，详情可参考[开发指南](#开发指南)：
 
@@ -1147,17 +1147,17 @@ env
 // 在 SQL 里调用注册好的函数
 env.sqlQuery(
   "SELECT myField, word, length " +
-  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))");
+  "FROM MyTable, LATERAL SplitFunction(myField)");
 env.sqlQuery(
   "SELECT myField, word, length " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE");
+  "LEFT JOIN LATERAL SplitFunction(myField) ON TRUE");
 
 // 在 SQL 里重命名函数字段
 env.sqlQuery(
   "SELECT myField, newWord, newLength " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE");
+  "LEFT JOIN LATERAL SplitFunction(myField) AS T(newWord, newLength) ON TRUE");
 
 ```
 {{< /tab >}}
@@ -1212,17 +1212,17 @@ env
 // 在 SQL 里调用注册好的函数
 env.sqlQuery(
   "SELECT myField, word, length " +
-  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))");
+  "FROM MyTable, LATERAL SplitFunction(myField)");
 env.sqlQuery(
   "SELECT myField, word, length " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE")
+  "LEFT JOIN LATERAL SplitFunction(myField) ON TRUE")
 
 // 在 SQL 里重命名函数字段
 env.sqlQuery(
   "SELECT myField, newWord, newLength " +
   "FROM MyTable " +
-  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE")
+  "LEFT JOIN LATERAL SplitFunction(myField) AS T(newWord, newLength) ON TRUE")
 
 ```
 {{< /tab >}}
@@ -1312,7 +1312,7 @@ env.from("MyTable")
         .select($("*"))
 
 // call registered function in SQL
-env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))");
+env.sqlQuery("SELECT * FROM MyTable, LATERAL BackgroundFunction(myField)");
 
 ```
 
