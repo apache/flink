@@ -28,6 +28,7 @@ import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 /**
@@ -53,8 +54,7 @@ class TestHarnessDataTypeFactory implements DataTypeFactory {
     public DataType createDataType(String typeString) {
         LogicalType logicalType =
                 LogicalTypeParser.parse(typeString, Thread.currentThread().getContextClassLoader());
-        return org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType(
-                logicalType);
+        return TypeConversions.fromLogicalToDataType(logicalType);
     }
 
     @Override

@@ -24,13 +24,19 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -136,6 +142,25 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** Stateful PTF with OPTIONAL_PARTITION_BY. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class StatefulOptionalPartitionPTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long counter = 0L;
+        }
+
+        public void eval(
+                @StateHint CounterState state,
+                @ArgumentHint({
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        })
+                        Row input) {
+            state.counter++;
+            collect(Row.of(state.counter));
+        }
+    }
+
     /** Simple POJO for testing structured type input/output. */
     public static class User {
         public String name;
@@ -162,12 +187,12 @@ class ProcessTableFunctionTestHarnessTest {
                 return false;
             }
             User user = (User) o;
-            return age == user.age && java.util.Objects.equals(name, user.name);
+            return age == user.age && Objects.equals(name, user.name);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(name, age);
+            return Objects.hash(name, age);
         }
     }
 
@@ -282,17 +307,94 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
-    /** PTF with State parameter - should be rejected by test harness. */
-    @DataTypeHint("ROW<value INT>")
-    public static class PTFWithState extends ProcessTableFunction<Row> {
-        public static class CountState {
+    /** PTF with simple value state - counts rows per partition. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithValueState extends ProcessTableFunction<Row> {
+        public static class CounterState {
             public long counter = 0L;
         }
 
         public void eval(
-                @StateHint CountState state,
-                @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            collect(input);
+                @StateHint CounterState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            state.counter++;
+            collect(Row.of(state.counter));
+        }
+    }
+
+    /** PTF with ListView state - accumulates values in a list. */
+    @DataTypeHint("ROW<values ARRAY<INT>>")
+    public static class PTFWithListViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ARRAY<INT>")) ListView<Integer> listState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            Integer value = input.getFieldAs("value");
+            listState.add(value);
+
+            // Collect all values as an array
+            List<Integer> values = new ArrayList<>();
+            for (Integer v : listState.get()) {
+                values.add(v);
+            }
+            collect(Row.of((Object) values.toArray(new Integer[0])));
+        }
+    }
+
+    /** PTF with MapView state - counts occurrences of each key. */
+    @DataTypeHint("ROW<key STRING, count INT>")
+    public static class PTFWithMapViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint MapView<String, Integer> mapState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            String key = input.getFieldAs("key");
+            Integer count = mapState.get(key);
+            if (count == null) {
+                mapState.put(key, 1);
+            } else {
+                mapState.put(key, count + 1);
+            }
+            collect(Row.of(key, mapState.get(key)));
+        }
+    }
+
+    /** PTF with Row state - mirrors the doc example using Row as state type. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithRowState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ROW<count BIGINT>")) Row memory,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            Long newCount = 1L;
+            if (memory.getField("count") != null) {
+                newCount += memory.<Long>getFieldAs("count");
+            }
+            memory.setField("count", newCount);
+            collect(Row.of(newCount));
+        }
+    }
+
+    /** PTF with both value state and ListView state. */
+    @DataTypeHint("ROW<count BIGINT, sum INT>")
+    public static class PTFWithMultipleStates extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                @StateHint CounterState counter,
+                @StateHint(type = @DataTypeHint("ARRAY<INT>")) ListView<Integer> history,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            Integer value = input.getFieldAs("value");
+            counter.count++;
+            history.add(value);
+
+            int sum = 0;
+            for (Integer v : history.get()) {
+                sum += v;
+            }
+            collect(Row.of(counter.count, sum));
         }
     }
 
@@ -594,6 +696,92 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output.get(0)).isEqualTo(Row.of("A", 20));
             assertThat(output.get(1)).isEqualTo(Row.of("A", 10));
             assertThat(output.get(2)).isEqualTo(Row.of("B", 40));
+        }
+    }
+
+    @Test
+    void testOptionalPartitionByWithStateNoPartition() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .build()) {
+
+            harness.processElement(Row.of("A", 10));
+            harness.processElement(Row.of("B", 20));
+            harness.processElement(Row.of("A", 30));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(3);
+            assertThat(output.get(0)).isEqualTo(Row.of(1L));
+            assertThat(output.get(1)).isEqualTo(Row.of(2L));
+            assertThat(output.get(2)).isEqualTo(Row.of(3L));
+
+            StatefulOptionalPartitionPTF.CounterState state =
+                    harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(3L);
+        }
+    }
+
+    @Test
+    void testOptionalPartitionByWithStateAndPartition() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build()) {
+
+            harness.processElement(Row.of("A", 10));
+            harness.processElement(Row.of("B", 20));
+            harness.processElement(Row.of("A", 30));
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(3);
+            assertThat(output.get(0)).isEqualTo(Row.of("A", 1L));
+            assertThat(output.get(1)).isEqualTo(Row.of("B", 1L));
+            assertThat(output.get(2)).isEqualTo(Row.of("A", 2L));
+
+            StatefulOptionalPartitionPTF.CounterState stateA =
+                    harness.getStateForKey("state", Row.of("A"));
+            StatefulOptionalPartitionPTF.CounterState stateB =
+                    harness.getStateForKey("state", Row.of("B"));
+            assertThat(stateA.counter).isEqualTo(2L);
+            assertThat(stateB.counter).isEqualTo(1L);
+        }
+    }
+
+    @Test
+    void testOptionalPartitionByWithInitialStateNoPartition() throws Exception {
+        StatefulOptionalPartitionPTF.CounterState initialState =
+                new StatefulOptionalPartitionPTF.CounterState();
+        initialState.counter = 10L;
+
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withInitialStateForKey("state", Row.of(), initialState)
+                        .build()) {
+
+            harness.processElement(Row.of("A", 1));
+
+            StatefulOptionalPartitionPTF.CounterState state =
+                    harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(11L);
+
+            StatefulOptionalPartitionPTF.CounterState newState =
+                    new StatefulOptionalPartitionPTF.CounterState();
+            newState.counter = 50L;
+            harness.setStateForKey("state", Row.of(), newState);
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(50L);
+
+            harness.clearStateForKey("state", Row.of());
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(0L);
+
+            harness.processElement(Row.of("B", 2));
+            harness.clearAllStatesForKey(Row.of());
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state).isNull();
         }
     }
 
@@ -902,7 +1090,7 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify that PASS_COLUMNS_THROUGH is rejected when used with multiple table arguments
         Exception exception =
                 assertThrows(
-                        org.apache.flink.table.api.ValidationException.class,
+                        ValidationException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(
                                             InvalidPassColumnsThroughMultiTablePTF.class)
@@ -999,22 +1187,6 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testStateParameterRejected() {
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                ProcessTableFunctionTestHarness.ofClass(PTFWithState.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                                        .build());
-
-        assertThat(exception.getMessage())
-                .contains("does not yet support state parameters")
-                .contains("@StateHint parameter")
-                .contains("position 0");
-    }
-
-    @Test
     void testSetSemanticMissingPartitionConfigThrows() {
         Exception exception =
                 assertThrows(
@@ -1061,5 +1233,499 @@ class ProcessTableFunctionTestHarnessTest {
                         });
 
         assertThat(exception.getMessage()).contains("Partition config already exists");
+    }
+
+    // -------------------------------------------------------------------------
+    // State Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testValueState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 1L));
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
+
+        harness.processElementForTable("input", Row.of("Alice", 15));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("Alice", 2L));
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        harness.close();
+    }
+
+    @Test
+    void testValueStatePartitionIsolation() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Bob", 20));
+        harness.processElementForTable("input", Row.of("Alice", 15));
+
+        PTFWithValueState.CounterState aliceState =
+                harness.getStateForKey("state", Row.of("Alice"));
+        PTFWithValueState.CounterState bobState = harness.getStateForKey("state", Row.of("Bob"));
+
+        assertThat(aliceState.counter).isEqualTo(2L);
+        assertThat(bobState.counter).isEqualTo(1L);
+
+        harness.close();
+    }
+
+    @Test
+    void testValueStateWithInitialState() throws Exception {
+        PTFWithValueState.CounterState initialState = new PTFWithValueState.CounterState();
+        initialState.counter = 100L;
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .withInitialStateForKey("state", Row.of(1), initialState)
+                        .build();
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of(1));
+        assertThat(state.counter).isEqualTo(100L);
+
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1, 101L));
+
+        harness.processElement(Row.of(2));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of(2, 1L));
+
+        harness.close();
+    }
+
+    @Test
+    void testGetStateKeys() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Bob", 20));
+        harness.processElementForTable("input", Row.of("Charlie", 30));
+
+        Set<Row> keys = harness.getKeysForState("state");
+        assertThat(keys)
+                .containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"), Row.of("Charlie"));
+
+        harness.close();
+    }
+
+    @Test
+    void testGetAllState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 15));
+        harness.processElementForTable("input", Row.of("Bob", 20));
+
+        Map<Row, PTFWithValueState.CounterState> allState = harness.getStateForAllKeys("state");
+
+        assertThat(allState).hasSize(2);
+        assertThat(allState.get(Row.of("Alice")).counter).isEqualTo(2L);
+        assertThat(allState.get(Row.of("Bob")).counter).isEqualTo(1L);
+
+        harness.close();
+    }
+
+    @Test
+    void testListViewState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A", 1));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", new Integer[] {1}));
+
+        harness.processElementForTable("input", Row.of("A", 2));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("A", new Integer[] {1, 2}));
+
+        ListView<Integer> listState = harness.getStateForKey("listState", Row.of("A"));
+        assertThat(listState.get()).containsExactly(1, 2);
+
+        harness.close();
+    }
+
+    @Test
+    void testMapViewState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, key STRING>"))
+                        .withPartitionBy("input", "partition")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("P1", "foo"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "foo", 1));
+
+        harness.processElementForTable("input", Row.of("P1", "foo"));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("P1", "foo", 2));
+
+        harness.processElementForTable("input", Row.of("P1", "bar"));
+        assertThat(harness.getOutput().get(2)).isEqualTo(Row.of("P1", "bar", 1));
+
+        MapView<String, Integer> mapState = harness.getStateForKey("mapState", Row.of("P1"));
+        assertThat(mapState.get("foo")).isEqualTo(2);
+        assertThat(mapState.get("bar")).isEqualTo(1);
+
+        harness.close();
+    }
+
+    @Test
+    void testRowState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithRowState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 1L));
+
+        harness.processElementForTable("input", Row.of("Alice", 20));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of("Alice", 2L));
+
+        Row state = harness.getStateForKey("memory", Row.of("Alice"));
+        assertThat((Long) state.getFieldAs("count")).isEqualTo(2L);
+
+        harness.close();
+    }
+
+    @Test
+    void testEmptyState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+
+        assertThat(state).isNull();
+
+        harness.close();
+    }
+
+    @Test
+    void testClearAllStatesForKey() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 15));
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        harness.clearAllStatesForKey(Row.of("Alice"));
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state).isNull();
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
+
+        harness.close();
+    }
+
+    @Test
+    void testClearStateForKey() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 15));
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        harness.clearStateForKey("state", Row.of("Alice"));
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(0L);
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(1L);
+
+        harness.close();
+    }
+
+    @Test
+    void testMultipleStateParameters() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMultipleStates.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A", 10));
+        harness.processElementForTable("input", Row.of("A", 20));
+        harness.processElementForTable("input", Row.of("B", 5));
+
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of("A", 1L, 10), Row.of("A", 2L, 30), Row.of("B", 1L, 5));
+
+        PTFWithMultipleStates.CounterState counterA =
+                harness.getStateForKey("counter", Row.of("A"));
+        assertThat(counterA.count).isEqualTo(2L);
+
+        ListView<Integer> historyA = harness.getStateForKey("history", Row.of("A"));
+        assertThat(historyA.get()).containsExactly(10, 20);
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateWithListView() throws Exception {
+        ListView<Integer> initialList = new ListView<>();
+        initialList.add(100);
+        initialList.add(200);
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .withInitialStateForKey("listState", Row.of("A"), initialList)
+                        .build();
+
+        ListView<Integer> listState = harness.getStateForKey("listState", Row.of("A"));
+        assertThat(listState.get()).containsExactly(100, 200);
+
+        harness.processElementForTable("input", Row.of("A", 3));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", new Integer[] {100, 200, 3}));
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateWithMapView() throws Exception {
+        MapView<String, Integer> initialMap = new MapView<>();
+        initialMap.put("existing", 42);
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, key STRING>"))
+                        .withPartitionBy("input", "partition")
+                        .withInitialStateForKey("mapState", Row.of("P1"), initialMap)
+                        .build();
+
+        MapView<String, Integer> mapState = harness.getStateForKey("mapState", Row.of("P1"));
+        assertThat(mapState.get("existing")).isEqualTo(42);
+
+        harness.processElementForTable("input", Row.of("P1", "existing"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "existing", 43));
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateKeyArityMismatch() {
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                                        .withTableArgument(
+                                                "input",
+                                                DataTypes.of("ROW<name STRING, value INT>"))
+                                        .withPartitionBy("input", "name")
+                                        .withInitialStateForKey(
+                                                "state",
+                                                Row.of("Alice", 42),
+                                                new PTFWithValueState.CounterState())
+                                        .build());
+
+        assertThat(exception.getMessage()).contains("state");
+        assertThat(exception.getMessage()).contains("arity 2");
+        assertThat(exception.getMessage()).contains("arity 1");
+    }
+
+    @Test
+    void testInitialStateKeyTypeMismatch() {
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                                        .withTableArgument(
+                                                "input",
+                                                DataTypes.of("ROW<name STRING, value INT>"))
+                                        .withPartitionBy("input", "name")
+                                        .withInitialStateForKey(
+                                                "state",
+                                                Row.of(42),
+                                                new PTFWithValueState.CounterState())
+                                        .build());
+
+        assertThat(exception.getMessage()).contains("state");
+        assertThat(exception.getMessage()).contains("Integer");
+        assertThat(exception.getMessage()).contains("name");
+        assertThat(exception.getMessage()).contains("String");
+    }
+
+    @Test
+    void testSetStateForKey() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        harness.processElementForTable("input", Row.of("Alice", 20));
+
+        PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(2L);
+
+        PTFWithValueState.CounterState newState = new PTFWithValueState.CounterState();
+        newState.counter = 50L;
+        harness.setStateForKey("state", Row.of("Alice"), newState);
+
+        state = harness.getStateForKey("state", Row.of("Alice"));
+        assertThat(state.counter).isEqualTo(50L);
+
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        assertThat(harness.getOutput().get(2)).isEqualTo(Row.of("Alice", 51L));
+
+        harness.close();
+    }
+
+    @Test
+    void testInvalidStateNameInWithInitialState() {
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                                        .withPartitionBy("input", "id")
+                                        .withInitialStateForKey(
+                                                "nonExistentState", Row.of(1), "value")
+                                        .build());
+
+        assertThat(exception.getMessage()).contains("Unknown state");
+        assertThat(exception.getMessage()).contains("nonExistentState");
+        assertThat(exception.getMessage()).contains("Available states");
+        assertThat(exception.getMessage()).contains("state");
+    }
+
+    // -------------------------------------------------------------------------
+    // Partition Key Validation Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testPartitionKeyValidationWrongArity() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> harness.getStateForKey("state", Row.of("Alice", "extra")));
+        assertThat(exception.getMessage()).contains("arity 2");
+        assertThat(exception.getMessage()).contains("expected arity 1");
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationWrongType() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        Exception exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> harness.getStateForKey("state", Row.of(123)));
+        assertThat(exception.getMessage()).contains("Integer");
+        assertThat(exception.getMessage()).contains("name");
+        assertThat(exception.getMessage()).contains("String");
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnSetState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        PTFWithValueState.CounterState state = new PTFWithValueState.CounterState();
+        state.counter = 1L;
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.setStateForKey("state", Row.of(1, 2), state));
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnClearAllStates() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.clearAllStatesForKey(Row.of("a", "b")));
+
+        harness.close();
+    }
+
+    @Test
+    void testPartitionKeyValidationOnClearState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> harness.clearStateForKey("state", Row.of(42)));
+
+        harness.close();
     }
 }

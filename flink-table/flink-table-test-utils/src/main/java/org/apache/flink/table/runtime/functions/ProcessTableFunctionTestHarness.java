@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
-import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.functions.FunctionContext;
@@ -31,12 +31,15 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -47,6 +50,7 @@ import org.apache.flink.util.Collector;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -56,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,16 +90,16 @@ import static org.apache.flink.util.Preconditions.checkState;
 @PublicEvolving
 public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
-    /** Holds input and output converters for a table argument. */
-    private static class ConverterPair {
-        final DataStructureConverter<Object, Object> input;
-        final DataStructureConverter<Object, Object> output;
+    /** Holds converters for transforming table argument input rows. */
+    private static class TableArgumentConverters {
+        final DataStructureConverter<Object, Object> toNamedRow;
+        final DataStructureConverter<Object, Object> toEvalArgument;
 
-        ConverterPair(
-                DataStructureConverter<Object, Object> input,
-                DataStructureConverter<Object, Object> output) {
-            this.input = input;
-            this.output = output;
+        TableArgumentConverters(
+                DataStructureConverter<Object, Object> toNamedRow,
+                DataStructureConverter<Object, Object> toEvalArgument) {
+            this.toNamedRow = toNamedRow;
+            this.toEvalArgument = toEvalArgument;
         }
     }
 
@@ -103,6 +108,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final List<OUT> output;
     private boolean isOpen;
     private final HarnessCollector collector;
+    private final TestHarnessStateManager stateManager;
 
     private final String defaultTableArgument;
     private final Method evalMethod;
@@ -110,10 +116,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     private final Map<String, ArgumentInfo> argumentsByName;
     private final boolean isSingleTableFunction;
-    private final Map<String, Object> scalarArgumentValues;
 
     private boolean hasTableArguments = false;
-    private final Map<String, ConverterPair> argumentConverters;
+    private final Map<String, TableArgumentConverters> argumentConverters;
     private final DataStructureConverter<Object, Object> harnessOutputConverter;
 
     private ProcessTableFunctionTestHarness(
@@ -121,17 +126,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             FunctionContext functionContext,
             Method evalMethod,
             List<ArgumentInfo> arguments,
-            Map<String, Object> scalarArgumentValues,
-            Map<String, ConverterPair> argumentConverters,
-            DataStructureConverter<Object, Object> harnessOutputConverter)
+            Map<String, TableArgumentConverters> argumentConverters,
+            DataStructureConverter<Object, Object> harnessOutputConverter,
+            TestHarnessStateManager stateManager)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
         this.evalMethod = evalMethod;
         this.arguments = arguments;
-        this.scalarArgumentValues = scalarArgumentValues;
         this.argumentConverters = argumentConverters;
         this.harnessOutputConverter = harnessOutputConverter;
+        this.stateManager = stateManager;
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
@@ -143,13 +148,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        final List<ArgumentInfo> tableArguments = new ArrayList<>();
-        for (ArgumentInfo arg : arguments) {
-            if (arg.isTableArgument) {
-                tableArguments.add(arg);
-                this.hasTableArguments = true;
-            }
-        }
+        final List<TableArgumentInfo> tableArguments = ArgumentInfo.filterTableArguments(arguments);
+        this.hasTableArguments = !tableArguments.isEmpty();
 
         if (tableArguments.size() == 1) {
             this.defaultTableArgument = tableArguments.get(0).name;
@@ -213,11 +213,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         checkState(isOpen, "Harness not open");
         checkNotNull(tableArgument, "tableArgument must not be null");
 
-        ArgumentInfo tableArg = argumentsByName.get(tableArgument);
-        if (tableArg == null) {
+        ArgumentInfo arg = argumentsByName.get(tableArgument);
+        if (arg == null) {
             throw new IllegalArgumentException("Unknown table argument: " + tableArgument);
         }
-        invokeEval(tableArg, row);
+        if (!(arg instanceof TableArgumentInfo)) {
+            throw new IllegalArgumentException("'" + tableArgument + "' is not a table argument");
+        }
+        invokeEval((TableArgumentInfo) arg, row);
     }
 
     /** Process a single element for a specific table argument. */
@@ -250,7 +253,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             + "Use processElement() or processElementForTable() instead.");
         }
 
-        Object[] args = arguments.stream().map(arg -> scalarArgumentValues.get(arg.name)).toArray();
+        Object[] args = arguments.stream().map(arg -> ((ScalarArgumentInfo) arg).value).toArray();
 
         try {
             evalMethod.invoke(function, args);
@@ -270,43 +273,69 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         output.clear();
     }
 
-    /**
-     * Given a target table argument and a row to process, construct the right set of arguments for
-     * the PTF's eval function and attempt to invoke it.
-     */
-    private void invokeEval(ArgumentInfo activeTableArg, Row activeRow) throws Exception {
-        // Set collector context so it can prepend columns if needed
-        collector.setContext(activeTableArg, activeRow);
+    /** Get state for a specific partition key. */
+    public <T> T getStateForKey(String stateName, Row partitionKey) {
+        return stateManager.getStateForKey(stateName, partitionKey);
+    }
+
+    /** Set state for a specific partition key. */
+    public void setStateForKey(String stateName, Row partitionKey, Object state) throws Exception {
+        stateManager.setStateForKey(stateName, partitionKey, state);
+    }
+
+    /** Get all partition keys that have a specific state entry. */
+    public Set<Row> getKeysForState(String stateName) {
+        return stateManager.getKeysForState(stateName);
+    }
+
+    /** Get all state values for a state name across all partition keys. */
+    public <T> Map<Row, T> getStateForAllKeys(String stateName) {
+        return stateManager.getStateForAllKeys(stateName);
+    }
+
+    /** Clear all state for a given partition key. */
+    public void clearAllStatesForKey(Row partitionKey) {
+        stateManager.clearAllStatesForKey(partitionKey);
+    }
+
+    /** Clear specific state entry for a given partition key. */
+    public void clearStateForKey(String stateName, Row partitionKey) {
+        stateManager.clearStateForKey(stateName, partitionKey);
+    }
+
+    private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
+        TableArgumentConverters converters = argumentConverters.get(activeTableArg.name);
+
+        RowData rowData = (RowData) converters.toNamedRow.toInternal(activeRow);
+        Row namedRow = (Row) converters.toNamedRow.toExternal(rowData);
+        Object evalArgument = converters.toEvalArgument.toExternal(rowData);
+
+        collector.setContext(activeTableArg, namedRow);
+
+        Row partitionKey = extractPartitionKey(activeTableArg, namedRow);
+        Map<String, Object> stateMap = stateManager.loadStateForKey(partitionKey);
 
         Object[] args = new Object[arguments.size()];
+        int i = 0;
 
-        for (int i = 0; i < arguments.size(); i++) {
-            ArgumentInfo arg = arguments.get(i);
-
-            if (arg.isTableArgument && arg.name.equals(activeTableArg.name)) {
-                // If the argument is the active table argument, first convert the input row
-                // to an internal RowData type, and then convert the RowData to type that the
-                // argument expects. For Rows, this will structure the Row based on the table
-                // argument structure. Otherwise, for POJOs, it will pass the expected POJO to eval.
-
-                ConverterPair pair = argumentConverters.get(arg.name);
-
-                args[i] = pair.output.toExternalOrNull(pair.input.toInternalOrNull(activeRow));
-
-            } else if (arg.isScalar) {
-                args[i] = scalarArgumentValues.get(arg.name);
-
-            } else if (arg.isTableArgument) {
-                // Inactive table arguments receive null
-                args[i] = null;
-            } else {
-                throw new IllegalStateException(
-                        "Unexpected argument type at position " + i + ": " + arg.name);
+        for (ArgumentInfo arg : arguments) {
+            if (arg instanceof StateArgumentInfo) {
+                args[i++] = stateMap.get(arg.name);
+            } else if (arg instanceof TableArgumentInfo) {
+                TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                if (tableArg.name.equals(activeTableArg.name)) {
+                    args[i++] = evalArgument;
+                } else {
+                    args[i++] = null;
+                }
+            } else if (arg instanceof ScalarArgumentInfo) {
+                args[i++] = ((ScalarArgumentInfo) arg).value;
             }
         }
 
         try {
             evalMethod.invoke(function, args);
+            stateManager.updateStateForKey(partitionKey, stateMap);
         } catch (InvocationTargetException e) {
             String partitionInfo =
                     activeTableArg.partitionColumnNames != null
@@ -323,6 +352,16 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
+    private Row extractPartitionKey(TableArgumentInfo tableArg, Row row) {
+        if (tableArg.partitionColumnNames == null || tableArg.partitionColumnNames.length == 0) {
+            return Row.of();
+        }
+
+        Object[] keyValues =
+                Arrays.stream(tableArg.partitionColumnNames).map(row::getField).toArray();
+        return Row.of(keyValues);
+    }
+
     /** Collector implementation that stores output in the harness. */
     private class HarnessCollector implements Collector<OUT> {
         private ArgumentInfo activeTableArg;
@@ -337,10 +376,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public void collect(OUT record) {
             OUT finalRecord;
 
-            if (activeTableArg == null || !activeTableArg.isTableArgument) {
+            if (activeTableArg == null || !(activeTableArg instanceof TableArgumentInfo)) {
                 finalRecord = record;
             } else {
-                switch (activeTableArg.prependStrategy) {
+                TableArgumentInfo tableArg = (TableArgumentInfo) activeTableArg;
+                switch (tableArg.prependStrategy) {
                     case ALL_COLUMNS:
                         finalRecord = prependAllColumns(record);
                         break;
@@ -352,7 +392,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         break;
                     default:
                         throw new IllegalStateException(
-                                "Unknown prepend strategy: " + activeTableArg.prependStrategy);
+                                "Unknown prepend strategy: " + tableArg.prependStrategy);
                 }
             }
 
@@ -384,8 +424,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             int totalPartitionKeyCount = 0;
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    totalPartitionKeyCount += arg.partitionColumnNames.length;
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                        totalPartitionKeyCount += tableArg.partitionColumnNames.length;
+                    }
                 }
             }
 
@@ -394,19 +437,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             Row result = new Row(ptfRow.getKind(), totalArity);
 
-            // Extract partition key values from active row
-            Object[] partitionKeyValues = new Object[activeTableArg.partitionColumnNames.length];
-            for (int i = 0; i < activeTableArg.partitionColumnNames.length; i++) {
-                String columnName = activeTableArg.partitionColumnNames[i];
-                int columnIndex = getFieldIndex(activeTableArg.dataType, columnName);
+            TableArgumentInfo activeTableInfo = (TableArgumentInfo) activeTableArg;
+            Object[] partitionKeyValues = new Object[activeTableInfo.partitionColumnNames.length];
+            for (int i = 0; i < activeTableInfo.partitionColumnNames.length; i++) {
+                String columnName = activeTableInfo.partitionColumnNames[i];
+                int columnIndex = getFieldIndex(activeTableInfo.dataType, columnName);
                 partitionKeyValues[i] = activeRow.getField(columnIndex);
             }
 
             int resultIndex = 0;
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    for (int i = 0; i < arg.partitionColumnNames.length; i++) {
-                        result.setField(resultIndex++, partitionKeyValues[i]);
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                        for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
+                            result.setField(resultIndex++, partitionKeyValues[i]);
+                        }
                     }
                 }
             }
@@ -496,6 +542,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         private final Map<String, ScalarArgumentConfiguration> scalarArgs = new HashMap<>();
         private final Map<String, TableArgumentConfiguration> tableArgs = new HashMap<>();
         private final Map<String, PartitionConfiguration> partitionConfigs = new HashMap<>();
+        private final Map<String, StateArgumentConfiguration> stateArgs = new HashMap<>();
 
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
             this.functionClass = checkNotNull(functionClass, "functionClass must not be null");
@@ -568,6 +615,20 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return this;
         }
 
+        /** Sets initial state for a state parameter. */
+        public Builder<OUT> withInitialStateForKey(
+                String stateName, Row partitionKey, Object state) {
+            checkNotNull(stateName, "stateName must not be null");
+            checkNotNull(partitionKey, "partitionKey must not be null");
+            checkNotNull(state, "state must not be null");
+
+            stateArgs
+                    .computeIfAbsent(stateName, k -> new StateArgumentConfiguration())
+                    .initialValues
+                    .put(partitionKey, state);
+            return this;
+        }
+
         // ---------------------------------------------------------------------
         // Partitioning
         // ---------------------------------------------------------------------
@@ -610,6 +671,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public ProcessTableFunctionTestHarness<OUT> build() throws Exception {
             ProcessTableFunction<OUT> function = instantiateFunction();
 
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
             DataTypeFactory dataTypeFactory = createDataTypeFactory();
             TypeInference baseTypeInference = function.getTypeInference(dataTypeFactory);
             TypeInference systemTypeInference =
@@ -618,21 +681,42 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             List<ArgumentInfo> arguments =
                     extractAndValidateTypeInference(function, systemTypeInference);
 
-            FunctionContext functionContext =
-                    new FunctionContext(null, Thread.currentThread().getContextClassLoader(), null);
+            FunctionContext functionContext = new FunctionContext(null, classLoader, null);
 
             Method evalMethod = findEvalMethod();
 
             validateEvalMethodSupported(evalMethod, arguments);
             validatePartitionConsistency(arguments);
+            validateInitialStateKeys(arguments);
 
-            Map<String, ConverterPair> argumentConverters = new HashMap<>();
-            createConverters(arguments, argumentConverters);
+            Map<String, TableArgumentConverters> argumentConverters = new HashMap<>();
+            Map<String, StateConverter> stateConverters = new HashMap<>();
+            createConverters(arguments, argumentConverters, stateConverters, classLoader);
 
-            // Derive output schema using SystemTypeInference (includes deduplication)
+            // Create state manager
+            List<StateArgumentInfo> stateArguments = ArgumentInfo.filterStateArguments(arguments);
+            TestHarnessStateManager stateManager =
+                    new TestHarnessStateManager(
+                            stateArguments, stateConverters, extractPartitionKeyInfo(arguments));
+
+            // Populate initial state
+            for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
+                String stateName = entry.getKey();
+                for (Map.Entry<Row, Object> stateEntry :
+                        entry.getValue().initialValues.entrySet()) {
+                    stateManager.setStateForKey(
+                            stateName, stateEntry.getKey(), stateEntry.getValue());
+                }
+            }
+
+            // Extract table arguments for output type derivation
+            // SystemTypeInference needs table semantics for pass-through column deduplication
+            List<TableArgumentInfo> tableArgs = ArgumentInfo.filterTableArguments(arguments);
+
+            // Derive output schema using SystemTypeInference
             DataType derivedOutputType =
                     deriveOutputTypeFromSystemInference(
-                            function, dataTypeFactory, systemTypeInference, arguments);
+                            function, dataTypeFactory, systemTypeInference, tableArgs);
 
             // Create output converter for PTF emissions
             DataStructureConverter<Object, Object> harnessOutputConverter =
@@ -643,23 +727,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     functionContext,
                     evalMethod,
                     arguments,
-                    extractScalarValues(arguments),
                     argumentConverters,
-                    harnessOutputConverter);
-        }
-
-        /** Extracts scalar values from configs, creating a map keyed by argument name. */
-        private Map<String, Object> extractScalarValues(List<ArgumentInfo> arguments) {
-            Map<String, Object> values = new HashMap<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg.isScalar) {
-                    ScalarArgumentConfiguration config = scalarArgs.get(arg.name);
-                    if (config != null) {
-                        values.put(arg.name, config.value);
-                    }
-                }
-            }
-            return values;
+                    harnessOutputConverter,
+                    stateManager);
         }
 
         /**
@@ -675,58 +745,60 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /**
-         * Creates and initializes data structure converters for all table arguments.
+         * Creates and initializes converters for all table and state arguments.
          *
-         * <p>For Row types, both input and output converters are the same (between Row and
-         * RowData).
-         *
-         * <p>For structured types, input converter uses Row types (Row to RowData), and the output
-         * converter uses the structured type.
+         * <p>For table arguments with Row types, both converters are the same (between Row and
+         * RowData). For structured types, toNamedRow uses Row type (Row to RowData), and
+         * toEvalArgument uses the structured type.
          */
         private void createConverters(
-                List<ArgumentInfo> arguments, Map<String, ConverterPair> argumentConverters) {
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                List<ArgumentInfo> arguments,
+                Map<String, TableArgumentConverters> argumentConverters,
+                Map<String, StateConverter> stateConverters,
+                ClassLoader classLoader)
+                throws Exception {
 
-            for (ArgumentInfo arg : arguments) {
-                if (arg.isTableArgument) {
-                    String converterKey = arg.name;
+            for (StateArgumentInfo stateArg : ArgumentInfo.filterStateArguments(arguments)) {
+                StateConverter converter = createStateConverter(stateArg.dataType, classLoader);
+                stateConverters.put(stateArg.name, converter);
+            }
 
-                    LogicalType logicalType = arg.dataType.getLogicalType();
-                    boolean isStructuredType =
-                            logicalType instanceof StructuredType
-                                    && ((StructuredType) logicalType)
-                                            .getImplementationClass()
-                                            .isPresent();
+            for (TableArgumentInfo tableArg : ArgumentInfo.filterTableArguments(arguments)) {
+                String converterKey = tableArg.name;
 
-                    if (isStructuredType) {
-                        StructuredType structuredType = (StructuredType) logicalType;
-                        List<RowType.RowField> rowFields = new ArrayList<>();
-                        for (StructuredType.StructuredAttribute attr :
-                                structuredType.getAttributes()) {
-                            rowFields.add(new RowType.RowField(attr.getName(), attr.getType()));
-                        }
-                        RowType rowType = new RowType(logicalType.isNullable(), rowFields);
-                        DataType rowDataType = TypeConversions.fromLogicalToDataType(rowType);
+                LogicalType logicalType = tableArg.dataType.getLogicalType();
+                boolean isStructuredType =
+                        logicalType instanceof StructuredType
+                                && ((StructuredType) logicalType)
+                                        .getImplementationClass()
+                                        .isPresent();
 
-                        DataStructureConverter<Object, Object> inputConverter =
-                                DataStructureConverters.getConverter(rowDataType);
-                        inputConverter.open(classLoader);
-
-                        DataStructureConverter<Object, Object> outputConverter =
-                                DataStructureConverters.getConverter(arg.dataType);
-                        outputConverter.open(classLoader);
-
-                        argumentConverters.put(
-                                converterKey, new ConverterPair(inputConverter, outputConverter));
-                    } else {
-                        // For Row types, input and output converters are the same
-                        DataStructureConverter<Object, Object> converter =
-                                DataStructureConverters.getConverter(arg.dataType);
-                        converter.open(classLoader);
-
-                        argumentConverters.put(
-                                converterKey, new ConverterPair(converter, converter));
+                if (isStructuredType) {
+                    StructuredType structuredType = (StructuredType) logicalType;
+                    List<RowType.RowField> rowFields = new ArrayList<>();
+                    for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
+                        rowFields.add(new RowType.RowField(attr.getName(), attr.getType()));
                     }
+                    RowType rowType = new RowType(logicalType.isNullable(), rowFields);
+                    DataType rowDataType = TypeConversions.fromLogicalToDataType(rowType);
+
+                    DataStructureConverter<Object, Object> toNamedRow =
+                            DataStructureConverters.getConverter(rowDataType);
+                    toNamedRow.open(classLoader);
+
+                    DataStructureConverter<Object, Object> toEvalArgument =
+                            DataStructureConverters.getConverter(tableArg.dataType);
+                    toEvalArgument.open(classLoader);
+
+                    argumentConverters.put(
+                            converterKey, new TableArgumentConverters(toNamedRow, toEvalArgument));
+                } else {
+                    DataStructureConverter<Object, Object> converter =
+                            DataStructureConverters.getConverter(tableArg.dataType);
+                    converter.open(classLoader);
+
+                    argumentConverters.put(
+                            converterKey, new TableArgumentConverters(converter, converter));
                 }
             }
         }
@@ -757,8 +829,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /**
-         * Validates that the eval() method doesn't use unsupported features. Temporary, until state
-         * and context is supported.
+         * Validates that the eval() method doesn't use unsupported features. Temporary, until
+         * context is supported.
          */
         private void validateEvalMethodSupported(Method evalMethod, List<ArgumentInfo> arguments) {
             Parameter[] parameters = evalMethod.getParameters();
@@ -774,34 +846,32 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                             + "Found Context parameter at position %d in eval() method. ",
                                     i));
                 }
-
-                if (param.isAnnotationPresent(StateHint.class)) {
-                    throw new IllegalStateException(
-                            String.format(
-                                    "ProcessTableFunctionTestHarness does not yet support state parameters. "
-                                            + "Found @StateHint parameter at position %d in eval() method. ",
-                                    i));
-                }
             }
 
             if (parameters.length != arguments.size()) {
+                long stateCount = ArgumentInfo.filterStateArguments(arguments).size();
+                long nonStateCount = arguments.size() - stateCount;
                 throw new IllegalStateException(
                         String.format(
-                                "Parameter count mismatch: eval() has %d parameters but only %d arguments were extracted. "
-                                        + "This may indicate missing @ArgumentHint annotations.",
-                                parameters.length, arguments.size()));
+                                "Parameter count mismatch: eval() has %d parameters but expected %d "
+                                        + "(%d state + %d table/scalar arguments). "
+                                        + "eval() signature: %s. "
+                                        + "This may indicate missing @ArgumentHint or @StateHint annotations.",
+                                parameters.length,
+                                arguments.size(),
+                                stateCount,
+                                nonStateCount,
+                                evalMethod));
             }
 
-            for (int i = 0; i < parameters.length; i++) {
+            for (int i = 0; i < arguments.size(); i++) {
                 Parameter param = parameters[i];
                 Class<?> paramType = param.getType();
                 ArgumentInfo arg = arguments.get(i);
 
-                if (arg.isScalar) {
-                    ScalarArgumentConfiguration config = scalarArgs.get(arg.name);
-                    if (config != null
-                            && config.value != null
-                            && !paramType.isAssignableFrom(config.value.getClass())) {
+                if (arg instanceof ScalarArgumentInfo) {
+                    Object value = ((ScalarArgumentInfo) arg).value;
+                    if (value != null && !paramType.isAssignableFrom(value.getClass())) {
                         throw new IllegalStateException(
                                 String.format(
                                         "Type mismatch for scalar argument '%s' at position %d: "
@@ -809,7 +879,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                         arg.name,
                                         i,
                                         paramType.getName(),
-                                        config.value.getClass().getName()));
+                                        value.getClass().getName()));
                     }
                 }
             }
@@ -821,10 +891,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
          * matching data types.
          */
         private void validatePartitionConsistency(List<ArgumentInfo> arguments) {
-            final List<ArgumentInfo> partitionedTables = new ArrayList<>();
+            final List<TableArgumentInfo> partitionedTables = new ArrayList<>();
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    partitionedTables.add(arg);
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                        partitionedTables.add(tableArg);
+                    }
                 }
             }
 
@@ -832,11 +905,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            final ArgumentInfo first = partitionedTables.get(0);
+            final TableArgumentInfo first = partitionedTables.get(0);
             final int expectedPartitionColumnCount = first.partitionColumnNames.length;
 
             for (int i = 1; i < partitionedTables.size(); i++) {
-                ArgumentInfo current = partitionedTables.get(i);
+                TableArgumentInfo current = partitionedTables.get(i);
 
                 if (current.partitionColumnNames.length != expectedPartitionColumnCount) {
                     throw new IllegalArgumentException(
@@ -876,17 +949,77 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        private DataType extractPartitionColumnType(ArgumentInfo arg, String columnName) {
-            if (!(arg.dataType instanceof FieldsDataType)) {
+        private void validateInitialStateKeys(List<ArgumentInfo> arguments) {
+            if (stateArgs.isEmpty()) {
+                return;
+            }
+
+            // All partitioned tables share the same partition key shape (ensured by
+            // validatePartitionConsistency()), so any one suffices for validation.
+            Optional<TableArgumentInfo> partitionedTable =
+                    arguments.stream()
+                            .filter(arg -> arg instanceof TableArgumentInfo)
+                            .map(arg -> (TableArgumentInfo) arg)
+                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .findFirst();
+
+            if (partitionedTable.isEmpty()) {
+                // In cases of PTFs with OPTIONAL_PARTITION_BY and harness setups with no partition
+                // setup, all data shares the same Row.of() key, so there is no schema to validate
+                return;
+            }
+
+            TableArgumentInfo table = partitionedTable.get();
+            int expectedArity = table.partitionColumnNames.length;
+            LogicalType[] expectedTypes =
+                    Arrays.stream(table.partitionColumnNames)
+                            .map(col -> extractPartitionColumnType(table, col).getLogicalType())
+                            .toArray(LogicalType[]::new);
+
+            for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
+                for (Row key : entry.getValue().initialValues.keySet()) {
+                    if (key.getArity() != expectedArity) {
+                        throw new IllegalArgumentException(
+                                String.format(
+                                        "Initial state key '%s' for state '%s' has arity %d, "
+                                                + "but partition key has arity %d.",
+                                        key, entry.getKey(), key.getArity(), expectedArity));
+                    }
+
+                    for (int i = 0; i < expectedArity; i++) {
+                        Object value = key.getField(i);
+                        Class<?> expectedClass = expectedTypes[i].getDefaultConversion();
+                        if (value != null && !expectedClass.isInstance(value)) {
+                            throw new IllegalArgumentException(
+                                    String.format(
+                                            "Initial state key '%s' for state '%s' has type %s "
+                                                    + "at position %d, but partition column '%s' "
+                                                    + "expects %s.",
+                                            key,
+                                            entry.getKey(),
+                                            value.getClass().getSimpleName(),
+                                            i,
+                                            table.partitionColumnNames[i],
+                                            expectedClass.getSimpleName()));
+                        }
+                    }
+                }
+            }
+        }
+
+        private DataType extractPartitionColumnType(TableArgumentInfo tableArg, String columnName) {
+            if (!(tableArg.dataType instanceof FieldsDataType)) {
                 throw new IllegalStateException(
                         String.format(
                                 "Cannot extract data type for partition column '%s' of argument '%s': "
                                         + "argument data type is not a FieldsDataType (actual: %s)",
-                                columnName, arg.name, arg.dataType.getClass().getSimpleName()));
+                                columnName,
+                                tableArg.name,
+                                tableArg.dataType.getClass().getSimpleName()));
             }
 
-            FieldsDataType fieldsDataType = (FieldsDataType) arg.dataType;
-            List<String> fieldNames = getFieldNames(arg.dataType);
+            FieldsDataType fieldsDataType = (FieldsDataType) tableArg.dataType;
+            List<String> fieldNames = getFieldNames(tableArg.dataType);
             List<DataType> fieldDataTypes = fieldsDataType.getChildren();
 
             int fieldIndex = fieldNames.indexOf(columnName);
@@ -897,7 +1030,32 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             throw new IllegalStateException(
                     String.format(
                             "Partition column '%s' not found in argument '%s'",
-                            columnName, arg.name));
+                            columnName, tableArg.name));
+        }
+
+        private TestHarnessStateManager.PartitionKeyInfo extractPartitionKeyInfo(
+                List<ArgumentInfo> arguments) {
+            // All partitioned tables share the same partition key shape (ensured by
+            // validatePartitionConsistency()), so any one suffices.
+            Optional<TableArgumentInfo> partitionedTable =
+                    arguments.stream()
+                            .filter(arg -> arg instanceof TableArgumentInfo)
+                            .map(arg -> (TableArgumentInfo) arg)
+                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .findFirst();
+
+            if (partitionedTable.isEmpty()) {
+                return new TestHarnessStateManager.PartitionKeyInfo(0, null, null);
+            }
+
+            TableArgumentInfo table = partitionedTable.get();
+            String[] columnNames = table.partitionColumnNames;
+            LogicalType[] columnTypes =
+                    Arrays.stream(columnNames)
+                            .map(col -> extractPartitionColumnType(table, col).getLogicalType())
+                            .toArray(LogicalType[]::new);
+            return new TestHarnessStateManager.PartitionKeyInfo(
+                    columnNames.length, columnNames, columnTypes);
         }
 
         // ---------------------------------------------------------------------
@@ -911,7 +1069,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
          * table argument rules, static argument trait validation, etc.
          */
         private List<ArgumentInfo> extractAndValidateTypeInference(
-                ProcessTableFunction<OUT> function, TypeInference systemTypeInference) {
+                ProcessTableFunction<OUT> function, TypeInference systemTypeInference)
+                throws Exception {
 
             Optional<List<StaticArgument>> staticArgsOpt = systemTypeInference.getStaticArguments();
             if (staticArgsOpt.isEmpty()) {
@@ -928,7 +1087,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
 
-            List<ArgumentInfo> arguments = new ArrayList<>();
+            List<ArgumentInfo> tableAndScalarArguments = new ArrayList<>();
 
             for (StaticArgument staticArg : userArgs) {
                 boolean isScalar = staticArg.getTraits().contains(StaticArgumentTrait.SCALAR);
@@ -940,7 +1099,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
                 if (isScalar || isTableArg) {
                     ArgumentInfo argInfo = buildArgumentInfo(staticArg);
-                    arguments.add(argInfo);
+                    tableAndScalarArguments.add(argInfo);
                 } else {
                     throw new IllegalStateException(
                             "Unknown argument type for StaticArgument. "
@@ -948,9 +1107,98 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
 
-            validateArgumentConfiguration(arguments);
+            validateArgumentConfiguration(tableAndScalarArguments);
 
-            return arguments;
+            // Extract state arguments from TypeInference
+            List<StateArgumentInfo> stateArguments = new ArrayList<>();
+
+            Map<String, StateTypeStrategy> stateStrategies =
+                    systemTypeInference.getStateTypeStrategies();
+
+            DataTypeFactory dataTypeFactory = createDataTypeFactory();
+
+            List<TableArgumentInfo> tableArgs =
+                    ArgumentInfo.filterTableArguments(tableAndScalarArguments);
+            List<DataType> argumentDataTypes = new ArrayList<>();
+            for (TableArgumentInfo tArg : tableArgs) {
+                argumentDataTypes.add(tArg.dataType);
+            }
+            Map<Integer, TableSemantics> tableSemanticsMap = new HashMap<>();
+            for (int i = 0; i < tableArgs.size(); i++) {
+                TableArgumentInfo tArg = tableArgs.get(i);
+                int[] partitionIndices = getPartitionColumnIndices(tArg);
+                tableSemanticsMap.put(
+                        i, new TestHarnessTableSemantics(tArg.dataType, partitionIndices));
+            }
+
+            TestHarnessCallContext callContext = new TestHarnessCallContext();
+            callContext.typeFactory = dataTypeFactory;
+            callContext.argumentDataTypes = argumentDataTypes;
+            callContext.tableSemantics = tableSemanticsMap;
+            callContext.functionDefinition = function;
+            callContext.name = function.getClass().getSimpleName();
+
+            for (Map.Entry<String, StateTypeStrategy> entry : stateStrategies.entrySet()) {
+                String stateName = entry.getKey();
+                StateTypeStrategy strategy = entry.getValue();
+
+                Optional<DataType> dataTypeOpt = strategy.inferType(callContext);
+                if (dataTypeOpt.isEmpty()) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Could not infer data type for state parameter '%s'",
+                                    stateName));
+                }
+                DataType stateDataType = dataTypeOpt.get();
+
+                Optional<Duration> ttlOpt = strategy.getTimeToLive(callContext);
+                stateArguments.add(
+                        new StateArgumentInfo(stateName, stateDataType, ttlOpt.orElse(null)));
+            }
+
+            List<ArgumentInfo> allArguments = new ArrayList<>();
+            allArguments.addAll(stateArguments);
+            allArguments.addAll(tableAndScalarArguments);
+
+            return allArguments;
+        }
+
+        /** Creates appropriate StateConverter for the given state data type. */
+        private StateConverter createStateConverter(DataType stateDataType, ClassLoader classLoader)
+                throws Exception {
+            LogicalType logicalType = stateDataType.getLogicalType();
+
+            if (logicalType instanceof ArrayType) {
+                ArrayType arrayType = (ArrayType) logicalType;
+                DataType elementType = stateDataType.getChildren().get(0);
+                DataStructureConverter<Object, Object> elementConverter =
+                        DataStructureConverters.getConverter(elementType);
+                elementConverter.open(classLoader);
+                return new ListViewStateConverter(arrayType, elementConverter);
+            } else if (logicalType instanceof MapType) {
+                MapType mapType = (MapType) logicalType;
+                DataType keyType = stateDataType.getChildren().get(0);
+                DataType valueType = stateDataType.getChildren().get(1);
+                DataStructureConverter<Object, Object> keyConverter =
+                        DataStructureConverters.getConverter(keyType);
+                DataStructureConverter<Object, Object> valueConverter =
+                        DataStructureConverters.getConverter(valueType);
+                keyConverter.open(classLoader);
+                valueConverter.open(classLoader);
+                return new MapViewStateConverter(mapType, keyConverter, valueConverter);
+            } else if (logicalType instanceof RowType) {
+                RowType rowType = (RowType) logicalType;
+                DataStructureConverter<Object, Object> converter =
+                        DataStructureConverters.getConverter(stateDataType);
+                converter.open(classLoader);
+                return new RowStateConverter(converter, rowType);
+            } else {
+                DataStructureConverter<Object, Object> converter =
+                        DataStructureConverters.getConverter(stateDataType);
+                converter.open(classLoader);
+                Class<?> stateClass = stateDataType.getConversionClass();
+                return new StructuredTypeStateConverter(converter, stateClass);
+            }
         }
 
         /** Checks if an argument name is a system-reserved argument. */
@@ -1034,8 +1282,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             boolean hasPassColumnsThrough =
                     staticArg.getTraits().contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH);
 
-            return new ArgumentInfo(
-                    name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
+            if (primaryTrait == ArgumentTrait.SCALAR) {
+                ScalarArgumentConfiguration config = scalarArgs.get(name);
+                Object value = config != null ? config.value : null;
+                return new ScalarArgumentInfo(name, dataType, value);
+            } else {
+                return new TableArgumentInfo(
+                        name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
+            }
         }
 
         private ArgumentTrait extractPrimaryTrait(EnumSet<StaticArgumentTrait> staticTraits) {
@@ -1083,7 +1337,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         /** Validates scalar argument values are configured and no unknown arguments exist. */
         private void validateArgumentConfiguration(List<ArgumentInfo> arguments) {
             for (ArgumentInfo arg : arguments) {
-                if (arg.isScalar && !scalarArgs.containsKey(arg.name)) {
+                if (arg instanceof ScalarArgumentInfo && !scalarArgs.containsKey(arg.name)) {
                     throw new IllegalStateException(
                             String.format(
                                     "Missing required scalar argument '%s'. "
@@ -1137,22 +1391,20 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 ProcessTableFunction<OUT> function,
                 DataTypeFactory dataTypeFactory,
                 TypeInference systemTypeInference,
-                List<ArgumentInfo> arguments) {
+                List<TableArgumentInfo> arguments) {
 
             List<DataType> argumentDataTypes = new ArrayList<>();
-            for (ArgumentInfo arg : arguments) {
+            for (TableArgumentInfo arg : arguments) {
                 argumentDataTypes.add(arg.dataType);
             }
 
             Map<Integer, TableSemantics> tableSemanticsMap = new HashMap<>();
             for (int i = 0; i < arguments.size(); i++) {
-                ArgumentInfo arg = arguments.get(i);
-                if (arg.isTableArgument) {
-                    int[] partitionIndices = getPartitionColumnIndices(arg);
-                    TableSemantics semantics =
-                            new TestHarnessTableSemantics(arg.dataType, partitionIndices);
-                    tableSemanticsMap.put(i, semantics);
-                }
+                TableArgumentInfo arg = arguments.get(i);
+                int[] partitionIndices = getPartitionColumnIndices(arg);
+                TableSemantics semantics =
+                        new TestHarnessTableSemantics(arg.dataType, partitionIndices);
+                tableSemanticsMap.put(i, semantics);
             }
 
             TestHarnessCallContext callContext = new TestHarnessCallContext();
@@ -1174,28 +1426,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return outputTypeOpt.get();
         }
 
-        private static List<String> extractFieldNames(DataType dataType) {
-            LogicalType logicalType = dataType.getLogicalType();
-            if (logicalType instanceof RowType) {
-                return ((RowType) logicalType).getFieldNames();
-            } else if (logicalType instanceof StructuredType) {
-                return ((StructuredType) logicalType)
-                        .getAttributes().stream()
-                                .map(StructuredType.StructuredAttribute::getName)
-                                .collect(java.util.stream.Collectors.toList());
-            } else {
-                throw new IllegalStateException(
-                        "Expected RowType or StructuredType, got: "
-                                + logicalType.getClass().getSimpleName());
-            }
-        }
-
-        private int[] getPartitionColumnIndices(ArgumentInfo arg) {
+        private int[] getPartitionColumnIndices(TableArgumentInfo arg) {
             if (arg.partitionColumnNames == null || arg.partitionColumnNames.length == 0) {
                 return new int[0];
             }
 
-            List<String> fieldNames = extractFieldNames(arg.dataType);
+            List<String> fieldNames = getFieldNames(arg.dataType);
 
             int[] indices = new int[arg.partitionColumnNames.length];
             for (int i = 0; i < arg.partitionColumnNames.length; i++) {
@@ -1252,31 +1488,66 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /**
-     * Metadata for a single argument extracted from type inference.
+     * Base class for PTF eval() arguments.
      *
      * <p>Represents validated argument information combining PTF signature, type inference results,
      * and builder configuration.
      */
-    private static class ArgumentInfo {
+    private abstract static class ArgumentInfo {
         final String name;
         final DataType dataType;
+
+        ArgumentInfo(String name, DataType dataType) {
+            this.name = name;
+            this.dataType = dataType;
+        }
+
+        static List<StateArgumentInfo> filterStateArguments(List<ArgumentInfo> arguments) {
+            return arguments.stream()
+                    .filter(arg -> arg instanceof StateArgumentInfo)
+                    .map(arg -> (StateArgumentInfo) arg)
+                    .collect(Collectors.toList());
+        }
+
+        static List<TableArgumentInfo> filterTableArguments(List<ArgumentInfo> arguments) {
+            return arguments.stream()
+                    .filter(arg -> arg instanceof TableArgumentInfo)
+                    .map(arg -> (TableArgumentInfo) arg)
+                    .collect(Collectors.toList());
+        }
+
+        static List<ScalarArgumentInfo> filterScalarArguments(List<ArgumentInfo> arguments) {
+            return arguments.stream()
+                    .filter(arg -> arg instanceof ScalarArgumentInfo)
+                    .map(arg -> (ScalarArgumentInfo) arg)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    /** State parameter with TTL configuration. */
+    static class StateArgumentInfo extends ArgumentInfo {
+        final Duration ttl;
+
+        StateArgumentInfo(String name, DataType dataType, Duration ttl) {
+            super(name, dataType);
+            this.ttl = ttl;
+        }
+    }
+
+    /** Table argument with partitioning and output prepending strategy. */
+    private static class TableArgumentInfo extends ArgumentInfo {
         final String[] partitionColumnNames;
-        final boolean isScalar;
-        final boolean isTableArgument;
         final boolean isSetSemantic;
         final OutputPrependStrategy prependStrategy;
 
-        ArgumentInfo(
+        TableArgumentInfo(
                 String name,
                 DataType dataType,
                 ArgumentTrait primaryTrait,
                 String[] partitionColumnNames,
                 boolean hasPassColumnsThrough) {
-            this.name = name;
-            this.dataType = dataType;
+            super(name, dataType);
             this.partitionColumnNames = partitionColumnNames;
-            this.isScalar = (primaryTrait == ArgumentTrait.SCALAR);
-            this.isTableArgument = (primaryTrait != ArgumentTrait.SCALAR);
             this.isSetSemantic = (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE);
             this.prependStrategy =
                     hasPassColumnsThrough
@@ -1284,6 +1555,16 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             : (this.isSetSemantic && partitionColumnNames != null)
                                     ? OutputPrependStrategy.PARTITION_KEYS
                                     : OutputPrependStrategy.NONE;
+        }
+    }
+
+    /** Scalar (constant) argument. */
+    private static class ScalarArgumentInfo extends ArgumentInfo {
+        final Object value;
+
+        ScalarArgumentInfo(String name, DataType dataType, Object value) {
+            super(name, dataType);
+            this.value = value;
         }
     }
 
@@ -1308,6 +1589,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         PartitionConfiguration(String[] columnNames) {
             this.columnNames = columnNames;
+        }
+    }
+
+    private static class StateArgumentConfiguration {
+        final Map<Row, Object> initialValues;
+
+        StateArgumentConfiguration() {
+            this.initialValues = new HashMap<>();
         }
     }
 }
