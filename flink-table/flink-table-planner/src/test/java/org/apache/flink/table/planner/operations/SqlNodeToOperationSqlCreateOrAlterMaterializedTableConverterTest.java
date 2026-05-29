@@ -92,7 +92,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                         TableChange.add(Column.physical("f", DataTypes.INT())),
                         TableChange.dropConstraint("ct1"),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`, 3 AS `f`\nFROM `t1`",
+                                "SELECT a, b, c, d, a as `a1`, 3 as f FROM t1",
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`a` AS `a1`, 3 AS `f`\n"
                                         + "FROM `builtin`.`default`.`t1` AS `t1`"),
                         TableChange.reset("connector"),
@@ -112,7 +112,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                         // No explicit schema, so nullable will be used
                         TableChange.add(Column.physical("a1", DataTypes.BIGINT())),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`\nFROM `t1`",
+                                "SELECT a, b, c, d, a as `a1` FROM t1",
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`a` AS `a1`\n"
                                         + "FROM `builtin`.`default`.`t1` AS `t1`"),
                         TableChange.reset("connector"),
@@ -201,7 +201,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.add(Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `d` AS `e`, CAST('123' AS STRING) AS `f`\nFROM `t1`",
+                                "SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t1",
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t1` AS `t1`"),
                         TableChange.set("format", "json2"),

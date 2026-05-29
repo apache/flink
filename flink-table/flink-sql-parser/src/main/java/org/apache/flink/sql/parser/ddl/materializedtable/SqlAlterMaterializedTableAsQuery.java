@@ -26,6 +26,8 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -36,14 +38,33 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
 
     private final SqlNode asQuery;
 
+    private final @Nullable SqlParserPos asKeywordPos;
+
     public SqlAlterMaterializedTableAsQuery(
             SqlParserPos pos, SqlIdentifier tableName, SqlNode asQuery) {
         super(pos, tableName);
         this.asQuery = asQuery;
+        this.asKeywordPos = null;
+    }
+
+    public SqlAlterMaterializedTableAsQuery(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNode asQuery,
+            @Nullable SqlParserPos asKeywordPos) {
+        super(pos, tableName);
+        this.asQuery = asQuery;
+        this.asKeywordPos = asKeywordPos;
     }
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    /** Returns the parser position of the {@code AS} keyword, or {@code null} if not recorded. */
+    @Nullable
+    public SqlParserPos getAsKeywordPos() {
+        return asKeywordPos;
     }
 
     @Override

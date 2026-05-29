@@ -1923,6 +1923,7 @@ SqlCreate SqlCreateOrAlterMaterializedTable(Span s, boolean replace, boolean isT
     SqlNode freshness = null;
     SqlRefreshMode refreshMode = null;
     SqlNode asQuery = null;
+    SqlParserPos asKeywordPos = null;
     SqlParserPos pos = startPos;
     boolean isColumnsIdentifiersOnly = false;
     boolean isOrAlter = false;
@@ -2062,24 +2063,27 @@ SqlCreate SqlCreateOrAlterMaterializedTable(Span s, boolean replace, boolean isT
             }
         )
     ]
-    <AS>
+    <AS> { asKeywordPos = getPos(); }
     asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateOrAlterMaterializedTable(
-            startPos.plus(getPos()),
-            tableName,
-            columnList,
-            constraints,
-            watermark,
-            comment,
-            distribution,
-            partitionColumns,
-            propertyList,
-            (SqlIntervalLiteral) freshness,
-            refreshMode,
-            startMode,
-            asQuery,
-            isOrAlter);
+        final SqlCreateOrAlterMaterializedTable createMaterializedTable =
+            new SqlCreateOrAlterMaterializedTable(
+                startPos.plus(getPos()),
+                tableName,
+                columnList,
+                constraints,
+                watermark,
+                comment,
+                distribution,
+                partitionColumns,
+                propertyList,
+                (SqlIntervalLiteral) freshness,
+                refreshMode,
+                startMode,
+                asQuery,
+                isOrAlter,
+                asKeywordPos);
+        return createMaterializedTable;
     }
 }
 
@@ -2123,6 +2127,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
     SqlNodeList partSpec = SqlNodeList.EMPTY;
     SqlNode freshness = null;
     SqlNode asQuery = null;
+    SqlParserPos asKeywordPos = null;
     SqlIdentifier constraintName;
     AlterTableSchemaContext ctx = new AlterTableSchemaContext();
 }
@@ -2203,13 +2208,16 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                     propertyKeyList);
             }
         |
-        <AS>
+        <AS> { asKeywordPos = getPos(); }
             asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
             {
-                return new SqlAlterMaterializedTableAsQuery(
-                    startPos.plus(getPos()),
-                    tableIdentifier,
-                    asQuery);
+                final SqlAlterMaterializedTableAsQuery alterMaterializedTableAsQuery =
+                    new SqlAlterMaterializedTableAsQuery(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        asQuery,
+                        asKeywordPos);
+                return alterMaterializedTableAsQuery;
             }
         |
         <ADD>
@@ -2427,6 +2435,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     SqlIdentifier viewName;
     SqlCharStringLiteral comment = null;
     SqlNode query;
+    SqlParserPos asKeywordPos = null;
     SqlNodeList fieldList = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
 }
@@ -2443,10 +2452,22 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
             comment = Comment();
         }
     ]
-    <AS>
+    <AS> { asKeywordPos = getPos(); }
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
+      final SqlCreateView createView =
+              new SqlCreateView(
+                      s.pos(),
+                      viewName,
+                      fieldList,
+                      query,
+                      replace,
+                      isTemporary,
+                      ifNotExists,
+                      comment,
+                      null,
+                      asKeywordPos);
+        return createView;
     }
 }
 
@@ -2472,6 +2493,7 @@ SqlAlterView SqlAlterView() :
   SqlIdentifier viewName;
   SqlIdentifier newViewName;
   SqlNode newQuery;
+  SqlParserPos asKeywordPos = null;
 }
 {
   <ALTER> <VIEW> { startPos = getPos(); }
@@ -2483,10 +2505,12 @@ SqlAlterView SqlAlterView() :
         return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
       }
   |
-      <AS>
+      <AS> { asKeywordPos = getPos(); }
       newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
       {
-        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+        final SqlAlterViewAs alterViewAs =
+                new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery, asKeywordPos);
+        return alterViewAs;
       }
   )
 }

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.CreateTableASOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.parse.CalciteParser;
@@ -420,6 +421,15 @@ class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTestBase {
                                                         .column("f1", DataTypes.TIMESTAMP(3))
                                                         .column("f2", DataTypes.INT().notNull())
                                                         .build()))));
+    }
+
+    @Test
+    void testExplainCreateTableAs() {
+        final Operation operation = parse("EXPLAIN CREATE TABLE myTable123 AS SELECT 123");
+
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+        assertThat(((ExplainOperation) operation).getChild())
+                .isInstanceOf(CreateTableASOperation.class);
     }
 
     private Operation parseAndConvert(String sql) {

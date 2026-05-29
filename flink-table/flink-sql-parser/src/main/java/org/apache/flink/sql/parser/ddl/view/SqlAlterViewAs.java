@@ -27,6 +27,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -35,9 +36,16 @@ public class SqlAlterViewAs extends SqlAlterView {
 
     private final SqlNode newQuery;
 
-    public SqlAlterViewAs(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlNode newQuery) {
+    private final @Nullable SqlParserPos asKeywordPos;
+
+    public SqlAlterViewAs(
+            SqlParserPos pos,
+            SqlIdentifier viewIdentifier,
+            SqlNode newQuery,
+            @Nullable SqlParserPos asKeywordPos) {
         super(pos, viewIdentifier);
         this.newQuery = newQuery;
+        this.asKeywordPos = asKeywordPos;
     }
 
     @Nonnull
@@ -54,5 +62,10 @@ public class SqlAlterViewAs extends SqlAlterView {
 
     public SqlNode getNewQuery() {
         return newQuery;
+    }
+
+    @Nullable
+    public SqlParserPos getAsKeywordPos() {
+        return asKeywordPos;
     }
 }

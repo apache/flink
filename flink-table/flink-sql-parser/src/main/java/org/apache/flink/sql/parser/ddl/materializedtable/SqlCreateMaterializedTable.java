@@ -71,6 +71,8 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
 
     private final SqlNode asQuery;
 
+    private final SqlParserPos asKeywordPos;
+
     public SqlCreateMaterializedTable(
             SqlSpecialOperator operator,
             SqlParserPos pos,
@@ -85,7 +87,8 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
             @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlRefreshMode refreshMode,
             @Nullable SqlStartMode startMode,
-            SqlNode asQuery) {
+            SqlNode asQuery,
+            SqlParserPos asKeywordPos) {
         super(operator, pos, tableName, false, false, false, propertyList, comment);
         this.columnList = columnList;
         this.tableConstraints = tableConstraints;
@@ -98,6 +101,7 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
         this.refreshMode = refreshMode;
         this.startMode = startMode;
         this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
+        this.asKeywordPos = asKeywordPos;
     }
 
     @Override
@@ -151,6 +155,11 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    /** Returns the parser position of the {@code AS} keyword. */
+    public SqlParserPos getAsKeywordPos() {
+        return asKeywordPos;
     }
 
     /** Returns the column constraints plus the table constraints. */

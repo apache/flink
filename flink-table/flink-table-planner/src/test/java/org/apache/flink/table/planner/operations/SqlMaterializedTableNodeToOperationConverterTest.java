@@ -66,6 +66,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -320,6 +321,172 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("originalQueryCases")
+    void testOriginalQuery(String name, String sql, String expectedOriginalQuery) {
+        final String originalQuery =
+                createMaterializedTableOperation(sql)
+                        .getCatalogMaterializedTable()
+                        .getOriginalQuery();
+        assertThat(originalQuery).isEqualTo(expectedOriginalQuery);
+    }
+
+    private static Stream<Arguments> originalQueryCases() {
+        return Stream.of(
+                        commentHandlingCases(),
+                        lineBreakCases(),
+                        ddlPrefixTokenCases(),
+                        complexQueryShapeCases(),
+                        adversarialTextCases())
+                .flatMap(s -> s);
+    }
+
+    private static Stream<Arguments> commentHandlingCases() {
+        return Stream.of(
+                asQueryCase(
+                        "inline line comment inside the AS query is kept",
+                        "SELECT a, -- inline line comment\n b FROM t1"),
+                asQueryCase(
+                        "block comment inside the AS query is kept",
+                        "SELECT /* block comment */ * FROM t1"),
+                asQueryCase(
+                        "comment between AS and the query is kept",
+                        "-- leading comment\n SELECT * FROM t1"),
+                asQueryCase(
+                        "trailing comment after the AS query is kept",
+                        "SELECT * FROM t1 -- trailing comment"));
+    }
+
+    private static Stream<Arguments> lineBreakCases() {
+        final String query = "SELECT * FROM t1";
+        return Stream.of(
+                Arguments.of(
+                        "line comment mentioning AS before the AS keyword is dropped",
+                        "CREATE MATERIALIZED TABLE mtbl1 --AS\nAS " + query,
+                        query),
+                asQueryCase(
+                        "line comment mentioning AS between AS and the query is kept",
+                        "--AS\n" + query),
+                asQueryCase(
+                        "line comments mentioning AS in mixed case between AS and the query are kept",
+                        "--line AS\n--comment as\n--break As\n" + query),
+                Arguments.of(
+                        "blank lines and line comments between AS and the query are kept",
+                        "CREATE MATERIALIZED TABLE mtbl1 AS \n\n\n--AS\n --line\n--comment\n--break\n"
+                                + query,
+                        "--AS\n --line\n--comment\n--break\n" + query),
+                asQueryCase(
+                        "multi-line block comment between AS and the query is kept",
+                        "/* multi\n line\n comment */\n" + query),
+                asQueryCase(
+                        "multi-line block comment inside the AS query is kept",
+                        "SELECT a, /* spanning\n two lines */ b FROM t1"),
+                Arguments.of(
+                        "line comment before AS is dropped",
+                        "CREATE MATERIALIZED TABLE mtbl1\n-- note before AS\nAS " + query,
+                        query),
+                Arguments.of(
+                        "multi-line block comment before AS is dropped",
+                        "CREATE MATERIALIZED TABLE mtbl1\n/* a\n multiline\n note before AS */\nAS "
+                                + query,
+                        query),
+                Arguments.of(
+                        "multi-line DDL prefix before AS",
+                        "CREATE MATERIALIZED TABLE mtbl1 (\n"
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED\n"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem',\n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS "
+                                + query,
+                        query));
+    }
+
+    private static Stream<Arguments> ddlPrefixTokenCases() {
+        final String query = "SELECT * FROM t1";
+        return Stream.of(
+                Arguments.of(
+                        "quoted identifier", "CREATE MATERIALIZED TABLE `mtbl` AS " + query, query),
+                Arguments.of(
+                        "escaped backtick in identifier",
+                        "CREATE MATERIALIZED TABLE `m``tbl` AS " + query,
+                        query),
+                Arguments.of(
+                        "escaped backtick with comment",
+                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a' AS " + query,
+                        query),
+                Arguments.of(
+                        "escaped quote inside comment",
+                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a''b' AS " + query,
+                        query));
+    }
+
+    private static Stream<Arguments> complexQueryShapeCases() {
+        return Stream.of(
+                asQueryCase(
+                        "aggregation with GROUP BY spanning multiple lines",
+                        "SELECT a, SUM(c) AS total_spend,\n"
+                                + "COUNT(*) AS order_count\n"
+                                + "FROM t1 GROUP BY a"),
+                asQueryCase(
+                        "aggregation with indented continuation lines",
+                        "SELECT a,\n"
+                                + "       SUM(c) AS total,\n"
+                                + "       AVG(c) AS avg_c,\n"
+                                + "       COUNT(*) AS cnt\n"
+                                + "FROM t1\n"
+                                + "GROUP BY a"),
+                asQueryCase(
+                        "two-table inner join",
+                        "SELECT o.a AS oa, c.b AS customer_name, o.c\n"
+                                + "FROM t1 o\n"
+                                + "JOIN t2 c\n"
+                                + "ON o.a = c.a"),
+                asQueryCase(
+                        "three-table join",
+                        "SELECT o.a, c.b AS customer_name, p.d AS product_name\n"
+                                + "FROM t1 o\n"
+                                + "JOIN t2 c ON o.a = c.a\n"
+                                + "JOIN t3 p ON o.c = p.c"),
+                asQueryCase("cast expression", "SELECT CAST(c AS VARCHAR) AS cs, a FROM t1"));
+    }
+
+    private static Stream<Arguments> adversarialTextCases() {
+        return Stream.of(
+                asQueryCase(
+                        "CTE whose own AS must not be mistaken for the table's",
+                        "WITH q AS (SELECT a, c FROM t1 WHERE c > 0) SELECT a, c FROM q"),
+                asQueryCase("set operation", "SELECT a, b FROM t1 UNION ALL SELECT a, b FROM t2"),
+                asQueryCase(
+                        "window function over",
+                        "SELECT a, ROW_NUMBER() OVER (PARTITION BY c ORDER BY a) AS rn FROM t1"),
+                asQueryCase(
+                        "case expression",
+                        "SELECT a, CASE WHEN c > 0 THEN 'pos' ELSE 'neg' END AS s FROM t1"),
+                asQueryCase(
+                        "nested subquery",
+                        "SELECT x.a FROM (SELECT a, c FROM t1 WHERE c > 100) AS x"),
+                asQueryCase(
+                        "string literal with SQL keywords, comment markers and escaped quote",
+                        "SELECT a, '/*adldkfa*/ AS SELECT FROM -- /* not a comment */ it''s ok' AS lit FROM t1"),
+                asQueryCase(
+                        "string literal with semicolon and backtick",
+                        "SELECT 'a;b`c' AS s, a FROM t1"),
+                asQueryCase(
+                        "string literal with accented and astral characters",
+                        "SELECT 'café 🦅' AS s, a FROM t1"));
+    }
+
+    private static Arguments asQueryCase(String name, String query) {
+        return Arguments.of(name, "CREATE MATERIALIZED TABLE mtbl1 AS " + query, query);
+    }
+
     @Test
     void testCreateMaterializedTableWithUDTFQueryWithoutAlias() {
         functionCatalog.registerCatalogFunction(
@@ -572,7 +739,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @Test
     void testAlterMaterializedTableAsQuery() throws TableNotExistException {
         String sql =
-                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
+                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f\n FROM\n t3";
         Operation operation = parse(sql);
 
         assertThat(operation).isInstanceOf(AlterMaterializedTableAsQueryOperation.class);
@@ -584,7 +751,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.add(Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `d` AS `e`, CAST('123' AS STRING) AS `f`\nFROM `t3`",
+                                "SELECT a, b, c, d, d as e, cast('123' as string) as f\n FROM\n t3",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
         assertThat(operation.asSummaryString())
@@ -638,7 +805,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .containsExactly(
                         TableChange.add(Column.physical("a0", DataTypes.INT())),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `c` AS `a`\nFROM `t3`",
+                                "SELECT a, b, c, d, c as a FROM t3",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
     }
@@ -1373,7 +1540,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .comment("materialized table comment")
                 .options(Map.of("connector", "filesystem", "format", "json"))
                 .partitionKeys(List.of("a", "d"))
-                .originalQuery("SELECT *\nFROM `t1`")
+                .originalQuery("SELECT * FROM t1")
                 .expandedQuery(
                         "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
                                 + "FROM `builtin`.`default`.`t1` AS `t1`");

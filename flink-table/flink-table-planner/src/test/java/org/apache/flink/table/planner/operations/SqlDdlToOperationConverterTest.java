@@ -1459,7 +1459,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=null, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 as shop_id, 2 as user_id', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT,\n"
@@ -1491,7 +1491,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 as shop_id, 2 as user_id', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT NOT NULL,\n"
@@ -2589,6 +2589,127 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("viewOriginalQueryCases")
+    void testCreateViewOriginalQuery(String name, String sql, String expectedOriginalQuery) {
+        final Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateViewOperation.class);
+        assertThat(((CreateViewOperation) operation).getCatalogView().getOriginalQuery())
+                .isEqualTo(expectedOriginalQuery);
+    }
+
+    private static Stream<Arguments> viewOriginalQueryCases() {
+        return Stream.of(
+                        viewCommentHandlingCases(),
+                        viewLineBreakCases(),
+                        viewComplexQueryShapeCases(),
+                        viewAdversarialTextCases())
+                .flatMap(s -> s);
+    }
+
+    private static Stream<Arguments> viewCommentHandlingCases() {
+        return Stream.of(
+                viewAsQueryCase(
+                        "comments around the AS query are kept",
+                        "/* leading comment */\nSELECT 1\n/* trailing comment */"),
+                viewAsQueryCase(
+                        "block comment inside the AS query is kept",
+                        "SELECT /* inline comment */ 1"),
+                viewAsQueryCase(
+                        "trailing comment after the AS query is kept",
+                        "SELECT 1 -- trailing comment"));
+    }
+
+    private static Stream<Arguments> viewLineBreakCases() {
+        return Stream.of(
+                Arguments.of(
+                        "line comment mentioning AS before the AS keyword is dropped",
+                        "CREATE VIEW v1 --AS\nAS SELECT 1",
+                        "SELECT 1"),
+                viewAsQueryCase(
+                        "line comment mentioning AS between AS and the query is kept",
+                        "--AS\nSELECT 1"),
+                viewAsQueryCase(
+                        "line comments mentioning AS in mixed case between AS and the query are kept",
+                        "--line AS\n--comment as\n--break As\nSELECT 1"),
+                Arguments.of(
+                        "blank lines and line comments between AS and the query are kept",
+                        "CREATE VIEW v1 AS \n\n\n--AS\n --line\n--comment\n--break\nSELECT 1",
+                        "--AS\n --line\n--comment\n--break\nSELECT 1"),
+                viewAsQueryCase(
+                        "multi-line block comment between AS and the query is kept",
+                        "/* multi\n line */\nSELECT 1"),
+                Arguments.of(
+                        "multi-line block comment before AS is dropped",
+                        "CREATE VIEW v1\n/* note\n before AS */\nAS SELECT 1",
+                        "SELECT 1"),
+                Arguments.of(
+                        "column list and comment before AS are dropped",
+                        "CREATE VIEW v1 (w, x, y, z)\nCOMMENT 'a view'\nAS SELECT a, b, c, d FROM t1",
+                        "SELECT a, b, c, d FROM t1"));
+    }
+
+    private static Stream<Arguments> viewComplexQueryShapeCases() {
+        return Stream.of(
+                viewAsQueryCase(
+                        "aggregation with GROUP BY spanning multiple lines",
+                        "SELECT a, SUM(c) AS total_spend,\n"
+                                + "COUNT(*) AS order_count\n"
+                                + "FROM t1 GROUP BY a"),
+                viewAsQueryCase(
+                        "aggregation with indented continuation lines",
+                        "SELECT a,\n"
+                                + "       SUM(c) AS total,\n"
+                                + "       AVG(c) AS avg_c,\n"
+                                + "       COUNT(*) AS cnt\n"
+                                + "FROM t1\n"
+                                + "GROUP BY a"),
+                viewAsQueryCase(
+                        "two-table inner join",
+                        "SELECT o.a AS oa, c.b AS customer_name, o.c\n"
+                                + "FROM t1 o\n"
+                                + "JOIN t2 c\n"
+                                + "ON o.a = c.a"),
+                viewAsQueryCase(
+                        "three-table join",
+                        "SELECT o.a, c.b AS customer_name, p.d AS extra\n"
+                                + "FROM t1 o\n"
+                                + "JOIN t2 c ON o.a = c.a\n"
+                                + "JOIN t1 p ON o.c = p.c"),
+                viewAsQueryCase("cast expression", "SELECT CAST(c AS VARCHAR) AS cs, a FROM t1"));
+    }
+
+    private static Stream<Arguments> viewAdversarialTextCases() {
+        return Stream.of(
+                viewAsQueryCase(
+                        "CTE whose own AS must not be mistaken for the view's",
+                        "WITH q AS (SELECT a, c FROM t1 WHERE c > 0) SELECT a, c FROM q"),
+                viewAsQueryCase(
+                        "set operation", "SELECT a, b FROM t1 UNION ALL SELECT a, b FROM t2"),
+                viewAsQueryCase(
+                        "window function over",
+                        "SELECT a, ROW_NUMBER() OVER (PARTITION BY c ORDER BY a) AS rn FROM t1"),
+                viewAsQueryCase(
+                        "case expression",
+                        "SELECT a, CASE WHEN c > 0 THEN 'pos' ELSE 'neg' END AS s FROM t1"),
+                viewAsQueryCase(
+                        "nested subquery",
+                        "SELECT x.a FROM (SELECT a, c FROM t1 WHERE c > 100) AS x"),
+                viewAsQueryCase(
+                        "string literal with SQL keywords, comment markers and escaped quote",
+                        "SELECT a, 'AS SELECT FROM -- /* not a comment */ it''s ok' AS lit FROM t1"),
+                viewAsQueryCase(
+                        "string literal with semicolon and backtick",
+                        "SELECT 'a;b`c' AS s, a FROM t1"),
+                viewAsQueryCase(
+                        "string literal with accented and astral characters",
+                        "SELECT 'café 🦅' AS s, a FROM t1"));
+    }
+
+    private static Arguments viewAsQueryCase(String name, String query) {
+        return Arguments.of(name, "CREATE VIEW v1 AS " + query, query);
     }
 
     @Test

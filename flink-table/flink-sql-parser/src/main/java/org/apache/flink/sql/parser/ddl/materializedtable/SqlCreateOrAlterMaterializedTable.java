@@ -57,7 +57,8 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
             @Nullable SqlRefreshMode refreshMode,
             @Nullable SqlStartMode startMode,
             SqlNode asQuery,
-            boolean isOrAlter) {
+            boolean isOrAlter,
+            SqlParserPos asKeywordPos) {
         super(
                 isOrAlter ? CREATE_OR_ALTER_OPERATOR : CREATE_OPERATOR,
                 pos,
@@ -72,7 +73,8 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
                 freshness,
                 refreshMode,
                 startMode,
-                asQuery);
+                asQuery,
+                asKeywordPos);
     }
 
     @Override
