@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.functions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Converter between external state representations (ListView, MapView & value state) and internal
- * storage formats (ArrayData, MapData, & RowData).
+ * Converter between external state representations (ListView, MapView, Row & Pojo state) and
+ * internal storage formats (ArrayData, MapData, & RowData).
  */
 @Internal
 interface StateConverter {

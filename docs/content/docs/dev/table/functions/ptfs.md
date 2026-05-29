@@ -2280,12 +2280,13 @@ void testScalarOnly() throws Exception {
 
 #### Testing with State
 
-The harness supports all PTF state types: value state, `Row`, `ListView`, and `MapView`.
+The harness supports all PTF state types: value state (Pojo and `Row`), list state (`ListView`),
+and map state (`MapView`).
 
 {{< tabs "state-testing" >}}
 {{< tab "Java" >}}
 ```java
-// A PTF that uses all four state types: value state, Row, ListView, and MapView.
+// A PTF that uses all four state types: Pojo value state, Row value state, ListView state, and MapView state.
 @DataTypeHint("ROW<count BIGINT>")
 public class StatefulPTF extends ProcessTableFunction<Row> {
   public static class ValueState {
@@ -2383,7 +2384,8 @@ void testWithInitialState() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**State Introspection**: Use `getStateForKey()`, `getKeysForState()`, and `getStateForAllKeys()` to inspect state during tests:
+**State Introspection**: Use `getStateForKey()`, `getKeysForState()`, and `getStateForAllKeys()` to
+inspect state during tests:
 
 {{< tabs "state-introspection" >}}
 {{< tab "Java" >}}
@@ -2430,7 +2432,8 @@ void testStateIntrospection() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
-**State Mutation**: Use `setStateForKey()`, `clearAllStatesForKey()`, and `clearStateForKey()` to modify state during tests:
+**State Mutation**: Use `setStateForKey()`, `clearAllStatesForKey()`, and `clearStateForKey()` to
+modify state during tests:
 
 {{< tabs "state-mutation" >}}
 {{< tab "Java" >}}
@@ -2450,11 +2453,59 @@ void testStateMutation() throws Exception {
     newState.count = 100L;
     harness.setStateForKey("valueState", Row.of("Alice"), newState);
 
+    // Verify the state was updated
+    StatefulPTF.ValueState state = harness.getStateForKey("valueState", Row.of("Alice"));
+    assertThat(state.count).isEqualTo(100L);
+
     // Clear a specific state entry (resets to default)
     harness.clearStateForKey("listState", Row.of("Alice"));
 
     // Clear all state for a partition key
     harness.clearAllStatesForKey(Row.of("Alice"));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### Optional Partitioning
+
+For PTFs with `OPTIONAL_PARTITION_BY`, you can omit `withPartitionBy()` during harness setup. The
+harness executes the function as if it had a parallelism of 1, with the default `Row.of()` key,
+so all data is routed through the same function instance. Use `Row.of()` to access state:
+
+{{< tabs "optional-partition" >}}
+{{< tab "Java" >}}
+```java
+// A PTF with optional partitioning that counts all rows.
+@DataTypeHint("ROW<count BIGINT>")
+public class GlobalCountPTF extends ProcessTableFunction<Row> {
+    public static class CountState {
+        public long count = 0L;
+    }
+
+    public void eval(
+            @StateHint CountState state,
+            @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.OPTIONAL_PARTITION_BY})
+                    Row input) {
+        state.count++;
+        collect(Row.of(state.count));
+    }
+}
+
+@Test
+void testOptionalPartitionWithoutPartitionBy() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+      ProcessTableFunctionTestHarness.ofClass(GlobalCountPTF.class)
+      .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+      .build()) {
+
+      harness.processElement(Row.of("A", 10));
+      harness.processElement(Row.of("B", 20));
+
+      // All data shares a single Row.of() partition key
+      GlobalCountPTF.CountState state = harness.getStateForKey("state", Row.of());
+      assertThat(state.count).isEqualTo(2L);
   }
 }
 ```
