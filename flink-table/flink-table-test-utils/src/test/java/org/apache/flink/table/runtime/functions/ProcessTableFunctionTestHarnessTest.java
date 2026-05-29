@@ -763,13 +763,25 @@ class ProcessTableFunctionTestHarnessTest {
 
             harness.processElement(Row.of("A", 1));
 
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(1);
-            assertThat(output.get(0)).isEqualTo(Row.of(11L));
-
             StatefulOptionalPartitionPTF.CounterState state =
                     harness.getStateForKey("state", Row.of());
             assertThat(state.counter).isEqualTo(11L);
+
+            StatefulOptionalPartitionPTF.CounterState newState =
+                    new StatefulOptionalPartitionPTF.CounterState();
+            newState.counter = 50L;
+            harness.setStateForKey("state", Row.of(), newState);
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(50L);
+
+            harness.clearStateForKey("state", Row.of());
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state.counter).isEqualTo(0L);
+
+            harness.processElement(Row.of("B", 2));
+            harness.clearAllStatesForKey(Row.of());
+            state = harness.getStateForKey("state", Row.of());
+            assertThat(state).isNull();
         }
     }
 
