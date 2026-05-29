@@ -954,8 +954,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            // all partitioned tables share the same partition key shape, so any one is
-            // sufficient for validation.
+            // All partitioned tables share the same partition key shape (ensured by
+            // validatePartitionConsistency()), so any one suffices for validation.
             Optional<TableArgumentInfo> partitionedTable =
                     arguments.stream()
                             .filter(arg -> arg instanceof TableArgumentInfo)
@@ -1035,6 +1035,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         private TestHarnessStateManager.PartitionKeyInfo extractPartitionKeyInfo(
                 List<ArgumentInfo> arguments) {
+            // All partitioned tables share the same partition key shape (ensured by
+            // validatePartitionConsistency()), so any one suffices.
             Optional<TableArgumentInfo> partitionedTable =
                     arguments.stream()
                             .filter(arg -> arg instanceof TableArgumentInfo)
