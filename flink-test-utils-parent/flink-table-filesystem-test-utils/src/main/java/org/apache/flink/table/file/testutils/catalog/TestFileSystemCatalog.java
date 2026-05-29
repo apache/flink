@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -365,8 +366,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             // write table schema
             Path tableSchemaFilePath =
                     tableSchemaFilePath(tableSchemaPath, tablePath.getObjectName());
-            try (FSDataOutputStream os =
-                    fs.create(tableSchemaFilePath, FileSystem.WriteMode.NO_OVERWRITE)) {
+            try (FSDataOutputStream os = fs.create(tableSchemaFilePath, WriteMode.NO_OVERWRITE)) {
                 os.write(jsonSchema.getBytes(StandardCharsets.UTF_8));
             }
 
@@ -393,9 +393,8 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return;
         }
 
-        Tuple4<Path, Path, Path, String> tableSchemaInfo = getTableJsonInfo(tablePath, newTable);
-        Path tableSchemaPath = tableSchemaInfo.f1;
-        String jsonSchema = tableSchemaInfo.f3;
+        Path tableSchemaPath = inferTableSchemaPath(catalogPathStr, tablePath);
+        String jsonSchema = serializeTableJson(newTable);
         try {
             if (!fs.exists(tableSchemaPath)) {
                 throw new CatalogException(
@@ -406,13 +405,43 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             // write new table schema
             Path tableSchemaFilePath =
                     tableSchemaFilePath(tableSchemaPath, tablePath.getObjectName());
-            try (FSDataOutputStream os =
-                    fs.create(tableSchemaFilePath, FileSystem.WriteMode.OVERWRITE)) {
+            try (FSDataOutputStream os = fs.create(tableSchemaFilePath, WriteMode.OVERWRITE)) {
                 os.write(jsonSchema.getBytes(StandardCharsets.UTF_8));
             }
 
         } catch (IOException e) {
             throw new CatalogException(String.format("Error altering table %s.", tablePath), e);
+        }
+    }
+
+    @Override
+    public void convertTableToMaterializedTable(
+            ObjectPath tablePath,
+            CatalogTable originalTable,
+            CatalogMaterializedTable materializedTable,
+            List<TableChange> tableChanges)
+            throws TableNotExistException, CatalogException {
+        if (!tableExists(tablePath)) {
+            throw new TableNotExistException(getName(), tablePath);
+        }
+
+        Path tableSchemaPath = inferTableSchemaPath(catalogPathStr, tablePath);
+        String jsonSchema = serializeTableJson(materializedTable);
+        try {
+            if (!fs.exists(tableSchemaPath)) {
+                throw new CatalogException(
+                        String.format(
+                                "Table %s schema file %s doesn't exist.",
+                                tablePath, tableSchemaPath));
+            }
+            // overwrite the schema file with the materialized table definition
+            Path tableSchemaFilePath =
+                    tableSchemaFilePath(tableSchemaPath, tablePath.getObjectName());
+            try (FSDataOutputStream os = fs.create(tableSchemaFilePath, WriteMode.OVERWRITE)) {
+                os.write(jsonSchema.getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (IOException e) {
+            throw new CatalogException(String.format("Error converting table %s.", tablePath), e);
         }
     }
 
@@ -588,14 +617,15 @@ public class TestFileSystemCatalog extends AbstractCatalog {
         final Path tableSchemaPath = inferTableSchemaPath(catalogPathStr, tablePath);
         final Path tableDataPathStr = inferTableDataPath(catalogPathStr, tablePath);
 
-        ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable =
-                (ResolvedCatalogBaseTable<?>) catalogTable;
-        Map<String, String> catalogTableInfo = serializeTable(resolvedCatalogBaseTable);
-        CatalogBaseTable.TableKind tableKind = catalogTable.getTableKind();
-        FileSystemTableInfo tableInfo = new FileSystemTableInfo(tableKind, catalogTableInfo);
-
-        String jsonSchema = JsonSerdeUtil.toJson(tableInfo);
+        String jsonSchema = serializeTableJson(catalogTable);
         return Tuple4.of(path, tableSchemaPath, tableDataPathStr, jsonSchema);
+    }
+
+    private String serializeTableJson(CatalogBaseTable catalogTable) {
+        ResolvedCatalogBaseTable<?> resolved = (ResolvedCatalogBaseTable<?>) catalogTable;
+        FileSystemTableInfo tableInfo =
+                new FileSystemTableInfo(catalogTable.getTableKind(), serializeTable(resolved));
+        return JsonSerdeUtil.toJson(tableInfo);
     }
 
     /** Read file to UTF_8 decoding. */
