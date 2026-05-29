@@ -2348,4 +2348,39 @@ class CalcITCase extends BatchTestBase {
       Seq(row(0, 1), row(1, 2), row(2, 3))
     );
   }
+
+  @Test
+  def testDateColumnInListWithStringLiterals(): Unit = {
+    val data = Seq(
+      row(localDate("2000-06-30"), "a"),
+      row(localDate("2000-09-27"), "b"),
+      row(localDate("2000-11-17"), "c"),
+      row(localDate("2001-01-01"), "d"))
+    registerCollection(
+      "DateTable",
+      data,
+      new RowTypeInfo(LOCAL_DATE, STRING_TYPE_INFO),
+      "d_date, val")
+
+    checkResult(
+      "SELECT val FROM DateTable WHERE d_date IN ('2000-06-30', '2000-09-27', '2000-11-17')",
+      Seq(row("a"), row("b"), row("c")))
+  }
+
+  @Test
+  def testTimestampColumnInListWithStringLiterals(): Unit = {
+    val data = Seq(
+      row(localDateTime("2000-06-30 12:00:00"), "a"),
+      row(localDateTime("2000-09-27 12:00:00"), "b"),
+      row(localDateTime("2001-01-01 12:00:00"), "c"))
+    registerCollection(
+      "TimestampTable",
+      data,
+      new RowTypeInfo(LOCAL_DATE_TIME, STRING_TYPE_INFO),
+      "ts, val")
+
+    checkResult(
+      "SELECT val FROM TimestampTable WHERE ts IN ('2000-06-30 12:00:00', '2000-09-27 12:00:00')",
+      Seq(row("a"), row("b")))
+  }
 }
