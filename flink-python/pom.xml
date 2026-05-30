@@ -42,7 +42,11 @@ under the License.
 			Kryo AtomicBoolean
 			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
 			Arrow MemoryUtil
-			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED <!--
+			ArrowReaderWriterTest
+			-->--sun-misc-unsafe-memory-access=allow <!--
+			-->--enable-native-access=ALL-UNNAMED <!--
+			-->-Dio.netty.tryReflectionSetAccessible=true
 		</surefire.module.config>
 	</properties>
 

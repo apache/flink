@@ -39,7 +39,10 @@ under the License.
 			chill ArraysAsListSerializer
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
 			Kryo File (GroupReduceITCase)
-			-->--add-opens=java.base/java.io=ALL-UNNAMED
+			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
+			ClusterEntrypointITCase -->--sun-misc-unsafe-memory-access=allow <!--
+			-->--enable-native-access=ALL-UNNAMED <!--
+			-->-Dio.netty.tryReflectionSetAccessible=true
 		</surefire.module.config>
 	</properties>
 
