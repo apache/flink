@@ -180,8 +180,6 @@
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 0,
         "partitionKeys" : [ 0 ],
-        "orderKeys" : [ ],
-        "orderDirections" : [ ],
         "type" : {
           "type" : "ROW",
           "nullable" : false,
