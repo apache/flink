@@ -648,9 +648,11 @@ object FlinkTypeFactory {
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
-        if (relDataType.getPrecision > 3) {
+        // In INTERVAL getScale tells about fractional second precision
+        // See org.apache.calcite.sql.SqlIntervalQualifier
+        if (relDataType.getScale > 3) {
           throw new TableException(
-            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
+            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getScale}")
         }
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
