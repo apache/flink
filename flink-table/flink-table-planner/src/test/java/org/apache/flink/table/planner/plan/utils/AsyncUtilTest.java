@@ -24,11 +24,11 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -36,7 +36,6 @@ import org.apache.calcite.rex.RexNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -61,12 +60,10 @@ public class AsyncUtilTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                JavaScalaConversionUtil.toScala(Arrays.asList("f1", "f2", "f3")),
-                                JavaScalaConversionUtil.toScala(
-                                        Arrays.asList(
-                                                new IntType(),
-                                                new BigIntType(),
-                                                new VarCharType())));
+                                new String[] {"f1", "f2", "f3"},
+                                new LogicalType[] {
+                                    new IntType(), new BigIntType(), new VarCharType()
+                                });
 
         converter =
                 ShortcutUtils.unwrapContext(

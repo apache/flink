@@ -29,12 +29,12 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -73,12 +73,10 @@ public class AsyncCorrelateCodeGeneratorTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                JavaScalaConversionUtil.toScala(Arrays.asList("f1", "f2", "f3")),
-                                JavaScalaConversionUtil.toScala(
-                                        Arrays.asList(
-                                                new IntType(),
-                                                new BigIntType(),
-                                                new VarCharType())));
+                                new String[] {"f1", "f2", "f3"},
+                                new LogicalType[] {
+                                    new IntType(), new BigIntType(), new VarCharType()
+                                });
         ShortcutUtils.unwrapContext(plannerMocks.getPlanner().createToRelContext().getCluster());
         plannerMocks
                 .getFunctionCatalog()

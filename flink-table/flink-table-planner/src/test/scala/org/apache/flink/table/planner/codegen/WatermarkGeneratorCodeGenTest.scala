@@ -158,8 +158,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       rowtimeExpr: String,
       useDefinedConstructor: Boolean): WatermarkGenerator = {
     val tableRowType = plannerMocks.getPlannerContext.getTypeFactory.buildRelNodeRowType(
-      Seq("ts", "offset"),
-      Seq(
+      Array("ts", "offset"),
+      Array(
         new TimestampType(3),
         new IntType()
       ))

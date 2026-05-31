@@ -40,7 +40,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql2rel.SqlRexContext;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -101,12 +100,13 @@ public class CatalogSchemaModel {
 
     private static RelDataType schemaToRelDataType(
             FlinkTypeFactory typeFactory, ResolvedSchema schema) {
-        final List<String> fieldNames = schema.getColumnNames();
-        final List<LogicalType> fieldTypes =
+        final String[] fieldNames = schema.getColumnNames().toArray(new String[0]);
+        final LogicalType[] fieldTypes =
                 schema.getColumnDataTypes().stream()
                         .map(DataType::getLogicalType)
                         .map(PlannerTypeUtils::removeLegacyTypes)
-                        .collect(Collectors.toList());
+                        .collect(Collectors.toList())
+                        .toArray(new LogicalType[0]);
         return typeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
     }
 

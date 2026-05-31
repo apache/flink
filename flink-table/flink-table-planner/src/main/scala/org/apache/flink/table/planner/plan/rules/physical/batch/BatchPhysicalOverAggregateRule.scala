@@ -160,7 +160,9 @@ class BatchPhysicalOverAggregateRule
         constants.indices.map(i => s"TMP$i")
       val inputTypesWithConstants = inputRowType.getFieldList
         .map(i => FlinkTypeFactory.toLogicalType(i.getType)) ++ constantTypes
-      typeFactory.buildRelNodeRowType(inputNamesWithConstants, inputTypesWithConstants)
+      typeFactory.buildRelNodeRowType(
+        inputNamesWithConstants.toArray,
+        inputTypesWithConstants.toArray)
     }
 
     logicWindow.groups.foreach {

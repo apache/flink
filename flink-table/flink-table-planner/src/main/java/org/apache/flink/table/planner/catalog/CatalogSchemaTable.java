@@ -132,12 +132,13 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                     flinkTypeFactory, tableSchema, scala.Option.empty(), true);
         }
 
-        final List<String> fieldNames = schema.getColumnNames();
-        final List<LogicalType> fieldTypes =
+        final String[] fieldNames = schema.getColumnNames().toArray(new String[0]);
+        final LogicalType[] fieldTypes =
                 schema.getColumnDataTypes().stream()
                         .map(DataType::getLogicalType)
                         .map(PlannerTypeUtils::removeLegacyTypes)
-                        .collect(Collectors.toList());
+                        .collect(Collectors.toList())
+                        .toArray(new LogicalType[0]);
         return flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
     }
 
