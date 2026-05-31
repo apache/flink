@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state.sstmerge;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionJobInfo;
 import org.rocksdb.CompactionOptions;
 import org.rocksdb.RocksDB;
@@ -51,7 +52,13 @@ class Compactor {
     }
 
     void compact(ColumnFamilyHandle cfName, int level, List<String> files) throws RocksDBException {
-        int outputLevel = Math.min(level + 1, cfName.getDescriptor().getOptions().numLevels() - 1);
+        // FLINK-39753: getDescriptor() allocates a new native ColumnFamilyOptions on every call.
+        // Closing it is required to release the native object and its reference to the shared
+        // block cache; leaking it keeps the LRUCache alive and grows native memory until OOM.
+        final int outputLevel;
+        try (ColumnFamilyOptions cfOptions = cfName.getDescriptor().getOptions()) {
+            outputLevel = Math.min(level + 1, cfOptions.numLevels() - 1);
+        }
         LOG.debug(
                 "Manually compacting {} files from level {} to {}: {}",
                 files.size(),
