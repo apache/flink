@@ -154,7 +154,7 @@ The return value of `HOP` is a new relation that includes all columns of origina
 HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 ```
 
-- `data`: is a table parameter that can be any relation with an time attribute column.
+- `data`: is a table parameter that can be any relation with a time attribute column.
 - `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to hopping windows.
 - `slide`: is a duration specifying the duration between the start of sequential hopping windows
 - `size`: is a duration specifying the width of the hopping windows.
@@ -225,7 +225,7 @@ The return value of `CUMULATE` is a new relation that includes all columns of or
 CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 ```
 
-- `data`: is a table parameter that can be any relation with an time attribute column.
+- `data`: is a table parameter that can be any relation with a time attribute column.
 - `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to cumulating windows.
 - `step`: is a duration specifying the increased window size between the end of sequential cumulating windows.
 - `size`: is a duration specifying the max width of the cumulating windows. `size` must be an integral multiple of `step`.
@@ -316,7 +316,7 @@ The original time attribute "timecol" will be a regular timestamp column after w
 SESSION(TABLE data [PARTITION BY(keycols, ...)], DESCRIPTOR(timecol), gap)
 ```
 
-- `data`: is a table parameter that can be any relation with an time attribute column.
+- `data`: is a table parameter that can be any relation with a time attribute column.
 - `keycols`: is a column descriptor indicating which columns should be used to partition the data prior to session windows.
 - `timecol`: is a column descriptor indicating which time attributes column of data should be mapped to session windows.
 - `gap`: is the maximum interval in timestamp for two events to be considered part of the same session window.

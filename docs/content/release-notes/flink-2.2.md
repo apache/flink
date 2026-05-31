@@ -116,7 +116,7 @@ BINARY and VARBINARY should now correctly consider the target length.
 
 ##### [FLINK-38209](https://issues.apache.org/jira/browse/FLINK-38209)
 
-This is considerable optimization and an breaking change for the StreamingMultiJoinOperator.
+This is considerable optimization and a breaking change for the StreamingMultiJoinOperator.
 As noted in the release notes, the operator was launched in an experimental state for Flink 2.1
 since we're working on relevant optimizations that could be breaking changes.
 

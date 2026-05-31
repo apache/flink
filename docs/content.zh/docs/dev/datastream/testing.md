@@ -112,7 +112,7 @@ public class StatefulFlatMapTest {
         //instantiate user-defined function
         statefulFlatMapFunction = new StatefulFlatMapFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user defined function into the corresponding operator
         testHarness = new OneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(statefulFlatMapFunction));
 
         // optionally configured the execution environment
@@ -158,7 +158,7 @@ public class StatefulFlatMapFunctionTest {
         //instantiate user-defined function
         statefulFlatMapFunction = new StatefulFlatMapFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user defined function into the corresponding operator
         testHarness = new KeyedOneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(statefulFlatMapFunction), new MyStringKeySelector(), Types.STRING);
 
         // open the test harness (will also call open() on RichFunctions)
@@ -204,7 +204,7 @@ public class PassThroughProcessFunctionTest {
         //instantiate user-defined function
         PassThroughProcessFunction processFunction = new PassThroughProcessFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user defined function into the corresponding operator
         OneInputStreamOperatorTestHarness<Integer, Integer> harness = ProcessFunctionTestHarnesses
         	.forProcessFunction(processFunction);
 

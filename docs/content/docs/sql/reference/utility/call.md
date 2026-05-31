@@ -30,7 +30,7 @@ under the License.
 `Call` statements are used to call a stored procedure which is usually provided to perform data manipulation or administrative tasks.
 
 <span class="label label-danger">Attention</span> Currently, `Call` statements require the procedure called to exist in the corresponding catalog. So, please make sure the procedure exists in the catalog. 
-If it doesn't exist, it'll throw an exception. You may need to refer to the doc of the catalog to see the available procedures. To implement an procedure, please refer to [Procedure]({{< ref "docs/dev/table/procedures" >}}).
+If it doesn't exist, it'll throw an exception. You may need to refer to the doc of the catalog to see the available procedures. To implement a procedure, please refer to [Procedure]({{< ref "docs/dev/table/procedures" >}}).
 
 ## Run a CALL statement
 

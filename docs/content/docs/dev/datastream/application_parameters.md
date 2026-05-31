@@ -94,7 +94,7 @@ parameters.getNumberOfParameters();
 ```
 
 You can use the return values of these methods directly in the `main()` method of the client submitting the application.
-For example, you could set the parallelism of a operator like this:
+For example, you could set the parallelism of an operator like this:
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
