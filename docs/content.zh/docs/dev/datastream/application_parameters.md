@@ -26,8 +26,6 @@ under the License.
 
 # 应用程序参数处理
 
-应用程序参数处理
--------------------------------
 几乎所有的批和流的 Flink 应用程序，都依赖于外部配置参数。这些配置参数可以用于指定输入和输出源（如路径或地址）、系统参数（并行度，运行时配置）和特定的应用程序参数（通常使用在用户自定义函数）。
 
 为解决以上问题，Flink 提供一个名为 `Parametertool` 的简单公共类，其中包含了一些基本的工具。请注意，这里说的 `Parametertool` 并不是必须使用的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 等其他框架也可以非常好地兼容 Flink。
@@ -48,7 +46,7 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
 File propertiesFile = new File(propertiesFilePath);
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile);
 
-InputStream propertiesFileInputStream = new FileInputStream(file);
+InputStream propertiesFileInputStream = new FileInputStream(propertiesFile);
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputStream);
 ```
 
@@ -60,6 +58,7 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 public static void main(String[] args) {
     ParameterTool parameter = ParameterTool.fromArgs(args);
     // .. regular code ..
+}
 ```
 
 
