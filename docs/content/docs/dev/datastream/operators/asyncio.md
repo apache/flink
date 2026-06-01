@@ -97,7 +97,7 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
 
     @Override
     public void open(OpenContext openContext) throws Exception {
-        client = new DatabaseClient(host, post, credentials);
+        client = new DatabaseClient(host, port, credentials);
     }
 
     @Override
@@ -237,7 +237,7 @@ The following three parameters control the asynchronous operations:
 
 ### Timeout Handling
 
-When an async I/O request times out, by default an exception is thrown and job is restarted.
+When an async I/O request times out, by default an exception is thrown and the job is restarted.
 If you want to handle timeouts, you can override the `AsyncFunction#timeout` method.
 
 In the Java API, make sure you call `ResultFuture.complete()` or `ResultFuture.completeExceptionally()` when overriding
@@ -259,7 +259,7 @@ To control in which order the resulting records are emitted, Flink offers two mo
     Use `AsyncDataStream.unorderedWait(...)` or `AsyncDataStream.unordered_wait(...)` for this mode.
 
   - **Ordered**: In that case, the stream order is preserved. Result records are emitted in the same order as the asynchronous
-    requests are triggered (the order of the operators input records). To achieve that, the operator buffers a result record
+    requests are triggered (the order of the operator's input records). To achieve that, the operator buffers a result record
     until all its preceding records are emitted (or timed out).
     This usually introduces some amount of extra latency and some overhead in checkpointing, because records or results are maintained
     in the checkpointed state for a longer time, compared to the unordered mode.

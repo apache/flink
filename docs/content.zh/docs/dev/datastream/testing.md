@@ -103,7 +103,7 @@ public class IncrementFlatMapFunctionTest {
 ```java
 
 public class StatefulFlatMapTest {
-    private OneInputStreamOperatorTestHarness<Long, Long> testHarness;
+    private KeyedOneInputStreamOperatorTestHarness<Long, Long> testHarness;
     private StatefulFlatMap statefulFlatMapFunction;
 
     @Before
@@ -274,7 +274,7 @@ public class ExampleIntegrationTest {
         env.execute();
 
         // verify your results
-        assertTrue(CollectSink.values.containsAll(2L, 22L, 23L));
+        assertTrue(CollectSink.values.containsAll(List.of(2L, 22L, 23L)));
     }
 
     // create a testing sink

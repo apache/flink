@@ -37,7 +37,7 @@ Flink supports the usage of lambda expressions for all operators of the Java API
 
 This document shows how to use lambda expressions and describes current
 limitations. For a general introduction to the Flink API, please refer to the
-[DataStream API overview]({{< ref "docs/dev/datastream/overview" >}})
+[DataStream API overview]({{< ref "docs/dev/datastream/overview" >}}).
 
 ### Examples and Limitations
 
@@ -83,7 +83,7 @@ input.flatMap((Integer number, Collector<String> out) -> {
 .print();
 ```
 
-Similar problems occur when using a `map()` function with a generic return type. A method signature `Tuple2<Integer, Integer> map(Integer value)` is erasured to `Tuple2 map(Integer value)` in the example below.
+Similar problems occur when using a `map()` function with a generic return type. A method signature `Tuple2<Integer, Integer> map(Integer value)` is erased to `Tuple2 map(Integer value)` in the example below.
 
 ```java
 import org.apache.flink.api.common.functions.MapFunction;
@@ -111,7 +111,7 @@ env.fromElements(1, 2, 3)
     .map(new MyTuple2Mapper())
     .print();
 
-public static class MyTuple2Mapper extends MapFunction<Integer, Tuple2<Integer, Integer>> {
+public static class MyTuple2Mapper implements MapFunction<Integer, Tuple2<Integer, Integer>> {
     @Override
     public Tuple2<Integer, Integer> map(Integer i) {
         return Tuple2.of(i, i);
@@ -120,7 +120,7 @@ public static class MyTuple2Mapper extends MapFunction<Integer, Tuple2<Integer, 
 
 // use an anonymous class instead
 env.fromElements(1, 2, 3)
-    .map(new MapFunction<Integer, Tuple2<Integer, Integer>> {
+    .map(new MapFunction<Integer, Tuple2<Integer, Integer>>() {
         @Override
         public Tuple2<Integer, Integer> map(Integer i) {
             return Tuple2.of(i, i);
