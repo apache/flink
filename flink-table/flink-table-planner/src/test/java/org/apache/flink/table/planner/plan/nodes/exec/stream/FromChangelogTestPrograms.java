@@ -391,6 +391,71 @@ public class FromChangelogTestPrograms {
                                     + "input => TABLE cdc_stream)")
                     .build();
 
+    public static final TableTestProgram RETRACT_PARTITION_BY_RESTORE =
+            TableTestProgram.of(
+                            "from-changelog-retract-partition-by-restore",
+                            "FROM_CHANGELOG with PARTITION BY producing a retract changelog")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema("name STRING", "id INT", "op STRING")
+                                    .producedBeforeRestore(
+                                            Row.of("Alice", 1, "INSERT"),
+                                            Row.of("Bob", 2, "INSERT"))
+                                    .producedAfterRestore(
+                                            Row.of("Alice", 1, "UPDATE_BEFORE"),
+                                            Row.of("Alice2", 1, "UPDATE_AFTER"),
+                                            Row.of("Bob", 2, "DELETE"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .consumedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, "Alice"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream PARTITION BY id)")
+                    .build();
+
+    public static final TableTestProgram UPSERT_PARTITION_BY_RESTORE =
+            TableTestProgram.of(
+                            "from-changelog-upsert-partition-by-restore",
+                            "FROM_CHANGELOG with PARTITION BY producing an upsert changelog "
+                                    + "(op_mapping without UPDATE_BEFORE)")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema("name STRING", "id INT", "op STRING")
+                                    .producedBeforeRestore(
+                                            Row.of("Alice", 1, "INSERT"),
+                                            Row.of("Bob", 2, "INSERT"))
+                                    .producedAfterRestore(
+                                            Row.of("Alice2", 1, "UPDATE_AFTER"),
+                                            Row.of("Bob", 2, "DELETE"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "name STRING")
+                                    .consumedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .consumedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream PARTITION BY id, "
+                                    + "op_mapping => MAP["
+                                    + "'INSERT', 'INSERT', "
+                                    + "'UPDATE_AFTER', 'UPDATE_AFTER', "
+                                    + "'DELETE', 'DELETE'])")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Error validation tests
     // --------------------------------------------------------------------------------------------

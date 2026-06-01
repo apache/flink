@@ -35,6 +35,9 @@ public class FromChangelogRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return List.of(FromChangelogTestPrograms.RETRACT_RESTORE);
+        return List.of(
+                FromChangelogTestPrograms.RETRACT_RESTORE,
+                FromChangelogTestPrograms.RETRACT_PARTITION_BY_RESTORE,
+                FromChangelogTestPrograms.UPSERT_PARTITION_BY_RESTORE);
     }
 }
