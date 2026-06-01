@@ -26,10 +26,6 @@ under the License.
 
 # Handling Application Parameters
 
-
-
-Handling Application Parameters
--------------------------------
 Almost all Flink applications, both batch and streaming, rely on external configuration parameters.
 They are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
 
@@ -53,7 +49,7 @@ ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFilePath);
 File propertiesFile = new File(propertiesFilePath);
 ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFile);
 
-InputStream propertiesFileInputStream = new FileInputStream(file);
+InputStream propertiesFileInputStream = new FileInputStream(propertiesFile);
 ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFileInputStream);
 ```
 
@@ -65,6 +61,7 @@ This allows getting arguments like `--input hdfs:///mydata --elements 42` from t
 public static void main(String[] args) {
     ParameterTool parameters = ParameterTool.fromArgs(args);
     // .. regular code ..
+}
 ```
 
 
@@ -94,7 +91,7 @@ parameters.getNumberOfParameters();
 ```
 
 You can use the return values of these methods directly in the `main()` method of the client submitting the application.
-For example, you could set the parallelism of a operator like this:
+For example, you could set the parallelism of an operator like this:
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
