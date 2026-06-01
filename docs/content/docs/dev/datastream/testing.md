@@ -111,7 +111,7 @@ public class StatefulFlatMapTest {
         //instantiate user-defined function
         statefulFlatMapFunction = new StatefulFlatMapFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user-defined function into the corresponding operator
         testHarness = new OneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(statefulFlatMapFunction));
 
         // optionally configured the execution environment
@@ -124,7 +124,7 @@ public class StatefulFlatMapTest {
     @Test
     public void testingStatefulFlatMapFunction() throws Exception {
 
-        //push (timestamped) elements into the operator (and hence user defined function)
+        // push (timestamped) elements into the operator (and hence the user-defined function)
         testHarness.processElement(2L, 100L);
 
         //trigger event time timers by advancing the event time of the operator with a watermark
@@ -148,7 +148,7 @@ public class StatefulFlatMapTest {
 ```java
 
 public class StatefulFlatMapFunctionTest {
-    private OneInputStreamOperatorTestHarness<String, Long, Long> testHarness;
+    private KeyedOneInputStreamOperatorTestHarness<String, Long, Long> testHarness;
     private StatefulFlatMap statefulFlatMapFunction;
 
     @Before
@@ -157,7 +157,7 @@ public class StatefulFlatMapFunctionTest {
         //instantiate user-defined function
         statefulFlatMapFunction = new StatefulFlatMapFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user-defined function into the corresponding operator
         testHarness = new KeyedOneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(statefulFlatMapFunction), new MyStringKeySelector(), Types.STRING);
 
         // open the test harness (will also call open() on RichFunctions)
@@ -203,11 +203,11 @@ public class PassThroughProcessFunctionTest {
         //instantiate user-defined function
         PassThroughProcessFunction processFunction = new PassThroughProcessFunction();
 
-        // wrap user defined function into a the corresponding operator
+        // wrap user-defined function into the corresponding operator
         OneInputStreamOperatorTestHarness<Integer, Integer> harness = ProcessFunctionTestHarnesses
         	.forProcessFunction(processFunction);
 
-        //push (timestamped) elements into the operator (and hence user defined function)
+        // push (timestamped) elements into the operator (and hence the user-defined function)
         harness.processElement(1, 10);
 
         //retrieve list of emitted records for assertions
@@ -273,7 +273,7 @@ public class ExampleIntegrationTest {
         env.execute();
 
         // verify your results
-        assertTrue(CollectSink.values.containsAll(2L, 22L, 23L));
+        assertTrue(CollectSink.values.containsAll(List.of(2L, 22L, 23L)));
     }
 
     // create a testing sink
