@@ -33,7 +33,12 @@ import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeS
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_TABLE;
 
-/** Tests for {@link ToChangelogTypeStrategy#OUTPUT_TYPE_STRATEGY}. */
+/**
+ * Tests for {@link ToChangelogTypeStrategy#OUTPUT_TYPE_STRATEGY}.
+ *
+ * <p>For background on row vs. set semantics and how PARTITION BY columns are handled, see the
+ * Process Table Functions page in the Flink documentation.
+ */
 class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
     private static final DataType TABLE_TYPE_NOT_NULL_SCORE =
@@ -47,6 +52,10 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
     @Override
     protected Stream<TestSpec> testData() {
+        return Stream.concat(rowSemantics(), setSemantics());
+    }
+
+    private static Stream<TestSpec> rowSemantics() {
         return Stream.of(
                 TestSpec.forStrategy(
                                 "produces_full_deletes=true preserves NOT NULL on input columns",
@@ -104,6 +113,55 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 DataTypes.ROW(
                                                 DataTypes.FIELD("op", DataTypes.STRING()),
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
+                                                DataTypes.FIELD("score", DataTypes.BIGINT()))
+                                        .notNull()));
+    }
+
+    private static Stream<TestSpec> setSemantics() {
+        return Stream.of(
+                TestSpec.forStrategy(
+                                "produces_full_deletes=true in set semantics preserves NOT NULL on non-partition columns",
+                                TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
+                        .inputTypes(
+                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                        .calledWithTableSemanticsAt(
+                                ARG_TABLE,
+                                new TableSemanticsMock(
+                                        TABLE_TYPE_NOT_NULL_SCORE,
+                                        new int[] {0},
+                                        new int[0],
+                                        -1,
+                                        null,
+                                        List.of(new int[] {0})))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, null)
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, true)
+                        .expectDataType(
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("op", DataTypes.STRING()),
+                                                DataTypes.FIELD(
+                                                        "score", DataTypes.BIGINT().notNull()))
+                                        .notNull()),
+                TestSpec.forStrategy(
+                                "produces_full_deletes=false in set semantics widens non-partition-key columns",
+                                TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
+                        .inputTypes(
+                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                        .calledWithTableSemanticsAt(
+                                ARG_TABLE,
+                                new TableSemanticsMock(
+                                        TABLE_TYPE_NOT_NULL_SCORE,
+                                        new int[] {0},
+                                        new int[0],
+                                        -1,
+                                        null,
+                                        List.of(new int[] {0})))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, null)
+                        .calledWithLiteralAt(ARG_PRODUCES_FULL_DELETES, false)
+                        .expectDataType(
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("op", DataTypes.STRING()),
                                                 DataTypes.FIELD("score", DataTypes.BIGINT()))
                                         .notNull()));
     }
