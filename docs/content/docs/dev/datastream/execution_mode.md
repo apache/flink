@@ -207,7 +207,7 @@ correspond to the three tasks that are separated by the shuffle barriers.
 Instead of sending records immediately to downstream tasks, as explained above
 for `STREAMING` mode, processing in stages requires Flink to materialize
 intermediate results of tasks to some non-ephemeral storage which allows
-downstream tasks to read them after upstream tasks have already gone off line.
+downstream tasks to read them after upstream tasks have already gone offline.
 This will increase the latency of processing but comes with other interesting
 properties. For one, this allows Flink to backtrack to the latest available
 results when a failure happens instead of restarting the whole job. Another
@@ -228,8 +228,8 @@ checkpointing works.
 
 In `BATCH` mode, the configured state backend is ignored. Instead, the input of
 a keyed operation is grouped by key (using sorting) and then we process all
-records of a key in turn. This allows keeping only the state of only one key at
-the same time. State for a given key will be discarded when moving on to the
+records of a key in turn. This allows keeping only one key's state at
+a time. State for a given key will be discarded when moving on to the
 next key.
 
 See [FLIP-140](https://cwiki.apache.org/confluence/x/kDh4CQ) for background

@@ -395,7 +395,7 @@ Usage:
 LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 env.setBufferTimeout(timeoutMillis);
 
-env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
+env.fromSequence(1, 10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 ```
 {{< /tab >}}
 {{< /tabs >}}

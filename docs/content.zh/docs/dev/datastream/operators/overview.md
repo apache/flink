@@ -224,7 +224,7 @@ windowedStream.apply(new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, 
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (value t: values) {
+        for (Tuple2<String, Integer> t : values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
@@ -237,7 +237,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (value t: values) {
+        for (Tuple2<String, Integer> t : values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
@@ -449,7 +449,7 @@ class MyCoMapFunction(CoMapFunction):
         
 class MyCoFlatMapFunction(CoFlatMapFunction):
     
-    def flat_map1(self, value)
+    def flat_map1(self, value):
         for i in range(value[0]):
             yield i
     
@@ -540,7 +540,7 @@ dataStream.partitionCustom(partitioner, 0);
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(2, 'a'), (2, 'a'), (3, 'b')])
-data_stream.partition_custom(lambda key, num_partition: key % partition, lambda x: x[0])
+data_stream.partition_custom(lambda key, num_partition: key % num_partition, lambda x: x[0])
 ```
 {{< /tab >}}
 {{< /tabs>}}
