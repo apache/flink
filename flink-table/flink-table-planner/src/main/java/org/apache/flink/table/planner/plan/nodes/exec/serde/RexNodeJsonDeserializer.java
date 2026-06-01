@@ -330,22 +330,30 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
         final int inputIndex = jsonNode.required(FIELD_NAME_INPUT_INDEX).intValue();
 
-        final int[] partitionKeys = deserializeToIntArray(jsonNode, FIELD_NAME_PARTITION_KEYS);
-        final int[] orderKeys = deserializeToIntArray(jsonNode, FIELD_NAME_ORDER_KEYS);
-        final SortOrder[] order =
-                deserializeListOrEmpty(
-                                jsonNode,
-                                FIELD_NAME_ORDER_DIRECTIONS,
-                                node -> SortOrder.valueOf(node.asText()))
-                        .toArray(new SortOrder[0]);
+        final int[] partitionKeys = deserializeIntArray(jsonNode, FIELD_NAME_PARTITION_KEYS);
+        final int[] orderKeys = deserializeIntArray(jsonNode, FIELD_NAME_ORDER_KEYS);
+        final SortOrder[] sortOrders =
+                deserializeArray(
+                        jsonNode,
+                        FIELD_NAME_ORDER_DIRECTIONS,
+                        node -> SortOrder.valueOf(node.asText()),
+                        new SortOrder[0]);
 
-        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, order);
+        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, sortOrders);
     }
 
-    private static int[] deserializeToIntArray(JsonNode jsonNode, String fieldName) {
+    private static int[] deserializeIntArray(JsonNode jsonNode, String fieldName) {
         return deserializeListOrEmpty(jsonNode, fieldName, JsonNode::asInt).stream()
                 .mapToInt(Integer::intValue)
                 .toArray();
+    }
+
+    private static <T> T[] deserializeArray(
+            JsonNode jsonNode,
+            String fieldName,
+            Function<JsonNode, T> elementDeserializer,
+            T[] emptyArray) {
+        return deserializeListOrEmpty(jsonNode, fieldName, elementDeserializer).toArray(emptyArray);
     }
 
     private static <T> List<T> deserializeListOrEmpty(
