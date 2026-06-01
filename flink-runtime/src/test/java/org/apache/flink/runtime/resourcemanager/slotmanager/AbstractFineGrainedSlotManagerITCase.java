@@ -38,6 +38,7 @@ import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -722,6 +723,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
      * Verify that the ack of request slot form unregistered task manager will not cause system
      * breakdown.
      */
+    @Tag("org.apache.flink.testutils.junit.FailsOnJava25")
     @Test
     void testAllocationUpdatesIgnoredIfTaskExecutorUnregistered() throws Exception {
         final CompletableFuture<Acknowledge> slotRequestFuture = new CompletableFuture<>();
@@ -782,6 +784,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         System.setSecurityManager(null);
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsOnJava25")
     @Test
     void testAllocationUpdatesIgnoredIfSlotMarkedAsAllocatedAfterSlotReport() throws Exception {
         final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
