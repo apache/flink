@@ -489,22 +489,40 @@ ALTER TABLE MyTable RENAME TO MyTable2;
 
 Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set 'rows-per-second'
 ALTER TABLE DataGenSource SET ('rows-per-second' = '10');
+
+-- duplicate keys: the last value wins. After this statement, 'rows-per-second' is '20'.
+ALTER TABLE DataGenSource SET ('rows-per-second' = '10', 'rows-per-second' = '20');
 ```
 
 ### RESET
 
 Reset one or more properties to its default value.
 
+**Key handling:**
+- Keys that are not currently set on the table are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `connector` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset 'rows-per-second' to the default value
 ALTER TABLE DataGenSource RESET ('rows-per-second');
+
+-- 'invalid-key' is not currently set on the table: this is a no-op for that key,
+-- 'rows-per-second' is still reset and the statement succeeds.
+ALTER TABLE DataGenSource RESET ('rows-per-second', 'invalid-key');
 ```
 
 {{< top >}}
@@ -535,6 +553,21 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 ```
 
 Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
+
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
+The following examples illustrate the usage of the `SET` statements.
+
+```sql
+-- set a database property
+ALTER DATABASE my_db SET ('k1' = 'v1');
+
+-- duplicate keys: the last value wins. After this statement, 'k1' is 'v2'.
+ALTER DATABASE my_db SET ('k1' = 'v1', 'k1' = 'v2');
+```
 
 {{< top >}}
 
@@ -583,22 +616,40 @@ ALTER CATALOG catalog_name
 
 Set one or more properties in the specified catalog. If a particular property is already set in the catalog, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- An empty option list `SET ()` is accepted and treated as a no-op.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set 'default-database'
 ALTER CATALOG cat2 SET ('default-database'='db');
+
+-- duplicate keys: the last value wins. After this statement, 'default-database' is 'db2'.
+ALTER CATALOG cat2 SET ('default-database'='db', 'default-database'='db2');
 ```
 
 ### RESET
 
 Reset one or more properties to its default value in the specified catalog.
 
+**Key handling:**
+- Keys that are not currently set on the catalog are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `type` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset 'default-database'
 ALTER CATALOG cat2 RESET ('default-database');
+
+-- 'unknown-key' is not currently set on the catalog: this is a no-op for that key,
+-- 'default-database' is still reset and the statement succeeds.
+ALTER CATALOG cat2 RESET ('default-database', 'unknown-key');
 ```
 
 ### COMMENT
@@ -627,11 +678,19 @@ ALTER MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
 
 Set one or more properties in the specified model. If a particular property is already set in the model, override the old value with the new one.
 
+**Key handling:**
+- Properties not listed in the statement are preserved.
+- If the same key appears multiple times in the list, the last value wins and a warning is logged.
+- The empty option list `SET ()` is rejected with a validation error.
+
 The following examples illustrate the usage of the `SET` statements.
 
 ```sql
 -- set model properties
 ALTER MODEL MyModel SET ('model-version'='2.0', 'batch-size'='32');
+
+-- duplicate keys: the last value wins. After this statement, 'batch-size' is '64'.
+ALTER MODEL MyModel SET ('batch-size'='32', 'batch-size'='64');
 ```
 
 **IF EXISTS**
@@ -642,11 +701,20 @@ If the model does not exist, nothing happens.
 
 Reset one or more properties to its default value in the specified model.
 
+**Key handling:**
+- Keys that are not currently set on the model are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+
 The following examples illustrate the usage of the `RESET` statements.
 
 ```sql
 -- reset model properties
 ALTER MODEL MyModel RESET ('model-version', 'batch-size');
+
+-- 'unknown-key' is not currently set on the model: this is a no-op for that key,
+-- 'model-version' is still reset and the statement succeeds.
+ALTER MODEL MyModel RESET ('model-version', 'unknown-key');
 ```
 
 ### RENAME TO
