@@ -23,15 +23,22 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -196,6 +203,20 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    public static class TimedEvent {
+        public String key;
+
+        @DataTypeHint("TIMESTAMP(3)")
+        public LocalDateTime ts;
+
+        public TimedEvent() {}
+
+        public TimedEvent(String key, LocalDateTime ts) {
+            this.key = key;
+            this.ts = ts;
+        }
+    }
+
     /** PTF for testing structured type inputs. */
     @DataTypeHint("ROW<name STRING, age INT>")
     public static class UserPTF extends ProcessTableFunction<Row> {
@@ -304,14 +325,6 @@ class ProcessTableFunctionTestHarnessTest {
     public static class PrimitiveScalarPTF extends ProcessTableFunction<Row> {
         public void eval(int a, int b) {
             collect(Row.of(a + b));
-        }
-    }
-
-    /** PTF with Context parameter - should be rejected by test harness. */
-    @DataTypeHint("ROW<value INT>")
-    public static class PTFWithContext extends ProcessTableFunction<Row> {
-        public void eval(Context ctx, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            collect(input);
         }
     }
 
@@ -1195,22 +1208,6 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testContextParameterRejected() {
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                ProcessTableFunctionTestHarness.ofClass(PTFWithContext.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                                        .build());
-
-        assertThat(exception.getMessage())
-                .contains("does not yet support Context parameters")
-                .contains("Context parameter")
-                .contains("position 0");
-    }
-
-    @Test
     void testSetSemanticMissingPartitionConfigThrows() {
         Exception exception =
                 assertThrows(
@@ -1751,5 +1748,994 @@ class ProcessTableFunctionTestHarnessTest {
                 () -> harness.clearStateForKey("state", Row.of(42)));
 
         harness.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // Timer PTFs
+    // -------------------------------------------------------------------------
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class TimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String name = input.getFieldAs("name");
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timeout-" + name, timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered-" + name));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("timer-fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class UnnamedTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            timeCtx.registerOnTime(timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            String timerName = ctx.currentTimer();
+            collect(Row.of("fired-unnamed-" + (timerName == null ? "null" : timerName)));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class TimerWithStatePTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CounterState state,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            state.count++;
+            TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            timeCtx.registerOnTime("check", timeCtx.time() + 5000L);
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint CounterState state) {
+            collect(Row.of("count=" + state.count));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class PassThroughTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.PASS_COLUMNS_THROUGH,
+                            ArgumentTrait.REQUIRE_ON_TIME
+                        })
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class NoOnTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(10)));
+            collect(Row.of("registered"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class MultipleOnTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-no-state"));
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint String state) {
+            collect(Row.of("fired-with-state"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class CascadingTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<Timestamp> timeCtx = ctx.timeContext(Timestamp.class);
+            timeCtx.registerOnTime("first", new Timestamp(timeCtx.time().getTime() + 5000));
+            collect(Row.of("eval"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            String name = ctx.currentTimer();
+            collect(Row.of("fired-" + name));
+            if ("first".equals(name)) {
+                TimeContext<Timestamp> timeCtx = ctx.timeContext(Timestamp.class);
+                timeCtx.registerOnTime("second", new Timestamp(timeCtx.time().getTime() - 2000));
+            }
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class MultiTableTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row leftTable,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row rightTable) {
+            if (leftTable != null) {
+                TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+                timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+                collect(Row.of("left"));
+            }
+            if (rightTable != null) {
+                collect(Row.of("right"));
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("timer-fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class ContextClearStatePTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CounterState state,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String action = input.getFieldAs("action");
+            if ("increment".equals(action)) {
+                if (state == null) {
+                    state = new CounterState();
+                }
+                state.count++;
+                collect(Row.of("count=" + state.count));
+            } else if ("clear-state".equals(action)) {
+                ctx.clearState("state");
+                collect(Row.of("cleared"));
+            } else if ("clear-all-state".equals(action)) {
+                ctx.clearAllState();
+                collect(Row.of("cleared-all"));
+            } else if ("clear-all".equals(action)) {
+                ctx.clearAll();
+                collect(Row.of("cleared-everything"));
+            } else if ("register-timer".equals(action)) {
+                TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+                timeCtx.registerOnTime("t", timeCtx.time().plus(Duration.ofHours(1)));
+                collect(Row.of("timer-registered"));
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint CounterState state) {
+            collect(Row.of("timer-fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class PojoTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        TimedEvent input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered-" + input.key));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<partitionCols STRING, timeCol INT, changelogMode STRING>")
+    public static class ContextSemanticsIntrospectionPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TableSemantics semantics = ctx.tableSemanticsFor("input");
+            collect(
+                    Row.of(
+                            java.util.Arrays.toString(semantics.partitionByColumns()),
+                            semantics.timeColumn(),
+                            ctx.getChangelogMode().toString()));
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            TableSemantics semantics = ctx.tableSemanticsFor("input");
+            collect(
+                    Row.of(
+                            java.util.Arrays.toString(semantics.partitionByColumns()),
+                            semantics.timeColumn(),
+                            ctx.getChangelogMode().toString()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class ClearTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            String action = input.getFieldAs("action");
+            if ("register-named".equals(action)) {
+                timeCtx.registerOnTime("myTimer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            } else if ("register-unnamed".equals(action)) {
+                timeCtx.registerOnTime(timeCtx.time().plus(Duration.ofSeconds(5)));
+            } else if ("clear-by-name".equals(action)) {
+                timeCtx.clearTimer("myTimer");
+            } else if ("clear-by-timestamp".equals(action)) {
+                timeCtx.clearTimer(timeCtx.time().plus(Duration.ofSeconds(4)));
+            } else if ("clear-all".equals(action)) {
+                ctx.clearAllTimers();
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(
+                    Row.of(
+                            "fired-"
+                                    + (ctx.currentTimer() != null
+                                            ? ctx.currentTimer()
+                                            : "unnamed")));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class WatermarkOnlyTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            Long wm = timeCtx.currentWatermark();
+            long timer = wm == null || wm < 0 ? 1 : wm + 1;
+            timeCtx.registerOnTime("t", timer);
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class OnTimePTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String name = input.getFieldAs("name");
+            collect(Row.of("hello-" + name));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Context Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testPerTableWatermarkTimerFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(MultiTableTimerPTF.class)
+                        .withTableArgument(
+                                "leftTable", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withTableArgument(
+                                "rightTable",
+                                DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("leftTable", "partition")
+                        .withPartitionBy("rightTable", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            // Register a timer at t=5000 via the left table
+            harness.processElementForTable(
+                    "leftTable", Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            // Advance both watermarks, but the right table will not advance enough to trigger the
+            // timer at 6s
+            harness.setWatermarkForTable("rightTable", LocalDateTime.of(2025, 1, 1, 0, 0, 3));
+            harness.setWatermarkForTable("leftTable", LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).isEmpty();
+
+            // Now advance right table past the timer. Global watermark catches up, timer fires
+            harness.setWatermarkForTable("rightTable", LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("check");
+            assertThat(harness.getFiredTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+            // Both tables' partition keys are prepended (one "P1" per table)
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "P1",
+                                    "timer-fired",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testContextClearState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)),
+                            Row.of("P1", "count=2", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-state", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "cleared", LocalDateTime.of(2025, 1, 1, 0, 0, 3)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+        }
+    }
+
+    @Test
+    void testContextClearAllState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-all-state", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "cleared-all", LocalDateTime.of(2025, 1, 1, 0, 0, 2)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+        }
+    }
+
+    @Test
+    void testContextClearAll() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "register-timer", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("t");
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-all", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "cleared-everything",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 3)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+        }
+    }
+
+    @Test
+    void testContextTableSemanticsAndChangelogMode() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextSemanticsIntrospectionPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            assertThat(harness.getOutput()).hasSize(1);
+            Row evalResult = harness.getOutput().get(0);
+            assertThat(evalResult.getFieldAs(0).toString()).isEqualTo("P1");
+            assertThat(evalResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat((int) evalResult.getFieldAs(2)).isEqualTo(1);
+            assertThat(evalResult.getFieldAs(3).toString())
+                    .isEqualTo(ChangelogMode.insertOnly().toString());
+
+            harness.clearOutput();
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+
+            assertThat(harness.getOutput()).hasSize(1);
+            Row timerResult = harness.getOutput().get(0);
+            assertThat(timerResult.getFieldAs(0).toString()).isEqualTo("P1");
+            assertThat(timerResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat((int) timerResult.getFieldAs(2)).isEqualTo(1);
+            assertThat(timerResult.getFieldAs(3).toString())
+                    .isEqualTo(ChangelogMode.insertOnly().toString());
+        }
+    }
+
+    @Test
+    void testPojoInputWithOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PojoTimerPTF.class)
+                        .withTableArgument("input")
+                        .withPartitionBy("input", "key")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "registered-P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-check", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Time / On-Time Column Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testOnTimeColumnAppendedToEvalOutput() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(OnTimePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "hello-Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+        }
+    }
+
+    @Test
+    void testWatermarkAdvancesWithoutTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(OnTimePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            // Advancing watermark without timers registered should not produce additional output
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getOutput()).hasSize(1);
+        }
+    }
+
+    @Test
+    void testWatermarkAdvancesWithoutOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .build()) {
+
+            harness.processElement(Row.of(42));
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getOutput()).containsExactly(Row.of(42));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Timer Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testNamedTimerRegistrationAndFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "registered-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            Timer timer = harness.getPendingTimers().get(0);
+            assertThat(timer.getName()).isEqualTo("timeout-Alice");
+            assertThat(timer.getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+
+            assertThat(harness.getPendingTimers()).isEmpty();
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("timeout-Alice");
+            assertThat(harness.getFiredTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+        }
+    }
+
+    @Test
+    void testUnnamedTimerFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(UnnamedTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.setWatermark(Instant.parse("2025-01-01T00:00:07Z"));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "fired-unnamed-null",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testTimerReplacementSemantics() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            // First eval: event at T+1s → timer at T+6s
+            // Second eval: event at T+6s → replaces timer to T+11s
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("timeout-Alice");
+            assertThat(harness.getPendingTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 11));
+
+            // Watermark at T+7s — timer at T+11s should NOT fire
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput()).isEmpty();
+
+            // Watermark at T+12s — timer at T+11s should fire
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 12));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 11)));
+        }
+    }
+
+    @Test
+    void testMultipleTimersFiringOrder() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Charlie", LocalDateTime.of(2025, 1, 1, 0, 0, 5)));
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", "Bob", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 11));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Bob",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 8)),
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Charlie",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 10)));
+        }
+    }
+
+    @Test
+    void testStateAccessInOnTimer() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerWithStatePTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P2", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 8));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "count=3", LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of("P2", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 7)));
+
+            assertThat(harness.getFiredTimers(Row.of("P1"))).hasSize(1);
+            assertThat(harness.getFiredTimers(Row.of("P1")).get(0).getName()).isEqualTo("check");
+            assertThat(harness.getFiredTimers(Row.of("P2"))).hasSize(1);
+            assertThat(harness.getFiredTimers(Row.of("P2")).get(0).getName()).isEqualTo("check");
+            assertThat(harness.getPendingTimers(Row.of("P1"))).isEmpty();
+            assertThat(harness.getPendingTimers(Row.of("P2"))).isEmpty();
+        }
+    }
+
+    @Test
+    void testWatermarkCannotMoveBackward() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 5));
+            IllegalArgumentException e =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(e.getMessage()).contains("Cannot move watermark backward", "input");
+
+            IllegalArgumentException e2 =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    harness.setWatermarkForTable(
+                                            "input", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(e2.getMessage()).contains("Cannot move watermark backward", "input");
+        }
+    }
+
+    @Test
+    void testPassThroughWithTimersIsRejected() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PassThroughTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            TableRuntimeException e =
+                    assertThrows(
+                            TableRuntimeException.class,
+                            () ->
+                                    harness.processElement(
+                                            Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1))));
+            assertThat(e.getMessage()).contains("Timers are not supported");
+        }
+    }
+
+    @Test
+    void testNoOnTimerMethodThrows() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(NoOnTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            IllegalStateException e =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () -> harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1)));
+            assertThat(e.getMessage()).contains("no valid onTimer() method", "NoOnTimerPTF");
+        }
+    }
+
+    @Test
+    void testRequireOnTimeWithoutOnTimeColumnIsRejected() {
+        ValidationException e =
+                assertThrows(
+                        ValidationException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                                        .withTableArgument(
+                                                "input",
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .withPartitionBy("input", "partition")
+                                        .build());
+        assertThat(e.getMessage()).contains("requires a time attribute", "on_time");
+    }
+
+    @Test
+    void testMultipleOnTimerMethods() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(MultipleOnTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-no-state", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testCascadingTimerFromOnTimer() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(CascadingTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(Row.of("P1", "eval", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            // "first" fires, registers "second" at 3000ms (past time),
+            // "second" should cascade and fire in the same advance
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-first", LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of("P1", "fired-second", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+            assertThat(harness.getFiredTimers()).hasSize(2);
+            assertThat(harness.getFiredTimers())
+                    .extracting(Timer::getName)
+                    .containsExactly("first", "second");
+        }
+    }
+
+    @Test
+    void testClearTimerByName() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-name", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testClearTimerByTimestamp() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-unnamed", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isNull();
+            assertThat(harness.getPendingTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-timestamp", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testClearTimerByTimestampDoesNotClearNamedTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-timestamp", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-myTimer", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testClearAllTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.of(
+                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "partition")
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "register-unnamed", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(2);
+
+            harness.processElement(
+                    Row.of("P1", "clear-all", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testTimersWithoutOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(WatermarkOnlyTimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, value INT>"))
+                        .withPartitionBy("input", "partition")
+                        .build()) {
+
+            harness.setWatermark(Instant.ofEpochMilli(1000));
+
+            harness.processElement(Row.of("P1", 42));
+            assertThat(harness.getOutput()).containsExactly(Row.of("P1", "registered"));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("t");
+            assertThat(harness.getPendingTimers().get(0).getTimestamp()).isEqualTo(1001);
+
+            // Advance watermark to fire the timer
+            harness.setWatermark(Instant.ofEpochMilli(1001));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("t");
+
+            // Row collected from onTimer should have no on_time column
+            assertThat(harness.getOutput()).containsExactly(Row.of("P1", "fired-t"));
+        }
     }
 }

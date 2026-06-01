@@ -2465,6 +2465,126 @@ void testStateMutation() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
+#### Testing with Timers and Context
+
+The harness supports the `Context` parameter, timer registration via `TimeContext`, and `onTimer`
+callbacks. Use `.withOnTimeColumn()` to configure the event time column and `.setWatermark()` to
+advance watermarks and fire eligible timers.
+
+{{< tabs "timer-testing" >}}
+{{< tab "Java" >}}
+```java
+// A PTF that registers a named timer 5 seconds after each event, and emits when it fires.
+@DataTypeHint("ROW<message STRING>")
+public class TimerPTF extends ProcessTableFunction<Row> {
+  public void eval(
+      Context ctx,
+      @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+          Row input) {
+    String name = input.getFieldAs("name");
+    TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+    timeCtx.registerOnTime("timeout-" + name, timeCtx.time().plus(Duration.ofSeconds(5)));
+    collect(Row.of("registered-" + name));
+  }
+
+  public void onTimer(OnTimerContext ctx) {
+    collect(Row.of("timer-fired-" + ctx.currentTimer()));
+  }
+}
+
+@Test
+void testTimerRegistrationAndFiring() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+      ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+          .withTableArgument("input",
+              DataTypes.of("ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+          .withPartitionBy("input", "partition")
+          .withOnTimeColumn("ts")
+          .build()) {
+
+    harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+    // Verify the timer was registered
+    assertThat(harness.getPendingTimers()).hasSize(1);
+    Timer timer = harness.getPendingTimers().get(0);
+    assertThat(timer.getName()).isEqualTo("timeout-Alice");
+    assertThat(timer.getTimestampAs(LocalDateTime.class))
+        .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+
+    // Only eval() output so far — the timer has not fired yet
+    assertThat(harness.getOutput())
+        .containsExactly(
+            Row.of("P1", "registered-Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+    // Advance watermark past the timer's timestamp to fire it
+    harness.clearOutput();
+    harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+
+    assertThat(harness.getOutput())
+        .containsExactly(
+            Row.of("P1", "timer-fired-timeout-Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+
+    assertThat(harness.getPendingTimers()).isEmpty();
+    assertThat(harness.getFiredTimers()).hasSize(1);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Timers with State**: State persisted during `eval()` is accessible in `onTimer()`:
+
+{{< tabs "timer-state-testing" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<message STRING>")
+public class TimerWithStatePTF extends ProcessTableFunction<Row> {
+  public static class CounterState {
+    public long count = 0L;
+  }
+
+  public void eval(
+      Context ctx,
+      @StateHint CounterState state,
+      @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+          Row input) {
+    state.count++;
+    TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+    timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+  }
+
+  public void onTimer(OnTimerContext ctx, @StateHint CounterState state) {
+    collect(Row.of("count=" + state.count));
+  }
+}
+
+@Test
+void testTimerWithState() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+      ProcessTableFunctionTestHarness.ofClass(TimerWithStatePTF.class)
+          .withTableArgument("input",
+              DataTypes.of("ROW<partition STRING, ts TIMESTAMP(3)>"))
+          .withPartitionBy("input", "partition")
+          .withOnTimeColumn("ts")
+          .build()) {
+
+    harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+    harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+    harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+    harness.processElement(Row.of("P2", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+
+    // One watermark advancement fires both timers (P1 at +5s, P2 at +5s)
+    harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 8));
+    assertThat(harness.getOutput())
+        .containsExactly(
+            Row.of("P1", "count=3", LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+            Row.of("P2", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 7)));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### Optional Partitioning
 
 For PTFs with `OPTIONAL_PARTITION_BY`, you can omit `withPartitionBy()` during harness setup. The
@@ -2582,8 +2702,5 @@ void testPOJO() throws Exception {
 
 ### PTF Features Unsupported by the TestHarness
 
-- `Context` parameter
-- Timers (`onTimer`)
-- `on_time` / `rowtime`
 - Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
 - State TTL (state is supported but TTL expiration is not yet implemented)

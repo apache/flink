@@ -20,7 +20,12 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
@@ -31,6 +36,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
@@ -43,18 +49,24 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ClassUtils;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,6 +75,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -113,7 +126,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final TestHarnessStateManager stateManager;
 
     private final String defaultTableArgument;
-    private final Method evalMethod;
+    private final ResolvedMethod<ProcessTableFunction.Context> eval;
+    @Nullable private final ResolvedMethod<ProcessTableFunction.OnTimerContext> onTimer;
     private final List<ArgumentInfo> arguments;
 
     private final Map<String, ArgumentInfo> argumentsByName;
@@ -123,22 +137,35 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final Map<String, TableArgumentConverters> argumentConverters;
     private final DataStructureConverter<Object, Object> harnessOutputConverter;
 
+    private final TestHarnessTimerManager timerManager;
+    @Nullable private final String onTimeColumnName;
+
+    @Nullable private final Class<?> rowtimeConversionClass;
+
+    @Nullable private InvocationContext currentInvocation;
+
     private ProcessTableFunctionTestHarness(
             ProcessTableFunction<OUT> function,
             FunctionContext functionContext,
-            Method evalMethod,
+            ResolvedMethod<ProcessTableFunction.Context> eval,
+            @Nullable ResolvedMethod<ProcessTableFunction.OnTimerContext> onTimer,
             List<ArgumentInfo> arguments,
             Map<String, TableArgumentConverters> argumentConverters,
             DataStructureConverter<Object, Object> harnessOutputConverter,
-            TestHarnessStateManager stateManager)
+            TestHarnessStateManager stateManager,
+            TestHarnessTimerManager timerManager,
+            @Nullable String onTimeColumnName)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
-        this.evalMethod = evalMethod;
+        this.eval = eval;
+        this.onTimer = onTimer;
         this.arguments = arguments;
         this.argumentConverters = argumentConverters;
         this.harnessOutputConverter = harnessOutputConverter;
         this.stateManager = stateManager;
+        this.timerManager = timerManager;
+        this.onTimeColumnName = onTimeColumnName;
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
@@ -160,6 +187,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             this.defaultTableArgument = null;
             this.isSingleTableFunction = false;
         }
+
+        this.rowtimeConversionClass = resolveRowtimeConversionClass(tableArguments);
 
         openFunction();
     }
@@ -258,7 +287,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         Object[] args = arguments.stream().map(arg -> ((ScalarArgumentInfo) arg).value).toArray();
 
         try {
-            evalMethod.invoke(function, args);
+            eval.method.invoke(function, args);
         } catch (InvocationTargetException e) {
             handleEvalInvocationException(
                     "Exception occurred during scalar-only PTF eval() invocation.\n", args, e);
@@ -305,6 +334,420 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         stateManager.clearStateForKey(stateName, partitionKey);
     }
 
+    // -------------------------------------------------------------------------
+    // Watermark & Timer API
+    // -------------------------------------------------------------------------
+
+    /**
+     * Sets the watermark for all tables to the given {@link LocalDateTime} and fires eligible
+     * timers.
+     */
+    public void setWatermark(LocalDateTime watermark) throws Exception {
+        checkNotNull(watermark, "watermark must not be null");
+        setWatermarkMillis(DateTimeUtils.toTimestampMillis(watermark));
+    }
+
+    /** Sets the watermark for all tables to the given {@link Instant} and fires eligible timers. */
+    public void setWatermark(Instant watermark) throws Exception {
+        checkNotNull(watermark, "watermark must not be null");
+        setWatermarkMillis(watermark.toEpochMilli());
+    }
+
+    /**
+     * Sets the watermark for a specific table. Fires eligible timers if this advances the global
+     * watermark (the minimum across all tables).
+     */
+    public void setWatermarkForTable(String tableArgument, LocalDateTime watermark)
+            throws Exception {
+        checkNotNull(watermark, "watermark must not be null");
+        setWatermarkForTableMillis(tableArgument, DateTimeUtils.toTimestampMillis(watermark));
+    }
+
+    /**
+     * Sets the watermark for a specific table. Fires eligible timers if this advances the global
+     * watermark (the minimum across all tables).
+     */
+    public void setWatermarkForTable(String tableArgument, Instant watermark) throws Exception {
+        checkNotNull(watermark, "watermark must not be null");
+        setWatermarkForTableMillis(tableArgument, watermark.toEpochMilli());
+    }
+
+    /** Returns all timers (both pending and fired), sorted by timestamp then name. */
+    public List<Timer> getAllTimers() {
+        return Stream.concat(
+                        timerManager.getPendingTimers().stream(),
+                        timerManager.getFiredTimers().stream())
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
+    /** Returns all timers (both pending and fired) for the given partition key. */
+    public List<Timer> getAllTimers(Row partitionKey) {
+        return getAllTimers().stream()
+                .filter(t -> partitionKey.equals(t.getKey()))
+                .collect(Collectors.toList());
+    }
+
+    /** Returns all pending (not yet fired) timers, sorted by timestamp then name. */
+    public List<Timer> getPendingTimers() {
+        return timerManager.getPendingTimers();
+    }
+
+    /** Returns all pending timers for the given partition key. */
+    public List<Timer> getPendingTimers(Row partitionKey) {
+        return timerManager.getPendingTimers().stream()
+                .filter(t -> partitionKey.equals(t.getKey()))
+                .collect(Collectors.toList());
+    }
+
+    /** Returns all pending timers with the given name. */
+    public List<Timer> getPendingTimers(String timerName) {
+        return timerManager.getPendingTimers().stream()
+                .filter(t -> timerName.equals(t.getName()))
+                .collect(Collectors.toList());
+    }
+
+    /** Returns all timers that have fired, in the order they fired. */
+    public List<Timer> getFiredTimers() {
+        return timerManager.getFiredTimers();
+    }
+
+    /** Returns all fired timers for the given partition key. */
+    public List<Timer> getFiredTimers(Row partitionKey) {
+        return timerManager.getFiredTimers().stream()
+                .filter(t -> partitionKey.equals(t.getKey()))
+                .collect(Collectors.toList());
+    }
+
+    /** Returns all fired timers with the given name. */
+    public List<Timer> getFiredTimers(String timerName) {
+        return timerManager.getFiredTimers().stream()
+                .filter(t -> timerName.equals(t.getName()))
+                .collect(Collectors.toList());
+    }
+
+    /** Clears the fired timer history. */
+    public void clearFiredTimers() {
+        timerManager.clearFiredTimers();
+    }
+
+    private void setWatermarkMillis(long millis) throws Exception {
+        checkState(isOpen, "Harness is not open");
+        for (TableArgumentInfo tableArg : ArgumentInfo.filterTableArguments(arguments)) {
+            timerManager.setTableWatermark(tableArg.name, millis);
+        }
+        timerManager.updateGlobalWatermarkAndFireTimers(this::fireTimer);
+    }
+
+    private void setWatermarkForTableMillis(String tableArgument, long millis) throws Exception {
+        checkState(isOpen, "Harness is not open");
+        checkNotNull(tableArgument, "tableArgument must not be null");
+        checkArgument(
+                argumentsByName.get(tableArgument) instanceof TableArgumentInfo,
+                "Unknown or non-table argument: %s",
+                tableArgument);
+        timerManager.setTableWatermark(tableArgument, millis);
+        timerManager.updateGlobalWatermarkAndFireTimers(this::fireTimer);
+    }
+
+    private void fireTimer(Timer timer) throws Exception {
+        if (onTimer == null) {
+            throw new IllegalStateException(
+                    "Timer fired but no valid onTimer() method is defined in "
+                            + function.getClass().getSimpleName());
+        }
+
+        currentInvocation = InvocationContext.forTimer(timer);
+
+        Map<String, Object> stateMap = stateManager.loadStateForKey(timer.partitionKey);
+
+        List<StateArgumentInfo> stateArgs = ArgumentInfo.filterStateArguments(arguments);
+        Object[] methodArgs = new Object[stateArgs.size()];
+        for (int i = 0; i < stateArgs.size(); i++) {
+            methodArgs[i] = stateMap.get(stateArgs.get(i).name);
+        }
+
+        try {
+            onTimer.invoke(function, new TestOnTimerContext(stateMap), methodArgs);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw (Exception) cause;
+            }
+            throw new RuntimeException("onTimer() invocation failed", e);
+        } finally {
+            currentInvocation = null;
+        }
+
+        stateManager.updateStateForKey(timer.partitionKey, stateMap);
+    }
+
+    // -------------------------------------------------------------------------
+    // Context implementations
+    // -------------------------------------------------------------------------
+
+    private class TestContext implements ProcessTableFunction.Context {
+        final Map<String, Object> stateMap;
+
+        TestContext(Map<String, Object> stateMap) {
+            this.stateMap = stateMap;
+        }
+
+        @Override
+        public <TimeType> ProcessTableFunction.TimeContext<TimeType> timeContext(
+                Class<TimeType> conversionClass) {
+            return new TestTimeContext<>(conversionClass);
+        }
+
+        @Override
+        public TableSemantics tableSemanticsFor(String argName) {
+            List<String> tableArgNames =
+                    ArgumentInfo.filterTableArguments(arguments).stream()
+                            .map(t -> t.name)
+                            .collect(Collectors.toList());
+            ArgumentInfo argInfo = argumentsByName.get(argName);
+            if (argInfo == null || !(argInfo instanceof TableArgumentInfo)) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Argument '%s' is not a table argument. Available table arguments: %s",
+                                argName, tableArgNames));
+            }
+            TableArgumentInfo tableArg = (TableArgumentInfo) argInfo;
+            int[] partitionIndices = getPartitionColumnIndices(tableArg);
+            int timeColumnIndex =
+                    onTimeColumnName != null
+                            ? getFieldNames(tableArg.dataType).indexOf(onTimeColumnName)
+                            : -1;
+            return new TestHarnessTableSemantics(
+                    tableArg.dataType, partitionIndices, timeColumnIndex);
+        }
+
+        @Override
+        public void clearState(String stateName) {
+            stateMap.remove(stateName);
+        }
+
+        @Override
+        public void clearAllState() {
+            stateMap.clear();
+        }
+
+        @Override
+        public void clearAllTimers() {
+            timerManager.clearAll(currentInvocation.partitionKey);
+        }
+
+        @Override
+        public void clearAll() {
+            stateMap.clear();
+            timerManager.clearAll(currentInvocation.partitionKey);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+    }
+
+    private class TestTimeContext<TimeType> implements ProcessTableFunction.TimeContext<TimeType> {
+        private final Class<TimeType> conversionClass;
+
+        TestTimeContext(Class<TimeType> conversionClass) {
+            if (!Set.of(
+                            Long.class,
+                            long.class,
+                            Instant.class,
+                            LocalDateTime.class,
+                            java.sql.Timestamp.class)
+                    .contains(conversionClass)) {
+                throw new IllegalArgumentException(
+                        "Unsupported time type: " + conversionClass.getName());
+            }
+            this.conversionClass = conversionClass;
+        }
+
+        @Override
+        public TimeType time() {
+            InvocationContext ctx = currentInvocation;
+            if (ctx.isTimerInvocation()) {
+                return fromMillis(ctx.firingTimer.timestamp);
+            }
+            if (ctx.isEvalInvocation() && onTimeColumnName != null) {
+                ArgumentInfo argInfo = argumentsByName.get(ctx.tableArgumentName);
+                if (argInfo instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) argInfo;
+                    if (!getFieldNames(tableArg.dataType).contains(onTimeColumnName)) {
+                        return null;
+                    }
+                }
+                Object timeValue = ctx.row.getField(onTimeColumnName);
+                if (timeValue == null) {
+                    return null;
+                }
+                return fromMillis(toMillis(timeValue));
+            }
+            return null;
+        }
+
+        @Override
+        public TimeType tableWatermark() {
+            InvocationContext ctx = currentInvocation;
+            if (!ctx.isEvalInvocation()) {
+                return null;
+            }
+            Long wm = timerManager.getWatermarkForTable(ctx.tableArgumentName);
+            return wm != null ? fromMillis(wm) : null;
+        }
+
+        @Override
+        public TimeType currentWatermark() {
+            Long wm = timerManager.getGlobalWatermark();
+            return wm != null ? fromMillis(wm) : null;
+        }
+
+        @Override
+        public void registerOnTime(String name, TimeType time) {
+            checkTimersEnabled();
+            checkNotNull(name, "Timer name must not be null");
+            checkNotNull(time, "Timer timestamp must not be null");
+            timerManager.register(currentInvocation.partitionKey, toMillis(time), name);
+        }
+
+        @Override
+        public void registerOnTime(TimeType time) {
+            checkTimersEnabled();
+            checkNotNull(time, "Timer timestamp must not be null");
+            timerManager.register(currentInvocation.partitionKey, toMillis(time), null);
+        }
+
+        @Override
+        public void clearTimer(String name) {
+            checkNotNull(name, "Timer name must not be null");
+            timerManager.clearByName(currentInvocation.partitionKey, name);
+        }
+
+        @Override
+        public void clearTimer(TimeType time) {
+            checkNotNull(time, "Timer timestamp must not be null");
+            timerManager.clearByTimestamp(currentInvocation.partitionKey, toMillis(time));
+        }
+
+        @Override
+        public void clearAllTimers() {
+            timerManager.clearAll(currentInvocation.partitionKey);
+        }
+
+        private void checkTimersEnabled() {
+            boolean enabled =
+                    ArgumentInfo.filterTableArguments(arguments).stream()
+                            .anyMatch(
+                                    t ->
+                                            t.isSetSemantic
+                                                    && t.prependStrategy
+                                                            != OutputPrependStrategy.ALL_COLUMNS);
+            if (!enabled) {
+                throw new TableRuntimeException(
+                        "Timers are not supported in the current PTF declaration. "
+                                + "Note that only PTFs that take set semantic tables support timers. "
+                                + "Also timers are not available for advanced traits such as "
+                                + "supporting pass-through columns or updates.");
+            }
+        }
+
+        private TimeType fromMillis(long millis) {
+            return convertFromMillis(millis, conversionClass);
+        }
+
+        private long toMillis(Object time) {
+            if (time instanceof Long) {
+                return (Long) time;
+            } else if (time instanceof Instant) {
+                return ((Instant) time).toEpochMilli();
+            } else if (time instanceof LocalDateTime) {
+                return DateTimeUtils.toTimestampMillis((LocalDateTime) time);
+            } else if (time instanceof java.sql.Timestamp) {
+                return DateTimeUtils.toInternal((java.sql.Timestamp) time);
+            }
+            throw new IllegalArgumentException(
+                    "Unsupported time type: " + time.getClass().getSimpleName());
+        }
+    }
+
+    private class TestOnTimerContext extends TestContext
+            implements ProcessTableFunction.OnTimerContext {
+
+        TestOnTimerContext(Map<String, Object> stateMap) {
+            super(stateMap);
+        }
+
+        @Override
+        public String currentTimer() {
+            if (currentInvocation.isTimerInvocation()) {
+                return currentInvocation.firingTimer.getName();
+            }
+            return null;
+        }
+    }
+
+    private static int[] getPartitionColumnIndices(TableArgumentInfo arg) {
+        if (arg.partitionColumnNames == null || arg.partitionColumnNames.length == 0) {
+            return new int[0];
+        }
+        List<String> fieldNames = getFieldNames(arg.dataType);
+        int[] indices = new int[arg.partitionColumnNames.length];
+        for (int i = 0; i < arg.partitionColumnNames.length; i++) {
+            String colName = arg.partitionColumnNames[i];
+            int index = fieldNames.indexOf(colName);
+            if (index < 0) {
+                throw new IllegalStateException(
+                        "Partition column '"
+                                + colName
+                                + "' not found in table argument. "
+                                + "Available fields: "
+                                + fieldNames);
+            }
+            indices[i] = index;
+        }
+        return indices;
+    }
+
+    @Nullable
+    private Class<?> resolveRowtimeConversionClass(List<TableArgumentInfo> tableArguments) {
+        if (onTimeColumnName == null) {
+            return null;
+        }
+        for (TableArgumentInfo tableArg : tableArguments) {
+            List<String> fieldNames = getFieldNames(tableArg.dataType);
+            int idx = fieldNames.indexOf(onTimeColumnName);
+            if (idx >= 0) {
+                return DataType.getFields(tableArg.dataType)
+                        .get(idx)
+                        .getDataType()
+                        .getConversionClass();
+            }
+        }
+        throw new IllegalStateException(
+                "Could not resolve rowtime conversion class for column: " + onTimeColumnName);
+    }
+
+    private Object rowtimeFromMillis(long millis) {
+        return convertFromMillis(millis, rowtimeConversionClass);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T convertFromMillis(long millis, Class<T> targetClass) {
+        if (targetClass == Long.class || targetClass == long.class) {
+            return (T) Long.valueOf(millis);
+        } else if (targetClass == Instant.class) {
+            return (T) Instant.ofEpochMilli(millis);
+        } else if (targetClass == LocalDateTime.class) {
+            return (T) DateTimeUtils.toLocalDateTime(millis);
+        } else if (targetClass == java.sql.Timestamp.class) {
+            return (T) DateTimeUtils.toSQLTimestamp(millis);
+        }
+        throw new IllegalArgumentException("Unsupported time type: " + targetClass);
+    }
+
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
         TableArgumentConverters converters = argumentConverters.get(activeTableArg.name);
 
@@ -312,31 +755,30 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         Row namedRow = (Row) converters.toNamedRow.toExternal(rowData);
         Object evalArgument = converters.toEvalArgument.toExternal(rowData);
 
-        collector.setContext(activeTableArg, namedRow);
-
         Row partitionKey = extractPartitionKey(activeTableArg, namedRow);
+        currentInvocation = InvocationContext.forEval(partitionKey, namedRow, activeTableArg.name);
+
         Map<String, Object> stateMap = stateManager.loadStateForKey(partitionKey);
 
-        Object[] args = new Object[arguments.size()];
+        Object[] methodArgs = new Object[arguments.size()];
         int i = 0;
-
         for (ArgumentInfo arg : arguments) {
             if (arg instanceof StateArgumentInfo) {
-                args[i++] = stateMap.get(arg.name);
+                methodArgs[i++] = stateMap.get(arg.name);
             } else if (arg instanceof TableArgumentInfo) {
                 TableArgumentInfo tableArg = (TableArgumentInfo) arg;
                 if (tableArg.name.equals(activeTableArg.name)) {
-                    args[i++] = evalArgument;
+                    methodArgs[i++] = evalArgument;
                 } else {
-                    args[i++] = null;
+                    methodArgs[i++] = null;
                 }
             } else if (arg instanceof ScalarArgumentInfo) {
-                args[i++] = ((ScalarArgumentInfo) arg).value;
+                methodArgs[i++] = ((ScalarArgumentInfo) arg).value;
             }
         }
 
         try {
-            evalMethod.invoke(function, args);
+            eval.invoke(function, new TestContext(stateMap), methodArgs);
             stateManager.updateStateForKey(partitionKey, stateMap);
         } catch (InvocationTargetException e) {
             String partitionInfo =
@@ -350,7 +792,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     String.format(
                             "Exception occurred during PTF eval() while processing table argument '%s'%s.\n",
                             activeTableArg.name, partitionInfo);
-            handleEvalInvocationException(contextMessage, args, e);
+            handleEvalInvocationException(contextMessage, methodArgs, e);
+        } finally {
+            currentInvocation = null;
         }
     }
 
@@ -366,42 +810,51 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     /** Collector implementation that stores output in the harness. */
     private class HarnessCollector implements Collector<OUT> {
-        private ArgumentInfo activeTableArg;
-        private Row activeRow;
-
-        void setContext(ArgumentInfo tableArg, Row row) {
-            this.activeTableArg = tableArg;
-            this.activeRow = row;
-        }
 
         @Override
         public void collect(OUT record) {
             OUT finalRecord;
 
-            if (activeTableArg == null || !(activeTableArg instanceof TableArgumentInfo)) {
-                finalRecord = record;
-            } else {
-                TableArgumentInfo tableArg = (TableArgumentInfo) activeTableArg;
-                switch (tableArg.prependStrategy) {
-                    case ALL_COLUMNS:
-                        finalRecord = prependAllColumns(record);
-                        break;
-                    case PARTITION_KEYS:
-                        finalRecord = prependPartitionKeys(record);
-                        break;
-                    case NONE:
-                        finalRecord = record;
-                        break;
-                    default:
-                        throw new IllegalStateException(
-                                "Unknown prepend strategy: " + tableArg.prependStrategy);
-                }
+            OutputPrependStrategy strategy = resolvePrependStrategy();
+            switch (strategy) {
+                case ALL_COLUMNS:
+                    finalRecord = prependAllColumns(record);
+                    break;
+                case PARTITION_KEYS:
+                    finalRecord = prependPartitionKeys(record);
+                    break;
+                case NONE:
+                    finalRecord = record;
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown prepend strategy: " + strategy);
+            }
+
+            if (onTimeColumnName != null) {
+                finalRecord = appendRowtime(finalRecord);
             }
 
             // After prepending, round-trip through converter to ensure output has proper
             // field structure from derived output schema
             OUT structuredRecord = applyOutputConverter(finalRecord);
             output.add(structuredRecord);
+        }
+
+        private OutputPrependStrategy resolvePrependStrategy() {
+            InvocationContext ctx = currentInvocation;
+            if (ctx == null) {
+                return OutputPrependStrategy.NONE;
+            }
+            if (ctx.isTimerInvocation()) {
+                return OutputPrependStrategy.PARTITION_KEYS;
+            }
+            if (ctx.isEvalInvocation()) {
+                ArgumentInfo argInfo = argumentsByName.get(ctx.tableArgumentName);
+                if (argInfo instanceof TableArgumentInfo) {
+                    return ((TableArgumentInfo) argInfo).prependStrategy;
+                }
+            }
+            return OutputPrependStrategy.NONE;
         }
 
         @SuppressWarnings("unchecked")
@@ -415,6 +868,23 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         @SuppressWarnings("unchecked")
+        private OUT appendRowtime(OUT ptfOutput) {
+            if (!(ptfOutput instanceof Row)) {
+                throw new IllegalStateException(
+                        "Cannot append rowtime to non-Row output type: " + ptfOutput.getClass());
+            }
+            return (OUT) appendField((Row) ptfOutput, resolveRowtimeValue());
+        }
+
+        private Object resolveRowtimeValue() {
+            InvocationContext ctx = currentInvocation;
+            if (ctx.isTimerInvocation()) {
+                return rowtimeFromMillis(ctx.firingTimer.timestamp);
+            }
+            return ctx.row.getField(onTimeColumnName);
+        }
+
+        @SuppressWarnings("unchecked")
         private OUT prependPartitionKeys(OUT ptfOutput) {
             if (!(ptfOutput instanceof Row)) {
                 throw new IllegalStateException(
@@ -423,6 +893,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
 
             Row ptfRow = (Row) ptfOutput;
+            Row partitionKey = currentInvocation.partitionKey;
 
             int totalPartitionKeyCount = 0;
             for (ArgumentInfo arg : arguments) {
@@ -439,21 +910,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             Row result = new Row(ptfRow.getKind(), totalArity);
 
-            TableArgumentInfo activeTableInfo = (TableArgumentInfo) activeTableArg;
-            Object[] partitionKeyValues = new Object[activeTableInfo.partitionColumnNames.length];
-            for (int i = 0; i < activeTableInfo.partitionColumnNames.length; i++) {
-                String columnName = activeTableInfo.partitionColumnNames[i];
-                int columnIndex = getFieldIndex(activeTableInfo.dataType, columnName);
-                partitionKeyValues[i] = activeRow.getField(columnIndex);
-            }
-
             int resultIndex = 0;
             for (ArgumentInfo arg : arguments) {
                 if (arg instanceof TableArgumentInfo) {
                     TableArgumentInfo tableArg = (TableArgumentInfo) arg;
                     if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
                         for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
-                            result.setField(resultIndex++, partitionKeyValues[i]);
+                            result.setField(resultIndex++, partitionKey.getField(i));
                         }
                     }
                 }
@@ -466,17 +929,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return (OUT) result;
         }
 
-        /** Helper to get field index by name from a DataType. */
-        private int getFieldIndex(DataType dataType, String fieldName) {
-            List<String> fieldNames = getFieldNames(dataType);
-            int index = fieldNames.indexOf(fieldName);
-            if (index < 0) {
-                throw new IllegalStateException(
-                        String.format("Field '%s' not found in type %s", fieldName, dataType));
-            }
-            return index;
-        }
-
         @SuppressWarnings("unchecked")
         private OUT prependAllColumns(OUT ptfOutput) {
             if (!(ptfOutput instanceof Row)) {
@@ -485,14 +937,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
 
             Row ptfRow = (Row) ptfOutput;
-            int inputArity = activeRow.getArity();
+            Row inputRow = currentInvocation.row;
+            int inputArity = inputRow.getArity();
             int ptfOutputArity = ptfRow.getArity();
             int totalArity = inputArity + ptfOutputArity;
 
             Row result = new Row(ptfRow.getKind(), totalArity);
 
             for (int i = 0; i < inputArity; i++) {
-                result.setField(i, activeRow.getField(i));
+                result.setField(i, inputRow.getField(i));
             }
 
             for (int i = 0; i < ptfOutputArity; i++) {
@@ -506,30 +959,34 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public void close() {}
     }
 
+    private static Row appendField(Row row, Object value) {
+        Row result = new Row(row.getArity() + 1);
+        for (int i = 0; i < row.getArity(); i++) {
+            result.setField(i, row.getField(i));
+        }
+        result.setField(row.getArity(), value);
+        return result;
+    }
+
     /** Extracts field names from RowType or StructuredType. */
     private static List<String> getFieldNames(DataType dataType) {
         LogicalType logicalType = dataType.getLogicalType();
-        List<String> fieldNames = new ArrayList<>();
-
         if (logicalType instanceof RowType) {
-            RowType rowType = (RowType) logicalType;
-            for (RowType.RowField field : rowType.getFields()) {
-                fieldNames.add(field.getName());
-            }
+            return ((RowType) logicalType)
+                    .getFields().stream()
+                            .map(RowType.RowField::getName)
+                            .collect(Collectors.toList());
         } else if (logicalType instanceof StructuredType) {
-            StructuredType structuredType = (StructuredType) logicalType;
-            for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                fieldNames.add(attr.getName());
-            }
-        } else {
-            throw new IllegalStateException(
-                    String.format(
-                            "Unsupported data type: %s. "
-                                    + "Only Row and structured types are supported.",
-                            dataType));
+            return ((StructuredType) logicalType)
+                    .getAttributes().stream()
+                            .map(StructuredType.StructuredAttribute::getName)
+                            .collect(Collectors.toList());
         }
-
-        return fieldNames;
+        throw new IllegalStateException(
+                String.format(
+                        "Unsupported data type: %s. "
+                                + "Only Row and structured types are supported.",
+                        dataType));
     }
 
     /**
@@ -545,6 +1002,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         private final Map<String, TableArgumentConfiguration> tableArgs = new HashMap<>();
         private final Map<String, PartitionConfiguration> partitionConfigs = new HashMap<>();
         private final Map<String, StateArgumentConfiguration> stateArgs = new HashMap<>();
+        @Nullable private String onTimeColumnName = null;
 
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
             this.functionClass = checkNotNull(functionClass, "functionClass must not be null");
@@ -658,6 +1116,21 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         // ---------------------------------------------------------------------
+        // Timer & Watermark Configuration
+        // ---------------------------------------------------------------------
+
+        /**
+         * Configures the on-time column name for the function.
+         *
+         * @param columnName The column that carries event time
+         */
+        public Builder<OUT> withOnTimeColumn(String columnName) {
+            checkNotNull(columnName, "columnName must not be null");
+            this.onTimeColumnName = columnName;
+            return this;
+        }
+
+        // ---------------------------------------------------------------------
         // Build
         // ---------------------------------------------------------------------
 
@@ -685,9 +1158,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             FunctionContext functionContext = new FunctionContext(null, classLoader, null);
 
-            Method evalMethod = findEvalMethod();
+            ResolvedMethod<ProcessTableFunction.Context> eval =
+                    ResolvedMethod.of(
+                            findEvalMethod(functionClass), ProcessTableFunction.Context.class);
+            Method onTimerMethod = findOnTimerMethod(functionClass, arguments);
+            ResolvedMethod<ProcessTableFunction.OnTimerContext> onTimer =
+                    onTimerMethod != null
+                            ? ResolvedMethod.of(
+                                    onTimerMethod, ProcessTableFunction.OnTimerContext.class)
+                            : null;
 
-            validateEvalMethodSupported(evalMethod, arguments);
+            validateEvalMethodSupported(eval, arguments);
             validatePartitionConsistency(arguments);
             validateInitialStateKeys(arguments);
 
@@ -713,25 +1194,51 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             // Extract table arguments for output type derivation
             // SystemTypeInference needs table semantics for pass-through column deduplication
-            List<TableArgumentInfo> tableArgs = ArgumentInfo.filterTableArguments(arguments);
+            List<TableArgumentInfo> tableArgInfos = ArgumentInfo.filterTableArguments(arguments);
 
             // Derive output schema using SystemTypeInference
             DataType derivedOutputType =
                     deriveOutputTypeFromSystemInference(
-                            function, dataTypeFactory, systemTypeInference, tableArgs);
+                            function,
+                            dataTypeFactory,
+                            systemTypeInference,
+                            arguments,
+                            tableArgInfos);
 
             // Create output converter for PTF emissions
             DataStructureConverter<Object, Object> harnessOutputConverter =
                     createPTFOutputConverter(derivedOutputType);
 
+            // Validate onTimeColumn configuration
+            if (onTimeColumnName != null) {
+                boolean foundInAnyTable =
+                        tableArgInfos.stream()
+                                .anyMatch(
+                                        t -> getFieldNames(t.dataType).contains(onTimeColumnName));
+                checkArgument(
+                        foundInAnyTable,
+                        "withOnTimeColumn references column '%s' which does not exist in any "
+                                + "table argument. Available table arguments and their columns: %s",
+                        onTimeColumnName,
+                        tableArgInfos.stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                t -> t.name, t -> getFieldNames(t.dataType))));
+            }
+
+            TestHarnessTimerManager timerManager = new TestHarnessTimerManager();
+
             return new ProcessTableFunctionTestHarness<>(
                     function,
                     functionContext,
-                    evalMethod,
+                    eval,
+                    onTimer,
                     arguments,
                     argumentConverters,
                     harnessOutputConverter,
-                    stateManager);
+                    stateManager,
+                    timerManager,
+                    onTimeColumnName);
         }
 
         /**
@@ -805,7 +1312,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        private Method findEvalMethod() throws NoSuchMethodException {
+        private static Method findEvalMethod(Class<?> functionClass) throws NoSuchMethodException {
             Method[] methods = functionClass.getMethods();
             Method evalMethod = null;
             int evalMethodCount = 0;
@@ -825,49 +1332,78 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         "Multiple eval() methods found in "
                                 + functionClass.getSimpleName()
                                 + ". ProcessTableFunction must have exactly one eval() method.");
-            } else {
-                return evalMethod;
             }
+
+            return evalMethod;
         }
 
-        /**
-         * Validates that the eval() method doesn't use unsupported features. Temporary, until
-         * context is supported.
-         */
-        private void validateEvalMethodSupported(Method evalMethod, List<ArgumentInfo> arguments) {
-            Parameter[] parameters = evalMethod.getParameters();
+        @Nullable
+        private static Method findOnTimerMethod(
+                Class<?> functionClass, List<ArgumentInfo> arguments) {
+            List<Method> candidates = ExtractionUtils.collectMethods(functionClass, "onTimer");
+            if (candidates.isEmpty()) {
+                return null;
+            }
 
-            for (int i = 0; i < parameters.length; i++) {
-                Parameter param = parameters[i];
-                Class<?> paramType = param.getType();
+            Class<?>[] stateClasses =
+                    ArgumentInfo.filterStateArguments(arguments).stream()
+                            .map(s -> s.dataType.getConversionClass())
+                            .toArray(Class<?>[]::new);
 
-                if (ProcessTableFunction.Context.class.isAssignableFrom(paramType)) {
-                    throw new IllegalStateException(
-                            String.format(
-                                    "ProcessTableFunctionTestHarness does not yet support Context parameters. "
-                                            + "Found Context parameter at position %d in eval() method. ",
-                                    i));
+            // Try with OnTimerContext first, then without — mirrors the code generator
+            Class<?>[] withContext = new Class<?>[stateClasses.length + 1];
+            withContext[0] = ProcessTableFunction.OnTimerContext.class;
+            System.arraycopy(stateClasses, 0, withContext, 1, stateClasses.length);
+
+            for (Class<?>[] signature : new Class<?>[][] {withContext, stateClasses}) {
+                Optional<Method> match =
+                        candidates.stream()
+                                .filter(
+                                        m ->
+                                                ExtractionUtils.isInvokable(
+                                                        ExtractionUtils.Autoboxing.JVM,
+                                                        m,
+                                                        signature))
+                                .findFirst();
+                if (match.isPresent()) {
+                    return match.get();
                 }
             }
 
-            if (parameters.length != arguments.size()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Found %d onTimer() method(s) in %s but none match the expected "
+                                    + "signature: optional OnTimerContext followed by state entries %s.",
+                            candidates.size(),
+                            functionClass.getSimpleName(),
+                            Arrays.toString(stateClasses)));
+        }
+
+        private void validateEvalMethodSupported(
+                ResolvedMethod<?> eval, List<ArgumentInfo> arguments) {
+            Parameter[] parameters = eval.method.getParameters();
+
+            int expectedParamCount = arguments.size() + (eval.takesContext ? 1 : 0);
+            if (parameters.length != expectedParamCount) {
                 long stateCount = ArgumentInfo.filterStateArguments(arguments).size();
                 long nonStateCount = arguments.size() - stateCount;
                 throw new IllegalStateException(
                         String.format(
                                 "Parameter count mismatch: eval() has %d parameters but expected %d "
-                                        + "(%d state + %d table/scalar arguments). "
+                                        + "(%d state + %d table/scalar arguments%s). "
                                         + "eval() signature: %s. "
                                         + "This may indicate missing @ArgumentHint or @StateHint annotations.",
                                 parameters.length,
-                                arguments.size(),
+                                expectedParamCount,
                                 stateCount,
                                 nonStateCount,
-                                evalMethod));
+                                eval.takesContext ? " + Context" : "",
+                                eval.method));
             }
 
+            int argOffset = eval.takesContext ? 1 : 0;
             for (int i = 0; i < arguments.size(); i++) {
-                Parameter param = parameters[i];
+                Parameter param = parameters[i + argOffset];
                 Class<?> paramType = param.getType();
                 ArgumentInfo arg = arguments.get(i);
 
@@ -880,7 +1416,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                         "Type mismatch for scalar argument '%s' at position %d: "
                                                 + "eval() parameter expects %s but provided value is %s",
                                         arg.name,
-                                        i,
+                                        i + argOffset,
                                         paramType.getName(),
                                         value.getClass().getName()));
                     }
@@ -1167,40 +1703,45 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /** Creates appropriate StateConverter for the given state data type. */
-        private StateConverter createStateConverter(DataType stateDataType, ClassLoader classLoader)
-                throws Exception {
-            LogicalType logicalType = stateDataType.getLogicalType();
+        private StateConverter createStateConverter(
+                DataType stateDataType, ClassLoader classLoader) {
+            DataType resolvedType =
+                    ListView.class.isAssignableFrom(stateDataType.getConversionClass())
+                                    || MapView.class.isAssignableFrom(
+                                            stateDataType.getConversionClass())
+                            ? stateDataType.getChildren().get(0)
+                            : stateDataType;
+
+            LogicalType logicalType = resolvedType.getLogicalType();
 
             if (logicalType instanceof ArrayType) {
-                ArrayType arrayType = (ArrayType) logicalType;
-                DataType elementType = stateDataType.getChildren().get(0);
+                DataType elementType = resolvedType.getChildren().get(0);
                 DataStructureConverter<Object, Object> elementConverter =
                         DataStructureConverters.getConverter(elementType);
                 elementConverter.open(classLoader);
-                return new ListViewStateConverter(arrayType, elementConverter);
+                return new ListViewStateConverter((ArrayType) logicalType, elementConverter);
             } else if (logicalType instanceof MapType) {
-                MapType mapType = (MapType) logicalType;
-                DataType keyType = stateDataType.getChildren().get(0);
-                DataType valueType = stateDataType.getChildren().get(1);
+                DataType keyType = resolvedType.getChildren().get(0);
+                DataType valueType = resolvedType.getChildren().get(1);
                 DataStructureConverter<Object, Object> keyConverter =
                         DataStructureConverters.getConverter(keyType);
                 DataStructureConverter<Object, Object> valueConverter =
                         DataStructureConverters.getConverter(valueType);
                 keyConverter.open(classLoader);
                 valueConverter.open(classLoader);
-                return new MapViewStateConverter(mapType, keyConverter, valueConverter);
+                return new MapViewStateConverter(
+                        (MapType) logicalType, keyConverter, valueConverter);
             } else if (logicalType instanceof RowType) {
-                RowType rowType = (RowType) logicalType;
                 DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(stateDataType);
+                        DataStructureConverters.getConverter(resolvedType);
                 converter.open(classLoader);
-                return new RowStateConverter(converter, rowType);
+                return new RowStateConverter((RowType) logicalType, converter);
             } else {
                 DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(stateDataType);
+                        DataStructureConverters.getConverter(resolvedType);
                 converter.open(classLoader);
-                Class<?> stateClass = stateDataType.getConversionClass();
-                return new StructuredTypeStateConverter(converter, stateClass);
+                return new StructuredTypeStateConverter(
+                        resolvedType.getConversionClass(), converter);
             }
         }
 
@@ -1389,25 +1930,77 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         /**
          * Derives the output schema using SystemTypeInference, including field name deduplication.
+         *
+         * <p>SystemTypeInference's staticArgs list includes both user-declared arguments and
+         * system-injected arguments (on_time, uid). The CallContext we build must mirror this full
+         * list positionally — each index maps to a staticArg. User args get their resolved
+         * DataType; system args get placeholder types (DESCRIPTOR for on_time, STRING for uid).
+         * Table semantics are attached at the positions of table arguments so SystemTypeInference
+         * can perform pass-through column deduplication.
          */
         private DataType deriveOutputTypeFromSystemInference(
                 ProcessTableFunction<OUT> function,
                 DataTypeFactory dataTypeFactory,
                 TypeInference systemTypeInference,
-                List<TableArgumentInfo> arguments) {
+                List<ArgumentInfo> allArguments,
+                List<TableArgumentInfo> tableArguments) {
 
-            List<DataType> argumentDataTypes = new ArrayList<>();
-            for (TableArgumentInfo arg : arguments) {
-                argumentDataTypes.add(arg.dataType);
+            List<StaticArgument> staticArgs =
+                    systemTypeInference
+                            .getStaticArguments()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "SystemTypeInference has no static arguments"));
+
+            Map<String, TableArgumentInfo> tableArgsByName = new HashMap<>();
+            for (TableArgumentInfo tableArg : tableArguments) {
+                tableArgsByName.put(tableArg.name, tableArg);
+            }
+            Map<String, ArgumentInfo> allArgsByName = new HashMap<>();
+            for (ArgumentInfo arg : allArguments) {
+                if (arg.name != null) {
+                    allArgsByName.put(arg.name, arg);
+                }
             }
 
+            List<DataType> argumentDataTypes = new ArrayList<>();
             Map<Integer, TableSemantics> tableSemanticsMap = new HashMap<>();
-            for (int i = 0; i < arguments.size(); i++) {
-                TableArgumentInfo arg = arguments.get(i);
-                int[] partitionIndices = getPartitionColumnIndices(arg);
-                TableSemantics semantics =
-                        new TestHarnessTableSemantics(arg.dataType, partitionIndices);
-                tableSemanticsMap.put(i, semantics);
+            int onTimePos = -1;
+
+            for (int i = 0; i < staticArgs.size(); i++) {
+                StaticArgument staticArg = staticArgs.get(i);
+                String argName = staticArg.getName();
+
+                if (SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME.equals(argName)) {
+                    argumentDataTypes.add(DataTypes.DESCRIPTOR());
+                    onTimePos = i;
+                } else if (SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_UID.equals(argName)) {
+                    argumentDataTypes.add(DataTypes.STRING());
+                } else {
+                    ArgumentInfo argInfo = allArgsByName.get(argName);
+                    if (argInfo != null) {
+                        argumentDataTypes.add(argInfo.dataType);
+                    } else {
+                        argumentDataTypes.add(DataTypes.NULL());
+                    }
+
+                    TableArgumentInfo tableArg = tableArgsByName.get(argName);
+                    if (tableArg != null) {
+                        int[] partitionIndices = getPartitionColumnIndices(tableArg);
+                        int timeColumnIndex = -1;
+                        if (onTimeColumnName != null) {
+                            int idx = getFieldNames(tableArg.dataType).indexOf(onTimeColumnName);
+                            if (idx >= 0) {
+                                timeColumnIndex = idx;
+                            }
+                        }
+                        tableSemanticsMap.put(
+                                i,
+                                new TestHarnessTableSemantics(
+                                        tableArg.dataType, partitionIndices, timeColumnIndex));
+                    }
+                }
             }
 
             TestHarnessCallContext callContext = new TestHarnessCallContext();
@@ -1416,6 +2009,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             callContext.functionDefinition = function;
             callContext.tableSemantics = tableSemanticsMap;
             callContext.name = function.getClass().getSimpleName();
+
+            if (onTimePos >= 0 && onTimeColumnName != null) {
+                callContext.argumentValues.put(
+                        onTimePos,
+                        org.apache.flink.types.ColumnList.of(
+                                Collections.singletonList(onTimeColumnName)));
+            }
 
             TypeStrategy outputStrategy = systemTypeInference.getOutputTypeStrategy();
             Optional<DataType> outputTypeOpt = outputStrategy.inferType(callContext);
@@ -1428,31 +2028,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             return outputTypeOpt.get();
         }
-
-        private int[] getPartitionColumnIndices(TableArgumentInfo arg) {
-            if (arg.partitionColumnNames == null || arg.partitionColumnNames.length == 0) {
-                return new int[0];
-            }
-
-            List<String> fieldNames = getFieldNames(arg.dataType);
-
-            int[] indices = new int[arg.partitionColumnNames.length];
-            for (int i = 0; i < arg.partitionColumnNames.length; i++) {
-                String colName = arg.partitionColumnNames[i];
-                int index = fieldNames.indexOf(colName);
-                if (index < 0) {
-                    throw new IllegalStateException(
-                            "Partition column '"
-                                    + colName
-                                    + "' not found in table argument. "
-                                    + "Available fields: "
-                                    + fieldNames);
-                }
-                indices[i] = index;
-            }
-
-            return indices;
-        }
     }
 
     private enum OutputPrependStrategy {
@@ -1462,16 +2037,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     private void handleEvalInvocationException(
-            String contextMessage, Object[] args, InvocationTargetException e) throws Exception {
+            String contextMessage, Object[] methodArgs, InvocationTargetException e)
+            throws Exception {
         Throwable cause = e.getCause();
         StringBuilder details = new StringBuilder();
         details.append(contextMessage);
         details.append("Expected parameter types: ");
-        details.append(Arrays.toString(evalMethod.getParameterTypes()));
+        details.append(Arrays.toString(eval.method.getParameterTypes()));
         details.append("\nActual arguments:\n");
         for (int i = 0; i < arguments.size(); i++) {
             ArgumentInfo arg = arguments.get(i);
-            Object value = args[i];
+            Object value = methodArgs[i];
             details.append(
                     String.format(
                             "  [%d] %s: %s (type: %s)\n",
