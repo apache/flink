@@ -69,6 +69,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableRangeSet.Builder;
 import static com.google.common.collect.ImmutableRangeSet.builder;
@@ -329,30 +330,43 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
         final int inputIndex = jsonNode.required(FIELD_NAME_INPUT_INDEX).intValue();
 
-        final JsonNode partitionKeysNode = jsonNode.required(FIELD_NAME_PARTITION_KEYS);
-        final int[] partitionKeys = new int[partitionKeysNode.size()];
-        for (int i = 0; i < partitionKeysNode.size(); ++i) {
-            partitionKeys[i] = partitionKeysNode.get(i).asInt();
-        }
+        final int[] partitionKeys = deserializeIntArray(jsonNode, FIELD_NAME_PARTITION_KEYS);
+        final int[] orderKeys = deserializeIntArray(jsonNode, FIELD_NAME_ORDER_KEYS);
+        final SortOrder[] sortOrders =
+                deserializeArray(
+                        jsonNode,
+                        FIELD_NAME_ORDER_DIRECTIONS,
+                        node -> SortOrder.valueOf(node.asText()),
+                        new SortOrder[0]);
 
-        final JsonNode orderKeysNode = jsonNode.required(FIELD_NAME_ORDER_KEYS);
-        final int[] orderKeys = new int[orderKeysNode.size()];
-        for (int i = 0; i < orderKeysNode.size(); ++i) {
-            orderKeys[i] = orderKeysNode.get(i).asInt();
-        }
+        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, sortOrders);
+    }
 
-        final JsonNode orderDirectionsNode = jsonNode.get(FIELD_NAME_ORDER_DIRECTIONS);
-        final SortOrder[] order;
-        if (orderDirectionsNode != null && !orderDirectionsNode.isEmpty()) {
-            order = new SortOrder[orderDirectionsNode.size()];
-            for (int i = 0; i < orderDirectionsNode.size(); ++i) {
-                order[i] = SortOrder.valueOf(orderDirectionsNode.get(i).asText());
-            }
-        } else {
-            order = new SortOrder[0];
-        }
+    private static int[] deserializeIntArray(JsonNode jsonNode, String fieldName) {
+        return deserializeListOrEmpty(jsonNode, fieldName, JsonNode::asInt).stream()
+                .mapToInt(Integer::intValue)
+                .toArray();
+    }
 
-        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, order);
+    private static <T> T[] deserializeArray(
+            JsonNode jsonNode,
+            String fieldName,
+            Function<JsonNode, T> elementDeserializer,
+            T[] emptyArray) {
+        return deserializeListOrEmpty(jsonNode, fieldName, elementDeserializer).toArray(emptyArray);
+    }
+
+    private static <T> List<T> deserializeListOrEmpty(
+            JsonNode jsonNode, String fieldName, Function<JsonNode, T> elementDeserializer) {
+        final JsonNode arrayNode = jsonNode.get(fieldName);
+        if (arrayNode == null || arrayNode.isEmpty()) {
+            return List.of();
+        }
+        final List<T> result = new ArrayList<>(arrayNode.size());
+        for (final JsonNode element : arrayNode) {
+            result.add(elementDeserializer.apply(element));
+        }
+        return result;
     }
 
     private static RexNode deserializeCall(JsonNode jsonNode, SerdeContext serdeContext)

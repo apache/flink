@@ -45,9 +45,6 @@
       "operands" : [ {
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 0,
-        "partitionKeys" : [ ],
-        "orderKeys" : [ ],
-        "orderDirections" : [ ],
         "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `score` BIGINT> NOT NULL"
       }, {
         "kind" : "CALL",

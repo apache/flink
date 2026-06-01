@@ -40,8 +40,6 @@
       "operands" : [ {
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 0,
-        "partitionKeys" : [ ],
-        "orderKeys" : [ ],
         "type" : "ROW<`name` VARCHAR(2147483647), `score` INT> NOT NULL"
       }, {
         "kind" : "LITERAL",
