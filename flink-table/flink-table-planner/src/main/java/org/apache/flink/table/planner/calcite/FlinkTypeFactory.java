@@ -73,6 +73,7 @@ import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -255,7 +256,7 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
     public RelDataType leastRestrictive(List<RelDataType> types) {
         final Optional<RelDataType> resolved = resolveAllIdenticalTypes(types);
         final RelDataType leastRestrictive =
-                resolved.isPresent() ? resolved.get() : super.leastRestrictive(types);
+                resolved.orElseGet(() -> super.leastRestrictive(types));
         // NULL is reserved for untyped literals only
         if (leastRestrictive == null || leastRestrictive.getSqlTypeName() == SqlTypeName.NULL) {
             return null;
@@ -305,11 +306,9 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
      */
     private RelDataType buildStructType(
             String[] fieldNames, LogicalType[] fieldTypes, StructKind structKind) {
-        FieldInfoBuilder b = builder();
+        RelDataTypeFactory.Builder b = builder();
         b.kind(structKind);
-        // mirror Scala's `fieldNames.zip(fieldTypes)`, which truncates to the shorter sequence
-        final int length = Math.min(fieldNames.length, fieldTypes.length);
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < fieldTypes.length; i++) {
             final LogicalType fieldType = fieldTypes[i];
             final String fieldName = fieldNames[i];
             final RelDataType fieldRelDataType = createFieldTypeFromLogicalType(fieldType);
@@ -320,10 +319,10 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
     }
 
     /**
-     * Create a calcite field type in table schema from {@link LogicalType}. It use
+     * Create a calcite field type in table schema from {@link LogicalType}. It uses
      * PEEK_FIELDS_NO_EXPAND when type is a nested struct type (Flink {@link RowType}).
      *
-     * @param type flink logical type.
+     * @param type Flink logical type.
      * @return calcite {@link RelDataType}.
      */
     public RelDataType createFieldTypeFromLogicalType(LogicalType type) {

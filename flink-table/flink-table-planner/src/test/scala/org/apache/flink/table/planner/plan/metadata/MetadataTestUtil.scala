@@ -331,8 +331,8 @@ object MetadataTestUtil {
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
-      Array("a", "c", "d"),
-      Array(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
+      Seq("a", "c", "d"),
+      Seq(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
 
     new MockTableSourceTable(
       rowType,
@@ -375,12 +375,8 @@ object MetadataTestUtil {
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
-      Array("a", "b", "c", "d"),
-      Array(
-        new BigIntType(false),
-        new IntType(),
-        new VarCharType(false, 100),
-        new BigIntType(false)))
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
       rowType,
@@ -410,12 +406,8 @@ object MetadataTestUtil {
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
-      Array("a", "b", "c", "d"),
-      Array(
-        new BigIntType(false),
-        new IntType(),
-        new VarCharType(false, 100),
-        new BigIntType(false)))
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
       rowType,
@@ -445,12 +437,8 @@ object MetadataTestUtil {
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
-      Array("a", "b", "c", "d"),
-      Array(
-        new BigIntType(false),
-        new IntType(),
-        new VarCharType(false, 100),
-        new BigIntType(false)))
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
       rowType,
@@ -476,7 +464,7 @@ object MetadataTestUtil {
     val catalogTable = getCatalogTable(resolvedSchema)
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
-    val rowType = typeFactory.buildRelNodeRowType(Array("a"), Array(new BigIntType(false)))
+    val rowType = typeFactory.buildRelNodeRowType(Seq("a"), Seq(new BigIntType(false)))
 
     new MockTableSourceTable(
       rowType,
@@ -511,13 +499,12 @@ object MetadataTestUtil {
     // projected: drop column b, keep a, c, d, rowtime
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
-      Array("a", "c", "d", "rowtime"),
-      Array(
+      Seq("a", "c", "d", "rowtime"),
+      Seq(
         new BigIntType(false),
         new VarCharType(false, 100),
         new BigIntType(false),
-        new TimestampType(true, TimestampKind.ROWTIME, 3))
-    )
+        new TimestampType(true, TimestampKind.ROWTIME, 3)))
 
     new MockTableSourceTable(
       rowType,

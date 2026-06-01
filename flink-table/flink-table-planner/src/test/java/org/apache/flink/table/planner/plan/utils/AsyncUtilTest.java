@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -37,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.table.planner.plan.utils.AsyncUtil.containsAsyncCall;
@@ -60,10 +60,8 @@ public class AsyncUtilTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                new String[] {"f1", "f2", "f3"},
-                                new LogicalType[] {
-                                    new IntType(), new BigIntType(), new VarCharType()
-                                });
+                                List.of("f1", "f2", "f3"),
+                                List.of(new IntType(), new BigIntType(), new VarCharType()));
 
         converter =
                 ShortcutUtils.unwrapContext(

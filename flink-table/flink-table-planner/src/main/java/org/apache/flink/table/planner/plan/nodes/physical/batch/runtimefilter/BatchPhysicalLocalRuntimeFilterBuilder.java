@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter.BatchE
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkRuntimeFilterProgram;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -81,8 +80,8 @@ public class BatchPhysicalLocalRuntimeFilterBuilder extends SingleRel implements
     protected RelDataType deriveRowType() {
         return ((FlinkTypeFactory) getCluster().getTypeFactory())
                 .buildRelNodeRowType(
-                        new String[] {"actualRowCount", "filter"},
-                        new LogicalType[] {new IntType(), new VarBinaryType()});
+                        List.of("actualRowCount", "filter"),
+                        List.of(new IntType(), new VarBinaryType()));
     }
 
     @Override

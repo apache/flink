@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -73,10 +72,8 @@ public class AsyncCorrelateCodeGeneratorTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                new String[] {"f1", "f2", "f3"},
-                                new LogicalType[] {
-                                    new IntType(), new BigIntType(), new VarCharType()
-                                });
+                                List.of("f1", "f2", "f3"),
+                                List.of(new IntType(), new BigIntType(), new VarCharType()));
         ShortcutUtils.unwrapContext(plannerMocks.getPlanner().createToRelContext().getCluster());
         plannerMocks
                 .getFunctionCatalog()

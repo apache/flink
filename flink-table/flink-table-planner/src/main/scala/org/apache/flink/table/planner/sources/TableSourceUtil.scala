@@ -279,7 +279,7 @@ object TableSourceUtil {
       .unzip
     val physicalSchema: RelDataType = cluster.getTypeFactory
       .asInstanceOf[FlinkTypeFactory]
-      .buildRelNodeRowType(physicalFields.toArray, physicalTypes.toArray)
+      .buildRelNodeRowType(physicalFields, physicalTypes)
     LogicalValues.createEmpty(cluster, physicalSchema)
   }
 

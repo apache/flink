@@ -32,7 +32,6 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
@@ -76,19 +75,15 @@ public class AsyncCodeGeneratorTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                new String[] {"f1", "f2", "f3"},
-                                new LogicalType[] {
-                                    new IntType(), new BigIntType(), new VarCharType()
-                                });
+                                List.of("f1", "f2", "f3"),
+                                List.of(new IntType(), new BigIntType(), new VarCharType()));
         tableRowType2 =
                 plannerMocks
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                new String[] {"f1", "f2", "f3"},
-                                new LogicalType[] {
-                                    new VarCharType(), new VarCharType(), new VarCharType()
-                                });
+                                List.of("f1", "f2", "f3"),
+                                List.of(new VarCharType(), new VarCharType(), new VarCharType()));
         ShortcutUtils.unwrapContext(plannerMocks.getPlanner().createToRelContext().getCluster());
         converter =
                 ShortcutUtils.unwrapContext(
