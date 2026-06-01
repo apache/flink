@@ -542,6 +542,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                     unsupportedCorConditions);
             assert unsupportedCorConditions.isEmpty();
 
+            // Note: don't change nullOnEmpty to break non-null of remainingCondition
             RexNode remainingCondition =
                     RexUtil.composeConjunction(rexBuilder, nonCorConditions, false);
 
