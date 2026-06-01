@@ -19,39 +19,57 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 /**
  * State manager for {@link ProcessTableFunctionTestHarness}.
  *
  * <p>Handles state storage, lifecycle, and conversion between external and internal storage
- * formats.
+ * formats. Supports TTL-based eviction.
  */
 @Internal
 class TestHarnessStateManager {
 
-    private final Map<Row, Map<String, Object>> stateByKey = new HashMap<>();
+    private final Map<Row, Map<String, StateEntry>> stateByKey = new HashMap<>();
     private final List<ProcessTableFunctionTestHarness.StateArgumentInfo> stateArguments;
     private final Map<String, StateConverter> stateConverters;
     private final PartitionKeyInfo partitionKeyInfo;
+    private final LongSupplier systemClock;
+
+    private static class StateEntry {
+        final Object internalData;
+        @Nullable final Long lastWriteTime;
+
+        StateEntry(Object internalData, @Nullable Long lastWriteTime) {
+            this.internalData = internalData;
+            this.lastWriteTime = lastWriteTime;
+        }
+    }
 
     TestHarnessStateManager(
             List<ProcessTableFunctionTestHarness.StateArgumentInfo> stateArguments,
             Map<String, StateConverter> stateConverters,
-            PartitionKeyInfo partitionKeyInfo) {
+            PartitionKeyInfo partitionKeyInfo,
+            LongSupplier systemClock) {
         this.stateArguments = stateArguments;
         this.stateConverters = stateConverters;
         this.partitionKeyInfo = partitionKeyInfo;
+        this.systemClock = systemClock;
     }
 
     static class PartitionKeyInfo {
@@ -105,29 +123,43 @@ class TestHarnessStateManager {
      * storage to external objects (value state, ListView, MapView).
      */
     Map<String, Object> loadStateForKey(Row key) {
-        Map<String, Object> internalState =
+        Map<String, StateEntry> entries =
                 stateByKey.computeIfAbsent(key, k -> createEmptyKeyState());
 
         Map<String, Object> externalState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
-            Object internalData = internalState.get(stateArg.name);
-            Object external = convertToExternal(internalData, stateArg);
-            externalState.put(stateArg.name, external);
+            StateEntry entry = entries.get(stateArg.name);
+            StateConverter converter = stateConverters.get(stateArg.name);
+            externalState.put(stateArg.name, converter.toExternal(entry.internalData));
         }
         return externalState;
     }
 
     /**
-     * Update mutated state after eval() invocation. Converts external objects to internal format.
+     * Update mutated state after eval() invocation. Converts external state back to internal format
+     * and detects value state writes for TTL tracking.
      */
     void updateStateForKey(Row key, Map<String, Object> externalState) throws Exception {
-        Map<String, Object> internalState = new HashMap<>();
+        Map<String, StateEntry> oldEntries = stateByKey.get(key);
+        Map<String, StateEntry> newEntries = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
             Object external = externalState.get(stateArg.name);
-            Object internalData = convertToInternal(external, stateArg);
-            internalState.put(stateArg.name, internalData);
+            StateEntry oldEntry = oldEntries != null ? oldEntries.get(stateArg.name) : null;
+
+            StateConverter converter = stateConverters.get(stateArg.name);
+            Object internalData = converter.toInternal(external);
+
+            Long lastWriteTime = oldEntry != null ? oldEntry.lastWriteTime : null;
+            if (stateArg.hasNonZeroTtl() && stateArg.isValueState()) {
+                Object oldInternal = oldEntry != null ? oldEntry.internalData : null;
+                if (!Objects.equals(oldInternal, internalData)) {
+                    lastWriteTime = systemClock.getAsLong();
+                }
+            }
+
+            newEntries.put(stateArg.name, new StateEntry(internalData, lastWriteTime));
         }
-        stateByKey.put(key, internalState);
+        stateByKey.put(key, newEntries);
     }
 
     /** Clear all state for a partition key. */
@@ -139,11 +171,11 @@ class TestHarnessStateManager {
     /** Clear specific state entry for a given partition key, resetting it to its default value. */
     void clearStateForKey(String stateName, Row key) {
         partitionKeyInfo.validate(key);
-        Map<String, Object> internalState = stateByKey.get(key);
-        if (internalState != null) {
+        Map<String, StateEntry> entries = stateByKey.get(key);
+        if (entries != null) {
             ProcessTableFunctionTestHarness.StateArgumentInfo stateArg =
                     findStateArgument(stateName);
-            internalState.put(stateName, createNewStateInternalData(stateArg));
+            entries.put(stateName, new StateEntry(createNewStateInternalData(stateArg), null));
         }
     }
 
@@ -151,26 +183,33 @@ class TestHarnessStateManager {
     void setStateForKey(String stateName, Row key, Object externalState) throws Exception {
         partitionKeyInfo.validate(key);
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
-        Object internalData = convertToInternal(externalState, stateArg);
+        StateConverter converter = stateConverters.get(stateName);
+        Object internalData = converter.toInternal(wrapIfPlainDataView(externalState));
 
-        Map<String, Object> internalState =
+        Map<String, StateEntry> entries =
                 stateByKey.computeIfAbsent(key, k -> createEmptyKeyState());
-        internalState.put(stateName, internalData);
+
+        Long lastWriteTime = null;
+        if (stateArg.hasNonZeroTtl() && stateArg.isValueState()) {
+            lastWriteTime = systemClock.getAsLong();
+        }
+
+        entries.put(stateName, new StateEntry(internalData, lastWriteTime));
     }
 
     /** Get the state for a given partition key. */
     @SuppressWarnings("unchecked")
     <T> T getStateForKey(String stateName, Row key) {
         partitionKeyInfo.validate(key);
-        Map<String, Object> internalState = stateByKey.get(key);
-        if (internalState == null) {
+        Map<String, StateEntry> entries = stateByKey.get(key);
+        if (entries == null) {
             return null;
         }
-        Object internalData = internalState.get(stateName);
-        if (internalData == null) {
+        StateEntry entry = entries.get(stateName);
+        if (entry == null) {
             return null;
         }
-        return (T) convertToExternal(internalData, findStateArgument(stateName));
+        return (T) convertToExternal(entry.internalData, findStateArgument(stateName));
     }
 
     /** Get all partition keys that have a specific state entry. */
@@ -186,19 +225,48 @@ class TestHarnessStateManager {
     <T> Map<Row, T> getStateForAllKeys(String stateName) {
         ProcessTableFunctionTestHarness.StateArgumentInfo stateArg = findStateArgument(stateName);
         Map<Row, T> result = new HashMap<>();
-        for (Map.Entry<Row, Map<String, Object>> entry : stateByKey.entrySet()) {
-            Object internalData = entry.getValue().get(stateName);
-            if (internalData != null) {
-                result.put(entry.getKey(), (T) convertToExternal(internalData, stateArg));
+        for (Map.Entry<Row, Map<String, StateEntry>> entry : stateByKey.entrySet()) {
+            StateEntry stateEntry = entry.getValue().get(stateName);
+            if (stateEntry != null) {
+                result.put(
+                        entry.getKey(), (T) convertToExternal(stateEntry.internalData, stateArg));
             }
         }
         return result;
     }
 
-    private Map<String, Object> createEmptyKeyState() {
-        Map<String, Object> newState = new HashMap<>();
+    void evictExpiredState() {
+        long now = systemClock.getAsLong();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
-            newState.put(stateArg.name, createNewStateInternalData(stateArg));
+            if (!stateArg.hasNonZeroTtl()) {
+                continue;
+            }
+            long ttlMillis = stateArg.ttl.toMillis();
+
+            for (Row key : new ArrayList<>(stateByKey.keySet())) {
+                Map<String, StateEntry> entries = stateByKey.get(key);
+                if (entries == null) {
+                    continue;
+                }
+
+                StateEntry entry = entries.get(stateArg.name);
+                if (entry == null) {
+                    continue;
+                }
+
+                if (stateArg.isValueState()) {
+                    evictValueState(stateArg, entry, entries, now, ttlMillis);
+                } else {
+                    evictDataViewState(stateArg, entry, now, ttlMillis);
+                }
+            }
+        }
+    }
+
+    private Map<String, StateEntry> createEmptyKeyState() {
+        Map<String, StateEntry> newState = new HashMap<>();
+        for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
+            newState.put(stateArg.name, new StateEntry(createNewStateInternalData(stateArg), null));
         }
         return newState;
     }
@@ -213,12 +281,6 @@ class TestHarnessStateManager {
         return stateConverters.get(stateArg.name).toExternal(internalData);
     }
 
-    private Object convertToInternal(
-            Object external, ProcessTableFunctionTestHarness.StateArgumentInfo stateArg)
-            throws Exception {
-        return stateConverters.get(stateArg.name).toInternal(external);
-    }
-
     private ProcessTableFunctionTestHarness.StateArgumentInfo findStateArgument(String stateName) {
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
             if (stateArg.name.equals(stateName)) {
@@ -229,5 +291,39 @@ class TestHarnessStateManager {
                 stateArguments.stream().map(arg -> arg.name).collect(Collectors.joining(", "));
         throw new IllegalArgumentException(
                 "Unknown state: '" + stateName + "'. Available states: [" + available + "]");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object wrapIfPlainDataView(Object external) {
+        if (external instanceof ListView && !(external instanceof TtlAwareListView)) {
+            TtlAwareListView<Object> wrapped = new TtlAwareListView<>(systemClock);
+            wrapped.setList((List<Object>) ((ListView<?>) external).getList());
+            return wrapped;
+        }
+        if (external instanceof MapView && !(external instanceof TtlAwareMapView)) {
+            TtlAwareMapView<Object, Object> wrapped = new TtlAwareMapView<>(systemClock);
+            wrapped.setMap((Map<Object, Object>) ((MapView<?, ?>) external).getMap());
+            return wrapped;
+        }
+        return external;
+    }
+
+    private void evictValueState(
+            ProcessTableFunctionTestHarness.StateArgumentInfo stateArg,
+            StateEntry entry,
+            Map<String, StateEntry> entries,
+            long now,
+            long ttlMillis) {
+        if (entry.lastWriteTime != null && now - entry.lastWriteTime >= ttlMillis) {
+            entries.put(stateArg.name, new StateEntry(createNewStateInternalData(stateArg), null));
+        }
+    }
+
+    private void evictDataViewState(
+            ProcessTableFunctionTestHarness.StateArgumentInfo stateArg,
+            StateEntry entry,
+            long now,
+            long ttlMillis) {
+        stateConverters.get(stateArg.name).evictExpired(entry.internalData, now, ttlMillis);
     }
 }

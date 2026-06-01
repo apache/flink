@@ -2468,6 +2468,54 @@ void testStateMutation() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
+**State TTL**: Use `advanceSystemClock()` to simulate processing time and trigger TTL-based eviction.
+State entries whose time since last write meets or exceeds their configured TTL will be
+cleared. For value state, the entire value is reset. For ListView and MapView, expired
+elements/entries are removed individually:
+
+{{< tabs "state-ttl" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<count BIGINT>")
+public static class CounterWithTtl extends ProcessTableFunction<Row> {
+    public static class CounterState {
+        public long counter = 0L;
+    }
+
+    public void eval(
+            @StateHint(ttl = "5s") CounterState state,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+        state.counter++;
+        collect(Row.of(state.counter));
+    }
+}
+
+@Test
+void testStateTtlExpires() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(CounterWithTtl.class)
+    .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+    .withPartitionBy("input", "name")
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 1));
+
+    CounterWithTtl.CounterState state =
+      harness.getStateForKey("state", Row.of("Alice"));
+    assertThat(state.counter).isEqualTo(1L);
+
+    // Advance past the 5-second TTL
+    harness.advanceSystemClock(5000);
+
+    // State has been evicted
+    state = harness.getStateForKey("state", Row.of("Alice"));
+    assertThat(state.counter).isEqualTo(0L);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### Optional Partitioning
 
 For PTFs with `OPTIONAL_PARTITION_BY`, you can omit `withPartitionBy()` during harness setup. The
@@ -2589,4 +2637,3 @@ void testPOJO() throws Exception {
 - Timers (`onTimer`)
 - `on_time` / `rowtime`
 - Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
-- State TTL (state is supported but TTL expiration is not yet implemented)

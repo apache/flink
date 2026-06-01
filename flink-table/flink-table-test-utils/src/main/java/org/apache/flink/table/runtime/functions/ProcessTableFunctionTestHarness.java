@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -60,6 +62,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -109,6 +113,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private boolean isOpen;
     private final HarnessCollector collector;
     private final TestHarnessStateManager stateManager;
+    private final AtomicLong systemClock;
 
     private final String defaultTableArgument;
     private final Method evalMethod;
@@ -128,7 +133,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             List<ArgumentInfo> arguments,
             Map<String, TableArgumentConverters> argumentConverters,
             DataStructureConverter<Object, Object> harnessOutputConverter,
-            TestHarnessStateManager stateManager)
+            TestHarnessStateManager stateManager,
+            AtomicLong systemClock)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
@@ -137,6 +143,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.argumentConverters = argumentConverters;
         this.harnessOutputConverter = harnessOutputConverter;
         this.stateManager = stateManager;
+        this.systemClock = systemClock;
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
@@ -301,6 +308,30 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     /** Clear specific state entry for a given partition key. */
     public void clearStateForKey(String stateName, Row partitionKey) {
         stateManager.clearStateForKey(stateName, partitionKey);
+    }
+
+    /**
+     * Advances the simulated system clock by the given number of milliseconds, which might trigger
+     * state TTL eviction.
+     */
+    public void advanceSystemClock(long milliseconds) {
+        checkState(isOpen, "Harness is not open");
+        checkArgument(
+                milliseconds >= 0,
+                "Cannot advance system clock by a negative amount: %s",
+                milliseconds);
+        systemClock.addAndGet(milliseconds);
+        stateManager.evictExpiredState();
+    }
+
+    /**
+     * Advances the simulated system clock by the given {@link Duration}, which might trigger state
+     * TTL eviction.
+     */
+    public void advanceSystemClock(Duration duration) {
+        checkNotNull(duration, "duration must not be null");
+        checkArgument(!duration.isNegative(), "duration must not be negative");
+        advanceSystemClock(duration.toMillis());
     }
 
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
@@ -689,15 +720,21 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             validatePartitionConsistency(arguments);
             validateInitialStateKeys(arguments);
 
+            AtomicLong systemClock = new AtomicLong(0L);
+
             Map<String, TableArgumentConverters> argumentConverters = new HashMap<>();
             Map<String, StateConverter> stateConverters = new HashMap<>();
-            createConverters(arguments, argumentConverters, stateConverters, classLoader);
+            createConverters(
+                    arguments, argumentConverters, stateConverters, classLoader, systemClock::get);
 
             // Create state manager
             List<StateArgumentInfo> stateArguments = ArgumentInfo.filterStateArguments(arguments);
             TestHarnessStateManager stateManager =
                     new TestHarnessStateManager(
-                            stateArguments, stateConverters, extractPartitionKeyInfo(arguments));
+                            stateArguments,
+                            stateConverters,
+                            extractPartitionKeyInfo(arguments),
+                            systemClock::get);
 
             // Populate initial state
             for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
@@ -729,7 +766,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     arguments,
                     argumentConverters,
                     harnessOutputConverter,
-                    stateManager);
+                    stateManager,
+                    systemClock);
         }
 
         /**
@@ -755,11 +793,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 List<ArgumentInfo> arguments,
                 Map<String, TableArgumentConverters> argumentConverters,
                 Map<String, StateConverter> stateConverters,
-                ClassLoader classLoader)
+                ClassLoader classLoader,
+                LongSupplier systemClock)
                 throws Exception {
 
             for (StateArgumentInfo stateArg : ArgumentInfo.filterStateArguments(arguments)) {
-                StateConverter converter = createStateConverter(stateArg.dataType, classLoader);
+                StateConverter converter =
+                        createStateConverter(stateArg.dataType, classLoader, systemClock);
                 stateConverters.put(stateArg.name, converter);
             }
 
@@ -1164,40 +1204,44 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /** Creates appropriate StateConverter for the given state data type. */
-        private StateConverter createStateConverter(DataType stateDataType, ClassLoader classLoader)
-                throws Exception {
-            LogicalType logicalType = stateDataType.getLogicalType();
+        private StateConverter createStateConverter(
+                DataType stateDataType, ClassLoader classLoader, LongSupplier clock) {
+            DataType resolvedType =
+                    ListView.class.isAssignableFrom(stateDataType.getConversionClass())
+                                    || MapView.class.isAssignableFrom(
+                                            stateDataType.getConversionClass())
+                            ? stateDataType.getChildren().get(0)
+                            : stateDataType;
+
+            LogicalType logicalType = resolvedType.getLogicalType();
 
             if (logicalType instanceof ArrayType) {
-                ArrayType arrayType = (ArrayType) logicalType;
-                DataType elementType = stateDataType.getChildren().get(0);
+                DataType elementType = resolvedType.getChildren().get(0);
                 DataStructureConverter<Object, Object> elementConverter =
                         DataStructureConverters.getConverter(elementType);
                 elementConverter.open(classLoader);
-                return new ListViewStateConverter(arrayType, elementConverter);
+                return new ListViewStateConverter(elementConverter, clock);
             } else if (logicalType instanceof MapType) {
-                MapType mapType = (MapType) logicalType;
-                DataType keyType = stateDataType.getChildren().get(0);
-                DataType valueType = stateDataType.getChildren().get(1);
+                DataType keyType = resolvedType.getChildren().get(0);
+                DataType valueType = resolvedType.getChildren().get(1);
                 DataStructureConverter<Object, Object> keyConverter =
                         DataStructureConverters.getConverter(keyType);
                 DataStructureConverter<Object, Object> valueConverter =
                         DataStructureConverters.getConverter(valueType);
                 keyConverter.open(classLoader);
                 valueConverter.open(classLoader);
-                return new MapViewStateConverter(mapType, keyConverter, valueConverter);
+                return new MapViewStateConverter(keyConverter, valueConverter, clock);
             } else if (logicalType instanceof RowType) {
-                RowType rowType = (RowType) logicalType;
                 DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(stateDataType);
+                        DataStructureConverters.getConverter(resolvedType);
                 converter.open(classLoader);
-                return new RowStateConverter(converter, rowType);
+                return new RowStateConverter((RowType) logicalType, converter);
             } else {
                 DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(stateDataType);
+                        DataStructureConverters.getConverter(resolvedType);
                 converter.open(classLoader);
-                Class<?> stateClass = stateDataType.getConversionClass();
-                return new StructuredTypeStateConverter(converter, stateClass);
+                return new StructuredTypeStateConverter(
+                        resolvedType.getConversionClass(), converter);
             }
         }
 
@@ -1531,6 +1575,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         StateArgumentInfo(String name, DataType dataType, Duration ttl) {
             super(name, dataType);
             this.ttl = ttl;
+        }
+
+        boolean hasNonZeroTtl() {
+            return ttl != null && !ttl.isZero();
+        }
+
+        boolean isListViewState() {
+            return ListView.class.isAssignableFrom(dataType.getConversionClass());
+        }
+
+        boolean isMapViewState() {
+            return MapView.class.isAssignableFrom(dataType.getConversionClass());
+        }
+
+        boolean isValueState() {
+            return !isListViewState() && !isMapViewState();
         }
     }
 

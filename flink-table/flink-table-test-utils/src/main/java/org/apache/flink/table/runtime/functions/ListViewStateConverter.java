@@ -19,61 +19,62 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.dataview.ListView;
-import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.types.logical.ArrayType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 
 /**
  * Converter for ListView state.
  *
- * <p>Converts between external ListView objects and internal ArrayData representation.
+ * <p>Internal storage is always a {@link TtlAwareListView} with elements in converted form.
  */
 @Internal
 class ListViewStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> elementConverter;
-    private final ArrayData.ElementGetter elementGetter;
+    private final LongSupplier clock;
 
     ListViewStateConverter(
-            ArrayType arrayType, DataStructureConverter<Object, Object> elementConverter) {
+            DataStructureConverter<Object, Object> elementConverter, LongSupplier clock) {
         this.elementConverter = elementConverter;
-        this.elementGetter = ArrayData.createElementGetter(arrayType.getElementType());
+        this.clock = clock;
     }
 
     @Override
     public Object toInternal(Object external) {
-        ListView<?> listView = (ListView<?>) external;
-        List<?> elements = listView.getList();
-
-        Object[] internalArray = new Object[elements.size()];
-        for (int i = 0; i < elements.size(); i++) {
-            internalArray[i] = elementConverter.toInternal(elements.get(i));
-        }
-        return new GenericArrayData(internalArray);
+        TtlAwareListView<?> view = (TtlAwareListView<?>) external;
+        TtlAwareListView<Object> newView = new TtlAwareListView<>(clock);
+        newView.setListWithTimestamps(
+                convertElements(view.getList(), elementConverter::toInternal),
+                new ArrayList<>(view.getTimestamps()));
+        return newView;
     }
 
     @Override
     public Object toExternal(Object internal) {
-        ArrayData arrayData = (ArrayData) internal;
-        ListView<Object> listView = new ListView<>();
-
-        List<Object> elements = new ArrayList<>();
-        for (int i = 0; i < arrayData.size(); i++) {
-            Object internalElement = elementGetter.getElementOrNull(arrayData, i);
-            Object externalElement = elementConverter.toExternal(internalElement);
-            elements.add(externalElement);
-        }
-        listView.setList(elements);
-        return listView;
+        TtlAwareListView<?> view = (TtlAwareListView<?>) internal;
+        TtlAwareListView<Object> newView = new TtlAwareListView<>(clock);
+        newView.setListWithTimestamps(
+                convertElements(view.getList(), elementConverter::toExternal),
+                new ArrayList<>(view.getTimestamps()));
+        return newView;
     }
 
     @Override
     public Object createNewInternalState() {
-        return new GenericArrayData(new Object[0]);
+        return new TtlAwareListView<>(clock);
+    }
+
+    @Override
+    public void evictExpired(Object internalState, long now, long ttlMillis) {
+        ((TtlAwareListView<?>) internalState).evictExpired(now, ttlMillis);
+    }
+
+    private List<Object> convertElements(List<?> elements, Function<Object, Object> converter) {
+        return elements.stream().map(converter).collect(Collectors.toList());
     }
 }

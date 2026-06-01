@@ -19,74 +19,74 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.GenericMapData;
-import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.types.logical.MapType;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 
 /**
  * Converter for MapView state.
  *
- * <p>Converts between external MapView objects and internal MapData representation.
+ * <p>Internal storage is always a {@link TtlAwareMapView} with keys and values in converted form.
  */
 @Internal
 class MapViewStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> keyConverter;
     private final DataStructureConverter<Object, Object> valueConverter;
-    private final ArrayData.ElementGetter keyGetter;
-    private final ArrayData.ElementGetter valueGetter;
+    private final LongSupplier clock;
 
     MapViewStateConverter(
-            MapType mapType,
             DataStructureConverter<Object, Object> keyConverter,
-            DataStructureConverter<Object, Object> valueConverter) {
+            DataStructureConverter<Object, Object> valueConverter,
+            LongSupplier clock) {
         this.keyConverter = keyConverter;
         this.valueConverter = valueConverter;
-        this.keyGetter = ArrayData.createElementGetter(mapType.getKeyType());
-        this.valueGetter = ArrayData.createElementGetter(mapType.getValueType());
+        this.clock = clock;
     }
 
     @Override
     public Object toInternal(Object external) {
-        MapView<?, ?> mapView = (MapView<?, ?>) external;
-        Map<?, ?> entries = mapView.getMap();
-
-        Map<Object, Object> internalMap = new HashMap<>();
-        for (Map.Entry<?, ?> entry : entries.entrySet()) {
-            Object internalKey = keyConverter.toInternal(entry.getKey());
-            Object internalValue = valueConverter.toInternal(entry.getValue());
-            internalMap.put(internalKey, internalValue);
-        }
-        return new GenericMapData(internalMap);
+        return convertView(
+                (TtlAwareMapView<?, ?>) external,
+                keyConverter::toInternal,
+                valueConverter::toInternal);
     }
 
     @Override
     public Object toExternal(Object internal) {
-        MapData mapData = (MapData) internal;
-        MapView<Object, Object> mapView = new MapView<>();
-
-        Map<Object, Object> entries = new HashMap<>();
-        ArrayData keyArray = mapData.keyArray();
-        ArrayData valueArray = mapData.valueArray();
-        for (int i = 0; i < keyArray.size(); i++) {
-            Object internalKey = keyGetter.getElementOrNull(keyArray, i);
-            Object internalValue = valueGetter.getElementOrNull(valueArray, i);
-            Object externalKey = keyConverter.toExternal(internalKey);
-            Object externalValue = valueConverter.toExternal(internalValue);
-            entries.put(externalKey, externalValue);
-        }
-        mapView.setMap(entries);
-        return mapView;
+        return convertView(
+                (TtlAwareMapView<?, ?>) internal,
+                keyConverter::toExternal,
+                valueConverter::toExternal);
     }
 
     @Override
     public Object createNewInternalState() {
-        return new GenericMapData(new HashMap<>());
+        return new TtlAwareMapView<>(clock);
+    }
+
+    @Override
+    public void evictExpired(Object internalState, long now, long ttlMillis) {
+        ((TtlAwareMapView<?, ?>) internalState).evictExpired(now, ttlMillis);
+    }
+
+    private TtlAwareMapView<Object, Object> convertView(
+            TtlAwareMapView<?, ?> source,
+            Function<Object, Object> convertKey,
+            Function<Object, Object> convertValue) {
+        Map<Object, Object> entries = new HashMap<>();
+        source.getMap().forEach((k, v) -> entries.put(convertKey.apply(k), convertValue.apply(v)));
+        Map<Object, Long> timestamps =
+                source.getTimestamps().entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        e -> convertKey.apply(e.getKey()), Map.Entry::getValue));
+        TtlAwareMapView<Object, Object> newView = new TtlAwareMapView<>(clock);
+        newView.setMapWithTimestamps(entries, timestamps);
+        return newView;
     }
 }
