@@ -132,7 +132,7 @@ class AggCallSelectivityEstimatorTest {
   private def createInputRef(index: Int): RexInputRef = {
     val relDataType = typeFactory.createSqlType(allFieldTypes(index))
     val relDataTypeWithNullability =
-      typeFactory.createTypeWithNullability(relDataType, isNullable = false)
+      typeFactory.createTypeWithNullability(relDataType, false)
     rexBuilder.makeInputRef(relDataTypeWithNullability, index)
   }
 

@@ -24,7 +24,6 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -36,8 +35,8 @@ import org.apache.calcite.rex.RexNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.table.planner.plan.utils.AsyncUtil.containsAsyncCall;
@@ -61,12 +60,8 @@ public class AsyncUtilTest {
                         .getPlannerContext()
                         .getTypeFactory()
                         .buildRelNodeRowType(
-                                JavaScalaConversionUtil.toScala(Arrays.asList("f1", "f2", "f3")),
-                                JavaScalaConversionUtil.toScala(
-                                        Arrays.asList(
-                                                new IntType(),
-                                                new BigIntType(),
-                                                new VarCharType())));
+                                List.of("f1", "f2", "f3"),
+                                List.of(new IntType(), new BigIntType(), new VarCharType()));
 
         converter =
                 ShortcutUtils.unwrapContext(

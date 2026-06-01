@@ -34,7 +34,6 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.type.RelDataType;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -81,8 +80,8 @@ public class BatchPhysicalLocalRuntimeFilterBuilder extends SingleRel implements
     protected RelDataType deriveRowType() {
         return ((FlinkTypeFactory) getCluster().getTypeFactory())
                 .buildRelNodeRowType(
-                        Arrays.asList("actualRowCount", "filter"),
-                        Arrays.asList(new IntType(), new VarBinaryType()));
+                        List.of("actualRowCount", "filter"),
+                        List.of(new IntType(), new VarBinaryType()));
     }
 
     @Override
