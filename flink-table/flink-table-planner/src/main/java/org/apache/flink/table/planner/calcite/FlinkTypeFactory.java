@@ -392,7 +392,6 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
                 return createSqlType(SqlTypeName.TINYINT);
             case SMALLINT:
                 return createSqlType(SqlTypeName.SMALLINT);
-
             case INTEGER:
                 return createSqlType(SqlTypeName.INTEGER);
             case BIGINT:
@@ -754,7 +753,6 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             case DECIMAL:
                 return new DecimalType(relDataType.getPrecision(), relDataType.getScale());
 
-            // time indicators
             case TIMESTAMP:
                 if (relDataType instanceof TimeIndicatorRelDataType) {
                     final TimeIndicatorRelDataType indicator =
@@ -780,7 +778,7 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
                     }
                 }
                 return new LocalZonedTimestampType(relDataType.getPrecision());
-            // temporal types
+
             case DATE:
                 return new DateType();
             case TIME:
