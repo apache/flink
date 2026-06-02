@@ -189,7 +189,7 @@ Flink metric types are mapped to Prometheus metric types as follows:
 | --------- |------------|------------------------------------------|
 | Counter   | Gauge      |Prometheus counters cannot be decremented.|
 | Gauge     | Gauge      |Only numbers and booleans are supported.  |
-| Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
+| Histogram | Summary    |Quantiles 0.0, .5, .75, .95, .98, .99, .999 and 1.0 |
 | Meter     | Gauge      |The gauge exports the meter's rate.       |
 
 All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metrics" >}}#list-of-all-variables)) are exported to Prometheus as labels. 
