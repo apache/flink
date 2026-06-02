@@ -1015,14 +1015,19 @@ public class SqlFunctionUtils {
         return Math.abs(str.hashCode());
     }
 
-    public static Boolean regExp(String s, String regex) {
-        if (regex.length() == 0) {
+    /**
+     * Returns whether {@code s} contains a match for the regular expression {@code regex}. Literal
+     * regexes are validated at planning time by the input type strategy.
+     */
+    public static boolean regExp(String s, String regex) {
+        if (regex.isEmpty()) {
             return false;
         }
         try {
-            return (REGEXP_PATTERN_CACHE.get(regex)).matcher(s).find(0);
-        } catch (Exception e) {
-            LOG.error("Exception when compile and match regex:" + regex + " on: " + s, e);
+            return REGEXP_PATTERN_CACHE.get(regex).matcher(s).find(0);
+        } catch (PatternSyntaxException e) {
+            // Literals are rejected at planning time; non-literal invalid regex
+            // returns false to preserve the prior runtime contract.
             return false;
         }
     }
