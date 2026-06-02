@@ -33,6 +33,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                        regexpTestCases(),
                         regexpCountTestCases(),
                         regexpExtractTestCases(),
                         regexpExtractAllTestCases(),
@@ -40,6 +41,52 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         regexpReplaceTestCases(),
                         regexpSubstrTestCases())
                 .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> regexpTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP)
+                        .onFieldsWithData(null, "foobar", "(")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .testResult(
+                                $("f0").regexp("foo"),
+                                "REGEXP(f0, 'foo')",
+                                null,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").regexp("foo"),
+                                "REGEXP(f1, 'foo')",
+                                true,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").regexp("xyz"),
+                                "REGEXP(f1, 'xyz')",
+                                false,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").regexp($("f2")),
+                                "REGEXP(f1, f2)",
+                                false,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").regexp(concat("fo", "o")),
+                                "REGEXP(f1, 'fo' || 'o')",
+                                true,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").regexp(concat("(", "")),
+                                "REGEXP(f1, '(' || '')",
+                                false,
+                                DataTypes.BOOLEAN().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP,
+                                "Invalid literal regex fails at plan time")
+                        .onFieldsWithData("foobar")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").regexp("("), "Invalid regular expression for REGEXP:")
+                        .testSqlValidationError(
+                                "REGEXP(f0, '(')", "Invalid regular expression for REGEXP:"));
     }
 
     private Stream<TestSetSpec> regexpCountTestCases() {

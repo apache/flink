@@ -193,7 +193,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("MAKE_VALID_UTF8(a)", str(expr1.make_valid_utf8))
 
         # regexp functions
-        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
+        self.assertEqual("REGEXP(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))
         self.assertEqual('REGEXP_EXTRACT(a, b)', str(expr1.regexp_extract(expr2)))
         self.assertEqual('REGEXP_EXTRACT(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
