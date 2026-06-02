@@ -445,16 +445,23 @@ SET 'table.optimizer.delta-join.strategy' = 'NONE';
 
 1. 支持 **INSERT-only** 的表作为源表。
 2. 支持不带 **DELETE 操作**的 **CDC** 表作为源表。
-3. 支持源表和 delta join 间包含 **project** 和 **filter** 算子。
+3. 支持源表和 delta join 间包含 **projection** 和 **filter** 算子。
 4. Delta join 算子内支持**缓存**。
+5. 支持**级联 delta join**（cascaded delta join）—— 查询中符合条件的 join 节点从源表到结果表被依次转换为 delta join 节点。
+6. 支持 delta join 后接 **lookup join**。
+7. 支持在 delta join 与下游算子之间的 projection 和 filter 中使用**非确定性函数**。
 
 然而，delta join 也存在几个**限制**，包含以下任何条件的作业无法优化为 delta join。
 
 1. 表的**索引键**必须包含在 join 的**等值条件**中
 2. 目前仅支持 **INNER JOIN**。
 3. **下游节点**必须能够处理**冗余变更**。例如以 **UPSERT 模式**运行、不带 `upsertMaterialize` 的 sink 节点。
-4. 当消费 **CDC 流**时，**join key** 必须是**主键**的一部分。
-5. 当消费 **CDC 流**时，所有 **filter** 必须应用于 **upsert key** 上。
-6. 所有 project 和 filter 都不能包含**非确定性函数**。
+4. 当消费 **CDC 流**时，**join key** 必须是 **upsert key**<sup>[1]</sup> 的一部分。
+5. 当消费 **CDC 流**时，所有 **filter** 必须应用于 **upsert key**<sup>[1]</sup> 上。
+6. 源表和 delta join 之间的 projection 或 filter 不能包含**非确定性函数**。
+
+{{< hint info >}}
+[1] Flink 支持定义表级别的**不可变列**（immutable columns）约束来丰富 upsert key，从而使更多场景能够被优化为 delta join。不可变列约束声明某些列一旦为给定主键设置后便不可修改，不可变列会联合主键，作为一组新的 upsert key 传播给下游。该信息由外部存储系统提供。[Apache Fluss(Incubating)](https://fluss.apache.org/) 已在未来计划支持表级别的不可变列约束。
+{{< /hint >}}
 
 {{< top >}}
