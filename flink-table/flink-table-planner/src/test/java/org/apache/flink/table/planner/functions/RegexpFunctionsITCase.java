@@ -77,7 +77,16 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f1").regexp(concat("(", "")),
                                 "REGEXP(f1, '(' || '')",
                                 false,
-                                DataTypes.BOOLEAN().nullable()));
+                                DataTypes.BOOLEAN().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP,
+                                "Invalid literal regex fails at plan time")
+                        .onFieldsWithData("foobar")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").regexp("("), "Invalid regular expression for REGEXP:")
+                        .testSqlValidationError(
+                                "REGEXP(f0, '(')", "Invalid regular expression for REGEXP:"));
     }
 
     private Stream<TestSetSpec> regexpCountTestCases() {

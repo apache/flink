@@ -1716,10 +1716,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
                     .runtimeProvided()
                     .build();
