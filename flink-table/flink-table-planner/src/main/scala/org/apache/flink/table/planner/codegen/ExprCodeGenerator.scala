@@ -952,6 +952,9 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.JSON =>
             new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
+          case BuiltInFunctionDefinitions.REGEXP =>
+            StringCallGen.generateRegExp(ctx, operands, resultType)
+
           case BuiltInFunctionDefinitions.REGEXP_EXTRACT =>
             StringCallGen.generateRegexpExtract(ctx, operands, resultType)
 

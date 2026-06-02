@@ -196,8 +196,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REPEAT, FlinkSqlOperatorTable.REPEAT);
         definitionSqlOperatorHashMap.put(
-                BuiltInFunctionDefinitions.REGEXP, FlinkSqlOperatorTable.REGEXP);
-        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REVERSE, FlinkSqlOperatorTable.REVERSE);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.SPLIT_INDEX, FlinkSqlOperatorTable.SPLIT_INDEX);

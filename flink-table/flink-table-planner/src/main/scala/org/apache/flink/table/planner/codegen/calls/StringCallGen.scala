@@ -134,8 +134,6 @@ object StringCallGen {
 
       case CHR => generateChr(ctx, operands, returnType)
 
-      case REGEXP => generateRegExp(ctx, operands, returnType)
-
       case BIN => generateBin(ctx, operands, returnType)
 
       case CONCAT_FUNCTION =>

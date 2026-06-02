@@ -597,15 +597,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
                     SqlFunctionCategory.TIMEDATE);
 
-    public static final SqlFunction REGEXP =
-            new SqlFunction(
-                    "REGEXP",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.BOOLEAN_NULLABLE,
-                    null,
-                    OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
-                    SqlFunctionCategory.STRING);
-
     public static final SqlFunction PARSE_URL =
             new SqlFunction(
                     "PARSE_URL",
