@@ -1728,7 +1728,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("REGEXP_REPLACE")
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_REPLACE)
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .runtimeProvided()
                     .build();
 
