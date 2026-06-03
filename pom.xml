@@ -141,7 +141,7 @@ under the License.
 		<maven.compiler.source>${source.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
 		<scala.macros.version>2.1.1</scala.macros.version>
-		<scala.version>2.12.20</scala.version>
+		<scala.version>2.12.21</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
 		<zookeeper.version>3.7.2</zookeeper.version>
@@ -975,7 +975,7 @@ under the License.
 		<profile>
 			<id>scala-2.12</id>
 			<properties>
-				<scala.version>2.12.20</scala.version>
+				<scala.version>2.12.21</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
 			</properties>
 			<activation>
