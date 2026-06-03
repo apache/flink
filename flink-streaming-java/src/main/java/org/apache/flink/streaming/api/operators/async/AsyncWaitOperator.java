@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.SupportsSoftBackpressure;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -57,6 +59,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -92,7 +95,7 @@ import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_
 @Internal
 public class AsyncWaitOperator<IN, OUT>
         extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, SupportsSoftBackpressure {
     private static final long serialVersionUID = 1L;
 
     private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -138,6 +141,8 @@ public class AsyncWaitOperator<IN, OUT>
 
     /** Whether retry is disabled due to task finish, initially set to false. */
     private transient AtomicBoolean retryDisabledOnFinish;
+
+    private AvailabilityProvider downstreamAvailabilityProvider;
 
     public AsyncWaitOperator(
             StreamOperatorParameters<OUT> parameters,
@@ -390,6 +395,25 @@ public class AsyncWaitOperator<IN, OUT>
      */
     private void outputCompletedElement() {
         if (queue.hasCompletedElements()) {
+            // Defer emission until downstream becomes available.
+            if (downstreamAvailabilityProvider != null
+                    && !downstreamAvailabilityProvider.isAvailable()) {
+                downstreamAvailabilityProvider
+                        .getAvailableFuture()
+                        .thenRun(
+                                () -> {
+                                    try {
+                                        mailboxExecutor.execute(
+                                                this::outputCompletedElement,
+                                                "AsyncWaitOperator#outputCompletedElement(deferred)");
+                                    } catch (RejectedExecutionException e) {
+                                        LOG.debug(
+                                                "Deferred element emission is ignored since the mailbox rejected the execution.",
+                                                e);
+                                    }
+                                });
+                return;
+            }
             // emit only one element to not block the mailbox thread unnecessarily
             queue.emitCompletedElement(timestampedCollector);
             // if there are more completed elements, emit them with subsequent mails
@@ -429,6 +453,16 @@ public class AsyncWaitOperator<IN, OUT>
 
         return processingTimeService.registerTimer(
                 timeoutTimestamp, timestamp -> callback.accept(null));
+    }
+
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return queue.getAvailableFuture();
+    }
+
+    @Override
+    public void setDownstreamAvailabilityProvider(AvailabilityProvider provider) {
+        this.downstreamAvailabilityProvider = provider;
     }
 
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
