@@ -23,10 +23,7 @@ import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction, TableSemantics}
-import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
@@ -37,7 +34,6 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
@@ -46,7 +42,6 @@ import org.apache.flink.types.RowKind
 import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.RexCall
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -1594,91 +1589,25 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   private def toChangelogMode(
       node: StreamPhysicalRel,
       updateKindTrait: Option[UpdateKindTrait],
-      deleteKindTrait: Option[DeleteKindTrait]): ChangelogMode = {
-    val modeBuilder = ChangelogMode.newBuilder()
-    val givenMode = ChangelogPlanUtils
-      .getChangelogMode(node)
-      .getOrElse(
-        throw new IllegalStateException(
-          s"Unable to derive changelog mode from node $node. This is a bug."))
-    givenMode.getContainedKinds.foreach(modeBuilder.addContainedKind)
-    updateKindTrait match {
-      case None =>
-      case Some(updateKindTrait: UpdateKindTrait) =>
-        if (updateKindTrait == BEFORE_AND_AFTER) {
-          modeBuilder.addContainedKind(RowKind.UPDATE_BEFORE)
-        }
-    }
-    deleteKindTrait match {
-      case None =>
-      case Some(deleteKindTrait: DeleteKindTrait) =>
-        if (deleteKindTrait == DELETE_BY_KEY) {
-          modeBuilder.keyOnlyDeletes(true)
-        }
-    }
-    modeBuilder.build()
-  }
+      deleteKindTrait: Option[DeleteKindTrait]): ChangelogMode =
+    ChangelogModeInferenceUtils.toChangelogMode(
+      node,
+      updateKindTrait.orNull,
+      deleteKindTrait.orNull)
 
-  /**
-   * Whether the PTF requires UPDATE_BEFORE from its input. Returns true unless partition keys cover
-   * the upsert keys (co-located) and the argument doesn't explicitly require UPDATE_BEFORE.
-   */
   private def ptfRequiresUpdateBefore(
       tableArg: StaticArgument,
       tableArgCall: RexTableArgCall,
-      input: StreamPhysicalRel): Boolean = {
-    val partitionKeys = ImmutableBitSet.of(tableArgCall.getPartitionKeys: _*)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(input)
-    upsertKeys == null || partitionKeys.isEmpty ||
-    !upsertKeys.contains(partitionKeys) ||
-    tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
-  }
+      input: StreamPhysicalRel): Boolean =
+    ChangelogModeInferenceUtils.ptfRequiresUpdateBefore(tableArg, tableArgCall, input)
 
   private def extractPtfTableArgComponents(
       process: StreamPhysicalProcessTableFunction,
       child: StreamPhysicalRel,
       inputArg: Ord[StaticArgument]): (StaticArgument, RexTableArgCall, ModifyKindSet) = {
-    val tableArg = inputArg.e
-    val call = process.getCall
-    val tableArgCall = call.operands.get(inputArg.i).asInstanceOf[RexTableArgCall]
-    val modifyKindSet = getModifyKindSet(child)
-    (tableArg, tableArgCall, modifyKindSet)
-  }
-
-  private def toPtfChangelogContext(
-      process: StreamPhysicalProcessTableFunction,
-      inputChangelogModes: List[ChangelogMode],
-      outputChangelogMode: ChangelogMode): ChangelogContext = {
-    val udfCall = StreamPhysicalProcessTableFunction.toUdfCall(process.getCall)
-    val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
-    val function = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
-    val callContext =
-      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
-
-    // Expose a simplified context focused on changelog-relevant inputs: changelog modes,
-    // resolved literal arguments, and table semantics (e.g., partition-by columns).
-    new ChangelogContext {
-      override def getTableChangelogMode(pos: Int): ChangelogMode = {
-        val tableSemantics = callContext.getTableSemantics(pos).orElse(null)
-        if (tableSemantics == null) {
-          return null
-        }
-        tableSemantics.changelogMode().orElse(null)
-      }
-
-      override def getRequiredChangelogMode: ChangelogMode = {
-        callContext.getOutputChangelogMode.orElse(null)
-      }
-
-      override def getArgumentValue[T](pos: Int, clazz: Class[T]): java.util.Optional[T] = {
-        callContext.getArgumentValue(pos, clazz)
-      }
-
-      override def getTableSemantics(pos: Int): java.util.Optional[TableSemantics] = {
-        callContext.getTableSemantics(pos)
-      }
-    }
+    val components =
+      ChangelogModeInferenceUtils.extractPtfTableArgComponents(process, child, inputArg)
+    (components.tableArg, components.tableArgCall, components.modifyKindSet)
   }
 
   private def queryPtfChangelogMode[T](
@@ -1686,56 +1615,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       children: List[StreamPhysicalRel],
       requiredChangelogMode: ChangelogMode,
       toTraitSet: ChangelogMode => T,
-      defaultTraitSet: T): T = {
-    val call = process.getCall
-    val definition = ShortcutUtils.unwrapFunctionDefinition(call)
-    definition match {
-      case changelogFunction: ChangelogFunction =>
-        val inputChangelogModes = children.map(toChangelogMode(_, None, None))
-        val changelogContext =
-          toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
-        val changelogMode = changelogFunction.getChangelogMode(changelogContext)
-        verifyPtfTableArgsForUpdates(call, changelogMode)
-        toTraitSet(changelogMode)
-      case builtIn: BuiltInFunctionDefinition if builtIn.getChangelogModeStrategy.isPresent =>
-        val inputChangelogModes = children.map(toChangelogMode(_, None, None))
-        val changelogContext =
-          toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
-        val changelogMode =
-          builtIn.getChangelogModeStrategy.get().inferChangelogMode(changelogContext)
-        verifyPtfTableArgsForUpdates(call, changelogMode)
-        toTraitSet(changelogMode)
-      case _ =>
-        defaultTraitSet
-    }
-  }
-
-  /**
-   * Verifies that PTFs with upsert output (without UPDATE_BEFORE) use set semantics.
-   *
-   * Retract mode (with UPDATE_BEFORE) is self-describing — each update carries either the old and
-   * new value, so downstream can process it without a key. Row semantics is safe.
-   *
-   * Upsert mode (without UPDATE_BEFORE) requires a key to look up previous values, so set semantics
-   * with PARTITION BY is required.
-   */
-  private def verifyPtfTableArgsForUpdates(call: RexCall, changelogMode: ChangelogMode): Unit = {
-    if (
-      changelogMode.containsOnly(RowKind.INSERT) || changelogMode.contains(RowKind.UPDATE_BEFORE)
-    ) {
-      return
-    }
-    StreamPhysicalProcessTableFunction
-      .getProvidedInputArgs(call)
-      .map(_.e)
-      .foreach {
-        tableArg =>
-          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
-            throw new ValidationException(
-              s"PTFs that take table arguments with row semantics don't support upsert output. " +
-                s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +
-                s"must use set semantics.")
-          }
-      }
-  }
+      defaultTraitSet: T): T =
+    ChangelogModeInferenceUtils.queryPtfChangelogMode[T](
+      process,
+      children,
+      requiredChangelogMode,
+      (mode: ChangelogMode) => toTraitSet(mode),
+      defaultTraitSet)
 }
