@@ -48,13 +48,13 @@ import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(
-  selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean | string | null
+  selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean
 ): NzTableSortFn<SubTaskCheckpointStatisticsItem> {
-  return (pre, next) => {
-    const a = selector(pre as CompletedSubTaskCheckpointStatistics) ?? '';
-    const b = selector(next as CompletedSubTaskCheckpointStatistics) ?? '';
-    return a > b ? 1 : -1;
-  };
+  return (pre, next) =>
+    selector(pre as CompletedSubTaskCheckpointStatistics) >
+    selector(next as CompletedSubTaskCheckpointStatistics)
+      ? 1
+      : -1;
 }
 
 @Component({
