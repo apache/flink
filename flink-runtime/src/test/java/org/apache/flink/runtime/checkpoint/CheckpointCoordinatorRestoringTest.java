@@ -1113,7 +1113,7 @@ class CheckpointCoordinatorRestoringTest {
                         .build(graph);
 
         ExecutionJobVertex vertex = graph.getJobVertex(jobVertexID);
-        coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex));
+        coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex), false);
         TaskStateSnapshot restoredState =
                 vertex.getTaskVertices()[0]
                         .getCurrentExecutionAttempt()
@@ -1159,10 +1159,70 @@ class CheckpointCoordinatorRestoringTest {
                                         })
                         .build(graph);
         restoreCoordinator.restoreInitialCheckpointIfPresent(
-                new HashSet<>(graph.getAllVertices().values()));
+                new HashSet<>(graph.getAllVertices().values()), false);
         assertThat(checked.get())
                 .as("The finished states should be checked when job is restored on startup")
                 .isTrue();
+    }
+
+    @Test
+    void testRestoreInitialCheckpointAllowsNonRestoredStateWhenTrue() throws Exception {
+        Tuple2<CheckpointCoordinator, ExecutionJobVertex> fixture = buildNonRestoredStateFixture();
+
+        assertThat(
+                        fixture.f0.restoreInitialCheckpointIfPresent(
+                                Collections.singleton(fixture.f1), true))
+                .isTrue();
+    }
+
+    @Test
+    void testRestoreInitialCheckpointRejectsNonRestoredStateWhenFalse() throws Exception {
+        Tuple2<CheckpointCoordinator, ExecutionJobVertex> fixture = buildNonRestoredStateFixture();
+
+        assertThatThrownBy(
+                        () ->
+                                fixture.f0.restoreInitialCheckpointIfPresent(
+                                        Collections.singleton(fixture.f1), false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("There is no operator for the state");
+    }
+
+    private Tuple2<CheckpointCoordinator, ExecutionJobVertex> buildNonRestoredStateFixture()
+            throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        OperatorID orphanedOperatorID = new OperatorID();
+        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        operatorStates.put(
+                orphanedOperatorID, new OperatorState(null, null, orphanedOperatorID, 1, 1));
+
+        CompletedCheckpoint completedCheckpoint =
+                new CompletedCheckpoint(
+                        graph.getJobID(),
+                        1,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3000,
+                        operatorStates,
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
+
+        CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                completedCheckpoint, new CheckpointsCleaner(), () -> {});
+
+        CheckpointCoordinator coord =
+                new CheckpointCoordinatorBuilder()
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .build(graph);
+
+        return Tuple2.of(coord, graph.getJobVertex(jobVertexID));
     }
 
     @Test

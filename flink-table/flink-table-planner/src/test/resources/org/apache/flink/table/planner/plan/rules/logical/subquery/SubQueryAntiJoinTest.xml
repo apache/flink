@@ -531,9 +531,9 @@ LogicalProject(a=[$0], b=[$1])
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[NOT(EXISTS({
-LogicalFilter(condition=[=($1, $cor0.b)])
+LogicalFilter(condition=[=($1, $cor1.b)])
   LogicalTableScan(table=[[default_catalog, default_database, y]])
-}))], variablesSet=[[$cor0]])
+}))], variablesSet=[[$cor1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, x]])
 ]]>
     </Resource>

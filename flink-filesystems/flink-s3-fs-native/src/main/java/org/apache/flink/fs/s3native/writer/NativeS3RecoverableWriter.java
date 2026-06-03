@@ -38,14 +38,14 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3RecoverableWriter.class);
 
-    private final NativeS3AccessHelper s3AccessHelper;
+    private final NativeS3ObjectOperations s3AccessHelper;
     private final String localTmpDir;
     private final long userDefinedMinPartSize;
     private final int maxConcurrentUploadsPerStream;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private NativeS3RecoverableWriter(
-            NativeS3AccessHelper s3AccessHelper,
+            NativeS3ObjectOperations s3AccessHelper,
             String localTmpDir,
             long userDefinedMinPartSize,
             int maxConcurrentUploadsPerStream) {
@@ -63,7 +63,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     @Override
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3AccessHelper.extractKey(path);
+        String key = NativeS3ObjectOperations.extractKey(path);
         LOG.debug("Opening recoverable stream for key: {}", key);
 
         String uploadId = s3AccessHelper.startMultiPartUpload(key);
@@ -159,7 +159,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     }
 
     public static NativeS3RecoverableWriter writer(
-            NativeS3AccessHelper s3AccessHelper,
+            NativeS3ObjectOperations s3AccessHelper,
             String localTmpDir,
             long userDefinedMinPartSize,
             int maxConcurrentUploadsPerStream) {

@@ -466,6 +466,286 @@
       </tbody>
     </nz-table>
   </nz-tab>
+  <nz-tab nzTitle="Summary">
+    <nz-table
+      class="no-border small"
+      [nzData]="rescalesSummary ? [''] : []"
+      [nzSize]="'small'"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+    >
+      <thead>
+        <tr>
+          <th><strong>Item</strong></th>
+          <th><strong>Stat</strong></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngIf="rescalesSummary">
+          <tr>
+            <td>Total Rescales</td>
+            <td>{{ getTotalRescaleCountFromSummary() }}</td>
+          </tr>
+          <tr>
+            <td>In Progress Rescales</td>
+            <td>{{ rescalesSummary['rescalesCounts'].inProgress }}</td>
+          </tr>
+          <tr>
+            <td>Ignored Rescales</td>
+            <td>{{ rescalesSummary['rescalesCounts'].ignored }}</td>
+          </tr>
+          <tr>
+            <td>Completed Rescales</td>
+            <td>{{ rescalesSummary['rescalesCounts'].completed }}</td>
+          </tr>
+          <tr>
+            <td>Failed Rescales</td>
+            <td>{{ rescalesSummary['rescalesCounts'].failed }}</td>
+          </tr>
+          <tr>
+            <td>Rescale Duration Max</td>
+            <td>{{ rescalesSummary['rescalesDurationStatsInMillis'].max | humanizeDuration }}</td>
+          </tr>
+          <tr>
+            <td>Rescale Duration Min</td>
+            <td>{{ rescalesSummary['rescalesDurationStatsInMillis'].min | humanizeDuration }}</td>
+          </tr>
+          <tr>
+            <td>Rescale Duration Average</td>
+            <td>{{ rescalesSummary['rescalesDurationStatsInMillis'].avg | humanizeDuration }}</td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </nz-table>
+
+    <nz-collapse>
+      <nz-collapse-panel
+        [nzHeader]="'Rescale Duration Percentiles'"
+        [nzActive]="moreDetailsPanel.active"
+        [nzDisabled]="moreDetailsPanel.disabled"
+      >
+        <nz-table
+          *ngIf="rescalesSummary"
+          class="no-border small"
+          [nzData]="rescalesSummary ? [''] : []"
+          [nzSize]="'small'"
+          [nzFrontPagination]="false"
+          [nzShowPagination]="false"
+        >
+          <thead>
+            <tr>
+              <th></th>
+              <th><strong>Completed Rescale Duration</strong></th>
+              <th><strong>Ignored Rescale Duration</strong></th>
+              <th><strong>Failed Rescale Duration</strong></th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container
+              *ngIf="
+                rescalesSummary['completedRescalesDurationStatsInMillis'] &&
+                rescalesSummary['ignoredRescalesDurationStatsInMillis'] &&
+                rescalesSummary['failedRescalesDurationStatsInMillis']
+              "
+            >
+              <tr>
+                <td><strong>Min</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.min
+                      | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.min | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.min | humanizeDuration
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Max</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.max
+                      | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.max | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.max | humanizeDuration
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Average</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.avg
+                      | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.avg | humanizeDuration
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.avg | humanizeDuration
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>50% percentile</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.p50 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['completedRescalesDurationStatsInMillis']?.p50
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p50 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p50
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.p50 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['failedRescalesDurationStatsInMillis']?.p50
+                        | humanizeDuration)
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>90% percentile</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.p90 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['completedRescalesDurationStatsInMillis']?.p90
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p90 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p90
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.p90 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['failedRescalesDurationStatsInMillis']?.p90
+                        | humanizeDuration)
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>95% percentile</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.p95 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['completedRescalesDurationStatsInMillis']?.p95
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p95 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p95
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.p95 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['failedRescalesDurationStatsInMillis']?.p95
+                        | humanizeDuration)
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>99% percentile</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.p99 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['completedRescalesDurationStatsInMillis']?.p99
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p99 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p99
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.p99 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['failedRescalesDurationStatsInMillis']?.p99
+                        | humanizeDuration)
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>99.9% percentile</strong></td>
+                <td>
+                  {{
+                    rescalesSummary['completedRescalesDurationStatsInMillis']?.p999 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['completedRescalesDurationStatsInMillis']?.p999
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p999 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['ignoredRescalesDurationStatsInMillis']?.p999
+                        | humanizeDuration)
+                  }}
+                </td>
+                <td>
+                  {{
+                    rescalesSummary['failedRescalesDurationStatsInMillis']?.p999 === 'NaN'
+                      ? 'n/a'
+                      : (rescalesSummary['failedRescalesDurationStatsInMillis']?.p999
+                        | humanizeDuration)
+                  }}
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </nz-table>
+      </nz-collapse-panel>
+    </nz-collapse>
+  </nz-tab>
   <nz-tab nzTitle="Configuration">
     <nz-table
       class="no-border small"

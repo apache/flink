@@ -21,7 +21,10 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
+
+import java.util.Optional;
 
 /**
  * An extension that allows a process table function (PTF) to emit results with changelog semantics.
@@ -105,5 +108,28 @@ public interface ChangelogFunction extends FunctionDefinition {
          * are required and {@link ChangelogMode#keyOnlyDeletes()} are supported.
          */
         ChangelogMode getRequiredChangelogMode();
+
+        /**
+         * Returns the resolved literal value of the scalar argument at the given position.
+         *
+         * <p>Returns empty if the argument is absent, NULL, not a literal, or cannot be expressed
+         * as an instance of the provided class. Conversions follow the default conversion classes
+         * of {@link LogicalType LogicalTypes}.
+         */
+        default <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+            return Optional.empty();
+        }
+
+        /**
+         * Returns information about the table that has been passed to a table argument at the given
+         * position.
+         *
+         * <p>Semantics are only available for table arguments. They expose, for example, the
+         * partition-by columns when the table argument uses {@link ArgumentTrait#SET_SEMANTIC_TABLE
+         * set semantics}.
+         */
+        default Optional<TableSemantics> getTableSemantics(int pos) {
+            return Optional.empty();
+        }
     }
 }

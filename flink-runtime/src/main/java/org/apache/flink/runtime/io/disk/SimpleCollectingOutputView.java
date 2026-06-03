@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.disk;
 
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;

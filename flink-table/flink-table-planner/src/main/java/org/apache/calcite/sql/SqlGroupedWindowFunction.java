@@ -16,7 +16,6 @@
  */
 package org.apache.calcite.sql;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.ExplicitReturnTypeInference;
@@ -26,8 +25,11 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * SQL function that computes keys by which rows can be partitioned and aggregated.
@@ -46,11 +48,11 @@ import java.util.List;
  */
 public class SqlGroupedWindowFunction extends SqlFunction {
 
-    /** The grouped function, if this an auxiliary function; null otherwise. */
-    public final SqlGroupedWindowFunction groupFunction;
-
     private final WindowStartEndReturnTypeInference windowStartEndInf =
             new WindowStartEndReturnTypeInference();
+
+    /** The grouped function, if this an auxiliary function; null otherwise. */
+    public final @Nullable SqlGroupedWindowFunction groupFunction;
 
     /**
      * Creates a SqlGroupedWindowFunction.
@@ -67,31 +69,39 @@ public class SqlGroupedWindowFunction extends SqlFunction {
     public SqlGroupedWindowFunction(
             String name,
             SqlKind kind,
-            SqlGroupedWindowFunction groupFunction,
+            @Nullable SqlGroupedWindowFunction groupFunction,
             SqlReturnTypeInference returnTypeInference,
-            SqlOperandTypeInference operandTypeInference,
-            SqlOperandTypeChecker operandTypeChecker,
+            @Nullable SqlOperandTypeInference operandTypeInference,
+            @Nullable SqlOperandTypeChecker operandTypeChecker,
             SqlFunctionCategory category) {
         super(name, kind, returnTypeInference, operandTypeInference, operandTypeChecker, category);
         this.groupFunction = groupFunction;
-        Preconditions.checkArgument(groupFunction == null || groupFunction.groupFunction == null);
+        checkArgument(groupFunction == null || groupFunction.groupFunction == null);
     }
 
-    /**
-     * Creates a SqlGroupedWindowFunction.
-     *
-     * @param name Function name
-     * @param kind Kind
-     * @param groupFunction Group function, if this is an auxiliary; null, if this is a group
-     *     function
-     */
+    @Deprecated // to be removed before 2.0
     public SqlGroupedWindowFunction(
             String name,
             SqlKind kind,
-            SqlGroupedWindowFunction groupFunction,
-            SqlOperandTypeChecker operandTypeChecker) {
+            @Nullable SqlGroupedWindowFunction groupFunction,
+            @Nullable SqlOperandTypeChecker operandTypeChecker) {
         this(
                 name,
+                kind,
+                groupFunction,
+                ReturnTypes.ARG0,
+                null,
+                operandTypeChecker,
+                SqlFunctionCategory.SYSTEM);
+    }
+
+    @Deprecated // to be removed before 2.0
+    public SqlGroupedWindowFunction(
+            SqlKind kind,
+            @Nullable SqlGroupedWindowFunction groupFunction,
+            @Nullable SqlOperandTypeChecker operandTypeChecker) {
+        this(
+                kind.name(),
                 kind,
                 groupFunction,
                 ReturnTypes.ARG0,

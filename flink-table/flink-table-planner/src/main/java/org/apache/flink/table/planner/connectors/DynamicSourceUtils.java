@@ -436,10 +436,10 @@ public final class DynamicSourceUtils {
         if (!(source instanceof SupportsReadingMetadata)) {
             throw new ValidationException(
                     String.format(
-                            "Table '%s' declares metadata columns, but the underlying %s doesn't implement "
+                            "Table '%s' declares metadata columns, but the underlying DynamicTableSource class '%s' doesn't implement "
                                     + "the %s interface. Therefore, metadata cannot be read from the given source.",
-                            source.asSummaryString(),
-                            DynamicTableSource.class.getSimpleName(),
+                            tableDebugName,
+                            source.getClass().getName(),
                             SupportsReadingMetadata.class.getSimpleName()));
         }
 

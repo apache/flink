@@ -19,13 +19,13 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{NullNode, ObjectNode}
 import org.apache.flink.table.api.JsonOnNull
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgram}
 
 /**
  * [[CallGenerator]] for `JSON_OBJECT`.
@@ -37,7 +37,8 @@ import org.apache.calcite.rex.RexCall
  * We remedy this by treating nested calls to this function differently and inserting the value as a
  * raw node instead of as a string node.
  */
-class JsonObjectCallGen(call: RexCall) extends CallGenerator {
+class JsonObjectCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
+
   private def jsonUtils = className[SqlJsonUtils]
 
   override def generate(
@@ -57,7 +58,8 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
       .grouped(2)
       .map {
         case Seq((keyExpr, _), (valueExpr, valueIdx)) =>
-          val valueTerm = createNodeTerm(ctx, valueExpr, call.operands.get(valueIdx))
+          val exprs = CodeGenUtils.getExprsFromProgramOrNull(rexProgram)
+          val valueTerm = createNodeTerm(ctx, valueExpr, call.operands.get(valueIdx), exprs)
 
           onNull match {
             case JsonOnNull.NULL =>

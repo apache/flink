@@ -21,15 +21,17 @@ import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceExtension;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.JarLocation;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -42,19 +44,19 @@ import java.util.function.Consumer;
  * Tests that Flink does not require Scala for jobs that do not use the Scala APIs. This covers both
  * pure Java jobs, and Scala jobs that use the Java APIs exclusively with Scala types.
  */
-@RunWith(Parameterized.class)
-public class ScalaFreeITCase extends TestLogger {
+@ExtendWith({ParameterizedTestExtension.class, TestLoggerExtension.class})
+class ScalaFreeITCase {
 
-    @Rule
-    public final TestExecutorResource<ScheduledExecutorService> testExecutorResource =
-            new TestExecutorResource<>(
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> TEST_EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(
                     java.util.concurrent.Executors::newSingleThreadScheduledExecutor);
 
-    @Rule public final FlinkResource flink;
+    @RegisterExtension private final FlinkResourceExtension flinkExtension;
     private final String mainClass;
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<TestParams> testParameters() {
+    @Parameters(name = "{0}")
+    private static Collection<TestParams> testParameters() {
         return Arrays.asList(
                 new TestParams("Java job, without Scala in lib/", JavaJob.class.getCanonicalName()),
                 new TestParams(
@@ -69,21 +71,21 @@ public class ScalaFreeITCase extends TestLogger {
                                         JarLocation.LIB)));
     }
 
-    public ScalaFreeITCase(TestParams testParams) {
+    private ScalaFreeITCase(TestParams testParams) {
         final FlinkResourceSetup.FlinkResourceSetupBuilder builder =
                 FlinkResourceSetup.builder()
                         .moveJar("flink-scala", JarLocation.LIB, JarLocation.OPT);
         testParams.builderSetup.accept(builder);
-        flink = FlinkResource.get(builder.build());
+        flinkExtension = new FlinkResourceExtension(FlinkResource.get(builder.build()));
         mainClass = testParams.mainClass;
     }
 
-    @Test
-    public void testScalaFreeJobExecution() throws Exception {
+    @TestTemplate
+    void testScalaFreeJobExecution() throws Exception {
         final Path jobJar = ResourceTestUtils.getResource("/jobs.jar");
 
-        try (final ClusterController clusterController = flink.startCluster(1)) {
-            // if the job fails then this throws an exception
+        try (final ClusterController clusterController =
+                flinkExtension.getFlinkResource().startCluster(1)) {
             clusterController.submitJob(
                     new JobSubmission.JobSubmissionBuilder(jobJar)
                             .setDetached(false)
@@ -93,7 +95,7 @@ public class ScalaFreeITCase extends TestLogger {
         }
     }
 
-    static class TestParams {
+    private static class TestParams {
 
         private final String description;
         private final String mainClass;
@@ -110,14 +112,6 @@ public class ScalaFreeITCase extends TestLogger {
             this.description = description;
             this.mainClass = mainClass;
             this.builderSetup = builderSetup;
-        }
-
-        public String getMainClass() {
-            return mainClass;
-        }
-
-        public Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> getBuilderSetup() {
-            return builderSetup;
         }
 
         @Override

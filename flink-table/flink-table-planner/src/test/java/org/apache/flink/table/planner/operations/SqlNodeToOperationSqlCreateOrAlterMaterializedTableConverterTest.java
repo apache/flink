@@ -23,7 +23,11 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.Interval;
+import org.apache.flink.table.catalog.Interval.TimeUnit;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.StartMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -37,8 +41,11 @@ import org.apache.flink.table.operations.materializedtable.FullAlterMaterialized
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -519,6 +526,123 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                         "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
                                 + "  MODIFY `id` COMMENT '',\n"
                                 + "  MODIFY `t` COMMENT 'Timestamp Comment'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = StartModeKind.class,
+            names = {
+                "FROM_NOW",
+                "RESUME_OR_FROM_NOW",
+                "RESUME_OR_FROM_BEGINNING",
+                "FROM_BEGINNING"
+            })
+    void testCreateOrAlterMaterializedTableWithNotChangedStartMode(StartModeKind kind)
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                String.format(
+                        "CREATE MATERIALIZED TABLE mt1\n"
+                                + "START_MODE=%s\n"
+                                + "AS SELECT * FROM t1",
+                        kind.toString());
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                String.format(
+                        "CREATE OR ALTER MATERIALIZED TABLE mt1\n"
+                                + "START_MODE=%s\n"
+                                + "AS SELECT * FROM t1",
+                        kind);
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = StartModeKind.class,
+            names = {
+                "FROM_NOW",
+                "RESUME_OR_FROM_NOW",
+                "RESUME_OR_FROM_BEGINNING",
+                "FROM_BEGINNING"
+            })
+    void testCreateOrAlterMaterializedTableWithFinalDefaultStartMode(StartModeKind kind)
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                String.format(
+                        "CREATE MATERIALIZED TABLE mt1\n"
+                                + "START_MODE=%s\n"
+                                + "AS SELECT * FROM t1",
+                        kind.toString());
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql = "CREATE OR ALTER MATERIALIZED TABLE mt1\n" + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        if (kind == StartModeKind.FROM_BEGINNING) {
+            assertThat(op.getTableChanges()).isEmpty();
+        } else {
+            assertThat(op.getTableChanges())
+                    .contains(
+                            TableChange.modifyStartMode(
+                                    StartMode.of(StartModeKind.FROM_BEGINNING)));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("startModeAlterCases")
+    void testCreateOrAlterMaterializedTableWithChangedStartMode(
+            String newStartModeClause, StartMode newStartMode)
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1\n"
+                        + "START_MODE=FROM_BEGINNING\n"
+                        + "AS SELECT * FROM t1";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1\n"
+                        + "START_MODE = "
+                        + newStartModeClause
+                        + "\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges()).containsExactly(TableChange.modifyStartMode(newStartMode));
+    }
+
+    private static Collection<Arguments> startModeAlterCases() {
+        return List.of(
+                Arguments.of(
+                        "RESUME_OR_FROM_BEGINNING",
+                        StartMode.of(StartModeKind.RESUME_OR_FROM_BEGINNING)),
+                Arguments.of("FROM_NOW", StartMode.of(StartModeKind.FROM_NOW)),
+                Arguments.of(
+                        "FROM_NOW(INTERVAL '2' HOUR)",
+                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(2, TimeUnit.HOUR))),
+                Arguments.of(
+                        "FROM_NOW",
+                        StartMode.of(StartModeKind.FROM_NOW),
+                        "FROM_TIMESTAMP(TIMESTAMP '1234-12-10 11:22:33')",
+                        StartMode.of(
+                                StartModeKind.FROM_TIMESTAMP,
+                                Instant.parse("1234-12-10T11:22:33Z"))),
+                Arguments.of("RESUME_OR_FROM_NOW", StartMode.of(StartModeKind.RESUME_OR_FROM_NOW)),
+                Arguments.of(
+                        "RESUME_OR_FROM_TIMESTAMP(TIMESTAMP '2025-01-15 10:00:00')",
+                        StartMode.of(
+                                StartModeKind.RESUME_OR_FROM_TIMESTAMP,
+                                Instant.parse("2025-01-15T10:00:00Z"))));
     }
 
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)

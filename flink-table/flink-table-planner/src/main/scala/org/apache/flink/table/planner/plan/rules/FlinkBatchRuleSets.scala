@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
+import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets.SIMPLIFY_COALESCE_RULES
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
@@ -78,10 +79,6 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to simplify coalesce invocations */
   private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
-    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE,
     SimplifyCoalesceWithEquiJoinConditionRule.PROJECT_INSTANCE,
     SimplifyCoalesceWithEquiJoinConditionRule.CALC_INSTANCE
   )
@@ -117,11 +114,20 @@ object FlinkBatchRuleSets {
         // let project transpose window operator.
         CoreRules.PROJECT_WINDOW_TRANSPOSE,
         // ensure union set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalUnion], false),
+        CoerceInputsRule.Config.DEFAULT
+          .withCoerceNames(false)
+          .withConsumerRelClass(classOf[LogicalUnion])
+          .toRule,
         // ensure intersect set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalIntersect], false),
+        CoerceInputsRule.Config.DEFAULT
+          .withCoerceNames(false)
+          .withConsumerRelClass(classOf[LogicalIntersect])
+          .toRule,
         // ensure except set operator have the same row type
-        new CoerceInputsRule(classOf[LogicalMinus], false),
+        CoerceInputsRule.Config.DEFAULT
+          .withCoerceNames(false)
+          .withConsumerRelClass(classOf[LogicalMinus])
+          .toRule,
         ConvertToNotInOrInRule.INSTANCE,
         // optimize limit 0
         PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,

@@ -108,7 +108,7 @@ import static org.apache.calcite.util.Util.first;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in Flink-35216: Lines 833 ~ 879
+ *   <li>Added in Flink-35216: Lines 843 ~ 889
  * </ol>
  */
 public class StandardConvertletTable extends ReflectiveConvertletTable {
@@ -123,6 +123,7 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
 
         // Register aliases (operators which have a different name but
         // identical behavior to other operators).
+        addAlias(SqlLibraryOperators.LEN, SqlStdOperatorTable.CHAR_LENGTH);
         addAlias(SqlLibraryOperators.LENGTH, SqlStdOperatorTable.CHAR_LENGTH);
         addAlias(SqlStdOperatorTable.CHARACTER_LENGTH, SqlStdOperatorTable.CHAR_LENGTH);
         addAlias(SqlStdOperatorTable.IS_UNKNOWN, SqlStdOperatorTable.IS_NULL);
@@ -131,6 +132,10 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
         addAlias(SqlStdOperatorTable.PERCENT_REMAINDER, SqlStdOperatorTable.MOD);
         addAlias(SqlLibraryOperators.IFNULL, SqlLibraryOperators.NVL);
         addAlias(SqlLibraryOperators.REGEXP_SUBSTR, SqlLibraryOperators.REGEXP_EXTRACT);
+        addAlias(SqlLibraryOperators.ENDSWITH, SqlLibraryOperators.ENDS_WITH);
+        addAlias(SqlLibraryOperators.STARTSWITH, SqlLibraryOperators.STARTS_WITH);
+        addAlias(SqlLibraryOperators.BITAND_AGG, SqlStdOperatorTable.BIT_AND);
+        addAlias(SqlLibraryOperators.BITOR_AGG, SqlStdOperatorTable.BIT_OR);
 
         // Register convertlets for specific objects.
         registerOp(SqlStdOperatorTable.CAST, this::convertCast);
@@ -636,7 +641,13 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
         final boolean safe = kind == SqlKind.SAFE_CAST;
         final SqlNode left = call.operand(0);
         final SqlNode right = call.operand(1);
+        final SqlLiteral format =
+                call.getOperandList().size() > 2
+                        ? call.operand(2)
+                        : SqlLiteral.createNull(SqlParserPos.ZERO);
         final RexBuilder rexBuilder = cx.getRexBuilder();
+        final RexNode arg = cx.convertExpression(left);
+        final RexLiteral formatArg = (RexLiteral) cx.convertLiteral(format);
         if (right instanceof SqlIntervalQualifier) {
             final SqlIntervalQualifier intervalQualifier = (SqlIntervalQualifier) right;
             if (left instanceof SqlIntervalLiteral) {
@@ -659,7 +670,6 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
             return castToValidatedType(call, value, validator, rexBuilder, safe);
         }
 
-        final RexNode arg = cx.convertExpression(left);
         final SqlDataTypeSpec dataType = (SqlDataTypeSpec) right;
         RelDataType type =
                 SqlCastFunction.deriveType(
@@ -695,7 +705,7 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
                 type = typeFactory.createTypeWithNullability(type, isn);
             }
         }
-        return rexBuilder.makeCast(type, arg, safe, safe);
+        return rexBuilder.makeCast(type, arg, safe, safe, formatArg);
     }
 
     protected RexNode convertFloorCeil(SqlRexContext cx, SqlCall call) {

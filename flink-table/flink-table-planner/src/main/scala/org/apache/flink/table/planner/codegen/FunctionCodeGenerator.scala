@@ -18,12 +18,11 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions._
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.async.{AsyncFunction, RichAsyncFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.generated.{FilterCondition, GeneratedFilterCondition, GeneratedFunction, GeneratedJoinCondition, JoinCondition}
+import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.types.logical.LogicalType
 
 /**

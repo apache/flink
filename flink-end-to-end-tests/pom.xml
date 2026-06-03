@@ -128,9 +128,6 @@ under the License.
 			<activation>
 				<jdk>[11,)</jdk>
 			</activation>
-			<properties>
-				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava11</excludeE2E>
-			</properties>
 		</profile>
 		<profile>
 			<id>java17</id>
@@ -139,6 +136,15 @@ under the License.
 			</activation>
 			<properties>
 				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava17</excludeE2E>
+			</properties>
+		</profile>
+		<profile>
+			<id>java25</id>
+			<activation>
+				<jdk>[25,)</jdk>
+			</activation>
+			<properties>
+				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava25</excludeE2E>
 			</properties>
 		</profile>
 	</profiles>

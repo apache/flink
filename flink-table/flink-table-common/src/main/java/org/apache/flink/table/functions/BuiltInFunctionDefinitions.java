@@ -27,7 +27,6 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -36,8 +35,10 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -59,6 +60,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -239,8 +241,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(varyingSequence(COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE))
                     .outputTypeStrategy(nullableIfAllArgs(COMMON))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
+                    .runtimeDeferred()
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_APPEND =
@@ -486,6 +487,26 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.InetNtoaFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition IS_VALID_UTF8 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("IS_VALID_UTF8")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.BINARY_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.IsValidUtf8Function")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAKE_VALID_UTF8 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAKE_VALID_UTF8")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.BINARY_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MakeValidUtf8Function")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
@@ -785,27 +806,74 @@ public final class BuiltInFunctionDefinitions {
                     .name("TO_CHANGELOG")
                     .kind(PROCESS_TABLE)
                     .staticArguments(
-                            // Row semantics (no PARTITION BY). Accepts updating
-                            // inputs. The planner inserts ChangelogNormalize for
-                            // upsert sources to produce UPDATE_BEFORE and full
-                            // DELETE rows.
+                            // Row semantics by default; PARTITION BY switches to set semantics.
+                            // REQUIRE_UPDATE_BEFORE / REQUIRE_FULL_DELETE are conditional so the
+                            // planner can skip ChangelogNormalize for upsert sources whose
+                            // op_mapping does not emit UB or full deletes.
                             StaticArgument.table(
-                                    "input",
-                                    Row.class,
-                                    false,
-                                    EnumSet.of(
-                                            StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            "input",
+                                            Row.class,
+                                            false,
+                                            EnumSet.of(
+                                                    StaticArgumentTrait.TABLE,
+                                                    StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                                    StaticArgumentTrait.SUPPORT_UPDATES))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            TraitCondition.hasPartitionBy())
+                                    .withConditionalTrait(
                                             StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
-                                            // Not strictly necessary but explicitly state that
-                                            // we require full deletes.
-                                            StaticArgumentTrait.REQUIRE_FULL_DELETE)),
+                                            TraitCondition.or(
+                                                    // op_mapping omitted: default mapping includes
+                                                    // UPDATE_BEFORE.
+                                                    TraitCondition.not(
+                                                            TraitCondition.argIsPresent(
+                                                                    "op_mapping")),
+                                                    TraitCondition.argMatches(
+                                                            "op_mapping",
+                                                            Map.class,
+                                                            mapping ->
+                                                                    opMappingContainsKey(
+                                                                            (Map<String, String>)
+                                                                                    mapping,
+                                                                            "UPDATE_BEFORE"))))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.REQUIRE_FULL_DELETE,
+                                            // Require full deletes by default. The user can opt
+                                            // out via produces_full_deletes=FALSE.
+                                            // REQUIRE_FULL_DELETE
+                                            // still gates on the active op_mapping mapping DELETE;
+                                            // otherwise no DELETE rows reach the function and there
+                                            // is no point inserting ChangelogNormalize upstream.
+                                            TraitCondition.and(
+                                                    TraitCondition.or(
+                                                            TraitCondition.not(
+                                                                    TraitCondition.argIsPresent(
+                                                                            "produces_full_deletes")),
+                                                            TraitCondition.argIsEqualTo(
+                                                                    "produces_full_deletes",
+                                                                    Boolean.TRUE)),
+                                                    TraitCondition.or(
+                                                            TraitCondition.not(
+                                                                    TraitCondition.argIsPresent(
+                                                                            "op_mapping")),
+                                                            TraitCondition.argMatches(
+                                                                    "op_mapping",
+                                                                    Map.class,
+                                                                    mapping ->
+                                                                            opMappingContainsKey(
+                                                                                    (Map<
+                                                                                                    String,
+                                                                                                    String>)
+                                                                                            mapping,
+                                                                                    "DELETE"))))),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
-                                    true))
+                                    true),
+                            StaticArgument.scalar(
+                                    "produces_full_deletes", DataTypes.BOOLEAN(), true))
                     .inputTypeStrategy(TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
@@ -818,18 +886,22 @@ public final class BuiltInFunctionDefinitions {
                     .kind(PROCESS_TABLE)
                     .staticArguments(
                             StaticArgument.table(
-                                    "input",
-                                    Row.class,
-                                    false,
-                                    EnumSet.of(
-                                            StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE)),
+                                            "input",
+                                            Row.class,
+                                            false,
+                                            EnumSet.of(
+                                                    StaticArgumentTrait.TABLE,
+                                                    StaticArgumentTrait.ROW_SEMANTIC_TABLE))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            TraitCondition.hasPartitionBy()),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
-                                    true))
-                    .changelogModeStrategy(ctx -> ChangelogMode.all())
+                                    true),
+                            StaticArgument.scalar("error_handling", DataTypes.STRING(), true))
+                    .changelogModeStrategy(FromChangelogTypeStrategy.CHANGELOG_MODE_STRATEGY)
                     .inputTypeStrategy(FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
@@ -1362,19 +1434,11 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition REGEXP_EXTRACT =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("regexpExtract")
-                    .sqlName("REGEXP_EXTRACT")
+                    .name("REGEXP_EXTRACT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            or(
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeRoot.INTEGER))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_EXTRACT)
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition REGEXP_EXTRACT_ALL =
@@ -1650,26 +1714,20 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition REGEXP =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("regexp")
+                    .name("REGEXP")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition REGEXP_REPLACE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("regexpReplace")
-                    .sqlName("REGEXP_REPLACE")
+                    .name("REGEXP_REPLACE")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_REPLACE)
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition REVERSE =
@@ -3359,6 +3417,22 @@ public final class BuiltInFunctionDefinitions {
             new HashSet<>(Arrays.asList(PROCTIME, ROWTIME));
 
     public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
+
+    /**
+     * True when {@code key} appears among the {@code op_mapping} keys. Each map key may itself be a
+     * comma-separated list (e.g. {@code "INSERT,UPDATE_AFTER"}) - each part is trimmed and compared
+     * against {@code key}, so one entry can cover multiple change kinds.
+     *
+     * <p>Used by {@code TO_CHANGELOG} conditional traits to inspect the user-provided {@code
+     * op_mapping} argument.
+     */
+    private static boolean opMappingContainsKey(
+            final Map<String, String> opMapping, final String key) {
+        return opMapping.keySet().stream()
+                .flatMap(k -> Arrays.stream(k.split(",")))
+                .map(String::trim)
+                .anyMatch(key::equals);
+    }
 
     @Internal
     public static List<BuiltInFunctionDefinition> getDefinitions() {

@@ -27,6 +27,7 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.FallbackKey;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -105,6 +106,14 @@ public final class FactoryUtil {
                     .withDescription(
                             "Uniquely identifies the provider of a model that is used for model inference."
                                     + " Its value is used during model provider discovery.");
+
+    public static final ConfigOption<String> CONNECTION_TYPE =
+            ConfigOptions.key("type")
+                    .stringType()
+                    .defaultValue(DefaultConnectionFactory.IDENTIFIER)
+                    .withDescription(
+                            "Identifies the type of a connection. Its value is used during"
+                                    + " ConnectionFactory discovery.");
 
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
@@ -248,7 +257,14 @@ public final class FactoryUtil {
                                     + "%s",
                             objectIdentifier.asSummaryString(),
                             catalogTable.getOptions().entrySet().stream()
-                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
+                                    .map(
+                                            e ->
+                                                    stringifyOption(
+                                                            e.getKey(),
+                                                            e.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -294,7 +310,14 @@ public final class FactoryUtil {
                                     + "%s",
                             objectIdentifier.asSummaryString(),
                             catalogTable.getOptions().entrySet().stream()
-                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
+                                    .map(
+                                            e ->
+                                                    stringifyOption(
+                                                            e.getKey(),
+                                                            e.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -334,7 +357,14 @@ public final class FactoryUtil {
                                     + "%s",
                             objectIdentifier.asSummaryString(),
                             catalogModel.getOptions().entrySet().stream()
-                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
+                                    .map(
+                                            e ->
+                                                    stringifyOption(
+                                                            e.getKey(),
+                                                            e.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -460,7 +490,10 @@ public final class FactoryUtil {
                                             optionEntry ->
                                                     stringifyOption(
                                                             optionEntry.getKey(),
-                                                            optionEntry.getValue()))
+                                                            optionEntry.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -509,7 +542,10 @@ public final class FactoryUtil {
                                             optionEntry ->
                                                     stringifyOption(
                                                             optionEntry.getKey(),
-                                                            optionEntry.getValue()))
+                                                            optionEntry.getValue(),
+                                                            configuration.get(
+                                                                    SecurityOptions
+                                                                            .ADDITIONAL_SENSITIVE_KEYS)))
                                     .sorted()
                                     .collect(Collectors.joining("\n"))),
                     t);
@@ -756,7 +792,11 @@ public final class FactoryUtil {
             return new ValidationException(
                     String.format(
                             "Cannot discover a connector using option: %s",
-                            stringifyOption(CONNECTOR.key(), connectorOption)),
+                            stringifyOption(
+                                    CONNECTOR.key(),
+                                    connectorOption,
+                                    context.getConfiguration()
+                                            .get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS))),
                     e);
         }
 
@@ -818,8 +858,9 @@ public final class FactoryUtil {
         return loadResults;
     }
 
-    public static String stringifyOption(String key, String value) {
-        if (GlobalConfiguration.isSensitive(key)) {
+    public static String stringifyOption(
+            String key, String value, List<String> additionalSensitiveKeys) {
+        if (GlobalConfiguration.isSensitive(key, additionalSensitiveKeys)) {
             value = HIDDEN_CONTENT;
         }
         return String.format(

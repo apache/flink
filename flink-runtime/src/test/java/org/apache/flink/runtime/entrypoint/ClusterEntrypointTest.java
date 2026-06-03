@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -93,6 +94,8 @@ public class ClusterEntrypointTest extends TestLogger {
     @Before
     public void before() {
         flinkConfig = new Configuration();
+        flinkConfig.set(RestOptions.BIND_PORT, "0");
+        flinkConfig.set(JobManagerOptions.PORT, 0);
         ExceptionThrowingDelegationTokenProvider.reset();
         ExceptionThrowingDelegationTokenReceiver.reset();
     }

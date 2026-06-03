@@ -46,7 +46,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -423,47 +422,43 @@ public class SqlFunctionUtils {
 
     /**
      * Returns a string resulting from replacing all substrings that match the regular expression
-     * with replacement.
+     * with replacement. Literal regexes are validated at planning time by the input type strategy.
      */
     public static String regexpReplace(String str, String regex, String replacement) {
         if (str == null || regex == null || replacement == null) {
             return null;
         }
         try {
-            return str.replaceAll(regex, Matcher.quoteReplacement(replacement));
-        } catch (Exception e) {
-            LOG.error(
-                    String.format(
-                            "Exception in regexpReplace('%s', '%s', '%s')",
-                            str, regex, replacement),
-                    e);
-            // return null if exception in regex replace
+            return REGEXP_PATTERN_CACHE
+                    .get(regex)
+                    .matcher(str)
+                    .replaceAll(Matcher.quoteReplacement(replacement));
+        } catch (PatternSyntaxException e) {
+            // Literals are rejected at planning time; non-literal invalid regex
+            // returns null to preserve the prior runtime contract.
             return null;
         }
     }
 
     /**
      * Returns a string extracted with a specified regular expression and a regex match group index.
+     * Literal regexes are validated at planning time by the input type strategy.
      */
     public static String regexpExtract(String str, String regex, int extractIndex) {
-        if (str == null || regex == null) {
+        if (str == null || regex == null || extractIndex < 0) {
             return null;
         }
-
         try {
-            Matcher m = Pattern.compile(regex).matcher(str);
-            if (m.find()) {
-                MatchResult mr = m.toMatchResult();
-                return mr.group(extractIndex);
+            final Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
+            if (m.groupCount() < extractIndex) {
+                return null;
             }
-        } catch (Exception e) {
-            LOG.error(
-                    String.format(
-                            "Exception in regexpExtract('%s', '%s', '%d')",
-                            str, regex, extractIndex),
-                    e);
+            if (m.find()) {
+                return m.group(extractIndex);
+            }
+        } catch (PatternSyntaxException e) {
+            // non-literal invalid regex returns null.
         }
-
         return null;
     }
 
@@ -1020,14 +1015,19 @@ public class SqlFunctionUtils {
         return Math.abs(str.hashCode());
     }
 
-    public static Boolean regExp(String s, String regex) {
-        if (regex.length() == 0) {
+    /**
+     * Returns whether {@code s} contains a match for the regular expression {@code regex}. Literal
+     * regexes are validated at planning time by the input type strategy.
+     */
+    public static boolean regExp(String s, String regex) {
+        if (regex.isEmpty()) {
             return false;
         }
         try {
-            return (REGEXP_PATTERN_CACHE.get(regex)).matcher(s).find(0);
-        } catch (Exception e) {
-            LOG.error("Exception when compile and match regex:" + regex + " on: " + s, e);
+            return REGEXP_PATTERN_CACHE.get(regex).matcher(s).find(0);
+        } catch (PatternSyntaxException e) {
+            // Literals are rejected at planning time; non-literal invalid regex
+            // returns false to preserve the prior runtime contract.
             return false;
         }
     }

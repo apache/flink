@@ -62,7 +62,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
 
   @TestTemplate
   def testRetractRankWithRowNumber(): Unit = {
-    val data = new mutable.MutableList[(String, String, Long)]
+    val data = new mutable.ListBuffer[(String, String, Long)]
     val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
@@ -160,7 +160,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
 
   @TestTemplate
   def testRetractRankWithoutRowNumber(): Unit = {
-    val data = new mutable.MutableList[(String, String, Long)]
+    val data = new mutable.ListBuffer[(String, String, Long)]
     val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
@@ -240,7 +240,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
 
   def prepareUpdateRankWithRowNumberTester()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
-    val data = new mutable.MutableList[(String, Int, Int)]
+    val data = new mutable.ListBuffer[(String, Int, Int)]
     val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'word, 'cnt, 'type)
     tEnv.createTemporaryView("T", t)
 

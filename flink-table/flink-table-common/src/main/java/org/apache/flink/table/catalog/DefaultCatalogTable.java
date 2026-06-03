@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
@@ -162,7 +163,7 @@ public class DefaultCatalogTable implements CatalogTable {
                 + ", partitionKeys="
                 + partitionKeys
                 + ", options="
-                + options
+                + ConfigurationUtils.hideSensitiveValues(options, List.of())
                 + ", snapshot="
                 + snapshot
                 + '}';

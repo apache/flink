@@ -1431,52 +1431,105 @@ public interface Table extends Explainable<Table>, Executable {
      * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
      * UPDATE_AFTER, DELETE, etc.).
      *
+     * <p>By default, the input is processed with row semantics (each row independently). To
+     * co-locate rows with the same key in the same parallel operator instance, partition the input
+     * first via {@link #partitionBy(Expression...)} and invoke {@link
+     * PartitionedTable#toChangelog(Expression...)} with set semantics:
+     *
+     * <pre>{@code
+     * Table result = table
+     *     .partitionBy($("id"))
+     *     .toChangelog();
+     * }</pre>
+     *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
      * // Default: adds 'op' column and supports all changelog modes
-     * table.toChangelog();
+     * Table result = table.toChangelog();
      *
      * // Custom op column name and mapping
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("op_code").asArgument("op"),
      *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
      * );
      *
      * // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("deleted").asArgument("op"),
      *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      * );
+     *
+     * // Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
+     * // pre-image. When `false`, only the identifying key columns are preserved and the rest
+     * // are nulled. See in documentation for more details.
+     * Table result = table.toChangelog(
+     *     lit(false).asArgument("produces_full_deletes")
+     * );
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
+     *     produces_full_deletes}
      * @return an append-only {@link Table} with an {@code op} column prepended to the input columns
      */
     Table toChangelog(Expression... arguments);
 
     /**
-     * Converts this append-only table with an explicit operation code column into a dynamic table
-     * using the built-in {@code FROM_CHANGELOG} process table function.
+     * Converts this append-only table with an explicit operation code column into a (potentially
+     * updating) dynamic table. Each input row is expected to have a string column that indicates
+     * the change operation. The operation column is interpreted by the engine and removed from the
+     * output.
      *
-     * <p>Each input row is expected to have a string operation code column (default: {@code "op"})
-     * that indicates the change operation (e.g., INSERT, UPDATE_AFTER, UPDATE_BEFORE, DELETE). The
-     * output table is a dynamic table backed by a changelog stream.
+     * <p>The operation code column defaults to {@code op}. By default, the codes {@code INSERT},
+     * {@code UPDATE_BEFORE}, {@code UPDATE_AFTER}, and {@code DELETE} are recognized; pass {@code
+     * op_mapping} to use custom codes. By default, the job fails at runtime with a {@code
+     * TableRuntimeException} when an input row's op code is {@code NULL} or not present in the
+     * mapping; pass {@code error_handling => 'SKIP'} to silently drop those rows instead.
+     *
+     * <p>By default, the input is processed with row semantics (each row independently). To
+     * co-locate rows with the same key in the same parallel operator instance, partition the input
+     * first via {@link #partitionBy(Expression...)} and invoke {@link
+     * PartitionedTable#fromChangelog(Expression...)} with set semantics:
+     *
+     * <pre>{@code
+     * Table result = cdcStream
+     *     .partitionBy($("id"))
+     *     .fromChangelog();
+     * }</pre>
+     *
+     * <p>The output is a retract changelog. To emit an upsert changelog instead, combine {@code
+     * PARTITION BY} with an {@code op_mapping} that maps to {@code UPDATE_AFTER} without {@code
+     * UPDATE_BEFORE}. The partition key becomes the upsert key. See {@link
+     * PartitionedTable#fromChangelog(Expression...)} for details.
      *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
      * // Default: reads 'op' column with standard change operation names
-     * table.fromChangelog();
+     * Table result = cdcStream.fromChangelog();
      *
-     * // Custom op column name and mapping (Debezium-style codes)
-     * table.fromChangelog(
-     *     descriptor("__op").asArgument("op"),
-     *     map("c, r", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE").asArgument("op_mapping")
+     * // With custom op column name
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("operation").asArgument("op")
+     * );
+     *
+     * // With custom op_mapping
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("op").asArgument("op"),
+     *     map("c, r", "INSERT",
+     *         "ub", "UPDATE_BEFORE",
+     *         "ua", "UPDATE_AFTER",
+     *         "d", "DELETE").asArgument("op_mapping")
+     * );
+     *
+     * // Silently skip rows with NULL or unmapped op codes instead of failing
+     * Table result = cdcStream.fromChangelog(
+     *     lit("SKIP").asArgument("error_handling")
      * );
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
+     *     error_handling}
      * @return a dynamic {@link Table} with the op column removed and proper change operation
      *     semantics
      */

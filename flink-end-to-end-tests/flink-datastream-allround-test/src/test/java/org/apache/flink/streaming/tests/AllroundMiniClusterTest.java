@@ -21,39 +21,41 @@ package org.apache.flink.streaming.tests;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
+import java.nio.file.Path;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 
 /** DataStreamAllroundTestProgram on MiniCluster for manual debugging purposes. */
-@Ignore("Test is already part of end-to-end tests. This is for manual debugging.")
-public class AllroundMiniClusterTest extends TestLogger {
+@Disabled("Test is already part of end-to-end tests. This is for manual debugging.")
+@ExtendWith(TestLoggerExtension.class)
+class AllroundMiniClusterTest {
 
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeClass() {
         org.apache.log4j.PropertyConfigurator.configure(
                 AllroundMiniClusterTest.class.getClassLoader().getResource("log4j.properties"));
     }
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(4)
                             .setNumberSlotsPerTaskManager(2)
                             .setConfiguration(createConfiguration())
                             .build());
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static Path temporaryFolder;
 
     private static Configuration createConfiguration() {
         Configuration configuration = new Configuration();
@@ -63,12 +65,13 @@ public class AllroundMiniClusterTest extends TestLogger {
     }
 
     @Test
-    public void runTest() throws Exception {
-        File checkpointDir = temporaryFolder.newFolder();
+    void runTest() throws Exception {
+        Path checkpointDir = temporaryFolder.resolve("checkpoints");
+        java.nio.file.Files.createDirectories(checkpointDir);
         DataStreamAllroundTestProgram.main(
                 new String[] {
                     "--environment.parallelism", "8",
-                    "--state_backend.checkpoint_directory", checkpointDir.toURI().toString(),
+                    "--state_backend.checkpoint_directory", checkpointDir.toUri().toString(),
                     "--state_backend", "rocks",
                     "--state_backend.rocks.incremental", "true",
                     "--test.simulate_failure", "true",

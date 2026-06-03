@@ -1,0 +1,137 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 5,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT"
+            }, {
+              "name" : "m",
+              "dataType" : "MAP<VARCHAR(2147483647), INT>"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`id` INT, `m` MAP<VARCHAR(2147483647), INT>>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[id, m])",
+    "dynamicFilteringDataListenerID" : "6757d5d5-a915-4774-88a6-40cb2d2fb0ba"
+  }, {
+    "id" : 6,
+    "type" : "batch-exec-correlate_1",
+    "joinType" : "INNER",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$UNNEST_ROWS$1",
+      "operands" : [ {
+        "kind" : "FIELD_ACCESS",
+        "name" : "m",
+        "expr" : {
+          "kind" : "CORREL_VARIABLE",
+          "correl" : "$cor0",
+          "type" : "ROW<`id` INT, `m` MAP<VARCHAR(2147483647), INT>, `k` VARCHAR(2147483647), `v` INT> NOT NULL"
+        }
+      } ],
+      "type" : "ROW<`f0` VARCHAR(2147483647), `f1` INT> NOT NULL"
+    },
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT, `m` MAP<VARCHAR(2147483647), INT>, `f0` VARCHAR(2147483647), `f1` INT>",
+    "description" : "Correlate(invocation=[$UNNEST_ROWS$1($cor0.m)], correlate=[table($UNNEST_ROWS$1($cor0.m))], select=[id,m,f0,f1], rowType=[RecordType(INTEGER id, (VARCHAR(2147483647), INTEGER) MAP m, VARCHAR(2147483647) f0, INTEGER f1)], joinType=[INNER])"
+  }, {
+    "id" : 7,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT, `k` VARCHAR(2147483647), `v` INT>",
+    "description" : "Calc(select=[id, f0 AS k, f1 AS v])"
+  }, {
+    "id" : 8,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT"
+            }, {
+              "name" : "k",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "v",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT, `k` VARCHAR(2147483647), `v` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[id, k, v])"
+  } ],
+  "edges" : [ {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

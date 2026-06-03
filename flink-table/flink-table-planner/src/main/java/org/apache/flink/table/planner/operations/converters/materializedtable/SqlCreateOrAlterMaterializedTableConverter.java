@@ -23,12 +23,16 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateOrAlterMateria
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -36,6 +40,7 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.operations.converters.MergeTableAsUtil;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
@@ -49,7 +54,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
 /** A converter for {@link SqlCreateOrAlterMaterializedTable}. */
 public class SqlCreateOrAlterMaterializedTableConverter
@@ -104,11 +108,40 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context,
             final ObjectIdentifier identifier) {
+        final SchemaResolver schemaResolver = context.getCatalogManager().getSchemaResolver();
         final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
         return new FullAlterMaterializedTableOperation(
                 identifier,
-                buildTableChanges(mergeContext, context.getCatalogManager().getSchemaResolver()),
-                oldTable);
+                currentTable -> buildTableChanges(currentTable, mergeContext, schemaResolver),
+                oldTable,
+                currentTable -> buildNewTable(currentTable, mergeContext, schemaResolver));
+    }
+
+    private CatalogMaterializedTable buildNewTable(
+            final ResolvedCatalogMaterializedTable currentTable,
+            final MergeContext mergeContext,
+            final SchemaResolver schemaResolver) {
+        return CatalogMaterializedTable.newBuilder()
+                .schema(
+                        MaterializedTableChangeHandler.getHandlerWithChanges(
+                                        currentTable,
+                                        getSchemaTableChanges(
+                                                mergeContext, schemaResolver, currentTable))
+                                .retrieveSchema())
+                .comment(mergeContext.getMergedComment())
+                .partitionKeys(mergeContext.getMergedPartitionKeys())
+                .options(mergeContext.getMergedTableOptions())
+                .originalQuery(mergeContext.getMergedOriginalQuery())
+                .expandedQuery(mergeContext.getMergedExpandedQuery())
+                .distribution(mergeContext.getMergedTableDistribution().orElse(null))
+                .freshness(mergeContext.getMergedFreshness())
+                .logicalRefreshMode(mergeContext.getMergedLogicalRefreshMode())
+                .refreshMode(mergeContext.getMergedRefreshMode())
+                .refreshStatus(currentTable.getRefreshStatus())
+                .refreshHandlerDescription(currentTable.getRefreshHandlerDescription().orElse(null))
+                .serializedRefreshHandler(currentTable.getSerializedRefreshHandler())
+                .startMode(mergeContext.getMergedStartMode())
+                .build();
     }
 
     private Operation handleCreate(
@@ -121,24 +154,37 @@ public class SqlCreateOrAlterMaterializedTableConverter
         return new CreateMaterializedTableOperation(identifier, resolvedTable);
     }
 
-    private Function<ResolvedCatalogMaterializedTable, List<TableChange>> buildTableChanges(
-            final MergeContext mergeContext, final SchemaResolver schemaResolver) {
-        return oldTable -> {
-            final List<TableChange> changes =
-                    getSchemaTableChanges(mergeContext, schemaResolver, oldTable);
+    private List<TableChange> buildTableChanges(
+            final ResolvedCatalogMaterializedTable oldTable,
+            final MergeContext mergeContext,
+            final SchemaResolver schemaResolver) {
+        final List<TableChange> changes =
+                getSchemaTableChanges(mergeContext, schemaResolver, oldTable);
 
-            changes.addAll(getQueryTableChanges(mergeContext, oldTable));
-            changes.addAll(getOptionsTableChanges(mergeContext, oldTable));
-            changes.addAll(getDistributionTableChanges(mergeContext, oldTable));
+        changes.addAll(getQueryTableChanges(mergeContext, oldTable));
+        changes.addAll(getOptionsTableChanges(mergeContext, oldTable));
+        changes.addAll(getDistributionTableChanges(mergeContext, oldTable));
 
-            final RefreshMode oldRefreshMode = oldTable.getRefreshMode();
-            final RefreshMode newRefreshMode = mergeContext.getMergedRefreshMode();
-            if (oldRefreshMode != newRefreshMode && newRefreshMode != null) {
-                throw new ValidationException("Changing of REFRESH MODE is unsupported");
+        final RefreshMode oldRefreshMode = oldTable.getRefreshMode();
+        final RefreshMode newRefreshMode = mergeContext.getMergedRefreshMode();
+        if (oldRefreshMode != newRefreshMode && newRefreshMode != null) {
+            throw new ValidationException("Changing of REFRESH MODE is unsupported");
+        }
+
+        final StartMode newStartMode = mergeContext.getMergedStartMode();
+        if (newStartMode != null) {
+            final StartMode oldStartMode =
+                    oldTable.getStartMode()
+                            .orElseThrow(
+                                    () ->
+                                            new ValidationException(
+                                                    "Start mode must be set on materialized table."));
+            if (!Objects.equals(oldStartMode, newStartMode)) {
+                changes.add(TableChange.modifyStartMode(newStartMode));
             }
+        }
 
-            return changes;
-        };
+        return changes;
     }
 
     private List<TableChange> getDistributionTableChanges(
@@ -213,7 +259,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
     private Optional<TableChange> getConstraintChange(
             final ResolvedSchema oldSchema,
             final ResolvedSchema newSchema,
-            boolean hasConstraintDefinition) {
+            final boolean hasConstraintDefinition) {
         final UniqueConstraint oldConstraint = oldSchema.getPrimaryKey().orElse(null);
         final UniqueConstraint newConstraint = newSchema.getPrimaryKey().orElse(null);
         if (hasConstraintDefinition && !Objects.equals(oldConstraint, newConstraint)) {
@@ -279,30 +325,18 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public boolean hasConstraintDefinition() {
-                if (!sqlCreateMaterializedTable.getTableConstraints().isEmpty()) {
-                    return true;
-                }
-
-                return hasSchemaDefinition();
+                return !sqlCreateMaterializedTable.getTableConstraints().isEmpty()
+                        || hasSchemaDefinition();
             }
 
             @Override
             public Schema getMergedSchema() {
-                final Set<String> querySchemaColumnNames =
-                        new HashSet<>(querySchema.getColumnNames());
                 final SqlNodeList sqlNodeList = sqlCreateMaterializedTable.getColumnList();
-                for (SqlNode column : sqlNodeList) {
-                    if (!(column instanceof SqlRegularColumn)) {
-                        continue;
-                    }
-
-                    SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
-                    if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
-                        throw new ValidationException(
-                                String.format(
-                                        "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
-                                        physicalColumn.getName().getSimple()));
-                    }
+                if (createOrAlterOperation(sqlCreateMaterializedTable)) {
+                    MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
+                            sqlNodeList, querySchema);
+                } else {
+                    validatePhysicalColumnsUsedByQuery(sqlNodeList, querySchema);
                 }
                 if (sqlCreateMaterializedTable.isSchemaWithColumnsIdentifiersOnly()) {
                     // If only column identifiers are provided, then these are used to
@@ -351,9 +385,45 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public RefreshMode getMergedRefreshMode() {
-                return getDerivedRefreshMode(
-                        getDerivedLogicalRefreshMode(sqlCreateMaterializedTable));
+                return getDerivedRefreshMode(getMergedLogicalRefreshMode());
+            }
+
+            @Override
+            public LogicalRefreshMode getMergedLogicalRefreshMode() {
+                return getDerivedLogicalRefreshMode(sqlCreateMaterializedTable);
+            }
+
+            @Override
+            public StartMode getMergedStartMode() {
+                return getStartMode(sqlCreateMaterializedTable, context);
+            }
+
+            @Override
+            public String getMergedComment() {
+                return getComment(sqlCreateMaterializedTable);
+            }
+
+            @Override
+            public IntervalFreshness getMergedFreshness() {
+                return getDerivedFreshness(sqlCreateMaterializedTable);
             }
         };
+    }
+
+    private static void validatePhysicalColumnsUsedByQuery(
+            SqlNodeList sqlNodeList, ResolvedSchema querySchema) {
+        final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
+        for (SqlNode column : sqlNodeList) {
+            if (!(column instanceof SqlRegularColumn)) {
+                continue;
+            }
+            final SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
+            if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
+                                physicalColumn.getName().getSimple()));
+            }
+        }
     }
 }

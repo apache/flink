@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -28,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+
+import scala.Enumeration;
 
 /**
  * Plan tests for the FROM_CHANGELOG built-in process table function. Uses {@link
@@ -46,7 +49,7 @@ public class FromChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testInsertOnlySource() {
+    void testRetract() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE cdc_stream ("
@@ -59,19 +62,39 @@ public class FromChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testCustomOpMapping() {
+    void testRetractPartitionBy() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE cdc_stream ("
                                 + "  id INT,"
-                                + "  __op STRING,"
+                                + "  op STRING,"
                                 + "  name STRING"
                                 + ") WITH ('connector' = 'values')");
         util.verifyRelPlan(
-                "SELECT * FROM FROM_CHANGELOG("
-                        + "input => TABLE cdc_stream, "
-                        + "op => DESCRIPTOR(__op), "
-                        + "op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'])",
+                "SELECT * FROM FROM_CHANGELOG(input => TABLE cdc_stream PARTITION BY id)",
                 CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE cdc_stream ("
+                                + "  id INT,"
+                                + "  op STRING,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.doVerifyPlan(
+                "SELECT * FROM FROM_CHANGELOG("
+                        + "input => TABLE cdc_stream PARTITION BY id, "
+                        + "op_mapping => MAP["
+                        + "'INSERT', 'INSERT', "
+                        + "'UPDATE_AFTER', 'UPDATE_AFTER', "
+                        + "'DELETE', 'DELETE'])",
+                new ExplainDetail[] {ExplainDetail.CHANGELOG_MODE},
+                false,
+                new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_REL()},
+                false,
+                true);
     }
 }

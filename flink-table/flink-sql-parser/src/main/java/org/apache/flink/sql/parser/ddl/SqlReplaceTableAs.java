@@ -107,6 +107,7 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
                 partitionKeyList,
                 watermark,
                 comment,
+                null,
                 isTemporary,
                 ifNotExists,
                 true);

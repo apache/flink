@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.PathsCopyingFileSystem;
 
@@ -37,15 +38,18 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Helper class for performing bulk S3 to local file system copies using S3TransferManager.
  *
  * <p><b>Concurrency Model:</b> Uses batch-based concurrency control with {@code
- * maxConcurrentCopies} to limit parallel downloads. The current implementation waits for each batch
- * to complete before starting the next batch. A future enhancement could use a bounded thread pool
- * (e.g., {@link java.util.concurrent.Semaphore} or bounded executor) to allow continuous submission
- * of new downloads as slots become available, which would provide better throughput by avoiding the
- * "slowest task in batch" bottleneck.
+ * maxConcurrentCopies} to limit parallel downloads. The effective concurrency is clamped to the
+ * HTTP connection pool size ({@code maxConnections}) to prevent connection pool exhaustion. The
+ * current implementation waits for each batch to complete before starting the next batch. A future
+ * enhancement could use a bounded thread pool (e.g., {@link java.util.concurrent.Semaphore} or
+ * bounded executor) to allow continuous submission of new downloads as slots become available,
+ * which would provide better throughput by avoiding the "slowest task in batch" bottleneck.
  *
  * <p><b>Retry Handling:</b> Relies on the S3TransferManager's built-in retry mechanism for
  * transient failures. If a download fails after retries:
@@ -70,10 +74,39 @@ class NativeS3BulkCopyHelper {
 
     private final S3TransferManager transferManager;
     private final int maxConcurrentCopies;
+    private final int maxConnections;
 
-    public NativeS3BulkCopyHelper(S3TransferManager transferManager, int maxConcurrentCopies) {
+    /**
+     * Creates a new bulk copy helper.
+     *
+     * @param transferManager the S3 transfer manager for async downloads
+     * @param maxConcurrentCopies the requested maximum number of concurrent copy operations
+     * @param maxConnections the HTTP connection pool size; if {@code maxConcurrentCopies} exceeds
+     *     this value, it is clamped down to prevent connection pool exhaustion
+     */
+    NativeS3BulkCopyHelper(
+            S3TransferManager transferManager, int maxConcurrentCopies, int maxConnections) {
+        checkArgument(maxConcurrentCopies > 0, "maxConcurrentCopies must be positive");
+        checkArgument(maxConnections > 0, "maxConnections must be positive");
         this.transferManager = transferManager;
-        this.maxConcurrentCopies = maxConcurrentCopies;
+        this.maxConnections = maxConnections;
+        if (maxConcurrentCopies > maxConnections) {
+            LOG.warn(
+                    "{} ({}) exceeds {} ({}). "
+                            + "Clamping concurrent copies to {} to prevent connection pool exhaustion.",
+                    NativeS3FileSystemFactory.BULK_COPY_MAX_CONCURRENT.key(),
+                    maxConcurrentCopies,
+                    NativeS3FileSystemFactory.MAX_CONNECTIONS.key(),
+                    maxConnections,
+                    maxConnections);
+            this.maxConcurrentCopies = maxConnections;
+        } else {
+            this.maxConcurrentCopies = maxConcurrentCopies;
+        }
+    }
+
+    int getMaxConcurrentCopies() {
+        return maxConcurrentCopies;
     }
 
     /**
@@ -97,9 +130,17 @@ class NativeS3BulkCopyHelper {
             return;
         }
 
-        LOG.info("Starting bulk copy of {} files using S3TransferManager", requests.size());
+        int totalFiles = requests.size();
+        int totalBatches = (totalFiles + maxConcurrentCopies - 1) / maxConcurrentCopies;
+        LOG.info(
+                "Starting bulk copy of {} files using S3TransferManager "
+                        + "(batch size: {}, total batches: {})",
+                totalFiles,
+                maxConcurrentCopies,
+                totalBatches);
 
         List<CompletableFuture<CompletedCopy>> copyFutures = new ArrayList<>();
+        int batchNumber = 0;
 
         try {
             for (int i = 0; i < requests.size(); i++) {
@@ -113,12 +154,18 @@ class NativeS3BulkCopyHelper {
                 }
 
                 if (copyFutures.size() >= maxConcurrentCopies || i == requests.size() - 1) {
+                    batchNumber++;
+                    LOG.debug(
+                            "Waiting for batch {}/{} ({} files)",
+                            batchNumber,
+                            totalBatches,
+                            copyFutures.size());
                     waitForCopies(copyFutures);
                     copyFutures.clear();
                 }
             }
 
-            LOG.info("Completed bulk copy of {} files", requests.size());
+            LOG.info("Completed bulk copy of {} files", totalFiles);
         } catch (Exception e) {
             if (!copyFutures.isEmpty()) {
                 LOG.warn(
@@ -181,8 +228,42 @@ class NativeS3BulkCopyHelper {
             Thread.currentThread().interrupt();
             throw new IOException("Bulk copy interrupted", e);
         } catch (ExecutionException e) {
-            throw new IOException("Bulk copy failed", e.getCause());
+            Throwable cause = e.getCause();
+            if (isConnectionPoolExhausted(cause)) {
+                throw new IOException(
+                        String.format(
+                                "S3 connection pool exhausted during bulk copy. "
+                                        + "The configured connection pool size (%d) could not serve "
+                                        + "the concurrent download requests (%d). "
+                                        + "Consider reducing '%s' or increasing '%s'.",
+                                maxConnections,
+                                maxConcurrentCopies,
+                                NativeS3FileSystemFactory.BULK_COPY_MAX_CONCURRENT.key(),
+                                NativeS3FileSystemFactory.MAX_CONNECTIONS.key()),
+                        cause);
+            }
+            throw new IOException("Bulk copy failed", cause);
         }
+    }
+
+    /**
+     * Checks whether a failure was caused by HTTP connection pool exhaustion.
+     *
+     * <p>Walks the causal chain looking for the SDK's characteristic message about connection
+     * acquire timeouts. This detection is deliberately broad (substring match on the message) to
+     * remain resilient to minor SDK wording changes across versions.
+     */
+    @VisibleForTesting
+    static boolean isConnectionPoolExhausted(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains("Acquire operation took longer than")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

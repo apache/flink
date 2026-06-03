@@ -87,7 +87,7 @@ _JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的
 
 默认情况下，Flink 允许 subtask 共享 slot，即便它们是不同的 task 的 subtask，只要是来自于同一作业即可。结果就是一个 slot 可以持有整个作业管道。允许 *slot 共享*有两个主要优点：
 
-  - Flink 集群所需的 task slot 和作业中使用的最大并行度恰好一样。无需计算程序总共包含多少个 task（具有不同并行度）。
+  - 一个 Flink 作业所需的 task slot 和该作业中使用的最大并行度恰好一样。无需计算程序总共包含多少个 task（具有不同并行度）。
 
   - 容易获得更好的资源利用。如果没有 slot 共享，非密集 subtask（*source/map()*）将阻塞和密集型 subtask（*window*） 一样多的资源。通过 slot 共享，我们示例中的基本并行度从 2 增加到 6，可以充分利用分配的资源，同时确保繁重的 subtask 在 TaskManager 之间公平分配。
 

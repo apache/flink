@@ -340,16 +340,23 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, KIND_TABLE_ARG_CALL);
         gen.writeNumberField(FIELD_NAME_INPUT_INDEX, tableArgCall.getInputIndex());
-        gen.writeFieldName(FIELD_NAME_PARTITION_KEYS);
-        gen.writeArray(tableArgCall.getPartitionKeys(), 0, tableArgCall.getPartitionKeys().length);
-        gen.writeFieldName(FIELD_NAME_ORDER_KEYS);
-        gen.writeArray(tableArgCall.getOrderKeys(), 0, tableArgCall.getOrderKeys().length);
-        gen.writeFieldName(FIELD_NAME_ORDER_DIRECTIONS);
-        gen.writeStartArray();
-        for (SortOrder order : tableArgCall.getSortOrder()) {
-            gen.writeString(order.name());
+        if (tableArgCall.getPartitionKeys().length > 0) {
+            gen.writeFieldName(FIELD_NAME_PARTITION_KEYS);
+            gen.writeArray(
+                    tableArgCall.getPartitionKeys(), 0, tableArgCall.getPartitionKeys().length);
         }
-        gen.writeEndArray();
+        if (tableArgCall.getOrderKeys().length > 0) {
+            gen.writeFieldName(FIELD_NAME_ORDER_KEYS);
+            gen.writeArray(tableArgCall.getOrderKeys(), 0, tableArgCall.getOrderKeys().length);
+            if (tableArgCall.getSortOrder().length > 0) {
+                gen.writeFieldName(FIELD_NAME_ORDER_DIRECTIONS);
+                gen.writeStartArray();
+                for (SortOrder order : tableArgCall.getSortOrder()) {
+                    gen.writeString(order.name());
+                }
+                gen.writeEndArray();
+            }
+        }
         serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, tableArgCall.getType(), gen);
         gen.writeEndObject();
     }

@@ -33,7 +33,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -376,7 +375,6 @@ public class FsCheckpointStateOutputStreamTest {
      * This test checks that the stream does not check and clean the parent directory when
      * encountering a write error.
      */
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @TestTemplate
     void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
         final File directory = TempDirUtils.newFolder(tempDir);

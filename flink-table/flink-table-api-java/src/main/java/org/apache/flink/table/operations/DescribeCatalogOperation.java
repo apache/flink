@@ -19,6 +19,8 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -87,17 +89,24 @@ public class DescribeCatalogOperation implements Operation, ExecutableOperation 
                                 Arrays.asList(
                                         "comment", catalogDescriptor.getComment().orElse(null))));
         if (isExtended) {
+            List<String> additionalSensitiveKeys =
+                    ctx.getTableConfig().get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS);
             properties.entrySet().stream()
                     .filter(
                             entry ->
                                     !CommonCatalogOptions.CATALOG_TYPE.key().equals(entry.getKey()))
                     .sorted(Map.Entry.comparingByKey())
                     .forEach(
-                            entry ->
-                                    rows.add(
-                                            Arrays.asList(
-                                                    String.format("option:%s", entry.getKey()),
-                                                    entry.getValue())));
+                            entry -> {
+                                String value =
+                                        GlobalConfiguration.isSensitive(
+                                                        entry.getKey(), additionalSensitiveKeys)
+                                                ? GlobalConfiguration.HIDDEN_CONTENT
+                                                : entry.getValue();
+                                rows.add(
+                                        Arrays.asList(
+                                                String.format("option:%s", entry.getKey()), value));
+                            });
         }
 
         return buildTableResult(

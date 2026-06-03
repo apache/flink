@@ -1,0 +1,161 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAliasedMetadataColumnFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T3 WHERE event_ts > TIMESTAMP '2024-01-01 00:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[>($1, 2024-01-01 00:00:00)])
+   +- LogicalProject(id=[$0], event_ts=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[timestamp]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], event_ts=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[timestamp], metadataFilter=[>(timestamp, 2024-01-01 00:00:00)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataFilterNotPushedWhenNotSupported">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T2 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[>($2, 2024-01-01 00:00:00)])
+   +- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, metadata=[event_time]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+   +- LogicalFilter(condition=[>($2, 2024-01-01 00:00:00)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, metadata=[event_time]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T1 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[>($2, 2024-01-01 00:00:00)])
+   +- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, metadata=[event_time]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, metadata=[event_time], metadataFilter=[>(event_time, 2024-01-01 00:00:00)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataFilterWithProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT id, name FROM T5 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalFilter(condition=[>($2, 2024-01-01 00:00:00)])
+   +- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T5, metadata=[event_time]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1])
++- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T5, metadata=[event_time], metadataFilter=[>(event_time, 2024-01-01 00:00:00)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMixedPhysicalAndMetadataFilters">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T4 WHERE id > 10 AND event_time > TIMESTAMP '2024-01-01 00:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[AND(>($0, 10), >($2, 2024-01-01 00:00:00))])
+   +- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T4, metadata=[event_time]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], name=[$1], event_time=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T4, metadata=[event_time], filter=[>(id, 10)], metadataFilter=[>(event_time, 2024-01-01 00:00:00)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialMetadataFilterAcceptance">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T6 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00' AND priority > 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[AND(>($1, 2024-01-01 00:00:00), >($2, 5))])
+   +- LogicalProject(id=[$0], event_time=[$2], priority=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T6, metadata=[priority, event_time]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], event_time=[$2], priority=[$1])
+   +- LogicalFilter(condition=[>($1, 5)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T6, metadata=[priority, event_time], metadataFilter=[>(event_time, 2024-01-01 00:00:00)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPhysicalAndMetadataNameCollision">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM T7 WHERE msg_offset > 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[>($2, 5)])
+   +- LogicalProject(id=[$0], offset=[$1], msg_offset=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T7, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalProject(id=[$0], offset=[$1], msg_offset=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T7, metadata=[offset], metadataFilter=[>(offset, 5)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

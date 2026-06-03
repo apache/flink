@@ -19,6 +19,7 @@
 package org.apache.flink.table.secret;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 
 import java.util.Map;
@@ -40,6 +41,8 @@ public interface ReadableSecretStore extends SecretStore {
      * @param secretId the unique identifier of the secret to retrieve
      * @return a map containing the secret data as key-value pairs
      * @throws SecretNotFoundException if the secret with the given identifier does not exist
+     * @throws SecretException if the operation fails due to underlying-store errors (network,
+     *     permission, etc.)
      */
-    Map<String, String> getSecret(String secretId) throws SecretNotFoundException;
+    Map<String, String> getSecret(String secretId) throws SecretNotFoundException, SecretException;
 }

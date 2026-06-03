@@ -22,13 +22,12 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
@@ -36,7 +35,6 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFuncti
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
@@ -56,7 +54,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
@@ -170,6 +167,20 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
         final List<Ord<StaticArgument>> providedInputArgs = getProvidedInputArgs(call);
         verifyPassThroughColumnsForUpdates(providedInputArgs, outputChangelogMode);
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(getCluster().getMetadataQuery());
+        final List<List<int[]>> inputUpsertKeys =
+                getInputs().stream()
+                        .map(
+                                input -> {
+                                    final Set<ImmutableBitSet> keys = fmq.getUpsertKeys(input);
+                                    return keys == null
+                                            ? Collections.<int[]>emptyList()
+                                            : keys.stream()
+                                                    .map(ImmutableBitSet::toArray)
+                                                    .collect(Collectors.toList());
+                                })
+                        .collect(Collectors.toList());
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -178,7 +189,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 uid,
                 call,
                 inputChangelogModes,
-                outputChangelogMode);
+                outputChangelogMode,
+                inputUpsertKeys);
     }
 
     @Override
@@ -423,7 +435,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                                         return 0;
                                     }
                                     final RexTableArgCall tableArg = (RexTableArgCall) operand.e;
-                                    final StaticArgument staticArg = staticArgs.get(0);
+                                    final StaticArgument staticArg = staticArgs.get(operand.i);
                                     if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                         return tableArg.getType().getFieldCount();
                                     } else {
@@ -511,23 +523,5 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             }
         }
         return ImmutableSet.copyOf(partitionColumnsPerArg);
-    }
-
-    public static CallContext toCallContext(
-            RexCall udfCall,
-            List<Integer> inputTimeColumns,
-            List<ChangelogMode> inputChangelogModes,
-            @Nullable ChangelogMode outputChangelogMode) {
-        final BridgingSqlFunction function = ShortcutUtils.unwrapBridgingSqlFunction(udfCall);
-        assert function != null;
-        final FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(udfCall);
-        return new OperatorBindingCallContext(
-                function.getDataTypeFactory(),
-                definition,
-                RexCallBinding.create(function.getTypeFactory(), udfCall, Collections.emptyList()),
-                udfCall.getType(),
-                inputTimeColumns,
-                inputChangelogModes,
-                outputChangelogMode);
     }
 }

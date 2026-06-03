@@ -56,9 +56,15 @@ function build_image() {
     if [[ ${PROFILE} == *"jdk21"* ]]; then
         java_version=21
     fi
+    if [[ ${PROFILE} == *"jdk25"* ]]; then
+        java_version=25
+    fi
 
     cd flink-docker
     ./add-custom.sh -u ${file_server_address}:9999/flink.tgz -n ${image_name} -j ${java_version}
+
+    # eclipse-temurin:25+ images don't include wget; add it to the install step
+    sed -i 's/apt-get -y install gpg/apt-get -y install gpg wget/' dev/${image_name}-ubuntu/Dockerfile
 
     echo "Building images"
     run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-ubuntu

@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.ConnectionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ConnectionNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -68,12 +70,16 @@ public abstract class CatalogTest {
     protected final String t3 = "t3";
     protected final String m1 = "m1";
     protected final String m2 = "m2";
+    protected final String c1 = "c1";
+    protected final String c2 = "c2";
     protected final ObjectPath path1 = new ObjectPath(db1, t1);
     protected final ObjectPath path2 = new ObjectPath(db2, t2);
     protected final ObjectPath path3 = new ObjectPath(db1, t2);
     protected final ObjectPath path4 = new ObjectPath(db1, t3);
     protected final ObjectPath modelPath1 = new ObjectPath(db1, m1);
     protected final ObjectPath modelPath2 = new ObjectPath(db1, m2);
+    protected final ObjectPath connectionPath1 = new ObjectPath(db1, c1);
+    protected final ObjectPath connectionPath2 = new ObjectPath(db1, c2);
     protected final ObjectPath nonExistDbPath = ObjectPath.fromString("non.exist");
     protected final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
@@ -106,6 +112,14 @@ public abstract class CatalogTest {
             }
             if (catalog.modelExists(modelPath2)) {
                 catalog.dropModel(modelPath2, true);
+            }
+        }
+        if (supportsConnections()) {
+            if (catalog.connectionExists(connectionPath1)) {
+                catalog.dropConnection(connectionPath1, true);
+            }
+            if (catalog.connectionExists(connectionPath2)) {
+                catalog.dropConnection(connectionPath2, true);
             }
         }
 
@@ -461,6 +475,201 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         // Nothing happens since ignoreIfNotExists is true
         catalog.dropModel(modelPath1, true);
+    }
+
+    // ------ connections ------
+    @Test
+    public void testCreateConnection() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogConnection connection = createConnection();
+        catalog.createConnection(connectionPath1, connection, false);
+
+        List<String> connections = catalog.listConnections(db1);
+        assertThat(connections).isEqualTo(Collections.singletonList(c1));
+    }
+
+    @Test
+    public void testCreateConnection_DatabaseNotExistException() {
+        if (!supportsConnections()) {
+            return;
+        }
+        assertThat(catalog.databaseExists(db1)).isFalse();
+
+        assertThatThrownBy(
+                        () ->
+                                catalog.createConnection(
+                                        nonExistObjectPath, createConnection(), false))
+                .isInstanceOf(DatabaseNotExistException.class)
+                .hasMessage("Database db1 does not exist in Catalog " + TEST_CATALOG_NAME + ".");
+    }
+
+    @Test
+    public void testCreateConnection_ConnectionAlreadyExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createConnection(connectionPath1, createConnection(), false);
+
+        assertThatThrownBy(
+                        () -> catalog.createConnection(connectionPath1, createConnection(), false))
+                .isInstanceOf(ConnectionAlreadyExistException.class)
+                .hasMessage(
+                        "Connection 'db1.c1' already exists in catalog '"
+                                + TEST_CATALOG_NAME
+                                + "'.");
+    }
+
+    @Test
+    public void testCreateConnection_ConnectionAlreadyExist_ignored() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        CatalogConnection connection = createConnection();
+        catalog.createConnection(connectionPath1, connection, false);
+        catalog.createConnection(connectionPath1, connection, true);
+
+        List<String> connections = catalog.listConnections(db1);
+        assertThat(connections).isEqualTo(Collections.singletonList(c1));
+    }
+
+    @Test
+    public void testListConnections() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        catalog.createConnection(connectionPath1, createConnection(), false);
+        catalog.createConnection(connectionPath2, createConnection(), false);
+
+        assertThat(catalog.listConnections(db1)).isEqualTo(Arrays.asList(c1, c2));
+    }
+
+    @Test
+    public void testGetConnection() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createConnection(connectionPath1, createConnection(), false);
+        assertThat(catalog.getConnection(connectionPath1)).isNotNull();
+    }
+
+    @Test
+    public void testGetConnection_ConnectionNotExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        assertThatThrownBy(() -> catalog.getConnection(connectionPath1))
+                .isInstanceOf(ConnectionNotExistException.class)
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
+    }
+
+    @Test
+    public void testDropConnection() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createConnection(connectionPath1, createConnection(), false);
+        assertThat(catalog.getConnection(connectionPath1)).isNotNull();
+        catalog.dropConnection(connectionPath1, false);
+        assertThatThrownBy(() -> catalog.getConnection(connectionPath1))
+                .isInstanceOf(ConnectionNotExistException.class)
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
+    }
+
+    @Test
+    public void testAlterConnection() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createConnection(connectionPath1, createConnection(), false);
+        assertThat(catalog.getConnection(connectionPath1)).isNotNull();
+        CatalogConnection newConnection =
+                CatalogConnection.of(
+                        new HashMap<String, String>() {
+                            {
+                                put("type", "kafka");
+                                put("bootstrap.servers", "remote:9092");
+                                put("group.id", "my-group");
+                            }
+                        },
+                        "updated connection");
+        catalog.alterConnection(connectionPath1, newConnection, false);
+        assertThat(catalog.getConnection(connectionPath1).getComment())
+                .isEqualTo("updated connection");
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("type", "kafka");
+        expectedOptions.put("bootstrap.servers", "remote:9092");
+        expectedOptions.put("group.id", "my-group");
+        assertThat(catalog.getConnection(connectionPath1).getOptions()).isEqualTo(expectedOptions);
+    }
+
+    @Test
+    public void testAlterConnection_ConnectionNotExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogConnection newConnection =
+                CatalogConnection.of(
+                        new HashMap<String, String>() {
+                            {
+                                put("type", "kafka");
+                                put("bootstrap.servers", "remote:9092");
+                            }
+                        },
+                        "new connection");
+        assertThatThrownBy(() -> catalog.alterConnection(connectionPath1, newConnection, false))
+                .isInstanceOf(ConnectionNotExistException.class)
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
+    }
+
+    @Test
+    public void testAlterMissingConnectionIgnoreIfNotExist() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogConnection newConnection =
+                CatalogConnection.of(
+                        new HashMap<String, String>() {
+                            {
+                                put("type", "kafka");
+                                put("bootstrap.servers", "remote:9092");
+                            }
+                        },
+                        "new connection");
+        catalog.alterConnection(connectionPath1, newConnection, true);
+    }
+
+    @Test
+    public void testDropMissingConnectionNotExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        assertThatThrownBy(() -> catalog.dropConnection(connectionPath1, false))
+                .isInstanceOf(ConnectionNotExistException.class)
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
+    }
+
+    @Test
+    public void testDropMissingConnectionIgnoreIfNotExist() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.dropConnection(connectionPath1, true);
     }
 
     // ------ tables ------
@@ -1613,6 +1822,19 @@ public abstract class CatalogTest {
     public abstract CatalogPartition createPartition();
 
     protected abstract boolean supportsModels();
+
+    protected abstract boolean supportsConnections();
+
+    protected CatalogConnection createConnection() {
+        return CatalogConnection.of(
+                new HashMap<String, String>() {
+                    {
+                        put("type", "kafka");
+                        put("bootstrap.servers", "localhost:9092");
+                    }
+                },
+                null);
+    }
 
     protected ResolvedSchema createSchema() {
         return new ResolvedSchema(

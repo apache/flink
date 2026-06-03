@@ -77,7 +77,7 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testInsertOnlySource() {
+    void testInsertSource() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE insert_only_source ("
@@ -86,5 +86,100 @@ public class ToChangelogTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values')");
         util.verifyRelPlan(
                 "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testRetractPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE retract_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UB,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source PARTITION BY id, "
+                        + "op => DESCRIPTOR(op), "
+                        + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertPartitionByNoUpdateBeforeAndDelete() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source PARTITION BY id, "
+                        + "op => DESCRIPTOR(op), "
+                        + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C'])",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertSourceProducesFullDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source, "
+                        + "produces_full_deletes => true)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testUpsertSourceKeyOnlyDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG("
+                        + "input => TABLE upsert_source, "
+                        + "produces_full_deletes => false)",
+                CHANGELOG_MODE);
     }
 }

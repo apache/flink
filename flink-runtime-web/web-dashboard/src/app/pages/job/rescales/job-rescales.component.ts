@@ -29,7 +29,8 @@ import {
   JobRescaleConfigInfo,
   JobDetail,
   RescalesHistory,
-  RescalesOverview
+  RescalesOverview,
+  RescalesSummary
 } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -69,6 +70,7 @@ import { JobLocalService } from '../job-local.service';
 })
 export class JobRescalesComponent implements OnInit, OnDestroy {
   public rescalesOverview?: RescalesOverview;
+  public rescalesSummary?: RescalesSummary;
   public rescalesHistory?: RescalesHistory;
   public rescaleDetailsMap = new Map<string, JobRescaleDetails>();
   public rescalesConfig?: JobRescaleConfigInfo;
@@ -95,6 +97,11 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
                 return of(undefined);
               })
             ),
+            this.jobService.loadRescalesSummary(this.jobDetail.jid).pipe(
+              catchError(() => {
+                return of(undefined);
+              })
+            ),
             this.jobService.loadRescalesHistory(this.jobDetail.jid).pipe(
               catchError(() => {
                 return of(undefined);
@@ -109,8 +116,9 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
         ),
         takeUntil(this.destroy$)
       )
-      .subscribe(([overview, history, config]) => {
+      .subscribe(([overview, summary, history, config]) => {
         this.rescalesOverview = overview;
+        this.rescalesSummary = summary;
         this.rescalesHistory = history;
         this.rescalesConfig = config;
 
@@ -148,6 +156,8 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.refresh$.complete();
   }
+
+  public moreDetailsPanel = { active: false, disabled: false };
 
   public refresh(): void {
     const expandedUuids = Array.from(this.expandedRowsSet);
@@ -207,6 +217,14 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
       return 0;
     }
     const counts = this.rescalesOverview.rescalesCounts;
+    return counts.inProgress + counts.completed + counts.failed + counts.ignored;
+  }
+
+  public getTotalRescaleCountFromSummary(): number {
+    if (!this.rescalesSummary?.rescalesCounts) {
+      return 0;
+    }
+    const counts = this.rescalesSummary.rescalesCounts;
     return counts.inProgress + counts.completed + counts.failed + counts.ignored;
   }
 

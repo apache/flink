@@ -154,7 +154,7 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
         final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.highSqn;
         final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.size;
         final RowSqnInfo rowSqnInfo = rowToSqnState.get(key);
-        final Long rowSqn = rowSqnInfo == null ? null : rowToSqnState.get(key).firstSqn;
+        final Long rowSqn = rowSqnInfo == null ? null : rowSqnInfo.firstSqn;
         final boolean isNewRowKey = rowSqn == null; // it's a 1st such record 'row'
         final boolean isNewContextKey = highSqn == null; // 1st a record for current context key
 
@@ -185,8 +185,8 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                 isNewRowKey
                         ? new Node(row, newSqn, highSqn, null, null, timestamp)
                         : sqnToNodeState.get(oldSqn).withRow(row, timestamp));
-        highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
         if (isNewRowKey) {
+            highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
             rowToSqnState.put(key, RowSqnInfo.ofSingle(newSqn));
             if (!isNewContextKey) {
                 sqnToNodeState.put(highSqn, sqnToNodeState.get(highSqn).withNext(newSqn));

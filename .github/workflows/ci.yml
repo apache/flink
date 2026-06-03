@@ -20,7 +20,16 @@ name: "Flink CI (beta)"
 
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+      - '.gitattributes'
   workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+    cancel-in-progress: true
 
 permissions: read-all
 

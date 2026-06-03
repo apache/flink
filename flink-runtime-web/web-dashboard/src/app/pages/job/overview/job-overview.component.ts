@@ -22,6 +22,7 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostListener,
   OnDestroy,
   OnInit,
   ViewChild
@@ -55,9 +56,18 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   public pendingNodes: NodesItemCorrect[] = [];
   public pendingLinks: NodesItemLink[] = [];
   public selectedNode: NodesItemCorrect | null;
-  public top = 500;
+  public top = Math.max(280, Math.min(Math.round(window.innerHeight * 0.4), 500));
   public jobId: string;
   public timeoutId: number;
+  private isTopManuallyResized = false;
+
+  @HostListener('window:resize', ['$event'])
+  onResize(): void {
+    if (!this.isTopManuallyResized) {
+      this.top = Math.max(280, Math.min(Math.round(window.innerHeight * 0.4), 500));
+      this.cdr.markForCheck();
+    }
+  }
 
   @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
 
@@ -134,6 +144,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   }
 
   public onResizeEnd(): void {
+    this.isTopManuallyResized = true;
     if (!this.selectedNode) {
       this.dagreComponent.moveToCenter();
     } else {

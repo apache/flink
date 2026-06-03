@@ -181,6 +181,8 @@ o_002     12.51  EUR       1.10             12:06:00
 这里的 `INTERVAL` 时间减法用于等待后续事件，以确保 join 满足预期。
 请确保 join 两边设置了正确的 watermark 。
 
+**Note:** Probe-side (left) records that arrive late (their event time is less than or equal to the current watermark) are dropped on arrival and counted by the `numLateRecordsDropped` operator metric. They are not joined or emitted, not even as null-padded results for `LEFT JOIN`, because the matching build-side version may already have been cleaned up.
+
 **注意：** 事件时间 temporal join 需要包含主键相等的条件，即：`currency_rates` 表的主键 `currency_rates.currency` 包含在条件 `orders.currency = currency_rates.currency` 中。
 
 与 [regular joins](#regular-joins) 相比，就算 build side（例子中的 currency_rates 表）发生变更了，之前的 temporal table 的结果也不会被影响。

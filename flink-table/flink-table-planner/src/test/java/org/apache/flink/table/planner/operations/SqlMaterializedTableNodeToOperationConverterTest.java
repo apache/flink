@@ -403,7 +403,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
                                     (AlterMaterializedTableChangeOperation) parse(spec.sql);
-                            operation.getNewTable();
+                            operation.validateChanges();
                         })
                 .as(spec.sql)
                 .isInstanceOf(spec.expectedException)
@@ -481,7 +481,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec())
                 .containsExactly(Map.entry("ds1", "1"), Map.entry("ds2", "2"));
     }
@@ -495,7 +495,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec()).isEmpty();
     }
 
@@ -521,6 +521,52 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .containsEntry("k1", "v1");
         assertThat(operation2.asSummaryString())
                 .isEqualTo("ALTER MATERIALIZED TABLE builtin.default.mtbl1 RESUME WITH (k1: [v1])");
+    }
+
+    @Test
+    void testAlterMaterializedTableSet() {
+        final String sql =
+                "ALTER MATERIALIZED TABLE base_mtbl SET ('format' = 'json2', 'k1' = 'v1', 'k2' = 'v2', 'k2' = 'newV2')";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+
+        AlterMaterializedTableChangeOperation op =
+                (AlterMaterializedTableChangeOperation) operation;
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableChanges())
+                .containsExactlyInAnyOrder(
+                        TableChange.set("format", "json2"),
+                        TableChange.set("k1", "v1"),
+                        TableChange.set("k2", "newV2"));
+        assertThat(op.getNewTable().getOptions())
+                .containsOnly(
+                        Map.entry("connector", "filesystem"),
+                        Map.entry("format", "json2"),
+                        Map.entry("k1", "v1"),
+                        Map.entry("k2", "newV2"));
+        assertThat(op.asSummaryString())
+                .startsWith("ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n")
+                .contains("  SET 'format' = 'json2'", "  SET 'k1' = 'v1'", "  SET 'k2' = 'newV2'");
+    }
+
+    @Test
+    void testAlterMaterializedTableReset() {
+        final String sql = "ALTER MATERIALIZED TABLE base_mtbl RESET ('format', 'unknown_key')";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+
+        AlterMaterializedTableChangeOperation op =
+                (AlterMaterializedTableChangeOperation) operation;
+        assertThat(op.getTableIdentifier()).hasToString("`builtin`.`default`.`base_mtbl`");
+        assertThat(op.getTableChanges())
+                .containsExactlyInAnyOrder(
+                        TableChange.reset("format"), TableChange.reset("unknown_key"));
+        // resetting an unknown key is a no-op for the catalog state
+        assertThat(op.getNewTable().getOptions())
+                .containsOnly(Map.entry("connector", "filesystem"));
+        assertThat(op.asSummaryString())
+                .startsWith("ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n")
+                .contains("  RESET 'format'", "  RESET 'unknown_key'");
     }
 
     @Test
@@ -659,6 +705,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
         list.addAll(alterModifyWithInvalidSchema());
         list.addAll(alterQuery());
         list.addAll(alterDrop());
+        list.addAll(alterSet());
+        list.addAll(alterReset());
         return list;
     }
 
@@ -666,10 +714,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         return List.of(
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b FROM t3",
-                        "Failed to modify query because drop column is unsupported. When modifying "
-                                + "a query, you can only append new columns at the end of original "
-                                + "schema. The original schema has 4 columns, but the newly derived "
-                                + "schema from the query has 2 columns."),
+                        "Dropping of persisted column `c` is not supported."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, d, c FROM t3",
                         "When modifying the query of a materialized table, currently only support "
@@ -997,8 +1042,36 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column(s) ('d') are used in query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
-                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
+                        "Dropping of persisted column `m_p` is not supported."));
+    }
+
+    private static Collection<TestSpec> alterSet() {
+        return List.of(
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl SET ()",
+                        "ALTER MATERIALIZED TABLE SET does not support empty options."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE unknown_mtbl SET ('format' = 'json2')",
+                        "Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE t3 SET ('format' = 'json2')",
+                        "ALTER MATERIALIZED TABLE for a table is not allowed"));
+    }
+
+    private static Collection<TestSpec> alterReset() {
+        return List.of(
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl RESET ()",
+                        "ALTER MATERIALIZED TABLE RESET does not support empty key."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl RESET ('connector')",
+                        "ALTER MATERIALIZED TABLE RESET does not support changing 'connector'."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE unknown_mtbl RESET ('format')",
+                        "Materialized table `builtin`.`default`.`unknown_mtbl` doesn't exist."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE t3 RESET ('format')",
+                        "ALTER MATERIALIZED TABLE for a table is not allowed"));
     }
 
     private static Collection<TestSpec> alterSuccessCase() {
@@ -1193,13 +1266,10 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
+                        // Explicit DDL omits `m` and `calc` — CREATE OR ALTER is declarative,
+                        // so non-persisted columns absent from the DDL are dropped.
                         "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted (`EXPR$0` INT NOT NULL, `sec` CHAR(1)) AS SELECT 2, 'a' AS sec",
-                        "(\n"
-                                + "  `m` STRING METADATA VIRTUAL,\n"
-                                + "  `calc` AS ['a' || 'b'],\n"
-                                + "  `EXPR$0` INT NOT NULL,\n"
-                                + "  `sec` CHAR(1)\n"
-                                + ")"));
+                        "(\n" + "  `EXPR$0` INT NOT NULL,\n" + "  `sec` CHAR(1)\n" + ")"));
 
         list.add(
                 TestSpec.withExpectedSchema(

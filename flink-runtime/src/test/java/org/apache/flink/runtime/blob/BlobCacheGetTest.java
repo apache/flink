@@ -25,7 +25,6 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -170,19 +169,16 @@ class BlobCacheGetTest {
         }
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetFailsIncomingNoJob() throws IOException {
         testGetFailsIncoming(null, TRANSIENT_BLOB);
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetFailsIncomingForJob() throws IOException {
         testGetFailsIncoming(new JobID(), TRANSIENT_BLOB);
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetFailsIncomingForJobHa() throws IOException {
         testGetFailsIncoming(new JobID(), PERMANENT_BLOB);
@@ -268,19 +264,16 @@ class BlobCacheGetTest {
         }
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetTransientFailsStoreNoJob() throws IOException, InterruptedException {
         testGetFailsStore(null, TRANSIENT_BLOB);
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetTransientFailsStoreForJob() throws IOException, InterruptedException {
         testGetFailsStore(new JobID(), TRANSIENT_BLOB);
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetPermanentFailsStoreForJob() throws IOException, InterruptedException {
         testGetFailsStore(new JobID(), PERMANENT_BLOB);
@@ -402,13 +395,11 @@ class BlobCacheGetTest {
         }
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetTransientRemoteDeleteFailsNoJob() throws IOException {
         testGetTransientRemoteDeleteFails(null);
     }
 
-    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetTransientRemoteDeleteFailsForJob() throws IOException {
         testGetTransientRemoteDeleteFails(new JobID());

@@ -87,6 +87,12 @@
             <td>List of factories that should be used to instantiate security modules. All listed modules will be installed. Keep in mind that the configured security context might rely on some modules being present.</td>
         </tr>
         <tr>
+            <td><h5>security.redaction.additional-keys</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>Comma-separated list of additional configuration key substrings whose values should be redacted in logs and REST API responses. Matching is case-insensitive and based on substring containment. The built-in sensitive key patterns are immutable and cannot be overridden via this option.</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.algorithms</h5></td>
             <td style="word-wrap: break-word;">"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"</td>
             <td>String</td>

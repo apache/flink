@@ -102,9 +102,10 @@ public class AdaptiveJoinOperatorFactory<OUT> extends AbstractStreamOperatorFact
         ClassLoader classLoader =
                 plannerModule == null
                         ? userClassLoader
-                        : FlinkUserCodeClassLoaders.parentFirst(
+                        : FlinkUserCodeClassLoaders.childFirst(
                                 plannerModule.getSubmoduleClassLoader().getURLs(),
                                 userClassLoader,
+                                new String[0],
                                 NOOP_EXCEPTION_HANDLER,
                                 checkClassLoaderLeak);
 

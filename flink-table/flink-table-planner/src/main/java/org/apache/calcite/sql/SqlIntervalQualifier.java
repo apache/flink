@@ -883,7 +883,7 @@ public class SqlIntervalQualifier extends SqlNode {
         // Note: must check two patterns, since fractional second is optional
         final int fractionalSecondPrecision = getFractionalSecondPrecision(typeSystem);
         String intervalPatternWithFracSec =
-                "(\\d+) (\\d{1,2}):(\\d{1,2}):(\\d{1,2})\\.(\\d{1,"
+                "(\\d+) (\\d{1,2}):(\\d{1,2}):(\\d{1,2})\\.(\\d{0,"
                         + fractionalSecondPrecision
                         + "})";
         String intervalPatternWithoutFracSec = "(\\d+) (\\d{1,2}):(\\d{1,2}):(\\d{1,2})";
@@ -1032,7 +1032,7 @@ public class SqlIntervalQualifier extends SqlNode {
         // Note: must check two patterns, since fractional second is optional
         final int fractionalSecondPrecision = getFractionalSecondPrecision(typeSystem);
         String intervalPatternWithFracSec =
-                "(\\d+):(\\d{1,2}):(\\d{1,2})\\.(\\d{1," + fractionalSecondPrecision + "})";
+                "(\\d+):(\\d{1,2}):(\\d{1,2})\\.(\\d{0," + fractionalSecondPrecision + "})";
         String intervalPatternWithoutFracSec = "(\\d+):(\\d{1,2}):(\\d{1,2})";
 
         Matcher m = Pattern.compile(intervalPatternWithFracSec).matcher(value);
@@ -1134,7 +1134,7 @@ public class SqlIntervalQualifier extends SqlNode {
         // Note: must check two patterns, since fractional second is optional
         final int fractionalSecondPrecision = getFractionalSecondPrecision(typeSystem);
         String intervalPatternWithFracSec =
-                "(\\d+):(\\d{1,2})\\.(\\d{1," + fractionalSecondPrecision + "})";
+                "(\\d+):(\\d{1,2})\\.(\\d{0," + fractionalSecondPrecision + "})";
         String intervalPatternWithoutFracSec = "(\\d+):(\\d{1,2})";
 
         Matcher m = Pattern.compile(intervalPatternWithFracSec).matcher(value);
@@ -1195,7 +1195,7 @@ public class SqlIntervalQualifier extends SqlNode {
         // e.g. 'SS' or 'SS.SSS'
         // Note: must check two patterns, since fractional second is optional
         final int fractionalSecondPrecision = getFractionalSecondPrecision(typeSystem);
-        String intervalPatternWithFracSec = "(\\d+)\\.(\\d{1," + fractionalSecondPrecision + "})";
+        String intervalPatternWithFracSec = "(\\d+)\\.(\\d{0," + fractionalSecondPrecision + "})";
         String intervalPatternWithoutFracSec = "(\\d+)";
 
         Matcher m = Pattern.compile(intervalPatternWithFracSec).matcher(value);

@@ -25,12 +25,14 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for the {@link FlinkSecurityManager}. */
+@Tag("org.apache.flink.testutils.junit.FailsOnJava25")
 class FlinkSecurityManagerITCase {
 
     @BeforeEach

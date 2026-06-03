@@ -45,7 +45,13 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'getFactory',
             'getTableFactory',
             'getFunctionDefinitionFactory',
-            'listPartitionsByFilter'}
+            'listPartitionsByFilter',
+            'getConnection',
+            'dropConnection',
+            'connectionExists',
+            'listConnections',
+            'createConnection',
+            'alterConnection'}
 
 
 class CatalogDatabaseAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):

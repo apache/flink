@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -63,8 +66,30 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTritonModelFunction.class);
 
     protected transient OkHttpClient httpClient;
+    protected transient TritonCircuitBreaker circuitBreaker;
+    protected transient TritonHealthChecker healthChecker;
+
+    /**
+     * Scheduler used to delay retry attempts with exponential backoff. Owned by this function so
+     * that pending retries are cancelled on {@link #close()} — relying on {@link
+     * java.util.concurrent.CompletableFuture#delayedExecutor(long, TimeUnit)} (which is backed by
+     * {@link java.util.concurrent.ForkJoinPool#commonPool()}) would leak scheduled tasks past the
+     * operator lifecycle and risk firing HTTP calls against an already-released client.
+     */
+    protected transient ScheduledExecutorService retryScheduler;
 
     private final String endpoint;
+
+    /**
+     * Cached sanitized view of {@link #endpoint} used exclusively for log and error-message
+     * formatting. The raw {@link #endpoint} (which may carry {@code user:password@host}
+     * credentials) is still required for HTTP calls and for constructing request URLs, but must
+     * never be echoed to logs, metrics or exception messages, as those can end up in CI artifacts
+     * or user-facing dashboards. Computed once in the constructor so we don't pay the URI parsing
+     * cost on every log line.
+     */
+    private final String loggedEndpoint;
+
     private final String modelName;
     private final String modelVersion;
     private final Duration timeout;
@@ -85,10 +110,23 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String compression;
     private final String authToken;
     private final Map<String, String> customHeaders;
+    private final int maxRetries;
+    private final Duration retryInitialBackoff;
+    private final Duration retryMaxBackoff;
+    private final String defaultValue;
+
+    // Health check and circuit breaker configuration
+    private final boolean healthCheckEnabled;
+    private final Duration healthCheckInterval;
+    private final boolean circuitBreakerEnabled;
+    private final double circuitBreakerFailureThreshold;
+    private final Duration circuitBreakerTimeout;
+    private final int circuitBreakerHalfOpenRequests;
 
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.endpoint = config.get(TritonOptions.ENDPOINT);
+        this.loggedEndpoint = TritonUtils.sanitizeUrl(this.endpoint);
         this.modelName = config.get(TritonOptions.MODEL_NAME);
         this.modelVersion = config.get(TritonOptions.MODEL_VERSION);
         this.timeout = config.get(TritonOptions.TIMEOUT);
@@ -100,6 +138,52 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.compression = config.get(TritonOptions.COMPRESSION);
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
+        this.maxRetries = config.get(TritonOptions.MAX_RETRIES);
+        this.retryInitialBackoff = config.get(TritonOptions.RETRY_INITIAL_BACKOFF);
+        this.retryMaxBackoff = config.get(TritonOptions.RETRY_MAX_BACKOFF);
+        this.defaultValue = config.get(TritonOptions.DEFAULT_VALUE);
+
+        // Fail fast on invalid retry configuration. These are user-supplied values so we surface
+        // misconfiguration as IllegalArgumentException before the function is ever opened,
+        // instead of producing undefined behaviour (e.g. 1L << -1) at runtime.
+        Preconditions.checkArgument(
+                maxRetries >= 0,
+                "%s must be >= 0, got %s",
+                TritonOptions.MAX_RETRIES.key(),
+                maxRetries);
+        // Backoff durations only matter when retries are actually enabled. Validating them when
+        // maxRetries == 0 would reject configurations that are otherwise meaningless (a user who
+        // explicitly disables retries with max-retries=0 should not have to also keep the
+        // backoff durations in a valid range, since they will never be consulted).
+        if (maxRetries > 0) {
+            Preconditions.checkArgument(
+                    retryInitialBackoff != null
+                            && !retryInitialBackoff.isNegative()
+                            && !retryInitialBackoff.isZero(),
+                    "%s must be a positive duration, got %s",
+                    TritonOptions.RETRY_INITIAL_BACKOFF.key(),
+                    retryInitialBackoff);
+            Preconditions.checkArgument(
+                    retryMaxBackoff != null
+                            && !retryMaxBackoff.isNegative()
+                            && !retryMaxBackoff.isZero()
+                            && retryMaxBackoff.compareTo(retryInitialBackoff) >= 0,
+                    "%s must be a positive duration >= %s (%s), got %s",
+                    TritonOptions.RETRY_MAX_BACKOFF.key(),
+                    TritonOptions.RETRY_INITIAL_BACKOFF.key(),
+                    retryInitialBackoff,
+                    retryMaxBackoff);
+        }
+
+        // Health check and circuit breaker configuration
+        this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
+        this.healthCheckInterval = config.get(TritonOptions.HEALTH_CHECK_INTERVAL);
+        this.circuitBreakerEnabled = config.get(TritonOptions.CIRCUIT_BREAKER_ENABLED);
+        this.circuitBreakerFailureThreshold =
+                config.get(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
+        this.circuitBreakerTimeout = config.get(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
+        this.circuitBreakerHalfOpenRequests =
+                config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -110,15 +194,166 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+
+        // Provision a private single-thread scheduler for delayed retries so that retry tasks are
+        // bound to this operator's lifecycle. Previously CompletableFuture.delayedExecutor was
+        // used, but it schedules on the shared ForkJoinPool.commonPool() whose tasks are not
+        // cancellable from close() and would happily fire an HTTP call with an already-released
+        // client. Only allocate when retries are actually enabled to avoid idle threads.
+        if (maxRetries > 0) {
+            // Single-thread executor → the thread name does not need an index suffix; a fixed
+            // suffix would always be "-0" and carry no diagnostic value. The subtask index IS
+            // included so that thread dumps from a parallelism>1 deployment can be attributed
+            // to a specific subtask rather than aliasing every parallel instance under the same
+            // "triton-retry-scheduler-<model>" name.
+            final int subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
+            final String threadName = "triton-retry-scheduler-" + modelName + "-" + subtaskIndex;
+            this.retryScheduler =
+                    Executors.newSingleThreadScheduledExecutor(
+                            r -> {
+                                Thread t = new Thread(r, threadName);
+                                t.setDaemon(true);
+                                return t;
+                            });
+        }
+
+        // Initialize circuit breaker if enabled
+        if (circuitBreakerEnabled) {
+            LOG.info(
+                    "Initializing circuit breaker for endpoint {} with threshold={}, timeout={}, halfOpenRequests={}",
+                    loggedEndpoint,
+                    circuitBreakerFailureThreshold,
+                    circuitBreakerTimeout,
+                    circuitBreakerHalfOpenRequests);
+
+            this.circuitBreaker =
+                    new TritonCircuitBreaker(
+                            endpoint,
+                            circuitBreakerFailureThreshold,
+                            circuitBreakerTimeout,
+                            circuitBreakerHalfOpenRequests);
+        }
+
+        // Initialize health checker if enabled
+        if (healthCheckEnabled) {
+            if (circuitBreaker == null) {
+                LOG.warn(
+                        "Health check is enabled but circuit breaker is disabled for endpoint {}. "
+                                + "Health check will run but failures will not trigger circuit breaking. "
+                                + "Consider enabling circuit-breaker-enabled for better fault tolerance.",
+                        loggedEndpoint);
+            }
+
+            LOG.info(
+                    "Initializing health checker for endpoint {} with interval {}",
+                    loggedEndpoint,
+                    healthCheckInterval);
+
+            // Pass the (possibly null) circuit breaker directly. The health checker treats a null
+            // breaker as "log-only" mode rather than relying on a dummy instance whose state
+            // nobody reads.
+            this.healthChecker =
+                    new TritonHealthChecker(
+                            endpoint, httpClient, circuitBreaker, healthCheckInterval);
+
+            // Perform an immediate health check
+            boolean initialHealth = healthChecker.checkNow();
+            if (initialHealth) {
+                LOG.info("Initial health check passed for endpoint {}", loggedEndpoint);
+            } else {
+                LOG.warn(
+                        "Initial health check failed for endpoint {}. "
+                                + "Inference requests may fail until server becomes healthy.",
+                        loggedEndpoint);
+            }
+
+            // Start periodic health checking. The scheduler uses an initial delay equal to
+            // checkInterval so it does not duplicate the eager checkNow() above.
+            healthChecker.start();
+        }
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
+        // Each cleanup step is isolated so that a failure in one does not prevent the others
+        // from running. The HTTP client in particular must always be released back to the
+        // reference-counted pool; leaking its reference across restarts would keep the shared
+        // client alive forever.
+        Exception firstFailure = null;
+
+        try {
+            super.close();
+        } catch (Exception e) {
+            firstFailure = e;
+        }
+
+        // Stop health checker first so it cannot race with the HTTP client teardown below.
+        if (this.healthChecker != null) {
+            LOG.debug("Stopping health checker for {}", loggedEndpoint);
+            try {
+                this.healthChecker.close();
+            } catch (Exception e) {
+                LOG.warn("Error closing health checker for " + loggedEndpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            }
+            this.healthChecker = null;
+        }
+
+        // Release circuit breaker (no-op, just drop the reference).
+        this.circuitBreaker = null;
+
+        // Shut down the retry scheduler before releasing the HTTP client so that any pending
+        // retry tasks are cancelled and cannot fire a request through a client that is about to
+        // be released back to the shared pool. shutdownNow() is safe here: a cancelled retry
+        // simply means the caller sees the original inference failure rather than a spurious
+        // post-close one.
+        if (this.retryScheduler != null) {
+            LOG.debug("Shutting down Triton retry scheduler for {}", loggedEndpoint);
+            try {
+                this.retryScheduler.shutdownNow();
+                // Best-effort await so in-flight retry tasks observe the interrupt before the
+                // client is closed. A short timeout is fine because retries only schedule a
+                // single short-lived Runnable.
+                if (!this.retryScheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    LOG.warn(
+                            "Triton retry scheduler did not terminate within 1s for {}",
+                            loggedEndpoint);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            } finally {
+                this.retryScheduler = null;
+            }
+        }
+
+        // Release HTTP client last so it's always attempted even if earlier steps threw.
         if (this.httpClient != null) {
             LOG.debug("Releasing Triton HTTP client.");
-            TritonUtils.releaseHttpClient(this.httpClient);
-            httpClient = null;
+            try {
+                TritonUtils.releaseHttpClient(this.httpClient);
+            } catch (Exception e) {
+                LOG.warn("Error releasing Triton HTTP client for " + loggedEndpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            } finally {
+                this.httpClient = null;
+            }
+        }
+
+        if (firstFailure != null) {
+            throw firstFailure;
         }
     }
 
@@ -167,13 +402,23 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                 column.getName(),
                 column.getClass());
 
-        Preconditions.checkArgument(
-                expectedType != null && !expectedType.equals(column.getDataType().getLogicalType()),
-                "%s column %s should be %s, but is a %s.",
-                inputOrOutput,
-                column.getName(),
-                expectedType,
-                column.getDataType().getLogicalType());
+        // The previous condition ({@code expectedType != null && !expectedType.equals(actual)})
+        // inverted the {@link Preconditions#checkArgument} contract: it threw whenever
+        // {@code expectedType} was null (the documented "skip type check" mode) and also whenever
+        // the actual type matched the expected one. All current call sites pass {@code
+        // expectedType = null}, so this bug would have rejected every schema had the code path
+        // been exercised. The corrected form only enforces the equality check when a specific
+        // expected type is supplied.
+        if (expectedType != null) {
+            LogicalType actualType = column.getDataType().getLogicalType();
+            Preconditions.checkArgument(
+                    expectedType.equals(actualType),
+                    "%s column %s should be %s, but is %s.",
+                    inputOrOutput,
+                    column.getName(),
+                    expectedType,
+                    actualType);
+        }
 
         // Validate that the type is supported by Triton
         try {
@@ -224,12 +469,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     "%s column '%s' has nested array type: %s\n"
                             + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
                             + "=== Supported Types ===\n"
-                            + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
-                            + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
+                            + "  - Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
+                            + "  - 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
                             + "=== Workarounds ===\n"
-                            + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
-                            + "  • Use JSON STRING encoding for complex structures\n"
-                            + "  • Wait for v2+ which will support ROW<...> types",
+                            + "  - Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
+                            + "  - Use JSON STRING encoding for complex structures\n"
+                            + "  - Wait for v2+ which will support ROW<...> types",
                     inputOrOutput,
                     columnName,
                     type);
@@ -318,5 +563,101 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected Map<String, String> getCustomHeaders() {
         return customHeaders;
+    }
+
+    /**
+     * Checks if a request is allowed through the circuit breaker.
+     *
+     * <p>Subclasses should call this method before making inference requests. If the circuit
+     * breaker is OPEN, this method will throw an exception to fail fast.
+     *
+     * <p>The nullness of {@link #circuitBreaker} is the single source of truth: it is set in {@link
+     * #open(FunctionContext)} only when circuit breaking is enabled, so an explicit {@code
+     * circuitBreakerEnabled} check here would be redundant (and could drift out of sync with the
+     * field).
+     *
+     * @throws org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException if circuit
+     *     is OPEN
+     */
+    protected void checkCircuitBreaker() {
+        if (circuitBreaker != null) {
+            circuitBreaker.isRequestAllowed();
+        }
+    }
+
+    /**
+     * Records a successful inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after successful inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordSuccess() {
+        if (circuitBreaker != null) {
+            circuitBreaker.recordSuccess();
+        }
+    }
+
+    /**
+     * Records a failed inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after failed inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordFailure() {
+        if (circuitBreaker != null) {
+            circuitBreaker.recordFailure();
+        }
+    }
+
+    /**
+     * Gets the current circuit breaker instance.
+     *
+     * @return the circuit breaker, or null if not enabled
+     */
+    protected TritonCircuitBreaker getCircuitBreaker() {
+        return circuitBreaker;
+    }
+
+    /**
+     * Gets the current health checker instance.
+     *
+     * @return the health checker, or null if not enabled
+     */
+    protected TritonHealthChecker getHealthChecker() {
+        return healthChecker;
+    }
+
+    /**
+     * Checks if health checking is enabled.
+     *
+     * @return true if health checking is enabled
+     */
+    protected boolean isHealthCheckEnabled() {
+        return healthCheckEnabled;
+    }
+
+    /**
+     * Checks if circuit breaker is enabled.
+     *
+     * @return true if circuit breaker is enabled
+     */
+    protected boolean isCircuitBreakerEnabled() {
+        return circuitBreakerEnabled;
+    }
+
+    protected int getMaxRetries() {
+        return maxRetries;
+    }
+
+    protected Duration getRetryInitialBackoff() {
+        return retryInitialBackoff;
+    }
+
+    protected Duration getRetryMaxBackoff() {
+        return retryMaxBackoff;
+    }
+
+    protected String getDefaultValue() {
+        return defaultValue;
     }
 }

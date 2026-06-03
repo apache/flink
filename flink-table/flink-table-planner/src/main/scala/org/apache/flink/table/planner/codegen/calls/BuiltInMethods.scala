@@ -482,7 +482,7 @@ object BuiltInMethods {
   val JSON_VALUE = Types.lookupMethod(
     classOf[SqlJsonUtils],
     "jsonValue",
-    classOf[String],
+    classOf[SqlJsonUtils.JsonValueContext],
     classOf[String],
     classOf[JsonValueOnEmptyOrError],
     classOf[Any],
@@ -494,6 +494,20 @@ object BuiltInMethods {
     classOf[SqlJsonUtils],
     "jsonQuery",
     classOf[String],
+    classOf[String],
+    classOf[JsonQueryReturnType],
+    classOf[JsonQueryWrapper],
+    classOf[JsonQueryOnEmptyOrError],
+    classOf[JsonQueryOnEmptyOrError]
+  )
+
+  val JSON_PARSE =
+    Types.lookupMethod(classOf[SqlJsonUtils], "jsonParse", classOf[String])
+
+  val JSON_QUERY_PARSED = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "jsonQueryParsed",
+    classOf[SqlJsonUtils.JsonValueContext],
     classOf[String],
     classOf[JsonQueryReturnType],
     classOf[JsonQueryWrapper],
@@ -513,6 +527,9 @@ object BuiltInMethods {
 
   val BINARY_STRING_DATA_FROM_STRING =
     Types.lookupMethod(classOf[BinaryStringData], "fromString", classOf[String])
+
+  val BINARY_STRING_DATA_FROM_UTF8_BYTES =
+    Types.lookupMethod(classOf[BinaryStringData], "fromUtf8Bytes", classOf[Array[Byte]])
 
   val STRING_DATA_TO_BOOLEAN =
     Types.lookupMethod(classOf[BinaryStringDataUtil], "toBoolean", classOf[BinaryStringData])

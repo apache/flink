@@ -502,7 +502,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
                             projectionOutputRelDataType,
-                            tableSourceRowType);
+                            tableSourceRowType,
+                            ShortcutUtils.unwrapTypeFactory(relBuilder));
             asyncFunc =
                     new AsyncLookupJoinWithCalcRunner(
                             generatedFuncWithType.tableFunc(),
@@ -647,7 +648,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
                             projectionOutputRelDataType,
-                            tableSourceRowType);
+                            tableSourceRowType,
+                            ShortcutUtils.unwrapTypeFactory(relBuilder));
 
             processFunc =
                     new LookupJoinWithCalcRunner(

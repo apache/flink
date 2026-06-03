@@ -41,6 +41,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -235,13 +236,16 @@ public class JobConfigInfo implements ResponseBody {
             return Objects.hash(restartStrategy, parallelism, isObjectReuse, globalJobParameters);
         }
 
-        public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
+        public static ExecutionConfigInfo from(
+                ArchivedExecutionConfig archivedExecutionConfig,
+                List<String> additionalSensitiveKeys) {
             return new ExecutionConfigInfo(
                     archivedExecutionConfig.getRestartStrategyDescription(),
                     archivedExecutionConfig.getParallelism(),
                     archivedExecutionConfig.getObjectReuseEnabled(),
                     ConfigurationUtils.hideSensitiveValues(
-                            archivedExecutionConfig.getGlobalJobParameters()));
+                            archivedExecutionConfig.getGlobalJobParameters(),
+                            additionalSensitiveKeys));
         }
     }
 }

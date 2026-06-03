@@ -156,7 +156,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 ##  CREATE TABLE
 
 ```text
-CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
+CREATE [TEMPORARY] TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   (
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
@@ -205,6 +205,12 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
+**TEMPORARY**
+
+临时表通常保存于内存中并且仅在创建它们的 Flink 会话持续期间存在。
+
+更多信息请查看 [Temporary vs Permanent tables]({{< ref "docs/dev/table/common" >}}#temporary-vs-permanent-tables).
+
 ### Columns
 
 **Physical / Regular Columns**
@@ -230,7 +236,7 @@ CREATE TABLE MyTable (
 
 Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
 fields for every row of a table. A metadata column is indicated by the `METADATA` keyword. For example,
-a metadata column can be be used to read and write the timestamp from and to Kafka records for time-based
+a metadata column can be used to read and write the timestamp from and to Kafka records for time-based
 operations. The [connector and format documentation]({{< ref "docs/connectors/table/overview" >}}) lists the
 available metadata fields for every component. However, declaring a metadata column in a table's schema
 is optional.
@@ -295,7 +301,7 @@ CREATE TABLE MyTable (
   `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
   `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
   `user_id` BIGINT,
-  `name` STRING,
+  `name` STRING
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -608,7 +614,7 @@ CREATE TABLE my_ctas_table (
     desc STRING,
     quantity DOUBLE,   
     cost AS price * quantity,
-    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH (
     'connector' = 'kafka',
     ...

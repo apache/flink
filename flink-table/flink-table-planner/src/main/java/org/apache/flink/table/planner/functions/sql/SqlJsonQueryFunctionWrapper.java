@@ -42,7 +42,7 @@ import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_
  * This class is a wrapper class for the {@link SqlJsonQueryFunction} but using the {@code
  * VARCHAR_FORCE_NULLABLE} return type inference.
  */
-class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
+public class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
     private final SqlReturnTypeInference returnTypeInference;
 
     SqlJsonQueryFunctionWrapper() {

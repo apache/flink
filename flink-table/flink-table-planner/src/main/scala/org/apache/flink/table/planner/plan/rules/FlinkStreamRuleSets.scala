@@ -79,12 +79,7 @@ object FlinkStreamRuleSets {
     CoreRules.JOIN_REDUCE_EXPRESSIONS
   )
 
-  /** RuleSet to simplify coalesce invocations */
   private val SIMPLIFY_COALESCE_RULES: RuleSet = RuleSets.ofList(
-    RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE,
     SimplifyCoalesceWithEquiJoinConditionRule.PROJECT_INSTANCE,
     SimplifyCoalesceWithEquiJoinConditionRule.CALC_INSTANCE
   )
@@ -117,11 +112,20 @@ object FlinkStreamRuleSets {
           WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
           WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
           // ensure union set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalUnion], false),
+          CoerceInputsRule.Config.DEFAULT
+            .withCoerceNames(false)
+            .withConsumerRelClass(classOf[LogicalUnion])
+            .toRule,
           // ensure intersect set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalIntersect], false),
+          CoerceInputsRule.Config.DEFAULT
+            .withCoerceNames(false)
+            .withConsumerRelClass(classOf[LogicalIntersect])
+            .toRule,
           // ensure except set operator have the same row type
-          new CoerceInputsRule(classOf[LogicalMinus], false),
+          CoerceInputsRule.Config.DEFAULT
+            .withCoerceNames(false)
+            .withConsumerRelClass(classOf[LogicalMinus])
+            .toRule,
           ConvertToNotInOrInRule.INSTANCE,
           // optimize limit 0
           PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,

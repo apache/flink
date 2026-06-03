@@ -1196,29 +1196,94 @@ class Table(object):
         INSERT-only row with a string ``op`` column indicating the original operation
         (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
 
+        The optional ``produces_full_deletes`` boolean controls how DELETE rows are
+        emitted. When ``True`` (default), the planner inserts a ``ChangelogNormalize``
+        operator for upsert sources that emit key-only deletes so the function emits
+        fully populated DELETE rows downstream. When ``False``, the function emits
+        partial DELETE rows: row semantics preserves the planner-derived upsert key
+        columns and nulls the rest, set semantics (``PARTITION BY``) preserves the
+        partition key and nulls the rest. Requires an upsert key or ``PARTITION BY``;
+        otherwise the call is rejected.
+
         Example:
         ::
 
-            >>> from pyflink.table.expressions import descriptor, map_
+            >>> from pyflink.table.expressions import descriptor, map_, lit, col
             >>> # Default: adds 'op' column with standard change operation names
-            >>> table.to_changelog()
+            >>> result = table.to_changelog()
             >>> # Custom op column name and mapping
-            >>> table.to_changelog(
+            >>> result = table.to_changelog(
             ...     descriptor("op_code").as_argument("op"),
             ...     map_("INSERT", "I", "UPDATE_AFTER", "U").as_argument("op_mapping")
             ... )
             >>> # Deletion flag pattern
-            >>> table.to_changelog(
+            >>> result = table.to_changelog(
             ...     descriptor("deleted").as_argument("op"),
             ...     map_("INSERT, UPDATE_AFTER", "false",
             ...          "DELETE", "true").as_argument("op_mapping")
             ... )
+            >>> # Opt out of full-delete semantics to emit partial DELETE rows.
+            >>> # Requires an upsert key or PARTITION BY; otherwise rejected.
+            >>> result = table.to_changelog(
+            ...     lit(False).as_argument("produces_full_deletes")
+            ... )
 
-        :param arguments: Optional named arguments for ``op`` and ``op_mapping``.
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``produces_full_deletes``.
         :return: An append-only :class:`~pyflink.table.Table` with an ``op`` column prepended
                  to the input columns.
         """
         return Table(self._j_table.toChangelog(to_expression_jarray(arguments)), self._t_env)
+
+    def from_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this append-only table with an explicit operation code column into a
+        (potentially updating) dynamic table. Each input row is expected to have a string
+        column that indicates the change operation. The operation column is interpreted by
+        the engine and removed from the output.
+
+        The operation code column defaults to ``op``. By default, the codes ``INSERT``,
+        ``UPDATE_BEFORE``, ``UPDATE_AFTER``, and ``DELETE`` are recognized; pass
+        ``op_mapping`` to use custom codes. By default, the job fails at runtime with a
+        ``TableRuntimeException`` when an input row's op code is ``NULL`` or not present
+        in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
+        rows instead.
+
+        The output is a retract changelog. To emit an upsert changelog instead, combine
+        ``PARTITION BY`` (set semantics on the table argument) with an ``op_mapping`` that
+        maps to ``UPDATE_AFTER`` without ``UPDATE_BEFORE``. The partition key becomes the
+        upsert key. An upsert mapping without ``PARTITION BY`` is rejected at validation
+        time, since upsert mode requires a key.
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import descriptor, lit, map_
+            >>> # Default: reads 'op' column with standard change operation names
+            >>> result = cdc_stream.from_changelog()
+            >>> # With custom op column name
+            >>> result = cdc_stream.from_changelog(
+            ...     descriptor("operation").as_argument("op")
+            ... )
+            >>> # With custom op_mapping
+            >>> result = cdc_stream.from_changelog(
+            ...     descriptor("op").as_argument("op"),
+            ...     map_("c, r", "INSERT",
+            ...          "ub", "UPDATE_BEFORE",
+            ...          "ua", "UPDATE_AFTER",
+            ...          "d", "DELETE").as_argument("op_mapping")
+            ... )
+            >>> # Silently skip rows with NULL or unmapped op codes instead of failing
+            >>> result = cdc_stream.from_changelog(
+            ...     lit("SKIP").as_argument("error_handling")
+            ... )
+
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``error_handling``.
+        :return: A dynamic :class:`~pyflink.table.Table` with the ``op`` column removed and
+                 proper change operation semantics.
+        """
+        return Table(self._j_table.fromChangelog(to_expression_jarray(arguments)), self._t_env)
 
 
 @PublicEvolving()

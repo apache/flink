@@ -1720,9 +1720,12 @@ public class CheckpointCoordinator {
      *
      * @param tasks Set of job vertices to restore. State for these vertices is restored via {@link
      *     Execution#setInitialState(JobManagerTaskRestore)}.
+     * @param allowNonRestoredState Allow checkpoint state that cannot be mapped to any job vertex
+     *     in tasks.
      * @return True, if a checkpoint was found and its state was restored, false otherwise.
      */
-    public boolean restoreInitialCheckpointIfPresent(final Set<ExecutionJobVertex> tasks)
+    public boolean restoreInitialCheckpointIfPresent(
+            final Set<ExecutionJobVertex> tasks, final boolean allowNonRestoredState)
             throws Exception {
         final OptionalLong restoredCheckpointId =
                 restoreLatestCheckpointedStateInternal(
@@ -1730,7 +1733,7 @@ public class CheckpointCoordinator {
                         OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
                         false, // initial checkpoints exist only on JobManager failover. ok if not
                         // present.
-                        false,
+                        allowNonRestoredState,
                         true); // JobManager failover means JobGraphs match exactly.
 
         return restoredCheckpointId.isPresent();

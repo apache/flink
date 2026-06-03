@@ -1121,10 +1121,13 @@ abstract class UnalignedCheckpointTestBase {
 
         @Override
         public void close() throws Exception {
-            numOutputCounter.add(state.numOutput);
-            outOfOrderCounter.add(state.numOutOfOrderness);
-            duplicatesCounter.add(state.numDuplicates);
-            lostCounter.add(state.numLostValues);
+            // sink task might be cancelled before state was initialized
+            if (state != null) {
+                numOutputCounter.add(state.numOutput);
+                outOfOrderCounter.add(state.numOutOfOrderness);
+                duplicatesCounter.add(state.numDuplicates);
+                lostCounter.add(state.numLostValues);
+            }
             if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 numFailures.add(getRuntimeContext().getTaskInfo().getAttemptNumber());
             }

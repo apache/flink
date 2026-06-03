@@ -21,6 +21,31 @@ export interface RescalesOverview {
   latest: LatestRescales;
 }
 
+export interface RescalesSummary {
+  rescalesCounts: RescalesCounts;
+  rescalesDurationStatsInMillis: RescalesDurationStatsInMillis;
+  completedRescalesDurationStatsInMillis: DetailedRescalesDurationStatsInMillis;
+  ignoredRescalesDurationStatsInMillis: DetailedRescalesDurationStatsInMillis;
+  failedRescalesDurationStatsInMillis: DetailedRescalesDurationStatsInMillis;
+}
+
+export interface RescalesDurationStatsInMillis {
+  min: number;
+  max: number;
+  avg: number;
+}
+
+export interface DetailedRescalesDurationStatsInMillis {
+  min: number;
+  max: number;
+  avg: number;
+  p50: number | string;
+  p90: number | string;
+  p95: number | string;
+  p99: number | string;
+  p999: number | string;
+}
+
 export interface RescalesCounts {
   ignored: number;
   inProgress: number;

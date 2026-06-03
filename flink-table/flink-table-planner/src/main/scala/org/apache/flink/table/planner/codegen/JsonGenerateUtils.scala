@@ -21,11 +21,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 import org.apache.flink.table.api.{DataTypes, JsonOnNull}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionDefinition}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
+import org.apache.flink.table.planner.functions.sql.{SqlJsonArrayFunctionWrapper, SqlJsonObjectFunctionWrapper, SqlJsonQueryFunctionWrapper, SqlJsonValueFunctionWrapper}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical._
@@ -51,8 +52,9 @@ object JsonGenerateUtils {
   def createNodeTerm(
       ctx: CodeGeneratorContext,
       expression: GeneratedExpression,
-      operand: RexNode): String = {
-    if (isJsonObjectOrArrayOperand(operand) || isJsonFunctionOperand(operand)) {
+      operand: RexNode,
+      exprs: java.util.List[RexNode]): String = {
+    if (isJsonObjectOrArrayOperand(operand, exprs) || isJsonFunctionOperand(operand, exprs)) {
       createRawNodeTerm(expression)
     } else {
       createNodeTerm(ctx, expression)
@@ -177,59 +179,36 @@ object JsonGenerateUtils {
     }
   }
 
-  /** Determines whether the given operand is a call to a JSON_OBJECT */
-  def isJsonObjectOperand(operand: RexNode): Boolean = {
-    operand match {
-      case rexCall: RexCall =>
-        rexCall.getOperator match {
-          case JSON_OBJECT => true
-          case _ => false
-        }
-      case _ => false
-    }
-  }
+  /** Determines whether the given operand is a call to a JSON_OBJECT. */
+  def isJsonObjectOperand(operand: RexNode, localRefs: java.util.List[RexNode]): Boolean =
+    isOneOfFunctionDefinitions(
+      FlinkRexUtil.expandLocalRef(operand, localRefs),
+      BuiltInFunctionDefinitions.JSON_OBJECT)
 
-  /** Determines whether the given operand is a call to a JSON_ARRAY */
-  def isJsonArrayOperand(operand: RexNode): Boolean = {
-    operand match {
-      case rexCall: RexCall =>
-        rexCall.getOperator match {
-          case JSON_ARRAY => true
-          case _ => false
-        }
-      case _ => false
-    }
-  }
+  /** Determines whether the given operand is a call to a JSON_ARRAY. */
+  def isJsonArrayOperand(operand: RexNode, localRefs: java.util.List[RexNode]): Boolean =
+    isOneOfFunctionDefinitions(
+      FlinkRexUtil.expandLocalRef(operand, localRefs),
+      BuiltInFunctionDefinitions.JSON_ARRAY)
 
   /**
    * Determines whether the given operand is a call to a JSON_OBJECT or JSON_ARRAY whose result
    * should be inserted as a raw value instead of as a character string.
    */
-  def isJsonObjectOrArrayOperand(operand: RexNode): Boolean = {
-    operand match {
-      case rexCall: RexCall =>
-        rexCall.getOperator match {
-          case JSON_OBJECT | JSON_ARRAY => true
-          case _ => false
-        }
-      case _ => false
-    }
-  }
+  def isJsonObjectOrArrayOperand(operand: RexNode, localRefs: java.util.List[RexNode]): Boolean =
+    isOneOfFunctionDefinitions(
+      FlinkRexUtil.expandLocalRef(operand, localRefs),
+      BuiltInFunctionDefinitions.JSON_OBJECT,
+      BuiltInFunctionDefinitions.JSON_ARRAY)
 
   /**
    * Determines whether the given operand is a call to JSON function whose call currently just
-   * passes through the input value as output value
+   * passes through the input value as output value.
    */
-  def isJsonFunctionOperand(operand: RexNode): Boolean = {
-    operand match {
-      case rexCall: RexCall =>
-        unwrapFunctionDefinition(rexCall) match {
-          case JSON => true
-          case _ => false
-        }
-      case _ => false
-    }
-  }
+  def isJsonFunctionOperand(operand: RexNode, localRefs: java.util.List[RexNode]): Boolean =
+    isOneOfFunctionDefinitions(
+      FlinkRexUtil.expandLocalRef(operand, localRefs),
+      BuiltInFunctionDefinitions.JSON)
 
   /**
    * Determines whether a JSON function is allowed in the current context. JSON functions are
@@ -237,9 +216,13 @@ object JsonGenerateUtils {
    * of a JSON_OBJECT call, we do (i % 2) == 0 to check if it's being used in second parameter, the
    * values' parameter.
    */
-  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean = {
-    isJsonFunctionOperand(operand) &&
-    (isJsonArrayOperand(call) || isJsonObjectOperand(call) && (i % 2) == 0)
+  def isSupportedJsonOperand(
+      operand: RexNode,
+      call: RexNode,
+      i: Int,
+      localRefs: java.util.List[RexNode]): Boolean = {
+    isJsonFunctionOperand(operand, localRefs) &&
+    (isJsonArrayOperand(call, localRefs) || isJsonObjectOperand(call, localRefs) && (i % 2) == 0)
   }
 
   /** Generates a method to convert arrays into [[ArrayNode]]. */
@@ -330,5 +313,24 @@ object JsonGenerateUtils {
 
     ctx.addReusableMember(methodCode)
     methodName
+  }
+
+  def isOneOfFunctionDefinitions(
+      rexNode: RexNode,
+      expectedDefinitions: FunctionDefinition*): Boolean = {
+    if (!rexNode.isInstanceOf[RexCall]) return false
+    val call = rexNode.asInstanceOf[RexCall]
+    val unwrapped = ShortcutUtils.unwrapFunctionDefinition(call) match {
+      case d if d != null => d
+      case _ =>
+        call.getOperator match {
+          case _: SqlJsonArrayFunctionWrapper => BuiltInFunctionDefinitions.JSON_ARRAY
+          case _: SqlJsonObjectFunctionWrapper => BuiltInFunctionDefinitions.JSON_OBJECT
+          case _: SqlJsonQueryFunctionWrapper => BuiltInFunctionDefinitions.JSON_QUERY
+          case _: SqlJsonValueFunctionWrapper => BuiltInFunctionDefinitions.JSON_VALUE
+          case _ => return false
+        }
+    }
+    expectedDefinitions.exists(_ eq unwrapped)
   }
 }

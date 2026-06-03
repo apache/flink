@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
@@ -61,6 +62,9 @@ class StateMetricBase implements AutoCloseable {
     }
 
     protected int loopUpdateCounter(int counter) {
+        if (sampleInterval == 1) {
+            return 1;
+        }
         return (counter + 1 < sampleInterval) ? counter + 1 : 0;
     }
 
@@ -83,5 +87,10 @@ class StateMetricBase implements AutoCloseable {
     @Override
     public void close() throws Exception {
         histogramMetrics.clear();
+    }
+
+    @VisibleForTesting
+    Map<String, Histogram> getHistogramMetrics() {
+        return histogramMetrics;
     }
 }

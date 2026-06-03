@@ -41,10 +41,11 @@ import java.util.stream.Collectors;
  */
 class NativeS3Committer implements RecoverableFsDataOutputStream.Committer {
 
-    private final NativeS3AccessHelper s3AccessHelper;
+    private final NativeS3ObjectOperations s3AccessHelper;
     private final NativeS3Recoverable recoverable;
 
-    public NativeS3Committer(NativeS3AccessHelper s3AccessHelper, NativeS3Recoverable recoverable) {
+    public NativeS3Committer(
+            NativeS3ObjectOperations s3AccessHelper, NativeS3Recoverable recoverable) {
         this.s3AccessHelper = s3AccessHelper;
         this.recoverable = recoverable;
     }
@@ -75,7 +76,7 @@ class NativeS3Committer implements RecoverableFsDataOutputStream.Committer {
                 recoverable.parts().stream()
                         .map(
                                 part ->
-                                        new NativeS3AccessHelper.UploadPartResult(
+                                        new NativeS3ObjectOperations.UploadPartResult(
                                                 part.getPartNumber(), part.getETag()))
                         .collect(Collectors.toList()),
                 recoverable.numBytesInParts());

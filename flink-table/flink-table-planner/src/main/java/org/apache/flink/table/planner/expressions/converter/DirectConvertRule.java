@@ -167,8 +167,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.RPAD, FlinkSqlOperatorTable.RPAD);
         definitionSqlOperatorHashMap.put(
-                BuiltInFunctionDefinitions.REGEXP_EXTRACT, FlinkSqlOperatorTable.REGEXP_EXTRACT);
-        definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.FROM_BASE64, FlinkSqlOperatorTable.FROM_BASE64);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_BASE64, FlinkSqlOperatorTable.TO_BASE64);
@@ -197,10 +195,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.RTRIM, FlinkSqlOperatorTable.RTRIM);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REPEAT, FlinkSqlOperatorTable.REPEAT);
-        definitionSqlOperatorHashMap.put(
-                BuiltInFunctionDefinitions.REGEXP, FlinkSqlOperatorTable.REGEXP);
-        definitionSqlOperatorHashMap.put(
-                BuiltInFunctionDefinitions.REGEXP_REPLACE, FlinkSqlOperatorTable.REGEXP_REPLACE);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.REVERSE, FlinkSqlOperatorTable.REVERSE);
         definitionSqlOperatorHashMap.put(
@@ -301,6 +295,9 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.ORDER_DESC, FlinkSqlOperatorTable.DESC);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.ARRAY_ELEMENT, FlinkSqlOperatorTable.ELEMENT);
+
+        definitionSqlOperatorHashMap.put(
+                BuiltInFunctionDefinitions.COALESCE, FlinkSqlOperatorTable.COALESCE);
 
         // crypto hash
         definitionSqlOperatorHashMap.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);

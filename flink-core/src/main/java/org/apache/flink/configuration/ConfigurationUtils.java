@@ -170,19 +170,23 @@ public class ConfigurationUtils {
 
     /**
      * Replaces values whose keys are sensitive according to {@link
-     * GlobalConfiguration#isSensitive(String)} with {@link GlobalConfiguration#HIDDEN_CONTENT}.
+     * GlobalConfiguration#isSensitive(String, List)} with {@link
+     * GlobalConfiguration#HIDDEN_CONTENT}.
      *
      * <p>This can be useful when displaying configuration values.
      *
      * @param keyValuePairs for which to hide sensitive values
+     * @param additionalSensitiveKeys user-defined additional sensitive key substrings; use {@link
+     *     SecurityOptions#ADDITIONAL_SENSITIVE_KEYS} to obtain these from a loaded configuration
      * @return A map where all sensitive value are hidden
      */
     @Nonnull
-    public static Map<String, String> hideSensitiveValues(Map<String, String> keyValuePairs) {
+    public static Map<String, String> hideSensitiveValues(
+            Map<String, String> keyValuePairs, List<String> additionalSensitiveKeys) {
         final HashMap<String, String> result = new HashMap<>();
 
         for (Map.Entry<String, String> keyValuePair : keyValuePairs.entrySet()) {
-            if (GlobalConfiguration.isSensitive(keyValuePair.getKey())) {
+            if (GlobalConfiguration.isSensitive(keyValuePair.getKey(), additionalSensitiveKeys)) {
                 result.put(keyValuePair.getKey(), GlobalConfiguration.HIDDEN_CONTENT);
             } else {
                 result.put(keyValuePair.getKey(), keyValuePair.getValue());

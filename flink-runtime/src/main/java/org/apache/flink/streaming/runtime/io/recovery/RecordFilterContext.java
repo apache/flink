@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.recovery;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -97,6 +98,13 @@ public class RecordFilterContext {
     private final boolean checkpointingDuringRecoveryEnabled;
 
     /**
+     * Network buffer memory segment size in bytes (from taskmanager.memory.segment-size). Used to
+     * size the reusable heap source buffer in {@code InputChannelRecoveredStateHandler} so it
+     * matches the network buffer size.
+     */
+    private final int memorySegmentSize;
+
+    /**
      * Creates a new RecordFilterContext.
      *
      * @param inputConfigs Input configurations indexed by gate index. Array elements may be null
@@ -108,6 +116,7 @@ public class RecordFilterContext {
      *     (converted to empty array).
      * @param checkpointingDuringRecoveryEnabled Whether unaligned checkpointing during recovery is
      *     enabled.
+     * @param memorySegmentSize Network buffer memory segment size in bytes. Must be positive.
      */
     public RecordFilterContext(
             InputFilterConfig[] inputConfigs,
@@ -115,13 +124,17 @@ public class RecordFilterContext {
             int subtaskIndex,
             int maxParallelism,
             String[] tmpDirectories,
-            boolean checkpointingDuringRecoveryEnabled) {
+            boolean checkpointingDuringRecoveryEnabled,
+            int memorySegmentSize) {
         this.inputConfigs = checkNotNull(inputConfigs).clone();
         this.rescalingDescriptor = checkNotNull(rescalingDescriptor);
         this.subtaskIndex = subtaskIndex;
         this.maxParallelism = maxParallelism;
         this.tmpDirectories = tmpDirectories != null ? tmpDirectories : new String[0];
         this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
+        checkArgument(
+                memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
+        this.memorySegmentSize = memorySegmentSize;
     }
 
     /**
@@ -196,6 +209,15 @@ public class RecordFilterContext {
     }
 
     /**
+     * Gets the network buffer memory segment size in bytes.
+     *
+     * @return The memory segment size. Always positive.
+     */
+    public int getMemorySegmentSize() {
+        return memorySegmentSize;
+    }
+
+    /**
      * Checks if a specific gate and subtask combination is ambiguous (requires filtering).
      *
      * @param gateIndex The gate index.
@@ -222,6 +244,7 @@ public class RecordFilterContext {
                 0,
                 0,
                 new String[0],
-                false);
+                false,
+                MemoryManager.DEFAULT_PAGE_SIZE);
     }
 }

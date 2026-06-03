@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalV
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 
-import org.apache.calcite.rex.{RexLiteral, RexUnknownAs}
+import org.apache.calcite.rex.{RexLiteral, RexLocalRef, RexNode, RexProgram, RexUnknownAs}
 import org.apache.calcite.util.{RangeSets, Sarg}
 
 import java.util.Arrays.asList
@@ -53,7 +53,17 @@ object SearchOperatorGen {
   def generateSearch(
       ctx: CodeGeneratorContext,
       target: GeneratedExpression,
-      sargLiteral: RexLiteral): GeneratedExpression = {
+      rexProgram: RexProgram,
+      operands: java.util.List[RexNode]): GeneratedExpression = {
+    val sargLiteral =
+      if (rexProgram != null && operands.get(1).isInstanceOf[RexLocalRef]) {
+        rexProgram.getExprList
+          .get(operands.get(1).asInstanceOf[RexLocalRef].getIndex)
+          .asInstanceOf[RexLiteral]
+      } else {
+        operands.get(1).asInstanceOf[RexLiteral]
+      }
+
     val sarg: Sarg[Nothing] = sargLiteral.getValueAs(classOf[Sarg[Nothing]])
     val targetType = target.resultType
     val sargType = FlinkTypeFactory.toLogicalType(sargLiteral.getType)

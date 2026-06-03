@@ -41,6 +41,7 @@ import static java.util.Objects.requireNonNull;
  *   <li>Should be removed after fixing CALCITE-6342: Lines 100-102
  *   <li>Should be removed after fixing CALCITE-6342: Lines 484-496
  *   <li>Should be removed after fix of FLINK-31350: Lines 563-575.
+ *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 225 ~ 248
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
@@ -120,6 +121,11 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
     public RelDataType createMapType(RelDataType keyType, RelDataType valueType) {
         MapSqlType newType = new MapSqlType(keyType, valueType, false);
         return canonize(newType);
+    }
+
+    @Override
+    public RelDataType createFunctionSqlType(RelDataType parameterType, RelDataType returnType) {
+        return canonize(new FunctionSqlType(parameterType, returnType));
     }
 
     @Override
@@ -221,6 +227,31 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
         }
         return canonize(newType);
     }
+
+    // ----- FLINK MODIFICATION BEGIN -----
+    // Backport from Calcite (CALCITE-6764)
+    @Override
+    public RelDataType enforceTypeWithNullability(final RelDataType type, final boolean nullable) {
+        final RelDataType newType;
+        if (type instanceof BasicSqlType) {
+            newType = ((BasicSqlType) type).createWithNullability(nullable);
+        } else if (type instanceof MapSqlType) {
+            newType = copyMapType(type, nullable);
+        } else if (type instanceof ArraySqlType) {
+            newType = copyArrayType(type, nullable);
+        } else if (type instanceof MultisetSqlType) {
+            newType = copyMultisetType(type, nullable);
+        } else if (type instanceof IntervalSqlType) {
+            newType = copyIntervalType(type, nullable);
+        } else if (type instanceof ObjectSqlType) {
+            newType = copyObjectType(type, nullable);
+        } else {
+            return super.enforceTypeWithNullability(type, nullable);
+        }
+        return canonize(newType);
+    }
+
+    // ----- FLINK MODIFICATION END -----
 
     private static void assertBasic(SqlTypeName typeName) {
         assert typeName != null;

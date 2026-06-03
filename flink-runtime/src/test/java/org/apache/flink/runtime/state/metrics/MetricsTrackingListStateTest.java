@@ -70,8 +70,8 @@ class MetricsTrackingListStateTest extends MetricsTrackingStateTestBase<Integer>
             assertThat(latencyTrackingStateMetric.getMergeNamespaceCount()).isZero();
 
             setCurrentKey(keyedBackend);
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.add(ThreadLocalRandom.current().nextLong());
                 assertThat(latencyTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
 
@@ -118,8 +118,8 @@ class MetricsTrackingListStateTest extends MetricsTrackingStateTestBase<Integer>
             assertThat(sizeTrackingStateMetric.getMergeNamespaceCount()).isZero();
 
             setCurrentKey(keyedBackend);
-            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
-                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+            for (int index = 1; index <= DEFAULT_SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == DEFAULT_SAMPLE_INTERVAL ? 0 : index;
                 sizeTrackingState.add(ThreadLocalRandom.current().nextLong());
                 assertThat(sizeTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
 

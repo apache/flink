@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -67,7 +68,10 @@ public class ShowCreateUtil {
     private ShowCreateUtil() {}
 
     public static String buildShowCreateModelRow(
-            ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
+            ResolvedCatalogModel model,
+            ObjectIdentifier modelIdentifier,
+            boolean isTemporary,
+            List<String> additionalSensitiveKeys) {
         StringBuilder sb =
                 new StringBuilder()
                         .append(
@@ -81,7 +85,7 @@ public class ShowCreateUtil {
                         c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
         extractComment(model)
                 .ifPresent(c -> sb.append(formatComment(c)).append(System.lineSeparator()));
-        extractFormattedOptions(model.getOptions(), PRINT_INDENT)
+        extractFormattedOptions(model.getOptions(), PRINT_INDENT, additionalSensitiveKeys)
                 .ifPresent(
                         v ->
                                 sb.append(String.format("WITH (%s", System.lineSeparator()))
@@ -98,7 +102,8 @@ public class ShowCreateUtil {
             ResolvedCatalogBaseTable<?> table,
             ObjectIdentifier tableIdentifier,
             boolean isTemporary,
-            SqlFactory sqlFactory) {
+            SqlFactory sqlFactory,
+            List<String> additionalSensitiveKeys) {
         validateTableKind(table, tableIdentifier, TableKind.TABLE);
         StringBuilder sb =
                 new StringBuilder()
@@ -118,7 +123,7 @@ public class ShowCreateUtil {
                 .ifPresent(
                         partitionedInfoFormatted ->
                                 sb.append(formatPartitionedBy(partitionedInfoFormatted)));
-        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
+        extractFormattedOptions(table.getOptions(), PRINT_INDENT, additionalSensitiveKeys)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
     }
@@ -130,7 +135,31 @@ public class ShowCreateUtil {
             boolean isTemporary,
             boolean createOrAlter,
             ZoneId timeZoneId,
-            SqlFactory sqlFactory) {
+            SqlFactory sqlFactory,
+            List<String> additionalSensitiveKeys) {
+        return buildShowCreateMaterializedTableRow(
+                table,
+                tableIdentifier,
+                isTemporary,
+                createOrAlter,
+                timeZoneId,
+                sqlFactory,
+                true,
+                true,
+                additionalSensitiveKeys);
+    }
+
+    /** Show create materialized table statement only for materialized tables. */
+    public static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary,
+            boolean createOrAlter,
+            ZoneId timeZoneId,
+            SqlFactory sqlFactory,
+            boolean includeFreshness,
+            boolean includeRefreshMode,
+            List<String> additionalSensitiveKeys) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
         StringBuilder sb =
                 new StringBuilder()
@@ -153,13 +182,15 @@ public class ShowCreateUtil {
                 .ifPresent(d -> sb.append(d).append("\n"));
         extractFormattedPartitionedInfo(table)
                 .ifPresent(partitionedBy -> sb.append(formatPartitionedBy(partitionedBy)));
-        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
+        extractFormattedOptions(table.getOptions(), PRINT_INDENT, additionalSensitiveKeys)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         sb.append(extractStartMode(table, timeZoneId)).append("\n");
-        sb.append(extractFreshness(table))
-                .append("\n")
-                .append(extractRefreshMode(table))
-                .append("\n");
+        if (includeFreshness) {
+            sb.append(extractFreshness(table)).append("\n");
+        }
+        if (includeRefreshMode) {
+            sb.append(extractRefreshMode(table)).append("\n");
+        }
         sb.append("AS ").append(table.getExpandedQuery()).append('\n');
         return sb.toString();
     }
@@ -188,14 +219,18 @@ public class ShowCreateUtil {
         return sb.toString();
     }
 
-    public static String buildShowCreateCatalogRow(CatalogDescriptor catalogDescriptor) {
+    public static String buildShowCreateCatalogRow(
+            CatalogDescriptor catalogDescriptor, List<String> additionalSensitiveKeys) {
         final Optional<String> comment = catalogDescriptor.getComment();
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE CATALOG ")
                 .append(EncodingUtils.escapeIdentifier(catalogDescriptor.getCatalogName()))
                 .append("\n");
         comment.ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), PRINT_INDENT)
+        extractFormattedOptions(
+                        catalogDescriptor.getConfiguration().toMap(),
+                        PRINT_INDENT,
+                        additionalSensitiveKeys)
                 .ifPresent(o -> sb.append("WITH (\n").append(o).append("\n)\n"));
         return sb.toString();
     }
@@ -409,7 +444,8 @@ public class ShowCreateUtil {
         return TIMESTAMP_FORMATTER.format(LocalDateTime.ofInstant(instant, timeZone));
     }
 
-    static Optional<String> extractFormattedOptions(Map<String, String> conf, String printIndent) {
+    static Optional<String> extractFormattedOptions(
+            Map<String, String> conf, String printIndent, List<String> additionalSensitiveKeys) {
         if (Objects.isNull(conf) || conf.isEmpty()) {
             return Optional.empty();
         }
@@ -423,7 +459,12 @@ public class ShowCreateUtil {
                                                 "%s'%s' = '%s'",
                                                 printIndent,
                                                 EncodingUtils.escapeSingleQuotes(entry),
-                                                EncodingUtils.escapeSingleQuotes(conf.get(entry))))
+                                                EncodingUtils.escapeSingleQuotes(
+                                                        GlobalConfiguration.isSensitive(
+                                                                        entry,
+                                                                        additionalSensitiveKeys)
+                                                                ? GlobalConfiguration.HIDDEN_CONTENT
+                                                                : conf.get(entry))))
                         .collect(Collectors.joining(",\n")));
     }
 
@@ -437,31 +478,6 @@ public class ShowCreateUtil {
                                         printIndent,
                                         EncodingUtils.escapeIdentifier(column.getName())))
                 .collect(Collectors.joining(",\n"));
-    }
-
-    private static String maybeLowerCaseKey(String key, boolean lowerCaseKey) {
-        return lowerCaseKey ? key.toLowerCase() : key;
-    }
-
-    static Optional<String> extractFormattedOptions(
-            Map<String, String> conf, String printIndent, boolean lowerCaseKeys) {
-        if (Objects.isNull(conf) || conf.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(
-                conf.entrySet().stream()
-                        .map(
-                                entry ->
-                                        String.format(
-                                                "%s'%s' = '%s'",
-                                                printIndent,
-                                                maybeLowerCaseKey(
-                                                        EncodingUtils.escapeSingleQuotes(
-                                                                entry.getKey()),
-                                                        lowerCaseKeys),
-                                                EncodingUtils.escapeSingleQuotes(entry.getValue())))
-                        .sorted()
-                        .collect(Collectors.joining("," + System.lineSeparator())));
     }
 
     private static void validateTableKind(

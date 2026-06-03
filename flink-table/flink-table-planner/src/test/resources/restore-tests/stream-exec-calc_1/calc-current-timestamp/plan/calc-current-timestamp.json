@@ -1,8 +1,8 @@
 {
-  "flinkVersion" : "2.0",
+  "flinkVersion" : "2.4",
   "nodes" : [ {
-    "id" : 21,
-    "type" : "stream-exec-table-source-scan_1",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`t`",
@@ -11,18 +11,15 @@
             "columns" : [ {
               "name" : "a",
               "dataType" : "BIGINT"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },
     "outputType" : "ROW<`a` BIGINT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a])"
   }, {
-    "id" : 22,
+    "id" : 2,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "CALL",
@@ -41,8 +38,8 @@
           }
         }, {
           "kind" : "CALL",
+          "syntax" : "FUNCTION_ID",
           "internalName" : "$CURRENT_TIMESTAMP$1",
-          "operands" : [ ],
           "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL"
         } ],
         "type" : "BIGINT NOT NULL"
@@ -64,8 +61,8 @@
     "outputType" : "ROW<`EXPR$0` BIGINT>",
     "description" : "Calc(select=[(EXTRACT(YEAR, CURRENT_TIMESTAMP()) / a) AS EXPR$0])"
   }, {
-    "id" : 23,
-    "type" : "stream-exec-sink_1",
+    "id" : 3,
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -81,14 +78,13 @@
             "columns" : [ {
               "name" : "a",
               "dataType" : "BIGINT"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -100,15 +96,15 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[EXPR$0])"
   } ],
   "edges" : [ {
-    "source" : 21,
-    "target" : 22,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 22,
-    "target" : 23,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },

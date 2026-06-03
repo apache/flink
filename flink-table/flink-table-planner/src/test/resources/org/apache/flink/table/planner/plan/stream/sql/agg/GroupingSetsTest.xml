@@ -717,14 +717,14 @@ GROUP BY GROUPING SETS ((a, b), (a, b, c))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[coalesce($2, _UTF-16LE'empty')], EXPR$3=[$3])
+LogicalProject(a=[$0], b=[$1], EXPR$2=[COALESCE($2, _UTF-16LE'empty')], EXPR$3=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}]], EXPR$3=[AVG($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, coalesce(c, 'empty') AS EXPR$2, EXPR$3])
+Calc(select=[a, b, COALESCE(c, 'empty') AS EXPR$2, EXPR$3])
 +- GroupAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e, AVG(d) AS EXPR$3])
    +- Exchange(distribution=[hash[a, b, c, $e]])
       +- Expand(projects=[{a, b, c, d, 0 AS $e}, {a, b, null AS c, d, 1 AS $e}])

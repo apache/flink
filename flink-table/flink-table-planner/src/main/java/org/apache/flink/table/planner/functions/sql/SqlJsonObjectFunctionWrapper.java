@@ -29,7 +29,7 @@ import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_
  * This class is a wrapper class for the {@link SqlJsonObjectFunction} but using the {@code
  * VARCHAR_NOT_NULL} return type inference.
  */
-class SqlJsonObjectFunctionWrapper extends SqlJsonObjectFunction {
+public class SqlJsonObjectFunctionWrapper extends SqlJsonObjectFunction {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {

@@ -30,6 +30,12 @@ public class JoinSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 JoinSemanticTestPrograms.OUTER_JOIN_CHANGELOG_TEST,
-                JoinSemanticTestPrograms.ANTI_JOIN_ON_NESTED);
+                JoinSemanticTestPrograms.ANTI_JOIN_ON_NESTED,
+                JoinSemanticTestPrograms.LEFT_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.RIGHT_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.FULL_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.LEFT_JOIN_NULLABLE_NESTED_ROW,
+                JoinSemanticTestPrograms.RIGHT_JOIN_NULLABLE_NESTED_ROW,
+                JoinSemanticTestPrograms.FULL_JOIN_NULLABLE_NESTED_ROW);
     }
 }

@@ -39,11 +39,18 @@ public class FromChangelogSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                FromChangelogTestPrograms.DEFAULT_OP_MAPPING,
+                FromChangelogTestPrograms.RETRACT,
                 FromChangelogTestPrograms.CUSTOM_OP_MAPPING,
-                FromChangelogTestPrograms.UNMAPPED_CODES_DROPPED,
                 FromChangelogTestPrograms.CUSTOM_OP_NAME,
+                FromChangelogTestPrograms.RETRACT_PARTITION_BY,
+                FromChangelogTestPrograms.UPSERT_PARTITION_BY,
+                FromChangelogTestPrograms.DELETION_FLAG_PARTITION_BY,
+                FromChangelogTestPrograms.SKIP_INVALID_OP_HANDLING,
+                FromChangelogTestPrograms.SKIP_NULL_OP_CODE,
                 FromChangelogTestPrograms.TABLE_API_DEFAULT,
-                FromChangelogTestPrograms.ROUND_TRIP);
+                FromChangelogTestPrograms.TABLE_API_RETRACT_PARTITION_BY,
+                FromChangelogTestPrograms.ROUND_TRIP,
+                FromChangelogTestPrograms.INVALID_OP_CODE,
+                FromChangelogTestPrograms.NULL_OP_CODE);
     }
 }

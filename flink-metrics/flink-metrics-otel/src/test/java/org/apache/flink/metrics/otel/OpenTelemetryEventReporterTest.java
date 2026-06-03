@@ -31,7 +31,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +57,14 @@ public class OpenTelemetryEventReporterTest extends OpenTelemetryTestBase {
     @Test
     public void testReportLogRecord() throws Exception {
         MetricConfig metricConfig = createMetricConfig();
+
+        String serviceName = "flink-job";
+        String serviceVersion = "1.0.0";
+
+        metricConfig.setProperty(OpenTelemetryReporterOptions.SERVICE_NAME.key(), serviceName);
+        metricConfig.setProperty(
+                OpenTelemetryReporterOptions.SERVICE_VERSION.key(), serviceVersion);
+
         String scope = this.getClass().getCanonicalName();
         String attribute1Key = "foo";
         String attribute1Value = "bar";
@@ -100,6 +110,19 @@ public class OpenTelemetryEventReporterTest extends OpenTelemetryTestBase {
 
         eventuallyConsumeJson(
                 (json) -> {
+                    Map<String, String> resourceAttributes = new HashMap<>();
+                    json.findPath("resourceLogs")
+                            .findPath("resource")
+                            .findPath("attributes")
+                            .forEach(
+                                    attribute ->
+                                            resourceAttributes.put(
+                                                    attribute.get("key").asText(),
+                                                    attribute.at("/value/stringValue").asText()));
+                    assertThat(resourceAttributes)
+                            .containsEntry("service.name", serviceName)
+                            .containsEntry("service.version", serviceVersion);
+
                     JsonNode resourceLogs = json.findPath("resourceLogs").findPath("scopeLogs");
                     assertThat(resourceLogs.findPath("scope").findPath("name").asText())
                             .isEqualTo(scope);

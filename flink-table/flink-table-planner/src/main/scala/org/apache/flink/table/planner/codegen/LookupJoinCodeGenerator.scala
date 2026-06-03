@@ -354,14 +354,16 @@ object LookupJoinCodeGenerator {
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RelDataType,
-      tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+      tableSourceRowType: RowType,
+      typeFactory: FlinkTypeFactory): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     generateCalcMapFunction(
       tableConfig,
       classLoader,
       projection,
       condition,
       FlinkTypeFactory.toLogicalRowType(outputType),
-      tableSourceRowType
+      tableSourceRowType,
+      typeFactory
     )
   }
 
@@ -375,7 +377,8 @@ object LookupJoinCodeGenerator {
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RowType,
-      tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+      tableSourceRowType: RowType,
+      typeFactory: FlinkTypeFactory): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     generateCalcMapFunction(
       tableConfig,
       classLoader,
@@ -383,7 +386,8 @@ object LookupJoinCodeGenerator {
       condition,
       outputType,
       tableSourceRowType,
-      "TableCalcMapFunction")
+      "TableCalcMapFunction",
+      typeFactory)
   }
 
   /**
@@ -397,7 +401,8 @@ object LookupJoinCodeGenerator {
       condition: RexNode,
       outputType: RowType,
       tableSourceRowType: RowType,
-      name: String): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+      name: String,
+      typeFactory: FlinkTypeFactory): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
       name,
@@ -406,7 +411,8 @@ object LookupJoinCodeGenerator {
       projection,
       Option(condition),
       tableConfig,
-      classLoader
+      classLoader,
+      typeFactory
     )
   }
 }

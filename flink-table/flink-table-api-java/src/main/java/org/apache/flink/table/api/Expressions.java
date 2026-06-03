@@ -366,15 +366,32 @@ public final class Expressions {
     /**
      * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
-     * <p>The supported precision is 0 or 3:
+     * <p>The supported precision is between 0 and 9 inclusive. It determines the unit of the
+     * numeric value:
      *
      * <ul>
-     *   <li>0 means the numericEpochTime is in second.
-     *   <li>3 means the numericEpochTime is in millisecond.
+     *   <li>0: seconds since epoch
+     *   <li>3: milliseconds since epoch (default)
+     *   <li>6: microseconds since epoch
+     *   <li>9: nanoseconds since epoch
      * </ul>
      *
+     * <p>Other values in {@code [0, 9]} represent units of {@code 10^(-precision)} seconds. The
+     * output type is {@code TIMESTAMP_LTZ(3)} for precision 0-3, and {@code
+     * TIMESTAMP_LTZ(precision)} for precision 4-9. When precision is supplied as a non-literal
+     * expression the output defaults to {@code TIMESTAMP_LTZ(3)} and sub-millisecond digits are
+     * truncated.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * toTimestampLtz(1234567890L, 0)             // epoch seconds
+     * toTimestampLtz(1234567890123L, 3)          // epoch milliseconds
+     * toTimestampLtz(1234567890123456789L, 9)    // epoch nanoseconds
+     * }</pre>
+     *
      * @param numericEpochTime The epoch time with numeric type.
-     * @param precision The precision to indicate the epoch time is in second or millisecond.
+     * @param precision The precision (0-9) that determines the unit of the numeric value.
      * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
      */
     public static ApiExpression toTimestampLtz(Object numericEpochTime, Object precision) {
@@ -383,10 +400,26 @@ public final class Expressions {
 
     /**
      * Converts the given time string with the specified format to {@link
-     * DataTypes#TIMESTAMP_LTZ(int)}.
+     * DataTypes#TIMESTAMP_LTZ(int)} under the {@code UTC} time zone.
+     *
+     * <p>The output precision is inferred from the longest run of {@code 'S'} characters in the
+     * format pattern (outside quoted literal sections), clamped to {@code [3, 9]}. For example,
+     * {@code 'yyyy-MM-dd HH:mm:ss.SSS'} produces {@code TIMESTAMP_LTZ(3)}, {@code 'yyyy-MM-dd
+     * HH:mm:ss.SSSSSS X'} produces {@code TIMESTAMP_LTZ(6)}.
+     *
+     * <p>This inference only applies when the format is a literal at plan time. If the format is
+     * supplied as a non-literal expression, the output defaults to {@code TIMESTAMP_LTZ(3)} and
+     * sub-millisecond digits are truncated.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * // Output type TIMESTAMP_LTZ(6), inferred from the run of 6 'S' characters.
+     * toTimestampLtz("2023-01-01 00:00:00.123456 Z", "yyyy-MM-dd HH:mm:ss.SSSSSS X")
+     * }</pre>
      *
      * @param timestampStr The timestamp string to convert.
-     * @param format The format of the string.
+     * @param format The format pattern to parse the timestamp string.
      * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
      */
     public static ApiExpression toTimestampLtz(String timestampStr, String format) {
@@ -394,41 +427,59 @@ public final class Expressions {
     }
 
     /**
-     * Converts a timestamp to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     * Converts the given timestamp string to {@link DataTypes#TIMESTAMP_LTZ(int)} using the default
+     * format {@code 'yyyy-MM-dd HH:mm:ss'} under the {@code UTC} time zone.
      *
-     * <p>This method takes a string representing a timestamp and converts it to a TIMESTAMP_LTZ
-     * using the built-in TO_TIMESTAMP_LTZ function definition.
+     * <p>Example:
+     *
+     * <pre>{@code
+     * toTimestampLtz("2023-01-01 00:00:00")
+     * }</pre>
      *
      * @param timeStamp The timestamp string to be converted.
-     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type at precision 3.
      */
     public static ApiExpression toTimestampLtz(String timeStamp) {
         return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, timeStamp);
     }
 
     /**
-     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     * Converts a numeric epoch time in milliseconds to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
-     * <p>This method takes an object representing an epoch time and converts it to a TIMESTAMP_LTZ
-     * using the built-in TO_TIMESTAMP_LTZ function definition.
+     * <p>Equivalent to calling {@link #toTimestampLtz(Object, Object)} with precision {@code 3}.
      *
-     * @param numericEpochTime The epoch time with numeric type.
-     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     * <p>Example:
+     *
+     * <pre>{@code
+     * toTimestampLtz(1234567890123L)   // epoch milliseconds
+     * }</pre>
+     *
+     * @param numericEpochTime The epoch time in milliseconds.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type at precision 3.
      */
     public static ApiExpression toTimestampLtz(Object numericEpochTime) {
         return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime);
     }
 
     /**
-     * Converts a string timestamp with the custom format and timezone to {@link
+     * Converts the given time string with the specified format and timezone to {@link
      * DataTypes#TIMESTAMP_LTZ(int)}.
      *
-     * <p>The timestamp string will be parsed using the custom format and timezone, and converted to
-     * a TIMESTAMP_LTZ value.
+     * <p>The output precision is inferred from the longest run of {@code 'S'} characters in the
+     * format pattern (outside quoted literal sections), clamped to {@code [3, 9]}. This inference
+     * only applies when the format is a literal at plan time; for non-literal formats the output
+     * defaults to {@code TIMESTAMP_LTZ(3)} and sub-millisecond digits are truncated.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * toTimestampLtz("2023-01-01 08:00:00", "yyyy-MM-dd HH:mm:ss", "Asia/Shanghai")
+     * }</pre>
      *
      * @param timestampStr The timestamp string to convert.
      * @param format The format pattern to parse the timestamp string.
-     * @param timezone The timezone to use for the conversion.
+     * @param timezone The timezone to use for the conversion (e.g. {@code 'UTC'}, {@code
+     *     'Asia/Shanghai'}).
      * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
      */
     public static ApiExpression toTimestampLtz(

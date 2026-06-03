@@ -21,7 +21,7 @@
   class="no-border small"
   [nzSize]="'small'"
   [nzData]="nodes"
-  [nzScroll]="{ x: 1360 + left + 'px' }"
+  [nzScroll]="{ x: tableScrollX + 'px' }"
   [nzFrontPagination]="false"
   [nzShowPagination]="false"
 >
@@ -36,7 +36,7 @@
       <th [nzSortFn]="sortParallelismFn" nzWidth="100px">Parallelism</th>
       <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
       <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
-      <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
+      <th [nzSortFn]="sortEndTimeFn">End Time</th>
       <th nzWidth="60px" nzRight>Tasks</th>
       <th *ngIf="webRescaleEnabled" nzWidth="80px" nzRight>Scale</th>
     </tr>
@@ -136,7 +136,11 @@
     </tr>
   </tbody>
 </nz-table>
-<flink-resize [(left)]="left" [baseElement]="elementRef" [resizeMin]="390"></flink-resize>
+<flink-resize
+  [(left)]="left"
+  [baseElement]="elementRef"
+  [resizeMin]="dynamicResizeMin"
+></flink-resize>
 <ng-template #loadingTemplate>
   <span class="text-secondary">loading...</span>
 </ng-template>

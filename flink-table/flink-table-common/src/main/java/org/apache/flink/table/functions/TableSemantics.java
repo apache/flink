@@ -24,6 +24,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -127,6 +128,38 @@ public interface TableSemantics {
      *     type inference phase as the changelog mode is still unknown.
      */
     Optional<ChangelogMode> changelogMode();
+
+    /**
+     * Upsert key candidates derived from the passed table's metadata.
+     *
+     * <p>Returns a list of 0-based column index arrays that uniquely identify a row for upsert
+     * semantics. Useful for functions that need to emit key-only deletes, match UPDATE_BEFORE /
+     * UPDATE_AFTER pairs, or use a stable identifier to interact with state.
+     *
+     * <p>The upsert key describes row identity and is distinct from {@link #partitionByColumns()},
+     * which describes distribution and co-location. They are independent and frequently disagree:
+     *
+     * <pre>{@code
+     * -- Source declares PRIMARY KEY (id); the call partitions by region.
+     * -- partitionByColumns() = [region]   (chosen by the caller)
+     * -- upsertKeyColumns()   = [[id]]     (derived from the source's PK)
+     * TO_CHANGELOG(input => TABLE source PARTITION BY region)
+     * }</pre>
+     *
+     * <p>Returns an empty list when no upsert key is derivable, or when the planner has not yet
+     * computed metadata (during type inference).
+     *
+     * <p>The planner may derive more than one candidate for the same input. For example, an inner
+     * join of two tables each carrying their own primary key produces a result with both keys as
+     * separate candidates. Picking which candidate to use is the function's responsibility, and the
+     * choice must be stable across releases so PTF state stays consistent after job restarts and
+     * upgrades. The order of the returned list is not part of the contract; PTF authors should not
+     * depend on it. A typical stable choice is the smallest candidate by cardinality, with ties
+     * broken by the column indices in ascending order.
+     *
+     * @return Candidate upsert keys of the passed table, or an empty list if none.
+     */
+    List<int[]> upsertKeyColumns();
 
     /** The sort direction for ORDER BY columns in table arguments with set semantics. */
     @PublicEvolving

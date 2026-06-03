@@ -25,6 +25,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -39,12 +40,19 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.tools.RelBuilder;
 
 import javax.annotation.Nullable;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Utilities for quick access of commonly used instances (like {@link FlinkTypeFactory}) without
@@ -146,14 +154,62 @@ public final class ShortcutUtils {
             return null;
         }
         final RexCall call = (RexCall) rexNode;
-        if (!(call.getOperator() instanceof BridgingSqlFunction)) {
+        final SqlOperator operator = call.getOperator();
+        if (!(operator instanceof BridgingSqlFunction)) {
             // legacy
-            if (call.getOperator() instanceof TableSqlFunction) {
-                return ((TableSqlFunction) call.getOperator()).udtf();
+            if (operator instanceof TableSqlFunction) {
+                return ((TableSqlFunction) operator).udtf();
             }
             return null;
         }
-        return ((BridgingSqlFunction) call.getOperator()).getDefinition();
+        return ((BridgingSqlFunction) operator).getDefinition();
+    }
+
+    public static @Nullable FunctionDefinition unwrapFunctionDefinition(SqlOperator operator) {
+        if (!(operator instanceof BridgingSqlFunction)) {
+            return null;
+        }
+        return ((BridgingSqlFunction) operator).getDefinition();
+    }
+
+    public static boolean isFunctionKind(SqlOperator operator, FunctionKind kind) {
+        final FunctionDefinition functionDefinition = unwrapFunctionDefinition(operator);
+        return functionDefinition != null && functionDefinition.getKind() == kind;
+    }
+
+    public static boolean isDeterministicThroughProgram(
+            RexNode node, @Nullable List<RexNode> exprs) {
+        if (exprs == null) {
+            return RexUtil.isDeterministic(node);
+        }
+        return isDeterministicThroughProgram(node, exprs, new HashSet<>());
+    }
+
+    private static boolean isDeterministicThroughProgram(
+            RexNode node, List<RexNode> exprs, Set<Integer> visited) {
+        if (node instanceof RexCall) {
+            final RexCall call = (RexCall) node;
+            if (!call.getOperator().isDeterministic()) {
+                return false;
+            }
+            for (RexNode operand : call.getOperands()) {
+                if (!isDeterministicThroughProgram(operand, exprs, visited)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (node instanceof RexLocalRef) {
+            final int idx = ((RexLocalRef) node).getIndex();
+            // already on the stack: skip rather than recurse forever
+            return !visited.add(idx)
+                    || isDeterministicThroughProgram(exprs.get(idx), exprs, visited);
+        }
+        if (node instanceof RexFieldAccess) {
+            return isDeterministicThroughProgram(
+                    ((RexFieldAccess) node).getReferenceExpr(), exprs, visited);
+        }
+        return true;
     }
 
     public static @Nullable BridgingSqlFunction unwrapBridgingSqlFunction(RexCall call) {

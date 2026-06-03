@@ -77,7 +77,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 /**
  * Flink modification because of CALCITE-7027
  *
- * <p>Lines 825 ~ 831, should be removed after upgrading to 1.40.
+ * <p>Lines 827 ~ 833, should be removed after upgrading to 1.40.
  */
 public abstract class SqlUtil {
     // ~ Constants --------------------------------------------------------------

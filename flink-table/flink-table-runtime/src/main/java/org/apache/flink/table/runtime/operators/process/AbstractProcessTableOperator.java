@@ -31,6 +31,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -146,18 +147,28 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     }
 
     @Override
+    public final boolean useInterruptibleTimers(ReadableConfig config) {
+        return true;
+    }
+
+    @Override
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
-        // TODO this line has issues with interruptible timers, see FLINK-39437
-        processTableRunner.ingestCurrentWatermarkEvent(mark.getTimestamp());
     }
 
     @Override
     public void onEventTime(InternalTimer<RowData, Object> timer) throws Exception {
         final Object namedTimer = timer.getNamespace();
+        boolean isNamedTimer = namedTimer != VoidNamespace.INSTANCE;
+        // Remove the fired timer's state entry immediately to prevent stale entries from
+        // accumulating. Without this, entries for fired timers would persist until the same
+        // timer name is re-registered or the state is explicitly cleared.
+        if (isNamedTimer) {
+            namedTimersMapState.remove((StringData) namedTimer);
+        }
         processTableRunner.ingestTimerEvent(
                 timer.getKey(),
-                namedTimer == VoidNamespace.INSTANCE ? null : (StringData) namedTimer,
+                isNamedTimer ? (StringData) namedTimer : null,
                 timer.getTimestamp());
         processTableRunner.processOnTimer();
     }
@@ -213,7 +224,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
             internalTimeContext.setTime(
                     processTableRunner.getTableWatermark(),
-                    processTableRunner.getCurrentWatermark(),
+                    combinedWatermark.getCombinedWatermark(),
                     processTableRunner.getTime());
 
             return (TimeContext<TimeType>)

@@ -143,7 +143,7 @@ different tasks, so long as they are from the same job. The result is that one
 slot may hold an entire pipeline of the job. Allowing this *slot sharing* has
 two main benefits:
 
-  - A Flink cluster needs exactly as many task slots as the highest parallelism
+  - A Flink job needs exactly as many task slots as the highest parallelism
     used in the job.  No need to calculate how many tasks (with varying
     parallelism) a program contains in total.
 

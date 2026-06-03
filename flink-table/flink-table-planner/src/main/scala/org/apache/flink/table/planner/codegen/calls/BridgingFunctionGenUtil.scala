@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.functions.{AbstractRichFunction, OpenContext, RichFunction}
-import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.api.Expressions.callSql
 import org.apache.flink.table.data.{GenericRowData, RawValueData, StringData}
@@ -27,9 +27,10 @@ import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, unres
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory}
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{validateClassForRuntime, ASYNC_SCALAR_EVAL, ASYNC_TABLE_EVAL, SCALAR_EVAL, TABLE_EVAL}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper._
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexFactory}
 import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.codegen.AsyncCodeGenerator.DEFAULT_DELEGATING_FUTURE_TERM
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -47,8 +48,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeT
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
-
-import AsyncCodeGenerator.{generateFunction, DEFAULT_DELEGATING_FUTURE_TERM}
 
 import java.util.concurrent.CompletableFuture
 

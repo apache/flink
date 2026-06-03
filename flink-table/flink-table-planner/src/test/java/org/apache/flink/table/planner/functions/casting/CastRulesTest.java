@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -113,6 +115,14 @@ class CastRulesTest {
     private static final CodeGeneratorContext CTX =
             new CodeGeneratorContext(
                     new Configuration(), Thread.currentThread().getContextClassLoader());
+
+    private static final CodeGeneratorContext CTX_LEGACY_BYTES_TO_STRING =
+            new CodeGeneratorContext(
+                    new Configuration()
+                            .set(
+                                    ExecutionConfigOptions.TABLE_EXEC_LEGACY_BYTES_TO_STRING_CAST,
+                                    true),
+                    Thread.currentThread().getContextClassLoader());
 
     private static final CastRule.Context CET_CONTEXT =
             CastRule.Context.create(
@@ -693,6 +703,25 @@ class CastRulesTest {
                                 BYTES(),
                                 new byte[] {70, 108, 105, 110, 107},
                                 fromString("x'466c696e6b'"))
+                        // Strict UTF-8 validation across all BINARY_STRING family roots.
+                        .fail(BINARY(1), new byte[] {(byte) 0x80}, TableRuntimeException.class)
+                        .fail(
+                                VARBINARY(2),
+                                new byte[] {(byte) 0xC0, (byte) 0xAF},
+                                TableRuntimeException.class)
+                        .fail(BYTES(), new byte[] {(byte) 0x80}, TableRuntimeException.class)
+                        // table.exec.legacy-bytes-to-string-cast=true restores silent substitution.
+                        .fromCaseLegacyBytesToString(
+                                BYTES(), new byte[] {(byte) 0x80}, fromString("�"))
+                        .fromCaseLegacyBytesToString(
+                                VARBINARY(2),
+                                new byte[] {(byte) 0xC0, (byte) 0xAF},
+                                fromString("��"))
+                        .fromCase(
+                                BYTES(),
+                                "é€😀".getBytes(StandardCharsets.UTF_8),
+                                fromString("é€😀"))
+                        .fromCasePrinting(BYTES(), new byte[] {(byte) 0x80}, fromString("x'80'"))
                         .fromCase(BOOLEAN(), true, StringData.fromString("TRUE"))
                         .fromCase(BOOLEAN(), false, StringData.fromString("FALSE"))
                         .fromCase(
@@ -871,6 +900,11 @@ class CastRulesTest {
                         .fromCaseLegacy(VARBINARY(1), new byte[] {33}, fromString("\u0021"))
                         .fromCase(BYTES(), new byte[] {32}, fromString("      "))
                         .fromCaseLegacy(BYTES(), new byte[] {32}, fromString(" "))
+                        // Strict UTF-8 validation must fire before trim/pad on a CHAR(n) target.
+                        .fail(BYTES(), new byte[] {(byte) 0x80}, TableRuntimeException.class)
+                        // Legacy-bytes-to-string mode: invalid byte becomes U+FFFD then is padded.
+                        .fromCaseLegacyBytesToString(
+                                BYTES(), new byte[] {(byte) 0x80}, fromString("�     "))
                         .fromCase(TINYINT(), (byte) -125, fromString("-125  "))
                         .fromCaseLegacy(TINYINT(), (byte) -125, fromString("-125"))
                         .fromCase(SMALLINT(), (short) 32767, fromString("32767 "))
@@ -1657,6 +1691,20 @@ class CastRulesTest {
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader(),
                             CTX),
+                    src,
+                    target);
+        }
+
+        private CastTestSpecBuilder fromCaseLegacyBytesToString(
+                DataType srcDataType, Object src, Object target) {
+            return fromCase(
+                    srcDataType,
+                    CastRule.Context.create(
+                            false,
+                            false,
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX_LEGACY_BYTES_TO_STRING),
                     src,
                     target);
         }

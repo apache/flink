@@ -30,7 +30,9 @@ Formats define how information is encoded for storage. Currently these formats a
 
  * [Avro]({{< ref "docs/connectors/datastream/formats/avro" >}})
  * [Azure Table]({{< ref "docs/connectors/datastream/formats/azure_table_storage" >}})
+ * [CSV]({{< ref "docs/connectors/datastream/formats/csv" >}})
  * [Hadoop]({{< ref "docs/connectors/datastream/formats/hadoop" >}})
+ * [JSON]({{< ref "docs/connectors/datastream/formats/json" >}})
  * [Parquet]({{< ref "docs/connectors/datastream/formats/parquet" >}})
  * [Text files]({{< ref "docs/connectors/datastream/formats/text_files" >}})
  

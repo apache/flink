@@ -59,7 +59,7 @@ class TimestampITCase extends StreamingTestBase {
       Timestamp.valueOf("1973-01-01 00:00:00").toLocalDateTime
     )
 
-    val instants = new mutable.MutableList[Instant]
+    val instants = new mutable.ListBuffer[Instant]
     for (i <- datetimes.indices) {
       if (datetimes(i) == null) {
         instants += null
@@ -70,7 +70,7 @@ class TimestampITCase extends StreamingTestBase {
       }
     }
 
-    val data = new mutable.MutableList[Row]
+    val data = new mutable.ListBuffer[Row]
 
     for (i <- ints.indices) {
       data += row(ints(i), longs(i), datetimes(i), timestamps(i), instants(i))

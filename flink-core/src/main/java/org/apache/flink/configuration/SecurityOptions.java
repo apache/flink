@@ -649,4 +649,27 @@ public class SecurityOptions {
         checkNotNull(sslConfig, "sslConfig");
         return isRestSSLEnabled(sslConfig) && sslConfig.get(SSL_REST_AUTHENTICATION_ENABLED);
     }
+
+    // ------------------------------------------------------------------------
+    //  Sensitive key redaction
+    // ------------------------------------------------------------------------
+
+    /**
+     * Additional sensitive key substrings to redact beyond the built-in list.
+     *
+     * <p>Values are matched case-insensitively as substrings of configuration key names. The
+     * built-in sensitive key patterns are immutable and cannot be overridden or removed via this
+     * option.
+     */
+    public static final ConfigOption<List<String>> ADDITIONAL_SENSITIVE_KEYS =
+            key("security.redaction.additional-keys")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            "Comma-separated list of additional configuration key substrings whose"
+                                    + " values should be redacted in logs and REST API responses."
+                                    + " Matching is case-insensitive and based on substring containment."
+                                    + " The built-in sensitive key patterns are immutable and cannot"
+                                    + " be overridden via this option.");
 }

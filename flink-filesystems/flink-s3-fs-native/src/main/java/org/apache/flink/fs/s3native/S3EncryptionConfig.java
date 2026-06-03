@@ -19,15 +19,20 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.StringUtils;
 
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Configuration for S3 server-side encryption (SSE).
@@ -76,8 +81,9 @@ public class S3EncryptionConfig implements Serializable {
     private S3EncryptionConfig(
             EncryptionType encryptionType,
             @Nullable String kmsKeyId,
-            Map<String, String> encryptionContext) {
-        this.encryptionType = encryptionType;
+            @Nullable Map<String, String> encryptionContext) {
+        this.encryptionType =
+                Objects.requireNonNull(encryptionType, "encryptionType must not be null");
         this.kmsKeyId = kmsKeyId;
         this.encryptionContext =
                 encryptionContext != null
@@ -96,74 +102,49 @@ public class S3EncryptionConfig implements Serializable {
     }
 
     /**
-     * Creates a config for SSE-KMS encryption with the default KMS key.
+     * Creates a config for SSE-KMS encryption.
      *
-     * <p>Uses the AWS-managed KMS key (aws/s3) for the S3 bucket.
-     */
-    public static S3EncryptionConfig sseKms() {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, null);
-    }
-
-    /**
-     * Creates a config for SSE-KMS encryption with a specific KMS key.
-     *
-     * @param kmsKeyId The KMS key ID, ARN, or alias (e.g., "arn:aws:kms:region:account:key/key-id"
-     *     or "alias/my-key")
-     */
-    public static S3EncryptionConfig sseKms(String kmsKeyId) {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, kmsKeyId);
-    }
-
-    /**
-     * Creates a config for SSE-KMS encryption with a specific KMS key and encryption context.
-     *
-     * <p>The encryption context is a set of key-value pairs that:
-     *
-     * <ul>
-     *   <li>Provides additional authenticated data (AAD) for encryption
-     *   <li>Can be used in IAM policy conditions for fine-grained access control
-     *   <li>Is logged in AWS CloudTrail for auditing
-     * </ul>
-     *
-     * <p>Example: You might include context like {"department": "finance", "project": "budget"} to
-     * restrict which principals can encrypt/decrypt based on these values.
-     *
-     * @param kmsKeyId The KMS key ID, ARN, or alias
-     * @param encryptionContext The encryption context key-value pairs
+     * @param kmsKeyId The KMS key ID, ARN, or alias; null uses the AWS-managed default key
+     * @param encryptionContext Optional key-value pairs for IAM policy conditions and CloudTrail
+     *     auditing; null or empty means no context
      * @see <a href="https://docs.aws.amazon.com/kms/latest/developerguide/encrypt_context.html">AWS
      *     KMS Encryption Context</a>
      */
     public static S3EncryptionConfig sseKms(
-            String kmsKeyId, Map<String, String> encryptionContext) {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, kmsKeyId, encryptionContext);
+            @Nullable String kmsKeyId, @Nullable Map<String, String> encryptionContext) {
+        return new S3EncryptionConfig(
+                EncryptionType.SSE_KMS,
+                StringUtils.isNullOrWhitespaceOnly(kmsKeyId) ? null : kmsKeyId,
+                encryptionContext);
     }
 
     /**
      * Creates an encryption config from configuration strings.
      *
-     * @param encryptionTypeStr The encryption type: "none", "sse-s3", "sse-kms", or "SSE_S3",
-     *     "SSE_KMS"
+     * @param encryptionTypeStr The encryption type: "none", "sse-s3", "sse-kms", "aws:kms",
+     *     "aes256" (case-insensitive)
      * @param kmsKeyId The KMS key ID (required for SSE-KMS, ignored for other types)
      * @return The encryption configuration
      * @throws IllegalArgumentException if the encryption type is invalid
      */
     public static S3EncryptionConfig fromConfig(
-            @Nullable String encryptionTypeStr, @Nullable String kmsKeyId) {
-        if (encryptionTypeStr == null
-                || encryptionTypeStr.isEmpty()
+            @Nullable String encryptionTypeStr,
+            @Nullable String kmsKeyId,
+            Map<String, String> encryptionContext) {
+        if (StringUtils.isNullOrWhitespaceOnly(encryptionTypeStr)
                 || "none".equalsIgnoreCase(encryptionTypeStr)) {
             return none();
         }
 
-        String normalizedType = encryptionTypeStr.toUpperCase().replace("-", "_").replace(":", "_");
+        String normalizedType = encryptionTypeStr.toLowerCase(Locale.ROOT);
 
         switch (normalizedType) {
-            case "SSE_S3":
-            case "AES256":
+            case "sse-s3":
+            case "aes256":
                 return sseS3();
-            case "SSE_KMS":
-            case "AWS_KMS":
-                return kmsKeyId != null && !kmsKeyId.isEmpty() ? sseKms(kmsKeyId) : sseKms();
+            case "sse-kms":
+            case "aws:kms":
+                return sseKms(kmsKeyId, encryptionContext);
             default:
                 throw new IllegalArgumentException(
                         "Unknown encryption type: "
@@ -218,6 +199,28 @@ public class S3EncryptionConfig implements Serializable {
             default:
                 return null;
         }
+    }
+
+    public String serializeEncryptionContext() {
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : encryptionContext.entrySet()) {
+            if (!first) {
+                json.append(",");
+            }
+            json.append("\"")
+                    .append(escapeJson(entry.getKey()))
+                    .append("\":\"")
+                    .append(escapeJson(entry.getValue()))
+                    .append("\"");
+            first = false;
+        }
+        json.append("}");
+        return Base64.getEncoder().encodeToString(json.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @Override

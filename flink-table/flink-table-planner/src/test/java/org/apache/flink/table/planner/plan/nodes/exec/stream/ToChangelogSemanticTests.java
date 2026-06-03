@@ -39,17 +39,27 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                ToChangelogTestPrograms.INSERT_ONLY_INPUT,
-                ToChangelogTestPrograms.UPDATING_INPUT,
-                ToChangelogTestPrograms.UPSERT_INPUT,
+                ToChangelogTestPrograms.INSERT,
+                ToChangelogTestPrograms.RETRACT,
+                ToChangelogTestPrograms.UPSERT,
+                ToChangelogTestPrograms.UPSERT_PARTITION_BY,
+                ToChangelogTestPrograms.UPSERT_PARTITION_BY_KEY_ONLY_DELETES,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.CUSTOM_OP_MAPPING,
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
+                ToChangelogTestPrograms.TABLE_API_RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG,
                 ToChangelogTestPrograms.LAG_ON_RETRACT_VIA_CHANGELOG,
                 ToChangelogTestPrograms.DELETION_FLAG,
                 ToChangelogTestPrograms.INVALID_DESCRIPTOR,
                 ToChangelogTestPrograms.INVALID_OP_MAPPING,
-                ToChangelogTestPrograms.DUPLICATE_ROW_KIND);
+                ToChangelogTestPrograms.DUPLICATE_ROW_KIND,
+                ToChangelogTestPrograms.RETRACT_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PRODUCES_FULL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY_PRODUCES_PARTIAL_DELETES,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY_PRODUCES_FULL_DELETES,
+                ToChangelogTestPrograms.UPSERT_PARTITION_BY_PRODUCES_FULL_DELETES);
     }
 }

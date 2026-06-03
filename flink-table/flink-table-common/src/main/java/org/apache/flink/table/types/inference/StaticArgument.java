@@ -31,10 +31,13 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Describes an argument in a static signature that is not overloaded and does not support varargs.
@@ -57,6 +60,7 @@ public class StaticArgument {
     private final @Nullable Class<?> conversionClass;
     private final boolean isOptional;
     private final EnumSet<StaticArgumentTrait> traits;
+    private final List<ConditionalTrait> conditionalTraits;
 
     private StaticArgument(
             String name,
@@ -64,11 +68,22 @@ public class StaticArgument {
             @Nullable Class<?> conversionClass,
             boolean isOptional,
             EnumSet<StaticArgumentTrait> traits) {
+        this(name, dataType, conversionClass, isOptional, traits, List.of());
+    }
+
+    private StaticArgument(
+            String name,
+            @Nullable DataType dataType,
+            @Nullable Class<?> conversionClass,
+            boolean isOptional,
+            EnumSet<StaticArgumentTrait> traits,
+            List<ConditionalTrait> conditionalTraits) {
         this.name = Preconditions.checkNotNull(name, "Name must not be null.");
         this.dataType = dataType;
         this.conversionClass = conversionClass;
         this.isOptional = isOptional;
         this.traits = Preconditions.checkNotNull(traits, "Traits must not be null.");
+        this.conditionalTraits = conditionalTraits;
         checkName();
         checkTraits(traits);
         checkOptionalType();
@@ -196,6 +211,84 @@ public class StaticArgument {
         return traits.contains(trait);
     }
 
+    /**
+     * Context-aware trait check. Evaluates conditional trait rules against the given context to
+     * determine the effective traits.
+     */
+    public boolean is(StaticArgumentTrait trait, TraitContext ctx) {
+        return resolveTraits(ctx).contains(trait);
+    }
+
+    /**
+     * Returns a new {@link StaticArgument} with an additional conditional trait rule. The trait is
+     * added to the effective trait set when the condition evaluates to {@code true} at planning
+     * time. Only non-root traits (subtraits of TABLE, SCALAR, or MODEL) are allowed.
+     *
+     * <p>Multiple conditions for the same trait use OR semantics: the trait is activated if any of
+     * its conditions is met.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * StaticArgument.table("input", Row.class, false, EnumSet.of(TABLE, SUPPORT_UPDATES))
+     *         .withConditionalTrait(SET_SEMANTIC_TABLE, hasPartitionBy());
+     * }</pre>
+     */
+    public StaticArgument withConditionalTrait(
+            final StaticArgumentTrait trait, final TraitCondition condition) {
+        if (trait.isRoot()) {
+            throw new IllegalArgumentException(
+                    "Root traits (SCALAR, TABLE, MODEL) cannot be conditional.");
+        }
+        final List<ConditionalTrait> accumulated = new ArrayList<>(this.conditionalTraits);
+        accumulated.add(new ConditionalTrait(condition, trait));
+        return new StaticArgument(name, dataType, conversionClass, isOptional, traits, accumulated);
+    }
+
+    /** Whether this argument has conditional trait rules. */
+    public boolean hasConditionalTraits() {
+        return !conditionalTraits.isEmpty();
+    }
+
+    /** Whether any conditional trait rule may add the given trait. */
+    public boolean hasConditionalTrait(final StaticArgumentTrait trait) {
+        return conditionalTraits.stream().anyMatch(c -> c.trait == trait);
+    }
+
+    /**
+     * Returns a new {@link StaticArgument} with conditional traits resolved against the given
+     * context. The returned argument has the effective traits baked in and no conditional rules.
+     */
+    public StaticArgument applyConditionalTraits(final TraitContext ctx) {
+        if (conditionalTraits.isEmpty()) {
+            return this;
+        }
+        return new StaticArgument(name, dataType, conversionClass, isOptional, resolveTraits(ctx));
+    }
+
+    /**
+     * Resolves effective traits by evaluating conditional rules against the context. Returns the
+     * base traits combined with any conditional traits whose conditions are met.
+     */
+    public EnumSet<StaticArgumentTrait> resolveTraits(final TraitContext ctx) {
+        if (conditionalTraits.isEmpty()) {
+            return traits;
+        }
+        final EnumSet<StaticArgumentTrait> resolved = EnumSet.copyOf(traits);
+        for (final ConditionalTrait conditionalTrait : conditionalTraits) {
+            if (conditionalTrait.condition.test(ctx)) {
+                removeMutuallyExclusiveTraits(resolved, conditionalTrait.trait);
+                resolved.add(conditionalTrait.trait);
+            }
+        }
+        return resolved;
+    }
+
+    private static void removeMutuallyExclusiveTraits(
+            final EnumSet<StaticArgumentTrait> traits, final StaticArgumentTrait adding) {
+        traits.removeAll(adding.getIncompatibleWith());
+    }
+
     @Override
     public String toString() {
         final StringBuilder s = new StringBuilder();
@@ -210,11 +303,13 @@ public class StaticArgument {
             s.append(dataType);
         }
         if (!traits.equals(EnumSet.of(StaticArgumentTrait.SCALAR))) {
+            final Stream<String> baseTraitNames =
+                    traits.stream().map(Enum::name).map(n -> n.replace('_', ' '));
+            final Stream<String> conditionalTraitNames =
+                    conditionalTraits.stream().map(c -> c.trait.name().replace('_', ' '));
             s.append(" ");
             s.append(
-                    traits.stream()
-                            .map(Enum::name)
-                            .map(n -> n.replace('_', ' '))
+                    Stream.concat(baseTraitNames, conditionalTraitNames)
                             .collect(Collectors.joining(", ", "{", "}")));
         }
         return s.toString();
@@ -233,12 +328,13 @@ public class StaticArgument {
                 && Objects.equals(name, that.name)
                 && Objects.equals(dataType, that.dataType)
                 && Objects.equals(conversionClass, that.conversionClass)
-                && Objects.equals(traits, that.traits);
+                && Objects.equals(traits, that.traits)
+                && Objects.equals(conditionalTraits, that.conditionalTraits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, dataType, conversionClass, isOptional, traits);
+        return Objects.hash(name, dataType, conversionClass, isOptional, traits, conditionalTraits);
     }
 
     private void checkName() {
@@ -352,6 +448,34 @@ public class StaticArgument {
     private void checkModelNotOptional() {
         if (isOptional) {
             throw new ValidationException("Model arguments must not be optional.");
+        }
+    }
+
+    /** A trait that is conditionally added based on a {@link TraitCondition}. */
+    private static final class ConditionalTrait {
+        private final TraitCondition condition;
+        private final StaticArgumentTrait trait;
+
+        ConditionalTrait(final TraitCondition condition, final StaticArgumentTrait trait) {
+            this.condition = condition;
+            this.trait = trait;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final ConditionalTrait that = (ConditionalTrait) o;
+            return Objects.equals(condition, that.condition) && trait == that.trait;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(condition, trait);
         }
     }
 }

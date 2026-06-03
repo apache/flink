@@ -66,6 +66,8 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
 
     private final SqlWatermark watermark;
 
+    private final SqlIdentifier connection;
+
     public SqlCreateTable(
             SqlParserPos pos,
             SqlIdentifier tableName,
@@ -76,6 +78,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlIdentifier connection,
             boolean isTemporary,
             boolean ifNotExists) {
         this(
@@ -89,6 +92,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
                 partitionKeyList,
                 watermark,
                 comment,
+                connection,
                 isTemporary,
                 ifNotExists,
                 false);
@@ -105,6 +109,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlIdentifier connection,
             boolean isTemporary,
             boolean ifNotExists,
             boolean replace) {
@@ -117,6 +122,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
+        this.connection = connection;
     }
 
     @Override
@@ -128,7 +134,8 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
                 properties,
                 partitionKeyList,
                 watermark,
-                comment);
+                comment,
+                connection);
     }
 
     public SqlNodeList getColumnList() {
@@ -149,6 +156,10 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
 
     public Optional<SqlWatermark> getWatermark() {
         return Optional.ofNullable(watermark);
+    }
+
+    public Optional<SqlIdentifier> getConnection() {
+        return Optional.ofNullable(connection);
     }
 
     @Override
@@ -214,6 +225,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
         SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseDistribution(distribution, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparsePartitionKeyList(partitionKeyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseUsingConnection(connection, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
     }
 }

@@ -22,19 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.Signature;
-import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.ColumnList;
+import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,38 +43,29 @@ import java.util.Set;
 @Internal
 public final class ToChangelogTypeStrategy {
 
-    private static final String DEFAULT_OP_COLUMN_NAME = "op";
+    // Positional argument indexes for TO_CHANGELOG. Must match the order of StaticArguments
+    // registered in BuiltInFunctionDefinitions#TO_CHANGELOG; changing one without the other
+    // silently breaks argument resolution.
+    public static final int ARG_TABLE = 0;
+    public static final int ARG_OP = 1;
+    public static final int ARG_OP_MAPPING = 2;
+    public static final int ARG_PRODUCES_FULL_DELETES = 3;
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
+
+    private static final String DELETE = RowKind.DELETE.name();
 
     // --------------------------------------------------------------------------------------------
     // Input validation
     // --------------------------------------------------------------------------------------------
 
     public static final InputTypeStrategy INPUT_TYPE_STRATEGY =
-            new InputTypeStrategy() {
-                @Override
-                public ArgumentCount getArgumentCount() {
-                    return ConstantArgumentCount.between(1, 3);
-                }
-
+            new ValidationOnlyInputTypeStrategy() {
                 @Override
                 public Optional<List<DataType>> inferInputTypes(
                         final CallContext callContext, final boolean throwOnFailure) {
                     return validateInputs(callContext, throwOnFailure);
-                }
-
-                @Override
-                public List<Signature> getExpectedSignatures(final FunctionDefinition definition) {
-                    return List.of(
-                            Signature.of(Argument.of("input", "TABLE")),
-                            Signature.of(
-                                    Argument.of("input", "TABLE"), Argument.of("op", "DESCRIPTOR")),
-                            Signature.of(
-                                    Argument.of("input", "TABLE"),
-                                    Argument.of("op", "DESCRIPTOR"),
-                                    Argument.of("op_mapping", "MAP<STRING, STRING>")));
                 }
             };
 
@@ -88,18 +77,21 @@ public final class ToChangelogTypeStrategy {
             callContext -> {
                 final TableSemantics semantics =
                         callContext
-                                .getTableSemantics(0)
+                                .getTableSemantics(ARG_TABLE)
                                 .orElseThrow(
                                         () ->
                                                 new ValidationException(
                                                         "First argument must be a table for TO_CHANGELOG."));
 
-                final String opColumnName = resolveOpColumnName(callContext);
-                final List<Field> inputFields = DataType.getFields(semantics.dataType());
+                final String opColumnName =
+                        ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
+                final boolean producesFullDeletes =
+                        callContext
+                                .getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class)
+                                .orElse(true);
 
-                final List<Field> outputFields = new ArrayList<>();
-                outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
-                outputFields.addAll(inputFields);
+                final List<Field> outputFields =
+                        buildOutputFields(semantics, opColumnName, producesFullDeletes);
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
@@ -110,38 +102,64 @@ public final class ToChangelogTypeStrategy {
 
     private static Optional<List<DataType>> validateInputs(
             final CallContext callContext, final boolean throwOnFailure) {
-        final boolean isMissingTableArg = callContext.getTableSemantics(0).isEmpty();
-        if (isMissingTableArg) {
+        Optional<List<DataType>> error;
+
+        error = validateTableArg(callContext, throwOnFailure);
+        if (error.isPresent()) {
+            return error;
+        }
+
+        error = validateOpDescriptor(callContext, throwOnFailure);
+        if (error.isPresent()) {
+            return error;
+        }
+
+        error = validateOpMapping(callContext, throwOnFailure);
+        if (error.isPresent()) {
+            return error;
+        }
+
+        return Optional.of(callContext.getArgumentDataTypes());
+    }
+
+    private static Optional<List<DataType>> validateTableArg(
+            final CallContext callContext, final boolean throwOnFailure) {
+        if (callContext.getTableSemantics(ARG_TABLE).isEmpty()) {
             return callContext.fail(
                     throwOnFailure, "First argument must be a table for TO_CHANGELOG.");
         }
+        return Optional.empty();
+    }
 
-        final Optional<ColumnList> opDescriptor = callContext.getArgumentValue(1, ColumnList.class);
-        final boolean hasInvalidOpDescriptor =
-                opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1;
-        if (hasInvalidOpDescriptor) {
+    private static Optional<List<DataType>> validateOpDescriptor(
+            final CallContext callContext, final boolean throwOnFailure) {
+        final Optional<ColumnList> opDescriptor =
+                callContext.getArgumentValue(ARG_OP, ColumnList.class);
+        if (opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1) {
             return callContext.fail(
                     throwOnFailure,
                     "The descriptor for argument 'op' must contain exactly one column name.");
         }
+        return Optional.empty();
+    }
 
-        final boolean hasMappingArgProvided = !callContext.isArgumentNull(2);
-        final boolean isMappingArgLiteral = callContext.isArgumentLiteral(2);
+    /** Validates op_mapping is a constant literal and that its keys are well-formed. */
+    @SuppressWarnings("rawtypes")
+    private static Optional<List<DataType>> validateOpMapping(
+            final CallContext callContext, final boolean throwOnFailure) {
+        final boolean hasMappingArgProvided = !callContext.isArgumentNull(ARG_OP_MAPPING);
+        final boolean isMappingArgLiteral = callContext.isArgumentLiteral(ARG_OP_MAPPING);
         if (hasMappingArgProvided && !isMappingArgLiteral) {
             return callContext.fail(
                     throwOnFailure, "The 'op_mapping' argument must be a constant MAP literal.");
         }
 
-        final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);
+        final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
         if (opMapping.isPresent()) {
-            final Optional<List<DataType>> validationError =
-                    validateOpMappingKeys(callContext, opMapping.get(), throwOnFailure);
-            if (validationError.isPresent()) {
-                return validationError;
-            }
+            return validateOpMappingKeys(
+                    callContext, (Map<String, String>) opMapping.get(), throwOnFailure);
         }
-
-        return Optional.of(callContext.getArgumentDataTypes());
+        return Optional.empty();
     }
 
     /**
@@ -150,16 +168,13 @@ public final class ToChangelogTypeStrategy {
      * trimmed. Names are case-sensitive and must match exactly (e.g., {@code INSERT}, not {@code
      * insert}). Each name must be valid and appear at most once across all entries.
      */
-    @SuppressWarnings("rawtypes")
     private static Optional<List<DataType>> validateOpMappingKeys(
-            final CallContext callContext, final Map opMapping, final boolean throwOnFailure) {
+            final CallContext callContext,
+            final Map<String, String> opMapping,
+            final boolean throwOnFailure) {
         final Set<String> allRowKindsSeen = new HashSet<>();
-        for (final Object key : opMapping.keySet()) {
-            if (!(key instanceof String)) {
-                return callContext.fail(
-                        throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
-            }
-            final String[] rowKindNames = ((String) key).split(",");
+        for (final String key : opMapping.keySet()) {
+            final String[] rowKindNames = key.split(",");
             for (final String rawName : rowKindNames) {
                 final String rowKindName = rawName.trim();
                 if (!VALID_ROW_KIND_NAMES.contains(rowKindName)) {
@@ -167,7 +182,7 @@ public final class ToChangelogTypeStrategy {
                             throwOnFailure,
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
-                                            + "Unknown change operation: '%s'. Valid values are: %s.",
+                                            + "Unknown change operation: '%s'. Operations are case-sensitive. Valid values are: %s.",
                                     rowKindName, VALID_ROW_KIND_NAMES));
                 }
                 final boolean isDuplicate = !allRowKindsSeen.add(rowKindName);
@@ -184,12 +199,56 @@ public final class ToChangelogTypeStrategy {
         return Optional.empty();
     }
 
-    private static String resolveOpColumnName(final CallContext callContext) {
-        return callContext
-                .getArgumentValue(1, ColumnList.class)
-                .filter(cl -> !cl.getNames().isEmpty())
-                .map(cl -> cl.getNames().get(0))
-                .orElse(DEFAULT_OP_COLUMN_NAME);
+    /**
+     * Returns {@code true} when at least one {@code op_mapping} key references {@code DELETE}. Keys
+     * may be comma-separated (e.g., {@code "INSERT, DELETE"}) per the user-facing contract.
+     */
+    private static boolean mapsDelete(final Map<String, String> opMapping) {
+        for (final String key : opMapping.keySet()) {
+            for (final String rawName : key.split(",")) {
+                if (DELETE.equals(rawName.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Builds the output {@link Field}s for the {@code TO_CHANGELOG} call.
+     *
+     * <p>When the function emits partial DELETE rows ({@code produces_full_deletes=false}), columns
+     * that are not part of the upsert key (or {@code PARTITION BY}) are nulled out at runtime.
+     * Those columns are widened to nullable here so the output schema matches what the operator can
+     * emit; preserved columns keep their declared nullability.
+     *
+     * <p>At type inference time the upsert key may not be exposed yet; in that case the helper
+     * returns only the partition keys and all projected columns are widened conservatively.
+     */
+    private static List<Field> buildOutputFields(
+            final TableSemantics semantics,
+            final String opColumnName,
+            final boolean producesFullDeletes) {
+        final List<Field> inputFields = DataType.getFields(semantics.dataType());
+        final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
+        final List<Field> outputFields = new ArrayList<>();
+        outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
+        final Set<Integer> preserved =
+                producesFullDeletes
+                        ? Collections.emptySet()
+                        : ChangelogTypeStrategyUtils.computePreservedColumnIndices(semantics);
+        Arrays.stream(outputIndices)
+                .mapToObj(
+                        idx ->
+                                producesFullDeletes || preserved.contains(idx)
+                                        ? inputFields.get(idx)
+                                        : asNullable(inputFields.get(idx)))
+                .forEach(outputFields::add);
+        return outputFields;
+    }
+
+    private static Field asNullable(final Field field) {
+        return DataTypes.FIELD(field.getName(), field.getDataType().nullable());
     }
 
     private ToChangelogTypeStrategy() {}

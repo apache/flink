@@ -139,8 +139,8 @@ class ExpressionReducer(
       } else
         unreduced match {
           case call: RexCall
-              if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(
-                call)) =>
+              if (nonReducibleJsonFunctions.contains(call.getOperator)
+                || isJsonFunctionOperand(call, null)) =>
             reducedValues.add(unreduced)
           case _ =>
             unreduced.getType.getSqlTypeName match {
@@ -297,7 +297,10 @@ class ExpressionReducer(
           }
           // Exclude some JSON functions which behave differently
           // when called as an argument of another call of one of these functions.
-          if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(call)) {
+          if (
+            nonReducibleJsonFunctions.contains(call.getOperator)
+            || isJsonFunctionOperand(call, null)
+          ) {
             None
           } else {
             Some(call)

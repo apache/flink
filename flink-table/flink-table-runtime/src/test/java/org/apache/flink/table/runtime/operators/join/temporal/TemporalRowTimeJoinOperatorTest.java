@@ -39,9 +39,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     /** Test rowtime temporal join. */
     @Test
-    void testRowTimeTemporalJoin() throws Exception {
+    void testRowTimeInnerTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(new Watermark(0));
         expectedOutput.add(new Watermark(2));
         expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
         expectedOutput.add(new Watermark(5));
@@ -54,14 +54,12 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testRowTimeTemporalJoin(false, expectedOutput);
     }
 
-    /** Test rowtime left temporal join. */
     @Test
     void testRowTimeLeftTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(new Watermark(0));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
         expectedOutput.add(new Watermark(2));
-        expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
         expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
         expectedOutput.add(new Watermark(5));
         expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
@@ -84,8 +82,8 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
         testHarness.open();
 
-        testHarness.processWatermark1(new Watermark(1));
-        testHarness.processWatermark2(new Watermark(1));
+        testHarness.processWatermark1(new Watermark(0));
+        testHarness.processWatermark2(new Watermark(0));
 
         testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
@@ -93,7 +91,6 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.processWatermark1(new Watermark(2));
         testHarness.processWatermark2(new Watermark(2));
 
-        testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement1(insertRecord(3L, "k1", "1a3"));
         testHarness.processElement2(insertRecord(4L, "k2", "2a4"));
 
@@ -194,9 +191,9 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     }
 
     @Test
-    void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
+    void testRowTimeInnerTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(new Watermark(0));
         expectedOutput.add(new Watermark(2));
         expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
         expectedOutput.add(new Watermark(5));
@@ -212,7 +209,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     @Test
     void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(new Watermark(0));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
         expectedOutput.add(new Watermark(2));
         expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
@@ -237,8 +234,8 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
         testHarness.open();
 
-        testHarness.processWatermark1(new Watermark(1));
-        testHarness.processWatermark2(new Watermark(1));
+        testHarness.processWatermark1(new Watermark(0));
+        testHarness.processWatermark2(new Watermark(0));
 
         testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
@@ -267,6 +264,96 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.processWatermark2(new Watermark(13));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    void testRowTimeInnerTemporalJoinLateRecords() throws Exception {
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "2a2"));
+        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(insertRecord(7L, "k1", "1a7", 2L, "k1", "2a2"));
+        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(new Watermark(11));
+        expectedOutput.add(insertRecord(13L, "k2", "1a13", 9L, "k2", "2a9"));
+        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(new Watermark(15));
+
+        testRowTimeTemporalJoinLateRecords(false, expectedOutput);
+    }
+
+    @Test
+    void testRowTimeLeftTemporalJoinLateRecords() throws Exception {
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "2a2"));
+        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(insertRecord(7L, "k1", "1a7", 2L, "k1", "2a2"));
+        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(insertRecord(10L, "k2", "1a10", null, null, null));
+        expectedOutput.add(new Watermark(11));
+        expectedOutput.add(insertRecord(13L, "k2", "1a13", 9L, "k2", "2a9"));
+        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(new Watermark(15));
+
+        testRowTimeTemporalJoinLateRecords(true, expectedOutput);
+    }
+
+    /**
+     * Verifies that probe-side records whose event time is less than or equal to the current
+     * watermark are dropped on arrival: they are not joined, not emitted (even with a left outer
+     * join), and are counted in the {@code numLateRecordsDropped} metric.
+     */
+    private void testRowTimeTemporalJoinLateRecords(
+            boolean isLeftOuter, List<Object> expectedOutput) throws Exception {
+        TemporalRowTimeJoinOperator joinOperator =
+                new TemporalRowTimeJoinOperator(
+                        rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuter);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinOperator);
+
+        testHarness.open();
+
+        // initialize watermark to 1
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        // Establish a build-side version at time 2 and a non-late probe record at time 3.
+        testHarness.processElement2(insertRecord(2L, "k1", "2a2"));
+        testHarness.processElement1(insertRecord(3L, "k1", "1a3"));
+        testHarness.processWatermark1(new Watermark(5));
+        testHarness.processWatermark2(new Watermark(5));
+
+        // After Watermark(5), any probe record with leftTime <= 5 is late and must be dropped.
+        testHarness.processElement1(insertRecord(5L, "k1", "1a5")); // leftTime == watermark
+        testHarness.processElement1(insertRecord(4L, "k1", "1a4")); // leftTime < watermark
+        testHarness.processElement1(insertRecord(1L, "k1", "1a1")); // leftTime << watermark
+        // A non-late probe record should still be processed.
+        testHarness.processElement1(insertRecord(7L, "k1", "1a7"));
+        testHarness.processWatermark1(new Watermark(8));
+        testHarness.processWatermark2(new Watermark(8));
+
+        // A record for late retraction
+        testHarness.processElement1(insertRecord(10L, "k2", "1a10"));
+        testHarness.processWatermark1(new Watermark(11));
+        testHarness.processWatermark2(new Watermark(11));
+
+        // Add a late retraction and a late build-side record
+        testHarness.processElement1(insertRecord(13L, "k2", "1a13"));
+        testHarness.processElement2(insertRecord(9L, "k2", "2a9"));
+        testHarness.processElement1(deleteRecord(10L, "k2", "1a10")); // late -> dropped
+        testHarness.processWatermark1(new Watermark(13));
+        testHarness.processWatermark2(new Watermark(13));
+
+        // Another late retraction
+        testHarness.processElement1(deleteRecord(13L, "k2", "1a13"));
+        testHarness.processWatermark1(new Watermark(15));
+        testHarness.processWatermark2(new Watermark(15));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        assertThat(joinOperator.getNumLateRecordsDropped().getCount()).isEqualTo(5L);
+
         testHarness.close();
     }
 

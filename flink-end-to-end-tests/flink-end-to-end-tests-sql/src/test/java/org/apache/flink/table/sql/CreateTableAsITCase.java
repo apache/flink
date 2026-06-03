@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.ClusterController;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.net.URI;
 import java.time.Duration;
@@ -37,7 +37,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** End-to-End tests for create table as select syntax. */
-public class CreateTableAsITCase extends SqlITCaseBase {
+class CreateTableAsITCase extends SqlITCaseBase {
 
     private static final ResolvedSchema SINK_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -54,29 +54,25 @@ public class CreateTableAsITCase extends SqlITCaseBase {
     private static final DebeziumJsonDeserializationSchema DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(SINK_TABLE_SCHEMA);
 
-    public CreateTableAsITCase(String executionMode) {
-        super(executionMode);
-    }
-
-    @Test
-    public void testCreateTableAs() throws Exception {
+    @TestTemplate
+    void testCreateTableAs() throws Exception {
         runAndCheckSQL("create_table_as_e2e.sql", Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
     }
 
-    @Test
-    public void testCreateTableAsInStatementSet() throws Exception {
+    @TestTemplate
+    void testCreateTableAsInStatementSet() throws Exception {
         runAndCheckSQL(
                 "create_table_as_statementset_e2e.sql",
                 Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
     }
 
     @Override
-    protected List<String> formatRawResult(List<String> rawResult) {
+    List<String> formatRawResult(List<String> rawResult) {
         return convertToMaterializedResult(rawResult, SINK_TABLE_SCHEMA, DESERIALIZATION_SCHEMA);
     }
 
     @Override
-    protected void executeSqlStatements(
+    void executeSqlStatements(
             ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception {
         clusterController.submitSQLJob(

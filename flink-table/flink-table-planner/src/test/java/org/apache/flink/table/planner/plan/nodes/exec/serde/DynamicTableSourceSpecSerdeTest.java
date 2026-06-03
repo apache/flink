@@ -42,6 +42,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.MetadataFilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
@@ -64,6 +65,7 @@ import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.TimestampString;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -274,7 +276,71 @@ public class DynamicTableSourceSpecSerdeTest {
                                                         put("p", "B");
                                                     }
                                                 }))));
-        return Stream.of(spec1, spec2);
+        Map<String, String> options3 = new HashMap<>();
+        options3.put("connector", TestValuesTableFactory.IDENTIFIER);
+        options3.put("disable-lookup", "true");
+        options3.put("enable-metadata-filter-push-down", "true");
+        options3.put("bounded", "false");
+        options3.put("readable-metadata", "timestamp:TIMESTAMP(3), offset:BIGINT");
+
+        final ResolvedSchema resolvedSchema3 =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("id", DataTypes.INT()),
+                                Column.metadata(
+                                        "rowtime", DataTypes.TIMESTAMP(3), "timestamp", false),
+                                Column.metadata("offset", DataTypes.BIGINT(), null, false)),
+                        Collections.emptyList(),
+                        null,
+                        Collections.emptyList(),
+                        null);
+
+        final CatalogTable catalogTable3 =
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build())
+                        .options(options3)
+                        .build();
+
+        // predicateRowType uses metadata key names (already translated from SQL aliases).
+        RowType predicateRowType3 =
+                RowType.of(
+                        new LogicalType[] {new TimestampType(3), new BigIntType()},
+                        new String[] {"timestamp", "offset"});
+
+        DynamicTableSourceSpec spec3 =
+                new DynamicTableSourceSpec(
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of(
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                                        "MyTableMetadata"),
+                                new ResolvedCatalogTable(catalogTable3, resolvedSchema3)),
+                        Collections.singletonList(
+                                new MetadataFilterPushDownSpec(
+                                        Arrays.asList(
+                                                // timestamp > '2024-01-01'
+                                                rexBuilder.makeCall(
+                                                        SqlStdOperatorTable.GREATER_THAN,
+                                                        rexBuilder.makeInputRef(
+                                                                factory.createSqlType(
+                                                                        SqlTypeName.TIMESTAMP, 3),
+                                                                0),
+                                                        rexBuilder.makeTimestampLiteral(
+                                                                new TimestampString(
+                                                                        "2024-01-01 00:00:00"),
+                                                                3)),
+                                                // offset >= 10
+                                                rexBuilder.makeCall(
+                                                        SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+                                                        rexBuilder.makeInputRef(
+                                                                factory.createSqlType(
+                                                                        SqlTypeName.BIGINT),
+                                                                1),
+                                                        rexBuilder.makeExactLiteral(
+                                                                new BigDecimal(10)))),
+                                        predicateRowType3)));
+
+        return Stream.of(spec1, spec2, spec3);
     }
 
     @ParameterizedTest

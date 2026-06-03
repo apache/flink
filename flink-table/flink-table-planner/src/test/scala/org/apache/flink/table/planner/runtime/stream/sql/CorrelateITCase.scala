@@ -193,7 +193,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testMultipleCorrelate(): Unit = {
-    val data = new mutable.MutableList[(String, String, String)]
+    val data = new mutable.ListBuffer[(String, String, String)]
     data.+=(("1", "1,L", "A,B"))
     data.+=(("2", "2,L", "B,C"))
 

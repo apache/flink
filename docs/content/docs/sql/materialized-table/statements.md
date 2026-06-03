@@ -397,6 +397,8 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
     | DROP {column_name | (column_name, column_name, ...) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | DISTRIBUTION }
     | SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)]
     | REFRESH [PARTITION partition_spec] |
+    | SET (key1=val1, key2=val2, ...)
+    | RESET (key1, key2, ...)
     | AS <select_statement>
 <schema_component>:
   { <column_component> | <constraint_component> | <watermark_component> }
@@ -547,6 +549,69 @@ ALTER MATERIALIZED TABLE my_materialized_table RESUME;
 -- Resume the specified materialized table and specify sink parallelism
 ALTER MATERIALIZED TABLE my_materialized_table RESUME WITH ('sink.parallelism'='10');
 ```
+
+## SET
+
+```
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
+```
+
+`SET` is used to add or overwrite table options of a materialized table. Existing options not listed in the statement are preserved.
+
+**Key handling:**
+- Keys are applied in the order they appear in the statement.
+- If the same key is listed multiple times, the last value in the list wins.
+- The empty option list `SET ()` is rejected with a validation error.
+
+**Example:**
+
+```sql
+-- Add a new option and overwrite an existing one
+ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'sink.parallelism' = '4');
+
+-- Duplicate keys: the last value wins. After this statement, 'format' is 'csv'.
+ALTER MATERIALIZED TABLE my_materialized_table SET ('format' = 'json', 'format' = 'csv');
+```
+
+<span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
+- `FULL` mode: the change is applied to the catalog. The refresh workflow is not touched.
+- `CONTINUOUS` mode, `ACTIVATED` status: the running refresh job is stopped with savepoint, the change is applied to the catalog, and a new refresh job is started using the updated options. The new job does **not** restore from the savepoint taken during suspend, so streaming state is reset.
+- `CONTINUOUS` mode, `SUSPENDED` status: the change is applied to the catalog and the savepoint stored in the refresh handler is cleared, so the next `RESUME` will also start a fresh job.
+- `CONTINUOUS` mode, `INITIALIZING` status: the statement is rejected.
+
+## RESET
+
+```
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name RESET (key1, key2, ...)
+```
+
+`RESET` is used to remove table options from a materialized table.
+
+**Key handling:**
+- Keys that are not currently set on the table are silently ignored. The statement still succeeds.
+- Duplicate keys in the key list are de-duplicated and treated as a single reset for that key.
+- The empty key list `RESET ()` is rejected with a validation error.
+- The `connector` key is reserved and cannot be reset. Attempting to do so is rejected with a validation error.
+
+**Example:**
+
+```sql
+-- Remove the 'format' and 'sink.parallelism' options
+ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'sink.parallelism');
+
+-- 'sink.parallelism' is not currently set on the table: this is a no-op for that key,
+-- 'format' is still removed and the statement succeeds.
+ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'sink.parallelism');
+
+-- Duplicates collapse to a single reset for 'format'.
+ALTER MATERIALIZED TABLE my_materialized_table RESET ('format', 'format');
+```
+
+<span class="label label-danger">Note</span> When run through the Flink SQL Gateway, the behavior depends on the refresh mode and current refresh status:
+- `FULL` mode: the change is applied to the catalog. The refresh workflow is not touched.
+- `CONTINUOUS` mode, `ACTIVATED` status: the running refresh job is stopped with savepoint, the change is applied to the catalog, and a new refresh job is started using the updated options. The new job does **not** restore from the savepoint taken during suspend, so streaming state is reset.
+- `CONTINUOUS` mode, `SUSPENDED` status: the change is applied to the catalog and the savepoint stored in the refresh handler is cleared, so the next `RESUME` will also start a fresh job.
+- `CONTINUOUS` mode, `INITIALIZING` status: the statement is rejected.
 
 ## REFRESH
 

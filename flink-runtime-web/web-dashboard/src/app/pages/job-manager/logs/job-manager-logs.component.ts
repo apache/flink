@@ -17,29 +17,27 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
-import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
-import { EditorOptions } from 'ng-zorro-antd/code-editor';
+import { FormsModule } from '@angular/forms';
+import { of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
+
+import { AddonCompactComponent } from '@flink-runtime-web/components/addon-compact/addon-compact.component';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-config';
-import {of, Subject} from 'rxjs';
-import {catchError, takeUntil} from 'rxjs/operators';
 import {
   JOB_MANAGER_MODULE_CONFIG,
   JOB_MANAGER_MODULE_DEFAULT_CONFIG,
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
-import {NzCodeEditorModule} from "ng-zorro-antd/code-editor";
-import {AutoResizeDirective} from "@flink-runtime-web/components/editor/auto-resize.directive";
-import {FormsModule} from "@angular/forms";
-import {
-  AddonCompactComponent
-} from "@flink-runtime-web/components/addon-compact/addon-compact.component";
+import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
+import { EditorOptions, NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 
 @Component({
-    selector: 'flink-job-manager-logs',
-    templateUrl: './job-manager-logs.component.html',
-    styleUrls: ['./job-manager-logs.component.less'],
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
+  selector: 'flink-job-manager-logs',
+  templateUrl: './job-manager-logs.component.html',
+  styleUrls: ['./job-manager-logs.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerLogsComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_log`;
@@ -60,7 +58,7 @@ export class JobManagerLogsComponent implements OnInit, OnDestroy {
     this.downloadUrl = `${this.configService.BASE_URL}/jobmanager/log`;
   }
 
-  public ngOnInit() {
+  public ngOnInit(): void {
     this.reload();
   }
 
@@ -69,7 +67,7 @@ export class JobManagerLogsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  public reload() {
+  public reload(): void {
     this.loading = true;
     this.cdr.markForCheck();
     this.jobManagerService

@@ -94,13 +94,11 @@
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 0,
         "partitionKeys" : [ 0 ],
-        "orderKeys" : [ ],
         "type" : "ROW<`name` VARCHAR(2147483647), `score` INT> NOT NULL"
       }, {
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 1,
         "partitionKeys" : [ 0 ],
-        "orderKeys" : [ ],
         "type" : "ROW<`name` VARCHAR(2147483647), `city` VARCHAR(2147483647)> NOT NULL"
       }, {
         "kind" : "CALL",

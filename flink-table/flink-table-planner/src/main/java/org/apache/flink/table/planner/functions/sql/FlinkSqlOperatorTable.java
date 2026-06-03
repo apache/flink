@@ -494,34 +494,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                                     SqlTypeFamily.INTEGER)),
                     SqlFunctionCategory.STRING);
 
-    public static final SqlFunction REGEXP_REPLACE =
-            new SqlFunction(
-                    "REGEXP_REPLACE",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.TO_NULLABLE),
-                    null,
-                    OperandTypes.family(
-                            SqlTypeFamily.CHARACTER,
-                            SqlTypeFamily.CHARACTER,
-                            SqlTypeFamily.CHARACTER),
-                    SqlFunctionCategory.STRING);
-
-    public static final SqlFunction REGEXP_EXTRACT =
-            new SqlFunction(
-                    "REGEXP_EXTRACT",
-                    SqlKind.OTHER_FUNCTION,
-                    VARCHAR_FORCE_NULLABLE,
-                    null,
-                    OperandTypes.or(
-                            OperandTypes.family(
-                                    SqlTypeFamily.CHARACTER,
-                                    SqlTypeFamily.CHARACTER,
-                                    SqlTypeFamily.INTEGER),
-                            OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
-                    SqlFunctionCategory.STRING);
-
     public static final SqlFunction HASH_CODE =
             new SqlFunction(
                     "HASH_CODE",
@@ -624,15 +596,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.CHARACTER),
                             OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
                     SqlFunctionCategory.TIMEDATE);
-
-    public static final SqlFunction REGEXP =
-            new SqlFunction(
-                    "REGEXP",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.BOOLEAN_NULLABLE,
-                    null,
-                    OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
-                    SqlFunctionCategory.STRING);
 
     public static final SqlFunction PARSE_URL =
             new SqlFunction(
@@ -1231,6 +1194,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction ABS = SqlStdOperatorTable.ABS;
     public static final SqlFunction EXP = SqlStdOperatorTable.EXP;
     public static final SqlFunction NULLIF = SqlStdOperatorTable.NULLIF;
+    public static final SqlFunction COALESCE = SqlStdOperatorTable.COALESCE;
     public static final SqlFunction FLOOR = SqlStdOperatorTable.FLOOR;
     public static final SqlFunction CEIL = SqlStdOperatorTable.CEIL;
     public static final SqlFunction CAST = SqlStdOperatorTable.CAST;

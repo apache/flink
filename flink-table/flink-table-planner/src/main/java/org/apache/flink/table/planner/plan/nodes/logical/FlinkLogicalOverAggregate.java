@@ -75,6 +75,12 @@ public class FlinkLogicalOverAggregate extends Window implements FlinkLogicalRel
     }
 
     @Override
+    public Window copy(List<RexLiteral> windowConstants) {
+        return new FlinkLogicalOverAggregate(
+                getCluster(), traitSet, input, windowConstants, rowType, groups);
+    }
+
+    @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
         return copy(traitSet, inputs, rowType, groups);
     }

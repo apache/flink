@@ -51,7 +51,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(TestLoggerExtension.class)
 class BatchSQLTest {
@@ -79,7 +79,7 @@ class BatchSQLTest {
                 // Only above shuffle modes are supported by the adaptive batch scheduler
                 // , "ALL_EXCHANGES_PIPELINE"
             })
-    public void testBatchSQL(BatchShuffleMode shuffleMode, @TempDir Path tmpDir) throws Exception {
+    void testBatchSQL(BatchShuffleMode shuffleMode, @TempDir Path tmpDir) throws Exception {
         LOG.info("Results for this test will be stored at: {}", tmpDir);
 
         String sqlStatement = new String(Files.readAllBytes(sqlPath));
@@ -143,13 +143,13 @@ class BatchSQLTest {
                         .filter(file -> !file.isDirectory())
                         .map(File::getPath)
                         .collect(Collectors.toList());
-        assertEquals(1, files.size());
+        assertThat(files).hasSize(1);
         Path resultFile = Paths.get(files.get(0));
 
         LOG.info("Result found at {}", resultFile);
         String actual = new String(Files.readAllBytes(resultFile));
         LOG.info("Actual result is: '{}'", actual);
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 }

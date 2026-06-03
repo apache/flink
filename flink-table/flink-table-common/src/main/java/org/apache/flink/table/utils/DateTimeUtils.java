@@ -20,6 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -131,13 +132,13 @@ public class DateTimeUtils {
     private static final long MIN_EPOCH_MILLS = -62167219200000L;
 
     /** The valid minimum epoch seconds ('0000-01-01 00:00:00 UTC+0'). */
-    private static final long MIN_EPOCH_SECONDS = -62167219200L;
+    public static final long MIN_EPOCH_SECONDS = -62167219200L;
 
     /** The valid maximum epoch milliseconds ('9999-12-31 23:59:59.999 UTC+0'). */
     private static final long MAX_EPOCH_MILLS = 253402300799999L;
 
     /** The valid maximum epoch seconds ('9999-12-31 23:59:59 UTC+0'). */
-    private static final long MAX_EPOCH_SECONDS = 253402300799L;
+    public static final long MAX_EPOCH_SECONDS = 253402300799L;
 
     private static final DateTimeFormatter DEFAULT_TIMESTAMP_FORMATTER =
             new DateTimeFormatterBuilder()
@@ -149,6 +150,8 @@ public class DateTimeUtils {
                     .toFormatter();
 
     private static final int DEFAULT_PRECISION = 3;
+    private static final int MIN_PRECISION = 0;
+    private static final int MAX_PRECISION = 9;
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
@@ -337,26 +340,30 @@ public class DateTimeUtils {
      * Converts a numeric epoch value to {@link TimestampData}. The precision specifies the unit of
      * the epoch value: 0 for seconds, 3 for milliseconds, 6 for microseconds, 9 for nanoseconds,
      * and any value in between. Returns {@code null} if the value is out of the valid timestamp
-     * range.
+     * range. Throws a {@link TableRuntimeException} if the precision is outside {@code [0, 9]}.
      */
     public static TimestampData toTimestampData(long epoch, int precision) {
         return epochToTimestampData(epoch, precision);
     }
 
     /**
-     * See {@link #toTimestampData(long, int)}. The double value is first converted to nanoseconds
-     * to preserve fractional parts, then processed at nanosecond precision. Returns {@code null} if
-     * the value is out of the valid timestamp range.
+     * See {@link #toTimestampData(long, int)}. Seconds and the sub-second remainder are computed
+     * separately so that values near the upper bound of the valid range are not lost to long
+     * overflow when scaled to nanoseconds. Returns {@code null} if the value is out of the valid
+     * timestamp range. Throws a {@link TableRuntimeException} if the precision is outside {@code
+     * [0, 9]}.
      */
     public static TimestampData toTimestampData(double epoch, int precision) {
+        validatePrecision(precision);
         double factor = Math.pow(10, precision);
         double epochSeconds = epoch / factor;
         if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
             return null;
         }
-        double nanoFactor = Math.pow(10, 9 - precision);
-        long epochNanos = (long) (epoch * nanoFactor);
-        return epochToTimestampData(epochNanos, 9);
+        long seconds = (long) epochSeconds;
+        double fractionalSeconds = epochSeconds - seconds;
+        long nanoAdjustment = (long) (fractionalSeconds * 1_000_000_000L);
+        return TimestampData.fromInstant(Instant.ofEpochSecond(seconds, nanoAdjustment));
     }
 
     /** See {@link #toTimestampData(long, int)}. The decimal value is truncated to a long. */
@@ -366,6 +373,7 @@ public class DateTimeUtils {
     }
 
     private static TimestampData epochToTimestampData(long epoch, int precision) {
+        validatePrecision(precision);
         long factor = (long) Math.pow(10, precision);
         long epochSeconds = Math.floorDiv(epoch, factor);
 
@@ -380,6 +388,15 @@ public class DateTimeUtils {
         return TimestampData.fromInstant(Instant.ofEpochSecond(epochSeconds, nanoAdjustment));
     }
 
+    private static void validatePrecision(int precision) {
+        if (precision < MIN_PRECISION || precision > MAX_PRECISION) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Precision for TO_TIMESTAMP_LTZ must be between %d and %d but was %d.",
+                            MIN_PRECISION, MAX_PRECISION, precision));
+        }
+    }
+
     /**
      * Converts an {@link Instant} to an epoch value at the given precision. This is the inverse of
      * {@link #toTimestampData(long, int)}.
@@ -391,18 +408,29 @@ public class DateTimeUtils {
     }
 
     /**
-     * Infers fractional second precision from a format pattern by counting trailing 'S' characters.
-     * Returns at least {@link #DEFAULT_PRECISION} (3) and at most 9.
+     * Infers fractional second precision from a format pattern by finding the longest run of 'S'
+     * characters outside quoted literal sections. Returns at least {@link #DEFAULT_PRECISION} (3)
+     * and at most 9.
      */
     public static int precisionFromFormat(String format) {
-        int sCount = 0;
-        for (int i = format.length() - 1; i >= 0; i--) {
-            if (format.charAt(i) != 'S') {
-                break;
+        int maxRun = 0;
+        int run = 0;
+        boolean inQuotes = false;
+        for (int i = 0; i < format.length(); i++) {
+            char c = format.charAt(i);
+            if (c == '\'') {
+                inQuotes = !inQuotes;
+                maxRun = Math.max(maxRun, run);
+                run = 0;
+            } else if (!inQuotes && c == 'S') {
+                run++;
+            } else {
+                maxRun = Math.max(maxRun, run);
+                run = 0;
             }
-            sCount++;
         }
-        return Math.max(Math.min(sCount, 9), DEFAULT_PRECISION);
+        maxRun = Math.max(maxRun, run);
+        return Math.max(Math.min(maxRun, 9), DEFAULT_PRECISION);
     }
 
     // --------------------------------------------------------------------------------------------

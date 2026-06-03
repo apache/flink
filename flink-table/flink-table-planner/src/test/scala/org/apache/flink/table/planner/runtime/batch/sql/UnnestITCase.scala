@@ -587,4 +587,42 @@ class UnnestITCase extends BatchTestBase {
       Seq(row(1, 12, "45.6", 1), row(2, 13, "41.6", 1))
     )
   }
+
+  @Test
+  def testLeftJoinUnnestNoAliasList(): Unit = {
+    val data = List(
+      row(1, Array(10, 20)),
+      row(2, Array.empty[Int]),
+      row(3, Array(30))
+    )
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(Types.INT, Types.PRIMITIVE_ARRAY(Types.INT)),
+      "id, vals")
+
+    checkResult(
+      "SELECT id, exploded_val FROM T LEFT JOIN UNNEST(T.vals) AS exploded_val ON TRUE",
+      Seq(row(1, 10), row(1, 20), row(2, null), row(3, 30))
+    )
+  }
+
+  @Test
+  def testLeftJoinUnnestOnPredicate(): Unit = {
+    val data = List(
+      row(1, Array(1, 50, 100)),
+      row(2, Array(1, 2)),
+      row(3, Array.empty[Int])
+    )
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(Types.INT, Types.PRIMITIVE_ARRAY(Types.INT)),
+      "id, vals")
+
+    checkResult(
+      "SELECT id, exploded_val FROM T LEFT JOIN UNNEST(T.vals) AS exploded_val ON exploded_val > 10",
+      Seq(row(1, 50), row(1, 100), row(2, null), row(3, null))
+    )
+  }
 }

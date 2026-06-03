@@ -30,19 +30,21 @@ import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
-import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceExtension;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,38 +69,33 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Base class for sql ITCase. */
-@RunWith(Parameterized.class)
-public abstract class SqlITCaseBase extends TestLogger {
+@ExtendWith({ParameterizedTestExtension.class, TestLoggerExtension.class})
+abstract class SqlITCaseBase {
     private static final Logger LOG = LoggerFactory.getLogger(SqlITCaseBase.class);
 
-    @Parameterized.Parameters(name = "executionMode")
-    public static Collection<String> data() {
+    @Parameters(name = "executionMode")
+    private static Collection<String> data() {
         return Arrays.asList("streaming", "batch");
     }
 
-    @Rule
-    public final FlinkResource flink =
-            new LocalStandaloneFlinkResourceFactory()
-                    .create(
-                            FlinkResourceSetup.builder()
-                                    .addConfiguration(getConfiguration())
-                                    .build());
+    @RegisterExtension
+    private final FlinkResourceExtension flinkExtension =
+            new FlinkResourceExtension(
+                    new LocalStandaloneFlinkResourceFactory()
+                            .create(
+                                    FlinkResourceSetup.builder()
+                                            .addConfiguration(getConfiguration())
+                                            .build()));
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private Path tmp;
 
-    protected final String executionMode;
+    @Parameter String executionMode;
 
-    protected Path result;
+    Path result;
 
-    protected static final Path SQL_TOOL_BOX_JAR =
-            ResourceTestUtils.getResource(".*SqlToolbox.jar");
-
-    public SqlITCaseBase(String executionMode) {
-        this.executionMode = executionMode;
-    }
+    static final Path SQL_TOOL_BOX_JAR = ResourceTestUtils.getResource(".*SqlToolbox.jar");
 
     private static Configuration getConfiguration() {
         // we have to enable checkpoint to trigger flushing for filesystem sink
@@ -107,18 +104,17 @@ public abstract class SqlITCaseBase extends TestLogger {
         return flinkConfig;
     }
 
-    @Before
-    public void before() throws Exception {
-        Path tmpPath = tmp.getRoot().toPath();
-        LOG.info("The current temporary path: {}", tmpPath);
-        this.result = tmpPath.resolve(String.format("result-%s", UUID.randomUUID()));
+    @BeforeEach
+    void before() throws Exception {
+        LOG.info("The current temporary path: {}", tmp);
+        this.result = tmp.resolve(String.format("result-%s", UUID.randomUUID()));
     }
 
-    public void runAndCheckSQL(String sqlPath, List<String> resultItems) throws Exception {
+    void runAndCheckSQL(String sqlPath, List<String> resultItems) throws Exception {
         runAndCheckSQL(sqlPath, Collections.singletonMap(result, resultItems));
     }
 
-    public void runAndCheckSQL(
+    void runAndCheckSQL(
             String sqlPath,
             List<String> resultItems,
             Function<List<String>, List<String>> formatter)
@@ -130,18 +126,18 @@ public abstract class SqlITCaseBase extends TestLogger {
                 Collections.emptyList());
     }
 
-    public void runAndCheckSQL(String sqlPath, Map<Path, List<String>> resultItems)
-            throws Exception {
+    void runAndCheckSQL(String sqlPath, Map<Path, List<String>> resultItems) throws Exception {
         runAndCheckSQL(sqlPath, resultItems, Collections.emptyMap(), Collections.emptyList());
     }
 
-    public void runAndCheckSQL(
+    void runAndCheckSQL(
             String sqlPath,
             Map<Path, List<String>> resultItems,
             Map<Path, Function<List<String>, List<String>>> formatters,
             List<URI> dependencies)
             throws Exception {
-        try (ClusterController clusterController = flink.startCluster(1)) {
+        try (ClusterController clusterController =
+                flinkExtension.getFlinkResource().startCluster(1)) {
             List<String> sqlLines = initializeSqlLines(sqlPath);
 
             executeSqlStatements(clusterController, sqlLines, dependencies);
@@ -158,14 +154,14 @@ public abstract class SqlITCaseBase extends TestLogger {
         }
     }
 
-    protected Map<String, String> generateReplaceVars() {
+    Map<String, String> generateReplaceVars() {
         Map<String, String> varsMap = new HashMap<>();
         varsMap.put("$RESULT", this.result.toAbsolutePath().toString());
         varsMap.put("$MODE", this.executionMode);
         return varsMap;
     }
 
-    protected abstract void executeSqlStatements(
+    abstract void executeSqlStatements(
             ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception;
 
@@ -200,9 +196,7 @@ public abstract class SqlITCaseBase extends TestLogger {
                 lines = readResultFiles(resultPath);
                 try {
                     List<String> actual = resultFormatter.apply(lines);
-                    assertThat(actual)
-                            .hasSameSizeAs(expectedItems)
-                            .containsExactlyInAnyOrderElementsOf(expectedItems);
+                    assertThat(actual).containsExactlyInAnyOrderElementsOf(expectedItems);
                     success = true;
                     break;
                 } catch (AssertionError e) {
@@ -217,10 +211,10 @@ public abstract class SqlITCaseBase extends TestLogger {
             }
             Thread.sleep(500);
         }
-        assertTrue(
-                success,
-                String.format(
-                        "Did not get expected results before timeout, actual result: %s.", lines));
+        assertThat(success)
+                .withFailMessage(
+                        "Did not get expected results before timeout, actual result: %s.", lines)
+                .isTrue();
     }
 
     private static List<String> readResultFiles(Path path) throws Exception {
@@ -242,16 +236,16 @@ public abstract class SqlITCaseBase extends TestLogger {
      *
      * <pre>{@code
      * @Override
-     * protected List<String> formatRawResult(List<String> rawResults) {
+     * List<String> formatRawResult(List<String> rawResults) {
      *     return convertToMaterializedResult(rawResults, schema, deserializationSchema);
      * }
      * }</pre>
      */
-    protected List<String> formatRawResult(List<String> rawResults) {
+    List<String> formatRawResult(List<String> rawResults) {
         return rawResults;
     }
 
-    protected static List<String> convertToMaterializedResult(
+    static List<String> convertToMaterializedResult(
             List<String> rawResults,
             ResolvedSchema schema,
             DeserializationSchema<RowData> deserializationSchema) {
@@ -298,7 +292,7 @@ public abstract class SqlITCaseBase extends TestLogger {
      * Create a DebeziumJsonDeserializationSchema using the given {@link ResolvedSchema} to convert
      * debezium-json formatted record into {@link RowData}.
      */
-    protected static DebeziumJsonDeserializationSchema createDebeziumDeserializationSchema(
+    static DebeziumJsonDeserializationSchema createDebeziumDeserializationSchema(
             ResolvedSchema schema) {
         return new DebeziumJsonDeserializationSchema(
                 schema.toPhysicalRowDataType(),

@@ -64,7 +64,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("Hello,5", "Hello world,11")
+    val expected = mutable.ListBuffer("Hello,5", "Hello world,11")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -78,7 +78,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val expected = mutable.ListBuffer("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -94,7 +94,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("3")
+    val expected = mutable.ListBuffer("3")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -111,7 +111,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1,1,one", "2,2,two", "3,3,three")
+    val expected = mutable.ListBuffer("1,1,one", "2,2,two", "3,3,three")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -126,7 +126,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1", "2", "3")
+    val expected = mutable.ListBuffer("1", "2", "3")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -144,7 +144,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "1,1",
       "2,2",
       "3,2",
@@ -180,7 +180,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val expected = mutable.ListBuffer("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -197,7 +197,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.filter('a === 3).toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("3,2,Hello world")
+    val expected = mutable.ListBuffer("3,2,Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -230,7 +230,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.filter(true).toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val expected = mutable.ListBuffer("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -250,7 +250,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     filterDs.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "4,3,Hello world, how are you?",
       "6,3,Luke Skywalker",
       "8,4,Comment#2",
@@ -275,7 +275,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingAppendSink
     filterDs.toDataStream.addSink(sink)
     env.execute()
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "7,4,Comment#1",
       "9,4,Comment#3",
       "11,5,Comment#5",
@@ -301,7 +301,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("Hello")
+    val expected = mutable.ListBuffer("Hello")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -324,13 +324,13 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("Hello", "Hello world")
+    val expected = mutable.ListBuffer("Hello", "Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
   def testScalarFunctionConstructorWithParams(): Unit = {
-    val testData = new mutable.MutableList[(Int, Long, String)]
+    val testData = new mutable.ListBuffer[(Int, Long, String)]
     testData.+=((1, 1L, "Jack#22"))
     testData.+=((2, 2L, "John#19"))
     testData.+=((3, 2L, "Anna#44"))
@@ -349,7 +349,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "default-Anna#44,Sunny-Anna#44,kevin2-Anna#44",
       "default-Jack#22,Sunny-Jack#22,kevin2-Jack#22",
       "default-John#19,Sunny-John#19,kevin2-John#19",
@@ -371,7 +371,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       ">>1",
       ">>2",
       ">>3",
@@ -390,7 +390,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       ">>1",
       ">>2",
       ">>3",
@@ -420,7 +420,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
         env.execute()
 
-        val expected = mutable.MutableList(
+        val expected = mutable.ListBuffer(
           ">>1",
           ">>2",
           ">>3",
@@ -516,7 +516,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "{10=Comment#4}",
       "{11=Comment#5}",
       "{12=Comment#6}",
@@ -544,7 +544,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testColumnOperation(): Unit = {
-    val testData = new mutable.MutableList[(Int, Long, String)]
+    val testData = new mutable.ListBuffer[(Int, Long, String)]
     testData.+=((1, 1L, "Kevin"))
     testData.+=((2, 2L, "Sunny"))
 
@@ -577,7 +577,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       "1,Kevin is a kid,1,str,last,3",
       "2,Sunny is a kid,1,str,last,4"
     )
@@ -599,7 +599,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("3", "4", "5")
+    val expected = mutable.ListBuffer("3", "4", "5")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
@@ -618,7 +618,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     ds.toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("3", "4", "5")
+    val expected = mutable.ListBuffer("3", "4", "5")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 

@@ -20,9 +20,11 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -31,6 +33,7 @@ import java.util.Map;
  * Response of the {@link ClusterConfigHandler}, represented as a list of key-value pairs of the
  * cluster {@link Configuration}.
  */
+@JsonIgnoreProperties({"first", "last"})
 public class ConfigurationInfo extends ArrayList<ConfigurationInfoEntry> implements ResponseBody {
 
     private static final long serialVersionUID = -1170348873871206964L;
@@ -51,7 +54,8 @@ public class ConfigurationInfo extends ArrayList<ConfigurationInfoEntry> impleme
     public static ConfigurationInfo from(Configuration config) {
         final ConfigurationInfo clusterConfig = new ConfigurationInfo(config.keySet().size());
         final Map<String, String> configurationWithHiddenSensitiveValues =
-                ConfigurationUtils.hideSensitiveValues(config.toMap());
+                ConfigurationUtils.hideSensitiveValues(
+                        config.toMap(), config.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
 
         for (Map.Entry<String, String> keyValuePair :
                 configurationWithHiddenSensitiveValues.entrySet()) {

@@ -492,7 +492,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .cause()
                 .hasMessageContaining(
                         String.format(
-                                "Submit continuous refresh job for materialized table %s occur exception.",
+                                "Failed to submit continuous refresh job for materialized table %s.",
                                 userShopsIdentifier.asSerializableString()));
 
         // verify the materialized table is not created
@@ -1156,6 +1156,63 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     @Test
+    void testAlterMaterializedTableSetInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+
+        String alterMaterializedTableSetDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET ('format' = 'json', 'k1' = 'v1')";
+        OperationHandle alterMaterializedTableSetHandle =
+                executeStatement(alterMaterializedTableSetDDL);
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSetHandle);
+
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+
+        // overriding existing key and adding a new key
+        assertThat(newTable.getOptions()).containsEntry("format", "json").containsEntry("k1", "v1");
+
+        // unchanged: schema, query, distribution, freshness, refresh handler
+        assertThat(newTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        assertThat(newTable.getDistribution()).isEqualTo(oldTable.getDistribution());
+        assertThat(newTable.getDefinitionFreshness()).isEqualTo(oldTable.getDefinitionFreshness());
+        assertThat(newTable.getSerializedRefreshHandler())
+                .isEqualTo(oldTable.getSerializedRefreshHandler());
+    }
+
+    @Test
+    void testAlterMaterializedTableResetInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+        assertThat(oldTable.getOptions()).containsKey("format");
+
+        String alterMaterializedTableResetDDL =
+                "ALTER MATERIALIZED TABLE users_shops RESET ('format', 'unknown_key')";
+        OperationHandle alterMaterializedTableResetHandle =
+                executeStatement(alterMaterializedTableResetDDL);
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResetHandle);
+
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+
+        // the existing key is removed, the unknown key is a no-op
+        assertThat(newTable.getOptions()).doesNotContainKey("format");
+
+        // unchanged: schema, query, distribution, freshness, refresh handler
+        assertThat(newTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        assertThat(newTable.getDistribution()).isEqualTo(oldTable.getDistribution());
+        assertThat(newTable.getDefinitionFreshness()).isEqualTo(oldTable.getDefinitionFreshness());
+        assertThat(newTable.getSerializedRefreshHandler())
+                .isEqualTo(oldTable.getSerializedRefreshHandler());
+    }
+
+    @Test
     void testAlterMaterializedTableAsQueryInFullModeWithSuspendStatus() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
                 "users_shops", List.of(), Map.of(), RefreshMode.FULL);
@@ -1265,7 +1322,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(newTable.getExpandedQuery())
                 .hasToString(
                         String.format(
-                                "SELECT COALESCE(`tmp`.`user_id`, CAST(0 AS BIGINT)) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
+                                "SELECT COALESCE(`tmp`.`user_id`, 0) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
                                         + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
                                         + "FROM `%s`.`%s`.`datagenSource` AS `datagenSource`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",

@@ -45,7 +45,7 @@ public class TemporalJoinTestPrograms {
                             Row.of(3L, "Euro", "2020-10-10 00:00:45"))
                     .producedAfterRestore(
                             Row.of(1L, "Euro", "2020-10-10 00:00:58"),
-                            Row.of(1L, "USD", "2020-10-10 00:00:58"))
+                            Row.of(1L, "USD", "2020-10-10 00:00:59"))
                     .build();
 
     static final SourceTestStep ORDERS_WITH_NESTED_ID =
@@ -88,7 +88,7 @@ public class TemporalJoinTestPrograms {
                                     1L,
                                     Row.of("usd"),
                                     mapOf("currency", "USD"),
-                                    "2020-10-10 00:00:58"))
+                                    "2020-10-10 00:00:59"))
                     .build();
 
     static final SourceTestStep RATES =

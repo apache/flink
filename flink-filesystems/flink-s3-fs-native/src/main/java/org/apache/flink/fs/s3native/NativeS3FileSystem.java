@@ -28,9 +28,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3native.writer.NativeS3AccessHelper;
+import org.apache.flink.fs.s3native.writer.NativeS3ObjectOperations;
 import org.apache.flink.fs.s3native.writer.NativeS3RecoverableWriter;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -104,7 +105,7 @@ class NativeS3FileSystem extends FileSystem
     @Nullable private final String entropyInjectionKey;
     private final int entropyLength;
 
-    @Nullable private final NativeS3AccessHelper s3AccessHelper;
+    @Nullable private final NativeS3ObjectOperations s3AccessHelper;
     private final long s3uploadPartSize;
     private final int maxConcurrentUploadsPerStream;
     private final String localTmpDir;
@@ -127,7 +128,8 @@ class NativeS3FileSystem extends FileSystem
             boolean useAsyncOperations,
             int readBufferSize,
             Duration fsCloseTimeout) {
-        this.clientProvider = clientProvider;
+        this.clientProvider =
+                Preconditions.checkNotNull(clientProvider, "clientProvider must not be null");
         this.uri = uri;
         this.bucketName = uri.getHost();
         this.entropyInjectionKey = entropyInjectionKey;
@@ -139,7 +141,7 @@ class NativeS3FileSystem extends FileSystem
         this.readBufferSize = readBufferSize;
         this.fsCloseTimeout = fsCloseTimeout;
         this.s3AccessHelper =
-                new NativeS3AccessHelper(
+                new NativeS3ObjectOperations(
                         clientProvider.getS3Client(),
                         clientProvider.getTransferManager(),
                         bucketName,
@@ -170,6 +172,12 @@ class NativeS3FileSystem extends FileSystem
         return clientProvider;
     }
 
+    @VisibleForTesting
+    @Nullable
+    NativeS3BulkCopyHelper getBulkCopyHelper() {
+        return bulkCopyHelper;
+    }
+
     @Override
     public URI getUri() {
         return uri;
@@ -188,7 +196,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         checkNotClosed();
-        final String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3ObjectOperations.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
 
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
@@ -287,7 +295,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
         checkNotClosed();
-        final String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3ObjectOperations.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, bufferSize);
@@ -296,7 +304,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FSDataInputStream open(Path path) throws IOException {
         checkNotClosed();
-        final String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3ObjectOperations.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, readBufferSize);
@@ -320,7 +328,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FileStatus[] listStatus(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3AccessHelper.extractKey(path);
+        String key = NativeS3ObjectOperations.extractKey(path);
         if (!key.isEmpty() && !key.endsWith("/")) {
             key = key + "/";
         }
@@ -367,7 +375,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
         checkNotClosed();
-        final String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3ObjectOperations.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
 
         try {
@@ -438,7 +446,7 @@ class NativeS3FileSystem extends FileSystem
             }
         }
 
-        final String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3ObjectOperations.extractKey(path);
         return new NativeS3OutputStream(
                 clientProvider.getS3Client(),
                 bucketName,
@@ -457,8 +465,8 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
         checkNotClosed();
-        final String srcKey = NativeS3AccessHelper.extractKey(src);
-        final String dstKey = NativeS3AccessHelper.extractKey(dst);
+        final String srcKey = NativeS3ObjectOperations.extractKey(src);
+        final String dstKey = NativeS3ObjectOperations.extractKey(dst);
         final S3Client s3Client = clientProvider.getS3Client();
 
         final FileStatus srcStatus = getFileStatus(src);
@@ -544,9 +552,8 @@ class NativeS3FileSystem extends FileSystem
                                                 "Native S3 FileSystem closed for bucket: {}",
                                                 bucketName))
                         .thenCompose(
-                                ignored -> {
-                                    if (clientProvider != null) {
-                                        return clientProvider
+                                ignored ->
+                                        clientProvider
                                                 .closeAsync()
                                                 .whenComplete(
                                                         (result, error) -> {
@@ -558,10 +565,7 @@ class NativeS3FileSystem extends FileSystem
                                                                 LOG.debug(
                                                                         "S3 client provider closed");
                                                             }
-                                                        });
-                                    }
-                                    return CompletableFuture.completedFuture(null);
-                                })
+                                                        }))
                         .orTimeout(fsCloseTimeout.toSeconds(), TimeUnit.SECONDS)
                         .whenComplete(
                                 (result, error) -> {

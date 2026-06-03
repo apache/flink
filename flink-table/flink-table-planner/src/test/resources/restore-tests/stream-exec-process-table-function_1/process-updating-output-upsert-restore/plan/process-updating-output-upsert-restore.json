@@ -59,7 +59,6 @@
         "kind" : "TABLE_ARG_CALL",
         "inputIndex" : 0,
         "partitionKeys" : [ 0 ],
-        "orderKeys" : [ ],
         "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT> NOT NULL"
       }, {
         "kind" : "CALL",

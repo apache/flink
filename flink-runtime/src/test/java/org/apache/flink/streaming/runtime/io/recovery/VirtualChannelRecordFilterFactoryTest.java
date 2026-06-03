@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io.recovery;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -63,7 +64,8 @@ class VirtualChannelRecordFilterFactoryTest {
                         1,
                         128,
                         new String[] {"/tmp"},
-                        true);
+                        true,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         VirtualChannelRecordFilterFactory<Long> factory =
                 VirtualChannelRecordFilterFactory.fromContext(context, 0);

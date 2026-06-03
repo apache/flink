@@ -30,6 +30,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -201,6 +202,73 @@ class S3ClientProviderTest {
                                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no valid provider class names");
+    }
+
+    @Test
+    void testRetryBuilderDefaultsMatchConfigOptions() {
+        S3ClientProvider provider =
+                S3ClientProvider.builder().endpoint(DUMMY_ENDPOINT).region(DUMMY_REGION).build();
+
+        assertThat(provider.getRetryBaseDelay())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_BASE_DELAY.defaultValue());
+        assertThat(provider.getRetryThrottleBaseDelay())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue());
+        assertThat(provider.getRetryMaxBackoff())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue());
+    }
+
+    @Test
+    void testNegativeRetryBaseDelayThrows() {
+        assertThatThrownBy(() -> S3ClientProvider.builder().retryBaseDelay(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retryBaseDelay must not be negative");
+    }
+
+    @Test
+    void testNegativeRetryThrottleBaseDelayThrows() {
+        assertThatThrownBy(
+                        () ->
+                                S3ClientProvider.builder()
+                                        .retryThrottleBaseDelay(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retryThrottleBaseDelay must not be negative");
+    }
+
+    @Test
+    void testZeroRetryMaxBackoffThrows() {
+        assertThatThrownBy(() -> S3ClientProvider.builder().retryMaxBackoff(Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retryMaxBackoff must be positive");
+    }
+
+    @Test
+    void testRetryMaxBackoffSmallerThanBaseDelayThrows() {
+        assertThatThrownBy(
+                        () ->
+                                S3ClientProvider.builder()
+                                        .endpoint(DUMMY_ENDPOINT)
+                                        .region(DUMMY_REGION)
+                                        .retryBaseDelay(Duration.ofSeconds(5))
+                                        .retryMaxBackoff(Duration.ofSeconds(1))
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retryMaxBackoff")
+                .hasMessageContaining("retryBaseDelay");
+    }
+
+    @Test
+    void testRetryMaxBackoffSmallerThanThrottleBaseDelayThrows() {
+        assertThatThrownBy(
+                        () ->
+                                S3ClientProvider.builder()
+                                        .endpoint(DUMMY_ENDPOINT)
+                                        .region(DUMMY_REGION)
+                                        .retryThrottleBaseDelay(Duration.ofSeconds(5))
+                                        .retryMaxBackoff(Duration.ofSeconds(1))
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retryMaxBackoff")
+                .hasMessageContaining("retryThrottleBaseDelay");
     }
 
     @SuppressWarnings("unchecked")

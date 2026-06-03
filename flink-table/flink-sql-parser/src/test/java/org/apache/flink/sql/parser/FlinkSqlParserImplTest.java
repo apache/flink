@@ -71,6 +71,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testMapQueryConstructor() {}
 
     @Test
+    void testMultisetQueryConstructor() {}
+
+    @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
 
@@ -1044,6 +1047,122 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'connector' = 'kafka',\n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableUsingConnection() {
+        final String sql =
+                "CREATE TABLE orders (\n"
+                        + "  order_id INT,\n"
+                        + "  customer_id INT,\n"
+                        + "  amount DECIMAL(10, 2)\n"
+                        + ") USING CONNECTION mycat.mydb.mysql_prod\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc',\n"
+                        + "  'tables' = 'orders'\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `ORDERS` (\n"
+                        + "  `ORDER_ID` INTEGER,\n"
+                        + "  `CUSTOMER_ID` INTEGER,\n"
+                        + "  `AMOUNT` DECIMAL(10, 2)\n"
+                        + ")\n"
+                        + "USING CONNECTION `MYCAT`.`MYDB`.`MYSQL_PROD`\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc',\n"
+                        + "  'tables' = 'orders'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableUsingConnectionWithPartitionAndDistribution() {
+        final String sql =
+                "CREATE TABLE tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar,\n"
+                        + "  b varchar\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(a) INTO 3 BUCKETS\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "USING CONNECTION cat1.db1.conn1\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc'\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `TBL1` (\n"
+                        + "  `A` BIGINT,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  `B` VARCHAR\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(`A`) INTO 3 BUCKETS\n"
+                        + "PARTITIONED BY (`A`, `H`)\n"
+                        + "USING CONNECTION `CAT1`.`DB1`.`CONN1`\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableAsWithUsingConnectionFails() {
+        // CTAS goes through SqlCreateTable with replace=false; the parser explicitly rejects
+        // USING CONNECTION + AS via ParserResource.usingConnectionWithAsUnsupported().
+        final String sql =
+                "^CREATE^ TABLE t1\n"
+                        + "USING CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "AS SELECT 1 AS a";
+        sql(sql).fails(
+                        "(?s).*USING CONNECTION clause is not supported with "
+                                + "CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements\\..*");
+    }
+
+    @Test
+    void testReplaceTableAsWithUsingConnectionFails() {
+        // REPLACE TABLE always has an AS clause, so USING CONNECTION is never valid;
+        // it's not even accepted by the SqlReplaceTable production.
+        final String sql =
+                "REPLACE TABLE t1\n"
+                        + "^USING^ CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "AS SELECT 1 AS a";
+        sql(sql).fails("(?s).*Encountered \"USING\" at line 2, column 1.\n.*");
+    }
+
+    @Test
+    void testCreateOrReplaceTableAsWithUsingConnectionFails() {
+        // CREATE OR REPLACE TABLE AS goes through SqlCreateTable with replace=true and hits
+        // the same usingConnectionWithAsUnsupported() error path as CTAS.
+        final String sql =
+                "^CREATE^ OR REPLACE TABLE t1\n"
+                        + "USING CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "AS SELECT 1 AS a";
+        sql(sql).fails(
+                        "(?s).*USING CONNECTION clause is not supported with "
+                                + "CREATE TABLE AS SELECT or REPLACE TABLE AS SELECT statements\\..*");
+    }
+
+    @Test
+    void testCreateTableLikeUsingConnection() {
+        final String sql =
+                "CREATE TABLE t1 (\n"
+                        + "  a INT\n"
+                        + ")\n"
+                        + "USING CONNECTION cat1.db1.conn1\n"
+                        + "WITH ('connector' = 'jdbc')\n"
+                        + "LIKE base_table";
+        final String expected =
+                "CREATE TABLE `T1` (\n"
+                        + "  `A` INTEGER\n"
+                        + ")\n"
+                        + "USING CONNECTION `CAT1`.`DB1`.`CONN1`\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc'\n"
+                        + ")\n"
+                        + "LIKE `BASE_TABLE`";
         sql(sql).ok(expected);
     }
 

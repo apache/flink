@@ -60,6 +60,8 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_INTERVAL_YEAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_EMPTY_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH,
+                ProcessTableFunctionTestPrograms
+                        .PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH_AFTER_SCALAR,
                 ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_RETRACT,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_UPSERT,
@@ -87,6 +89,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_NAMED_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_UNNAMED_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_LATE_EVENTS,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_LATE_EVENTS,
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_ON_TIME,

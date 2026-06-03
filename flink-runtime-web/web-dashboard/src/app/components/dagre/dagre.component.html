@@ -109,3 +109,15 @@
   [ngModel]="zoom"
   (ngModelChange)="zoomToLevel($event)"
 ></nz-slider>
+<div class="zoom-controls">
+  <button
+    nz-button
+    nzType="default"
+    nzShape="circle"
+    (click)="moveToCenter()"
+    nz-tooltip
+    nzTooltipTitle="Recenter Graph"
+  >
+    <span nz-icon nzType="aim"></span>
+  </button>
+</div>

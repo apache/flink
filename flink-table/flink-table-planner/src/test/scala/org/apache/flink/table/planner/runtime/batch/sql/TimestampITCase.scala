@@ -72,7 +72,7 @@ class TimestampITCase extends BatchTestBase {
       null
     )
 
-    val instantsOfDateTime = new mutable.MutableList[Instant]
+    val instantsOfDateTime = new mutable.ListBuffer[Instant]
     for (i <- datetimes.indices) {
       if (datetimes(i) == null) {
         instantsOfDateTime += null
@@ -83,7 +83,7 @@ class TimestampITCase extends BatchTestBase {
       }
     }
 
-    val instantsOfTimestamp = new mutable.MutableList[Instant]
+    val instantsOfTimestamp = new mutable.ListBuffer[Instant]
     for (i <- timestamps.indices) {
       if (timestamps(i) == null) {
         instantsOfTimestamp += null
@@ -94,7 +94,7 @@ class TimestampITCase extends BatchTestBase {
       }
     }
 
-    val data = new mutable.MutableList[Row]
+    val data = new mutable.ListBuffer[Row]
 
     for (i <- ints.indices) {
       data += row(

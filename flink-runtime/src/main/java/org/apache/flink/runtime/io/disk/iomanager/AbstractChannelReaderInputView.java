@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.AbstractPagedInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
 
 import java.io.IOException;
 import java.util.List;

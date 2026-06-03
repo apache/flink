@@ -45,14 +45,15 @@ Note: This version requires that your CDC data encodes updates using a full imag
 
 ```sql
 SELECT * FROM FROM_CHANGELOG(
-  input => TABLE source_table,
+  input => TABLE source_table [PARTITION BY key_col [ORDER BY time_col]],
   [op => DESCRIPTOR(op_column_name),]
   [op_mapping => MAP[
       'c, r', 'INSERT',
       'ub', 'UPDATE_BEFORE',
       'ua', 'UPDATE_AFTER',
       'd', 'DELETE'
-  ]]
+  ],]
+  [error_handling => 'FAIL' | 'SKIP']
 )
 ```
 
@@ -60,9 +61,10 @@ SELECT * FROM FROM_CHANGELOG(
 
 | Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |:-------------|:---------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `input`      | Yes      | The input table. Must be append-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `input`      | Yes      | The input table. Must be append-only. Use `PARTITION BY` to ensure rows for the same key are processed together. Add `ORDER BY` (requires `PARTITION BY`) to reorder out-of-order events per key; the first sort column must be a watermarked time attribute in `ASC` order.                                                                                                                                                                                                                                                                                                          |
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). When provided, only mapped codes are forwarded - unmapped codes are dropped. Each change operation may appear at most once across all entries. |
+| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Each change operation may appear at most once across all entries. |
+| `error_handling` | No | Controls behavior when an input row's operation code is `NULL` or not present in the `op_mapping`. Valid values: `FAIL` (default) — throw a `TableRuntimeException`, `SKIP` — silently drop the row. |
 
 #### Default op_mapping
 
@@ -74,6 +76,8 @@ When `op_mapping` is omitted, the following standard names are used. They allow 
 | `'UPDATE_BEFORE'`  | UPDATE_BEFORE     |
 | `'UPDATE_AFTER'`   | UPDATE_AFTER      |
 | `'DELETE'`         | DELETE            |
+
+By default, any input row whose op code is `NULL` or not present in the active mapping (default or user-defined) fails the job at runtime with a `TableRuntimeException`. Set `error_handling => 'SKIP'` to silently drop those rows instead.
 
 ### Output Schema
 
@@ -90,6 +94,7 @@ The output contains all input columns except the operation code (e.g., op) colum
 ```sql
 -- Input (append-only):
 -- +I[id:1, op:'INSERT',        name:'Alice']
+-- +I[id:2, op:'INSERT',        name:'Bob']
 -- +I[id:1, op:'UPDATE_BEFORE', name:'Alice']
 -- +I[id:1, op:'UPDATE_AFTER',  name:'Alice2']
 -- +I[id:2, op:'DELETE',        name:'Bob']
@@ -100,6 +105,7 @@ SELECT * FROM FROM_CHANGELOG(
 
 -- Output (updating table):
 -- +I[id:1, name:'Alice']
+-- +I[id:2, name:'Bob']
 -- -U[id:1, name:'Alice']
 -- +U[id:1, name:'Alice2']
 -- -D[id:2, name:'Bob']
@@ -119,6 +125,129 @@ SELECT * FROM FROM_CHANGELOG(
   op => DESCRIPTOR(operation)
 )
 -- The operation column named 'operation' is used instead of 'op'
+```
+
+#### Partitioning by a key
+
+```sql
+-- Input table 'cdc_stream' with columns (name, id, op, doc)
+-- Default output schema:           [name, id, doc]
+-- Output schema with PARTITION BY: [id, name, doc]
+
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream PARTITION BY id
+)
+```
+
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns (excluding the op column). The output schema becomes:
+
+```
+[partition_keys, non_partition_input_columns_excluding_op]
+```
+
+Prefer row semantics, when possible. `PARTITION BY` is only necessary when downstream operators are keyed on that column and you want to co-locate rows for the same key in the same parallel operator instance.
+
+If you are producing an upsert table — that is, you are emitting `UPDATE_AFTER` but no `UPDATE_BEFORE` from your CDC input stream — the partition key you select here will be considered both the primary key and the upsert key by the engine. Make sure the `PARTITION BY` key matches your primary key exactly.
+
+#### Upsert table
+
+To generate an upsert table, two requirements must be met:
+
+* **Key partitioning**: use `PARTITION BY <key>`, where the partition key corresponds to the unique/primary key of the dataset.
+* **Op mapping configuration**: the `op_mapping` must include `UPDATE_AFTER` and must NOT include `UPDATE_BEFORE`.
+
+An `op_mapping` that produces `UPDATE_AFTER` without `UPDATE_BEFORE` describes an upsert changelog and requires a key. The engine assumes that the keys provided in the `PARTITION BY` clause function as the unique upsert keys. The resulting output changelog becomes an upsert table keyed on these partition columns. Each incoming row is evaluated and produces `INSERT`, `UPDATE_AFTER`, or `DELETE` events, using the partition key as the explicit upsert key. Therefore, if the incoming changelog contains unique keys (such as a primary key), they **must** be used in the `PARTITION BY` clause.
+
+```sql
+-- Upsert input: INSERT / UPDATE_AFTER / DELETE only
+-- +I[id:1, op:'INSERT',       name:'Alice']
+-- +I[id:2, op:'INSERT',       name:'Bob']
+-- +I[id:1, op:'UPDATE_AFTER', name:'Alice2']
+-- +I[id:2, op:'DELETE',       name:'Bob']
+
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream PARTITION BY id,
+  op_mapping => MAP[
+    'INSERT',       'INSERT',
+    'UPDATE_AFTER', 'UPDATE_AFTER',
+    'DELETE',       'DELETE']
+)
+
+-- Output (upsert changelog, upsert key = id):
+-- +I[id:1, name:'Alice']
+-- +I[id:2, name:'Bob']
+-- +U[id:1, name:'Alice2']
+-- -D[id:2, name:'Bob']
+```
+
+The `FROM_CHANGELOG` PTF assumes events arrive in order. If the source itself does not guarantee ordering for events sharing the same `PARTITION BY` key, use [`ORDER BY`]({{< ref "docs/dev/table/functions/ptfs" >}}#ordering) to reorder them.
+
+By default, without `PARTITION BY`, or when the active `op_mapping` includes `UPDATE_BEFORE`, the output remains a retract changelog.
+
+#### Ordering CDC events with ORDER BY
+
+CDC streams can deliver events out of order. For example, a key's `UPDATE_AFTER` may arrive before its matching `UPDATE_BEFORE` when events are partitioned across upstream brokers. If the source itself does not guarantee ordering, applying such a changelog directly produces incorrect state.
+
+`FROM_CHANGELOG` accepts an [ORDER BY clause]({{< ref "docs/dev/table/functions/ptfs" >}}#ordering) that sorts events within each partition before they are processed. The framework buffers events per partition and flushes them to the function in sorted order once the watermark advances. Late events (arriving after the watermark) are dropped.
+
+Requirements:
+
+* The input table must declare a `WATERMARK` on the time attribute used in `ORDER BY`.
+* The first `ORDER BY` column must be that time attribute in `ASC` order.
+* `ORDER BY` requires `PARTITION BY` (set semantics). It cannot be combined with row semantics.
+
+```sql
+-- Source declares a watermarked event time
+CREATE TABLE cdc_stream (
+  id INT,
+  op STRING,
+  name STRING,
+  event_time TIMESTAMP_LTZ(3),
+  WATERMARK FOR event_time AS event_time - INTERVAL '5' MINUTE
+) WITH (...);
+
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream
+    PARTITION BY id
+    ORDER BY event_time
+)
+```
+
+**How buffering and watermarks interact**
+
+Watermarks are separate events that flow through the stream alongside data records. A data record arriving does not advance the watermark on its own; the operator's current watermark advances only when a watermark event is received.
+
+Assume the watermark strategy advances the watermark `5` minutes behind the largest observed `event_time`, and the current watermark at the PTF is `10:00`:
+
+| Event                                          | Current watermark | Outcome                                                    |
+|------------------------------------------------|-------------------|------------------------------------------------------------|
+| `+I[id: 6, op: 'INSERT', event_time: '10:05']` | `10:00`           | Buffered. Emitted later when the watermark passes `10:05`. |
+| `+I[id: 5, op: 'INSERT', event_time: '09:57']` | `10:00`           | Dropped. Timestamp is below the current watermark.         |
+| `+I[id: 7, op: 'INSERT', event_time: '10:11']` | `10:00`           | Buffered.                                                  |
+| Watermark event advances to `10:06`            | `10:06`           | Record `id=6` is emitted.                                  |
+
+Late records can never be recovered after the watermark passes them. Choose the watermark allowed-lateness based on the upstream's expected out-of-orderness.
+
+FROM_CHANGELOG does not synthesize a replacement for a dropped event; downstream consequences depend on the output changelog mode:
+
+* **Retract output**: retract semantics rely on `UPDATE_BEFORE`/`UPDATE_AFTER` pairs. When `ORDER BY` drops a late `UPDATE_BEFORE` but its matching `UPDATE_AFTER` arrives on time, downstream sees the `UPDATE_AFTER` alone. Operators that rely on retract semantics (retract-style aggregations, retract sinks) miss the retract and may produce incorrect results.
+* **Upsert output** (`PARTITION BY` + `op_mapping` without `UPDATE_BEFORE`): a dropped `INSERT` or `UPDATE_AFTER` is recovered by the next `UPDATE_AFTER` for that key, since upserts are idempotent. A dropped `DELETE` has no recovery path — the row stays in downstream state until a future event for that key overwrites it.
+
+#### Invalid operation code handling
+
+Two `error_handling` modes are supported. The job can either fail upon an invalid or unknown op code, or skip the row and continue processing.
+
+```sql
+-- Fail on unknown op codes (default behavior)
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream
+)
+
+-- Silently skip rows with NULL or unknown op codes
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream,
+  error_handling => 'SKIP'
+)
 ```
 
 #### Table API
@@ -142,6 +271,17 @@ Table result = cdcStream.fromChangelog(
         "ua", "UPDATE_AFTER",
         "d", "DELETE").asArgument("op_mapping")
 );
+
+// Set semantics: co-locate rows with the same key in the same parallel operator instance.
+// Equivalent to PARTITION BY in SQL. The partition keys are prepended to the output columns.
+Table result = cdcStream.partitionBy($("id")).fromChangelog();
+
+// Reorder out-of-order CDC events per key by event time before applying the changelog.
+// The input must declare a WATERMARK on the time attribute used in orderBy().
+Table result = cdcStream
+    .partitionBy($("id"))
+    .orderBy($("event_time").asc())
+    .fromChangelog();
 ```
 
 ## TO_CHANGELOG
@@ -154,34 +294,36 @@ This is useful when you need to materialize changelog events into a downstream s
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE source_table,
+  input => TABLE source_table [PARTITION BY key_col],
   [op => DESCRIPTOR(op_column_name),]
-  [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...]]
+  [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...],]
+  [produces_full_deletes => BOOLEAN]
 )
 ```
 
 ### Parameters
 
-| Parameter    | Required | Description |
-|:-------------|:---------|:------------|
-| `input`      | Yes      | The input table. Accepts insert-only, retract, and upsert tables. |
-| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
+| Parameter               | Required | Description                                                                                                                                                                                                                                                                                                                                              |
+|:------------------------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input`                 | Yes      | The input table. With `PARTITION BY`, rows with the same key are co-located and run in the same operator instance. Without `PARTITION BY`, each row is processed independently. Accepts insert-only, retract, and upsert tables. For upsert tables, the provided `PARTITION BY` key should match or be a subset of the upsert key of the subquery.       |
+| `op`                    | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
+| `op_mapping`            | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
+| `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true` (default), DELETE rows carry all columns, the full image. When `false`, only the identifying key columns are preserved and the rest are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details.                                                     |
 
 #### Default op_mapping
 
 When `op_mapping` is omitted, all four change operations are mapped to their standard names:
 
 | Change Operation | Output value      |
-|:----------------|:------------------|
-| INSERT          | `'INSERT'`        |
-| UPDATE_BEFORE   | `'UPDATE_BEFORE'` |
-| UPDATE_AFTER    | `'UPDATE_AFTER'`  |
-| DELETE          | `'DELETE'`        |
+|:-----------------|:------------------|
+| INSERT           | `'INSERT'`        |
+| UPDATE_BEFORE    | `'UPDATE_BEFORE'` |
+| UPDATE_AFTER     | `'UPDATE_AFTER'`  |
+| DELETE           | `'DELETE'`        |
 
 ### Output Schema
 
-The output columns are ordered as:
+The output schema is:
 
 ```
 [op_column, all_input_columns]
@@ -232,6 +374,18 @@ SELECT * FROM TO_CHANGELOG(
 -- op_code values are 'I' and 'U' instead of full names
 ```
 
+#### Upsert stream
+
+```sql
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE upsert_source PARTITION BY id,
+  op_mapping => MAP['INSERT, UPDATE_AFTER', 'u', 'DELETE', 'd']
+)
+-- INSERT and UPDATE_AFTER produce op='u' (upsert)
+-- DELETE produces op='d'
+-- UPDATE_BEFORE is omitted
+```
+
 #### Deletion flag pattern
 
 ```sql
@@ -244,6 +398,109 @@ SELECT * FROM TO_CHANGELOG(
 -- DELETE produces deleted='true'
 -- UPDATE_BEFORE is dropped (not in the mapping)
 ```
+
+#### Upsert key
+
+An **upsert key** is a column or set of columns that uniquely identifies a row across its lifecycle in a changelog. It is what downstream operators and sinks use to decide which earlier row a new INSERT, UPDATE_AFTER, or DELETE refers to.
+
+The planner derives the upsert key from the input table:
+
+* A declared `PRIMARY KEY` on the source table when reading directly.
+* The grouping columns of an upstream `GROUP BY <key>` or `PARTITION BY <key>`.
+* The keys propagated by operators that preserve them (e.g. lookup joins, calc-projections that keep the key columns).
+
+#### Full vs partial deletes
+
+The `produces_full_deletes` argument controls how DELETE rows are emitted and what the planner requires from the input. The matrix below shows each combination with `PARTITION BY` (set semantics) and without (row semantics). When `false`, the function relies on the input table's [upsert key](#upsert-key) to decide which columns to preserve.
+
+##### `produces_full_deletes => true` (default)
+
+The planner requires fully-populated DELETE rows on the input. For upsert sources that emit key-only deletes, a `ChangelogNormalize` operator is inserted upstream to calculate the full pre-image from state. For sources that already emit a full pre-image (e.g. retract), the flag is a no-op. The function then passes the input row through unchanged on DELETE.
+
+**Row semantics** (no `PARTITION BY`):
+
+```sql
+-- Upsert source: -D[id:5, name: null] (key-only).
+-- ChangelogNormalize calculates the full pre-image from state.
+-- Output: +I[op:'DELETE', id:5, name:'Alice']
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)
+
+-- Retract source: -D[id:5, name:'Alice'] (full pre-image).
+-- No ChangelogNormalize inserted; the input row is passed through unchanged.
+-- Output: +I[op:'DELETE', id:5, name:'Alice']
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)
+```
+
+**Set semantics** (`PARTITION BY`):
+
+```sql
+-- Upsert source: -D[id:5, name: null] (key-only).
+-- ChangelogNormalize calculates the full pre-image from state.
+-- Output: +I[id:5, op:'DELETE', name:'Alice']
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)
+
+-- Retract source: -D[id:5, name:'Alice'] (full pre-image).
+-- No ChangelogNormalize inserted; the input row is passed through unchanged.
+-- Output: +I[id:5, op:'DELETE', name:'Alice']
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)
+```
+
+##### `produces_full_deletes => false`
+
+The planner skips `ChangelogNormalize` and the function emits partial DELETE rows. This avoids the stateful normalization operator for upsert sources (e.g. Kafka compacted topics) where the full pre-image is not needed downstream. This requires an [upsert key](#upsert-key) to be present for the input table (row semantics) or `PARTITION BY` (set semantics); otherwise the call is rejected with a validation error.
+
+{{< hint warning >}}
+**Output nullability changes when `produces_full_deletes => false`.** Columns that are not part of the upsert key (or `PARTITION BY`) are nulled on DELETE rows at runtime, so the type system widens them to nullable in the output schema. Columns declared `NOT NULL` on the input therefore appear as nullable in the output of a `TO_CHANGELOG(..., produces_full_deletes => false)` call. The upsert-key (or partition-key) columns keep their declared nullability. Use the default `produces_full_deletes => true` if you need the output to preserve the input's `NOT NULL` types.
+{{< /hint >}}
+
+**Row semantics** (no `PARTITION BY`): the function preserves the planner-derived upsert key columns on DELETE rows and nulls the rest. The upsert key is typically a declared `PRIMARY KEY` when directly reading from a source or the key provided in a `GROUP BY <key>`.
+
+```sql
+-- Upsert source with PRIMARY KEY (id): -D[id:5] (key-only).
+-- Output: +I[op:'DELETE', id:5, name:null]
+SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source, produces_full_deletes => false)
+
+-- Retract source with PRIMARY KEY (id): -D[id:5, name:'Alice'] (full pre-image).
+-- Output: +I[op:'DELETE', id:5, name:null]
+SELECT * FROM TO_CHANGELOG(input => TABLE retract_source, produces_full_deletes => false)
+```
+
+**Set semantics** (`PARTITION BY`): the function preserves the partition key and nulls every non-partition-key column on DELETE rows. The key used as the partition-key column should be the unique key that will be used as the record identifier. This matches the shape expected by upsert sinks such as Kafka compacted topics.
+
+```sql
+-- Upsert source: -D[id:5] (key-only).
+-- Output: +I[id:5, op:'DELETE', name:null]
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE upsert_source PARTITION BY id,
+  produces_full_deletes => false
+)
+
+-- Retract source: -D[id:5, name:'Alice'] (full pre-image).
+-- Output: +I[id:5, op:'DELETE', name:null]
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE retract_source PARTITION BY id,
+  produces_full_deletes => false
+)
+```
+
+#### Partitioning by a key
+
+```sql
+-- Input table 'my_aggregation' with columns (name, id, cnt)
+-- Default output schema:           [op, name, id, cnt]
+-- Output schema with PARTITION BY: [id, op, name, cnt]
+
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE my_aggregation PARTITION BY id
+)
+```
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns. The output schema becomes:
+
+```
+[partition_keys, op_column, non_partition_input_columns]
+```
+
+Prefer row semantics, when possible. `PARTITION BY` is only necessary when downstream operators are keyed on that column and you want to co-locate rows for the same key in the same parallel operator instance.
 
 #### Table API
 
@@ -262,6 +519,17 @@ Table result = myTable.toChangelog(
     descriptor("deleted").asArgument("op"),
     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
 );
+
+// Opt out of full-delete semantics. When `true` (default), DELETE rows carry the full
+// pre-image. When `false`, only the identifying key columns are preserved and the rest
+// are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details.
+Table result = myTable.toChangelog(
+    lit(false).asArgument("produces_full_deletes")
+);
+
+// Set semantics: co-locate rows with the same key in the same parallel operator instance.
+// Equivalent to PARTITION BY in SQL. The partition keys are prepended to the output columns.
+Table result = myTable.partitionBy($("id")).toChangelog();
 ```
 
 {{< top >}}

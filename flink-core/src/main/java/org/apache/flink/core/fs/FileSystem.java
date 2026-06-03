@@ -254,7 +254,9 @@ public abstract class FileSystem implements IFileSystem {
                     .put("oss", "flink-oss-fs-hadoop")
                     .put("s3", "flink-s3-fs-hadoop")
                     .put("s3", "flink-s3-fs-presto")
+                    .put("s3", "flink-s3-fs-native")
                     .put("s3a", "flink-s3-fs-hadoop")
+                    .put("s3a", "flink-s3-fs-native")
                     .put("s3p", "flink-s3-fs-presto")
                     .put("gs", "flink-gs-fs-hadoop")
                     .build();

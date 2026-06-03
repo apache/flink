@@ -51,7 +51,10 @@ under the License.
 			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
 			AsynchronousFileIOChannelTest
 			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED <!--
-			-->-Djunit.platform.reflection.search.useLegacySemantics=true
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true <!--
+			MemoryMappedBoundedDataTest
+			-->--sun-misc-unsafe-memory-access=allow <!--
+			-->--enable-native-access=ALL-UNNAMED
 		</surefire.module.config>
 	</properties>
 
@@ -488,9 +491,9 @@ under the License.
 			</build>
 		</profile>
 		<profile>
-			<id>java21</id>
+			<id>security-manager</id>
 			<activation>
-				<jdk>[21,)</jdk>
+				<jdk>[21,24)</jdk>
 			</activation>
 
 			<properties>

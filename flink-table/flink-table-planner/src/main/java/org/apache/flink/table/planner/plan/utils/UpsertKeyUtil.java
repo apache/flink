@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.utils.UpsertKeyUtils;
+
 import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Utility for upsertKey which represented as a Set of {@link
@@ -55,21 +59,8 @@ public class UpsertKeyUtil {
         if (null == upsertKeys || upsertKeys.isEmpty()) {
             return Optional.empty();
         }
-        return upsertKeys.stream()
-                .map(ImmutableBitSet::toArray)
-                .reduce(
-                        (k1, k2) -> {
-                            if (k1.length < k2.length) {
-                                return k1;
-                            }
-                            if (k1.length == k2.length) {
-                                for (int index = 0; index < k1.length; index++) {
-                                    if (k1[index] < k2[index]) {
-                                        return k1;
-                                    }
-                                }
-                            }
-                            return k2;
-                        });
+        final List<int[]> asArrays =
+                upsertKeys.stream().map(ImmutableBitSet::toArray).collect(Collectors.toList());
+        return Optional.of(UpsertKeyUtils.smallestKey(asArrays));
     }
 }

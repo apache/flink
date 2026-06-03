@@ -714,7 +714,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
   }
 
   def getPersonData: List[(String, Int, Double, String)] = {
-    val data = new mutable.MutableList[(String, Int, Double, String)]
+    val data = new mutable.ListBuffer[(String, Int, Double, String)]
     data.+=(("Mike", 1, 12.3, "Smith"))
     data.+=(("Bob", 2, 45.6, "Taylor"))
     data.+=(("Sam", 3, 7.89, "Miller"))
@@ -747,7 +747,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
   private def getTableData(tEnv: TableEnvironment, tableName: String): List[String] = {
     val iterator = tEnv.executeSql(s"select * from $tableName").collect()
-    val result = new mutable.MutableList[String]
+    val result = new mutable.ListBuffer[String]
     try {
       while (iterator.hasNext) {
         result.+=(TestSinkUtil.rowToString(iterator.next()))
