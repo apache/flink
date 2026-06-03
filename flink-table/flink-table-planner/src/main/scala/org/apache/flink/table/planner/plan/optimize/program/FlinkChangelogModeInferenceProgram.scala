@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
@@ -1578,36 +1578,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
   }
 
-  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
-    val program = calc.getProgram
-    if (program.getCondition == null) {
-      return false
-    }
+  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean =
+    ChangelogModeInferenceUtils.isNonUpsertKeyCondition(calc)
 
-    val condition = program.expandLocalRef(calc.getProgram.getCondition)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(calc.getInput())
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      // there are no upsert keys, so all columns are non-primary key columns
-      true
-    } else {
-      val inputRefIndices =
-        RexNodeExtractor
-          .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
-      val inputRefSet = ImmutableBitSet.of(inputRefIndices: _*)
-      !upsertKeys.stream().anyMatch(uk => uk.contains(inputRefSet))
-    }
-  }
+  private def getModifyKindSet(node: RelNode): ModifyKindSet =
+    ChangelogModeInferenceUtils.getModifyKindSet(node)
 
-  private def getModifyKindSet(node: RelNode): ModifyKindSet = {
-    val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-    modifyKindSetTrait.modifyKindSet
-  }
-
-  private def getDeleteKind(node: RelNode): DeleteKind = {
-    val deleteKindTrait = node.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
-    deleteKindTrait.deleteKind
-  }
+  private def getDeleteKind(node: RelNode): DeleteKind =
+    ChangelogModeInferenceUtils.getDeleteKind(node)
 
   // ----------------------------------------------------------------------------------------------
   // PTF helper methods
