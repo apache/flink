@@ -162,6 +162,42 @@ Calc(select=[deptno, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCALCITE1824">
+    <Resource name="sql">
+      <![CDATA[
+SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
+FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(deptno=[$0], g=[0:BIGINT], c=[$1])
+:  +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
+:     +- LogicalProject(deptno=[$7])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
++- LogicalProject(deptno=[null:INTEGER], g=[1:BIGINT], c=[$0])
+   +- LogicalAggregate(group=[{}], c=[COUNT()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[deptno, g, c])
+:- Calc(select=[deptno, 0 AS g, c])
+:  +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
+:     +- Exchange(distribution=[hash[deptno, $e]])
+:        +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+:           +- Calc(select=[deptno])
+:              +- TableSourceScan(table=[[default_catalog, default_database, scott_emp]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])(reuse_id=[1])
++- Calc(select=[null:INTEGER AS deptno, 1 AS g, c])
+   +- GroupAggregate(select=[COUNT(*) AS c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[0 AS $f0])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCaseWhenRefGroupingSetsNullableCols">
     <Resource name="sql">
       <![CDATA[

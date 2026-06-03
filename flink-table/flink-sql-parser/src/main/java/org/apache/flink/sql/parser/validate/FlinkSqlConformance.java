@@ -48,6 +48,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public boolean isNonStrictGroupBy() {
+        return false;
+    }
+
+    @Override
     public boolean isGroupByOrdinal() {
         return false;
     }
@@ -190,6 +195,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     @Override
     public boolean checkedArithmetic() {
         return SqlConformanceEnum.DEFAULT.checkedArithmetic();
+    }
+
+    @Override
+    public boolean supportsUnsignedTypes() {
+        return false;
     }
 
     @Override

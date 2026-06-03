@@ -781,4 +781,5 @@
   includeBraces: true
   includeAdditionalDeclarations: false
   includeParsingStringLiteralAsArrayLiteral: false
+  includeIntervalWithoutQualifier: false
 }

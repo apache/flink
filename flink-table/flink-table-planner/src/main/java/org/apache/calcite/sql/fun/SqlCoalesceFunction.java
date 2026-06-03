@@ -123,11 +123,10 @@ public class SqlCoalesceFunction extends SqlFunction {
         }
 
         if (returnType == null) {
-            throw new IllegalArgumentException(
-                    "Cannot infer return type for "
-                            + opBinding.getOperator()
-                            + "; operand types: "
-                            + opBinding.collectOperandTypes());
+            throw opBinding.newError(
+                    RESOURCE.cannotInferReturnType(
+                            opBinding.getOperator().toString(),
+                            opBinding.collectOperandTypes().toString()));
         }
 
         return returnType;

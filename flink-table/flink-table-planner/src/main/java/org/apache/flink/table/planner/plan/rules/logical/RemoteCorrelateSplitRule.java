@@ -37,6 +37,7 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexUtil;
@@ -129,6 +130,11 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                             return rexBuilder.makeFieldAccess(
                                     expr.accept(this), fieldAccess.getField().getIndex());
                         }
+                    }
+
+                    @Override
+                    public RexNode visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+                        throw new UnsupportedOperationException("not supported yet");
                     }
 
                     @Override

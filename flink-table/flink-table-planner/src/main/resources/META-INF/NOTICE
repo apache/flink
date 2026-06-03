@@ -8,13 +8,13 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.google.guava:guava:33.4.0-jre
 - com.google.guava:failureaccess:1.0.2
-- org.apache.calcite:calcite-core:1.40.0
-- org.apache.calcite:calcite-linq4j:1.40.0
-- org.apache.calcite.avatica:avatica-core:1.26.0
+- org.apache.calcite:calcite-core:1.41.0
+- org.apache.calcite:calcite-linq4j:1.41.0
+- org.apache.calcite.avatica:avatica-core:1.27.0
 - org.apache.commons:commons-math3:3.6.1
-- org.apache.commons:commons-text:1.10.0
 - commons-codec:commons-codec:1.15
 - commons-io:commons-io:2.15.1
+- org.jooq:joou-java-6:0.9.4
 
 This project bundles the following dependencies under the MIT License. (http://www.opensource.org/licenses/mit-license.php)
 
