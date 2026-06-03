@@ -349,6 +349,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
+    @Nullable private AvailabilityProvider chainAvailabilityProvider = null;
+
     private long initializeStateEndTs;
 
     // ------------------------------------------------------------------------
@@ -721,11 +723,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
 
         TaskIOMetricGroup ioMetrics = getEnvironment().getMetricGroup().getIOMetricGroup();
-        PeriodTimer timer;
+        PeriodTimer timer = null;
         CompletableFuture<?> resumeFuture;
-        if (!recordWriter.isAvailable()) {
+        if (chainAvailabilityProvider == null && !recordWriter.isAvailable()) {
+            // No chain-availability operator; downstream is the direct backpressure source.
             timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
+        } else if (chainAvailabilityProvider != null && !chainAvailabilityProvider.isAvailable()) {
+            if (!recordWriter.isAvailable()) {
+                // Queue full AND downstream unavailable → backpressure (root cause: downstream).
+                timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
+                resumeFuture = recordWriter.getAvailableFuture();
+            } else {
+                // Queue full but downstream available → internal processing; fall back to busy.
+                resumeFuture = chainAvailabilityProvider.getAvailableFuture();
+            }
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
@@ -847,6 +859,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             ? new FinishedOperatorChain<>(this, recordWriter)
                             : new RegularOperatorChain<>(this, recordWriter);
             mainOperator = operatorChain.getMainOperator();
+            chainAvailabilityProvider = operatorChain.getChainAvailabilityProvider();
 
             getEnvironment()
                     .getTaskStateManager()
@@ -1361,6 +1374,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     private boolean taskIsAvailable() {
+        if (chainAvailabilityProvider != null) {
+            return chainAvailabilityProvider.isAvailable()
+                    && (changelogWriterAvailabilityProvider == null
+                            || changelogWriterAvailabilityProvider.isAvailable());
+        }
         return recordWriter.isAvailable()
                 && (changelogWriterAvailabilityProvider == null
                         || changelogWriterAvailabilityProvider.isAvailable());
