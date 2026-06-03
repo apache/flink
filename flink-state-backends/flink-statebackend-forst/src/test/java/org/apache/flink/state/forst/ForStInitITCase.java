@@ -21,33 +21,29 @@ package org.apache.flink.state.forst;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link ForStStateBackend} on initialization. */
-public class ForStInitITCase {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class ForStInitITCase {
 
     /**
      * This test checks that the ForSt native code loader still responds to resetting the init flag.
      */
     @Test
-    public void testResetInitFlag() throws Exception {
+    void testResetInitFlag() throws Exception {
         ForStStateBackend.resetForStLoadedFlag();
     }
 
     @Test
-    public void testTempLibFolderDeletedOnFail() throws Exception {
+    void testTempLibFolderDeletedOnFail(@TempDir File tempFolder) {
         ForStStateBackend.setForStInitialized(false);
-        File tempFolder = temporaryFolder.newFolder();
         try {
             ForStStateBackend.ensureForStIsLoaded(
                     tempFolder.getAbsolutePath(),
@@ -60,7 +56,7 @@ public class ForStInitITCase {
             // ignored
         }
         File[] files = tempFolder.listFiles();
-        Assert.assertNotNull(files);
-        Assert.assertEquals(0, files.length);
+        assertThat(files).isNotNull();
+        assertThat(files).isEmpty();
     }
 }

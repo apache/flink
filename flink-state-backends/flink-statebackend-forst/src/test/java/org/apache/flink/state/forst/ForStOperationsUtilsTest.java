@@ -24,35 +24,31 @@ import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 import org.forstdb.NativeLibraryLoader;
 import org.forstdb.RocksDB;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for the {@link ForStOperationUtils}. */
-public class ForStOperationsUtilsTest {
+class ForStOperationsUtilsTest {
 
-    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
-
-    @BeforeClass
-    public static void loadRocksLibrary() throws Exception {
-        NativeLibraryLoader.getInstance().loadLibrary(TMP_DIR.newFolder().getAbsolutePath());
+    @BeforeAll
+    static void loadRocksLibrary(@TempDir Path libDir) throws Exception {
+        NativeLibraryLoader.getInstance().loadLibrary(libDir.toFile().getAbsolutePath());
     }
 
     @Test
-    public void testPathExceptionOnWindows() throws Exception {
+    void testPathExceptionOnWindows(@TempDir File folder) throws Exception {
         assumeTrue(OperatingSystem.isWindows());
 
-        final File folder = TMP_DIR.newFolder();
         final File rocksDir =
                 new File(folder, getLongString(247 - folder.getAbsolutePath().length()));
 
@@ -73,9 +69,8 @@ public class ForStOperationsUtilsTest {
             // do not provoke a test failure if this passes, because some setups may actually
             // support long paths, in which case: great!
         } catch (IOException e) {
-            assertThat(
-                    e.getMessage(),
-                    containsString("longer than the directory path length limit for Windows"));
+            assertThat(e.getMessage())
+                    .contains("longer than the directory path length limit for Windows");
         }
     }
 
