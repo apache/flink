@@ -433,7 +433,17 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid regular expression for REGEXP_REPLACE:")
                         .testSqlValidationError(
                                 "REGEXP_REPLACE(f0, '(', 'X')",
-                                "Invalid regular expression for REGEXP_REPLACE:"));
+                                "Invalid regular expression for REGEXP_REPLACE:"),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_REPLACE,
+                                "Output stays nullable for non-null arguments")
+                        .onFieldsWithData("foobar", "(")
+                        .andDataTypes(DataTypes.STRING().notNull(), DataTypes.STRING().notNull())
+                        .testResult(
+                                $("f0").regexpReplace($("f1"), "X"),
+                                "REGEXP_REPLACE(f0, f1, 'X')",
+                                null,
+                                DataTypes.STRING().nullable()));
     }
 
     private Stream<TestSetSpec> regexpSubstrTestCases() {
