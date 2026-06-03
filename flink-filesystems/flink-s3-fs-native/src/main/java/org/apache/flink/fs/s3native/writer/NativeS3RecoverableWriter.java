@@ -87,24 +87,24 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     @Override
     public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
         checkNotClosed();
-        NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(recoverable);
+        final NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(recoverable);
 
-        File seedTail = null;
-        long seedTailLength = 0L;
+        File incompleteTail = null;
+        long incompleteTailLength = 0L;
         if (s3recoverable.incompleteObjectName() != null) {
-            seedTail = downloadIncompleteTail(s3recoverable);
-            seedTailLength = s3recoverable.incompleteObjectLength();
+            incompleteTail = downloadIncompleteTail(s3recoverable);
+            incompleteTailLength = s3recoverable.incompleteObjectLength();
         }
 
         try {
             LOG.debug(
-                    "Resuming stream - key: {}, uploadId: {}, parts: {}, bytesInParts: {}, seedTail: {} ({} bytes)",
+                    "Resuming stream - key: {}, uploadId: {}, parts: {}, bytesInParts: {}, incompleteTail: {} ({} bytes)",
                     s3recoverable.getObjectName(),
                     s3recoverable.uploadId(),
                     s3recoverable.parts().size(),
                     s3recoverable.numBytesInParts(),
                     s3recoverable.incompleteObjectName(),
-                    seedTailLength);
+                    incompleteTailLength);
             return new NativeS3RecoverableFsDataOutputStream(
                     s3AccessHelper,
                     s3recoverable.getObjectName(),
@@ -113,14 +113,14 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
                     userDefinedMinPartSize,
                     s3recoverable.parts(),
                     s3recoverable.numBytesInParts(),
-                    seedTail,
-                    seedTailLength);
+                    incompleteTail,
+                    incompleteTailLength);
         } catch (Throwable t) {
-            // The downloaded seed file is owned by recover() until the constructor takes
+            // The downloaded tail file is owned by recover() until the constructor takes
             // ownership. If construction fails, drop the local file so we don't leak it.
-            if (seedTail != null) {
+            if (incompleteTail != null) {
                 try {
-                    Files.deleteIfExists(seedTail.toPath());
+                    Files.deleteIfExists(incompleteTail.toPath());
                 } catch (IOException cleanup) {
                     t.addSuppressed(cleanup);
                 }
@@ -137,22 +137,29 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
      * retired.
      */
     private File downloadIncompleteTail(NativeS3Recoverable s3recoverable) throws IOException {
-        File tmpDir = new File(localTmpDir);
+        final File tmpDir = new File(localTmpDir);
         if (!tmpDir.exists() && !tmpDir.mkdirs()) {
             throw new IOException("Cannot create local tmp dir: " + localTmpDir);
         }
-        File target = new File(tmpDir, "s3-resume-" + UUID.randomUUID());
+        final File target = new File(tmpDir, "s3-resume-" + UUID.randomUUID());
         try {
-            long downloaded =
+            final long downloaded =
                     s3AccessHelper.getObject(s3recoverable.incompleteObjectName(), target);
             if (downloaded != s3recoverable.incompleteObjectLength()) {
                 throw new IOException(
                         "Incomplete-tail object "
                                 + s3recoverable.incompleteObjectName()
-                                + " has unexpected length: expected "
+                                + " has unexpected length (expected "
                                 + s3recoverable.incompleteObjectLength()
-                                + " got "
-                                + downloaded);
+                                + " bytes, got "
+                                + downloaded
+                                + " bytes). The side object holding the in-flight tail "
+                                + "has been truncated, overwritten, or replaced out-of-band "
+                                + "since the checkpoint was taken. Recovery cannot proceed: "
+                                + "the writer state is inconsistent with the checkpoint and "
+                                + "this failure is NOT retriable from the same checkpoint. "
+                                + "Either restore the side object to its original length or "
+                                + "roll back to an earlier checkpoint that does not reference it.");
             }
             return target;
         } catch (IOException e) {

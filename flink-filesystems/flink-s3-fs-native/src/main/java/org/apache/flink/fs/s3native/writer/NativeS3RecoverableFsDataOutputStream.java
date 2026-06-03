@@ -116,8 +116,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long minPartSize,
             List<PartETag> existingParts,
             long numBytesInParts,
-            @Nullable File seedTailFile,
-            long seedTailLength)
+            @Nullable File incompleteTailFile,
+            long incompleteTailLength)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -130,29 +130,29 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.currentPartSize = 0;
         this.closed = false;
 
-        if (seedTailFile != null) {
-            adoptSeedTailFile(seedTailFile, seedTailLength);
+        if (incompleteTailFile != null) {
+            resumeFromIncompleteTail(incompleteTailFile, incompleteTailLength);
         } else {
             createNewTempFile();
         }
     }
 
-    private void adoptSeedTailFile(File seedFile, long expectedLength) throws IOException {
-        if (!seedFile.exists()) {
-            throw new IOException("Seed tail file does not exist: " + seedFile);
+    private void resumeFromIncompleteTail(File tailFile, long expectedLength) throws IOException {
+        if (!tailFile.exists()) {
+            throw new IOException("Incomplete-tail file does not exist: " + tailFile);
         }
-        long actualLength = seedFile.length();
+        final long actualLength = tailFile.length();
         if (actualLength != expectedLength) {
             throw new IOException(
-                    "Seed tail file "
-                            + seedFile
+                    "Incomplete-tail file "
+                            + tailFile
                             + " has unexpected length: expected "
                             + expectedLength
                             + " got "
                             + actualLength);
         }
-        currentTempFile = seedFile;
-        // Append mode so subsequent writes land after the seeded bytes.
+        currentTempFile = tailFile;
+        // Append mode so subsequent writes land after the recovered bytes.
         currentFileStream = new FileOutputStream(currentTempFile, true);
         currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
         currentPartSize = expectedLength;

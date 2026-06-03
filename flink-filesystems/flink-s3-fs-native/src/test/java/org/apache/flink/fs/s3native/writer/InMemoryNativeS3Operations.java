@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -70,6 +69,7 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
 
     private final String bucketName;
     private final AtomicInteger uploadIdSeq = new AtomicInteger();
+    private final AtomicInteger putObjectSeq = new AtomicInteger();
 
     public InMemoryNativeS3Operations() {
         this(DEFAULT_BUCKET);
@@ -107,7 +107,7 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     @Override
     public PutObjectResult putObject(String key, File file) throws IOException {
         storedObjects.put(key, Files.readAllBytes(file.toPath()));
-        return new PutObjectResult("etag-" + UUID.randomUUID());
+        return new PutObjectResult("etag-put-" + putObjectSeq.incrementAndGet());
     }
 
     @Override
