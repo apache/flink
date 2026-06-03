@@ -144,11 +144,15 @@ class SatisfyDeleteKindTraitVisitor {
             // if not explicitly supported, all operators require full deletes if there are updates
             List<StreamPhysicalRel> children = new ArrayList<>();
             for (RelNode child : rel.getInputs()) {
-                visit((StreamPhysicalRel) child, DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(child)))
+                visit(
+                                (StreamPhysicalRel) child,
+                                DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(child)))
                         .ifPresent(children::add);
             }
             return createNewNode(
-                    rel, Optional.of(children), DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(rel)));
+                    rel,
+                    Optional.of(children),
+                    DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(rel)));
         } else if (rel instanceof StreamPhysicalProcessTableFunction) {
             // Required delete traits depend on the table argument declaration,
             // input traits, partition keys, and upsert keys
@@ -211,7 +215,9 @@ class SatisfyDeleteKindTraitVisitor {
                 final ModifyKindSet inputModifyKindSet = getModifyKindSet(physicalChild);
                 if (supportsDeleteByKey && DeleteKindTrait.DELETE_BY_KEY().equals(requiredTrait)) {
                     children.add(
-                            visit(physicalChild, DeleteKindTrait.deleteOnKeyOrNone(inputModifyKindSet))
+                            visit(
+                                            physicalChild,
+                                            DeleteKindTrait.deleteOnKeyOrNone(inputModifyKindSet))
                                     .or(
                                             () ->
                                                     visit(
@@ -220,7 +226,9 @@ class SatisfyDeleteKindTraitVisitor {
                                                                     inputModifyKindSet))));
                 } else {
                     children.add(
-                            visit(physicalChild, DeleteKindTrait.fullDeleteOrNone(inputModifyKindSet)));
+                            visit(
+                                    physicalChild,
+                                    DeleteKindTrait.fullDeleteOrNone(inputModifyKindSet)));
                 }
             }
             if (children.stream().anyMatch(c -> !c.isPresent())) {
@@ -229,14 +237,19 @@ class SatisfyDeleteKindTraitVisitor {
             List<StreamPhysicalRel> childRels = present(children);
             if (childRels.stream().anyMatch(r -> getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
                 return createNewNode(
-                        join, Optional.of(childRels), DeleteKindTrait.deleteOnKeyOrNone(getModifyKindSet(rel)));
+                        join,
+                        Optional.of(childRels),
+                        DeleteKindTrait.deleteOnKeyOrNone(getModifyKindSet(rel)));
             } else {
                 return createNewNode(
-                        join, Optional.of(childRels), DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(rel)));
+                        join,
+                        Optional.of(childRels),
+                        DeleteKindTrait.fullDeleteOrNone(getModifyKindSet(rel)));
             }
         } else if (rel instanceof StreamPhysicalCalcBase) {
             // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
-            // is, because we will filter all records based on the condition that applies to that key
+            // is, because we will filter all records based on the condition that applies to that
+            // key
             StreamPhysicalCalcBase calc = (StreamPhysicalCalcBase) rel;
             if (DeleteKindTrait.DELETE_BY_KEY().equals(requiredTrait)
                     && isNonUpsertKeyCondition(calc)) {
@@ -306,7 +319,8 @@ class SatisfyDeleteKindTraitVisitor {
             // 4. we don't use metadata columns
             // we can skip ChangelogNormalize
             if (!ChangelogNormalizeRequirementResolver.isRequired(normalize)) {
-                Optional<List<StreamPhysicalRel>> children = visitChildren(normalize, requiredTrait);
+                Optional<List<StreamPhysicalRel>> children =
+                        visitChildren(normalize, requiredTrait);
                 if (children.isPresent()) {
                     StreamPhysicalRel first = children.get().get(0);
                     RelNode input =
@@ -320,7 +334,9 @@ class SatisfyDeleteKindTraitVisitor {
 
             // prefer delete by key, but accept both
             Optional<List<StreamPhysicalRel>> children =
-                    visitChildren(normalize, DeleteKindTrait.deleteOnKeyOrNone(childModifyKindTrait))
+                    visitChildren(
+                                    normalize,
+                                    DeleteKindTrait.deleteOnKeyOrNone(childModifyKindTrait))
                             .or(
                                     () ->
                                             visitChildren(
@@ -349,7 +365,9 @@ class SatisfyDeleteKindTraitVisitor {
         } else if (rel instanceof StreamPhysicalMultiJoin) {
             StreamPhysicalMultiJoin multiJoin = (StreamPhysicalMultiJoin) rel;
             List<Optional<StreamPhysicalRel>> children = new ArrayList<>();
-            for (int childOrdinal = 0; childOrdinal < multiJoin.getInputs().size(); childOrdinal++) {
+            for (int childOrdinal = 0;
+                    childOrdinal < multiJoin.getInputs().size();
+                    childOrdinal++) {
                 final StreamPhysicalRel physicalChild =
                         (StreamPhysicalRel) multiJoin.getInput(childOrdinal);
                 boolean supportsDeleteByKey =
@@ -357,7 +375,9 @@ class SatisfyDeleteKindTraitVisitor {
                 final ModifyKindSet inputModifyKindSet = getModifyKindSet(physicalChild);
                 if (supportsDeleteByKey && DeleteKindTrait.DELETE_BY_KEY().equals(requiredTrait)) {
                     children.add(
-                            visit(physicalChild, DeleteKindTrait.deleteOnKeyOrNone(inputModifyKindSet))
+                            visit(
+                                            physicalChild,
+                                            DeleteKindTrait.deleteOnKeyOrNone(inputModifyKindSet))
                                     .or(
                                             () ->
                                                     visit(
@@ -366,7 +386,9 @@ class SatisfyDeleteKindTraitVisitor {
                                                                     inputModifyKindSet))));
                 } else {
                     children.add(
-                            visit(physicalChild, DeleteKindTrait.fullDeleteOrNone(inputModifyKindSet)));
+                            visit(
+                                    physicalChild,
+                                    DeleteKindTrait.fullDeleteOrNone(inputModifyKindSet)));
                 }
             }
             if (children.stream().anyMatch(c -> !c.isPresent())) {
@@ -493,7 +515,8 @@ class SatisfyDeleteKindTraitVisitor {
                             + ".");
         }
         RelTraitSet newTraitSet = node.getTraitSet().plus(providedDeleteTrait);
-        return Optional.of((StreamPhysicalRel) node.copy(newTraitSet, new ArrayList<RelNode>(children)));
+        return Optional.of(
+                (StreamPhysicalRel) node.copy(newTraitSet, new ArrayList<RelNode>(children)));
     }
 
     private Optional<StreamPhysicalRel> visitSink(
@@ -539,7 +562,8 @@ class SatisfyDeleteKindTraitVisitor {
         // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
         // to beforeAndAfter mode for the correctness
         boolean upsertKeyDifferentFromPk = false;
-        int[] sinkDefinedPks = sink.contextResolvedTable().getResolvedSchema().getPrimaryKeyIndexes();
+        int[] sinkDefinedPks =
+                sink.contextResolvedTable().getResolvedSchema().getPrimaryKeyIndexes();
 
         if (sinkDefinedPks.length > 0) {
             ImmutableBitSet sinkPks = ImmutableBitSet.of(sinkDefinedPks);

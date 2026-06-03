@@ -129,7 +129,8 @@ class SatisfyModifyKindSetTraitVisitor {
                     "Table sink '"
                             + sink.contextResolvedTable().getIdentifier().asSummaryString()
                             + "'";
-            ChangelogMode queryModifyKindSet = deriveQueryDefaultChangelogMode(sink.getInput(), name);
+            ChangelogMode queryModifyKindSet =
+                    deriveQueryDefaultChangelogMode(sink.getInput(), name);
             ModifyKindSetTrait sinkRequiredTrait =
                     ModifyKindSetTrait.fromChangelogMode(
                             sink.tableSink().getChangelogMode(queryModifyKindSet));
@@ -209,7 +210,8 @@ class SatisfyModifyKindSetTraitVisitor {
             // WindowAggregate and WindowTableAggregate support all changes in input
             StreamPhysicalGroupWindowAggregateBase window =
                     (StreamPhysicalGroupWindowAggregateBase) rel;
-            List<StreamPhysicalRel> children = visitChildren(window, ModifyKindSetTrait.ALL_CHANGES());
+            List<StreamPhysicalRel> children =
+                    visitChildren(window, ModifyKindSetTrait.ALL_CHANGES());
             ModifyKindSet.Builder builder =
                     ModifyKindSet.newBuilder().addContainedKind(ModifyKind.INSERT);
             if (window.emitStrategy().produceUpdates()) {
@@ -243,8 +245,7 @@ class SatisfyModifyKindSetTraitVisitor {
                 final ModifyKindSetTrait providedTrait;
                 if (insertOnly
                         && RankUtil.outputInsertOnlyInDeduplicate(
-                                tableConfig,
-                                RankUtil.keepLastDeduplicateRow(rank.orderKey()))) {
+                                tableConfig, RankUtil.keepLastDeduplicateRow(rank.orderKey()))) {
                     // Deduplicate outputs append only if first row is kept and mini batching is
                     // disabled
                     providedTrait = ModifyKindSetTrait.INSERT_ONLY();
@@ -297,7 +298,8 @@ class SatisfyModifyKindSetTraitVisitor {
             if (!groups.isEmpty() && !groups.get(0).orderKeys.getFieldCollations().isEmpty()) {
                 // All aggregates are computed over the same window and order by is supported for
                 // only 1 field
-                int orderKeyIndex = groups.get(0).orderKeys.getFieldCollations().get(0).getFieldIndex();
+                int orderKeyIndex =
+                        groups.get(0).orderKeys.getFieldCollations().get(0).getFieldIndex();
                 RelDataType orderKeyType =
                         over.logicWindow().getRowType().getFieldList().get(orderKeyIndex).getType();
                 if (!FlinkTypeFactory.isRowtimeIndicatorType(orderKeyType)
@@ -514,7 +516,10 @@ class SatisfyModifyKindSetTraitVisitor {
         }
     }
 
-    /** Derives the {@link ModifyKindSetTrait} of query plan without required ModifyKindSet validation. */
+    /**
+     * Derives the {@link ModifyKindSetTrait} of query plan without required ModifyKindSet
+     * validation.
+     */
     private ChangelogMode deriveQueryDefaultChangelogMode(RelNode queryNode, String name) {
         StreamPhysicalRel newNode =
                 visit((StreamPhysicalRel) queryNode, ModifyKindSetTrait.ALL_CHANGES(), name);
@@ -539,7 +544,8 @@ class SatisfyModifyKindSetTraitVisitor {
             // creates a new node based on the new children, to have a more correct node description
             // e.g. description of GroupAggregate is based on the ModifyKindSetTrait of children
             StreamPhysicalRel tempNode =
-                    (StreamPhysicalRel) node.copy(node.getTraitSet(), new ArrayList<RelNode>(children));
+                    (StreamPhysicalRel)
+                            node.copy(node.getTraitSet(), new ArrayList<RelNode>(children));
             String nodeString = tempNode.getRelDetailedDescription();
             throw new TableException(
                     requestedOwner

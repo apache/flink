@@ -22,12 +22,11 @@ import org.apache.flink.legacy.table.sinks.AppendStreamTableSink;
 import org.apache.flink.legacy.table.sinks.RetractStreamTableSink;
 import org.apache.flink.legacy.table.sinks.StreamTableSink;
 import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink;
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -129,9 +128,9 @@ class SatisfyUpdateKindTraitVisitor {
     /**
      * Try to satisfy the required {@link UpdateKindTrait} from root.
      *
-     * <p>Each node will first require a UpdateKindTrait to its children. The required UpdateKindTrait
-     * may come from the node's parent, or come from the node itself, depending on whether the node
-     * will destroy the trait provided by children or pass the trait from children.
+     * <p>Each node will first require a UpdateKindTrait to its children. The required
+     * UpdateKindTrait may come from the node's parent, or come from the node itself, depending on
+     * whether the node will destroy the trait provided by children or pass the trait from children.
      *
      * <p>If the node will pass the children's UpdateKindTrait without destroying it, then return a
      * new node with new inputs and forwarded UpdateKindTrait.
@@ -145,8 +144,7 @@ class SatisfyUpdateKindTraitVisitor {
      * @return A converted node which satisfies required traits by input nodes of current node. Or
      *     {@link Optional#empty()} if required traits cannot be satisfied.
      */
-    Optional<StreamPhysicalRel> visit(
-            StreamPhysicalRel rel, UpdateKindTrait requiredUpdateTrait) {
+    Optional<StreamPhysicalRel> visit(StreamPhysicalRel rel, UpdateKindTrait requiredUpdateTrait) {
         if (rel instanceof StreamPhysicalSink) {
             StreamPhysicalSink sink = (StreamPhysicalSink) rel;
             List<UpdateKindTrait> sinkRequiredTraits = inferSinkRequiredTraits(sink);
@@ -185,12 +183,15 @@ class SatisfyUpdateKindTraitVisitor {
             }
             return visitSink(legacySink, sinkRequiredTraits);
         } else if (requiresUpdateBeforeFromChildren(rel)) {
-            // Aggregate, TableAggregate, OverAggregate, Limit, GroupWindowAggregate, WindowAggregate,
+            // Aggregate, TableAggregate, OverAggregate, Limit, GroupWindowAggregate,
+            // WindowAggregate,
             // and WindowTableAggregate requires update_before if there are updates
             UpdateKindTrait requiredChildUpdateTrait =
                     UpdateKindTrait.beforeAfterOrNone(getModifyKindSet(rel.getInput(0)));
-            Optional<List<StreamPhysicalRel>> children = visitChildren(rel, requiredChildUpdateTrait);
-            // use requiredTrait as providedTrait, because they should support all kinds of UpdateKind
+            Optional<List<StreamPhysicalRel>> children =
+                    visitChildren(rel, requiredChildUpdateTrait);
+            // use requiredTrait as providedTrait, because they should support all kinds of
+            // UpdateKind
             return createNewNode(rel, children, requiredUpdateTrait);
         } else if (requiresNoUpdateFromChildren(rel)) {
             // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP,
@@ -202,15 +203,13 @@ class SatisfyUpdateKindTraitVisitor {
             List<RankProcessStrategy> rankStrategies =
                     RankProcessStrategy.analyzeRankProcessStrategies(
                             rank, rank.partitionKey(), rank.orderKey());
-            return visitRankStrategies(
-                    rankStrategies, requiredUpdateTrait, rank::copy);
+            return visitRankStrategies(rankStrategies, requiredUpdateTrait, rank::copy);
         } else if (rel instanceof StreamPhysicalSortLimit) {
             StreamPhysicalSortLimit sortLimit = (StreamPhysicalSortLimit) rel;
             List<RankProcessStrategy> rankStrategies =
                     RankProcessStrategy.analyzeRankProcessStrategies(
                             sortLimit, ImmutableBitSet.of(), sortLimit.getCollation());
-            return visitRankStrategies(
-                    rankStrategies, requiredUpdateTrait, sortLimit::copy);
+            return visitRankStrategies(rankStrategies, requiredUpdateTrait, sortLimit::copy);
         } else if (rel instanceof StreamPhysicalSort) {
             StreamPhysicalSort sort = (StreamPhysicalSort) rel;
             UpdateKindTrait requiredChildTrait =
@@ -232,11 +231,15 @@ class SatisfyUpdateKindTraitVisitor {
                         children.add(Optional.empty());
                     } else {
                         children.add(
-                                visit(physicalChild, UpdateKindTrait.onlyAfterOrNone(inputModifyKindSet)));
+                                visit(
+                                        physicalChild,
+                                        UpdateKindTrait.onlyAfterOrNone(inputModifyKindSet)));
                     }
                 } else {
                     children.add(
-                            visit(physicalChild, UpdateKindTrait.beforeAfterOrNone(inputModifyKindSet)));
+                            visit(
+                                    physicalChild,
+                                    UpdateKindTrait.beforeAfterOrNone(inputModifyKindSet)));
                 }
             }
             if (children.stream().anyMatch(c -> !c.isPresent())) {
@@ -265,7 +268,8 @@ class SatisfyUpdateKindTraitVisitor {
             Optional<StreamPhysicalRel> newRightOption =
                     visit(right, UpdateKindTrait.onlyAfterOrNone(rightInputModifyKindSet));
             if (!newRightOption.isPresent()) {
-                newRightOption = visit(right, UpdateKindTrait.beforeAfterOrNone(rightInputModifyKindSet));
+                newRightOption =
+                        visit(right, UpdateKindTrait.beforeAfterOrNone(rightInputModifyKindSet));
             }
 
             if (newLeftOption.isPresent() && newRightOption.isPresent()) {
@@ -280,7 +284,8 @@ class SatisfyUpdateKindTraitVisitor {
             }
         } else if (rel instanceof StreamPhysicalCalcBase) {
             // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
-            // is, because we will filter all records based on the condition that applies to that key
+            // is, because we will filter all records based on the condition that applies to that
+            // key
             StreamPhysicalCalcBase calc = (StreamPhysicalCalcBase) rel;
             if (requiredUpdateTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER())
                     && isNonUpsertKeyCondition(calc)) {
@@ -313,7 +318,9 @@ class SatisfyUpdateKindTraitVisitor {
                 StreamPhysicalRel child = (StreamPhysicalRel) childNode;
                 ModifyKindSet childModifyKindSet = getModifyKindSet(child);
                 UpdateKindTrait requiredChildTrait =
-                        childModifyKindSet.isInsertOnly() ? UpdateKindTrait.NONE() : requiredUpdateTrait;
+                        childModifyKindSet.isInsertOnly()
+                                ? UpdateKindTrait.NONE()
+                                : requiredUpdateTrait;
                 children.add(visit(child, requiredChildTrait));
             }
             if (children.stream().anyMatch(c -> !c.isPresent())) {
@@ -343,7 +350,8 @@ class SatisfyUpdateKindTraitVisitor {
                     } else if (merged == updateKind) {
                         // merged stays unchanged
                     } else {
-                        // UNION doesn't support to union ONLY_UPDATE_AFTER and BEFORE_AND_AFTER inputs
+                        // UNION doesn't support to union ONLY_UPDATE_AFTER and BEFORE_AND_AFTER
+                        // inputs
                         return Optional.empty();
                     }
                 }
@@ -367,9 +375,11 @@ class SatisfyUpdateKindTraitVisitor {
                     createNewNode(rel, Optional.of(Collections.emptyList()), providedTrait);
             if (providedTrait.equals(UpdateKindTrait.BEFORE_AND_AFTER())
                     && requiredUpdateTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER())) {
-                // requiring only-after, but the source is CDC source, then drop update_before manually
+                // requiring only-after, but the source is CDC source, then drop update_before
+                // manually
                 StreamPhysicalDropUpdateBefore dropUB =
-                        new StreamPhysicalDropUpdateBefore(rel.getCluster(), rel.getTraitSet(), rel);
+                        new StreamPhysicalDropUpdateBefore(
+                                rel.getCluster(), rel.getTraitSet(), rel);
                 return createNewNode(
                         dropUB, newSource.map(Collections::singletonList), requiredUpdateTrait);
             } else {
@@ -441,9 +451,13 @@ class SatisfyUpdateKindTraitVisitor {
             boolean onlyAfterByParent =
                     requiredUpdateTrait.updateKind() == UpdateKind.ONLY_UPDATE_AFTER;
             List<Optional<StreamPhysicalRel>> children = new ArrayList<>();
-            for (int childOrdinal = 0; childOrdinal < multiJoin.getInputs().size(); childOrdinal++) {
-                StreamPhysicalRel physicalChild = (StreamPhysicalRel) multiJoin.getInput(childOrdinal);
-                boolean supportOnlyAfter = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal);
+            for (int childOrdinal = 0;
+                    childOrdinal < multiJoin.getInputs().size();
+                    childOrdinal++) {
+                StreamPhysicalRel physicalChild =
+                        (StreamPhysicalRel) multiJoin.getInput(childOrdinal);
+                boolean supportOnlyAfter =
+                        multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal);
                 ModifyKindSet inputModifyKindSet = getModifyKindSet(physicalChild);
                 if (onlyAfterByParent) {
                     if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
@@ -452,11 +466,15 @@ class SatisfyUpdateKindTraitVisitor {
                         children.add(Optional.empty());
                     } else {
                         children.add(
-                                visit(physicalChild, UpdateKindTrait.onlyAfterOrNone(inputModifyKindSet)));
+                                visit(
+                                        physicalChild,
+                                        UpdateKindTrait.onlyAfterOrNone(inputModifyKindSet)));
                     }
                 } else {
                     children.add(
-                            visit(physicalChild, UpdateKindTrait.beforeAfterOrNone(inputModifyKindSet)));
+                            visit(
+                                    physicalChild,
+                                    UpdateKindTrait.beforeAfterOrNone(inputModifyKindSet)));
                 }
             }
             if (children.stream().anyMatch(c -> !c.isPresent())) {
@@ -567,7 +585,8 @@ class SatisfyUpdateKindTraitVisitor {
                             + ".");
         }
         RelTraitSet newTraitSet = node.getTraitSet().plus(providedUpdateTrait);
-        return Optional.of((StreamPhysicalRel) node.copy(newTraitSet, new ArrayList<RelNode>(children)));
+        return Optional.of(
+                (StreamPhysicalRel) node.copy(newTraitSet, new ArrayList<RelNode>(children)));
     }
 
     /**
@@ -633,10 +652,12 @@ class SatisfyUpdateKindTraitVisitor {
         UpdateKindTrait beforeAndAfter = UpdateKindTrait.beforeAfterOrNone(childModifyKindSet);
         UpdateKindTrait sinkTrait =
                 UpdateKindTrait.fromChangelogMode(
-                        sink.tableSink().getChangelogMode(childModifyKindSet.toDefaultChangelogMode()));
+                        sink.tableSink()
+                                .getChangelogMode(childModifyKindSet.toDefaultChangelogMode()));
 
         if (sinkTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER())) {
-            // if sink's pk(s) are not satisfied by input upsert keys (considering immutable columns),
+            // if sink's pk(s) are not satisfied by input upsert keys (considering immutable
+            // columns),
             // fallback to beforeAndAfter mode for correctness
             boolean requireBeforeAndAfter = !canUpsertKeysWithImmutableColsSatisfyPk(sink);
             if (requireBeforeAndAfter) {
@@ -652,8 +673,8 @@ class SatisfyUpdateKindTraitVisitor {
     }
 
     /**
-     * Check whether input's upsert keys (together with immutable columns) can satisfy sink's primary
-     * keys.
+     * Check whether input's upsert keys (together with immutable columns) can satisfy sink's
+     * primary keys.
      *
      * <p>A sink pk is considered "satisfied" when there exists an upsert key {@code uk} such that:
      *
@@ -676,7 +697,8 @@ class SatisfyUpdateKindTraitVisitor {
      * inference.
      */
     private boolean canUpsertKeysWithImmutableColsSatisfyPk(StreamPhysicalSink sink) {
-        int[] sinkDefinedPks = sink.contextResolvedTable().getResolvedSchema().getPrimaryKeyIndexes();
+        int[] sinkDefinedPks =
+                sink.contextResolvedTable().getResolvedSchema().getPrimaryKeyIndexes();
         if (sinkDefinedPks.length == 0) {
             return true;
         }
@@ -783,7 +805,9 @@ class SatisfyUpdateKindTraitVisitor {
                 // Validate that ON CONFLICT is specified when upsert key differs from primary key
                 boolean requireOnConflict =
                         tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT);
-                if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy() == null) {
+                if (requireOnConflict
+                        && upsertKeyDiffersFromPk
+                        && sink.conflictStrategy() == null) {
                     String pkNames = sink.getPrimaryKeyNames();
                     String upsertKeyNames = sink.getUpsertKeyNames();
                     throw new ValidationException(
@@ -831,7 +855,10 @@ class SatisfyUpdateKindTraitVisitor {
             StreamPhysicalTableSourceScan ts = (StreamPhysicalTableSourceScan) rel;
             TableSourceTable table = ts.getTable().unwrap(TableSourceTable.class);
             if (table != null
-                    && table.contextResolvedTable().getResolvedSchema().getWatermarkSpecs().isEmpty()) {
+                    && table.contextResolvedTable()
+                            .getResolvedSchema()
+                            .getWatermarkSpecs()
+                            .isEmpty()) {
                 result.add(table.contextResolvedTable().getIdentifier().asSummaryString());
             }
         } else {

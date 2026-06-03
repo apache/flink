@@ -215,15 +215,19 @@ final class ChangelogModeInferenceUtils {
         if (definition instanceof ChangelogFunction) {
             ChangelogFunction changelogFunction = (ChangelogFunction) definition;
             ChangelogContext changelogContext =
-                    toPtfChangelogContext(process, toInputChangelogModes(children), requiredChangelogMode);
+                    toPtfChangelogContext(
+                            process, toInputChangelogModes(children), requiredChangelogMode);
             ChangelogMode changelogMode = changelogFunction.getChangelogMode(changelogContext);
             verifyPtfTableArgsForUpdates(call, changelogMode);
             return toTraitSet.apply(changelogMode);
         } else if (definition instanceof BuiltInFunctionDefinition
-                && ((BuiltInFunctionDefinition) definition).getChangelogModeStrategy().isPresent()) {
+                && ((BuiltInFunctionDefinition) definition)
+                        .getChangelogModeStrategy()
+                        .isPresent()) {
             BuiltInFunctionDefinition builtIn = (BuiltInFunctionDefinition) definition;
             ChangelogContext changelogContext =
-                    toPtfChangelogContext(process, toInputChangelogModes(children), requiredChangelogMode);
+                    toPtfChangelogContext(
+                            process, toInputChangelogModes(children), requiredChangelogMode);
             ChangelogMode changelogMode =
                     builtIn.getChangelogModeStrategy().get().inferChangelogMode(changelogContext);
             verifyPtfTableArgsForUpdates(call, changelogMode);
@@ -253,7 +257,8 @@ final class ChangelogModeInferenceUtils {
                 || changelogMode.contains(RowKind.UPDATE_BEFORE)) {
             return;
         }
-        for (Ord<StaticArgument> inputArg : StreamPhysicalProcessTableFunction.getProvidedInputArgs(call)) {
+        for (Ord<StaticArgument> inputArg :
+                StreamPhysicalProcessTableFunction.getProvidedInputArgs(call)) {
             StaticArgument tableArg = inputArg.e;
             if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 throw new ValidationException(
@@ -274,7 +279,9 @@ final class ChangelogModeInferenceUtils {
         final ModifyKindSet modifyKindSet;
 
         PtfTableArgComponents(
-                StaticArgument tableArg, RexTableArgCall tableArgCall, ModifyKindSet modifyKindSet) {
+                StaticArgument tableArg,
+                RexTableArgCall tableArgCall,
+                ModifyKindSet modifyKindSet) {
             this.tableArg = tableArg;
             this.tableArgCall = tableArgCall;
             this.modifyKindSet = modifyKindSet;
