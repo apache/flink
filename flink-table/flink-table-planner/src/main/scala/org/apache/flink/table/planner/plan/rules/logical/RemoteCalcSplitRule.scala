@@ -18,12 +18,13 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.utils.{InputRefVisitor, RexDefaultVisitor}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexCorrelVariable, RexFieldAccess, RexInputRef, RexLocalRef, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexCorrelVariable, RexFieldAccess, RexInputRef, RexLocalRef, RexNode, RexNodeAndFieldIndex, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util.function.Function
@@ -498,6 +499,10 @@ class ScalarFunctionSplitter(
       new RexInputRef(fieldsRexCall(rexCallIndex), remoteCall.getType),
       node.getField.getIndex)
   }
+
+  override def visitNodeAndFieldIndex(nodeAndFieldIndex: RexNodeAndFieldIndex): RexNode = {
+    throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+  }
 }
 
 /**
@@ -546,4 +551,8 @@ private class ExtractedFunctionInputRewriter(
   }
 
   override def visitNode(rexNode: RexNode): RexNode = rexNode
+
+  override def visitNodeAndFieldIndex(nodeAndFieldIndex: RexNodeAndFieldIndex): RexNode = {
+    throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+  }
 }

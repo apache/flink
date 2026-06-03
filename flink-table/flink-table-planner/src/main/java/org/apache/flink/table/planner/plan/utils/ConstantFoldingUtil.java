@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 
 /** Utility for deciding whether than expression supports constant folding or not. */
 public class ConstantFoldingUtil {
@@ -54,6 +56,11 @@ public class ConstantFoldingUtil {
             boolean supportsConstantFolding = supportsConstantFolding(call);
             return supportsConstantFolding
                     && (call.getOperands().stream().allMatch(node -> node.accept(this)));
+        }
+
+        @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new ValidationException("not supported yet");
         }
     }
 }

@@ -37,6 +37,7 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -167,6 +168,11 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
                 call.getOperands().forEach(o -> o.accept(this));
             }
             return null;
+        }
+
+        @Override
+        public Object visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new ValidationException("not supported yet");
         }
 
         @Override

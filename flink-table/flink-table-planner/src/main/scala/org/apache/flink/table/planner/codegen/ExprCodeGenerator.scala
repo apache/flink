@@ -1026,4 +1026,9 @@ class ExprCodeGenerator(
     ShortcutUtils.isDeterministicThroughProgram(
       node,
       CodeGenUtils.getExprsFromProgramOrNull(rexProgram))
+
+  override def visitNodeAndFieldIndex(
+      nodeAndFieldIndex: RexNodeAndFieldIndex): GeneratedExpression = {
+    throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+  }
 }

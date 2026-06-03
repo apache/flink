@@ -788,7 +788,7 @@ Calc(select=[d, e, f])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$3], e=[$4], f=[$5])
-+- LogicalFilter(condition=[=($3, null)])
++- LogicalFilter(condition=[false])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])

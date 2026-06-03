@@ -18,13 +18,14 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{MatchSpec, PartitionSpec}
 
 import _root_.scala.collection.JavaConversions._
-import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
+import org.apache.calcite.rex.{RexCall, RexNode, RexNodeAndFieldIndex, RexPatternFieldRef}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 object MatchUtil {
@@ -57,6 +58,10 @@ object MatchUtil {
     }
 
     override def visitNode(rexNode: RexNode): Option[String] = None
+
+    override def visitNodeAndFieldIndex(nodeAndFieldIndex: RexNodeAndFieldIndex): Option[String] = {
+      throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+    }
   }
 
   /** Convert [[MatchRecognize]] to [[MatchSpec]]. */

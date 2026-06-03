@@ -40,8 +40,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-6342: Lines 527-529.
- *   <li>Should be removed after fix of FLINK-31350: Lines 604-616.
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 529-531.
+ *   <li>Should be removed after fix of FLINK-31350: Lines 606-618.
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
@@ -327,6 +327,8 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                                         ? createSqlType(typeName, type.getPrecision())
                                         : createSqlType(typeName);
                 type = createTypeWithNullability(type, originalType.isNullable());
+                // update java type's family
+                family = type.getFamily();
             }
 
             if (resultType == null) {

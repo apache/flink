@@ -407,9 +407,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
         |FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
       """.stripMargin
-    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .hasMessageContaining("GROUPING SETS are currently not supported")
-      .isInstanceOf[TableException]
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test

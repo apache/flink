@@ -49,6 +49,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.immutables.value.Value;
@@ -334,6 +335,11 @@ class CorrelatedFieldAccessRemoval extends RexDefaultVisitor<RexNode> {
                             + "]");
         }
         return rexBuilder.makeInputRef(leftSide, leftIndex);
+    }
+
+    @Override
+    public RexNode visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+        throw new ValidationException("not supported yet");
     }
 
     @Override

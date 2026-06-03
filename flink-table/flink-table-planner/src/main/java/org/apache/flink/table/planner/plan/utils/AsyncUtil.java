@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.rules.logical.RemoteCallFinder;
@@ -26,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 
 /** Utility class for working with async function calls in RexNodes. */
 public class AsyncUtil {
@@ -134,6 +136,11 @@ public class AsyncUtil {
             return findAsyncCall == isImmediateAsyncCall
                     || (recursive
                             && call.getOperands().stream().anyMatch(node -> node.accept(this)));
+        }
+
+        @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new ValidationException("not supported yet");
         }
     }
 

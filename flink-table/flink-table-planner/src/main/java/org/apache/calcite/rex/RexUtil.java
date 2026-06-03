@@ -25,12 +25,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import org.apache.calcite.DataContexts;
 import org.apache.calcite.linq4j.function.Predicate1;
+import org.apache.calcite.plan.PlanTooComplexError;
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Calc;
+import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
@@ -804,6 +807,11 @@ public class RexUtil {
         public Boolean visitLambdaRef(RexLambdaRef lambdaRef) {
             return false;
         }
+
+        @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            return false;
+        }
     }
 
     /**
@@ -843,13 +851,13 @@ public class RexUtil {
     }
 
     public static List<RexNode> retainDeterministic(List<RexNode> list) {
-        List<RexNode> conjuctions = new ArrayList<>();
+        List<RexNode> conjunctions = new ArrayList<>();
         for (RexNode x : list) {
             if (isDeterministic(x)) {
-                conjuctions.add(x);
+                conjunctions.add(x);
             }
         }
-        return conjuctions;
+        return conjunctions;
     }
 
     /**
@@ -1658,22 +1666,31 @@ public class RexUtil {
      * @return 'true' when the conversion can certainly be determined to be loss-less cast, but may
      *     return 'false' for some lossless casts.
      */
-    @API(since = "1.22", status = API.Status.EXPERIMENTAL)
+    @API(since = "1.22", status = API.Status.STABLE)
     public static boolean isLosslessCast(RelDataType source, RelDataType target) {
         final SqlTypeName sourceSqlTypeName = source.getSqlTypeName();
         final SqlTypeName targetSqlTypeName = target.getSqlTypeName();
-        // 1) Both INT numeric types
-        if (SqlTypeFamily.INTEGER.getTypeNames().contains(sourceSqlTypeName)
-                && SqlTypeFamily.INTEGER.getTypeNames().contains(targetSqlTypeName)) {
-            return targetSqlTypeName.compareTo(sourceSqlTypeName) >= 0;
+
+        // INT -> INT: use range containment (signed/unsigned)
+        if (SqlTypeUtil.isIntType(source) && SqlTypeUtil.isIntType(target)) {
+            final boolean sourceIsUnsigned =
+                    SqlTypeFamily.UNSIGNED_NUMERIC.getTypeNames().contains(sourceSqlTypeName);
+            final boolean targetIsUnsigned =
+                    SqlTypeFamily.UNSIGNED_NUMERIC.getTypeNames().contains(targetSqlTypeName);
+            if (!sourceIsUnsigned && targetIsUnsigned) {
+                return false;
+            }
+            return SqlTypeUtil.integerRangeContains(target, source);
         }
-        // 2) Both CHARACTER types: it depends on the precision (length)
+
+        // CHARACTER -> CHARACTER: valid if target order >= source and length grows
         if (SqlTypeFamily.CHARACTER.getTypeNames().contains(sourceSqlTypeName)
                 && SqlTypeFamily.CHARACTER.getTypeNames().contains(targetSqlTypeName)) {
             return targetSqlTypeName.compareTo(sourceSqlTypeName) >= 0
                     && source.getPrecision() <= target.getPrecision();
         }
-        // 3) From NUMERIC family to CHARACTER family: it depends on the precision/scale
+
+        // NUMERIC -> CHARACTER: allow when target length accommodates sign/scale
         if (sourceSqlTypeName.getFamily() == SqlTypeFamily.NUMERIC
                 && targetSqlTypeName.getFamily() == SqlTypeFamily.CHARACTER) {
             int sourceLength = source.getPrecision() + 1; // include sign
@@ -1683,7 +1700,66 @@ public class RexUtil {
             final int targetPrecision = target.getPrecision();
             return targetPrecision == PRECISION_NOT_SPECIFIED || targetPrecision >= sourceLength;
         }
-        // Return FALSE by default
+
+        // DECIMAL -> DECIMAL: allow when precision/scale can only expand
+        if (sourceSqlTypeName == SqlTypeName.DECIMAL && targetSqlTypeName == SqlTypeName.DECIMAL) {
+            int sourcePrecision = source.getPrecision();
+            int sourceScale = Math.max(source.getScale(), 0);
+            int targetPrecision = target.getPrecision();
+            int targetScale = Math.max(target.getScale(), 0);
+            if (sourcePrecision <= 0 || targetPrecision <= 0) {
+                return false;
+            }
+            return targetScale >= sourceScale
+                    && (targetPrecision - targetScale) >= (sourcePrecision - sourceScale);
+        }
+
+        // INT (signed/unsigned) -> DECIMAL: valid if integer digits fit within target precision
+        if (SqlTypeUtil.isIntType(source) && targetSqlTypeName == SqlTypeName.DECIMAL) {
+            int targetPrecision = target.getPrecision();
+            int targetScale = Math.max(target.getScale(), 0);
+            int sourcePrecision = source.getPrecision();
+            return sourcePrecision > 0 && (targetPrecision - targetScale) >= sourcePrecision;
+        }
+
+        // DECIMAL -> INT: only when scale = 0 and range fits target integer type
+        if (sourceSqlTypeName == SqlTypeName.DECIMAL && SqlTypeUtil.isIntType(target)) {
+            if (source.getScale() != 0) {
+                return false;
+            }
+            return SqlTypeUtil.integerRangeContains(target, source);
+        }
+
+        // APPROXIMATE NUMERIC -> APPROXIMATE NUMERIC: allow when target precision >= source
+        // precision
+        if (SqlTypeFamily.APPROXIMATE_NUMERIC.getTypeNames().contains(sourceSqlTypeName)
+                && SqlTypeFamily.APPROXIMATE_NUMERIC.getTypeNames().contains(targetSqlTypeName)) {
+            // Lossless if target has at least as many significant digits as source
+            final int sourcePrecision = source.getPrecision();
+            final int targetPrecision = target.getPrecision();
+            return targetPrecision >= sourcePrecision;
+        }
+
+        // EXACT NUMERIC -> APPROXIMATE NUMERIC: allow only for scale=0 values within target digits
+        if (SqlTypeFamily.EXACT_NUMERIC.getTypeNames().contains(sourceSqlTypeName)
+                && SqlTypeFamily.APPROXIMATE_NUMERIC.getTypeNames().contains(targetSqlTypeName)) {
+            final int targetPrecision = target.getPrecision();
+
+            // DECIMAL -> APPROXIMATE NUMERIC
+            if (sourceSqlTypeName == SqlTypeName.DECIMAL) {
+                final int sourcePrecision = source.getPrecision();
+                if (sourcePrecision <= 0 || source.getScale() != 0) {
+                    return false;
+                }
+                // scale is 0, just check precision
+                return sourcePrecision <= targetPrecision;
+            }
+
+            // INT (signed/unsigned) -> APPROXIMATE NUMERIC
+            int sourcePrecision = source.getPrecision();
+            return sourcePrecision > 0 && sourcePrecision <= targetPrecision;
+        }
+
         return false;
     }
 
@@ -1860,6 +1936,36 @@ public class RexUtil {
                             return input;
                         }
                         return new RexInputRef(index + offset, input.getType());
+                    }
+                });
+    }
+
+    /**
+     * Shifts every {@link RexFieldAccess} with {@link CorrelationId} in an {@link RelNode} by
+     * {@code offset}.
+     */
+    public static RelNode shiftFieldAccess(
+            RexBuilder rexBuilder,
+            RelNode node,
+            final CorrelationId id,
+            RelNode outer,
+            final int offset) {
+        if (offset == 0) {
+            return node;
+        }
+
+        RexNode correl = rexBuilder.makeCorrel(outer.getRowType(), id);
+        return node.accept(
+                new RexShuttle() {
+                    @Override
+                    public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
+                        if (fieldAccess.getReferenceExpr() instanceof RexCorrelVariable
+                                && ((RexCorrelVariable) fieldAccess.getReferenceExpr())
+                                        .id.equals(id)) {
+                            return rexBuilder.makeFieldAccess(
+                                    correl, fieldAccess.getField().getIndex() + offset);
+                        }
+                        return fieldAccess;
                     }
                 });
     }
@@ -2982,12 +3088,6 @@ public class RexUtil {
             return new RexInputRef(input.getIndex() + offset, input.getType());
         }
     }
-
-    /**
-     * Exception to catch when optimizing the plan produces a result that is too complex, either at
-     * the Rel or at the Rex level.
-     */
-    private static class PlanTooComplexError extends ControlFlowException {}
 
     /**
      * Visitor that throws {@link org.apache.calcite.util.Util.FoundOne} if applied to an expression

@@ -5246,6 +5246,19 @@ TimeUnit Second() :
     <SECONDS> { return warn(TimeUnit.SECOND); }
 }
 
+SqlIntervalQualifier IntervalWithoutQualifier() :
+{
+    final Span s;
+    int secondFracPrec = RelDataType.PRECISION_NOT_SPECIFIED;
+}
+{
+    {
+        s = span();
+        return new SqlIntervalQualifier(TimeUnit.SECOND, -1, null, secondFracPrec,
+            s.end(this));
+    }
+}
+
 SqlIntervalQualifier IntervalQualifier() :
 {
     final Span s;
@@ -5905,6 +5918,7 @@ SqlTypeNameSpec SqlTypeName(Span s) :
 SqlTypeNameSpec SqlTypeName1(Span s) :
 {
     final SqlTypeName sqlTypeName;
+    boolean unsigned = false;
 }
 {
     (
@@ -5918,13 +5932,40 @@ SqlTypeNameSpec SqlTypeName1(Span s) :
     |
         <BOOLEAN> { s.add(this); sqlTypeName = SqlTypeName.BOOLEAN; }
     |
-        ( <INTEGER> | <INT> ) { s.add(this); sqlTypeName = SqlTypeName.INTEGER; }
+        ( <INTEGER> | <INT> ) ( <UNSIGNED> { unsigned = true; })? {
+            if (unsigned && !this.conformance.supportsUnsignedTypes()) {
+                throw SqlUtil.newContextException(getPos(), RESOURCE.unsignedDisabled());
+            }
+            s.add(this); sqlTypeName = unsigned ? SqlTypeName.UINTEGER : SqlTypeName.INTEGER;
+        }
     |
-        <TINYINT> { s.add(this); sqlTypeName = SqlTypeName.TINYINT; }
+        <UNSIGNED> {
+            if (!this.conformance.supportsUnsignedTypes()) {
+                throw SqlUtil.newContextException(getPos(), RESOURCE.unsignedDisabled());
+            }
+            s.add(this); sqlTypeName = SqlTypeName.UINTEGER;
+        }
     |
-        <SMALLINT> { s.add(this); sqlTypeName = SqlTypeName.SMALLINT; }
+        <TINYINT> ( <UNSIGNED> { unsigned = true; })? {
+            if (unsigned && !this.conformance.supportsUnsignedTypes()) {
+                throw SqlUtil.newContextException(getPos(), RESOURCE.unsignedDisabled());
+            }
+            s.add(this); sqlTypeName = unsigned ? SqlTypeName.UTINYINT : SqlTypeName.TINYINT;
+        }
     |
-        <BIGINT> { s.add(this); sqlTypeName = SqlTypeName.BIGINT; }
+        <SMALLINT> ( <UNSIGNED> { unsigned = true; })? {
+            if (unsigned && !this.conformance.supportsUnsignedTypes()) {
+                throw SqlUtil.newContextException(getPos(), RESOURCE.unsignedDisabled());
+            }
+            s.add(this); sqlTypeName = unsigned ? SqlTypeName.USMALLINT : SqlTypeName.SMALLINT;
+        }
+    |
+        <BIGINT> ( <UNSIGNED> { unsigned = true; })? {
+            if (unsigned && !this.conformance.supportsUnsignedTypes()) {
+                throw SqlUtil.newContextException(getPos(), RESOURCE.unsignedDisabled());
+            }
+            s.add(this); sqlTypeName = unsigned ? SqlTypeName.UBIGINT : SqlTypeName.BIGINT;
+        }
     |
         <REAL> { s.add(this); sqlTypeName = SqlTypeName.REAL; }
     |
@@ -6310,7 +6351,12 @@ SqlNode BuiltinFunctionCall() :
         (
             dt = DataType() { args.add(dt); }
         |
+            LOOKAHEAD(2)
             <INTERVAL> e = IntervalQualifier() { args.add(e); }
+<#if (parser.includeIntervalWithoutQualifier!default.parser.includeIntervalWithoutQualifier) >
+        |
+            <INTERVAL> e = IntervalWithoutQualifier() { args.add(e); }
+</#if>
         )
         [ <FORMAT> format = StringLiteral() { args.add(format); } ]
         <RPAREN> {
@@ -7957,6 +8003,7 @@ SqlBinaryOperator BinaryRowOperator() :
 {
     // <IN> is handled as a special case
     <EQ> { return SqlStdOperatorTable.EQUALS; }
+|   <LEFTSHIFT> { return SqlStdOperatorTable.BIT_LEFT_SHIFT; }
 |   <GT> { return SqlStdOperatorTable.GREATER_THAN; }
 |   <LT> { return SqlStdOperatorTable.LESS_THAN; }
 |   <LE> { return SqlStdOperatorTable.LESS_THAN_OR_EQUAL; }
@@ -7988,7 +8035,9 @@ SqlBinaryOperator BinaryRowOperator() :
 |   <NOT> <SUBMULTISET> <OF> { return SqlStdOperatorTable.NOT_SUBMULTISET_OF; }
 |   <CONTAINS> { return SqlStdOperatorTable.CONTAINS; }
 |   <OVERLAPS> { return SqlStdOperatorTable.OVERLAPS; }
+|   <CARET> { return SqlStdOperatorTable.BITXOR_OPERATOR; }
 |   <EQUALS> { return SqlStdOperatorTable.PERIOD_EQUALS; }
+|   <AMPERSAND> { return SqlStdOperatorTable.BITAND_OPERATOR; }
 |   <PRECEDES> { return SqlStdOperatorTable.PRECEDES; }
 |   <SUCCEEDS> { return SqlStdOperatorTable.SUCCEEDS; }
 |   LOOKAHEAD(2) <IMMEDIATELY> <PRECEDES> { return SqlStdOperatorTable.IMMEDIATELY_PRECEDES; }
@@ -8735,6 +8784,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < UNPIVOT: "UNPIVOT" >
 |   < UNNAMED: "UNNAMED" >
 |   < UNNEST: "UNNEST" >
+|   < UNSIGNED: "UNSIGNED" >
 |   < UPDATE: "UPDATE" > { beforeTableName(); }
 |   < UPPER: "UPPER" >
 |   < UPSERT: "UPSERT" >
@@ -8978,6 +9028,8 @@ void NonReservedKeyWord2of3() :
 |   < DOUBLE_QUOTE: "\"" >
 |   < VERTICAL_BAR: "|" >
 |   < CARET: "^" >
+|   < AMPERSAND: "&" >
+|   < LEFTSHIFT: "<<" >
 |   < DOLLAR: "$" >
 <#list (parser.binaryOperatorsTokens!default.parser.binaryOperatorsTokens) as operator>
 |   ${operator}

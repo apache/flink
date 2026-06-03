@@ -144,6 +144,12 @@ under the License.
 			<version>3.12.0</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
+		<dependency>
+			<groupId>org.jooq</groupId>
+			<artifactId>joou-java-6</artifactId>
+			<version>0.9.4</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
 		<!-- Table Runtime (not included in the uber) -->
 
@@ -371,6 +377,7 @@ under the License.
 							<include>commons-io:commons-io</include>
 							<include>org.apache.commons:commons-math3</include>
 							<include>org.checkerframework:checker-qual</include>
+							<include>org.jooq:joou-java-6</include>
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
@@ -424,6 +431,12 @@ under the License.
 							<!-- icu4j's dependencies -->
 							<pattern>com.ibm.icu</pattern>
 							<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
+						</relocation>
+
+						<relocation>
+							<!-- org.jooq's dependencies, required for unsigned types -->
+							<pattern>org.jooq</pattern>
+							<shadedPattern>org.apache.flink.table.shaded.org.jooq</shadedPattern>
 						</relocation>
 					</relocations>
 				</configuration>

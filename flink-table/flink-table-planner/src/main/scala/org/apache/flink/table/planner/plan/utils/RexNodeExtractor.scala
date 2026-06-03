@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.functions.{BuiltInFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR, TRY_CAST}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
@@ -621,4 +622,8 @@ class RexNodeToExpressionConverter(
     str.replaceAll("\\s|_", "")
   }
 
+  override def visitNodeAndFieldIndex(
+      nodeAndFieldIndex: RexNodeAndFieldIndex): Option[ResolvedExpression] = {
+    throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+  }
 }
