@@ -328,6 +328,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
+    @Nullable private AvailabilityProvider operatorChainAvailabilityProvider = null;
+
     private long initializeStateEndTs;
 
     // ------------------------------------------------------------------------
@@ -695,6 +697,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // waiting for changelog availability is reported as busy
             timer = new GaugePeriodTimer(ioMetrics.getChangelogBusyTimeMsPerSecond());
             resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
+        } else if (operatorChainAvailabilityProvider != null
+                && !operatorChainAvailabilityProvider.isAvailable()) {
+            timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
+            resumeFuture = operatorChainAvailabilityProvider.getAvailableFuture();
         } else {
             // data availability has changed in the meantime; retry immediately
             return;
@@ -808,6 +814,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             ? new FinishedOperatorChain<>(this, recordWriter)
                             : new RegularOperatorChain<>(this, recordWriter);
             mainOperator = operatorChain.getMainOperator();
+            operatorChainAvailabilityProvider =
+                    operatorChain.getOperatorChainAvailabilityProvider();
 
             getEnvironment()
                     .getTaskStateManager()
@@ -1188,7 +1196,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private boolean taskIsAvailable() {
         return recordWriter.isAvailable()
                 && (changelogWriterAvailabilityProvider == null
-                        || changelogWriterAvailabilityProvider.isAvailable());
+                        || changelogWriterAvailabilityProvider.isAvailable())
+                && (operatorChainAvailabilityProvider == null
+                        || operatorChainAvailabilityProvider.isAvailable());
     }
 
     public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
