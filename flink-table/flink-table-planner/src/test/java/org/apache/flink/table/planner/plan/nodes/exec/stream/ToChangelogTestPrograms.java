@@ -123,6 +123,138 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
+    public static final TableTestProgram UPSERT_RESTORE =
+            TableTestProgram.of(
+                            "to-changelog-upsert-restore",
+                            "TO_CHANGELOG over an upsert source, including ChangelogNormalize state")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            // Key-only delete: ChangelogNormalize restores
+                                            // Bob's pre-image from state.
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedBeforeRestore(
+                                            "+I[INSERT, Alice, 10]", "+I[INSERT, Bob, 20]")
+                                    .consumedAfterRestore(
+                                            "+I[UPDATE_BEFORE, Alice, 10]",
+                                            "+I[UPDATE_AFTER, Alice, 30]",
+                                            "+I[DELETE, Bob, 20]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
+                    .build();
+
+    public static final TableTestProgram RETRACT_PARTITION_BY_RESTORE =
+            TableTestProgram.of(
+                            "to-changelog-retract-partition-by-restore",
+                            "TO_CHANGELOG over a retract source with PARTITION BY")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING NOT NULL", "op STRING", "score BIGINT")
+                                    .consumedBeforeRestore(
+                                            "+I[Alice, INSERT, 10]", "+I[Bob, INSERT, 20]")
+                                    .consumedAfterRestore(
+                                            "+I[Alice, UPDATE_BEFORE, 10]",
+                                            "+I[Alice, UPDATE_AFTER, 30]",
+                                            "+I[Bob, DELETE, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram UPSERT_PARTITION_BY_RESTORE =
+            TableTestProgram.of(
+                            "to-changelog-upsert-partition-by-restore",
+                            "TO_CHANGELOG over an upsert source with PARTITION BY, including "
+                                    + "ChangelogNormalize state")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            // Key-only delete: ChangelogNormalize restores
+                                            // Bob's pre-image from state.
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING NOT NULL", "op STRING", "score BIGINT")
+                                    .consumedBeforeRestore(
+                                            "+I[Alice, INSERT, 10]", "+I[Bob, INSERT, 20]")
+                                    .consumedAfterRestore(
+                                            "+I[Alice, UPDATE_BEFORE, 10]",
+                                            "+I[Alice, UPDATE_AFTER, 30]",
+                                            "+I[Bob, DELETE, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram RETRACT_PRODUCES_PARTIAL_DELETES_RESTORE =
+            TableTestProgram.of(
+                            "to-changelog-retract-produces-partial-deletes-restore",
+                            "TO_CHANGELOG with produces_full_deletes=false over a NOT NULL input "
+                                    + "column; non-key columns are widened to nullable on DELETE")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "score BIGINT NOT NULL")
+                                    .addMode(ChangelogMode.all())
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedBeforeRestore(
+                                            "+I[INSERT, Alice, 10]", "+I[INSERT, Bob, 20]")
+                                    .consumedAfterRestore(
+                                            "+I[UPDATE_BEFORE, Alice, 10]",
+                                            "+I[UPDATE_AFTER, Alice, 30]",
+                                            "+I[DELETE, Bob, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t, "
+                                    + "produces_full_deletes => false)")
+                    .build();
+
     /** Partitions by a non-leading column ({@code id}, the middle column of three). */
     public static final TableTestProgram RETRACT_PARTITION_BY =
             TableTestProgram.of(

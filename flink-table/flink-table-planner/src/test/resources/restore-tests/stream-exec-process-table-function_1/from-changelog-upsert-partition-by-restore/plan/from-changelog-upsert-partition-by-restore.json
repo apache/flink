@@ -1,0 +1,183 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 8,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`cdc_stream`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "id",
+              "dataType" : "INT"
+            }, {
+              "name" : "op",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `id` INT, `op` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, cdc_stream]], fields=[name, id, op])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `id` INT, `op` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[id]])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT, `name` VARCHAR(2147483647)>",
+    "description" : "ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0) PARTITION BY($1), DEFAULT(), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET \"UTF-16LE\", _UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET \"UTF-16LE\", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET \"UTF-16LE\", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET \"UTF-16LE\", _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET \"UTF-16LE\", _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET \"UTF-16LE\"), DEFAULT(), DEFAULT(), DEFAULT())], uid=[FROM_CHANGELOG], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])",
+    "uid" : "FROM_CHANGELOG",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$FROM_CHANGELOG$1",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 1 ],
+        "type" : "ROW<`name` VARCHAR(2147483647), `id` INT, `op` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$MAP$1",
+        "operands" : [ {
+          "kind" : "LITERAL",
+          "value" : "INSERT",
+          "type" : "VARCHAR(12) NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "INSERT",
+          "type" : "VARCHAR(12) NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "UPDATE_AFTER",
+          "type" : "VARCHAR(12) NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "UPDATE_AFTER",
+          "type" : "VARCHAR(12) NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "DELETE",
+          "type" : "VARCHAR(12) NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "DELETE",
+          "type" : "VARCHAR(12) NOT NULL"
+        } ],
+        "type" : "MAP<VARCHAR(12) NOT NULL, VARCHAR(12) NOT NULL> NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "ROW<`id` INT, `name` VARCHAR(2147483647)> NOT NULL"
+    },
+    "inputChangelogModes" : [ [ "INSERT" ] ],
+    "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKeys" : [ [ ] ]
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT, `name` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[id, name])"
+  } ],
+  "edges" : [ {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
