@@ -36,7 +36,8 @@ public class DockerImageVersions {
 
     public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
+    public static final String MINIO =
+            "minio/minio:RELEASE.2022-02-07T08-17-33Z@sha256:3d219e086f89efdcae7534a067f750a5db755f2c9e3eb41264f49c24b50409ed";
 
     public static final String ZOOKEEPER = "zookeeper:3.4.14";
 
