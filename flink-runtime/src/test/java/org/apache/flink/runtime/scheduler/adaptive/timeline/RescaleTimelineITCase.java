@@ -553,6 +553,9 @@ class RescaleTimelineITCase {
                                 && rescaleHistory.get(0).getTriggerCause()
                                         == TriggerCause.RECOVERABLE_FAILOVER;
                     },
+                    // 10s is a generous upper bound: the merge is recorded right after the
+                    // RUNNING signal we already waited for, so in practice the condition holds
+                    // almost immediately. The timeout only guards against a real regression.
                     10000);
         }
 
