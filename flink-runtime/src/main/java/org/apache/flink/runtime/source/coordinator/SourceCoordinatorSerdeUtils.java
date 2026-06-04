@@ -36,9 +36,10 @@ public class SourceCoordinatorSerdeUtils {
 
     public static final int VERSION_0 = 0;
     public static final int VERSION_1 = 1;
+    public static final int VERSION_2 = 2; // Added tombstone support
 
     /** The current source coordinator serde version. */
-    private static final int CURRENT_VERSION = VERSION_1;
+    private static final int CURRENT_VERSION = VERSION_2;
 
     /** Private constructor for utility class. */
     private SourceCoordinatorSerdeUtils() {}
@@ -115,6 +116,93 @@ public class SourceCoordinatorSerdeUtils {
             }
 
             return assignments;
+        }
+    }
+
+    /**
+     * Serialize tombstone entries for removed splits.
+     *
+     * @param tombstones map of split IDs to their removal information
+     * @param splitSerializer serializer for split objects
+     * @return serialized tombstone data
+     */
+    static <SplitT> byte[] serializeTombstones(
+            Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>> tombstones,
+            SimpleVersionedSerializer<SplitT> splitSerializer)
+            throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
+            out.writeInt(splitSerializer.getVersion());
+
+            int numTombstones = tombstones.size();
+            out.writeInt(numTombstones);
+
+            for (Map.Entry<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>> entry :
+                    tombstones.entrySet()) {
+                // Write split ID
+                out.writeUTF(entry.getKey());
+
+                SplitAssignmentTracker.RemovedSplitInfo<SplitT> info = entry.getValue();
+
+                // Write removal timestamp
+                out.writeLong(info.getRemovalTimestamp());
+
+                // Write last assigned subtask ID
+                out.writeInt(info.getLastAssignedSubtaskId());
+
+                // Write serialized split
+                byte[] serializedSplit = splitSerializer.serialize(info.getSplit());
+                out.writeInt(serializedSplit.length);
+                out.write(serializedSplit);
+            }
+
+            out.flush();
+            return baos.toByteArray();
+        }
+    }
+
+    /**
+     * Deserialize tombstone entries for removed splits.
+     *
+     * @param tombstoneData serialized tombstone data
+     * @param splitSerializer serializer for split objects
+     * @return map of split IDs to their removal information
+     */
+    static <SplitT> Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>>
+            deserializeTombstones(
+                    byte[] tombstoneData, SimpleVersionedSerializer<SplitT> splitSerializer)
+                    throws IOException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(tombstoneData);
+                DataInputStream in = new DataInputViewStreamWrapper(bais)) {
+            int splitSerializerVersion = in.readInt();
+
+            int numTombstones = in.readInt();
+            Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>> tombstones =
+                    new HashMap<>(numTombstones);
+
+            for (int i = 0; i < numTombstones; i++) {
+                // Read split ID
+                String splitId = in.readUTF();
+
+                // Read removal timestamp
+                long removalTimestamp = in.readLong();
+
+                // Read last assigned subtask ID
+                int lastAssignedSubtaskId = in.readInt();
+
+                // Read serialized split
+                int serializedSplitSize = in.readInt();
+                byte[] serializedSplit = readBytes(in, serializedSplitSize);
+                SplitT split =
+                        splitSerializer.deserialize(splitSerializerVersion, serializedSplit);
+
+                tombstones.put(
+                        splitId,
+                        new SplitAssignmentTracker.RemovedSplitInfo<>(
+                                split, removalTimestamp, lastAssignedSubtaskId));
+            }
+
+            return tombstones;
         }
     }
 }

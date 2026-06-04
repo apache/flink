@@ -174,5 +174,169 @@ class SplitAssignmentTrackerTest {
         verifyAssignment(Collections.singletonList("3"), splitsToPutBack);
     }
 
+    // -------------------- Tombstone Tests --------------------
+
+    @Test
+    void testMarkSplitRemovedWithRetention() throws Exception {
+        // Create tracker with 1-hour retention
+        SplitAssignmentTracker<MockSourceSplit> tracker =
+                new SplitAssignmentTracker<>(3600000L);
+
+        MockSourceSplit split = new MockSourceSplit(0);
+        tracker.markSplitRemoved("0", split, 1);
+
+        // Verify tombstone was created
+        assertThat(tracker.getRemovedSplitsTombstones()).hasSize(1);
+        assertThat(tracker.getRemovedSplitsTombstones().containsKey("0")).isTrue();
+        assertThat(tracker.getRemovedSplitsTombstones().get("0").getLastAssignedSubtaskId())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testMarkSplitRemovedWithoutRetention() {
+        // Create tracker with no retention (default behavior)
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(0L);
+
+        MockSourceSplit split = new MockSourceSplit(0);
+        tracker.markSplitRemoved("0", split, 1);
+
+        // Verify no tombstone was created
+        assertThat(tracker.getRemovedSplitsTombstones()).isEmpty();
+    }
+
+    @Test
+    void testTryResurrectSplitWithinRetention() throws Exception {
+        // Create tracker with very long retention
+        SplitAssignmentTracker<MockSourceSplit> tracker =
+                new SplitAssignmentTracker<>(3600000L);
+
+        MockSourceSplit split = new MockSourceSplit(0);
+        tracker.markSplitRemoved("0", split, 1);
+
+        // Try to resurrect immediately (within retention window)
+        SplitAssignmentTracker.RemovedSplitInfo<MockSourceSplit> resurrected =
+                tracker.tryResurrectSplit("0");
+
+        assertThat(resurrected).isNotNull();
+        assertThat(resurrected.getSplit().splitId()).isEqualTo("0");
+        assertThat(resurrected.getLastAssignedSubtaskId()).isEqualTo(1);
+
+        // Tombstone should be removed after resurrection
+        assertThat(tracker.getRemovedSplitsTombstones()).isEmpty();
+    }
+
+    @Test
+    void testTryResurrectSplitExpired() throws Exception {
+        // Create tracker with very short retention (1ms)
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(1L);
+
+        MockSourceSplit split = new MockSourceSplit(0);
+        tracker.markSplitRemoved("0", split, 1);
+
+        // Wait for retention to expire
+        Thread.sleep(10);
+
+        // Try to resurrect after expiration
+        SplitAssignmentTracker.RemovedSplitInfo<MockSourceSplit> resurrected =
+                tracker.tryResurrectSplit("0");
+
+        // Should return null for expired tombstone
+        assertThat(resurrected).isNull();
+
+        // Tombstone should be cleaned up
+        assertThat(tracker.getRemovedSplitsTombstones()).isEmpty();
+    }
+
+    @Test
+    void testTryResurrectNonExistentSplit() {
+        SplitAssignmentTracker<MockSourceSplit> tracker =
+                new SplitAssignmentTracker<>(3600000L);
+
+        // Try to resurrect a split that was never removed
+        SplitAssignmentTracker.RemovedSplitInfo<MockSourceSplit> resurrected =
+                tracker.tryResurrectSplit("nonexistent");
+
+        assertThat(resurrected).isNull();
+    }
+
+    @Test
+    void testCleanupExpiredTombstones() throws Exception {
+        // Create tracker with short retention
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(50L);
+
+        // Add multiple tombstones
+        tracker.markSplitRemoved("0", new MockSourceSplit(0), 1);
+        Thread.sleep(30); // Wait a bit
+        tracker.markSplitRemoved("1", new MockSourceSplit(1), 1);
+
+        assertThat(tracker.getRemovedSplitsTombstones()).hasSize(2);
+
+        // Wait for first tombstone to expire
+        Thread.sleep(30);
+
+        // Trigger cleanup via checkpoint complete
+        tracker.onCheckpointComplete(1L);
+
+        // First tombstone should be cleaned, second should remain
+        assertThat(tracker.getRemovedSplitsTombstones()).hasSize(1);
+        assertThat(tracker.getRemovedSplitsTombstones().containsKey("1")).isTrue();
+    }
+
+    @Test
+    void testSnapshotAndRestoreWithTombstones() throws Exception {
+        // Create tracker with retention
+        SplitAssignmentTracker<MockSourceSplit> tracker =
+                new SplitAssignmentTracker<>(3600000L);
+
+        // Record some assignments
+        tracker.recordSplitAssignment(getSplitsAssignment(2, 0));
+
+        // Mark a split as removed
+        MockSourceSplit removedSplit = new MockSourceSplit(42);
+        tracker.markSplitRemoved("42", removedSplit, 1);
+
+        // Take snapshot
+        byte[] snapshotState = tracker.snapshotState(new MockSourceSplitSerializer());
+
+        // Restore to new tracker
+        SplitAssignmentTracker<MockSourceSplit> restoredTracker =
+                new SplitAssignmentTracker<>(3600000L);
+        restoredTracker.restoreState(new MockSourceSplitSerializer(), snapshotState);
+
+        // Verify assignments were restored
+        assertThat(restoredTracker.uncheckpointedAssignments()).hasSize(2);
+
+        // Verify tombstone was restored
+        assertThat(restoredTracker.getRemovedSplitsTombstones()).hasSize(1);
+        assertThat(restoredTracker.getRemovedSplitsTombstones().containsKey("42")).isTrue();
+
+        // Verify resurrection works after restore
+        SplitAssignmentTracker.RemovedSplitInfo<MockSourceSplit> resurrected =
+                restoredTracker.tryResurrectSplit("42");
+        assertThat(resurrected).isNotNull();
+        assertThat(resurrected.getSplit().splitId()).isEqualTo("42");
+    }
+
+    @Test
+    void testBackwardCompatibilityWithOldCheckpoints() throws Exception {
+        // Create old-style tracker (no retention)
+        SplitAssignmentTracker<MockSourceSplit> oldTracker = new SplitAssignmentTracker<>();
+        oldTracker.recordSplitAssignment(getSplitsAssignment(2, 0));
+
+        // Manually serialize just assignments (old format)
+        byte[] oldFormatSnapshot =
+                SourceCoordinatorSerdeUtils.serializeAssignments(
+                        oldTracker.uncheckpointedAssignments(), new MockSourceSplitSerializer());
+
+        // Restore with new tracker that supports tombstones
+        SplitAssignmentTracker<MockSourceSplit> newTracker =
+                new SplitAssignmentTracker<>(3600000L);
+        newTracker.restoreState(new MockSourceSplitSerializer(), oldFormatSnapshot);
+
+        // Should handle gracefully - assignments restored, no tombstones
+        assertThat(newTracker.uncheckpointedAssignments()).hasSize(2);
+        assertThat(newTracker.getRemovedSplitsTombstones()).isEmpty();
+    }
+
     // ---------------------
 }

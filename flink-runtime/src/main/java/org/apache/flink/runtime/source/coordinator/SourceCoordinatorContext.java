@@ -130,6 +130,24 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             boolean supportsConcurrentExecutionAttempts) {
         this(
                 jobID,
+                coordinatorThreadFactory,
+                numWorkerThreads,
+                operatorCoordinatorContext,
+                splitSerializer,
+                supportsConcurrentExecutionAttempts,
+                0L); // Default: no retention (current behavior)
+    }
+
+    public SourceCoordinatorContext(
+            JobID jobID,
+            SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
+            int numWorkerThreads,
+            OperatorCoordinator.Context operatorCoordinatorContext,
+            SimpleVersionedSerializer<SplitT> splitSerializer,
+            boolean supportsConcurrentExecutionAttempts,
+            long removedSplitsRetentionMs) {
+        this(
+                jobID,
                 Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
                         numWorkerThreads,
@@ -138,7 +156,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 coordinatorThreadFactory,
                 operatorCoordinatorContext,
                 splitSerializer,
-                new SplitAssignmentTracker<>(),
+                new SplitAssignmentTracker<>(removedSplitsRetentionMs),
                 supportsConcurrentExecutionAttempts);
     }
 

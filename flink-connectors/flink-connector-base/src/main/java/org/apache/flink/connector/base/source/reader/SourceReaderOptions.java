@@ -39,6 +39,17 @@ public class SourceReaderOptions {
                     .defaultValue(2)
                     .withDescription("The capacity of the element queue in the source reader.");
 
+    public static final ConfigOption<Long> REMOVED_SPLITS_RETENTION_MS =
+            ConfigOptions.key("source.removed-splits.retention.ms")
+                    .longType()
+                    .defaultValue(0L)
+                    .withDescription(
+                            "The duration in milliseconds to retain removed splits/partitions in "
+                                    + "checkpoint state before permanently removing them. This helps maintain "
+                                    + "progress tracking during temporary metadata service instability. "
+                                    + "Default is 0 (immediate removal, current behavior). "
+                                    + "Recommended value for dynamic sources: 86400000 (24 hours).");
+
     // --------------- final fields ----------------------
     public final long sourceReaderCloseTimeout;
     public final int elementQueueCapacity;
