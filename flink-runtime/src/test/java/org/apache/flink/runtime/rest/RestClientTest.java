@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -357,6 +358,82 @@ class RestClientTest {
                     .withCauseInstanceOf(IllegalStateException.class)
                     .extracting(Throwable::getCause, as(THROWABLE))
                     .hasMessage("executor not accepting a task");
+        }
+    }
+
+    /**
+     * Verifies that {@code close()} fails a request that is already in-flight (past the connect
+     * phase, so no longer tracked by {@code responseChannelFutures}). The request is driven against
+     * a local server that accepts the connection but never replies. Both expectations use bounded
+     * waits so a regression fails rather than hangs: the behavioral guard asserts {@code close()}
+     * fails the terminal future ({@code failsWithin}), and a secondary guard asserts the in-flight
+     * tracking invariant {@code pendingRequestFutures.size() == 1}.
+     */
+    @Test
+    void testCloseFailsInFlightRequestFutureAfterConnectPhase() throws Exception {
+        final Configuration config = new Configuration();
+
+        Socket connectionSocket = null;
+        try (final ServerSocket serverSocket = new ServerSocket(0);
+                final RestClient restClient =
+                        new RestClient(config, EXECUTOR_EXTENSION.getExecutor())) {
+
+            final String targetAddress = "localhost";
+            final int targetPort = serverSocket.getLocalPort();
+
+            // A server that accepts the connection but never sends a response, so the request stays
+            // in its in-flight (response) phase until the client is closed.
+            final CompletableFuture<Socket> acceptedSocket =
+                    CompletableFuture.supplyAsync(
+                            CheckedSupplier.unchecked(
+                                    () -> NetUtils.acceptWithoutTimeout(serverSocket)));
+
+            assertThat(restClient.getResponseChannelFutures()).isEmpty();
+            assertThat(restClient.getPendingRequestFutures()).isEmpty();
+
+            final CompletableFuture<EmptyResponseBody> responseFuture =
+                    restClient.sendRequest(
+                            targetAddress,
+                            targetPort,
+                            new TestMessageHeaders(),
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance(),
+                            Collections.emptyList());
+
+            // Once the server accepts, the connect listener has run and removed the connect-phase
+            // future from responseChannelFutures: the request is now in-flight.
+            connectionSocket = acceptedSocket.get(TIMEOUT, TimeUnit.SECONDS);
+
+            CommonTestUtils.waitUtil(
+                    () -> restClient.getResponseChannelFutures().isEmpty(),
+                    Duration.ofSeconds(TIMEOUT),
+                    "responseChannelFutures was not drained after the connect phase completed");
+
+            // Without the fix the in-flight future is tracked by nothing, so this bounded wait
+            // elapses and the assertion fails (it does not hang).
+            CommonTestUtils.waitUtil(
+                    () -> restClient.getPendingRequestFutures().size() == 1,
+                    Duration.ofSeconds(TIMEOUT),
+                    "Terminal response future must remain tracked by pendingRequestFutures while "
+                            + "the request is in-flight so that close can fail it");
+
+            restClient.close();
+
+            // The terminal future must be failed by close (bounded await, never hangs).
+            assertThat(responseFuture)
+                    .as("Closing the client must fail the in-flight request future")
+                    .failsWithin(Duration.ofSeconds(TIMEOUT))
+                    .withThrowableOfType(ExecutionException.class);
+
+            // After close, the tracking collection must be drained.
+            CommonTestUtils.waitUtil(
+                    () -> restClient.getPendingRequestFutures().isEmpty(),
+                    Duration.ofSeconds(TIMEOUT),
+                    "pendingRequestFutures was not drained after close");
+        } finally {
+            if (connectionSocket != null) {
+                connectionSocket.close();
+            }
         }
     }
 
