@@ -38,7 +38,9 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -53,10 +55,15 @@ import java.net.ServerSocket;
 import java.util.Enumeration;
 import java.util.List;
 
-import static org.assertj.core.api.Assumptions.assumeThat;
-
 /** Test proper handling of IPv6 address literals in URLs. */
 @ExtendWith(TestLoggerExtension.class)
+// The job uses a GlobalWindow with an end-of-stream trigger, which results in a blocking
+// (non-pipelined) data exchange. The AdaptiveScheduler only supports pipelined data exchanges.
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
+// Skip the whole class when the host has no usable IPv6 address for the cluster to bind to.
+// Evaluating this condition triggers class initialization (and thus the address probing), but the
+// MiniCluster is only started afterwards in beforeAll, so a disabled class never starts one.
+@EnabledIf("hasBindableIpv6Address")
 class IPv6HostnamesITCase {
     private static final Logger LOG = LoggerFactory.getLogger(IPv6HostnamesITCase.class);
 
@@ -64,24 +71,26 @@ class IPv6HostnamesITCase {
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(2)
                             .setNumberSlotsPerTaskManager(2)
                             .build());
 
-    private Configuration getConfiguration() {
-        final Inet6Address ipv6address = getLocalIPv6Address();
-        assumeThat(ipv6address)
-                .as(
-                        "--- Cannot find a non-loopback local IPv6 address that Pekko/Netty can bind to; skipping IPv6HostnamesITCase")
-                .isNotNull();
-        final String addressString = ipv6address.getHostAddress();
-        LOG.info("Test will use IPv6 address {} for connection tests", addressString);
-
+    private static Configuration getConfiguration() {
+        final Inet6Address ipv6Address = Ipv6AddressHolder.ADDRESS;
         Configuration config = new Configuration();
-        config.set(JobManagerOptions.ADDRESS, addressString);
-        config.set(TaskManagerOptions.HOST, addressString);
+        if (ipv6Address != null) {
+            final String addressString = ipv6Address.getHostAddress();
+            LOG.info("Test will use IPv6 address {} for connection tests", addressString);
+            config.set(JobManagerOptions.ADDRESS, addressString);
+            config.set(TaskManagerOptions.HOST, addressString);
+        }
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
         return config;
+    }
+
+    private static boolean hasBindableIpv6Address() {
+        return Ipv6AddressHolder.ADDRESS != null;
     }
 
     @Test
@@ -125,7 +134,14 @@ class IPv6HostnamesITCase {
         TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
     }
 
-    private Inet6Address getLocalIPv6Address() {
+    // Resolves a bindable non-loopback IPv6 address lazily and once. Holding it in a nested class
+    // lets getConfiguration() and the @EnabledIf guard share a single result without depending on
+    // the declaration order of the extension/config fields above.
+    private static final class Ipv6AddressHolder {
+        static final Inet6Address ADDRESS = getLocalIPv6Address();
+    }
+
+    private static Inet6Address getLocalIPv6Address() {
         try {
             Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
             while (e.hasMoreElements()) {
@@ -174,6 +190,7 @@ class IPv6HostnamesITCase {
 
             return null;
         } catch (Exception e) {
+            LOG.debug("No bindable non-loopback IPv6 address available", e);
             return null;
         }
     }
