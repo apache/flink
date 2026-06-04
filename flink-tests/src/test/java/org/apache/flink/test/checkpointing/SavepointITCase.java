@@ -132,6 +132,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.allOf;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
@@ -321,11 +322,14 @@ class SavepointITCase {
                             savepointDir.getAbsolutePath(),
                             SavepointFormatType.CANONICAL);
 
+            // The AdaptiveScheduler wraps StopWithSavepointStoppingException in a FlinkException,
+            // so search the whole cause chain rather than only the direct cause.
             assertThatThrownBy(savepointCompleted::get)
                     .isInstanceOf(ExecutionException.class)
-                    .hasCauseInstanceOf(StopWithSavepointStoppingException.class)
-                    .cause()
-                    .hasMessageStartingWith("A savepoint has been created at: ");
+                    .satisfies(
+                            anyCauseMatches(
+                                    StopWithSavepointStoppingException.class,
+                                    "A savepoint has been created at: "));
             assertThat(client.getJobStatus(jobGraph.getJobID()).get())
                     .isIn(JobStatus.FAILED, JobStatus.FAILING);
         } finally {
