@@ -151,17 +151,17 @@ import java.util.stream.Collectors;
 public class SqlNodeToOperationConversion {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
-    @Nullable private final String statement;
+    @Nullable private final String originalSql;
 
     // ~ Constructors -----------------------------------------------------------
 
     private SqlNodeToOperationConversion(
             FlinkPlannerImpl flinkPlanner,
             CatalogManager catalogManager,
-            @Nullable String statement) {
+            @Nullable String originalSql) {
         this.flinkPlanner = flinkPlanner;
         this.catalogManager = catalogManager;
-        this.statement = statement;
+        this.originalSql = originalSql;
     }
 
     /**
@@ -172,16 +172,16 @@ public class SqlNodeToOperationConversion {
      * @param flinkPlanner FlinkPlannerImpl to convertCreateTable sql node to rel node
      * @param catalogManager CatalogManager to resolve full path for operations
      * @param sqlNode SqlNode to execute on
-     * @param statement original SQL statement text, or {@code null} when the node has no source
+     * @param originalSql original SQL statement text, or {@code null} when the node has no source
      *     text (e.g. a synthesized node)
      */
     public static Optional<Operation> convert(
             FlinkPlannerImpl flinkPlanner,
             CatalogManager catalogManager,
             SqlNode sqlNode,
-            @Nullable String statement) {
+            @Nullable String originalSql) {
         final SqlNode validated = flinkPlanner.validate(sqlNode);
-        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, statement);
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql);
     }
 
     /**
@@ -303,7 +303,7 @@ public class SqlNodeToOperationConversion {
     }
 
     private Operation convertValidatedSqlNodeOrFail(SqlNode validated) {
-        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, statement)
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql)
                 .orElseThrow(
                         () ->
                                 new TableException(

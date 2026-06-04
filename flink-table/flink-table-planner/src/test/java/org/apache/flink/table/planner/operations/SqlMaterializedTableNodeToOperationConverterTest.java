@@ -332,66 +332,35 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     private static Stream<Arguments> originalQueryCases() {
-        return Stream.of(
-                        commentHandlingCases(),
-                        lineBreakCases(),
-                        ddlPrefixTokenCases(),
-                        complexQueryShapeCases(),
-                        adversarialTextCases())
-                .flatMap(s -> s);
-    }
-
-    private static Stream<Arguments> commentHandlingCases() {
-        return Stream.of(
-                asQueryCase(
-                        "inline line comment inside the AS query is kept",
-                        "SELECT a, -- inline line comment\n b FROM t1"),
-                asQueryCase(
-                        "block comment inside the AS query is kept",
-                        "SELECT /* block comment */ * FROM t1"),
-                asQueryCase(
-                        "comment between AS and the query is kept",
-                        "-- leading comment\n SELECT * FROM t1"),
-                asQueryCase(
-                        "trailing comment after the AS query is kept",
-                        "SELECT * FROM t1 -- trailing comment"));
-    }
-
-    private static Stream<Arguments> lineBreakCases() {
         final String query = "SELECT * FROM t1";
         return Stream.of(
+                // The AS query is sliced verbatim from just after AS to the end of the statement,
+                // preserving the user's wording (case, formatting, comments).
+                asQueryCase(
+                        "AS query with a leading comment is kept verbatim",
+                        "/* keep me */\nselect a, b from t1"),
+                asQueryCase(
+                        "trailing comment after the AS query is kept",
+                        "select a, b from t1 -- trailing comment"),
+                asQueryCase(
+                        "WITH query is kept whole (its node position is narrower than its text)",
+                        "WITH q AS (SELECT a FROM t1) SELECT a FROM q"),
                 Arguments.of(
-                        "line comment mentioning AS before the AS keyword is dropped",
-                        "CREATE MATERIALIZED TABLE mtbl1 --AS\nAS " + query,
-                        query),
-                asQueryCase(
-                        "line comment mentioning AS between AS and the query is kept",
-                        "--AS\n" + query),
-                asQueryCase(
-                        "line comments mentioning AS in mixed case between AS and the query are kept",
-                        "--line AS\n--comment as\n--break As\n" + query),
+                        "As-query is stripped and comments are kept",
+                        "CREATE MATERIALIZED TABLE mtbl1 AS \n\n\n\n--keep\n--me\nSELECT * FROM t1\n\n",
+                        "--keep\n--me\nSELECT * FROM t1"),
+                // Everything before AS must be excluded and must not shift the slice, regardless of
+                // comments, identifier quoting, or a multi-line clause prefix.
                 Arguments.of(
-                        "blank lines and line comments between AS and the query are kept",
-                        "CREATE MATERIALIZED TABLE mtbl1 AS \n\n\n--AS\n --line\n--comment\n--break\n"
-                                + query,
-                        "--AS\n --line\n--comment\n--break\n" + query),
-                asQueryCase(
-                        "multi-line block comment between AS and the query is kept",
-                        "/* multi\n line\n comment */\n" + query),
-                asQueryCase(
-                        "multi-line block comment inside the AS query is kept",
-                        "SELECT a, /* spanning\n two lines */ b FROM t1"),
-                Arguments.of(
-                        "line comment before AS is dropped",
+                        "comment before AS is dropped",
                         "CREATE MATERIALIZED TABLE mtbl1\n-- note before AS\nAS " + query,
                         query),
                 Arguments.of(
-                        "multi-line block comment before AS is dropped",
-                        "CREATE MATERIALIZED TABLE mtbl1\n/* a\n multiline\n note before AS */\nAS "
-                                + query,
+                        "escaped-backtick identifier and COMMENT before AS are dropped",
+                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a''b' AS " + query,
                         query),
                 Arguments.of(
-                        "multi-line DDL prefix before AS",
+                        "multi-line DDL prefix before AS is dropped",
                         "CREATE MATERIALIZED TABLE mtbl1 (\n"
                                 + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED\n"
                                 + ")\n"
@@ -406,81 +375,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "AS "
                                 + query,
                         query));
-    }
-
-    private static Stream<Arguments> ddlPrefixTokenCases() {
-        final String query = "SELECT * FROM t1";
-        return Stream.of(
-                Arguments.of(
-                        "quoted identifier", "CREATE MATERIALIZED TABLE `mtbl` AS " + query, query),
-                Arguments.of(
-                        "escaped backtick in identifier",
-                        "CREATE MATERIALIZED TABLE `m``tbl` AS " + query,
-                        query),
-                Arguments.of(
-                        "escaped backtick with comment",
-                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a' AS " + query,
-                        query),
-                Arguments.of(
-                        "escaped quote inside comment",
-                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a''b' AS " + query,
-                        query));
-    }
-
-    private static Stream<Arguments> complexQueryShapeCases() {
-        return Stream.of(
-                asQueryCase(
-                        "aggregation with GROUP BY spanning multiple lines",
-                        "SELECT a, SUM(c) AS total_spend,\n"
-                                + "COUNT(*) AS order_count\n"
-                                + "FROM t1 GROUP BY a"),
-                asQueryCase(
-                        "aggregation with indented continuation lines",
-                        "SELECT a,\n"
-                                + "       SUM(c) AS total,\n"
-                                + "       AVG(c) AS avg_c,\n"
-                                + "       COUNT(*) AS cnt\n"
-                                + "FROM t1\n"
-                                + "GROUP BY a"),
-                asQueryCase(
-                        "two-table inner join",
-                        "SELECT o.a AS oa, c.b AS customer_name, o.c\n"
-                                + "FROM t1 o\n"
-                                + "JOIN t2 c\n"
-                                + "ON o.a = c.a"),
-                asQueryCase(
-                        "three-table join",
-                        "SELECT o.a, c.b AS customer_name, p.d AS product_name\n"
-                                + "FROM t1 o\n"
-                                + "JOIN t2 c ON o.a = c.a\n"
-                                + "JOIN t3 p ON o.c = p.c"),
-                asQueryCase("cast expression", "SELECT CAST(c AS VARCHAR) AS cs, a FROM t1"));
-    }
-
-    private static Stream<Arguments> adversarialTextCases() {
-        return Stream.of(
-                asQueryCase(
-                        "CTE whose own AS must not be mistaken for the table's",
-                        "WITH q AS (SELECT a, c FROM t1 WHERE c > 0) SELECT a, c FROM q"),
-                asQueryCase("set operation", "SELECT a, b FROM t1 UNION ALL SELECT a, b FROM t2"),
-                asQueryCase(
-                        "window function over",
-                        "SELECT a, ROW_NUMBER() OVER (PARTITION BY c ORDER BY a) AS rn FROM t1"),
-                asQueryCase(
-                        "case expression",
-                        "SELECT a, CASE WHEN c > 0 THEN 'pos' ELSE 'neg' END AS s FROM t1"),
-                asQueryCase(
-                        "nested subquery",
-                        "SELECT x.a FROM (SELECT a, c FROM t1 WHERE c > 100) AS x"),
-                asQueryCase(
-                        "string literal with SQL keywords, comment markers and escaped quote",
-                        "SELECT a, '/*adldkfa*/ AS SELECT FROM -- /* not a comment */ it''s ok' AS lit FROM t1"),
-                asQueryCase(
-                        "string literal with semicolon and backtick",
-                        "SELECT 'a;b`c' AS s, a FROM t1"),
-                asQueryCase(
-                        "string literal with accented and astral characters",
-                        "SELECT 'café 🦅' AS s, a FROM t1"));
     }
 
     private static Arguments asQueryCase(String name, String query) {

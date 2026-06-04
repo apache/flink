@@ -60,18 +60,18 @@ import java.util.stream.Collectors;
 public class SqlNodeConvertUtils {
 
     /**
-     * Returns the {@code AS}-query verbatim: the statement text from just after {@code AS} to its
-     * end, trimmed. Slicing to the statement end (the {@code AS}-query is the last clause) keeps a
-     * comment after {@code AS} and queries whose node position is narrower than their text, e.g.
-     * {@code WITH ... SELECT}.
+     * Returns the {@code AS}-query of a VIEW or MATERIALIZED TABLE DDL in verbatim shape: the
+     * statement text from just after {@code AS} to its end, trimmed. Slicing to the statement end
+     * (the {@code AS}-query is the last clause) keeps a comment after {@code AS} and queries whose
+     * node position is narrower than their text, e.g. {@code WITH ... SELECT}.
      *
      * @param asKeywordPos parser position of the {@code AS} keyword
      * @return the verbatim AS-query, or empty when no statement text is available
      */
-    public static Optional<String> originalAsQueryText(
-            ConvertContext context, @Nullable SqlParserPos asKeywordPos) {
+    public static Optional<String> extractOriginalAsQueryText(
+            ConvertContext context, SqlParserPos asKeywordPos) {
         final String statementText = context.getStatementText();
-        if (asKeywordPos == null || statementText == null) {
+        if (statementText == null) {
             return Optional.empty();
         }
         return offsetAfter(statementText, asKeywordPos).stream()
@@ -111,7 +111,7 @@ public class SqlNodeConvertUtils {
     /** convert the query part of a VIEW statement into a {@link CatalogView}. */
     static CatalogView toCatalogView(
             SqlNode query,
-            @Nullable SqlParserPos asKeywordPos,
+            SqlParserPos asKeywordPos,
             List<SqlNode> viewFields,
             Map<String, String> viewOptions,
             String viewComment,
@@ -151,7 +151,8 @@ public class SqlNodeConvertUtils {
         }
 
         final String originalQuery =
-                originalAsQueryText(context, asKeywordPos).orElse(context.toQuotedSqlString(query));
+                extractOriginalAsQueryText(context, asKeywordPos)
+                        .orElse(context.toQuotedSqlString(query));
 
         return new ResolvedCatalogView(
                 CatalogView.of(

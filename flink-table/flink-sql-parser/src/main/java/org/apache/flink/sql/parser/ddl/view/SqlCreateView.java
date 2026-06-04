@@ -31,8 +31,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +43,6 @@ public class SqlCreateView extends SqlCreateObject {
 
     private final SqlNodeList fieldList;
     private final SqlNode query;
-
     private final SqlParserPos asKeywordPos;
 
     public SqlCreateView(
@@ -83,8 +80,7 @@ public class SqlCreateView extends SqlCreateObject {
         return query;
     }
 
-    /** Returns the parser position of the {@code AS} keyword, or {@code null} if not recorded. */
-    @Nullable
+    /** Returns the parser position of the {@code AS} keyword. */
     public SqlParserPos getAsKeywordPos() {
         return asKeywordPos;
     }

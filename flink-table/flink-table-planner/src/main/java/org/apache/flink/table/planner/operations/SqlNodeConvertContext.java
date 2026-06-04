@@ -51,15 +51,15 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
 
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
-    private final @Nullable String statement;
+    private final @Nullable String originalSql;
 
     public SqlNodeConvertContext(
             FlinkPlannerImpl flinkPlanner,
             CatalogManager catalogManager,
-            @Nullable String statement) {
+            @Nullable String originalSql) {
         this.flinkPlanner = flinkPlanner;
         this.catalogManager = catalogManager;
-        this.statement = statement;
+        this.originalSql = originalSql;
     }
 
     @Override
@@ -118,7 +118,7 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     @Override
     @Nullable
     public String getStatementText() {
-        return this.statement;
+        return this.originalSql;
     }
 
     private SqlDialect getSqlDialect() {
