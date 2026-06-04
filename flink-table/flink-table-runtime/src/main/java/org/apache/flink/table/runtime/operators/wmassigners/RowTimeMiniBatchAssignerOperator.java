@@ -41,7 +41,7 @@ import org.apache.flink.table.data.RowData;
  * this operator forwards watermarks from upstream, but the other generates watermarks by itself
  * using processing time.
  */
-public class RowTimeMiniBatchAssginerOperator extends AbstractStreamOperator<RowData>
+public class RowTimeMiniBatchAssignerOperator extends AbstractStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -55,7 +55,7 @@ public class RowTimeMiniBatchAssginerOperator extends AbstractStreamOperator<Row
     /** The next watermark to be emitted. */
     private transient long nextWatermark;
 
-    public RowTimeMiniBatchAssginerOperator(long minibatchInterval) {
+    public RowTimeMiniBatchAssignerOperator(long minibatchInterval) {
         this.minibatchInterval = minibatchInterval;
     }
 
