@@ -182,14 +182,29 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentOutputStream.close();
 
         int partNumber = nextPartNumber++;
-        NativeS3ObjectOperations.UploadPartResult result =
-                s3AccessHelper.uploadPart(
-                        key, uploadId, partNumber, currentTempFile, currentPartSize);
+        try {
+            NativeS3ObjectOperations.UploadPartResult result =
+                    s3AccessHelper.uploadPart(
+                            key, uploadId, partNumber, currentTempFile, currentPartSize);
 
-        completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
-        numBytesInParts += currentPartSize;
-
-        Files.delete(currentTempFile.toPath());
+            completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
+            numBytesInParts += currentPartSize;
+        } finally {
+            // Always delete the temp file, even if uploadPart() fails. This matters most on the
+            // closeForCommit() path: it sets closed = true before calling uploadCurrentPart(), so a
+            // failed upload there would otherwise orphan the temp file in the shared io.tmp.dirs --
+            // the later close() no-ops on its "if (!closed)" guard and never reclaims it. Catch and
+            // log any delete failure here so it cannot mask the original upload IOException.
+            try {
+                Files.deleteIfExists(currentTempFile.toPath());
+            } catch (IOException deleteError) {
+                LOG.warn(
+                        "Failed to delete temp file {} for key={}",
+                        currentTempFile,
+                        key,
+                        deleteError);
+            }
+        }
     }
 
     @Override
@@ -206,7 +221,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             if (currentPartSize > 0) {
                 uploadCurrentPart();
             } else {
-                Files.delete(currentTempFile.toPath());
+                Files.deleteIfExists(currentTempFile.toPath());
             }
 
             NativeS3Recoverable recoverable =
@@ -256,8 +271,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 if (currentOutputStream != null) {
                     currentOutputStream.close();
                 }
-                if (currentTempFile != null && currentTempFile.exists()) {
-                    Files.delete(currentTempFile.toPath());
+                if (currentTempFile != null) {
+                    Files.deleteIfExists(currentTempFile.toPath());
                 }
 
                 try {
