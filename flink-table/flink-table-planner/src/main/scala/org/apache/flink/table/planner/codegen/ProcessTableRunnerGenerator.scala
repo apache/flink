@@ -96,7 +96,7 @@ object ProcessTableRunnerGenerator {
     )
     val functionTerm = ctx.addReusableFunction(udf)
     val inference = udf.getTypeInference(dataTypeFactory)
-    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null, true)
 
     // Enrich argument types with conversion class
     val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)

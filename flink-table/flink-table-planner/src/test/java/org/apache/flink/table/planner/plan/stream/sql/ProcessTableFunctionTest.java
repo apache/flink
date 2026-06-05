@@ -21,7 +21,9 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -58,8 +60,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.annotation.Nullable;
+
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
@@ -69,6 +74,8 @@ import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROU
 import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
@@ -126,9 +133,25 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @Test
     void testTypedRowSemanticTableIgnoringColumnNames() {
         util.addTemporarySystemFunction("f", TypedRowSemanticTableFunction.class);
-        // function expects <STRING name, INT score>
-        // but table is <STRING name, INT different>
+        // Function expects <STRING s, INT i> but table is <STRING name, INT different>
         util.verifyRelPlan("SELECT * FROM f(u => TABLE t_name_diff, i => 1)");
+    }
+
+    @Test
+    void testTypedSetSemanticTableForwardingOriginalColumnName() {
+        util.addTemporarySystemFunction("f", TypedSetSemanticTableFunction.class);
+        // Function expects <STRING s, INT i> but table is <STRING name, INT different>.
+        // The partition key is a valid pass-through column and its name should be preserved.
+        util.verifyRelPlan("SELECT * FROM f(u => TABLE t_name_diff PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testTypedSetSemanticTableForwardingOriginalColumnNameTableApi() {
+        util.addTemporarySystemFunction("f", TypedSetSemanticTableFunction.class);
+        // Function expects <STRING s, INT i> but table is <STRING name, INT different>.
+        // The partition key is a valid pass-through column and its name should be preserved.
+        util.verifyRelPlan(
+                util.tableEnv().from("t_name_diff").partitionBy($("name")).process("f", 1));
     }
 
     @Test
@@ -300,11 +323,14 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         () -> {
                             if (spec.selectSql != null) {
                                 util.verifyExecPlan(spec.selectSql);
-                            } else {
+                            } else if (spec.insertIntoSql != null) {
                                 util.verifyExecPlan(
                                         util.tableEnv()
                                                 .createStatementSet()
                                                 .addInsertSql(spec.insertIntoSql));
+                            } else {
+                                assert spec.selectTableApi != null;
+                                util.verifyExecPlan(spec.selectTableApi.apply(util.tableEnv()));
                             }
                         })
                 .satisfies(anyCauseMatches(spec.errorMessage));
@@ -527,7 +553,18 @@ public class ProcessTableFunctionTest extends TableTestBase {
                                 + "in20 => TABLE t PARTITION BY score, "
                                 + "in21 => TABLE t PARTITION BY score"
                                 + ")",
-                        "Unsupported table argument count. Currently, the number of input tables is limited to 20."));
+                        "Unsupported table argument count. Currently, the number of input tables is limited to 20."),
+                ErrorSpec.ofTableApi(
+                        "invalid scalar args",
+                        TypedRowSemanticTableFunction.class,
+                        env -> env.from("t").process("f", 1.99),
+                        "Invalid argument type at position 1. Data type INT expected but DOUBLE NOT NULL passed."),
+                ErrorSpec.ofTableApi(
+                        "invalid table args in Table API",
+                        TypedRowSemanticTableFunction.class,
+                        env -> env.fromValues(row("Bob", 1.99)).process("f", 1),
+                        "Invalid argument value. Argument 'u' expects a typed table, but the provided "
+                                + "table is incompatible and cannot be cast to the target type."));
     }
 
     /** Testing function. */
@@ -622,19 +659,22 @@ public class ProcessTableFunctionTest extends TableTestBase {
     private static class ErrorSpec {
         private final String description;
         private final Class<? extends UserDefinedFunction> functionClass;
-        private final String selectSql;
-        private final String insertIntoSql;
+        private final @Nullable String selectSql;
+        private final @Nullable String insertIntoSql;
+        private final @Nullable Function<TableEnvironment, Table> selectTableApi;
         private final String errorMessage;
 
         private ErrorSpec(
                 String description,
                 Class<? extends UserDefinedFunction> functionClass,
-                String selectSql,
-                String insertIntoSql,
+                @Nullable String selectSql,
+                @Nullable String insertIntoSql,
+                @Nullable Function<TableEnvironment, Table> selectTableApi,
                 String errorMessage) {
             this.description = description;
             this.functionClass = functionClass;
             this.selectSql = selectSql;
+            this.selectTableApi = selectTableApi;
             this.insertIntoSql = insertIntoSql;
             this.errorMessage = errorMessage;
         }
@@ -644,7 +684,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 Class<? extends UserDefinedFunction> functionClass,
                 String selectSql,
                 String errorMessage) {
-            return new ErrorSpec(description, functionClass, selectSql, null, errorMessage);
+            return new ErrorSpec(description, functionClass, selectSql, null, null, errorMessage);
         }
 
         static ErrorSpec ofInsertInto(
@@ -652,7 +692,17 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 Class<? extends UserDefinedFunction> functionClass,
                 String insertIntoSql,
                 String errorMessage) {
-            return new ErrorSpec(description, functionClass, null, insertIntoSql, errorMessage);
+            return new ErrorSpec(
+                    description, functionClass, null, insertIntoSql, null, errorMessage);
+        }
+
+        static ErrorSpec ofTableApi(
+                String description,
+                Class<? extends UserDefinedFunction> functionClass,
+                Function<TableEnvironment, Table> selectTableApi,
+                String errorMessage) {
+            return new ErrorSpec(
+                    description, functionClass, null, null, selectTableApi, errorMessage);
         }
 
         @Override
