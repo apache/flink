@@ -480,7 +480,8 @@ function internal_check_logs_for_exceptions {
   "WARN  org.apache.pekko.remote.ReliableDeliverySupervisor" \
   "RecipientUnreachableException" \
   "completeExceptionally" \
-  "SerializedCheckpointException.unwrap")
+  "SerializedCheckpointException.unwrap" \
+  "wrapInExecutionException")
 
   local all_allowed_exceptions=("${default_allowed_exceptions[@]}" "${additional_allowed_exceptions[@]}")
 
