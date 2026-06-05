@@ -37,7 +37,7 @@ under the License.
 	</description>
 
 	<properties>
-		<pekko.version>1.4.0</pekko.version>
+		<pekko.version>1.6.0</pekko.version>
 	</properties>
 
 	<dependencies>
@@ -139,7 +139,7 @@ under the License.
 			<dependency>
 				<groupId>com.typesafe</groupId>
 				<artifactId>config</artifactId>
-				<version>1.4.2</version>
+				<version>1.4.6</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
