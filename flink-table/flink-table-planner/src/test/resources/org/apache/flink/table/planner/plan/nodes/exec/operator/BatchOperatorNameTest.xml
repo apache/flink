@@ -1212,15 +1212,15 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS F
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
@@ -1247,9 +1247,9 @@ Calc(select=[b, w0$o0 AS $1])
     } ]
   }, {
     "id" : ,
-    "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])",
     "pact" : "Operator",
-    "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1258,9 +1258,9 @@ Calc(select=[b, w0$o0 AS $1])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[b, w0$o0 AS $1])",
+    "type" : "Calc(select=[b, cnt1])",
     "pact" : "Operator",
-    "contents" : "Calc(select=[b, w0$o0 AS $1])",
+    "contents" : "Calc(select=[b, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1279,15 +1279,15 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS F
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
@@ -1316,7 +1316,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "OverAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS cnt1 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1327,7 +1327,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
+    "contents" : "[]:Calc(select=[b, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1347,15 +1347,15 @@ LogicalProject(a=[$0], row_num=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+Calc(select=[a, row_num], where=[<=(row_num, a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+Calc(select=[a, row_num], where=[(row_num <= a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
@@ -1382,9 +1382,9 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     } ]
   }, {
     "id" : ,
-    "type" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "type" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])",
     "pact" : "Operator",
-    "contents" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "contents" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1393,9 +1393,9 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "type" : "Calc(select=[a, row_num], where=[(row_num <= a)])",
     "pact" : "Operator",
-    "contents" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "contents" : "Calc(select=[a, row_num], where=[(row_num <= a)])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1415,15 +1415,15 @@ LogicalProject(a=[$0], row_num=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+Calc(select=[a, row_num], where=[<=(row_num, a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+Calc(select=[a, row_num], where=[(row_num <= a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
@@ -1452,7 +1452,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "id" : ,
     "type" : "OverAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS row_num ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -1463,7 +1463,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "contents" : "[]:Calc(select=[a, row_num], where=[(row_num <= a)])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,

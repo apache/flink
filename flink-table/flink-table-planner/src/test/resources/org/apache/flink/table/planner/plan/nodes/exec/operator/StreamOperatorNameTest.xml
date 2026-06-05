@@ -2225,15 +2225,15 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS F
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
@@ -2259,9 +2259,9 @@ Calc(select=[b, w0$o0 AS $1])
     } ]
   }, {
     "id" : ,
-    "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
+    "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])",
     "pact" : "Operator",
-    "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
+    "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2270,9 +2270,9 @@ Calc(select=[b, w0$o0 AS $1])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[b, w0$o0 AS $1])",
+    "type" : "Calc(select=[b, cnt1])",
     "pact" : "Operator",
-    "contents" : "Calc(select=[b, w0$o0 AS $1])",
+    "contents" : "Calc(select=[b, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2292,15 +2292,15 @@ LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS F
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
-Calc(select=[b, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
+Calc(select=[b, cnt1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
@@ -2328,7 +2328,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "OverAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])",
+    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2339,7 +2339,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
+    "contents" : "[]:Calc(select=[b, cnt1])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2359,15 +2359,15 @@ LogicalProject(a=[$0], row_num=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, w0$o0])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
+Calc(select=[a, row_num])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 
 == Optimized Execution Plan ==
-Calc(select=[a, w0$o0])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
+Calc(select=[a, row_num])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
@@ -2393,9 +2393,9 @@ Calc(select=[a, w0$o0])
     } ]
   }, {
     "id" : ,
-    "type" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
+    "type" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])",
     "pact" : "Operator",
-    "contents" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
+    "contents" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2404,9 +2404,9 @@ Calc(select=[a, w0$o0])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[a, w0$o0])",
+    "type" : "Calc(select=[a, row_num])",
     "pact" : "Operator",
-    "contents" : "Calc(select=[a, w0$o0])",
+    "contents" : "Calc(select=[a, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2426,15 +2426,15 @@ LogicalProject(a=[$0], row_num=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, w0$o0])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
+Calc(select=[a, row_num])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 
 == Optimized Execution Plan ==
-Calc(select=[a, w0$o0])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])
+Calc(select=[a, row_num])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
@@ -2462,7 +2462,7 @@ Calc(select=[a, w0$o0])
     "id" : ,
     "type" : "Rank[]",
     "pact" : "Operator",
-    "contents" : "[]:Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
+    "contents" : "[]:Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2473,7 +2473,7 @@ Calc(select=[a, w0$o0])
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[a, w0$o0])",
+    "contents" : "[]:Calc(select=[a, row_num])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,

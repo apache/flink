@@ -79,9 +79,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <ol>
  *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1291-1300
  *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1312-1316
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1336
  * </ol>
  */
+/** Contains utility methods used during SQL validation or type derivation. */
 public abstract class SqlTypeUtil {
     // ~ Methods ----------------------------------------------------------------
 
@@ -1083,6 +1083,36 @@ public abstract class SqlTypeUtil {
                     || fromType.getSqlTypeName() == SqlTypeName.UUID
                     || fromType.getFamily() == SqlTypeFamily.CHARACTER
                     || fromType.getFamily() == SqlTypeFamily.BINARY;
+        } else if (toType.getSqlTypeName() == SqlTypeName.ARRAY) {
+            if (fromType.getSqlTypeName() == SqlTypeName.ARRAY
+                    || fromType.getSqlTypeName() == SqlTypeName.MULTISET) {
+                return canCastFrom(
+                        requireNonNull(toType.getComponentType(), "componentType"),
+                        requireNonNull(fromType.getComponentType(), "componentType"),
+                        typeMappingRule);
+            } else if (fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getSqlTypeName() == SqlTypeName.NULL) {
+                // Cast from NULL or string to array is legal
+                return true;
+            }
+            return false;
+        } else if (toType.getSqlTypeName() == SqlTypeName.MAP) {
+            if (fromType.getSqlTypeName() == SqlTypeName.MAP) {
+                // It is not clear whether this is sufficient, but it is clearly necessary
+                return canCastFrom(
+                                requireNonNull(toType.getKeyType(), "keyType"),
+                                requireNonNull(fromType.getKeyType(), "keyType"),
+                                typeMappingRule)
+                        && canCastFrom(
+                                requireNonNull(toType.getValueType(), "valueType"),
+                                requireNonNull(fromType.getValueType(), "valueType"),
+                                typeMappingRule);
+            } else if (fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getSqlTypeName() == SqlTypeName.NULL) {
+                // Cast from NULL or string to map is legal
+                return true;
+            }
+            return false;
         }
         if (toType.isStruct() || fromType.isStruct()) {
             if (toTypeName == SqlTypeName.DISTINCT) {
@@ -1288,8 +1318,7 @@ public abstract class SqlTypeUtil {
                     new SqlBasicTypeNameSpec(
                             typeName, precision, scale, charSetName, SqlParserPos.ZERO);
         } else if (isCollection(type)) {
-            // FLINK MODIFICATION BEGIN
-            final RelDataType componentType = getComponentTypeOrThrow(type);
+            RelDataType componentType = getComponentTypeOrThrow(type);
             typeNameSpec =
                     new ExtendedSqlCollectionTypeNameSpec(
                             convertTypeToSpec(componentType).getTypeNameSpec(),
@@ -1297,7 +1326,6 @@ public abstract class SqlTypeUtil {
                             typeName,
                             true,
                             SqlParserPos.ZERO);
-            // FLINK MODIFICATION END
         } else if (isRow(type)) {
             RelRecordType recordType = (RelRecordType) type;
             List<RelDataTypeField> fields = recordType.getFieldList();
@@ -1994,7 +2022,8 @@ public abstract class SqlTypeUtil {
                 || SqlTypeUtil.isNumeric(type)
                 || SqlTypeUtil.isString(type)
                 || SqlTypeUtil.isBoolean(type)
-                || typeName == SqlTypeName.UUID;
+                || typeName == SqlTypeName.UUID
+                || typeName == SqlTypeName.VARIANT;
     }
 
     /** Returns a DECIMAL type with the maximum precision for the current type system. */

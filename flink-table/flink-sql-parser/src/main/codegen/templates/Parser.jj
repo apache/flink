@@ -90,7 +90,10 @@ import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlRowTypeNameSpec;
 import org.apache.calcite.sql.SqlSampleSpec;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlByRewriter;
 import org.apache.calcite.sql.SqlSelectKeyword;
+import org.apache.calcite.sql.SqlStarExclude;
+import org.apache.calcite.sql.SqlStarReplace;
 import org.apache.calcite.sql.SqlSetOption;
 import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlTableRef;
@@ -168,6 +171,20 @@ public class ${parser.class} extends SqlAbstractParserImpl
     private Casing quotedCasing;
     private int identifierMaxLength;
     private SqlConformance conformance;
+    private int rowValueStarCount;
+
+    private void pushRowValueStar() {
+        rowValueStarCount++;
+    }
+
+    private void popRowValueStar() {
+        assert rowValueStarCount > 0;
+        rowValueStarCount--;
+    }
+
+    private boolean allowRowValueStar() {
+        return rowValueStarCount > 0;
+    }
 
     /**
      * {@link SqlParserImplFactory} implementation for creating parser.
@@ -723,6 +740,12 @@ SqlNode OrderByLimitOpt(SqlNode e) :
     ]
     {
         if (orderBy != null || offsetFetch[0] != null || offsetFetch[1] != null) {
+            if (orderBy != null
+                && e instanceof SqlSelect
+                && ((SqlSelect) e).hasByClause()) {
+              throw SqlUtil.newContextException(orderBy.getParserPosition(),
+                  RESOURCE.selectByCannotWithOrderBy());
+            }
             return new SqlOrderBy(getPos(), e,
                 Util.first(orderBy, SqlNodeList.EMPTY),
                 offsetFetch[0], offsetFetch[1]);
@@ -1253,9 +1276,14 @@ void AddKeyValueOption(List<SqlNode> list) :
         key = StringLiteral()
     )
     <EQ>
-    value = StringLiteral() {
-        list.add(key);
-        list.add(value);
+    (
+        value = StringLiteral()
+    |
+        value = SimpleIdentifier()
+    )
+    {
+         list.add(key);
+         list.add(value);
     }
 }
 
@@ -1291,11 +1319,13 @@ SqlNodeList ParenthesizedLiteralOptionCommaList() :
 
 void AddHint(List<SqlNode> hints) :
 {
+    final Span s;
     final SqlIdentifier hintName;
     final SqlNodeList hintOptions;
     final SqlHint.HintOptionFormat optionFormat;
 }
 {
+    { s = span(); }
     hintName = SimpleIdentifier()
     (
        LOOKAHEAD(5)
@@ -1322,7 +1352,7 @@ void AddHint(List<SqlNode> hints) :
     )
     {
         hints.add(
-           new SqlHint(Span.of(hintOptions).end(this), hintName, hintOptions,
+           new SqlHint(s.end(this), hintName, hintOptions,
                optionFormat));
     }
 }
@@ -1356,6 +1386,7 @@ SqlSelect SqlSelect() :
     final SqlNode having;
     final SqlNodeList windowDecls;
     final SqlNode qualify;
+    final SqlNodeList by;
     final List<SqlNode> hints = new ArrayList<SqlNode>();
     final Span s;
 }
@@ -1376,6 +1407,11 @@ SqlSelect SqlSelect() :
     }
     AddSelectItem(selectList)
     ( <COMMA> AddSelectItem(selectList) )*
+<#if parser.includeSelectBy!false>
+    ( by = SqlSelectBy() | { by = null; } )
+<#else>
+    { by = null; }
+</#if>
     (
         <FROM> fromClause = FromClause()
         ( where = Where() | { where = null; } )
@@ -1394,10 +1430,12 @@ SqlSelect SqlSelect() :
         }
     )
     {
-        return new SqlSelect(s.end(this), keywordList,
+        final SqlSelect select = new SqlSelect(s.end(this), keywordList,
             new SqlNodeList(selectList, Span.of(selectList).pos()),
             fromClause, where, groupBy, having, windowDecls, qualify,
             null, null, null, new SqlNodeList(hints, getPos()));
+        SqlByRewriter.rewrite(select, by);
+        return select;
     }
 }
 
@@ -1989,6 +2027,116 @@ void AddSelectItem(List<SqlNode> list) :
     )
 }
 
+<#if (parser.includeStarExclude!default.parser.includeStarExclude)>
+/**
+ * Parses one unaliased expression in a select list.
+ */
+SqlNode SelectExpression() :
+{
+    SqlNode e;
+    SqlNodeList excludeList;
+    SqlNodeList replaceList;
+}
+{
+    (
+        <STAR> {
+            e = SqlIdentifier.star(getPos());
+        }
+    |
+        e = Expression(ExprContext.ACCEPT_SUB_QUERY)
+    )
+    (
+<#if (parser.includeStarExclude!default.parser.includeStarExclude)>
+        excludeList = StarExcludeList() {
+            if (!(e instanceof SqlIdentifier)) {
+                throw SqlUtil.newContextException(excludeList.getParserPosition(),
+                    RESOURCE.selectExcludeRequiresStar());
+            }
+            final SqlIdentifier excludeIdentifier = (SqlIdentifier) e;
+            if (!excludeIdentifier.isStar()) {
+                throw SqlUtil.newContextException(excludeList.getParserPosition(),
+                    RESOURCE.selectExcludeRequiresStar());
+            }
+            final SqlParserPos excludePos = SqlParserPos.sum(
+                ImmutableList.of(excludeIdentifier.getParserPosition(),
+                    excludeList.getParserPosition()));
+            return new SqlStarExclude(excludePos, excludeIdentifier, excludeList);
+        }
+    |
+</#if>
+<#if (parser.includeStarExclude!default.parser.includeStarExclude)>
+        replaceList = StarReplaceList() {
+            if (!(e instanceof SqlIdentifier)) {
+                throw SqlUtil.newContextException(replaceList.getParserPosition(),
+                    RESOURCE.selectReplaceRequiresStar());
+            }
+            final SqlIdentifier replaceIdentifier = (SqlIdentifier) e;
+            if (!replaceIdentifier.isStar()) {
+                throw SqlUtil.newContextException(replaceList.getParserPosition(),
+                    RESOURCE.selectReplaceRequiresStar());
+            }
+            final SqlParserPos replacePos = SqlParserPos.sum(
+                ImmutableList.of(replaceIdentifier.getParserPosition(),
+                    replaceList.getParserPosition()));
+            return new SqlStarReplace(replacePos, replaceIdentifier, replaceList);
+        }
+    |
+</#if>
+        { return e; }
+    )
+}
+
+<#if (parser.includeStarExclude!default.parser.includeStarExclude)>
+SqlNodeList StarExcludeList() :
+{
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    SqlIdentifier id;
+}
+{
+    ( <EXCLUDE> | <EXCEPT> ) <LPAREN> { s = span(); }
+    id = CompoundIdentifier() {
+        list.add(id);
+    }
+    (
+        <COMMA> id = CompoundIdentifier() {
+            list.add(id);
+        }
+    )*
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+</#if>
+
+<#if (parser.includeStarExclude!default.parser.includeStarExclude)>
+SqlNodeList StarReplaceList() :
+{
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    SqlNode expr;
+    SqlIdentifier id;
+}
+{
+    <REPLACE> <LPAREN> { s = span(); }
+    expr = Expression(ExprContext.ACCEPT_SUB_QUERY) <AS> id = CompoundIdentifier() {
+        list.add(SqlStdOperatorTable.AS.createCall(
+            SqlParserPos.sum(ImmutableList.of(expr.getParserPosition(),
+                id.getParserPosition())), expr, id));
+    }
+    (
+        <COMMA> expr = Expression(ExprContext.ACCEPT_SUB_QUERY) <AS> id = CompoundIdentifier() {
+            list.add(SqlStdOperatorTable.AS.createCall(
+                SqlParserPos.sum(ImmutableList.of(expr.getParserPosition(),
+                    id.getParserPosition())), expr, id));
+        }
+    )*
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+</#if>
+<#else>
 /**
  * Parses one unaliased expression in a select list.
  */
@@ -2005,6 +2153,7 @@ SqlNode SelectExpression() :
         return e;
     }
 }
+</#if>
 
 SqlLiteral Natural() :
 {
@@ -2929,15 +3078,42 @@ SqlNodeList OrderBy(boolean accept) :
             throw SqlUtil.newContextException(s.pos(), RESOURCE.illegalOrderBy());
         }
     }
-    <BY> AddOrderItem(list)
-    (
-        // NOTE jvs 6-Feb-2004:  See comments at top of file for why
-        // hint is necessary here.
-        LOOKAHEAD(2) <COMMA> AddOrderItem(list)
-    )*
+    <BY> OrderItemList(list)
     {
         return new SqlNodeList(list, s.addAll(list).pos());
     }
+}
+
+<#if parser.includeSelectBy!false>
+/**
+ * Parses a BY clause for SELECT (syntactic sugar for GROUP BY ... ORDER BY).
+ */
+SqlNodeList SqlSelectBy() :
+{
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    final Span s;
+}
+{
+    <BY> { s = span(); }
+    OrderItemList(list)
+    {
+        return new SqlNodeList(list, s.addAll(list).pos());
+    }
+}
+</#if>
+
+
+/**
+ * Parses a list of ORDER BY items.
+ */
+void OrderItemList(List<SqlNode> list) :
+{
+}
+{
+    AddOrderItem(list)
+    (
+        LOOKAHEAD(2) <COMMA> AddOrderItem(list)
+    )*
 }
 
 /**
@@ -2946,9 +3122,21 @@ SqlNodeList OrderBy(boolean accept) :
 void AddOrderItem(List<SqlNode> list) :
 {
     SqlNode e;
+    final SqlIdentifier id;
 }
 {
     e = Expression(ExprContext.ACCEPT_SUB_QUERY)
+    (
+        [ <AS>
+            (
+                id = SimpleIdentifier()
+            |
+                LOOKAHEAD(1)
+                id = SimpleIdentifierFromStringLiteral()
+            )
+            { e = SqlStdOperatorTable.AS.createCall(span().end(e), e, id); }
+        ]
+    )
     (
         <ASC>
     |   <DESC> {
@@ -3542,8 +3730,12 @@ SqlNode Query(ExprContext exprContext) :
     final List<Object> list = new ArrayList<Object>();
 }
 {
-    [ withList = WithList() ]
-    e = LeafQuery(exprContext) { list.add(e); }
+    (
+        withList = WithList()
+        e = LeafQueryOrExpr(exprContext) { list.add(e); }
+    |
+        e = LeafQuery(exprContext) { list.add(e); }
+    )
     ( AddSetOpQuery(list, exprContext) )*
     { return addWith(withList, SqlParserUtil.toTree(list)); }
 }
@@ -3673,6 +3865,83 @@ SqlNode Expression(ExprContext exprContext) :
     list = Expression2(exprContext) { return SqlParserUtil.toTree(list); }
 }
 
+/** Adds an optional trailing colon path to the expression under
+ * construction, for example {@code :field.nested}, {@code :['field']} or
+ * {@code :item[1].price}. Dot-separated path segments are parsed as simple
+ * identifiers, but unquoted segment spelling is preserved for case-sensitive
+ * variant key lookup. Bracketed segments are literals (string for exact key
+ * access, integer for array index); arbitrary expressions are not allowed. */
+void AddOptionalColonPath(List<Object> list) :
+{
+    SqlParserPos colonPos;
+    List<SqlNode> segments;
+    Span s;
+    SqlIdentifier p;
+}
+{
+    [
+        LOOKAHEAD(2, <COLON> ( SimpleIdentifier() | <LBRACKET> ),
+            { this.conformance.isColonFieldAccessAllowed() })
+        <COLON> {
+            colonPos = getPos();
+            segments = new ArrayList<SqlNode>();
+            s = span();
+        }
+        (
+            p = SimpleIdentifier() {
+                segments.add(p.getParserPosition().isQuoted()
+                    ? p
+                    : new SqlIdentifier(getToken(0).image, p.getParserPosition()));
+            }
+        |
+            ColonBracketSegment(segments)
+        )
+        (
+            LOOKAHEAD(2) <DOT>
+            p = SimpleIdentifier() {
+                segments.add(p.getParserPosition().isQuoted()
+                    ? p
+                    : new SqlIdentifier(getToken(0).image, p.getParserPosition()));
+            }
+        |
+            ColonBracketSegment(segments)
+        )*
+        {
+            list.add(
+                new SqlParserUtil.ToTreeListItem(
+                    SqlStdOperatorTable.COLON, colonPos));
+            list.add(new SqlNodeList(segments, s.end(this)));
+        }
+    ]
+}
+
+/** Parses one bracketed segment of a colon path: {@code ['field']} for key
+ * access, or {@code [n]} for array index. */
+void ColonBracketSegment(List<SqlNode> segments) :
+{
+    SqlNode lit;
+    SqlIdentifier id;
+}
+{
+    <LBRACKET>
+    (
+        lit = StringLiteral() { segments.add(lit); }
+    |
+        <UNSIGNED_INTEGER_LITERAL> {
+            segments.add(SqlLiteral.createExactNumeric(token.image, getPos()));
+        }
+    |
+        LOOKAHEAD(SimpleIdentifier() <RBRACKET>)
+        id = SimpleIdentifier() {
+            throw SqlUtil.newContextException(id.getParserPosition(),
+                RESOURCE.unknownIdentifier(id.toString()));
+        }
+    )
+    <RBRACKET>
+}
+
+/** Parses an expression atom with its dot-access chain and at most one
+ * trailing colon path. */
 void AddExpression2b(List<Object> list, ExprContext exprContext) :
 {
     SqlNode e;
@@ -3699,6 +3968,7 @@ void AddExpression2b(List<Object> list, ExprContext exprContext) :
             list.add(ext);
         }
     )*
+    AddOptionalColonPath(list)
 }
 
 /**
@@ -3884,6 +4154,7 @@ List<Object> Expression2(ExprContext exprContext) :
                         list.add(p);
                     }
                 )*
+                AddOptionalColonPath(list)
             |
                 {
                     checkNonQueryExpression(exprContext);
@@ -3953,27 +4224,38 @@ SqlNode Expression3(ExprContext exprContext) :
     LOOKAHEAD(3)
     <ROW> {
         s = span();
+        pushRowValueStar();
     }
     list = ParenthesizedQueryOrCommaList(exprContext) {
-        if (exprContext != ExprContext.ACCEPT_ALL
-            && exprContext != ExprContext.ACCEPT_CURSOR
-            && !this.conformance.allowExplicitRowValueConstructor())
-        {
-            throw SqlUtil.newContextException(s.end(list),
-                RESOURCE.illegalRowExpression());
+        try {
+            if (exprContext != ExprContext.ACCEPT_ALL
+                && exprContext != ExprContext.ACCEPT_CURSOR
+                && !this.conformance.allowExplicitRowValueConstructor())
+            {
+                throw SqlUtil.newContextException(s.end(list),
+                    RESOURCE.illegalRowExpression());
+            }
+            return SqlStdOperatorTable.ROW.createCall(list);
+        } finally {
+            popRowValueStar();
         }
-        return SqlStdOperatorTable.ROW.createCall(list);
     }
 |
     (
-        <ROW> { rowSpan = span(); }
+        <ROW> { rowSpan = span(); pushRowValueStar(); }
     |   { rowSpan = null; }
     )
     list1 = ParenthesizedQueryOrCommaList(exprContext) {
-        if (rowSpan != null) {
-            // interpret as row constructor
-            return SqlStdOperatorTable.ROW.createCall(rowSpan.end(list1),
-                (List<SqlNode>) list1);
+        try {
+            if (rowSpan != null) {
+                // interpret as row constructor
+                return SqlStdOperatorTable.ROW.createCall(rowSpan.end(list1),
+                    (List<SqlNode>) list1);
+            }
+        } finally {
+            if (rowSpan != null) {
+                popRowValueStar();
+            }
         }
     }
     [
@@ -4305,6 +4587,9 @@ SqlNode AtomicRowExpression() :
     |
         e = CompoundIdentifier()
     |
+        LOOKAHEAD({ allowRowValueStar() })
+        <STAR> { return SqlIdentifier.star(getPos()); }
+    |
         e = NewSpecification()
     |
         e = CaseExpression()
@@ -4468,6 +4753,7 @@ SqlCreate SqlCreate() :
 {
     <CREATE> { s = span(); }
     [
+        // Allow downstream projects implement different syntax, for instance CREATE OR REPLACE
         LOOKAHEAD(2)
         <OR> <REPLACE> {
             replace = true;
@@ -6905,13 +7191,13 @@ List<SqlNode> JsonNameAndValue() :
         <VALUE>
     |
         <COMMA> {
-            if (kvMode) {
+            if (kvMode || this.conformance.isColonFieldAccessAllowed()) {
                 throw SqlUtil.newContextException(getPos(), RESOURCE.illegalComma());
             }
         }
     |
         <COLON> {
-            if (kvMode) {
+            if (kvMode || this.conformance.isColonFieldAccessAllowed()) {
                 throw SqlUtil.newContextException(getPos(), RESOURCE.illegalColon());
             }
         }
