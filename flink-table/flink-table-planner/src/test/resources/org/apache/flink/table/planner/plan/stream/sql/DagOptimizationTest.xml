@@ -1039,8 +1039,8 @@ LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[a, b])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.retractSink], fields=[a, b, c, w0$o0], changelogMode=[NONE])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
+Sink(table=[default_catalog.default_database.retractSink], fields=[a, b, c, rank_num], changelogMode=[NONE])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, rank_num], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[b]], changelogMode=[I])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
@@ -1074,13 +1074,13 @@ LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[a, b])
       <![CDATA[
 Sink(table=[default_catalog.default_database.retractSink], fields=[a], changelogMode=[NONE])
 +- Calc(select=[a], where=[>(a, 6)], changelogMode=[I,UB,UA,D])
-   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, rank_num], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 Sink(table=[default_catalog.default_database.upsertSink], fields=[a, b], changelogMode=[NONE])
 +- Calc(select=[a, b], where=[<(a, 6)], changelogMode=[I,UB,UA,D])
-   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, rank_num], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
