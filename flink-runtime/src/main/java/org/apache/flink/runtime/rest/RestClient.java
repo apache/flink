@@ -139,11 +139,19 @@ public class RestClient implements AutoCloseableAsync {
 
     public static final String VERSION_PLACEHOLDER = "{{VERSION}}";
 
+    @VisibleForTesting
+    static final String CLOSED_BEFORE_REQUEST_COMPLETED_MESSAGE =
+            "RestClient closed before request completed";
+
     private final String urlPrefix;
 
-    // Used to track unresolved request futures in case they need to be resolved when the client is
-    // closed
     private final Collection<CompletableFuture<Channel>> responseChannelFutures =
+            ConcurrentHashMap.newKeySet();
+
+    // Unlike responseChannelFutures, which only covers the connect phase, this tracks the terminal
+    // response future for its whole lifetime so that close() can fail a request that is already
+    // in-flight (its response has not yet arrived).
+    private final Collection<CompletableFuture<?>> pendingRequestFutures =
             ConcurrentHashMap.newKeySet();
 
     private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
@@ -317,6 +325,11 @@ public class RestClient implements AutoCloseableAsync {
     }
 
     @VisibleForTesting
+    Collection<CompletableFuture<?>> getPendingRequestFutures() {
+        return pendingRequestFutures;
+    }
+
+    @VisibleForTesting
     List<OutboundChannelHandlerFactory> getOutboundChannelHandlerFactories() {
         return outboundChannelHandlerFactories;
     }
@@ -369,8 +382,14 @@ public class RestClient implements AutoCloseableAsync {
                 future ->
                         future.completeExceptionally(
                                 new IllegalStateException(
-                                        "RestClient closed before request completed")));
+                                        CLOSED_BEFORE_REQUEST_COMPLETED_MESSAGE)));
         responseChannelFutures.clear();
+        pendingRequestFutures.forEach(
+                future ->
+                        future.completeExceptionally(
+                                new IllegalStateException(
+                                        CLOSED_BEFORE_REQUEST_COMPLETED_MESSAGE)));
+        pendingRequestFutures.clear();
     }
 
     public <
@@ -618,40 +637,59 @@ public class RestClient implements AutoCloseableAsync {
                     }
                 });
 
-        return channelFuture
-                .thenComposeAsync(
-                        channel -> {
-                            ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+        final CompletableFuture<P> responseFuture =
+                channelFuture
+                        .thenComposeAsync(
+                                channel -> {
+                                    ClientHandler handler =
+                                            channel.pipeline().get(ClientHandler.class);
 
-                            CompletableFuture<JsonResponse> future;
-                            boolean success = false;
+                                    CompletableFuture<JsonResponse> future;
+                                    boolean success = false;
 
-                            try {
-                                if (handler == null) {
-                                    throw new IOException(
-                                            "Netty pipeline was not properly initialized.");
-                                } else {
-                                    httpRequest.writeTo(channel);
-                                    future = handler.getJsonFuture();
-                                    success = true;
-                                }
-                            } catch (IOException e) {
-                                future =
-                                        FutureUtils.completedExceptionally(
-                                                new ConnectionException(
-                                                        "Could not write request.", e));
-                            } finally {
-                                if (!success) {
-                                    channel.close();
-                                }
-                            }
+                                    try {
+                                        if (handler == null) {
+                                            throw new IOException(
+                                                    "Netty pipeline was not properly initialized.");
+                                        } else {
+                                            httpRequest.writeTo(channel);
+                                            future = handler.getJsonFuture();
+                                            success = true;
+                                        }
+                                    } catch (IOException e) {
+                                        future =
+                                                FutureUtils.completedExceptionally(
+                                                        new ConnectionException(
+                                                                "Could not write request.", e));
+                                    } finally {
+                                        if (!success) {
+                                            channel.close();
+                                        }
+                                    }
 
-                            return future;
-                        },
-                        executor)
-                .thenComposeAsync(
-                        (JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
-                        executor);
+                                    return future;
+                                },
+                                executor)
+                        .thenComposeAsync(
+                                (JsonResponse rawResponse) ->
+                                        parseResponse(rawResponse, responseType),
+                                executor);
+
+        // Register for the whole request lifetime; deregister on completion to avoid leaking.
+        pendingRequestFutures.add(responseFuture);
+        responseFuture.whenComplete(
+                (ignored, throwable) -> pendingRequestFutures.remove(responseFuture));
+
+        // Re-check after registering to cover a close() that ran between the isRunning check at the
+        // top of this method and the registration above (such a close could not have seen this
+        // future). Only fail it if still registered, so we do not double-complete; completion is
+        // idempotent regardless.
+        if (!isRunning.get() && pendingRequestFutures.remove(responseFuture)) {
+            responseFuture.completeExceptionally(
+                    new IllegalStateException(CLOSED_BEFORE_REQUEST_COMPLETED_MESSAGE));
+        }
+
+        return responseFuture;
     }
 
     private static <P extends ResponseBody> CompletableFuture<P> parseResponse(
