@@ -387,11 +387,18 @@ string:
     description: |
       返回 INT 个 `string` 连接的字符串。
       例如 `REPEAT('This is a test String.', 2)` 返回 `"This is a test String.This is a test String."`。
-  - sql: REGEXP_REPLACE(string1, string2, string3)
-    table: STRING1.regexpReplace(STRING2, STRING3)
+  - sql: REGEXP_REPLACE(str, regex, replacement)
+    table: str.regexpReplace(regex, replacement)
     description: |
-      返回 STRING1 所有与正则表达式 STRING2 匹配的子字符串被 STRING3 替换后的字符串。
-      例如 `'foobar'.regexpReplace('oo|ar', '')` 返回 `"fb"`。
+      Returns a version of str with every substring that matches the Java regular expression regex replaced by replacement.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
+
+      E.g. REGEXP_REPLACE('foobar', 'oo|ar', '') returns "fb".
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, replacement <CHAR | VARCHAR>`
+
+      Returns a `STRING`. `NULL` if any of the arguments are `NULL`, or if a non-literal regex is invalid.
   - sql: OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
     table: |
       STRING1.overlay(STRING2, INT1)
@@ -443,12 +450,20 @@ string:
       `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
       
       返回一个 `INTEGER` 表示匹配成功的次数。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
-  - sql: REGEXP_EXTRACT(string1, string2[, integer])
-    table: STRING1.regexpExtract(STRING2[, INTEGER1])
+  - sql: REGEXP_EXTRACT(str, regex[, extractIndex])
+    table: str.regexpExtract(regex[, extractIndex])
     description: |
-      将字符串 STRING1 按照 STRING2 正则表达式的规则拆分，返回指定 INTEGER1 处位置的字符串。正则表达式匹配组索引从 1 开始，
-      0 表示匹配整个正则表达式。此外，正则表达式匹配组索引不应超过定义的组数。
-      例如 `REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)` 返回 `"bar"`。
+      Returns the substring in str captured by the group at position extractIndex of the Java regular expression regex.
+
+      extractIndex starts from 1, and 0 means matching the whole regex. It defaults to 0 when not specified and must not exceed the number of capturing groups in regex.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime makes the function return `NULL`.
+
+      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2) returns "bar".
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <INTEGER>`
+
+      Returns a `STRING` representation of the captured substring. `NULL` if any of the arguments are `NULL`, if extractIndex exceeds the number of capturing groups, if there is no match, or if a non-literal regex is invalid.
   - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
     table: str.regexpExtractAll(regex[, extractIndex])
     description: |
@@ -596,11 +611,16 @@ string:
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
-  - sql: REGEXP(string1, string2)
-    table: STRING1.regexp(STRING2)
+  - sql: REGEXP(str, regex)
+    table: str.regexp(regex)
     description: |
-      如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
-      如果有任一参数为 `NULL`，则返回 `NULL`。
+      Returns `TRUE` if any substring of str matches the Java regular expression regex, otherwise `FALSE`.
+
+      If regex is a non-`NULL` literal that fails to compile, the function throws a `ValidationException` at planning time. A non-literal regex (for example a column value) that fails to compile at runtime, or an empty regex, makes the function return `FALSE` rather than `NULL`.
+
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+
+      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
   - sql: REVERSE(string)
     table: STRING.reverse()
     description: 返回反转的字符串。如果字符串为 `NULL`，则返回 `NULL`。
