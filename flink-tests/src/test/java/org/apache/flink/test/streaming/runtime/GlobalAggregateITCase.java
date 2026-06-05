@@ -63,7 +63,7 @@ class GlobalAggregateITCase extends AbstractTestBase {
     /**
      * Source Function that uses updateGlobalAggregate() functionality exposed via
      * StreamingRuntimeContext to validate communication with JobMaster and test both failure and
-     * sucess scenarios.
+     * success scenarios.
      */
     private static class TestSourceFunction extends RichSourceFunction<Integer> {
 

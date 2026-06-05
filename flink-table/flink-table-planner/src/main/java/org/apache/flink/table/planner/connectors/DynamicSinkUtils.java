@@ -515,7 +515,7 @@ public final class DynamicSinkUtils {
                 && updateInfo.getRowLevelUpdateMode()
                         != SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
             throw new IllegalArgumentException(
-                    "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
+                    "Unknown update mode: " + updateInfo.getRowLevelUpdateMode());
         }
         Tuple2<RelNode, int[]> updateRelNodeAndRequireIndices =
                 convertToRowLevelUpdate(
@@ -647,7 +647,7 @@ public final class DynamicSinkUtils {
                     if (!(dynamicTableSource instanceof SupportsReadingMetadata)) {
                         throw new UnsupportedOperationException(
                                 String.format(
-                                        "The table source don't support reading metadata, but the require columns contains the meta columns: %s.",
+                                        "The table source does not support reading metadata, but the required columns contain metadata columns: %s.",
                                         column));
                     }
                     // list what metas the source supports to read
@@ -661,7 +661,7 @@ public final class DynamicSinkUtils {
                     if (!readableMetadata.containsKey(metaCol)) {
                         throw new IllegalArgumentException(
                                 String.format(
-                                        "Expect to read the meta column %s, but the table source for table %s doesn't support read the metadata column."
+                                        "Expected to read metadata column %s, but the table source for table %s does not support it. "
                                                 + "Please make sure the readable metadata for the source contains %s.",
                                         column,
                                         UnresolvedIdentifier.of(
@@ -674,7 +674,7 @@ public final class DynamicSinkUtils {
                     if (!dataType.equals(column.getDataType())) {
                         throw new IllegalArgumentException(
                                 String.format(
-                                        "Un-matched data type: the required column %s has datatype %s, but the data type in readable metadata for the table %s has data type %s. ",
+                                        "Mismatched data type: the required column %s has data type %s, but readable metadata for table %s has data type %s.",
                                         column,
                                         column.getDataType(),
                                         UnresolvedIdentifier.of(

@@ -223,7 +223,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         try {
             reader = source.createReader(readerContext);
         } catch (Exception e) {
-            throw new RuntimeException("Failed tp create reader", e);
+            throw new RuntimeException("Failed to create reader", e);
         }
         // currentReader must be switched before `addSplits` is called.
         currentSourceIndex = index;
