@@ -97,14 +97,27 @@ public final class TypeInferenceUtil {
     /** Casts the call's argument if necessary. */
     public static CallContext castArguments(
             TypeInference typeInference, CallContext callContext, @Nullable DataType outputType) {
-        return castArguments(typeInference, callContext, outputType, true);
+        return castArgumentsInternal(typeInference, callContext, outputType, true, false);
     }
 
-    private static CallContext castArguments(
+    /**
+     * Casts the call's argument if necessary. Enables casting of table arguments during code
+     * generation.
+     */
+    public static CallContext castArguments(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
-            boolean throwOnInferInputFailure) {
+            boolean castTableArgs) {
+        return castArgumentsInternal(typeInference, callContext, outputType, true, castTableArgs);
+    }
+
+    private static CallContext castArgumentsInternal(
+            TypeInference typeInference,
+            CallContext callContext,
+            @Nullable DataType outputType,
+            boolean throwOnInferInputFailure,
+            boolean castTableArgs) {
         final List<DataType> actualTypes = callContext.getArgumentDataTypes();
 
         typeInference
@@ -120,7 +133,12 @@ public final class TypeInferenceUtil {
                         });
 
         final CastCallContext castCallContext =
-                inferInputTypes(typeInference, callContext, outputType, throwOnInferInputFailure);
+                inferInputTypes(
+                        typeInference,
+                        callContext,
+                        outputType,
+                        throwOnInferInputFailure,
+                        castTableArgs);
 
         // final check if the call is valid after casting
         final List<DataType> expectedTypes = castCallContext.getArgumentDataTypes();
@@ -311,7 +329,7 @@ public final class TypeInferenceUtil {
                 // We might not be able to infer the input types at this moment, if the surrounding
                 // function does not provide an explicit input type strategy.
                 final CallContext adaptedContext =
-                        castArguments(typeInference, callContext, null, false);
+                        castArgumentsInternal(typeInference, callContext, null, false, false);
                 return typeInference
                         .getInputTypeStrategy()
                         .inferInputTypes(adaptedContext, false)
@@ -456,7 +474,8 @@ public final class TypeInferenceUtil {
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
-            boolean throwOnFailure) {
+            boolean throwOnFailure,
+            boolean castTableArgs) {
 
         final CastCallContext castCallContext = new CastCallContext(callContext, outputType);
 
@@ -481,7 +500,38 @@ public final class TypeInferenceUtil {
                                                 }
                                                 return null;
                                             }
-                                            return semantics.dataType();
+                                            final DataType expectedType =
+                                                    expectedArg.getDataType().orElse(null);
+                                            final DataType actualType =
+                                                    castCallContext.getArgumentDataTypes().get(pos);
+                                            if (expectedType == null) {
+                                                return actualType;
+                                            }
+                                            if (!supportsImplicitCast(
+                                                    actualType.getLogicalType(),
+                                                    expectedType.getLogicalType())) {
+                                                if (throwOnFailure) {
+                                                    throw new ValidationException(
+                                                            String.format(
+                                                                    "Invalid argument value. Argument '%s' expects a typed table, "
+                                                                            + "but the provided table is incompatible and cannot "
+                                                                            + "be cast to the target type.",
+                                                                    expectedArg.getName()));
+                                                }
+                                                return null;
+                                            }
+                                            // During planning, it is not possible to cast table
+                                            // arguments.
+                                            // This can only happen during code generation when a
+                                            // table is evaluated per row and casts become "scalar
+                                            // casts".
+                                            // It also ensures that pass-through columns (including
+                                            // the PARTITION BY column names) are preserved during
+                                            // planning.
+                                            if (castTableArgs) {
+                                                return expectedType;
+                                            }
+                                            return actualType;
                                         } else if (expectedArg.is(StaticArgumentTrait.MODEL)) {
                                             final ModelSemantics semantics =
                                                     callContext.getModelSemantics(pos).orElse(null);
