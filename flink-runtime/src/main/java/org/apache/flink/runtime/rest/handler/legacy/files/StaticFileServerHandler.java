@@ -46,6 +46,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHtt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
@@ -307,6 +308,9 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
     public static void sendNotModified(ChannelHandlerContext ctx) {
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, NOT_MODIFIED);
         setDateHeader(response);
+
+        // Explicitly notify the client that the connection will be dropped
+        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         // close the connection as soon as the error message is sent.
         ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
