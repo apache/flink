@@ -2596,25 +2596,45 @@ SqlNode Where() :
 SqlNodeList GroupBy() :
 {
     final List<SqlNode> list;
-    final boolean distinct;
     final Span s;
+    SqlParserPos pos;
+    List<SqlNode> res;
 }
 {
     <GROUP> { s = span(); }
     <BY>
     (
-        <DISTINCT> { distinct = true; }
-    |   <ALL> { distinct = false; }
-    |   { distinct = false; }
+        <DISTINCT>
+        list = GroupingElementList() {
+            pos = s.end(this);
+            res = 
+                ImmutableList.of(
+                    SqlInternalOperators.GROUP_BY_DISTINCT.createCall(pos, list)
+                );
+            return new SqlNodeList(res, pos);
+        }
+    |
+        <ALL>
+        (
+            LOOKAHEAD(<GROUPING> | <ROLLUP> | <CUBE>)
+            list = GroupingElementList() {
+                return new SqlNodeList(list, s.end(this));
+            }
+        |
+            {
+                pos = s.end(this);
+                res = 
+                    ImmutableList.of(
+                        SqlGroupByAllOperator.INSTANCE.createCall(pos)
+                    );
+                return new SqlNodeList(res, pos);
+            }
+        )
+    |
+        list = GroupingElementList() {
+            return new SqlNodeList(list, s.end(this));
+        }
     )
-    list = GroupingElementList() {
-        final SqlParserPos pos = s.end(this);
-        final List<SqlNode> list2 = distinct
-            ? ImmutableList.of(
-                SqlInternalOperators.GROUP_BY_DISTINCT.createCall(pos, list))
-            : list;
-        return new SqlNodeList(list2, pos);
-    }
 }
 
 List<SqlNode> GroupingElementList() :

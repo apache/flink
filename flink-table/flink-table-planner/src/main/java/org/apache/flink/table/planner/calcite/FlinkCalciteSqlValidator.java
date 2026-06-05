@@ -44,12 +44,14 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlExplicitModelCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlGroupByAllOperator;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
@@ -68,6 +70,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
@@ -195,6 +198,71 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             }
         }
         super.validateJoin(join, scope);
+    }
+
+    @Override
+    protected void validateGroupClause(SqlSelect select) {
+        rewriteGroupByAll(select);
+        super.validateGroupClause(select);
+    }
+
+    private void rewriteGroupByAll(SqlSelect select) {
+        final SqlNodeList group = select.getGroup();
+        if (!isGroupByAll(group)) {
+            return;
+        }
+
+        final boolean enabled = 
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                    .get(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED);
+        if (!enabled) {
+            throw new ValidationException(
+                    "GROUP BY ALL is not enabled. Set '" 
+                            + TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED.key()
+                            + "' to true to enable it."); 
+        }
+
+        final List<SqlNode> keys = new ArrayList<>();
+        for (SqlNode selectItem : select.getSelectList()) {
+            final SqlNode expr = SqlUtil.stripAs(selectItem);
+            if (expr instanceof SqlIdentifier && ((SqlIdentifier) expr).isStar()) {
+                throw new ValidationException(
+                        "GROUP BY ALL does not support '*' in the SELECT list; "
+                            + "please list the grouping columns explicitly.");
+            }
+            if (!containsAggregateOrOver(expr)) {
+                keys.add(expr);
+            }
+        }
+        select.setGroupBy(new SqlNodeList(keys, group.getParserPosition()));
+    }
+
+    private static boolean isGroupByAll(SqlNodeList group) {
+        if (group == null || group.size() != 1) {
+            return false;
+        }
+
+        final SqlNode item = group.get(0);
+        return item instanceof SqlCall 
+                && ((SqlCall) item).getOperator() instanceof SqlGroupByAllOperator;
+    }
+
+    private static boolean containsAggregateOrOver(SqlNode node) {
+        final boolean[] found = {false};
+        node.accept(
+            new SqlBasicVisitor<Void>() {
+                @Override
+                public Void visit(SqlCall call) {
+                    if (call.getOperator() instanceof SqlAggFunction 
+                            || call.getKind() == SqlKind.OVER) {
+                        found[0] = true;
+                        return null;
+                    }
+                    return super.visit(call);
+                }
+            }
+        );
+        return found[0];
     }
 
     @Override

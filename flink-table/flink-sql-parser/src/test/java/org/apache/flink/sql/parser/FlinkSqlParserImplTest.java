@@ -133,6 +133,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testGroupByAll() {
+        sql("select\n a, count(*) from t group by all")
+                .ok("SELECT" + " `A`, COUNT(*)\n" + "FROM `T`\n" + "GROUP BY (ALL)");
+    }
+
+    @Test
     void testCastAsMapType() {
         this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");
         this.expr("cast(a as map<int, varchar array>)")
