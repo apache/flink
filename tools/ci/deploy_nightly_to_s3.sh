@@ -21,23 +21,25 @@
 set -e -x
 
 
-function upload_to_s3() {	
-	local FILES_DIR=$1	
+function upload_to_s3() {
+	local FILES_DIR=$1
 
-	echo "Installing artifacts deployment script"	
-	export ARTIFACTS_DEST="$HOME/bin/artifacts"	
-	curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash	
-	PATH="$(dirname "$ARTIFACTS_DEST"):$PATH"	
+	# The AWS CLI reads credentials from the environment (AWS_ACCESS_KEY_ID /
+	# AWS_SECRET_ACCESS_KEY), so they are never placed on a command line and
+	# cannot leak through the `set -x` trace enabled above.
+	if ! command -v aws >/dev/null 2>&1; then
+		echo "Installing AWS CLI v2"
+		local AWS_TMP_DIR
+		AWS_TMP_DIR=$(mktemp -d)
+		curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$AWS_TMP_DIR/awscliv2.zip"
+		unzip -q "$AWS_TMP_DIR/awscliv2.zip" -d "$AWS_TMP_DIR"
+		"$AWS_TMP_DIR/aws/install" --bin-dir "$HOME/bin" --install-dir "$HOME/aws-cli" --update
+		PATH="$HOME/bin:$PATH"
+	fi
 
-	echo "Uploading contents of $FILES_DIR to S3:"	
+	echo "Uploading contents of $FILES_DIR to S3:"
 
-
-	artifacts upload \
-		  --bucket $ARTIFACTS_S3_BUCKET \
-		  --key $ARTIFACTS_AWS_ACCESS_KEY_ID \
-		  --secret $ARTIFACTS_AWS_SECRET_ACCESS_KEY \
-		  --target-paths / $FILES_DIR
-
-}	
-
-
+	# Mirrors the previous uploader's behaviour: copy the directory contents to
+	# the bucket root using the bucket's default (private) ACL.
+	aws s3 cp "$FILES_DIR" "s3://$ARTIFACTS_S3_BUCKET/" --recursive --no-progress
+}
