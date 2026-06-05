@@ -224,11 +224,11 @@
           "kind" : "PROCTIME"
         }
       }, {
-        "name" : "$3",
+        "name" : "a0",
         "fieldType" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[a, c, proctime, CAST(a AS BIGINT) AS $3])"
+    "description" : "Calc(select=[a, c, proctime, CAST(a AS BIGINT) AS a0])"
   }, {
     "id" : 5,
     "type" : "stream-exec-exchange_1",
@@ -257,7 +257,7 @@
           "kind" : "PROCTIME"
         }
       }, {
-        "name" : "$3",
+        "name" : "a0",
         "fieldType" : "BIGINT"
       } ]
     },
@@ -285,7 +285,7 @@
           "kind" : "CURRENT_ROW"
         },
         "aggCalls" : [ {
-          "name" : "w0$o0",
+          "name" : "b",
           "systemName" : "pyFunc",
           "argList" : [ 1, 1 ],
           "filterArg" : -1,
@@ -322,14 +322,14 @@
           "kind" : "PROCTIME"
         }
       }, {
-        "name" : "$3",
+        "name" : "a0",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "w0$o0",
+        "name" : "b",
         "fieldType" : "BIGINT"
       } ]
     },
-    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, pyFunc(c, c) AS w0$o0])"
+    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, a0, pyFunc(c, c) AS b])"
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -350,8 +350,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`$0` BIGINT, `$1` BIGINT>",
-    "description" : "Calc(select=[$3 AS $0, w0$o0 AS $1])"
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT>",
+    "description" : "Calc(select=[a0 AS a, b])"
   }, {
     "id" : 8,
     "type" : "stream-exec-sink_2",
@@ -391,8 +391,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`$0` BIGINT, `$1` BIGINT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[$0, $1])"
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
   } ],
   "edges" : [ {
     "source" : 1,

@@ -147,7 +147,7 @@ under the License.
 		<dependency>
 			<groupId>org.jooq</groupId>
 			<artifactId>joou-java-6</artifactId>
-			<version>0.9.4</version>
+			<version>0.9.5</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
