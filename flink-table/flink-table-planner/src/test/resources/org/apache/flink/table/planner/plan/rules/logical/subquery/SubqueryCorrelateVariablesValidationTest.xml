@@ -16,6 +16,50 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testWithFilterInCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM t1
+WHERE t1a
+IN (SELECT t3a
+    FROM t3
+    WHERE t1.t1e
+    IN (select t2e from t2))
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(t1a=[$0], t1b=[$1], t1c=[$2], t1d=[$3], t1e=[$4], t1f=[$5], t1g=[$6], t1h=[$7], t1i=[$8])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(t3a=[$0])
+  LogicalFilter(condition=[IN($cor0.t1e, {
+LogicalProject(t2e=[$4])
+  LogicalTableScan(table=[[default_catalog, default_database, t2]])
+})])
+    LogicalTableScan(table=[[default_catalog, default_database, t3]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(t1a=[$0], t1b=[$1], t1c=[$2], t1d=[$3], t1e=[$4], t1f=[$5], t1g=[$6], t1h=[$7], t1i=[$8])
++- LogicalJoin(condition=[AND(=($4, $10), =($0, $9))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalAggregate(group=[{0, 1}])
+      +- LogicalProject(t3a=[$0], t1e=[$9])
+         +- LogicalJoin(condition=[=($9, $10)], joinType=[inner])
+            :- LogicalJoin(condition=[true], joinType=[inner])
+            :  :- LogicalTableScan(table=[[default_catalog, default_database, t3]])
+            :  +- LogicalAggregate(group=[{0}])
+            :     +- LogicalProject(t1e=[$4])
+            :        +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+            +- LogicalAggregate(group=[{0}])
+               +- LogicalProject(t2e=[$4])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, t2]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWithFilterJoinCorrelate">
     <Resource name="sql">
       <![CDATA[
@@ -120,6 +164,48 @@ LogicalProject(min_t3d=[$9], max_t2h=[$11])
       +- LogicalProject(t2a=[$0], t2h=[$7])
          +- LogicalFilter(condition=[IS NOT NULL($0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithProjectJoinCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT (SELECT max(t2h) FROM t2
+    LEFT OUTER JOIN t1 ttt
+    ON t2.t2a=t1.t1a) max_t2h
+FROM t1
+    WHERE  t1a = 'val1b'
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(variablesSet=[[$cor0]], max_t2h=[$SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+  LogicalProject(t2h=[$7])
+    LogicalJoin(condition=[=($0, $cor0.t1a)], joinType=[left])
+      LogicalTableScan(table=[[default_catalog, default_database, t2]])
+      LogicalTableScan(table=[[default_catalog, default_database, t1]])
+})])
++- LogicalFilter(condition=[=($0, _UTF-16LE'val1b')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(max_t2h=[$10])
++- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :- LogicalFilter(condition=[=($0, _UTF-16LE'val1b')])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+      +- LogicalProject(t1a=[$9], t2h=[$7])
+         +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+            :- LogicalJoin(condition=[true], joinType=[inner])
+            :  :- LogicalTableScan(table=[[default_catalog, default_database, t2]])
+            :  +- LogicalAggregate(group=[{0}])
+            :     +- LogicalProject(t1a=[$0])
+            :        +- LogicalFilter(condition=[=($0, _UTF-16LE'val1b')])
+            :           +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
   </TestCase>

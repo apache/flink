@@ -34,15 +34,8 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
- * Default implementation {@link SqlTypeFactoryImpl}, the class was copied over because of
- * FLINK-31350.
- *
- * <p>FLINK modifications are at lines
- *
- * <ol>
- *   <li>Should be removed after fixing CALCITE-6342: Lines 529-531.
- *   <li>Should be removed after fix of FLINK-31350: Lines 606-618.
- * </ol>
+ * SqlTypeFactoryImpl provides a default implementation of {@link RelDataTypeFactory} which supports
+ * SQL types.
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
     // ~ Constructors -----------------------------------------------------------
@@ -314,7 +307,7 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
             RelDataTypeFamily family = type.getFamily();
 
             final SqlTypeName typeName = type.getSqlTypeName();
-            if (typeName == SqlTypeName.NULL) {
+            if (typeName == SqlTypeName.NULL || typeName == SqlTypeName.UNKNOWN) {
                 continue;
             }
 
