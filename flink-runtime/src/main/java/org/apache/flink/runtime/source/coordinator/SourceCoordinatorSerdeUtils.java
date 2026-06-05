@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -126,7 +127,7 @@ public class SourceCoordinatorSerdeUtils {
      * @param splitSerializer serializer for split objects
      * @return serialized tombstone data
      */
-    static <SplitT> byte[] serializeTombstones(
+    static <SplitT extends SourceSplit> byte[] serializeTombstones(
             Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>> tombstones,
             SimpleVersionedSerializer<SplitT> splitSerializer)
             throws IOException {
@@ -168,7 +169,7 @@ public class SourceCoordinatorSerdeUtils {
      * @param splitSerializer serializer for split objects
      * @return map of split IDs to their removal information
      */
-    static <SplitT> Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>>
+    static <SplitT extends SourceSplit> Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>>
             deserializeTombstones(
                     byte[] tombstoneData, SimpleVersionedSerializer<SplitT> splitSerializer)
                     throws IOException {
