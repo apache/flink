@@ -43,7 +43,7 @@ public class SqlCreateView extends SqlCreateObject {
 
     private final SqlNodeList fieldList;
     private final SqlNode query;
-    private final SqlParserPos asKeywordPos;
+    private final SqlParserPos asQueryKeywordPos;
 
     public SqlCreateView(
             SqlParserPos pos,
@@ -55,11 +55,11 @@ public class SqlCreateView extends SqlCreateObject {
             boolean ifNotExists,
             SqlCharStringLiteral comment,
             SqlNodeList properties,
-            SqlParserPos asKeywordPos) {
+            SqlParserPos asQueryKeywordPos) {
         super(OPERATOR, pos, viewName, isTemporary, replace, ifNotExists, properties, comment);
         this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
         this.query = requireNonNull(query, "query should not be null");
-        this.asKeywordPos = asKeywordPos;
+        this.asQueryKeywordPos = asQueryKeywordPos;
     }
 
     @Override
@@ -81,8 +81,8 @@ public class SqlCreateView extends SqlCreateObject {
     }
 
     /** Returns the parser position of the {@code AS} keyword. */
-    public SqlParserPos getAsKeywordPos() {
-        return asKeywordPos;
+    public SqlParserPos getAsQueryKeywordPos() {
+        return asQueryKeywordPos;
     }
 
     @Override

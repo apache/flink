@@ -65,16 +65,16 @@ public class SqlNodeConvertUtils {
      * (the {@code AS}-query is the last clause) keeps a comment after {@code AS} and queries whose
      * node position is narrower than their text, e.g. {@code WITH ... SELECT}.
      *
-     * @param asKeywordPos parser position of the {@code AS} keyword
+     * @param asQueryKeywordPos parser position of the {@code AS} keyword
      * @return the verbatim AS-query, or empty when no statement text is available
      */
     public static Optional<String> extractOriginalAsQueryText(
-            ConvertContext context, SqlParserPos asKeywordPos) {
+            ConvertContext context, SqlParserPos asQueryKeywordPos) {
         final String statementText = context.getStatementText();
         if (statementText == null) {
             return Optional.empty();
         }
-        return offsetAfter(statementText, asKeywordPos).stream()
+        return offsetAfter(statementText, asQueryKeywordPos).stream()
                 .mapToObj(start -> statementText.substring(start).strip())
                 .findFirst();
     }
@@ -111,7 +111,7 @@ public class SqlNodeConvertUtils {
     /** convert the query part of a VIEW statement into a {@link CatalogView}. */
     static CatalogView toCatalogView(
             SqlNode query,
-            SqlParserPos asKeywordPos,
+            SqlParserPos asQueryKeywordPos,
             List<SqlNode> viewFields,
             Map<String, String> viewOptions,
             String viewComment,
@@ -151,7 +151,7 @@ public class SqlNodeConvertUtils {
         }
 
         final String originalQuery =
-                extractOriginalAsQueryText(context, asKeywordPos)
+                extractOriginalAsQueryText(context, asQueryKeywordPos)
                         .orElse(context.toQuotedSqlString(query));
 
         return new ResolvedCatalogView(

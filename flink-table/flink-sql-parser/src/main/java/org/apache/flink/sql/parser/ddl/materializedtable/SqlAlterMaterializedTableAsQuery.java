@@ -36,13 +36,16 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
 
     private final SqlNode asQuery;
 
-    private final SqlParserPos asKeywordPos;
+    private final SqlParserPos asQueryKeywordPos;
 
     public SqlAlterMaterializedTableAsQuery(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNode asQuery, SqlParserPos asKeywordPos) {
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNode asQuery,
+            SqlParserPos asQueryKeywordPos) {
         super(pos, tableName);
         this.asQuery = asQuery;
-        this.asKeywordPos = asKeywordPos;
+        this.asQueryKeywordPos = asQueryKeywordPos;
     }
 
     public SqlNode getAsQuery() {
@@ -50,8 +53,8 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
     }
 
     /** Returns the parser position of the {@code AS} keyword. */
-    public SqlParserPos getAsKeywordPos() {
-        return asKeywordPos;
+    public SqlParserPos getAsQueryKeywordPos() {
+        return asQueryKeywordPos;
     }
 
     @Override

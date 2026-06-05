@@ -151,7 +151,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     protected final String getDerivedOriginalQuery(
             T sqlCreateMaterializedTable, ConvertContext context) {
         return SqlNodeConvertUtils.extractOriginalAsQueryText(
-                        context, sqlCreateMaterializedTable.getAsKeywordPos())
+                        context, sqlCreateMaterializedTable.getAsQueryKeywordPos())
                 .orElse(context.toQuotedSqlString(sqlCreateMaterializedTable.getAsQuery()));
     }
 

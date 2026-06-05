@@ -80,7 +80,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
             }
             String originalQuery =
                     SqlNodeConvertUtils.extractOriginalAsQueryText(
-                                    context, sqlAlterTableAsQuery.getAsKeywordPos())
+                                    context, sqlAlterTableAsQuery.getAsQueryKeywordPos())
                             .orElse(context.toQuotedSqlString(asQuery));
             tableChanges.add(TableChange.modifyDefinitionQuery(originalQuery, expandedQuery));
             return tableChanges;

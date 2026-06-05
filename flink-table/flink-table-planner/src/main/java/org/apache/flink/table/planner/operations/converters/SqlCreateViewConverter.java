@@ -48,7 +48,7 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
         CatalogView catalogView =
                 SqlNodeConvertUtils.toCatalogView(
                         query,
-                        sqlCreateView.getAsKeywordPos(),
+                        sqlCreateView.getAsQueryKeywordPos(),
                         viewFields,
                         viewOptions,
                         viewComment,
