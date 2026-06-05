@@ -395,7 +395,7 @@ To mitigate these challenges, Flink introduces the delta join operator. The key 
 This feature is enabled by default. A regular join will be automatically optimized into a delta join when all the following conditions are met:
 
 1. The sql pattern satisfies the optimization criteria. For details, please refer to [Supported Features and Limitations]({{< ref "docs/dev/table/tuning" >}}#supported-features-and-limitations)
-2. The external storage system of the source table provides index information for fast querying for delta joins. Currently, [Apache Fluss(Incubating)](https://fluss.apache.org/blog/fluss-open-source/) has provided index information at the table level for Flink, allowing such tables to be used as source tables for delta joins. Please refer to the [Fluss documentation](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support) for more details.
+2. The external storage system of the source table provides index information for fast querying for delta joins. Currently, [Apache Fluss (Incubating)](https://fluss.apache.org/blog/fluss-open-source/) has provided index information at the table level for Flink, allowing such tables to be used as source tables for delta joins. Please refer to the [Fluss documentation](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support) for more details.
 
 ### Working Principle
 
@@ -445,5 +445,5 @@ However, Delta Joins also have several **limitations**. Jobs containing any of t
 6. **Non-deterministic functions** are not allowed in projections or filters between the source and the delta join.
 
 {{< hint info >}}
-[1] Flink supports defining a table-level **immutable columns** constraint to enrich the upsert key, enabling delta join optimization in more scenarios. The immutable columns constraint declares that certain columns, once set for a given primary key, cannot be modified. The immutable columns are combined with the primary key to form a new upsert key that is propagated to downstream operators. This information is provided by the external storage system. [Apache Fluss(Incubating)](https://fluss.apache.org/) is planning to support table-level immutable columns constraint in the future.
+[1] Flink supports defining a table-level **immutable columns** constraint to enrich the upsert key, enabling delta join optimization in more scenarios. The immutable columns constraint declares that certain columns, once set for a given primary key, cannot be modified. The immutable columns are combined with the primary key to form a new upsert key that is propagated to downstream operators. This information is provided by the external storage system. [Apache Fluss (Incubating)](https://fluss.apache.org/) is planning to support table-level immutable columns constraint in the future.
 {{< /hint >}}

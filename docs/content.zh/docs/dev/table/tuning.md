@@ -405,7 +405,7 @@ FROM TenantKafka t
 该功能默认启用。当满足以下所有条件时， regular join 将自动优化为 delta join。
 
 1. 作业拓扑结构满足优化条件。具体可以查看[支持的功能和限制]({{< ref "docs/dev/table/tuning" >}}#supported-features-and-limitations)。
-2. 源表所在的外部存储系统提供了可供 delta join 快速查询的索引信息。目前 [Apache Fluss(Incubating)](https://fluss.apache.org/blog/fluss-open-source/) 已支持在 Flink 中提供表级别的索引信息，其上的表可作为 delta join 的源表。具体可参考 [Fluss 文档](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support)。
+2. 源表所在的外部存储系统提供了可供 delta join 快速查询的索引信息。目前 [Apache Fluss (Incubating)](https://fluss.apache.org/blog/fluss-open-source/) 已支持在 Flink 中提供表级别的索引信息，其上的表可作为 delta join 的源表。具体可参考 [Fluss 文档](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support)。
 
 <a name="working-principle"></a>
 
@@ -461,7 +461,7 @@ SET 'table.optimizer.delta-join.strategy' = 'NONE';
 6. 源表和 delta join 之间的 projection 或 filter 不能包含**非确定性函数**。
 
 {{< hint info >}}
-[1] Flink 支持定义表级别的**不可变列**（immutable columns）约束来丰富 upsert key，从而使更多场景能够被优化为 delta join。不可变列约束声明某些列一旦为给定主键设置后便不可修改，不可变列会联合主键，作为一组新的 upsert key 传播给下游。该信息由外部存储系统提供。[Apache Fluss(Incubating)](https://fluss.apache.org/) 已在未来计划支持表级别的不可变列约束。
+[1] Flink 支持定义表级别的**不可变列**（immutable columns）约束来丰富 upsert key，从而使更多场景能够被优化为 delta join。不可变列约束声明某些列一旦为给定主键设置后便不可修改，不可变列会联合主键，作为一组新的 upsert key 传播给下游。该信息由外部存储系统提供。[Apache Fluss (Incubating)](https://fluss.apache.org/) 已在未来计划支持表级别的不可变列约束。
 {{< /hint >}}
 
 {{< top >}}
