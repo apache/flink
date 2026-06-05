@@ -96,8 +96,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM t1
         |    WHERE  t1a = 'val1b'
       """.stripMargin
-    assertThatExceptionOfType(classOf[RuntimeException])
-      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -124,8 +123,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    WHERE t1.t1e
         |    IN (select t2e from t2))
       """.stripMargin
-    assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
