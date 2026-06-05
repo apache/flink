@@ -59,8 +59,10 @@ jobs:
             upload_to_s3 ./tools/releasing/release
         env:
           ARTIFACTS_S3_BUCKET: $(ARTIFACTS_S3_BUCKET)
-          ARTIFACTS_AWS_ACCESS_KEY_ID: $(ARTIFACTS_AWS_ACCESS_KEY_ID)
-          ARTIFACTS_AWS_SECRET_ACCESS_KEY: $(ARTIFACTS_AWS_SECRET_ACCESS_KEY)
+          # Mapped to the names the AWS CLI reads natively, so credentials never
+          # appear on a command line (and thus never in the `set -x` trace).
+          AWS_ACCESS_KEY_ID: $(ARTIFACTS_AWS_ACCESS_KEY_ID)
+          AWS_SECRET_ACCESS_KEY: $(ARTIFACTS_AWS_SECRET_ACCESS_KEY)
       # Activate this to publish the binary release as a pipeline artifact on Azure
       #- task: PublishPipelineArtifact@1
       #  displayName: Upload snapshot binary release
