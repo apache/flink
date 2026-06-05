@@ -44,8 +44,8 @@ import java.util.TreeMap;
  * <p>This tracker now supports tombstone-based retention of removed splits to handle metadata
  * service instability in dynamic sources. When splits/partitions are removed due to temporary
  * metadata inconsistencies, they can be retained in checkpoint state for a configurable duration.
- * If the split reappears within the retention window, its progress is recovered instead of
- * starting from scratch.
+ * If the split reappears within the retention window, its progress is recovered instead of starting
+ * from scratch.
  *
  * <p><b>Usage Example for Kafka Connector:</b>
  *
@@ -132,8 +132,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Represents a removed split with its removal timestamp and last known state.
-     * Used to handle temporary metadata service inconsistencies.
+     * Represents a removed split with its removal timestamp and last known state. Used to handle
+     * temporary metadata service inconsistencies.
      */
     @Internal
     static class RemovedSplitInfo<SplitT extends SourceSplit> {
@@ -192,8 +192,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Take a snapshot of the split assignments and tombstones.
-     * The snapshot includes both uncheckpointed assignments and tombstone entries.
+     * Take a snapshot of the split assignments and tombstones. The snapshot includes both
+     * uncheckpointed assignments and tombstone entries.
      */
     public byte[] snapshotState(SimpleVersionedSerializer<SplitT> splitSerializer)
             throws Exception {
@@ -224,8 +224,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Restore the state of the SplitAssignmentTracker including tombstones.
-     * Supports backward compatibility with older versions that don't have tombstones.
+     * Restore the state of the SplitAssignmentTracker including tombstones. Supports backward
+     * compatibility with older versions that don't have tombstones.
      *
      * @param splitSerializer The serializer of the splits.
      * @param assignmentData The state of the SplitAssignmentTracker.
@@ -276,8 +276,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Remove expired tombstone entries based on the retention duration.
-     * This is called after successful checkpoints to avoid accumulating stale entries.
+     * Remove expired tombstone entries based on the retention duration. This is called after
+     * successful checkpoints to avoid accumulating stale entries.
      */
     private void cleanupExpiredTombstones() {
         if (removedSplitsRetentionMs == 0) {
@@ -299,8 +299,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Mark a split as removed and store it as a tombstone if retention is enabled.
-     * If the split reappears within the retention window, its progress can be recovered.
+     * Mark a split as removed and store it as a tombstone if retention is enabled. If the split
+     * reappears within the retention window, its progress can be recovered.
      *
      * @param splitId the ID of the split being removed
      * @param split the split object
@@ -316,8 +316,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
     }
 
     /**
-     * Check if a split that is reappearing should be resurrected from tombstone state.
-     * If the split was recently removed (within retention window), return its previous state.
+     * Check if a split that is reappearing should be resurrected from tombstone state. If the split
+     * was recently removed (within retention window), return its previous state.
      *
      * @param splitId the ID of the split to check
      * @return the RemovedSplitInfo if the split should be resurrected, null otherwise

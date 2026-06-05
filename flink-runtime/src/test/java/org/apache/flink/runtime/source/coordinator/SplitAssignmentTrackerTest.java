@@ -179,8 +179,7 @@ class SplitAssignmentTrackerTest {
     @Test
     void testMarkSplitRemovedWithRetention() throws Exception {
         // Create tracker with 1-hour retention
-        SplitAssignmentTracker<MockSourceSplit> tracker =
-                new SplitAssignmentTracker<>(3600000L);
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(3600000L);
 
         MockSourceSplit split = new MockSourceSplit(0);
         tracker.markSplitRemoved("0", split, 1);
@@ -207,8 +206,7 @@ class SplitAssignmentTrackerTest {
     @Test
     void testTryResurrectSplitWithinRetention() throws Exception {
         // Create tracker with very long retention
-        SplitAssignmentTracker<MockSourceSplit> tracker =
-                new SplitAssignmentTracker<>(3600000L);
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(3600000L);
 
         MockSourceSplit split = new MockSourceSplit(0);
         tracker.markSplitRemoved("0", split, 1);
@@ -249,8 +247,7 @@ class SplitAssignmentTrackerTest {
 
     @Test
     void testTryResurrectNonExistentSplit() {
-        SplitAssignmentTracker<MockSourceSplit> tracker =
-                new SplitAssignmentTracker<>(3600000L);
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(3600000L);
 
         // Try to resurrect a split that was never removed
         SplitAssignmentTracker.RemovedSplitInfo<MockSourceSplit> resurrected =
@@ -285,8 +282,7 @@ class SplitAssignmentTrackerTest {
     @Test
     void testSnapshotAndRestoreWithTombstones() throws Exception {
         // Create tracker with retention
-        SplitAssignmentTracker<MockSourceSplit> tracker =
-                new SplitAssignmentTracker<>(3600000L);
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>(3600000L);
 
         // Record some assignments
         tracker.recordSplitAssignment(getSplitsAssignment(2, 0));
@@ -329,8 +325,7 @@ class SplitAssignmentTrackerTest {
                         oldTracker.uncheckpointedAssignments(), new MockSourceSplitSerializer());
 
         // Restore with new tracker that supports tombstones
-        SplitAssignmentTracker<MockSourceSplit> newTracker =
-                new SplitAssignmentTracker<>(3600000L);
+        SplitAssignmentTracker<MockSourceSplit> newTracker = new SplitAssignmentTracker<>(3600000L);
         newTracker.restoreState(new MockSourceSplitSerializer(), oldFormatSnapshot);
 
         // Should handle gracefully - assignments restored, no tombstones

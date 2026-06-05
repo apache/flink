@@ -169,8 +169,8 @@ public class SourceCoordinatorSerdeUtils {
      * @param splitSerializer serializer for split objects
      * @return map of split IDs to their removal information
      */
-    static <SplitT extends SourceSplit> Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>>
-            deserializeTombstones(
+    static <SplitT extends SourceSplit>
+            Map<String, SplitAssignmentTracker.RemovedSplitInfo<SplitT>> deserializeTombstones(
                     byte[] tombstoneData, SimpleVersionedSerializer<SplitT> splitSerializer)
                     throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(tombstoneData);
@@ -194,8 +194,7 @@ public class SourceCoordinatorSerdeUtils {
                 // Read serialized split
                 int serializedSplitSize = in.readInt();
                 byte[] serializedSplit = readBytes(in, serializedSplitSize);
-                SplitT split =
-                        splitSerializer.deserialize(splitSerializerVersion, serializedSplit);
+                SplitT split = splitSerializer.deserialize(splitSerializerVersion, serializedSplit);
 
                 tombstones.put(
                         splitId,
