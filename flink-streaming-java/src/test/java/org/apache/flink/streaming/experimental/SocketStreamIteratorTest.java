@@ -104,4 +104,45 @@ class SocketStreamIteratorTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("test");
     }
+
+    @Test
+    void testNotifyOfErrorBeforeConnection() throws Exception {
+        // Test that notifyOfError() can be called before connectedSocket is initialized
+        // (i.e., before any data has been read)
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
+
+        // Call notifyOfError before any connection is established
+        // This should not throw NullPointerException
+        iterator.notifyOfError(new Exception("early error"));
+
+        // Verify that the iterator properly propagates the error
+        assertThatThrownBy(iterator::hasNext)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("early error");
+
+        // Clean up
+        iterator.close();
+    }
+
+    @Test
+    void testNotifyOfErrorMultipleTimes() throws Exception {
+        // Test that notifyOfError() handles multiple calls gracefully
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
+
+        // First error should be recorded
+        iterator.notifyOfError(new Exception("first error"));
+
+        // Second error should be ignored (first error takes precedence)
+        iterator.notifyOfError(new Exception("second error"));
+
+        // Verify that the first error is propagated
+        assertThatThrownBy(iterator::hasNext)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("first error");
+
+        // Clean up
+        iterator.close();
+    }
 }
