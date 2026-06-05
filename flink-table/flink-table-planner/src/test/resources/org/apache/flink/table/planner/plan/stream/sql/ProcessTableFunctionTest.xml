@@ -294,6 +294,45 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[nu
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTypedSetSemanticTableForwardingOriginalColumnName">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(u => TABLE t_name_diff PARTITION BY name, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], out=[$1])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(CHAR(3) name, VARCHAR(2147483647) out)])
+   +- LogicalProject(name=[$0], different=[$1])
+      +- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
+         +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(CHAR(3) name, VARCHAR(2147483647) out)])
++- Exchange(distribution=[hash[name]])
+   +- Calc(select=['Bob' AS name, 12 AS different])
+      +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTypedSetSemanticTableForwardingOriginalColumnNameTableApi">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'f')], rowType=[RecordType(CHAR(3) name, VARCHAR(2147483647) out)])
++- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'f')], uid=[f], select=[name,out], rowType=[RecordType(CHAR(3) name, VARCHAR(2147483647) out)])
++- Exchange(distribution=[hash[name]])
+   +- Calc(select=['Bob' AS name, 12 AS different])
+      +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUidPipelineMergeIntoOneFunction">
     <Resource name="ast">
       <![CDATA[

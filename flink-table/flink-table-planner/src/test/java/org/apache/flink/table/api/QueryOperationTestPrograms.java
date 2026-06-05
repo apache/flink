@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -1125,6 +1126,32 @@ public class QueryOperationTestPrograms {
                                         ptf1.partitionBy($("name")).asArgument("r"),
                                         descriptor("rowtime").asArgument("on_time"));
                             },
+                            "sink")
+                    .build();
+
+    static final TableTestProgram PTF_TYPED_SET_SEMANTIC_TABLE =
+            TableTestProgram.of("ptf-typed-set-semantic-table", "verifies SQL serialization")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {User(s='Bob', i=12), 1}]",
+                                            "+I[Alice, {User(s='Alice', i=42), 1}]")
+                                    .build())
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`name`, `$$T_FUNC`.`out` FROM TABLE(\n"
+                                    + "    inlineFunction$00(\n"
+                                    + "        (\n"
+                                    + "            SELECT `$$T_SOURCE`.`name`, `$$T_SOURCE`.`score` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + "        ) PARTITION BY (`name`), 1, DEFAULT, 'TypedSetSemanticTableFunction')\n"
+                                    + ") $$T_FUNC")
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TypedSetSemanticTableFunction.class,
+                                            env.from("t").partitionBy($("name")).asArgument("u"),
+                                            lit(1).asArgument("i")),
                             "sink")
                     .build();
 
