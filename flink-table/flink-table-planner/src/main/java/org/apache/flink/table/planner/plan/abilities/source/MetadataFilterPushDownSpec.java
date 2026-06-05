@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -37,6 +38,7 @@ import org.apache.calcite.rex.RexNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,23 +80,57 @@ public final class MetadataFilterPushDownSpec extends SourceAbilitySpecBase {
 
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
-        // Use stored predicateRowType; context's row type may be narrowed by ProjectPushDownSpec.
-        MetadataFilterResult result =
-                applyMetadataFilters(predicates, predicateRowType, tableSource, context);
-        if (result.getAcceptedFilters().size() != predicates.size()) {
-            throw new TableException("All metadata predicates should be accepted here.");
+        List<ResolvedExpression> resolved =
+                resolvedExpressions(predicates, predicateRowType, tableSource, context);
+        MetadataFilterResult result = applyMetadataFiltersOnSource(tableSource, resolved);
+        // On restore every predicate must round-trip back via instance identity. `remaining`
+        // is not validated: the spec only stores already-accepted predicates, so the source
+        // should re-accept them all.
+        Set<ResolvedExpression> accepted = Sets.newIdentityHashSet();
+        accepted.addAll(result.getAcceptedFilters());
+        Set<ResolvedExpression> inputs = Sets.newIdentityHashSet();
+        inputs.addAll(resolved);
+        for (ResolvedExpression r : result.getAcceptedFilters()) {
+            if (!inputs.contains(r)) {
+                throw new TableException(
+                        "Source returned an accepted metadata filter not produced by the "
+                                + "planner. Sources must return back the same ResolvedExpression "
+                                + "instances they received.");
+            }
+        }
+        for (ResolvedExpression r : resolved) {
+            if (!accepted.contains(r)) {
+                throw new TableException(
+                        "All metadata predicates should be accepted on compiled-plan restore. "
+                                + "Source dropped a predicate that was accepted at optimization "
+                                + "time.");
+            }
         }
     }
 
     /**
-     * Converts RexNode predicates to ResolvedExpressions using the given row type and calls
-     * applyMetadataFilters on the source. The row type must already use metadata key names.
+     * Resolves predicates to {@link ResolvedExpression}s; the returned list preserves input order,
+     * so callers may correlate against the input list by position.
      */
-    public static MetadataFilterResult applyMetadataFilters(
+    public static List<ResolvedExpression> resolvedExpressions(
             List<RexNode> predicates,
             RowType metadataKeyRowType,
             DynamicTableSource tableSource,
             SourceAbilityContext context) {
+        ensureMetadataFilterPushDown(tableSource);
+        return FilterPushDownSpec.resolvePredicates(
+                predicates, metadataKeyRowType, tableSource, context);
+    }
+
+    /** Pushes already-resolved expressions to the source. */
+    public static MetadataFilterResult applyMetadataFiltersOnSource(
+            DynamicTableSource tableSource, List<ResolvedExpression> resolved) {
+        SupportsReadingMetadata readingMetadata = ensureMetadataFilterPushDown(tableSource);
+        return readingMetadata.applyMetadataFilters(resolved);
+    }
+
+    private static SupportsReadingMetadata ensureMetadataFilterPushDown(
+            DynamicTableSource tableSource) {
         if (!(tableSource instanceof SupportsReadingMetadata)) {
             throw new TableException(
                     String.format(
@@ -108,15 +144,12 @@ public final class MetadataFilterPushDownSpec extends SourceAbilitySpecBase {
                             "%s no longer supports metadata filter push-down.",
                             tableSource.getClass().getName()));
         }
-        List<ResolvedExpression> resolved =
-                FilterPushDownSpec.resolvePredicates(
-                        predicates, metadataKeyRowType, tableSource, context);
-        return readingMetadata.applyMetadataFilters(resolved);
+        return readingMetadata;
     }
 
     @Override
     public boolean needAdjustFieldReferenceAfterProjection() {
-        return true;
+        return false;
     }
 
     @Override

@@ -1847,6 +1847,7 @@ public final class TestValuesTableFactory
                             projectedMetadataFields,
                             enableAggregatePushDown);
             newSource.watermarkStrategy = watermarkStrategy;
+            newSource.setEnableMetadataFilterPushDown(enableMetadataFilterPushDown);
             return newSource;
         }
     }
