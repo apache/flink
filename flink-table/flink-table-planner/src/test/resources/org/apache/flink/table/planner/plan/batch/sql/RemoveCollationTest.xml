@@ -177,7 +177,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
       <![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(c = f)], select=[a, b, c, f, f1])\n:- [#1] Exchange(distribution=[hash[c]])\n+- Calc(select=[f, EXPR$0 AS f1])\n   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,EXPR$0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])\n      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])\n         +- Sort(orderBy=[f ASC])\n            +- [#2] Exchange(distribution=[hash[f]])\n])
 :- Exchange(distribution=[hash[c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Calc(select=[a, b, c], where=[LIKE(c, '%llo%')])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f]])
    +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
       +- Exchange(distribution=[forward])
@@ -502,8 +503,8 @@ LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w0$o2 AS rn])
-+- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, SUM(sum_b) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
+Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, rn])
++- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, SUM(sum_b) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS rn RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, rn])
    +- Exchange(distribution=[forward])
       +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS sum_b])
          +- Exchange(distribution=[forward])
@@ -609,7 +610,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, rk])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[a ASC, b ASC])
       +- Exchange(distribution=[hash[a]])
@@ -642,7 +643,7 @@ LogicalProject(a=[$0], c=[$1], rk=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, c, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, c, rk])
 +- Exchange(distribution=[forward])
    +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS c])
       +- Exchange(distribution=[forward])
