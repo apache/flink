@@ -134,9 +134,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testGroupByAll() {
-        sql("select\n a, count(*) from t group by all")
-                .ok("SELECT" + " `A`, COUNT(*)\n" + "FROM `T`\n" + "GROUP BY (ALL)");
+        sql("select\n"
+                        + "  a, count(*)\n"
+                        + "from t group by all")
+                .ok(
+                        "SELECT `A`, COUNT(*)\n"
+                                + "FROM `T`\n"
+                                + "GROUP BY (ALL)");
     }
+
 
     @Test
     void testCastAsMapType() {
