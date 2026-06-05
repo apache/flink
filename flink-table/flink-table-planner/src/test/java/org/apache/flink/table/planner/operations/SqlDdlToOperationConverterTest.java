@@ -1459,7 +1459,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=null, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 as shop_id, 2 as user_id', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT,\n"
@@ -1491,7 +1491,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 as shop_id, 2 as user_id', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT NOT NULL,\n"
@@ -2589,6 +2589,43 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("viewOriginalQueryCases")
+    void testCreateViewOriginalQuery(String name, String sql, String expectedOriginalQuery) {
+        final Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateViewOperation.class);
+        assertThat(((CreateViewOperation) operation).getCatalogView().getOriginalQuery())
+                .isEqualTo(expectedOriginalQuery);
+    }
+
+    private static Stream<Arguments> viewOriginalQueryCases() {
+        return Stream.of(
+                // The AS query is sliced verbatim, preserving the user's wording.
+                viewAsQueryCase(
+                        "AS query with a leading comment is kept verbatim",
+                        "/* keep me */\nselect 1"),
+                viewAsQueryCase(
+                        "trailing comment after the AS query is kept",
+                        "select 1 -- trailing comment"),
+                // Everything before AS must be excluded and must not shift the slice.
+                Arguments.of(
+                        "comment before AS is dropped",
+                        "CREATE VIEW v1\n-- note before AS\nAS SELECT 1",
+                        "SELECT 1"),
+                Arguments.of(
+                        "As-query is stripped and comments are kept",
+                        "CREATE VIEW v1 AS \n\n\n\n--keep\n--me\nSELECT * FROM t1\n\n",
+                        "--keep\n--me\nSELECT * FROM t1"),
+                Arguments.of(
+                        "column list and COMMENT before AS are dropped",
+                        "CREATE VIEW v1 (w, x, y, z)\nCOMMENT 'a view'\nAS SELECT a, b, c, d FROM t1",
+                        "SELECT a, b, c, d FROM t1"));
+    }
+
+    private static Arguments viewAsQueryCase(String name, String query) {
+        return Arguments.of(name, "CREATE VIEW v1 AS " + query, query);
     }
 
     @Test

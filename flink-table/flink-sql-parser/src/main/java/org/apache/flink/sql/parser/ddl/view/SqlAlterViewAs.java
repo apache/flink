@@ -35,9 +35,16 @@ public class SqlAlterViewAs extends SqlAlterView {
 
     private final SqlNode newQuery;
 
-    public SqlAlterViewAs(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlNode newQuery) {
+    private final SqlParserPos asQueryKeywordPos;
+
+    public SqlAlterViewAs(
+            SqlParserPos pos,
+            SqlIdentifier viewIdentifier,
+            SqlNode newQuery,
+            SqlParserPos asQueryKeywordPos) {
         super(pos, viewIdentifier);
         this.newQuery = newQuery;
+        this.asQueryKeywordPos = asQueryKeywordPos;
     }
 
     @Nonnull
@@ -54,5 +61,10 @@ public class SqlAlterViewAs extends SqlAlterView {
 
     public SqlNode getNewQuery() {
         return newQuery;
+    }
+
+    /** Returns the parser position of the {@code AS} keyword. */
+    public SqlParserPos getAsQueryKeywordPos() {
+        return asQueryKeywordPos;
     }
 }

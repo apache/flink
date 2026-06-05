@@ -131,14 +131,14 @@ class SqlNodeToOperationConversionTestBase {
 
     protected Operation parse(String sql, FlinkPlannerImpl planner, CalciteParser parser) {
         SqlNode node = parser.parse(sql);
-        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node, sql).get();
     }
 
     protected Operation parse(String sql) {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
-        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node, sql).get();
     }
 
     protected FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {

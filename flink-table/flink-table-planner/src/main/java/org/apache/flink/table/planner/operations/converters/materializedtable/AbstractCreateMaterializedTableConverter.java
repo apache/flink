@@ -34,6 +34,7 @@ import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
@@ -141,10 +142,17 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         return MaterializedTableUtils.fromLogicalRefreshModeToRefreshMode(logicalRefreshMode);
     }
 
+    /**
+     * Returns the user's original {@code AS} query text, sliced verbatim from the statement so
+     * formatting and identifier casing are preserved (e.g. {@code int} is not normalized to {@code
+     * INTEGER}). A comment placed between {@code AS} and the query is kept; the {@code AS} keyword
+     * itself is excluded.
+     */
     protected final String getDerivedOriginalQuery(
             T sqlCreateMaterializedTable, ConvertContext context) {
-        SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
-        return context.toQuotedSqlString(selectQuery);
+        return SqlNodeConvertUtils.extractOriginalAsQueryText(
+                        context, sqlCreateMaterializedTable.getAsQueryKeywordPos())
+                .orElse(context.toQuotedSqlString(sqlCreateMaterializedTable.getAsQuery()));
     }
 
     protected final String getDerivedExpandedQuery(

@@ -151,13 +151,17 @@ import java.util.stream.Collectors;
 public class SqlNodeToOperationConversion {
     private final FlinkPlannerImpl flinkPlanner;
     private final CatalogManager catalogManager;
+    @Nullable private final String originalSql;
 
     // ~ Constructors -----------------------------------------------------------
 
     private SqlNodeToOperationConversion(
-            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager) {
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            @Nullable String originalSql) {
         this.flinkPlanner = flinkPlanner;
         this.catalogManager = catalogManager;
+        this.originalSql = originalSql;
     }
 
     /**
@@ -168,21 +172,39 @@ public class SqlNodeToOperationConversion {
      * @param flinkPlanner FlinkPlannerImpl to convertCreateTable sql node to rel node
      * @param catalogManager CatalogManager to resolve full path for operations
      * @param sqlNode SqlNode to execute on
+     * @param originalSql original SQL statement text, or {@code null} when the node has no source
+     *     text (e.g. a synthesized node)
+     */
+    public static Optional<Operation> convert(
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            SqlNode sqlNode,
+            @Nullable String originalSql) {
+        final SqlNode validated = flinkPlanner.validate(sqlNode);
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql);
+    }
+
+    /**
+     * Converts the given {@link SqlNode} without an original statement text. Used for nested
+     * conversions where the node was reached recursively (e.g. the {@code AS} query of {@code
+     * CREATE TABLE AS}) and the verbatim source text is neither available nor needed.
      */
     public static Optional<Operation> convert(
             FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode sqlNode) {
-        // validate the query
-        final SqlNode validated = flinkPlanner.validate(sqlNode);
-        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated);
+        return convert(flinkPlanner, catalogManager, sqlNode, null);
     }
 
     /** Convert a validated sql node to Operation. */
     private static Optional<Operation> convertValidatedSqlNode(
-            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            SqlNode validated,
+            @Nullable String statement) {
         beforeConversion();
 
         // delegate conversion to the registered converters first
-        SqlNodeConvertContext context = new SqlNodeConvertContext(flinkPlanner, catalogManager);
+        SqlNodeConvertContext context =
+                new SqlNodeConvertContext(flinkPlanner, catalogManager, statement);
         Optional<Operation> operation = SqlNodeConverters.convertSqlNode(validated, context);
         if (operation.isPresent()) {
             return operation;
@@ -190,7 +212,7 @@ public class SqlNodeToOperationConversion {
 
         // TODO: all the below conversion logic should be migrated to SqlNodeConverters
         SqlNodeToOperationConversion converter =
-                new SqlNodeToOperationConversion(flinkPlanner, catalogManager);
+                new SqlNodeToOperationConversion(flinkPlanner, catalogManager, statement);
         if (validated instanceof SqlDropCatalog) {
             return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
         } else if (validated instanceof SqlLoadModule) {
@@ -258,7 +280,10 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertSqlStatementSet((SqlStatementSet) validated));
         } else if (validated instanceof SqlExecute) {
             return convertValidatedSqlNode(
-                    flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
+                    flinkPlanner,
+                    catalogManager,
+                    ((SqlExecute) validated).getStatement(),
+                    statement);
         } else if (validated instanceof SqlExecutePlan) {
             return Optional.of(converter.convertExecutePlan((SqlExecutePlan) validated));
         } else if (validated instanceof SqlCompilePlan) {
@@ -277,9 +302,8 @@ public class SqlNodeToOperationConversion {
         }
     }
 
-    private static Operation convertValidatedSqlNodeOrFail(
-            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
-        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated)
+    private Operation convertValidatedSqlNodeOrFail(SqlNode validated) {
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql)
                 .orElseThrow(
                         () ->
                                 new TableException(
@@ -330,9 +354,7 @@ public class SqlNodeToOperationConversion {
                 catalogManager.getTableOrError(identifier).toCatalogTable();
 
         PlannerQueryOperation query =
-                (PlannerQueryOperation)
-                        convertValidatedSqlNodeOrFail(
-                                flinkPlanner, catalogManager, insert.getSource());
+                (PlannerQueryOperation) convertValidatedSqlNodeOrFail(insert.getSource());
         // TODO calc target column list to index array, currently only simple SqlIdentifiers are
         // available, this should be updated after FLINK-31301 fixed
         int[][] columnIndices =
@@ -650,17 +672,13 @@ public class SqlNodeToOperationConversion {
         return new CompilePlanOperation(
                 compilePlan.getPlanFile(),
                 compilePlan.isIfNotExists(),
-                convertValidatedSqlNodeOrFail(
-                        flinkPlanner, catalogManager, compilePlan.getOperandList().get(0)));
+                convertValidatedSqlNodeOrFail(compilePlan.getOperandList().get(0)));
     }
 
     private Operation convertCompileAndExecutePlan(SqlCompileAndExecutePlan compileAndExecutePlan) {
         return new CompileAndExecutePlanOperation(
                 compileAndExecutePlan.getPlanFile(),
-                convertValidatedSqlNodeOrFail(
-                        flinkPlanner,
-                        catalogManager,
-                        compileAndExecutePlan.getOperandList().get(0)));
+                convertValidatedSqlNodeOrFail(compileAndExecutePlan.getOperandList().get(0)));
     }
 
     private Operation convertShowJobs(SqlShowJobs sqlStopJob) {

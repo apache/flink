@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
 import org.apache.calcite.sql.SqlNode;
@@ -54,13 +55,12 @@ public class SqlAlterMaterializedTableAsQueryConverter
             SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery, ConvertContext context) {
         return oldTable -> {
             // Validate and extract schema from query
-            String originalQuery = context.toQuotedSqlString(sqlAlterTableAsQuery.getAsQuery());
-            SqlNode validatedQuery =
-                    context.getSqlValidator().validate(sqlAlterTableAsQuery.getAsQuery());
-            String definitionQuery = context.toQuotedSqlString(validatedQuery);
+            SqlNode asQuery = sqlAlterTableAsQuery.getAsQuery();
+            SqlNode validatedQuery = context.getSqlValidator().validate(asQuery);
+            String expandedQuery = context.toQuotedSqlString(validatedQuery);
             PlannerQueryOperation queryOperation =
                     new PlannerQueryOperation(
-                            context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
+                            context.toRelRoot(validatedQuery).project(), () -> expandedQuery);
 
             ResolvedSchema oldSchema = oldTable.getResolvedSchema();
             ResolvedSchema newSchema = queryOperation.getResolvedSchema();
@@ -78,7 +78,11 @@ public class SqlAlterMaterializedTableAsQueryConverter
                                     + "consider using CREATE OR ALTER MATERIALIZED TABLE instead");
                 }
             }
-            tableChanges.add(TableChange.modifyDefinitionQuery(originalQuery, definitionQuery));
+            String originalQuery =
+                    SqlNodeConvertUtils.extractOriginalAsQueryText(
+                                    context, sqlAlterTableAsQuery.getAsQueryKeywordPos())
+                            .orElse(context.toQuotedSqlString(asQuery));
+            tableChanges.add(TableChange.modifyDefinitionQuery(originalQuery, expandedQuery));
             return tableChanges;
         };
     }

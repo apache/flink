@@ -101,6 +101,13 @@ public interface SqlNodeConverter<S extends SqlNode> {
         String toQuotedSqlString(SqlNode sqlNode);
 
         /**
+         * Returns the original SQL statement text being converted, or {@code null} when the node
+         * was synthesized (e.g. produced by an internal rewrite) and has no source text.
+         */
+        @Nullable
+        String getStatementText();
+
+        /**
          * Expands identifiers in a given SQL string.
          *
          * @see Expander

@@ -103,7 +103,8 @@ public class ParserImpl implements Parser {
         List<SqlNode> parsed = sqlNodeList.getList();
         Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
         return Collections.singletonList(
-                SqlNodeToOperationConversion.convert(planner, catalogManager, parsed.get(0))
+                SqlNodeToOperationConversion.convert(
+                                planner, catalogManager, parsed.get(0), statement)
                         .orElseThrow(() -> new TableException("Unsupported query: " + statement)));
     }
 

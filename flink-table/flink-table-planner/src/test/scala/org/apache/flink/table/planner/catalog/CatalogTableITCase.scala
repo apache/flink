@@ -1234,7 +1234,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       .get()
       .getTable(objectPath)
       .asInstanceOf[CatalogView]
-    assertThat(view.getOriginalQuery).isEqualTo("SELECT `b`\nFROM `T`")
+    assertThat(view.getOriginalQuery).isEqualTo("SELECT b FROM T")
   }
 
   @TestTemplate

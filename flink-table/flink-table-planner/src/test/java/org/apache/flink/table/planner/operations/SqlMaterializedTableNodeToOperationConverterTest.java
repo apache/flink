@@ -66,6 +66,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -320,6 +321,66 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("originalQueryCases")
+    void testOriginalQuery(String name, String sql, String expectedOriginalQuery) {
+        final String originalQuery =
+                createMaterializedTableOperation(sql)
+                        .getCatalogMaterializedTable()
+                        .getOriginalQuery();
+        assertThat(originalQuery).isEqualTo(expectedOriginalQuery);
+    }
+
+    private static Stream<Arguments> originalQueryCases() {
+        final String query = "SELECT * FROM t1";
+        return Stream.of(
+                // The AS query is sliced verbatim from just after AS to the end of the statement,
+                // preserving the user's wording (case, formatting, comments).
+                asQueryCase(
+                        "AS query with a leading comment is kept verbatim",
+                        "/* keep me */\nselect a, b from t1"),
+                asQueryCase(
+                        "trailing comment after the AS query is kept",
+                        "select a, b from t1 -- trailing comment"),
+                asQueryCase(
+                        "WITH query is kept whole (its node position is narrower than its text)",
+                        "WITH q AS (SELECT a FROM t1) SELECT a FROM q"),
+                Arguments.of(
+                        "As-query is stripped and comments are kept",
+                        "CREATE MATERIALIZED TABLE mtbl1 AS \n\n\n\n--keep\n--me\nSELECT * FROM t1\n\n",
+                        "--keep\n--me\nSELECT * FROM t1"),
+                // Everything before AS must be excluded and must not shift the slice, regardless of
+                // comments, identifier quoting, or a multi-line clause prefix.
+                Arguments.of(
+                        "comment before AS is dropped",
+                        "CREATE MATERIALIZED TABLE mtbl1\n-- note before AS\nAS " + query,
+                        query),
+                Arguments.of(
+                        "escaped-backtick identifier and COMMENT before AS are dropped",
+                        "CREATE MATERIALIZED TABLE `m``tbl` COMMENT 'a''b' AS " + query,
+                        query),
+                Arguments.of(
+                        "multi-line DDL prefix before AS is dropped",
+                        "CREATE MATERIALIZED TABLE mtbl1 (\n"
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED\n"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem',\n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS "
+                                + query,
+                        query));
+    }
+
+    private static Arguments asQueryCase(String name, String query) {
+        return Arguments.of(name, "CREATE MATERIALIZED TABLE mtbl1 AS " + query, query);
+    }
+
     @Test
     void testCreateMaterializedTableWithUDTFQueryWithoutAlias() {
         functionCatalog.registerCatalogFunction(
@@ -572,7 +633,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @Test
     void testAlterMaterializedTableAsQuery() throws TableNotExistException {
         String sql =
-                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
+                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f\n FROM\n t3";
         Operation operation = parse(sql);
 
         assertThat(operation).isInstanceOf(AlterMaterializedTableAsQueryOperation.class);
@@ -584,7 +645,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.add(Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `d` AS `e`, CAST('123' AS STRING) AS `f`\nFROM `t3`",
+                                "SELECT a, b, c, d, d as e, cast('123' as string) as f\n FROM\n t3",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
         assertThat(operation.asSummaryString())
@@ -638,7 +699,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .containsExactly(
                         TableChange.add(Column.physical("a0", DataTypes.INT())),
                         TableChange.modifyDefinitionQuery(
-                                "SELECT `a`, `b`, `c`, `d`, `c` AS `a`\nFROM `t3`",
+                                "SELECT a, b, c, d, c as a FROM t3",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
     }
@@ -1373,7 +1434,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .comment("materialized table comment")
                 .options(Map.of("connector", "filesystem", "format", "json"))
                 .partitionKeys(List.of("a", "d"))
-                .originalQuery("SELECT *\nFROM `t1`")
+                .originalQuery("SELECT * FROM t1")
                 .expandedQuery(
                         "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
                                 + "FROM `builtin`.`default`.`t1` AS `t1`");

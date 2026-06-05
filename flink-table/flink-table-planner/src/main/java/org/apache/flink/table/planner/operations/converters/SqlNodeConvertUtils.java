@@ -34,6 +34,8 @@ import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
+import org.apache.flink.shaded.guava33.com.google.common.base.Splitter;
+
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlNode;
@@ -46,14 +48,58 @@ import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
 /** Utilities for SqlNode conversions. */
-class SqlNodeConvertUtils {
+public class SqlNodeConvertUtils {
+
+    /**
+     * Returns the {@code AS}-query of a VIEW or MATERIALIZED TABLE DDL in verbatim shape: the
+     * statement text from just after {@code AS} to its end, trimmed. Slicing to the statement end
+     * (the {@code AS}-query is the last clause) keeps a comment after {@code AS} and queries whose
+     * node position is narrower than their text, e.g. {@code WITH ... SELECT}.
+     *
+     * @param asQueryKeywordPos parser position of the {@code AS} keyword
+     * @return the verbatim AS-query, or empty when no statement text is available
+     */
+    public static Optional<String> extractOriginalAsQueryText(
+            ConvertContext context, SqlParserPos asQueryKeywordPos) {
+        final String statementText = context.getStatementText();
+        if (statementText == null) {
+            return Optional.empty();
+        }
+        return offsetAfter(statementText, asQueryKeywordPos).stream()
+                .mapToObj(start -> statementText.substring(start).strip())
+                .findFirst();
+    }
+
+    /**
+     * Returns the offset of the first character after the given parser position, or empty if the
+     * position's end line falls outside {@code statementText}.
+     */
+    private static OptionalInt offsetAfter(String statementText, SqlParserPos pos) {
+        final int endLine = pos.getEndLineNum();
+        final int endCol = pos.getEndColumnNum();
+
+        final Iterator<String> iterator = Splitter.on('\n').split(statementText).iterator();
+        int currentLine = 0;
+        int lineStartOffset = 0;
+        while (iterator.hasNext()) {
+            final String lineText = iterator.next();
+            currentLine++;
+            if (currentLine == endLine) {
+                return OptionalInt.of(lineStartOffset + endCol);
+            }
+            lineStartOffset += lineText.length() + 1;
+        }
+        return OptionalInt.empty();
+    }
 
     static PlannerQueryOperation toQueryOperation(SqlNode validated, ConvertContext context) {
         // transform to a relational tree
@@ -65,17 +111,11 @@ class SqlNodeConvertUtils {
     /** convert the query part of a VIEW statement into a {@link CatalogView}. */
     static CatalogView toCatalogView(
             SqlNode query,
+            SqlParserPos asQueryKeywordPos,
             List<SqlNode> viewFields,
             Map<String, String> viewOptions,
             String viewComment,
             ConvertContext context) {
-        // Put the sql string unparse (getQuotedSqlString()) in front of
-        // the node conversion (toQueryOperation()),
-        // because before Calcite 1.22.0, during sql-to-rel conversion, the SqlWindow
-        // bounds state would be mutated as default when they are null (not specified).
-
-        // This bug is fixed in CALCITE-3877 of Calcite 1.23.0.
-        String originalQuery = context.toQuotedSqlString(query);
         SqlNode validateQuery = context.getSqlValidator().validate(query);
         // FLINK-38950: SqlValidator.validate() mutates its input parameter. Always use the
         // returned validateQuery instead of the mutated query for all subsequent operations.
@@ -109,6 +149,10 @@ class SqlNodeConvertUtils {
 
             schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
         }
+
+        final String originalQuery =
+                extractOriginalAsQueryText(context, asQueryKeywordPos)
+                        .orElse(context.toQuotedSqlString(query));
 
         return new ResolvedCatalogView(
                 CatalogView.of(
