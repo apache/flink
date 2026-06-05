@@ -354,6 +354,8 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
      */
     @VisibleForTesting
     static int computeNewBufferLength(int currentLength, int minCapacityAdd) throws IOException {
+        Preconditions.checkArgument(currentLength >= 0, "currentLength must be non-negative");
+        Preconditions.checkArgument(minCapacityAdd > 0, "minCapacityAdd must be positive");
         long requiredLen = (long) currentLength + minCapacityAdd;
         if (requiredLen > MAX_ARRAY_SIZE) {
             throw new IOException(
