@@ -293,7 +293,6 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
             return context.getCheckpointCoordinator();
         }
 
-        @VisibleForTesting
         synchronized void quiesce() {
             quiesced = true;
         }

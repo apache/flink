@@ -502,7 +502,6 @@ public class ExecutionVertex
      *
      * @return list of finished partitions.
      */
-    @VisibleForTesting
     public List<IntermediateResultPartition> finishPartitionsIfNeeded() {
         List<IntermediateResultPartition> finishedPartitions = null;
         MarkPartitionFinishedStrategy markPartitionFinishedStrategy =
