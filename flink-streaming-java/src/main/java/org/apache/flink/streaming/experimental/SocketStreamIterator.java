@@ -208,9 +208,11 @@ public class SocketStreamIterator<T> implements Iterator<T> {
             this.error = error;
 
             // this should wake up any blocking calls
-            try {
-                connectedSocket.close();
-            } catch (Throwable ignored) {
+            if (connectedSocket != null) {
+                try {
+                    connectedSocket.close();
+                } catch (Throwable ignored) {
+                }
             }
             try {
                 socket.close();
