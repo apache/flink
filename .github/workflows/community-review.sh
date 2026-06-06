@@ -59,6 +59,9 @@ main() {
             node {
               number
               isDraft
+              author {
+                login
+              }
               baseRef {
                 name
               }
@@ -162,7 +165,10 @@ process_each_pr() {
     # Add target branch as label 
     local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")  
     process_target_branch_label "$token" "$pr_number" "$target_branch"
-    
+
+    # PR author - used to exclude the author's own reviews from the community-review tally
+    local pr_author=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.author.login' <<< "$pullRequests")
+
     # Add review orientated labels
     local has_timeline_items=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | (.node.timelineItems.nodes | type != "array" or length > 0)' <<< "$pullRequests")
     # Only process reviews if there are timeline items
@@ -178,7 +184,7 @@ process_each_pr() {
 
        printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
 
-       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" || exit
+       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" "$pr_author" || exit
     fi
     ((counter++))
   done <<< "$prNumbersAndPaging" || exit
@@ -247,11 +253,13 @@ process_target_branch_label() {
 #   $1 - GitHub API token for authentication
 #   $2 - PR number
 #   $3 - PR reviews
+#   $4 - PR author login (excluded from the review tally)
 # =============================================================================
 process_pr_reviews() {
   local token="${1?missing token}"
   local pr_number="${2?missing pr number}"
   local pr_reviews="${3?missing pr reviews}"
+  local pr_author="${4?missing pr author}"
 
   local communityApproves=0
   local requestForChanges=0
@@ -265,6 +273,11 @@ process_pr_reviews() {
 
   while IFS=, read -r user state time
   do
+    # A PR author commenting on their own PR is not a community review
+    if [[ "$user" == "$pr_author" ]]; then
+      printf "%-15s | %-20s | %-20s - skipping PR author self-review\n" "$user" "$state" "$time"
+      continue
+    fi
     printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
     push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
     printf "%s\n" "$push_permission"
