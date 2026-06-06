@@ -71,6 +71,33 @@ ProcessTableFunction(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], uid=[my-ptf],
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFunctionWithMultipleTableArgs">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM v]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], name0=[$1], out=[$2])
++- LogicalProject(name=[$0], name0=[$1], out=[$2])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITION BY($0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(5) name0, VARCHAR(2147483647) out)])
+      :- LogicalProject(name=[$0], score=[$1])
+      :  +- LogicalProject(name=[$0], score=[$1])
+      :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITION BY($0), DEFAULT(), DEFAULT())], uid=[f], select=[name,name0,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(5) name0, VARCHAR(2147483647) out)])
+:- Exchange(distribution=[hash[name]])
+:  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
++- Exchange(distribution=[hash[name]])
+   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntervalDayArgs">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(d => INTERVAL '1' SECOND)]]>

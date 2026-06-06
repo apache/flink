@@ -117,6 +117,15 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testFunctionWithMultipleTableArgs() {
+        util.addTemporarySystemFunction("f", MultiInputFunction.class);
+        util.tableEnv().executeSql("CREATE VIEW v AS SELECT * FROM f("
+                + "in1 => TABLE t PARTITION BY name,"
+                + "in2 => TABLE t PARTITION BY name)");
+        util.verifyRelPlan("SELECT * FROM v");
+    }
+
+    @Test
     void testScalarArgsWithUid() {
         util.addTemporarySystemFunction("f", ScalarArgsFunction.class);
         // argument 'uid' is also reordered

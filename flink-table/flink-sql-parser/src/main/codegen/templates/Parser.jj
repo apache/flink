@@ -1055,6 +1055,9 @@ void AddArg(List<SqlNode> list, ExprContext exprContext) :
 {
     final SqlIdentifier name;
     SqlNode e;
+    final Span s;
+    SqlNodeList partitionList;
+    SqlNodeList orderList;
 }
 {
     (
@@ -1068,6 +1071,17 @@ void AddArg(List<SqlNode> list, ExprContext exprContext) :
         e = LambdaExpression()
     |
         e = Expression(exprContext)
+        // A set-semantics table argument may be a partitioned sub-query, e.g.
+        // "(SELECT ...) PARTITION BY key [ORDER BY ...]".
+        [
+            { s = span(); }
+            <PARTITION> <BY> partitionList = SimpleIdentifierOrList()
+            (
+                orderList = OrderByOfSetSemanticsTable()
+            |   { orderList = SqlNodeList.EMPTY; }
+            )
+            { e = CreateSetSemanticsTableIfNeeded(s, e, partitionList, orderList); }
+        ]
     |
         e = TableParam()
     )
