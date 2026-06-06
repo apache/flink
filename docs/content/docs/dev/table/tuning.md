@@ -395,7 +395,7 @@ To mitigate these challenges, Flink introduces the delta join operator. The key 
 This feature is enabled by default. A regular join will be automatically optimized into a delta join when all the following conditions are met:
 
 1. The sql pattern satisfies the optimization criteria. For details, please refer to [Supported Features and Limitations]({{< ref "docs/dev/table/tuning" >}}#supported-features-and-limitations)
-2. The external storage system of the source table provides index information for fast querying for delta joins. Currently, [Apache Fluss(Incubating)](https://fluss.apache.org/blog/fluss-open-source/) has provided index information at the table level for Flink, allowing such tables to be used as source tables for delta joins. Please refer to the [Fluss documentation](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support) for more details.
+2. The external storage system of the source table provides index information for fast querying for delta joins. Currently, [Apache Fluss (Incubating)](https://fluss.apache.org/blog/fluss-open-source/) has provided index information at the table level for Flink, allowing such tables to be used as source tables for delta joins. Please refer to the [Fluss documentation](https://fluss.apache.org/docs/engine-flink/delta-joins/#flink-version-support) for more details.
 
 ### Working Principle
 
@@ -431,12 +431,19 @@ Delta joins are continuously evolving, and supports the following features curre
 2. Support for **CDC** tables without **DELETE operations** as source tables.
 3. Support for **projection** and **filter** operations between the source and the delta join.
 4. Support for **caching** within the delta join operator.
+5. Support for **cascaded delta joins** — eligible join nodes in a query are sequentially converted into delta join nodes from source to sink.
+6. Support for **lookup join** after a delta join.
+7. Support for **non-deterministic functions** in projections and filters between the delta join and downstream operators.
 
 However, Delta Joins also have several **limitations**. Jobs containing any of the following conditions cannot be optimized into a delta join:
 
 1. The **index key** of the table must be included in the join’s **equivalence conditions**.
 2. Only **INNER JOIN** is currently supported.
 3. The **downstream operator** must be able to handle **duplicate changes**, such as a sink operating in **UPSERT mode** without `upsertMaterialize`.
-4. When consuming a **CDC stream**, the **join key** must be part of the **primary key**.
-5. When consuming a **CDC stream**, all **filters** must be applied on the **upsert key**.
-6. **Non-deterministic functions** are not allowed in filters or projections.
+4. When consuming a **CDC stream**, the **join key** must be part of the **upsert key**<sup>[1]</sup>.
+5. When consuming a **CDC stream**, all **filters** must be applied on the **upsert key**<sup>[1]</sup>.
+6. **Non-deterministic functions** are not allowed in projections or filters between the source and the delta join.
+
+{{< hint info >}}
+[1] Flink supports defining a table-level **immutable columns** constraint to enrich the upsert key, enabling delta join optimization in more scenarios. The immutable columns constraint declares that certain columns, once set for a given primary key, cannot be modified. The immutable columns are combined with the primary key to form a new upsert key that is propagated to downstream operators. This information is provided by the external storage system. [Apache Fluss (Incubating)](https://fluss.apache.org/) is planning to support table-level immutable columns constraint in the future.
+{{< /hint >}}
