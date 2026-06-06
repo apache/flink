@@ -139,7 +139,7 @@ jobs:
           # Skip repair on MacOS
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
       - name: "Upload python wheels"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
           path: flink-python/dist/**
