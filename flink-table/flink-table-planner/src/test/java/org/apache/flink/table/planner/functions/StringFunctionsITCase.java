@@ -43,8 +43,10 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         bTrimTestCases(),
                         eltTestCases(),
                         endsWithTestCases(),
+                        parseUrlTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
+                        substringTestCases(),
                         translateTestCases(),
                         concatenateTestCases())
                 .flatMap(s -> s);
@@ -751,5 +753,58 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TRANSLATE(f0, '3', '5')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> parseUrlTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_URL)
+                        .onFieldsWithData(
+                                "http://user@flink.apache.org/path?query=1#Ref",
+                                "not a valid url",
+                                null)
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        // normal case
+                        .testResult(
+                                $("f0").parseUrl("HOST"),
+                                "PARSE_URL(f0, 'HOST')",
+                                "flink.apache.org",
+                                DataTypes.STRING())
+                        // malformed url returns null
+                        .testResult(
+                                $("f1").parseUrl("HOST"),
+                                "PARSE_URL(f1, 'HOST')",
+                                null,
+                                DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f2").parseUrl("HOST"),
+                                "PARSE_URL(f2, 'HOST')",
+                                null,
+                                DataTypes.STRING()));
+    }
+
+    private Stream<TestSetSpec> substringTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SUBSTRING)
+                        .onFieldsWithData("This is a test String.", null)
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        // normal case
+                        .testResult(
+                                $("f0").substring(2, 5),
+                                "SUBSTRING(f0, 2, 5)",
+                                "his i",
+                                DataTypes.STRING())
+                        // negative length returns null
+                        .testResult(
+                                $("f0").substring(1, -1),
+                                "SUBSTRING(f0, 1, -1)",
+                                null,
+                                DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f1").substring(2),
+                                "SUBSTRING(f1, 2)",
+                                null,
+                                DataTypes.STRING()));
     }
 }
