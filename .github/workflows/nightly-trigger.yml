@@ -59,16 +59,21 @@ jobs:
               branch: branch,
               per_page: 1
             });
-            const lastBuiltSha = runsData.workflow_runs[0]?.head_sha;
+            
+            const lastRun = runsData.workflow_runs[0];
+            const lastBuiltSha = lastRun?.head_sha;
+            const lastConclusion = lastRun?.conclusion;
 
-            // Skipping only the scheduled one if no newer commits.
-            // It is still possible to run manually.
-            if (context.eventName === 'schedule' && lastBuiltSha && lastBuiltSha === currentSha) {
-              core.info(`No new commits on ${branch} since ${currentSha}, skipping scheduled nightly.`);
+            // Skip the scheduled run only if there are no new commits AND the
+            // previous nightly was green. If the last run failed/was cancelled,
+            // re-run even without new commits so failures get retried.
+            // It is still possible to run manually even if the last one was green and no new commits.
+            if (context.eventName === 'schedule' && lastBuiltSha === currentSha && lastConclusion === 'success') {
+              core.info(`No new commits on ${branch} since ${currentSha} and last nightly was green, skipping scheduled nightly.`);
               return;
             }
 
-            core.info(`Triggering nightly on ${branch} at ${currentSha} (last built: ${lastBuiltSha ?? 'none'}).`);
+            core.info(`Triggering nightly on ${branch} at ${currentSha} (last built: ${lastBuiltSha ?? 'none'}, last conclusion: ${lastConclusion ?? 'none'}).`);
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
