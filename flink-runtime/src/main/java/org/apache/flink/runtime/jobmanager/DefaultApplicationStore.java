@@ -210,7 +210,7 @@ public class DefaultApplicationStore<R extends ResourceVersion<R>> implements Ap
                         success = true;
                     } catch (StateHandleStore.NotExistException ignored) {
                         LOG.warn(
-                                "{} does not exists in {}.",
+                                "{} does not exist in {}.",
                                 application,
                                 applicationStateHandleStore);
                     }

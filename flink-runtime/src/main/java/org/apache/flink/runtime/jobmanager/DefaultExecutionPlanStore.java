@@ -235,7 +235,7 @@ public class DefaultExecutionPlanStore<R extends ResourceVersion<R>>
                         success = true;
                     } catch (StateHandleStore.NotExistException ignored) {
                         LOG.warn(
-                                "{} does not exists in {}.",
+                                "{} does not exist in {}.",
                                 executionPlan,
                                 executionPlanStateHandleStore);
                     }

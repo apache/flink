@@ -83,7 +83,7 @@ public class PbSchemaValidationUtils {
                                 throw new ValidationException(
                                         "Column "
                                                 + rowField.getName()
-                                                + " does not exists in definition of proto class.");
+                                                + " does not exist in definition of proto class.");
                             }
                         });
     }
@@ -160,7 +160,7 @@ public class PbSchemaValidationUtils {
             throw new ValidationException(
                     "Protobuf field type does not match column type, "
                             + fd.getJavaType()
-                            + "(protobuf) is not compatible of "
+                            + "(protobuf) is not compatible with "
                             + logicalTypeRoot);
         }
     }
