@@ -239,6 +239,41 @@ under the License.
 									<pattern>com.fasterxml</pattern>
 									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.com.fasterxml</shadedPattern>
 								</relocation>
+								<!--
+								Manually relocate multi-release classes to the correct shaded package. This is needed
+								due to a bug in the Maven Shade plugin, which only relocates the content but not
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/fasterxml/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/fs/shaded/hadoop3/com/fasterxml/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<!--
+								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
+								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
+								with its relocated base classes. No-op for non-multi-release jars.
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/google/re2j/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/fs/shaded/hadoop3/com/google/re2j/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/apache/htrace/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/fs/shaded/hadoop3/org/apache/htrace/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/codehaus/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/fs/shaded/hadoop3/org/codehaus/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/ctc/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/fs/shaded/hadoop3/com/ctc/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
 								<relocation>
 									<pattern>org.codehaus</pattern>
 									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.codehaus</shadedPattern>
@@ -256,9 +291,18 @@ under the License.
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>META-INF/services/javax.xml.stream.*</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<!-- Drop stale JPMS descriptor; after relocation it points at packages that no longer exist. -->
+										<exclude>META-INF/**/module-info.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
+							<transformers combine.children="append">
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Multi-Release>true</Multi-Release>
+									</manifestEntries>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>

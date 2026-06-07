@@ -220,6 +220,31 @@ under the License.
 									<pattern>META-INF/versions/9/org/yaml/snakeyaml</pattern>
 									<shadedPattern>META-INF/versions/9/org/apache/flink/kubernetes/shaded/org/yaml/snakeyaml</shadedPattern>
 								</relocation>
+								<!--
+								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
+								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
+								with its relocated base classes. No-op for non-multi-release jars.
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/okhttp3/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/kubernetes/shaded/okhttp3/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/okio/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/kubernetes/shaded/okio/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/io/fabric8/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/kubernetes/shaded/io/fabric8/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/snakeyaml/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/kubernetes/shaded/org/snakeyaml/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
@@ -229,6 +254,13 @@ under the License.
 								    <shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
 								</relocation>
 							</relocations>
+							<transformers combine.children="append">
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Multi-Release>true</Multi-Release>
+									</manifestEntries>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
