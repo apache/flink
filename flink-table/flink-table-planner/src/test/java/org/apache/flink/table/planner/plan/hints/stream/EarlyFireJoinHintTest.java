@@ -27,6 +27,8 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
 import scala.Enumeration;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,7 +73,8 @@ class EarlyFireJoinHintTest extends TableTestBase {
                                 + "  a INT,\n"
                                 + "  b VARCHAR\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'values'\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'sink-insert-only' = 'false'\n"
                                 + ")");
     }
 
@@ -213,6 +216,58 @@ class EarlyFireJoinHintTest extends TableTestBase {
     }
 
     @Test
+    void testEarlyFireOuterJoinProducesUpdates() {
+        String sql =
+                "SELECT /*+ EARLY_FIRE('delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
+        verifyChangelogMode(sql);
+    }
+
+    @Test
+    void testEarlyFireOuterJoinIntoInsertOnlySinkFails() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE InsertOnlySink (\n"
+                                + "  a INT,\n"
+                                + "  b VARCHAR\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'sink-insert-only' = 'true'\n"
+                                + ")");
+        String insert =
+                "INSERT INTO InsertOnlySink\n"
+                        + "SELECT /*+ EARLY_FIRE('delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
+        assertThatThrownBy(() -> util.verifyRelPlanInsert(insert))
+                .hasMessageContaining(
+                        "the EARLY_FIRE hint makes this outer interval join produce update");
+    }
+
+    @Test
+    void testEarlyFireNegativeWindowStaysInsertOnly() {
+        String sql =
+                "SELECT /*+ EARLY_FIRE('delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime + INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '5' SECOND";
+        verifyChangelogMode(sql);
+    }
+
+    @Test
+    void testEarlyFireInnerJoinStaysInsertOnly() {
+        String sql =
+                "SELECT /*+ EARLY_FIRE('delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
+        verifyChangelogMode(sql);
+    }
+
+    @Test
     void testEarlyFireJsonPlanRoundTrip() {
         String insert =
                 "INSERT INTO MySink\n"
@@ -230,5 +285,9 @@ class EarlyFireJoinHintTest extends TableTestBase {
                 false,
                 new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_EXEC()},
                 false);
+    }
+
+    private void verifyChangelogMode(String sql) {
+        util.verifyRelPlan(sql, Collections.singletonList(ExplainDetail.CHANGELOG_MODE));
     }
 }

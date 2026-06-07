@@ -362,9 +362,27 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(over, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalPythonOverAggregate =>
-        // TemporalSort, IntervalJoin only support consuming insert-only
+      case intervalJoin: StreamPhysicalIntervalJoin =>
+        // The interval join consumes insert-only input. Without the EARLY_FIRE hint it also only
+        // produces insert-only changes; an early-firing outer join additionally produces update
+        // changes, because it speculatively emits a padded row and later corrects it on a match.
+        val children = visitChildren(intervalJoin, ModifyKindSetTrait.INSERT_ONLY)
+        val builder = ModifyKindSet.newBuilder().addContainedKind(ModifyKind.INSERT)
+        if (intervalJoin.produceEarlyFireUpdates) {
+          builder.addContainedKind(ModifyKind.UPDATE)
+        }
+        val providedTrait = new ModifyKindSetTrait(builder.build())
+        if (intervalJoin.produceEarlyFireUpdates && !providedTrait.satisfies(requiredTrait)) {
+          throw new TableException(
+            s"$requester is insert-only, but the EARLY_FIRE hint makes this outer interval join " +
+              "produce update changes (a padded row is emitted speculatively and later corrected " +
+              "on a match). Remove the EARLY_FIRE hint, or write into a downstream/sink that " +
+              "accepts update changes.")
+        }
+        createNewNode(intervalJoin, children, providedTrait, requiredTrait, requester)
+
+      case _: StreamPhysicalTemporalSort | _: StreamPhysicalPythonOverAggregate =>
+        // TemporalSort and PythonOverAggregate only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
