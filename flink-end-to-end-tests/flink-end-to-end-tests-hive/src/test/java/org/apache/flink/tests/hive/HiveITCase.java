@@ -33,6 +33,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -68,7 +69,8 @@ public class HiveITCase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-    @ClassRule
+    // Testcontainers 2.x containers are no longer JUnit 4 TestRules, so the lifecycle is driven
+    // manually from @BeforeClass/@AfterClass instead of via @ClassRule.
     public static final HiveContainers.HiveContainer HIVE_CONTAINER =
             HiveContainers.createHiveContainer(
                     Arrays.asList("hive_sink1", "hive_sink2", "h_table_sink1", "h_table_sink2"));
@@ -93,8 +95,14 @@ public class HiveITCase extends TestLogger {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
+        HIVE_CONTAINER.start();
         initUDFJar();
         initHiveConfFile();
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        HIVE_CONTAINER.stop();
     }
 
     private static void initUDFJar() throws Exception {

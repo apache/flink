@@ -41,11 +41,11 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
@@ -78,10 +78,10 @@ public class SqlClientITCase {
     public static final Network NETWORK = Network.newNetwork();
 
     @Container
-    public static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
+    public static final ConfluentKafkaContainer KAFKA =
+            new ConfluentKafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
                     .withNetwork(NETWORK)
-                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
+                    .withListener(INTER_CONTAINER_KAFKA_ALIAS + ":19092")
                     .withLogConsumer(LOG_CONSUMER);
 
     public final FlinkContainers flink =
@@ -219,7 +219,7 @@ public class SqlClientITCase {
                         "    'topic' = 'test-json',",
                         "    'properties.bootstrap.servers' = '"
                                 + INTER_CONTAINER_KAFKA_ALIAS
-                                + ":9092',",
+                                + ":19092',",
                         "    'scan.startup.mode' = 'earliest-offset',",
                         "    'format' = 'json',",
                         "    'json.timestamp-format.standard' = 'ISO-8601'",

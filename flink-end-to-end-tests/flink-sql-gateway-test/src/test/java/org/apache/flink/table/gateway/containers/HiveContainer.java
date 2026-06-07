@@ -25,7 +25,6 @@ import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -96,9 +95,9 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
     }
 
     @Override
-    protected void finished(Description description) {
+    protected void containerIsStopping(InspectContainerResponse containerInfo) {
         backupLogs();
-        super.finished(description);
+        super.containerIsStopping(containerInfo);
     }
 
     public String getHiveMetastoreURI() {

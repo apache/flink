@@ -93,7 +93,9 @@ public class SqlGatewayE2ECase extends TestLogger {
     private static final String RESULT_KEY = "$RESULT";
 
     @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
-    @ClassRule public static final HiveContainer HIVE_CONTAINER = new HiveContainer();
+
+    public static final HiveContainer HIVE_CONTAINER = new HiveContainer();
+
     @Rule public final FlinkResource flinkResource = buildFlinkResource();
 
     private static NetUtils.Port hiveserver2Port;
@@ -107,6 +109,7 @@ public class SqlGatewayE2ECase extends TestLogger {
 
     @BeforeClass
     public static void beforeClass() {
+        HIVE_CONTAINER.start();
         ENDPOINT_CONFIG.setString(
                 getPrefixedConfigOptionName(CATALOG_HIVE_CONF_DIR), createHiveConf().getParent());
     }
@@ -115,6 +118,7 @@ public class SqlGatewayE2ECase extends TestLogger {
     public static void afterClass() throws Exception {
         hiveserver2Port.close();
         restPort.close();
+        HIVE_CONTAINER.stop();
     }
 
     @Test
