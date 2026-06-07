@@ -148,7 +148,7 @@ jobs:
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
@@ -224,7 +224,7 @@ jobs:
         run: sudo sysctl -w kernel.core_pattern=core.%p
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
@@ -360,7 +360,7 @@ jobs:
           sudo apt install ./libssl1.0.0_*.deb
 
       - name: "Download build artifacts from compile job"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}
