@@ -79,7 +79,7 @@ import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
-public class ProcessTableFunctionTest extends TableTestBase {
+class ProcessTableFunctionTest extends TableTestBase {
 
     private TableTestUtil util;
 
@@ -119,9 +119,11 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @Test
     void testFunctionWithMultipleTableArgs() {
         util.addTemporarySystemFunction("f", MultiInputFunction.class);
-        util.tableEnv().executeSql("CREATE VIEW v AS SELECT * FROM f("
-                + "in1 => TABLE t PARTITION BY name,"
-                + "in2 => TABLE t PARTITION BY name)");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW v AS SELECT * FROM f("
+                                + "in1 => TABLE t PARTITION BY name,"
+                                + "in2 => TABLE t PARTITION BY name)");
         util.verifyRelPlan("SELECT * FROM v");
     }
 

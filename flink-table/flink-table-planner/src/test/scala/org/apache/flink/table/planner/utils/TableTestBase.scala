@@ -82,7 +82,6 @@ import org.apache.flink.util.jackson.JacksonMapperFactory
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
-import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
@@ -1168,7 +1167,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withDuplicateChanges: Boolean): Unit = {
     val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
 
-    val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
+    val relNodes = testStmtSet.getOperations.asScala.map(getPlanner.translateToRel)
     if (relNodes.isEmpty) {
       throw new TableException(
         "No output table have been created yet. " +
@@ -1523,7 +1522,7 @@ case class StreamTableTestUtil(
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
-    program.getProgramNames.foreach {
+    program.getProgramNames.asScala.foreach {
       name =>
         if (name.equals(firstProgramNameToRemove)) {
           startRemove = true
@@ -1576,7 +1575,7 @@ case class BatchTableTestUtil(
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
-    program.getProgramNames.foreach {
+    program.getProgramNames.asScala.foreach {
       name =>
         if (name.equals(firstProgramNameToRemove)) {
           startRemove = true
@@ -1961,7 +1960,7 @@ object TableTestUtil {
     } else if (file.isHidden) {
       Seq.empty[String]
     } else {
-      Files.readAllLines(Paths.get(file.toURI)).toSeq
+      Files.readAllLines(Paths.get(file.toURI)).asScala
     }
   }
 
