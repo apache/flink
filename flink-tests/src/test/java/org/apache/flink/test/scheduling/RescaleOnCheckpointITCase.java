@@ -39,6 +39,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForAvailableSlots;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForRunningTasks;
@@ -171,6 +173,96 @@ class RescaleOnCheckpointITCase {
                     expectedFreeSlotCount);
             waitForAvailableSlots(restClusterClient, expectedFreeSlotCount);
             LOG.info("{} free slot(s) detected. Finishing test.", expectedFreeSlotCount);
+        } finally {
+            restClusterClient.cancel(jobGraph.getJobID()).join();
+        }
+    }
+
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testRescaleWithActiveCheckpointTrigger(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        final Configuration config = new Configuration();
+        config.set(JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED, true);
+
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(BEFORE_RESCALE_PARALLELISM);
+        env.enableCheckpointing(Duration.ofHours(24).toMillis());
+        env.fromSequence(0, Integer.MAX_VALUE).sinkTo(new DiscardingSink<>());
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        final Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
+        assertThat(jobVertexIterator.hasNext()).isTrue();
+        final JobVertexID jobVertexId = jobVertexIterator.next().getID();
+
+        final JobResourceRequirements jobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(jobVertexId, 1, AFTER_RESCALE_PARALLELISM)
+                        .build();
+
+        restClusterClient.submitJob(jobGraph).join();
+
+        final JobID jobId = jobGraph.getJobID();
+        try {
+            LOG.info(
+                    "Waiting for job {} to reach parallelism of {} for vertex {}.",
+                    jobId,
+                    BEFORE_RESCALE_PARALLELISM,
+                    jobVertexId);
+            waitForRunningTasks(restClusterClient, jobId, BEFORE_RESCALE_PARALLELISM);
+
+            LOG.info(
+                    "Updating job {} resource requirements: parallelism {} -> {}.",
+                    jobId,
+                    BEFORE_RESCALE_PARALLELISM,
+                    AFTER_RESCALE_PARALLELISM);
+            restClusterClient.updateJobResourceRequirements(jobId, jobResourceRequirements).join();
+            LOG.info(
+                    "Waiting for job {} to rescale to parallelism {} via active checkpoint trigger.",
+                    jobId,
+                    AFTER_RESCALE_PARALLELISM);
+            waitForRunningTasks(restClusterClient, jobId, AFTER_RESCALE_PARALLELISM);
+            final int expectedFreeSlotCount = NUMBER_OF_SLOTS - AFTER_RESCALE_PARALLELISM;
+            LOG.info(
+                    "Waiting for {} slot(s) to become available after scale down.",
+                    expectedFreeSlotCount);
+            waitForAvailableSlots(restClusterClient, expectedFreeSlotCount);
+        } finally {
+            restClusterClient.cancel(jobGraph.getJobID()).join();
+        }
+    }
+
+    @Test
+    void testNoRescaleWithoutCheckpointingConfigured(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        final Configuration config = new Configuration();
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(BEFORE_RESCALE_PARALLELISM);
+        env.fromSequence(0, Integer.MAX_VALUE).sinkTo(new DiscardingSink<>());
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        final Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
+        assertThat(jobVertexIterator.hasNext()).isTrue();
+        final JobVertexID jobVertexId = jobVertexIterator.next().getID();
+
+        final JobResourceRequirements jobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(jobVertexId, 1, AFTER_RESCALE_PARALLELISM)
+                        .build();
+        restClusterClient.submitJob(jobGraph).join();
+        final JobID jobId = jobGraph.getJobID();
+        try {
+            waitForRunningTasks(restClusterClient, jobId, BEFORE_RESCALE_PARALLELISM);
+            restClusterClient.updateJobResourceRequirements(jobId, jobResourceRequirements).join();
+            Thread.sleep(REQUIREMENT_UPDATE_TO_CHECKPOINT_GAP.toMillis());
+            waitForRunningTasks(restClusterClient, jobId, BEFORE_RESCALE_PARALLELISM);
+            LOG.info("Verified: job {} did not rescale without checkpointing configured.", jobId);
         } finally {
             restClusterClient.cancel(jobGraph.getJobID()).join();
         }

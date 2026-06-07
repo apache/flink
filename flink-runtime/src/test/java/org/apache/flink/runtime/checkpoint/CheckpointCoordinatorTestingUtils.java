@@ -63,6 +63,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -791,6 +792,8 @@ public class CheckpointCoordinatorTestingUtils {
                         VertexFinishedStateChecker>
                 vertexFinishedStateCheckerFactory = VertexFinishedStateChecker::new;
 
+        private Clock clock = SystemClock.getInstance();
+
         public CheckpointCoordinatorBuilder setCheckpointCoordinatorConfiguration(
                 CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration) {
             this.checkpointCoordinatorConfiguration = checkpointCoordinatorConfiguration;
@@ -870,6 +873,11 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setClock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
         public CheckpointCoordinator build(ScheduledExecutorService executorService)
                 throws Exception {
             return build(
@@ -899,7 +907,7 @@ public class CheckpointCoordinatorTestingUtils {
                     timer,
                     failureManager,
                     checkpointPlanCalculator,
-                    SystemClock.getInstance(),
+                    clock,
                     checkpointStatsTracker,
                     vertexFinishedStateCheckerFactory);
         }
