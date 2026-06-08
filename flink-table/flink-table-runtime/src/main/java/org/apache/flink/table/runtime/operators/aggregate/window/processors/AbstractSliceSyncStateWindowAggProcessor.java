@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
@@ -106,9 +107,16 @@ public abstract class AbstractSliceSyncStateWindowAggProcessor
             long lastWindowEnd = sliceAssigner.getLastWindowEnd(sliceEnd);
             if (isWindowFired(lastWindowEnd, currentProgress, shiftTimeZone)) {
                 // the last window has been triggered, so the element can be dropped now
+                Flink39481Diag.log(
+                        "SliceProcessor.processElement DROP key={} sliceEnd={} lastWindowEnd={} currentProgress={}",
+                        key,
+                        sliceEnd,
+                        lastWindowEnd,
+                        currentProgress);
                 return true;
             } else {
-                windowBuffer.addElement(key, sliceStateMergeTarget(sliceEnd), element);
+                long mergeTarget = sliceStateMergeTarget(sliceEnd);
+                windowBuffer.addElement(key, mergeTarget, element);
                 // we need to register a timer for the next unfired window,
                 // because this may the first time we see elements under the key
                 long unfiredFirstWindow = sliceEnd;
@@ -116,11 +124,26 @@ public abstract class AbstractSliceSyncStateWindowAggProcessor
                     unfiredFirstWindow += windowInterval;
                 }
                 windowTimerService.registerEventTimeWindowTimer(unfiredFirstWindow);
+                Flink39481Diag.log(
+                        "SliceProcessor.processElement LATE-BUT-KEPT key={} sliceEnd={} mergeTarget={} currentProgress={} registeredTimer={}",
+                        key,
+                        sliceEnd,
+                        mergeTarget,
+                        currentProgress,
+                        unfiredFirstWindow);
                 return false;
             }
         } else {
             // the assigned slice hasn't been triggered, accumulate into the assigned slice
             windowBuffer.addElement(key, sliceEnd, element);
+            if (Flink39481Diag.on()) {
+                Flink39481Diag.log(
+                        "SliceProcessor.processElement BUFFER key={} sliceEnd={} currentProgress={} isEventTime={}",
+                        key,
+                        sliceEnd,
+                        currentProgress,
+                        isEventTime);
+            }
             return false;
         }
     }
@@ -138,6 +161,13 @@ public abstract class AbstractSliceSyncStateWindowAggProcessor
     @Override
     public void advanceProgress(long progress) throws Exception {
         if (progress > currentProgress) {
+            Flink39481Diag.log(
+                    "SliceProcessor.advanceProgress {} -> {} (isMax={}) nextTriggerProgress={} willFlush={}",
+                    currentProgress,
+                    progress,
+                    progress == Long.MAX_VALUE,
+                    nextTriggerProgress,
+                    progress >= nextTriggerProgress);
             currentProgress = progress;
             if (currentProgress >= nextTriggerProgress) {
                 // in order to buffer as much as possible data, we only need to call

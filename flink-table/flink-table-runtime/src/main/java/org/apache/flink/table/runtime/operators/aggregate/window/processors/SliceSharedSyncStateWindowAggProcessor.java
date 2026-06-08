@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 
@@ -66,7 +67,8 @@ public final class SliceSharedSyncStateWindowAggProcessor
         sliceSharedAssigner.mergeSlices(windowEnd, this);
         // we have set accumulator in the merge() method
         RowData aggResult = aggregator.getValue(windowEnd);
-        if (!emptySupplier.get()) {
+        boolean empty = emptySupplier.get();
+        if (!empty) {
             // if the triggered window is an empty window, we shouldn't emit it
             collect(aggResult);
         }
@@ -82,6 +84,18 @@ public final class SliceSharedSyncStateWindowAggProcessor
             } else {
                 windowTimerService.registerProcessingTimeWindowTimer(nextWindowEnd);
             }
+            Flink39481Diag.log(
+                    "SliceSharedProcessor.fireWindow windowEnd={} timerTs={} emitted={} -> registeredNextWindow={}",
+                    windowEnd,
+                    timerTimestamp,
+                    !empty,
+                    nextWindowEnd);
+        } else {
+            Flink39481Diag.log(
+                    "SliceSharedProcessor.fireWindow windowEnd={} timerTs={} emitted={} -> NO-next-window (chain ends)",
+                    windowEnd,
+                    timerTimestamp,
+                    !empty);
         }
     }
 

@@ -25,6 +25,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.state.StateKeyContext;
@@ -80,6 +81,7 @@ public class AggCombiner implements RecordsCombiner {
         // step 1: get the accumulator for the current key and window
         Long window = windowKey.getWindow();
         RowData acc = accState.value(window);
+        boolean accWasPresent = acc != null;
         if (acc == null) {
             acc = aggregator.createAccumulators();
         }
@@ -106,8 +108,24 @@ public class AggCombiner implements RecordsCombiner {
             long currentWatermark = timerService.currentWatermark();
             ZoneId shiftTimeZone = timerService.getShiftTimeZone();
             // the registered window timer should hasn't been triggered
-            if (!isWindowFired(window, currentWatermark, shiftTimeZone)) {
+            boolean fired = isWindowFired(window, currentWatermark, shiftTimeZone);
+            if (!fired) {
                 timerService.registerEventTimeWindowTimer(window);
+                Flink39481Diag.log(
+                        "AggCombiner.combine REGISTER-TIMER key={} window={} accWasPresent={} currentWatermark={}",
+                        windowKey.getKey(),
+                        window,
+                        accWasPresent,
+                        currentWatermark);
+            } else {
+                // SUSPECT PATH: window has a (possibly pending) accumulator but its firing timer
+                // is skipped because the timer-service watermark is already past the window end.
+                Flink39481Diag.log(
+                        "AggCombiner.combine SKIP-TIMER (window already fired) key={} window={} accWasPresent={} currentWatermark={}",
+                        windowKey.getKey(),
+                        window,
+                        accWasPresent,
+                        currentWatermark);
             }
         }
         // we don't need register processing-time timer, because we already register them

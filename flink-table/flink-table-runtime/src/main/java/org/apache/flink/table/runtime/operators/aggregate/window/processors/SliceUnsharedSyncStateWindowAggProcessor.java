@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
 
 import java.time.ZoneId;
@@ -53,16 +54,27 @@ public final class SliceUnsharedSyncStateWindowAggProcessor
     @Override
     public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         RowData acc = windowState.value(windowEnd);
+        boolean accWasPresent = acc != null;
         if (acc == null) {
             acc = aggregator.createAccumulators();
         }
         aggregator.setAccumulators(windowEnd, acc);
         // the triggered window is an empty window, we shouldn't emit it
         if (emptySupplier.get()) {
+            Flink39481Diag.log(
+                    "SliceUnsharedProcessor.fireWindow windowEnd={} timerTs={} EMPTY-not-emitted accWasPresent={}",
+                    windowEnd,
+                    timerTimestamp,
+                    accWasPresent);
             return;
         }
         RowData aggResult = aggregator.getValue(windowEnd);
         collect(aggResult);
+        Flink39481Diag.log(
+                "SliceUnsharedProcessor.fireWindow windowEnd={} timerTs={} EMITTED accWasPresent={}",
+                windowEnd,
+                timerTimestamp,
+                accWasPresent);
     }
 
     @Override

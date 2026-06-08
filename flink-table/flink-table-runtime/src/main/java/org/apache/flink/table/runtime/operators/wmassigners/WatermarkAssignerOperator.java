@@ -31,6 +31,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -121,6 +122,13 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
         FunctionUtils.setFunctionRuntimeContext(watermarkGenerator, getRuntimeContext());
         FunctionUtils.openFunction(watermarkGenerator, DefaultOpenContext.INSTANCE);
+
+        Flink39481Diag.log(
+                "WatermarkAssignerOperator.open subtask={}/{} RESET currentWatermark={} watermarkInterval={} (watermark state is NOT checkpointed; re-derived from replayed elements)",
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                currentWatermark,
+                watermarkInterval);
     }
 
     @Override
@@ -158,6 +166,12 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
             lastWatermark = currentWatermark;
             // emit watermark
             output.emitWatermark(new Watermark(currentWatermark));
+            if (Flink39481Diag.on()) {
+                Flink39481Diag.log(
+                        "WatermarkAssignerOperator.advanceWatermark subtask={} EMIT watermark={}",
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        currentWatermark);
+            }
         }
     }
 
@@ -204,6 +218,9 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
             }
             currentWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
+            Flink39481Diag.log(
+                    "WatermarkAssignerOperator.processWatermark subtask={} FORWARD MAX_WATERMARK (end of input)",
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
     }
 

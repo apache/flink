@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
@@ -135,6 +136,15 @@ public class FailingCollectionSource<T>
                     getClass().getSimpleName() + " retrieved invalid state.");
 
             this.numElementsToSkip = retrievedStates.get(0);
+            Flink39481Diag.log(
+                    "FailingCollectionSource.initializeState RESTORE numElementsToSkip={} (totalElements={})",
+                    numElementsToSkip,
+                    numElements);
+        } else {
+            Flink39481Diag.log(
+                    "FailingCollectionSource.initializeState FRESH (totalElements={} failureAfterNumElements={})",
+                    numElements,
+                    failureAfterNumElements);
         }
     }
 
@@ -161,6 +171,12 @@ public class FailingCollectionSource<T>
 
             this.numElementsEmitted = this.numElementsToSkip;
         }
+        Flink39481Diag.log(
+                "FailingCollectionSource.run START failedBefore={} numElementsEmitted={} numElements={} failureAfterNumElements={}",
+                failedBefore,
+                numElementsEmitted,
+                numElements,
+                failureAfterNumElements);
 
         while (isRunning && numElementsEmitted < numElements) {
             if (!failedBefore) {
@@ -170,6 +186,11 @@ public class FailingCollectionSource<T>
                     // cause a failure if we have not failed before and have a completed checkpoint
                     // and have processed at least one element
                     failedBefore = true;
+                    Flink39481Diag.log(
+                            "FailingCollectionSource.run THROW Artificial Failure at numElementsEmitted={} lastCheckpointedEmittedNum={} numSuccessfulCheckpoints={}",
+                            numElementsEmitted,
+                            lastCheckpointedEmittedNum,
+                            numSuccessfulCheckpoints);
                     throw new Exception("Artificial Failure");
                 }
             }
@@ -190,6 +211,13 @@ public class FailingCollectionSource<T>
                 synchronized (ctx.getCheckpointLock()) {
                     ctx.collect(next);
                     numElementsEmitted++;
+                    if (Flink39481Diag.on()) {
+                        Flink39481Diag.log(
+                                "FailingCollectionSource.run EMIT index={} failedBefore={} element={}",
+                                numElementsEmitted - 1,
+                                failedBefore,
+                                next);
+                    }
                 }
             } else {
                 // if our work is done, delay a bit to prevent busy waiting
@@ -234,12 +262,21 @@ public class FailingCollectionSource<T>
         this.checkpointedState.update(Collections.singletonList(this.numElementsEmitted));
         long checkpointId = context.getCheckpointId();
         checkpointedEmittedNums.put(checkpointId, numElementsEmitted);
+        Flink39481Diag.log(
+                "FailingCollectionSource.snapshotState checkpointId={} numElementsEmitted={}",
+                checkpointId,
+                numElementsEmitted);
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         numSuccessfulCheckpoints++;
         lastCheckpointedEmittedNum = checkpointedEmittedNums.get(checkpointId);
+        Flink39481Diag.log(
+                "FailingCollectionSource.notifyCheckpointComplete checkpointId={} lastCheckpointedEmittedNum={} numSuccessfulCheckpoints={}",
+                checkpointId,
+                lastCheckpointedEmittedNum,
+                numSuccessfulCheckpoints);
     }
 
     @Override

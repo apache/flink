@@ -43,10 +43,13 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingSyncStateWindowProcessor;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -160,6 +163,14 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         // initialize watermark
         windowProcessor.initializeWatermark(currentWatermark);
 
+        Flink39481Diag.log(
+                "WindowAggOperator.open subtask={}/{} isEventTime={} restoredCurrentWatermark={} timerServiceWatermark={}",
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                isEventTime,
+                currentWatermark,
+                internalTimerService.currentWatermark());
+
         // metrics
         this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
         this.lateRecordsDroppedRate =
@@ -189,13 +200,21 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
             Iterable<Long> watermarks = watermarkState.get();
             if (watermarks != null) {
                 long minWatermark = Long.MAX_VALUE;
+                List<Long> seenWatermarks = new ArrayList<>();
                 for (Long watermark : watermarks) {
+                    seenWatermarks.add(watermark);
                     minWatermark = Math.min(watermark, minWatermark);
                 }
                 if (minWatermark != Long.MAX_VALUE) {
                     this.currentWatermark = minWatermark;
                 }
+                Flink39481Diag.log(
+                        "WindowAggOperator.initializeState RESTORE unionListWatermarks={} -> minChosen={} (subtask resolves in open)",
+                        seenWatermarks,
+                        currentWatermark);
             }
+        } else {
+            Flink39481Diag.log("WindowAggOperator.initializeState FRESH (not restored)");
         }
     }
 
@@ -203,6 +222,12 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
         this.watermarkState.update(Collections.singletonList(currentWatermark));
+        Flink39481Diag.log(
+                "WindowAggOperator.snapshotState subtask={} checkpointId={} snapshottedCurrentWatermark={} timerServiceWatermark={}",
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                context.getCheckpointId(),
+                currentWatermark,
+                internalTimerService.currentWatermark());
     }
 
     @Override
@@ -220,11 +245,25 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         if (isElementDropped) {
             // markEvent will increase numLateRecordsDropped
             lateRecordsDroppedRate.markEvent();
+            Flink39481Diag.log(
+                    "WindowAggOperator.processElement DROPPED-AS-LATE subtask={} key={} currentWatermark={}",
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                    currentKey,
+                    currentWatermark);
         }
     }
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
+        if (Flink39481Diag.on()) {
+            Flink39481Diag.log(
+                    "WindowAggOperator.processWatermark subtask={} incomingMark={} (isMax={}) oldCurrentWatermark={} isEventTime={}",
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                    mark.getTimestamp(),
+                    mark.getTimestamp() == Long.MAX_VALUE,
+                    currentWatermark,
+                    isEventTime);
+        }
         if (mark.getTimestamp() > currentWatermark) {
             // If this is a proctime window, progress should not be advanced by watermark, or it'll
             // disturb timer-based processing
@@ -258,6 +297,13 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     private void onTimer(InternalTimer<K, W> timer) throws Exception {
         setCurrentKey(timer.getKey());
         W window = timer.getNamespace();
+        Flink39481Diag.log(
+                "WindowAggOperator.onTimer FIRE subtask={} key={} window={} timerTs={} currentWatermark={}",
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                timer.getKey(),
+                window,
+                timer.getTimestamp(),
+                currentWatermark);
         windowProcessor.fireWindow(timer.getTimestamp(), window);
         windowProcessor.clearWindow(timer.getTimestamp(), window);
         // we don't need to clear window timers,

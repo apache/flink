@@ -28,6 +28,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.window.Flink39481Diag;
 import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 
@@ -117,6 +118,14 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         if (mark.getTimestamp() > currentWatermark) {
+            Flink39481Diag.log(
+                    "LocalSlicingWindowAggOperator.processWatermark subtask={} {} -> {} (isMax={}) nextTrigger={} willFlush={}",
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                    currentWatermark,
+                    mark.getTimestamp(),
+                    mark.getTimestamp() == Long.MAX_VALUE,
+                    nextTriggerWatermark,
+                    mark.getTimestamp() >= nextTriggerWatermark);
             currentWatermark = mark.getTimestamp();
             if (currentWatermark >= nextTriggerWatermark) {
                 // we only need to call advanceProgress() when current watermark may trigger window
@@ -131,6 +140,11 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        Flink39481Diag.log(
+                "LocalSlicingWindowAggOperator.prepareSnapshotPreBarrier subtask={} checkpointId={} FLUSH-local-buffer currentWatermark={}",
+                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                checkpointId,
+                currentWatermark);
         windowBuffer.flush();
     }
 
