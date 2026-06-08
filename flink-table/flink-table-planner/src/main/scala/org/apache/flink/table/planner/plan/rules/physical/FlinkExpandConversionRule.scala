@@ -90,6 +90,9 @@ class FlinkExpandConversionRule(flinkConvention: Convention)
             // collation. So it is necessary to check whether collation satisfy requirement.
             val requiredCollation = requiredTraits.getTrait(RelCollationTraitDef.INSTANCE)
             val finalRel = satisfyCollation(flinkConvention, newRel, requiredCollation)
+            if (finalRel == null) {
+              return
+            }
             checkSatisfyRequiredTrait(finalRel, requiredTraits)
             call.transformTo(finalRel)
           case _ => // do nothing
@@ -160,6 +163,9 @@ object FlinkExpandConversionRule {
       val isValidCollation =
         requiredCollation.getFieldCollations.asScala.forall(_.getFieldIndex < fieldCount)
       if (!isValidCollation) {
+        // An out-of-bounds collation index can never be satisfied by sorting the current node's
+        // row type since the field does not exist, so skipping this path cannot cause a
+        // CannotPlanException for any valid query.
         return null
       }
       val traitSet = node.getTraitSet.replace(requiredCollation).replace(flinkConvention)
