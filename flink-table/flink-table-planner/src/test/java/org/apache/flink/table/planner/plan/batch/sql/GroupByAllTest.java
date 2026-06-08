@@ -12,7 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * imitations under the License.
+ * limitations under the License.
  */
 
 package org.apache.flink.table.planner.plan.batch.sql;
@@ -23,105 +23,89 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/* Tests for the {@code GROUP BY ALL} clause. */
+/** Tests for the {@code GROUP BY ALL} clause. */
 class GroupByAllTest {
 
-    // TODO: test non aggregated only columns
-    
-    @Test
-    void testGroupByAllByNonAggregateColumns() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
+    private TableEnvironment tEnv;
 
-        final List<Row> actual = 
-                CollectionUtil.iteratorToList(
-                    tEnv.executeSql(
-                            "SELECT city, COUNT(*) AS cnt "
-                                    + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
-                                    + "GROUP BY ALL")
-                            .collect()
-                    );
-        assertThat(actual).containsExactlyInAnyOrder(Row.of("Beijing", 2L), Row.of("Shanghai", 1L));
+    @BeforeEach
+    void setUp() {
+        // Batch mode: these assert final, non-updating results over bounded
+        // VALUES inputs. Streaming coverage is tracked separately.
+        tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
+    }
+
+    static Stream<Arguments> groupByAllQueries() {
+        return Stream.of(
+                Arguments.of(
+                        "groups by non-aggregated columns",
+                        "SELECT city, COUNT(*) AS cnt "
+                                + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                                + "GROUP BY ALL",
+                        new Row[] {Row.of("Beijing", 2L), Row.of("Shanghai", 1L)}),
+                Arguments.of(
+                        "only aggregates produce one global group",
+                        "SELECT COUNT(*) AS cnt "
+                                + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                                + "GROUP BY ALL",
+                        new Row[] {Row.of(3L)}),
+                Arguments.of(
+                        "groups by a whole expression",
+                        "SELECT a + b AS s, COUNT(*) AS cnt "
+                                + "FROM (VALUES (1, 2), (3, 4), (1, 2)) AS t(a, b) "
+                                + "GROUP BY ALL",
+                        new Row[] {Row.of(3, 2L), Row.of(7, 1L)}),
+                Arguments.of(
+                        "excludes window functions from grouping",
+                        "SELECT city, ROW_NUMBER() OVER (ORDER BY city) AS rn "
+                                + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                                + "GROUP BY ALL",
+                        new Row[] {Row.of("Beijing", 1L), Row.of("Shanghai", 2L)}));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("groupByAllQueries")
+    void testGroupByAll(String description, String sql, Row[] expected) {
+        final List<Row> actual =
+                CollectionUtil.iteratorToList(tEnv.executeSql(sql).collect());
+        assertThat(actual).containsExactlyInAnyOrder(expected);
     }
 
     @Test
-    void testGroupByAllDisabledByDefault() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-
+    void testGroupByAllDisabledThrows() {
+        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, false);
         assertThatThrownBy(
-                        () -> tEnv.executeSql(
-                                "SELECT city, COUNT(*) AS cnt "
-                                        + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
-                                        + "GROUP BY ALL")
-                                .collect())
+                        () ->
+                                tEnv.executeSql(
+                                                "SELECT city, COUNT(*) AS cnt "
+                                                        + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                                                        + "GROUP BY ALL")
+                                        .collect())
                 .hasMessageContaining("GROUP BY ALL is not enabled");
     }
 
     @Test
-    void testGroupByAllWithOnlyAggregates() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
-
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(
-                        tEnv.executeSql(
-                                        "SELECT COUNT(*) AS cnt "
-                                                + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
-                                                + "GROUP BY ALL")
-                                .collect());
-        assertThat(actual).containsExactly(Row.of(3L));
-    }
-
-    @Test
-    void testGroupByAllGroupsByWholeExpression() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
-
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(
-                        tEnv.executeSql(
-                                        "SELECT a + b AS s, COUNT(*) AS cnt "
-                                                + "FROM (VALUES (1, 2), (3, 4), (1, 2)) AS t(a, b) "
-                                                + "GROUP BY ALL")
-                                .collect());
-        assertThat(actual)
-                .containsExactlyInAnyOrder(
-                        Row.of(3,2L), Row.of(7,1L));
-    }
-
-    @Test
-    void testGroupByAllExcludesWindowFunctions() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
-
-        final List<Row> actual =
-                 CollectionUtil.iteratorToList(
-                         tEnv.executeSql(
-                                         "SELECT city, ROW_NUMBER() OVER (ORDER BY city) AS rn "
-                                                 + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
-                                                 + "GROUP BY ALL")
-                                 .collect());
-        assertThat(actual).containsExactlyInAnyOrder(Row.of("Beijing", 1L), Row.of("Shanghai", 2L));
-    }
-
-    @Test
     void testGroupByAllErrorsOnBareColumnInsideAggregateExpression() {
-        final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, true);
-
         assertThatThrownBy(
-                        () -> tEnv.executeSql(
-                                        "SELECT a + COUNT(*) "
-                                                + "FROM (VALUES (1), (2)) AS t(a) "
-                                                + "GROUP BY ALL")
-                                .collect())
+                        () ->
+                                tEnv.executeSql(
+                                                "SELECT a + COUNT(*) "
+                                                        + "FROM (VALUES (1), (2)) AS t(a) "
+                                                        + "GROUP BY ALL")
+                                        .collect())
                 .hasMessageContaining("not being grouped");
     }
 }
