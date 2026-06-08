@@ -431,7 +431,12 @@ public class RemoteInputChannel extends InputChannel {
     @VisibleForTesting
     public Buffer getNextReceivedBuffer() {
         final SequenceBuffer sequenceBuffer = receivedBuffers.poll();
-        return sequenceBuffer != null ? sequenceBuffer.buffer : null;
+        if (sequenceBuffer != null) {
+            totalQueueSizeInBytes -= sequenceBuffer.buffer.getSize();
+            return sequenceBuffer.buffer;
+        } else {
+            return null;
+        }
     }
 
     @VisibleForTesting
