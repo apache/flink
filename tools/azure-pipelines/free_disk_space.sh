@@ -17,13 +17,18 @@
 
 #
 # The Azure provided machines typically have the following disk allocation:
-# Total space: 85GB
-# Allocated: 67 GB
-# Free: 17 GB
-# This script frees up 28 GB of disk space by deleting unneeded packages and 
+# Total space: 72GB
+# Allocated: 56 GB
+# Free: 16 GB
+# This script frees up roughly 34 GB of disk space (leaving ~50 GB free) by
+# deleting unneeded packages, language toolchains, preloaded Docker images and
 # large directories.
 # The Flink end to end tests download and generate more than 17 GB of files,
 # causing unpredictable behavior and build failures.
+#
+# Note: the Python hosted tool cache (/opt/hostedtoolcache/Python) and the JDKs
+# under /usr/lib/jvm are intentionally preserved, because downstream pipeline
+# steps rely on them (UsePythonVersion task and the JAVA_HOME_<jdk>_X64 vars).
 #
 echo "=============================================================================="
 echo "Freeing up disk space on CI system"
@@ -51,4 +56,27 @@ sudo rm -rf /usr/local/share/powershell
 sudo rm -rf /usr/local/share/chromium
 sudo rm -rf /usr/local/lib/android
 sudo rm -rf /usr/local/lib/node_modules
+
+# Remove large hosted tool caches that are unused by a Flink Java/e2e build.
+# Keep /opt/hostedtoolcache/Python: the e2e job's UsePythonVersion task runs
+# after this script and relies on the pre-provisioned Python tool cache.
+sudo rm -rf /opt/hostedtoolcache/CodeQL
+sudo rm -rf /opt/hostedtoolcache/go
+sudo rm -rf /opt/hostedtoolcache/node
+sudo rm -rf /opt/hostedtoolcache/Ruby
+sudo rm -rf /opt/hostedtoolcache/PyPy
+
+# Remove other large language/SDK directories not needed by the build.
+sudo rm -rf /usr/share/swift
+sudo rm -rf /usr/share/miniconda
+sudo rm -rf /opt/microsoft
+sudo rm -rf /opt/ghc
+df -h
+
+echo "Pruning preloaded Docker images"
+# Flink restores its cached testcontainers images later in the pipeline, so the
+# preloaded base images shipped with the runner image can be removed here.
+if command -v docker >/dev/null 2>&1; then
+  sudo docker image prune --all --force || true
+fi
 df -h
