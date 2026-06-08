@@ -136,14 +136,6 @@ public abstract class AbstractSliceSyncStateWindowAggProcessor
         } else {
             // the assigned slice hasn't been triggered, accumulate into the assigned slice
             windowBuffer.addElement(key, sliceEnd, element);
-            if (Flink39481Diag.on()) {
-                Flink39481Diag.log(
-                        "SliceProcessor.processElement BUFFER key={} sliceEnd={} currentProgress={} isEventTime={}",
-                        key,
-                        sliceEnd,
-                        currentProgress,
-                        isEventTime);
-            }
             return false;
         }
     }

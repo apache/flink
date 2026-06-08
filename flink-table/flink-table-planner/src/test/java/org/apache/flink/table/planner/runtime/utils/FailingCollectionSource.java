@@ -211,13 +211,6 @@ public class FailingCollectionSource<T>
                 synchronized (ctx.getCheckpointLock()) {
                     ctx.collect(next);
                     numElementsEmitted++;
-                    if (Flink39481Diag.on()) {
-                        Flink39481Diag.log(
-                                "FailingCollectionSource.run EMIT index={} failedBefore={} element={}",
-                                numElementsEmitted - 1,
-                                failedBefore,
-                                next);
-                    }
                 }
             } else {
                 // if our work is done, delay a bit to prevent busy waiting
