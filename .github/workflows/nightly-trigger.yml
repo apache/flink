@@ -21,6 +21,7 @@ name: "Nightly trigger (beta)"
 on:
   schedule:
     - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   Trigger:
@@ -40,9 +41,43 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.actions.createWorkflowDispatch({
+            const branch = '${{ matrix.branch }}';
+
+            // Resolve the current HEAD of the branch.
+            const { data: branchData } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: branch
+            });
+            const currentSha = branchData.commit.sha;
+
+            // Compare SHA from last nightly against current
+            // if it is same, then no need to run nightly for the same SHA again.
+            const { data: runsData } = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'nightly.yml',
-              ref: '${{ matrix.branch }}'
-            })
+              branch: branch,
+              per_page: 1
+            });
+            
+            const lastRun = runsData.workflow_runs[0];
+            const lastBuiltSha = lastRun?.head_sha;
+            const lastConclusion = lastRun?.conclusion;
+
+            // Skip the scheduled run only if there are no new commits AND the
+            // previous nightly was green. If the last run failed/was cancelled,
+            // re-run even without new commits so failures get retried.
+            // It is still possible to run manually even if the last one was green and no new commits.
+            if (context.eventName === 'schedule' && lastBuiltSha === currentSha && lastConclusion === 'success') {
+              core.info(`No new commits on ${branch} since ${currentSha} and last nightly was green, skipping scheduled nightly.`);
+              return;
+            }
+
+            core.info(`Triggering nightly on ${branch} at ${currentSha} (last built: ${lastBuiltSha ?? 'none'}, last conclusion: ${lastConclusion ?? 'none'}).`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'nightly.yml',
+              ref: branch
+            });
