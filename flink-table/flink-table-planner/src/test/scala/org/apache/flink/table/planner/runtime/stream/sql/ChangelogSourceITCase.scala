@@ -20,19 +20,20 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.{Row, RowKind}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
@@ -441,187 +442,357 @@ class ChangelogSourceITCase(
     }
   }
 
+  private def registerValuesSource(
+      name: String,
+      columns: String,
+      rows: Seq[Row],
+      changelogMode: String,
+      extraOptions: Map[String, String] = Map.empty): Unit = {
+    val dataId = TestValuesTableFactory.registerData(rows)
+    val withOptions = Map(
+      "connector" -> "values",
+      "data-id" -> dataId,
+      "changelog-mode" -> changelogMode) ++ extraOptions
+    tEnv.executeSql(s"CREATE TABLE $name ($columns) WITH (${renderOptions(withOptions)})")
+  }
+
+  private def registerValuesSink(name: String, columns: String): Unit = {
+    val withOptions = Map(
+      "connector" -> "values",
+      "sink-insert-only" -> "false",
+      "sink-changelog-mode-enforced" -> "I,UA,D")
+    tEnv.executeSql(s"CREATE TABLE $name ($columns) WITH (${renderOptions(withOptions)})")
+  }
+
+  private def renderOptions(options: Map[String, String]): String =
+    options.map { case (k, v) => s"'$k' = '$v'" }.mkString(", ")
+
+  private def assertSinkEmpty(sinkName: String): Unit =
+    assertSinkContains(sinkName, List.empty)
+
+  private def assertSinkContains(sinkName: String, expected: List[String]): Unit =
+    assertThat(TestValuesTableFactory.getResultsAsStrings(sinkName).sorted)
+      .isEqualTo(expected.sorted)
+
   @TestTemplate
   def testFilterPushedDownOnNonUpsertKey(): Unit = {
-    // FLINK-38579: Filter pushed down to source on non-upsert key should require UPDATE_BEFORE
-
-    val testDataId = TestValuesTableFactory.registerData(
+    registerValuesSource(
+      "t",
+      "a int primary key not enforced, b varchar, c int",
       Seq(
         changelogRow("+I", Int.box(1), "tom", Int.box(1)),
         changelogRow("-U", Int.box(1), "tom", Int.box(1)),
-        changelogRow("+U", Int.box(1), "tom", Int.box(2))
-      ))
-    tEnv.executeSql(s"""
-                       |CREATE TABLE t (
-                       |  a int primary key not enforced,
-                       |  b varchar,
-                       |  c int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$testDataId',
-                       |  'changelog-mode' = 'I,UA,UB,D',
-                       |  'filterable-fields' = 'c'
-                       |)
-                       |""".stripMargin)
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE s (
-                       |  a int primary key not enforced,
-                       |  b varchar,
-                       |  c int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'sink-insert-only' = 'false',
-                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
-                       |)
-                       |""".stripMargin)
-
-    // CDC duplicate + MiniBatch is incompatible: ChangelogNormalize (needed for CDC deduplication)
-    // requires ONLY_UPDATE_AFTER at the source level, but filter on non-upsert key requires UPDATE_BEFORE
-    if (sourceMode == CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE && miniBatch == MiniBatchOn) {
-      assertThatThrownBy(() => tEnv.executeSql("insert into s select * from t where c < 2"))
-        .isInstanceOf(classOf[org.apache.flink.table.api.TableException])
-        .hasMessageContaining("Can't generate a valid execution plan")
-      return
-    }
+        changelogRow("+U", Int.box(1), "tom", Int.box(2))),
+      "I,UA,UB,D",
+      Map("filterable-fields" -> "c")
+    )
+    registerValuesSink("s", "a int primary key not enforced, b varchar, c int")
 
     tEnv.executeSql("insert into s select * from t where c < 2").await()
-
-    // The result should be empty because:
-    // - Filter c < 2 matches only c=1
-    // - The record (1,tom,1) was inserted (+I) then deleted (-U)
-    // - With the fix, UPDATE_BEFORE is preserved and correctly deletes the record
-    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,tom,1) in the result
-    val expected = List[String]()
-    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
+    assertSinkEmpty("s")
   }
 
   @TestTemplate
-  def testJoinWithNonEquivConditionOnNonUpsertKey(): Unit = {
-    // FLINK-38579: Join with non-equiv condition on non-upsert key should require UPDATE_BEFORE
+  def testFilterAndProjectPushedDownOnNonUpsertKey(): Unit = {
+    // Sink reorders to (b, c, a) so the PK lands at projected index 2, exercising the remap.
+    registerValuesSource(
+      "t",
+      "a int primary key not enforced, b varchar, c int",
+      Seq(
+        changelogRow("+I", Int.box(1), "tom", Int.box(1)),
+        changelogRow("-U", Int.box(1), "tom", Int.box(1)),
+        changelogRow("+U", Int.box(1), "tom", Int.box(2))),
+      "I,UA,UB,D",
+      Map("filterable-fields" -> "c")
+    )
+    registerValuesSink("s", "b varchar, c int, a int primary key not enforced")
 
-    val t1DataId = TestValuesTableFactory.registerData(
+    tEnv.executeSql("insert into s select b, c, a from t where c < 2").await()
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testFilterOnUpsertKeyAndProjectPushedDown(): Unit = {
+    // Filter on PK + reordering projection — remap resolves filter ref to PK in projected
+    // coords so UB drop is allowed and the upsert sink converges on the latest +U row.
+    registerValuesSource(
+      "t",
+      "a int primary key not enforced, b varchar, c int",
+      Seq(
+        changelogRow("+I", Int.box(1), "tom", Int.box(10)),
+        changelogRow("-U", Int.box(1), "tom", Int.box(10)),
+        changelogRow("+U", Int.box(1), "tom", Int.box(20))),
+      "I,UA,UB,D",
+      Map("filterable-fields" -> "a")
+    )
+    registerValuesSink("s", "b varchar, c int, a int primary key not enforced")
+
+    tEnv.executeSql("insert into s select b, c, a from t where a > 0").await()
+    assertSinkContains("s", List("tom,20,1"))
+  }
+
+  @TestTemplate
+  def testJoinWithNonEquiConditionOnLeftNonUpsertKey(): Unit = {
+    registerValuesSource(
+      "t1",
+      "pk int primary key not enforced, val int",
       Seq(
         changelogRow("+I", Int.box(1), Int.box(10)),
         changelogRow("-U", Int.box(1), Int.box(10)),
-        changelogRow("+U", Int.box(1), Int.box(20))
-      ))
-    val t2DataId = TestValuesTableFactory.registerData(
-      Seq(
-        changelogRow("+I", Int.box(1), Int.box(100))
-      ))
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE t1 (
-                       |  pk int primary key not enforced,
-                       |  val int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$t1DataId',
-                       |  'changelog-mode' = 'I,UA,UB,D'
-                       |)
-                       |""".stripMargin)
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE t2 (
-                       |  pk int primary key not enforced,
-                       |  val int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$t2DataId',
-                       |  'changelog-mode' = 'I'
-                       |)
-                       |""".stripMargin)
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE s (
-                       |  pk1 int,
-                       |  val1 int,
-                       |  pk2 int,
-                       |  val2 int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'sink-insert-only' = 'false',
-                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
-                       |)
-                       |""".stripMargin)
+        changelogRow("+U", Int.box(1), Int.box(20))),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "t2",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(100))),
+      "I")
+    registerValuesSink("s", "pk1 int, val1 int, pk2 int, val2 int")
 
     tEnv
       .executeSql("insert into s select * from t1 join t2 on t1.pk = t2.pk and t1.val < 15")
       .await()
-
-    // The result should be empty because:
-    // - Non-equiv condition t1.val < 15 matched (1, 10)
-    // - But (1, 10) was deleted by -U
-    // - With the fix, UPDATE_BEFORE is preserved and correctly deletes the joined record
-    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,10,1,100) in result
-    val expected = List[String]()
-    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
+    assertSinkEmpty("s")
   }
 
   @TestTemplate
-  def testJoinWithNonEquivConditionOnRightNonUpsertKey(): Unit = {
-    // FLINK-38579: Test that non-equi condition on RIGHT side non-upsert key is correctly detected
-    // This validates the left/right split logic in hasNonUpsertKeyNonEquiCondition
-
-    val t1DataId = TestValuesTableFactory.registerData(
-      Seq(
-        changelogRow("+I", Int.box(1), Int.box(10))
-      ))
-    val t2DataId = TestValuesTableFactory.registerData(
+  def testJoinWithNonEquiConditionOnRightNonUpsertKey(): Unit = {
+    registerValuesSource(
+      "t1",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(10))),
+      "I")
+    registerValuesSource(
+      "t2",
+      "pk int primary key not enforced, val int",
       Seq(
         changelogRow("+I", Int.box(1), Int.box(100)),
         changelogRow("-U", Int.box(1), Int.box(100)),
-        changelogRow("+U", Int.box(1), Int.box(200))
-      ))
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE t1 (
-                       |  pk int primary key not enforced,
-                       |  val int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$t1DataId',
-                       |  'changelog-mode' = 'I'
-                       |)
-                       |""".stripMargin)
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE t2 (
-                       |  pk int primary key not enforced,
-                       |  val int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$t2DataId',
-                       |  'changelog-mode' = 'I,UA,UB'
-                       |)
-                       |""".stripMargin)
-
-    tEnv.executeSql(s"""
-                       |CREATE TABLE s (
-                       |  pk1 int,
-                       |  val1 int,
-                       |  pk2 int,
-                       |  val2 int
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'sink-insert-only' = 'false',
-                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
-                       |)
-                       |""".stripMargin)
+        changelogRow("+U", Int.box(1), Int.box(200))),
+      "I,UA,UB"
+    )
+    registerValuesSink("s", "pk1 int, val1 int, pk2 int, val2 int")
 
     tEnv
       .executeSql("insert into s select * from t1 join t2 on t1.pk = t2.pk and t2.val < 150")
       .await()
+    assertSinkEmpty("s")
+  }
 
-    // The result should be empty because:
-    // - Non-equiv condition t2.val < 150 matched (1, 100)
-    // - But t2 row was updated from val=100 to val=200
-    // - The (1, 100) was deleted by -U, then (1, 200) was inserted by +U
-    // - With the fix, UPDATE_BEFORE is preserved and correctly removes the joined record
-    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,10,1,100) in result
-    val expected = List[String]()
-    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
+  @TestTemplate
+  def testMultiJoinWithPostJoinFilterOnNonUpsertKey(): Unit = {
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, java.lang.Boolean.TRUE)
+
+    registerValuesSource(
+      "t1",
+      "pk int primary key not enforced, val int",
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(10)),
+        changelogRow("-U", Int.box(1), Int.box(10)),
+        changelogRow("+U", Int.box(1), Int.box(20))),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "t2",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(100))),
+      "I")
+    registerValuesSource(
+      "t3",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(1000))),
+      "I")
+    registerValuesSink("s", "pk1 int, val1 int, pk2 int, val2 int, pk3 int, val3 int")
+
+    tEnv
+      .executeSql(
+        "insert into s select * from t1 join t2 on t1.pk = t2.pk " +
+          "join t3 on t1.pk = t3.pk where t1.val < 15")
+      .await()
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testMultiJoinWithNonEquiJoinConditionOnNonUpsertKey(): Unit = {
+    // The cross-input non-equi predicate t1.val < t2.val lives in the multi-join's per-input join
+    // condition (not the post-join filter) and is evaluated at runtime, so UB must be kept.
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, java.lang.Boolean.TRUE)
+
+    registerValuesSource(
+      "t1",
+      "pk int primary key not enforced, val int",
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(10)),
+        changelogRow("-U", Int.box(1), Int.box(10)),
+        changelogRow("+U", Int.box(1), Int.box(20))),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "t2",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(15))),
+      "I")
+    registerValuesSource(
+      "t3",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(100))),
+      "I")
+    registerValuesSink("s", "pk1 int, val1 int, pk2 int, val2 int, pk3 int, val3 int")
+
+    tEnv
+      .executeSql(
+        "insert into s select * from t1 join t2 on t1.pk = t2.pk and t1.val < t2.val " +
+          "join t3 on t1.pk = t3.pk")
+      .await()
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testMultiJoinWithNonCommonEquiKeyOnNonUpsertColumn(): Unit = {
+    // t1.val = t3.val3 is a cross-input equi key that only touches the t1<->t3 step, so it is not
+    // part of the common join key {pk}; it must stay in the residual because t1.val is non-upsert
+    // and the predicate is evaluated at runtime in t3's per-input join condition.
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, java.lang.Boolean.TRUE)
+
+    registerValuesSource(
+      "t1",
+      "pk int primary key not enforced, val int",
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(100)),
+        changelogRow("-U", Int.box(1), Int.box(100)),
+        changelogRow("+U", Int.box(1), Int.box(200))),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "t2",
+      "pk int primary key not enforced, val int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(15))),
+      "I")
+    registerValuesSource(
+      "t3",
+      "pk int primary key not enforced, val3 int",
+      Seq(changelogRow("+I", Int.box(1), Int.box(100))),
+      "I")
+    registerValuesSink("s", "pk1 int, val1 int, pk2 int, val2 int, pk3 int, val3 int")
+
+    tEnv
+      .executeSql(
+        "insert into s select * from t1 join t2 on t1.pk = t2.pk " +
+          "join t3 on t1.pk = t3.pk and t1.val = t3.val3")
+      .await()
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testTemporalJoinWithRemainingConditionOnLeftNonUpsertKey(): Unit = {
+    // Rowtime variant; proctime temporal joins don't support CDC streaming inputs.
+    val ts = (0 to 2).map(i => java.time.LocalDateTime.parse(s"2025-01-01T10:00:0$i"))
+    registerValuesSource(
+      "orders_t",
+      """order_id bigint,
+        |  currency varchar,
+        |  amount bigint,
+        |  order_time TIMESTAMP(3),
+        |  WATERMARK FOR order_time AS order_time,
+        |  PRIMARY KEY (order_id) NOT ENFORCED""".stripMargin,
+      Seq(
+        changelogRow("+I", Long.box(1L), "USD", Long.box(150L), ts(0)),
+        changelogRow("-U", Long.box(1L), "USD", Long.box(150L), ts(1)),
+        changelogRow("+U", Long.box(1L), "USD", Long.box(50L), ts(2))
+      ),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "rates_t",
+      """currency varchar,
+        |  rate bigint,
+        |  rate_time TIMESTAMP(3),
+        |  WATERMARK FOR rate_time AS rate_time,
+        |  PRIMARY KEY (currency) NOT ENFORCED""".stripMargin,
+      Seq(changelogRow("+I", "USD", Long.box(1L), ts(0))),
+      "I",
+      Map("disable-lookup" -> "true")
+    )
+    registerValuesSink("s", "order_id bigint, amount bigint")
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO s
+                    |SELECT order_id, amount FROM orders_t
+                    |JOIN rates_t FOR SYSTEM_TIME AS OF orders_t.order_time
+                    |  ON orders_t.currency = rates_t.currency
+                    |  AND orders_t.amount > 100
+                    |""".stripMargin)
+      .await()
+
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testLookupJoinWithFilterOnLookupTable(): Unit = {
+    // Streaming UK {user_id} doesn't cover join key {region_id}, so an update to region_id
+    // changes the looked-up row and can flip the `regions.active = true` filter.
+    registerValuesSource(
+      "users_t",
+      "user_id int primary key not enforced, region_id int, proctime as PROCTIME()",
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(10)),
+        changelogRow("-U", Int.box(1), Int.box(10)),
+        changelogRow("+U", Int.box(1), Int.box(20))),
+      "I,UA,UB,D"
+    )
+    registerValuesSource(
+      "regions_t",
+      "region_id int primary key not enforced, country varchar, active boolean",
+      Seq(
+        changelogRow("+I", Int.box(10), "US", Boolean.box(true)),
+        changelogRow("+I", Int.box(20), "ES", Boolean.box(false))),
+      "I"
+    )
+    registerValuesSink("s", "user_id int, country varchar")
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO s
+                    |SELECT user_id, country FROM users_t
+                    |JOIN regions_t FOR SYSTEM_TIME AS OF users_t.proctime
+                    |  ON users_t.region_id = regions_t.region_id
+                    |WHERE regions_t.active = true
+                    |""".stripMargin)
+      .await()
+
+    assertSinkEmpty("s")
+  }
+
+  @TestTemplate
+  def testCorrelateWithConditionOnTableFunctionOutput(): Unit = {
+    // TVF reads non-upsert column `tags`, so its output and the filter outcome both flip on
+    // streaming-side updates.
+    tEnv.createTemporarySystemFunction("STRING_SPLIT", new StringSplit())
+    registerValuesSource(
+      "users_t",
+      "user_id int primary key not enforced, tags varchar",
+      Seq(
+        changelogRow("+I", Int.box(1), "a,x"),
+        changelogRow("-U", Int.box(1), "a,x"),
+        changelogRow("+U", Int.box(1), "b,y")),
+      "I,UA,UB,D"
+    )
+    registerValuesSink("s", "user_id int, tag varchar")
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO s
+                    |SELECT user_id, T.tag
+                    |FROM users_t, LATERAL TABLE(STRING_SPLIT(tags, ',')) AS T(tag)
+                    |WHERE T.tag = 'a'
+                    |""".stripMargin)
+      .await()
+
+    assertSinkEmpty("s")
   }
 
 }

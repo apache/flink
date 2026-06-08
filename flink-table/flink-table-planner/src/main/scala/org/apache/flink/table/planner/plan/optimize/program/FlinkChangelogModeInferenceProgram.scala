@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
-import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec
+import org.apache.flink.table.planner.plan.abilities.source.{FilterPushDownSpec, ProjectPushDownSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequirementResolver
@@ -45,12 +45,12 @@ import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTra
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.linq4j.Ord
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
-
-import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -663,7 +663,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case join: StreamPhysicalJoin =>
           val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
           if (onlyAfterByParent && hasNonUpsertKeyNonEquiCondition(join)) {
-            // FLINK-38579: non-equi condition on non-upsert key requires UPDATE_BEFORE
             None
           } else {
             val children = join.getInputs.zipWithIndex.map {
@@ -690,37 +689,43 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
         case temporalJoin: StreamPhysicalTemporalJoin =>
-          val left = temporalJoin.getLeft.asInstanceOf[StreamPhysicalRel]
-          val right = temporalJoin.getRight.asInstanceOf[StreamPhysicalRel]
-
-          // the left input required trait depends on it's parent in temporal join
-          // the left input will send message to parent
-          val requiredUpdateBeforeByParent =
-            requiredUpdateTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
-          val leftInputModifyKindSet = getModifyKindSet(left)
-          val leftRequiredTrait = if (requiredUpdateBeforeByParent) {
-            beforeAfterOrNone(leftInputModifyKindSet)
+          val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
+          if (onlyAfterByParent && hasNonUpsertKeyTemporalRemainingCondition(temporalJoin)) {
+            None
           } else {
-            onlyAfterOrNone(leftInputModifyKindSet)
-          }
-          val newLeftOption = this.visit(left, leftRequiredTrait)
+            val left = temporalJoin.getLeft.asInstanceOf[StreamPhysicalRel]
+            val right = temporalJoin.getRight.asInstanceOf[StreamPhysicalRel]
 
-          val rightInputModifyKindSet = getModifyKindSet(right)
-          // currently temporal join support changelog stream as the right side
-          // so it supports both ONLY_AFTER and BEFORE_AFTER, but prefer ONLY_AFTER
-          val newRightOption = this.visit(right, onlyAfterOrNone(rightInputModifyKindSet)) match {
-            case Some(newRight) => Some(newRight)
-            case None =>
-              val beforeAfter = beforeAfterOrNone(rightInputModifyKindSet)
-              this.visit(right, beforeAfter)
-          }
+            // the left input required trait depends on it's parent in temporal join
+            // the left input will send message to parent
+            val requiredUpdateBeforeByParent =
+              requiredUpdateTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
+            val leftInputModifyKindSet = getModifyKindSet(left)
+            val leftRequiredTrait = if (requiredUpdateBeforeByParent) {
+              beforeAfterOrNone(leftInputModifyKindSet)
+            } else {
+              onlyAfterOrNone(leftInputModifyKindSet)
+            }
+            val newLeftOption = this.visit(left, leftRequiredTrait)
 
-          (newLeftOption, newRightOption) match {
-            case (Some(newLeft), Some(newRight)) =>
-              val leftTrait = newLeft.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-              createNewNode(temporalJoin, Some(List(newLeft, newRight)), leftTrait)
-            case _ =>
-              None
+            val rightInputModifyKindSet = getModifyKindSet(right)
+            // currently temporal join support changelog stream as the right side
+            // so it supports both ONLY_AFTER and BEFORE_AFTER, but prefer ONLY_AFTER
+            val newRightOption =
+              this.visit(right, onlyAfterOrNone(rightInputModifyKindSet)) match {
+                case Some(newRight) => Some(newRight)
+                case None =>
+                  val beforeAfter = beforeAfterOrNone(rightInputModifyKindSet)
+                  this.visit(right, beforeAfter)
+              }
+
+            (newLeftOption, newRightOption) match {
+              case (Some(newLeft), Some(newRight)) =>
+                val leftTrait = newLeft.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
+                createNewNode(temporalJoin, Some(List(newLeft, newRight)), leftTrait)
+              case _ =>
+                None
+            }
           }
 
         // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
@@ -744,8 +749,37 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             }
           }
 
-        case _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
-            _: StreamPhysicalExchange | _: StreamPhysicalExpand |
+        case lookupJoin: StreamPhysicalLookupJoin =>
+          if (
+            requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
+            hasNonUpsertKeyLookupCondition(lookupJoin)
+          ) {
+            None
+          } else {
+            visitChildren(rel, requiredUpdateTrait) match {
+              case None => None
+              case Some(children) =>
+                val childTrait = children.head.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
+                createNewNode(rel, Some(children), childTrait)
+            }
+          }
+
+        case correlate: StreamPhysicalCorrelateBase =>
+          if (
+            requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
+            hasNonUpsertKeyCorrelateCondition(correlate)
+          ) {
+            None
+          } else {
+            visitChildren(rel, requiredUpdateTrait) match {
+              case None => None
+              case Some(children) =>
+                val childTrait = children.head.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
+                createNewNode(rel, Some(children), childTrait)
+            }
+          }
+
+        case _: StreamPhysicalExchange | _: StreamPhysicalExpand |
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
             _: StreamPhysicalWindowTableFunction | _: StreamPhysicalMLPredictTableFunction |
             _: StreamPhysicalVectorSearchTableFunction =>
@@ -798,10 +832,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
         case normalize: StreamPhysicalChangelogNormalize =>
-          // changelog normalize currently only supports input only sending UPDATE_AFTER
-          val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
-          // use requiredTrait as providedTrait,
-          // because changelog normalize supports all kinds of UpdateKind
+          // Prefer UA-only from children, fall back to BEFORE_AND_AFTER when the child can't
+          // drop UB (e.g. a CDC source with a non-upsert-key filter pushed down). The runtime
+          // operator folds incoming UB/DELETE events into its state.
+          val inputModifyKindSet = getModifyKindSet(normalize.getInput)
+          val children = visitChildren(normalize, onlyAfterOrNone(inputModifyKindSet))
+            .orElse(visitChildren(normalize, beforeAfterOrNone(inputModifyKindSet)))
           createNewNode(rel, children, requiredUpdateTrait)
 
         case ts: StreamPhysicalTableSourceScan =>
@@ -811,7 +847,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
             hasNonUpsertKeyFilterPushedDown(ts)
           ) {
-            // FLINK-38579: filter on non-upsert key requires UPDATE_BEFORE
             None
           } else {
             val newSource = createNewNode(rel, Some(List()), providedTrait)
@@ -893,27 +928,31 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case multiJoin: StreamPhysicalMultiJoin =>
           val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
-          val children = multiJoin.getInputs.zipWithIndex.map {
-            case (child, childOrdinal) =>
-              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
-              val supportOnlyAfter = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
-              val inputModifyKindSet = getModifyKindSet(physicalChild)
-              if (onlyAfterByParent) {
-                if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
-                  // the parent requires only-after, however, the multi-join doesn't support this for this input
-                  None
-                } else {
-                  this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
-                }
-              } else {
-                this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
-              }
-          }
-
-          if (children.exists(_.isEmpty)) {
+          if (onlyAfterByParent && hasNonUpsertKeyMultiJoinCondition(multiJoin)) {
             None
           } else {
-            createNewNode(multiJoin, Some(children.flatten.toList), requiredUpdateTrait)
+            val children = multiJoin.getInputs.zipWithIndex.map {
+              case (child, childOrdinal) =>
+                val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+                val supportOnlyAfter = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
+                val inputModifyKindSet = getModifyKindSet(physicalChild)
+                if (onlyAfterByParent) {
+                  if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
+                    // the parent requires only-after, but the multi-join can't support it here
+                    None
+                  } else {
+                    this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
+                  }
+                } else {
+                  this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
+                }
+            }
+
+            if (children.exists(_.isEmpty)) {
+              None
+            } else {
+              createNewNode(multiJoin, Some(children.flatten.toList), requiredUpdateTrait)
+            }
           }
 
         case _ =>
@@ -1323,7 +1362,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
             hasNonUpsertKeyNonEquiCondition(join)
           ) {
-            // FLINK-38579: non-equi condition on non-upsert key requires full DELETE
             None
           } else {
             val children = join.getInputs.zipWithIndex.map {
@@ -1460,7 +1498,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
             hasNonUpsertKeyFilterPushedDown(ts)
           ) {
-            // FLINK-38579: filter on non-upsert key requires full DELETE
             None
           } else {
             createNewNode(rel, Some(List()), providedTrait)
@@ -1474,27 +1511,35 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(rel, Some(List()), fullDeleteOrNone(getModifyKindSet(rel)))
 
         case multiJoin: StreamPhysicalMultiJoin =>
-          val children = multiJoin.getInputs.zipWithIndex.map {
-            case (child, childOrdinal) =>
-              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
-              val supportsDeleteByKey = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
-              val inputModifyKindSet = getModifyKindSet(physicalChild)
-              if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
-                this
-                  .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
-                  .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
-              } else {
-                this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
-              }
-          }
-          if (children.exists(_.isEmpty)) {
+          if (
+            requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
+            hasNonUpsertKeyMultiJoinCondition(multiJoin)
+          ) {
             None
           } else {
-            val childRels = children.flatten.toList
-            if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
-              createNewNode(multiJoin, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
+            val children = multiJoin.getInputs.zipWithIndex.map {
+              case (child, childOrdinal) =>
+                val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+                val supportsDeleteByKey =
+                  multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
+                val inputModifyKindSet = getModifyKindSet(physicalChild)
+                if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
+                  this
+                    .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
+                    .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
+                } else {
+                  this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
+                }
+            }
+            if (children.exists(_.isEmpty)) {
+              None
             } else {
-              createNewNode(multiJoin, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
+              val childRels = children.flatten.toList
+              if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
+                createNewNode(multiJoin, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
+              } else {
+                createNewNode(multiJoin, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
+              }
             }
           }
 
@@ -1610,109 +1655,219 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
   }
 
-  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
-    val program = calc.getProgram
-    if (program.getCondition == null) {
-      return false
-    }
+  // A predicate that references non-upsert-key columns needs UPDATE_BEFORE so downstream can
+  // retract rows whose updates flip the predicate outcome.
 
-    val condition = program.expandLocalRef(calc.getProgram.getCondition)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(calc.getInput())
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      // there are no upsert keys, so all columns are non-primary key columns
-      true
-    } else {
-      val inputRefIndices =
-        RexNodeExtractor
-          .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
-      val inputRefSet = ImmutableBitSet.of(inputRefIndices: _*)
-      !upsertKeys.stream().anyMatch(uk => uk.contains(inputRefSet))
-    }
+  private def referencesNonUpsertKey(input: RelNode, fieldRefs: ImmutableBitSet): Boolean = {
+    if (fieldRefs.isEmpty) return false
+    val upsertKeys = FlinkRelMetadataQuery
+      .reuseOrCreate(input.getCluster.getMetadataQuery)
+      .getUpsertKeys(input)
+    !UpsertKeyUtil.isContainedInAnyUpsertKey(upsertKeys, fieldRefs)
   }
 
-  private def referencesNonUpsertKeyColumns(node: RelNode, rexNodes: Seq[RexNode]): Boolean = {
-    if (rexNodes.isEmpty) {
-      return false
-    }
-
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(node.getCluster.getMetadataQuery)
-    val upsertKeys = fmq.getUpsertKeys(node)
-
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      return true
-    }
-
-    val fieldRefIndices = ImmutableBitSet.of(
+  private def extractFieldRefs(rexNodes: Seq[RexNode]): ImmutableBitSet =
+    ImmutableBitSet.of(
       RexNodeExtractor.extractRefInputFields(JavaScalaConversionUtil.toJava(rexNodes)): _*)
 
-    !upsertKeys.exists(upsertKey => upsertKey.contains(fieldRefIndices))
+  private def noInputProducesUpdates(inputs: Seq[RelNode]): Boolean =
+    inputs.forall(in => !getModifyKindSet(in).contains(ModifyKind.UPDATE))
+
+  /**
+   * Splits `rexNodes`' field refs across `inputs` by cumulative field count. Returns one bit-set
+   * per input (re-indexed locally) and a flag set when any ref lands beyond the inputs (used by
+   * operators with an opaque right side).
+   */
+  private def partitionFieldRefs(
+      rexNodes: Seq[RexNode],
+      inputs: Seq[RelNode]): (Seq[ImmutableBitSet], Boolean) = {
+    val refs = extractFieldRefs(rexNodes)
+    if (refs.isEmpty) return (inputs.map(_ => ImmutableBitSet.of()), false)
+    var offset = 0
+    val perInput = inputs.map {
+      input =>
+        val start = offset
+        val end = offset + input.getRowType.getFieldCount
+        offset = end
+        val builder = ImmutableBitSet.builder()
+        refs.foreach(idx => if (idx >= start && idx < end) builder.set(idx - start))
+        builder.build()
+    }
+    val totalFields = offset
+    (perInput, refs.exists(_ >= totalFields))
+  }
+
+  private def anyInputHasNonUpsertKeyRefs(rexNodes: Seq[RexNode], inputs: Seq[RelNode]): Boolean = {
+    val (perInput, _) = partitionFieldRefs(rexNodes, inputs)
+    perInput.zip(inputs).exists { case (refs, in) => referencesNonUpsertKey(in, refs) }
+  }
+
+  /**
+   * Like [[anyInputHasNonUpsertKeyRefs]] but with only the left input modelled — any right-side
+   * reference is conservatively treated as unsafe.
+   */
+  private def referencesNonUpsertKeyWithOpaqueRight(
+      rexNodes: Seq[RexNode],
+      leftInput: RelNode): Boolean = {
+    val (Seq(leftRefs), touchesRight) = partitionFieldRefs(rexNodes, Seq(leftInput))
+    touchesRight || referencesNonUpsertKey(leftInput, leftRefs)
+  }
+
+  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
+    val program = calc.getProgram
+    if (program.getCondition == null) return false
+    val condition = program.expandLocalRef(program.getCondition)
+    referencesNonUpsertKey(calc.getInput, extractFieldRefs(Seq(condition)))
   }
 
   private def hasNonUpsertKeyFilterPushedDown(ts: StreamPhysicalTableSourceScan): Boolean = {
     val tableSourceTable = ts.getTable.unwrap(classOf[TableSourceTable])
-    if (tableSourceTable == null) {
-      return false
-    }
+    if (tableSourceTable == null) return false
 
-    val filterSpec = tableSourceTable.abilitySpecs
+    val specs = tableSourceTable.abilitySpecs
+    val predicates = specs
       .collectFirst { case spec: FilterPushDownSpec => spec }
+      .map(spec => JavaScalaConversionUtil.toScala(spec.getPredicates))
+      .getOrElse(Seq.empty)
+    if (predicates.isEmpty) return false
 
-    filterSpec match {
-      case Some(spec) =>
-        val predicates = JavaScalaConversionUtil.toScala(spec.getPredicates)
-        referencesNonUpsertKeyColumns(ts, predicates)
-      case None => false
+    // FilterPushDownSpec keeps refs against the source's pre-projection row type. Remap them
+    // through ProjectPushDownSpec when projection has also been pushed so the indices line up
+    // with fmq.getUpsertKeys(ts). A filter on a dropped column has no remap → conservatively
+    // treat as non-upsert.
+    val rawRefs = extractFieldRefs(predicates)
+    val refs = specs.collectFirst { case spec: ProjectPushDownSpec => spec } match {
+      case None => rawRefs
+      case Some(projectSpec) =>
+        val remapped =
+          UpsertKeyUtil.remapFieldRefsThroughProjection(rawRefs, projectSpec.getProjectedFields)
+        if (!remapped.isPresent) return true
+        remapped.get
     }
+    referencesNonUpsertKey(ts, refs)
   }
 
   private def hasNonUpsertKeyNonEquiCondition(join: StreamPhysicalJoin): Boolean = {
     val nonEquiCondOpt = join.joinSpec.getNonEquiCondition
-    if (!nonEquiCondOpt.isPresent) {
-      return false
-    }
+    if (!nonEquiCondOpt.isPresent) return false
+    val inputs = Seq(join.getLeft, join.getRight)
+    !noInputProducesUpdates(inputs) &&
+    anyInputHasNonUpsertKeyRefs(Seq(nonEquiCondOpt.get()), inputs)
+  }
 
-    // Only block UB drop if inputs actually produce UPDATE messages
-    // For batch sources with changelogMode=[I], there are no updates, so it's safe to allow UB drop
-    val leftModifyKindSet = getModifyKindSet(join.getLeft)
-    val rightModifyKindSet = getModifyKindSet(join.getRight)
+  private def hasNonUpsertKeyMultiJoinCondition(multiJoin: StreamPhysicalMultiJoin): Boolean = {
+    val condition = multiJoin.getMultiJoinCondition
+    if (condition == null) return false
+    val inputs = multiJoin.getInputs.toSeq
+    if (noInputProducesUpdates(inputs)) return false
+    // The multi-join evaluates every per-input join condition and the post-join filter at runtime
+    // (StreamExecMultiJoin#createJoinConditions). Equalities on the COMMON join key are already
+    // handled by the join-key trait logic (inputUniqueKeyContainsCommonJoinKey), so they are
+    // dropped; every other predicate (non-equi, filters, and non-common equi keys) can silently
+    // flip a row's join/filter membership and therefore requires UPDATE_BEFORE.
+    val residual = JavaScalaConversionUtil
+      .toScala(RelOptUtil.conjunctions(condition))
+      .filterNot(isCommonJoinKeyEquality(_, multiJoin, inputs))
+    anyInputHasNonUpsertKeyRefs(residual, inputs)
+  }
+
+  /**
+   * True iff `rex` is an `=` between two input refs that are both part of the multi-join's common
+   * join key. Only those are validated by `inputUniqueKeyContainsCommonJoinKey`; any other
+   * inter-input equi key may reference a non-upsert column whose update flips the match.
+   */
+  private def isCommonJoinKeyEquality(
+      rex: RexNode,
+      multiJoin: StreamPhysicalMultiJoin,
+      inputs: Seq[RelNode]): Boolean = rex match {
+    case call: RexCall if call.getOperator.getKind == SqlKind.EQUALS && call.operands.size() == 2 =>
+      (call.operands.get(0), call.operands.get(1)) match {
+        case (a: RexInputRef, b: RexInputRef) =>
+          val (oa, la) = localRef(a.getIndex, inputs)
+          val (ob, lb) = localRef(b.getIndex, inputs)
+          oa >= 0 && ob >= 0 && oa != ob &&
+          multiJoin.getCommonJoinKeyIndices(oa).contains(la) &&
+          multiJoin.getCommonJoinKeyIndices(ob).contains(lb)
+        case _ => false
+      }
+    case _ => false
+  }
+
+  /** Maps a field index in the concatenated multi-join row to (inputOrdinal, localIndex). */
+  private def localRef(idx: Int, inputs: Seq[RelNode]): (Int, Int) = {
+    var start = 0
+    for ((input, ordinal) <- inputs.zipWithIndex) {
+      val count = input.getRowType.getFieldCount
+      if (idx >= start && idx < start + count) return (ordinal, idx - start)
+      start += count
+    }
+    (-1, -1)
+  }
+
+  private def hasNonUpsertKeyTemporalRemainingCondition(
+      temporalJoin: StreamPhysicalTemporalJoin): Boolean = {
+    val nonEquiOpt = temporalJoin.joinSpec.getNonEquiCondition
+    if (!nonEquiOpt.isPresent) return false
+    if (noInputProducesUpdates(Seq(temporalJoin.getLeft, temporalJoin.getRight))) return false
+    // Strip the __TEMPORAL_JOIN_CONDITION metadata markers so only real residual predicates
+    // remain. Right (versioned) side is opaque.
+    val stripped = stripTemporalJoinMarkers(nonEquiOpt.get(), temporalJoin.getCluster.getRexBuilder)
+    referencesNonUpsertKeyWithOpaqueRight(Seq(stripped), temporalJoin.getLeft)
+  }
+
+  private def hasNonUpsertKeyLookupCondition(lookupJoin: StreamPhysicalLookupJoin): Boolean = {
+    val streamingInput = lookupJoin.getInput
+    if (noInputProducesUpdates(Seq(streamingInput))) return false
+
+    // Pre-filter on the streaming input only.
     if (
-      !leftModifyKindSet.contains(ModifyKind.UPDATE) &&
-      !rightModifyKindSet.contains(ModifyKind.UPDATE)
-    ) {
-      return false // No updates produced, safe to allow UB drop
-    }
+      lookupJoin.finalPreFilterCondition.exists(
+        rex => referencesNonUpsertKey(streamingInput, extractFieldRefs(Seq(rex))))
+    ) return true
 
-    val condition = nonEquiCondOpt.get()
-    val referencedFields = ImmutableBitSet.of(
-      RexNodeExtractor.extractRefInputFields(Collections.singletonList(condition)): _*)
+    // Remaining join condition; lookup side is opaque.
+    if (
+      lookupJoin.finalRemainingCondition.exists(
+        rex => referencesNonUpsertKeyWithOpaqueRight(Seq(rex), streamingInput))
+    ) return true
 
-    if (referencedFields.isEmpty) {
-      return false
-    }
+    // Filter on the lookup table — safe only if streaming UK already covers the join key
+    // (the streaming update can't change which lookup row is returned).
+    val hasLookupFilter = lookupJoin.calcOnTemporalTable.exists(_.getCondition != null)
+    hasLookupFilter && !streamingUpsertKeyCoversJoinKey(lookupJoin)
+  }
 
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
-    val leftFieldCount = join.getLeft.getRowType.getFieldCount
+  private def hasNonUpsertKeyCorrelateCondition(correlate: StreamPhysicalCorrelateBase): Boolean = {
+    if (noInputProducesUpdates(Seq(correlate.getInput))) return false
+    // Correlate.condition is a Calc filter on the TVF output row (see
+    // CorrelateCodeGenerator#changeInputRefIndexShuttle). The TVF runs per outer row, so any
+    // non-trivial filter on its output can flip on a streaming-side update.
+    correlate.condition.isDefined
+  }
 
-    val leftBuilder = ImmutableBitSet.builder()
-    val rightBuilder = ImmutableBitSet.builder()
-    referencedFields.foreach {
-      idx =>
-        if (idx < leftFieldCount) leftBuilder.set(idx)
-        else rightBuilder.set(idx - leftFieldCount)
-    }
+  /**
+   * Rewrites the `__TEMPORAL_JOIN_CONDITION`/`__INITIAL_TEMPORAL_JOIN_CONDITION` markers to `true`.
+   */
+  private def stripTemporalJoinMarkers(condition: RexNode, rexBuilder: RexBuilder): RexNode =
+    condition.accept(new RexShuttle {
+      override def visitCall(call: RexCall): RexNode = {
+        val op = call.getOperator
+        if (
+          op == TemporalJoinUtil.TEMPORAL_JOIN_CONDITION ||
+          op == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION
+        ) rexBuilder.makeLiteral(true)
+        else super.visitCall(call)
+      }
+    })
 
-    val leftRefs = leftBuilder.build()
-    val rightRefs = rightBuilder.build()
-
-    def referencesNonUpsert(input: RelNode, fields: ImmutableBitSet): Boolean = {
-      if (fields.isEmpty) return false
-      val upsertKeys = fmq.getUpsertKeys(input)
-      upsertKeys == null || upsertKeys.isEmpty || !upsertKeys.exists(_.contains(fields))
-    }
-
-    referencesNonUpsert(join.getLeft, leftRefs) ||
-    referencesNonUpsert(join.getRight, rightRefs)
+  private def streamingUpsertKeyCoversJoinKey(lookupJoin: StreamPhysicalLookupJoin): Boolean = {
+    val streamingInput = lookupJoin.getInput
+    val joinKeySources = lookupJoin.joinInfo.pairs().toList.map(_.source.toInt)
+    if (joinKeySources.isEmpty) return false
+    val joinKeyBits = ImmutableBitSet.of(joinKeySources: _*)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(streamingInput.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(streamingInput)
+    upsertKeys != null && upsertKeys.exists(_.contains(joinKeyBits))
   }
 
   private def getModifyKindSet(node: RelNode): ModifyKindSet = {
