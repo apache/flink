@@ -399,7 +399,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUpsertKeysOnJoin(): Unit = {
     assertEquals(
-      toBitSet(Array(1), Array(5), Array(1, 5), Array(1, 6), Array(5, 6), Array(1, 5, 6)),
+      toBitSet(Array(1), Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
       mq.getUpsertKeys(logicalInnerJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinOnRHSUniqueKeys).toSet)
@@ -407,7 +407,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(
-      toBitSet(Array(1), Array(1, 5), Array(1, 6), Array(1, 5, 6)),
+      toBitSet(Array(1), Array(1, 5), Array(1, 5, 6)),
       mq.getUpsertKeys(logicalLeftJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinOnRHSUniqueKeys).toSet)
@@ -415,7 +415,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(
-      toBitSet(Array(5), Array(5, 6), Array(1, 5), Array(1, 5, 6)),
+      toBitSet(Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
       mq.getUpsertKeys(logicalRightJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinOnLHSUniqueKeys).toSet)
@@ -648,8 +648,7 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     // filterKeys on both sides with join key {1}: both retain {{0}, {0,1,2}}
     // Neither side is unique on {1}, so only concatenated keys survive
     // Right shifted by 4: {{4}, {4,5,6}}
-    // Concat (base): {0,4}, {0,4,5,6}, {0,1,2,4}, {0,1,2,4,5,6}
-    // + enrichment via equi-pair (1, 5): {0,1,4,6}, {0,2,4,5}, {0,2,4,5,6}, {0,1,2,4,6}
+    // Concat: {0}x{4}, {0}x{4,5,6}, {0,1,2}x{4}, {0,1,2}x{4,5,6}
     val join = relBuilder
       .scan("projected_table_source_table_with_immutable_cols")
       .scan("projected_table_source_table_with_immutable_cols")
@@ -658,17 +657,8 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
         relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
       .build()
     assertEquals(
-      toBitSet(
-        Array(0, 4),
-        Array(0, 4, 5, 6),
-        Array(0, 1, 2, 4),
-        Array(0, 1, 2, 4, 5, 6),
-        Array(0, 1, 4, 6),
-        Array(0, 2, 4, 5),
-        Array(0, 2, 4, 5, 6),
-        Array(0, 1, 2, 4, 6)),
-      mq.getUpsertKeys(join).toSet
-    )
+      toBitSet(Array(0, 4), Array(0, 4, 5, 6), Array(0, 1, 2, 4), Array(0, 1, 2, 4, 5, 6)),
+      mq.getUpsertKeys(join).toSet)
   }
 
   private def toBitSet(keys: Array[Int]*): Set[ImmutableBitSet] = {

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 import org.apache.flink.table.planner.utils.ImmutableColConstraintTestUtils.addImmutableColConstraint
 
@@ -816,47 +816,34 @@ class JoinTest extends TableTestBase {
       .isInstanceOf[IllegalArgumentException]
   }
 
-  // Tests for FLINK-38753: Enrich upsert keys by equiv expressions in joins
+  private def createUpsertSource(name: String, columns: String, primaryKey: String): Unit =
+    util.tableEnv.executeSql(s"""
+                                |create table $name (
+                                | $columns,
+                                | primary key ($primaryKey) not enforced
+                                |) with (
+                                | 'connector' = 'values',
+                                | 'changelog-mode' = 'I,UA,D'
+                                |)
+                                |""".stripMargin)
+
+  private def createUpsertSink(columns: String, primaryKey: String): Unit =
+    util.tableEnv.executeSql(s"""
+                                |create table sink (
+                                | $columns,
+                                | primary key ($primaryKey) not enforced
+                                |) with (
+                                | 'connector' = 'values',
+                                | 'sink-insert-only' = 'false'
+                                |)
+                                |""".stripMargin)
+
   @Test
-  def testJoinUpsertKeyEnrichmentInnerJoinBasic(): Unit = {
-    // Basic case from FLINK-38753: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2
-    // sink pk {a1, b2} should NOT have upsertMaterialize because {a1, b2} can be derived
-    // from {a2, b2} by substituting a2 with a1
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | x1 varchar,
-                               | primary key (a1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | b2 varchar,
-                               | x2 varchar,
-                               | primary key (a2, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a1 varchar,
-                               | b2 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceInnerJoinBasic(): Unit = {
+    // src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2; sink pk {a1, b2} is covered via a1 = a2
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
     util.verifyExplainInsert(
       """
         |insert into sink
@@ -868,45 +855,11 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testJoinUpsertKeyEnrichmentInnerJoinReverse(): Unit = {
-    // Reverse direction: src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2
-    // sink pk {a2, b1} should NOT have upsertMaterialize because {a2, b1} can be derived
-    // from {a1, b1} by substituting a1 with a2
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | b1 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | x2 varchar,
-                               | primary key (a2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a2 varchar,
-                               | b1 varchar,
-                               | x1 varchar,
-                               | primary key (a2, b1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceInnerJoinReverse(): Unit = {
+    // src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2; sink pk {a2, b1} is covered via a1 = a2
+    createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
+    createUpsertSource("src2", "a2 varchar, x2 varchar", "a2")
+    createUpsertSink("a2 varchar, b1 varchar, x1 varchar", "a2, b1")
     util.verifyExplainInsert(
       """
         |insert into sink
@@ -918,44 +871,11 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testJoinUpsertKeyEnrichmentLeftJoin(): Unit = {
-    // Left join with right to left enrichment: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2
-    // sink pk {a1, b2} should NOT have upsertMaterialize
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | x1 varchar,
-                               | primary key (a1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | b2 varchar,
-                               | x2 varchar,
-                               | primary key (a2, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a1 varchar,
-                               | b2 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceLeftJoin(): Unit = {
+    // left join on a1 = a2; sink pk {a1, b2} is covered (nullable a2 replaced by non-null a1)
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
     util.verifyExplainInsert(
       """
         |insert into sink
@@ -967,44 +887,11 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testJoinUpsertKeyEnrichmentRightJoin(): Unit = {
-    // Right join with left to right enrichment: src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2
-    // sink pk {a2, b1} should NOT have upsertMaterialize
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | b1 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | x2 varchar,
-                               | primary key (a2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a2 varchar,
-                               | b1 varchar,
-                               | x1 varchar,
-                               | primary key (a2, b1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceRightJoin(): Unit = {
+    // right join on a1 = a2; sink pk {a2, b1} is covered (nullable a1 replaced by non-null a2)
+    createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
+    createUpsertSource("src2", "a2 varchar, x2 varchar", "a2")
+    createUpsertSink("a2 varchar, b1 varchar, x1 varchar", "a2, b1")
     util.verifyExplainInsert(
       """
         |insert into sink
@@ -1016,45 +903,11 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testJoinUpsertKeyEnrichmentMultipleEquiConditions(): Unit = {
-    // Multiple equi-conditions: src1 pk {a1, b1}, src2 pk {a2, b2}, join a1 = a2 AND b1 = b2
-    // sink pk {a1, b2} should NOT have upsertMaterialize
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | b1 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | b2 varchar,
-                               | x2 varchar,
-                               | primary key (a2, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a1 varchar,
-                               | b2 varchar,
-                               | x1 varchar,
-                               | primary key (a1, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceMultipleEquiConditions(): Unit = {
+    // join a1 = a2 AND b1 = b2; sink pk {a1, b2} is covered, no upsertMaterialize
+    createUpsertSource("src1", "a1 varchar, b1 varchar, x1 varchar", "a1, b1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, b2 varchar, x1 varchar", "a1, b2")
     util.verifyExplainInsert(
       """
         |insert into sink
@@ -1066,49 +919,131 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testJoinUpsertKeyEnrichmentNegativeCase(): Unit = {
-    // Negative case: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2, sink pk {a1, c2}
-    // SHOULD have upsertMaterialize because c2 is not in the equi-join condition
-    util.tableEnv.executeSql("""
-                               |create table src1 (
-                               | a1 varchar,
-                               | x1 varchar,
-                               | primary key (a1) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table src2 (
-                               | a2 varchar,
-                               | b2 varchar,
-                               | c2 varchar,
-                               | primary key (a2, b2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
-                               |)
-                               |""".stripMargin)
-
-    util.tableEnv.executeSql("""
-                               |create table sink (
-                               | a1 varchar,
-                               | c2 varchar,
-                               | x1 varchar,
-                               | primary key (a1, c2) not enforced
-                               |) with (
-                               | 'connector' = 'values',
-                               | 'sink-insert-only' = 'false'
-                               |)
-                               |""".stripMargin)
-
+  def testJoinUpsertKeyEquivalenceNegativeCase(): Unit = {
+    // c2 is not in the join condition, so sink pk {a1, c2} is not covered -> upsertMaterialize
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, c2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, c2 varchar, x1 varchar", "a1, c2")
     util.verifyExplainInsert(
       """
         |insert into sink
         |select src1.a1, src2.c2, src1.x1
         |from src1 join src2 on src1.a1 = src2.a2
+        |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceThreeWayJoin(): Unit = {
+    // the satisfying equality a1 = a2 is in the deeper join (top join is on b2 = c3); sink pk
+    // {a1, b2} is still covered
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSource("src3", "c3 varchar, y3 varchar", "c3")
+    createUpsertSink("a1 varchar, b2 varchar, y3 varchar", "a1, b2")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src3.y3
+        |from src1
+        |join src2 on src1.a1 = src2.a2
+        |join src3 on src2.b2 = src3.c3
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceMultiJoinOperator(): Unit = {
+    // same three-way join with the fused multi-join operator enabled; sink pk {a1, b2} still covered
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar, x2 varchar", "a2, b2")
+    createUpsertSource("src3", "c3 varchar, y3 varchar", "c3")
+    createUpsertSink("a1 varchar, b2 varchar, y3 varchar", "a1, b2")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src3.y3
+        |from src1
+        |join src2 on src1.a1 = src2.a2
+        |join src3 on src2.b2 = src3.c3
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceSemiJoin(): Unit = {
+    // EXISTS -> semi join (left-only output); src1 pk {a1} is preserved and matches the sink pk
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar", "a2")
+    createUpsertSink("a1 varchar, x1 varchar", "a1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src1.x1
+        |from src1
+        |where exists (select 1 from src2 where src1.a1 = src2.a2)
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceAntiJoin(): Unit = {
+    // NOT EXISTS lowers to an anti join, also left-only output; src1's pk {a1} is preserved.
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar", "a2")
+    createUpsertSink("a1 varchar, x1 varchar", "a1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src1.x1
+        |from src1
+        |where not exists (select 1 from src2 where src1.a1 = src2.a2)
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceOneToManyNotSatisfied(): Unit = {
+    // one-to-many left join: {a1} is not unique in the output, so sink pk {a1} -> upsertMaterialize
+    createUpsertSource("src1", "a1 varchar, x1 varchar", "a1")
+    createUpsertSource("src2", "a2 varchar, b2 varchar", "a2, b2")
+    createUpsertSink("a1 varchar, b2 varchar", "a1")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2
+        |from src1 left join src2 on src1.a1 = src2.a2
+        |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEquivalenceThreeInputMultiJoinNotSatisfied(): Unit = {
+    // star join on k fuses into one 3-input multi-join; src3 is one-to-many on k, so sink pk {k}
+    // is not covered -> upsertMaterialize (guards the >=3-input multi-join fold)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, Boolean.box(true))
+    createUpsertSource("src1", "k varchar, x1 varchar", "k")
+    createUpsertSource("src2", "k varchar, x2 varchar", "k")
+    createUpsertSource("src3", "k varchar, m varchar, x3 varchar", "k, m")
+    createUpsertSink("k varchar, m varchar", "k")
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.k, src3.m
+        |from src1
+        |join src2 on src1.k = src2.k
+        |join src3 on src1.k = src3.k
         |on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
