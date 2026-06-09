@@ -42,6 +42,7 @@ public class DefaultCatalogTable implements CatalogTable {
     private final List<String> partitionKeys;
     private final Map<String, String> options;
     private final @Nullable Long snapshot;
+    private final @Nullable UnresolvedIdentifier connection;
 
     protected DefaultCatalogTable(
             Schema schema,
@@ -58,12 +59,24 @@ public class DefaultCatalogTable implements CatalogTable {
             Map<String, String> options,
             @Nullable Long snapshot,
             @Nullable TableDistribution distribution) {
+        this(schema, comment, partitionKeys, options, snapshot, distribution, null);
+    }
+
+    protected DefaultCatalogTable(
+            Schema schema,
+            @Nullable String comment,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            @Nullable Long snapshot,
+            @Nullable TableDistribution distribution,
+            @Nullable UnresolvedIdentifier connection) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
         this.distribution = distribution;
+        this.connection = connection;
 
         checkArgument(
                 options.entrySet().stream()
@@ -97,6 +110,11 @@ public class DefaultCatalogTable implements CatalogTable {
     }
 
     @Override
+    public Optional<UnresolvedIdentifier> getConnection() {
+        return Optional.ofNullable(connection);
+    }
+
+    @Override
     public Map<String, String> getOptions() {
         return options;
     }
@@ -109,13 +127,13 @@ public class DefaultCatalogTable implements CatalogTable {
     @Override
     public CatalogBaseTable copy() {
         return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, distribution);
+                schema, comment, partitionKeys, options, snapshot, distribution, connection);
     }
 
     @Override
     public CatalogTable copy(Map<String, String> options) {
         return new DefaultCatalogTable(
-                schema, comment, partitionKeys, options, snapshot, distribution);
+                schema, comment, partitionKeys, options, snapshot, distribution, connection);
     }
 
     @Override
@@ -142,12 +160,14 @@ public class DefaultCatalogTable implements CatalogTable {
                 && Objects.equals(distribution, that.distribution)
                 && partitionKeys.equals(that.partitionKeys)
                 && options.equals(that.options)
-                && Objects.equals(snapshot, that.snapshot);
+                && Objects.equals(snapshot, that.snapshot)
+                && Objects.equals(connection, that.connection);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, comment, distribution, partitionKeys, options, snapshot);
+        return Objects.hash(
+                schema, comment, distribution, partitionKeys, options, snapshot, connection);
     }
 
     @Override
@@ -166,6 +186,8 @@ public class DefaultCatalogTable implements CatalogTable {
                 + ConfigurationUtils.hideSensitiveValues(options, List.of())
                 + ", snapshot="
                 + snapshot
+                + ", connection="
+                + connection
                 + '}';
     }
 }
