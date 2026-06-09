@@ -41,15 +41,15 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                         bTrimTestCases(),
+                        concatenateTestCases(),
                         eltTestCases(),
                         endsWithTestCases(),
                         parseUrlTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
-                        substringTestCases(),
                         substrTestCases(),
-                        translateTestCases(),
-                        concatenateTestCases())
+                        substringTestCases(),
+                        translateTestCases())
                 .flatMap(s -> s);
     }
 
