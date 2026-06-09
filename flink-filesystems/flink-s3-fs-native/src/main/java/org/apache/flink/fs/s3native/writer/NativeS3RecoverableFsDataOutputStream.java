@@ -84,28 +84,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize)
             throws IOException {
-        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L);
-    }
-
-    public NativeS3RecoverableFsDataOutputStream(
-            NativeS3ObjectOperations s3AccessHelper,
-            String key,
-            String uploadId,
-            String localTmpDir,
-            long minPartSize,
-            List<PartETag> existingParts,
-            long numBytesInParts)
-            throws IOException {
-        this(
-                s3AccessHelper,
-                key,
-                uploadId,
-                localTmpDir,
-                minPartSize,
-                existingParts,
-                numBytesInParts,
-                null,
-                0L);
+        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L, null);
     }
 
     public NativeS3RecoverableFsDataOutputStream(
@@ -116,8 +95,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long minPartSize,
             List<PartETag> existingParts,
             long numBytesInParts,
-            @Nullable File incompleteTailFile,
-            long incompleteTailLength)
+            @Nullable File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -131,31 +109,21 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.closed = false;
 
         if (incompleteTailFile != null) {
-            resumeFromIncompleteTail(incompleteTailFile, incompleteTailLength);
+            resumeFromIncompleteTail(incompleteTailFile);
         } else {
             createNewTempFile();
         }
     }
 
-    private void resumeFromIncompleteTail(File tailFile, long expectedLength) throws IOException {
+    private void resumeFromIncompleteTail(File tailFile) throws IOException {
         if (!tailFile.exists()) {
             throw new IOException("Incomplete-tail file does not exist: " + tailFile);
         }
-        final long actualLength = tailFile.length();
-        if (actualLength != expectedLength) {
-            throw new IOException(
-                    "Incomplete-tail file "
-                            + tailFile
-                            + " has unexpected length: expected "
-                            + expectedLength
-                            + " got "
-                            + actualLength);
-        }
         currentTempFile = tailFile;
+        currentPartSize = tailFile.length();
         // Append mode so subsequent writes land after the recovered bytes.
         currentFileStream = new FileOutputStream(currentTempFile, true);
         currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
-        currentPartSize = expectedLength;
     }
 
     private void createNewTempFile() throws IOException {

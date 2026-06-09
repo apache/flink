@@ -257,6 +257,67 @@ class NativeS3RecoverableWriterRecoveryTest {
         assertThat(s3.storedObjects).doesNotContainKeys(firstSideObject, secondSideObject);
     }
 
+    @Test
+    void dataWrittenAfterLastPersistIsDiscardedOnRecovery() throws Exception {
+        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
+        NativeS3RecoverableWriter writer1 =
+                NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+
+        RecoverableFsDataOutputStream out = writer1.open(new Path("s3://" + BUCKET + "/" + KEY));
+        out.write(bytes('A', 10), 0, 10); // becomes part #1
+        out.write(bytes('E', 5), 0, 5); // the tail captured by persist()
+        NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
+        out.write(bytes('Z', 3), 0, 3);
+
+        // Crash + restore from the checkpoint taken at persist()
+        NativeS3RecoverableWriter writer2 =
+                NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        RecoverableFsDataOutputStream resumed = writer2.recover(r);
+        resumed.write(bytes('F', 4), 0, 4); // legitimately appended after recovery
+        resumed.closeForCommit().commit();
+
+        assertThat(s3.committedObjects.get(KEY))
+                .as("post-persist 'Z' bytes are dropped; only persisted + post-recovery bytes land")
+                .containsExactly(concat(bytes('A', 10), bytes('E', 5), bytes('F', 4)));
+    }
+
+    @Test
+    void secondRecoveryAttemptCanStillReadSidePart() throws Exception {
+        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
+        NativeS3RecoverableWriter writer1 =
+                NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+
+        RecoverableFsDataOutputStream out = writer1.open(new Path("s3://" + BUCKET + "/" + KEY));
+        out.write(bytes('A', 10), 0, 10); // becomes part #1
+        out.write(bytes('E', 5), 0, 5); // becomes the persisted side object
+        NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
+        String sideObjectKey = r.incompleteObjectName();
+        assertThat(sideObjectKey).isNotNull();
+
+        // First recovery attempt successfully seeds the tail. We model this attempt crashing before
+        // commit, so we intentionally do NOT close/commit it (close() would abort the shared MPU).
+        NativeS3RecoverableWriter writer2 =
+                NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        RecoverableFsDataOutputStream firstAttempt = writer2.recover(r);
+        assertThat(firstAttempt.getPos())
+                .as("first attempt restores the 5-byte tail behind the 10 uploaded bytes")
+                .isEqualTo(15L);
+        assertThat(s3.storedObjects)
+                .as("recover() must not delete the side object")
+                .containsKey(sideObjectKey);
+
+        // Second recovery attempt from the SAME checkpoint must still find the side object.
+        NativeS3RecoverableWriter writer3 =
+                NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        RecoverableFsDataOutputStream secondAttempt = writer3.recover(r);
+        secondAttempt.write(bytes('F', 4), 0, 4);
+        secondAttempt.closeForCommit().commit();
+
+        assertThat(s3.committedObjects.get(KEY))
+                .as("second attempt replays the tail and commits every persisted byte")
+                .containsExactly(concat(bytes('A', 10), bytes('E', 5), bytes('F', 4)));
+    }
+
     private static long countLocalFilesIn(java.nio.file.Path dir) throws IOException {
         if (!java.nio.file.Files.isDirectory(dir)) {
             return 0;

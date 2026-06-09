@@ -90,10 +90,19 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
         final NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(recoverable);
 
         File incompleteTail = null;
-        long incompleteTailLength = 0L;
         if (s3recoverable.incompleteObjectName() != null) {
+            if (s3recoverable.incompleteObjectLength() <= 0) {
+                throw new IOException(
+                        "Incomplete-tail object "
+                                + s3recoverable.incompleteObjectName()
+                                + " is referenced with non-positive length "
+                                + s3recoverable.incompleteObjectLength()
+                                + ". A side object is only written when buffered tail bytes "
+                                + "exist, so this indicates corrupt recoverable metadata. "
+                                + "Recovery cannot proceed and this failure is NOT retriable "
+                                + "from the same checkpoint.");
+            }
             incompleteTail = downloadIncompleteTail(s3recoverable);
-            incompleteTailLength = s3recoverable.incompleteObjectLength();
         }
 
         try {
@@ -104,7 +113,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
                     s3recoverable.parts().size(),
                     s3recoverable.numBytesInParts(),
                     s3recoverable.incompleteObjectName(),
-                    incompleteTailLength);
+                    s3recoverable.incompleteObjectLength());
             return new NativeS3RecoverableFsDataOutputStream(
                     s3AccessHelper,
                     s3recoverable.getObjectName(),
@@ -113,19 +122,18 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
                     userDefinedMinPartSize,
                     s3recoverable.parts(),
                     s3recoverable.numBytesInParts(),
-                    incompleteTail,
-                    incompleteTailLength);
-        } catch (Throwable t) {
+                    incompleteTail);
+        } catch (Exception e) {
             // The downloaded tail file is owned by recover() until the constructor takes
             // ownership. If construction fails, drop the local file so we don't leak it.
             if (incompleteTail != null) {
                 try {
                     Files.deleteIfExists(incompleteTail.toPath());
                 } catch (IOException cleanup) {
-                    t.addSuppressed(cleanup);
+                    e.addSuppressed(cleanup);
                 }
             }
-            throw t;
+            throw e;
         }
     }
 
