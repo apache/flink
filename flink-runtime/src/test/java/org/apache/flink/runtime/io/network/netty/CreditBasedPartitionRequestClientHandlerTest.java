@@ -98,15 +98,15 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
     private static Stream<Arguments> bufferDescriptorsWithCompression() {
         return Stream.of(
-                Arguments.of(false, 1, "LZ4"),
-                Arguments.of(false, 1, "LZO"),
-                Arguments.of(false, 1, "ZSTD"),
-                Arguments.of(true, 1, "LZ4"),
-                Arguments.of(true, 1, "LZO"),
-                Arguments.of(true, 1, "ZSTD"),
-                Arguments.of(true, 3, "LZ4"),
-                Arguments.of(true, 3, "LZO"),
-                Arguments.of(true, 3, "ZSTD"));
+                Arguments.of(false, 1, "LZ4", 0L),
+                Arguments.of(false, 1, "LZO", 0L),
+                Arguments.of(false, 1, "ZSTD", 0L),
+                Arguments.of(true, 1, "LZ4", 0L),
+                Arguments.of(true, 1, "LZO", 0L),
+                Arguments.of(true, 1, "ZSTD", 0L),
+                Arguments.of(true, 3, "LZ4", 44L),
+                Arguments.of(true, 3, "LZO", 52L),
+                Arguments.of(true, 3, "ZSTD", 62L));
     }
 
     /**
@@ -237,7 +237,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
     void testReceiveCompressedBuffer(
             final boolean isFullyFilled,
             final int numOfPartialBuffers,
-            final String compressionCodec)
+            final String compressionCodec,
+            final long expectedTotalQueueSizeInBytesOfInputChannel)
             throws Exception {
         int bufferSize = 1024;
         BufferCompressor compressor =
@@ -275,6 +276,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
             handler.channelRead(null, bufferResponse);
 
             Buffer receivedBuffer = inputChannel.getNextReceivedBuffer();
+            assertThat(inputChannel.unsynchronizedGetSizeOfQueuedBuffers())
+                    .isEqualTo(expectedTotalQueueSizeInBytesOfInputChannel);
             assertThat(receivedBuffer).isNotNull();
             assertThat(receivedBuffer.isCompressed()).isTrue();
             receivedBuffer.recycleBuffer();
