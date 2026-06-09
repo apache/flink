@@ -369,6 +369,35 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Aggregate_LocalWhere">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT 1 FROM r WHERE l.a = r.d AND r.e > 10 GROUP BY r.f)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalAggregate(group=[{0}])
+  LogicalProject(f=[$2])
+    LogicalFilter(condition=[AND(=($cor0.a, $0), >($1, 10))])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalAggregate(group=[{0, 1}])
+         +- LogicalProject(f=[$2], d=[$0])
+            +- LogicalFilter(condition=[>($1, 10)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExistsWithCorrelatedOnWhere_ComplexCondition1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT CAST(e AS INTEGER), 1 FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))]]>
@@ -446,6 +475,130 @@ LogicalProject(a=[$0], b=[$1])
    +- LogicalProject(d=[$1])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Having1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[>=($1, 3)])
+  LogicalAggregate(group=[{0}], agg#0=[SUM($1)])
+    LogicalProject(f=[$2], e=[$1])
+      LogicalFilter(condition=[=($cor0.a, $0)])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[>=($2, 3)])
+         +- LogicalAggregate(group=[{0, 1}], agg#0=[SUM($2)])
+            +- LogicalProject(f=[$2], d=[$0], e=[$1])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Having2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3 AND MAX(r.e) < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(>=($1, 3), <($2, 100))])
+  LogicalAggregate(group=[{0}], agg#0=[SUM($1)], agg#1=[MAX($1)])
+    LogicalProject(f=[$2], e=[$1])
+      LogicalFilter(condition=[=($cor0.a, $0)])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[AND(>=($2, 3), <($3, 100))])
+         +- LogicalAggregate(group=[{0, 1}], agg#0=[SUM($2)], agg#1=[MAX($2)])
+            +- LogicalProject(f=[$2], d=[$0], e=[$1])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Having3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT 1 FROM r WHERE l.a = r.d GROUP BY r.f HAVING SUM(r.e) >= 3 AND COUNT(*) > 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(>=($1, 3), >($2, 1))])
+  LogicalAggregate(group=[{0}], agg#0=[SUM($1)], agg#1=[COUNT()])
+    LogicalProject(f=[$2], e=[$1])
+      LogicalFilter(condition=[=($cor0.a, $0)])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[AND(>=($2, 3), >($3, 1))])
+         +- LogicalAggregate(group=[{0, 1}], agg#0=[SUM($2)], agg#1=[COUNT()])
+            +- LogicalProject(f=[$2], d=[$0], e=[$1])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Having4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT 1 FROM r WHERE l.a = r.d AND l.b = r.e GROUP BY r.f HAVING COUNT(r.d) >= 2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[>=($1, 2)])
+  LogicalAggregate(group=[{0}], agg#0=[COUNT($1)])
+    LogicalProject(f=[$2], d=[$0])
+      LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.b, $1))])
+        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$1], e=[$2])
+      +- LogicalFilter(condition=[>=($3, 2)])
+         +- LogicalAggregate(group=[{0, 1, 2}], agg#0=[COUNT($1)])
+            +- LogicalProject(f=[$2], d=[$0], e=[$1])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
