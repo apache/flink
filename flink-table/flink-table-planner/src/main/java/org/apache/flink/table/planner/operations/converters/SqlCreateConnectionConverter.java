@@ -25,8 +25,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
-
 import java.util.Map;
 
 /** A converter for {@link SqlCreateConnection}. */
@@ -41,8 +39,7 @@ public class SqlCreateConnectionConverter implements SqlNodeConverter<SqlCreateC
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
         Map<String, String> options = sqlCreateConnection.getProperties();
-        SqlCharStringLiteral commentLiteral = sqlCreateConnection.getComment();
-        String comment = commentLiteral == null ? null : commentLiteral.getValueAs(String.class);
+        String comment = sqlCreateConnection.getComment();
 
         SensitiveConnection sensitiveConnection = SensitiveConnection.of(options, comment);
 
