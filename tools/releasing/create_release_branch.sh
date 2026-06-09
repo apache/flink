@@ -67,6 +67,11 @@ VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
 perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${VERSION_TITLE}\"#" config.toml
 cd ..
 
+#change version in generated REST API specifications yml files
+cd docs/static/generated
+perl -pi -e "s#^(  version: v\d+/)${VERSION_TITLE}-SNAPSHOT#\${1}${NEW_VERSION}#" *.yml
+cd ../../..
+
 #change version of pyflink
 cd flink-python/pyflink
 perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${NEW_VERSION}\"#" version.py
