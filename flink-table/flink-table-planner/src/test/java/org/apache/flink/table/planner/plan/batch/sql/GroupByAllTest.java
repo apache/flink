@@ -12,7 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * imitations under the License.
  */
 
 package org.apache.flink.table.planner.plan.batch.sql;
@@ -79,8 +79,7 @@ class GroupByAllTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("groupByAllQueries")
     void testGroupByAll(String description, String sql, Row[] expected) {
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(tEnv.executeSql(sql).collect());
+        final List<Row> actual = CollectionUtil.iteratorToList(tEnv.executeSql(sql).collect());
         assertThat(actual).containsExactlyInAnyOrder(expected);
     }
 
