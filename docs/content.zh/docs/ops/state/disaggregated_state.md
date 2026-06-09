@@ -115,6 +115,19 @@ state.backend.forst.primary-dir: s3://your-bucket/forst-state
 **注意**：如果设置了此配置，则您可能无法利用轻量级检查点和快速恢复，因为 ForSt 会在 checkpoint 和恢复过程中将文件
 从主要存储位置复制到 checkpoint 目录。
 
+#### ForSt 本地存储位置
+
+默认情况下，ForSt 仅在使用异步 API (State V2) 时才会进行存算分离。在 DataStream 和 SQL 作业中使用同步状态 API 时，
+ForSt 仅作为**本地状态存储**。由于一个作业可能包含混合使用 API 的多个 ForSt 实例，同步本地状态访问与异步远程状态访问相结合，
+有助于实现更好的整体吞吐量。如果您希望使用同步状态 API 的算子将状态存储在远端，可以使用以下配置：
+```yaml
+state.backend.forst.sync.enforce-local: false
+```
+您可以通过以下配置项来指定本地存储位置：
+```yaml
+state.backend.forst.local-dir: path-to-local-dir
+```
+
 #### ForSt 文件缓存
 
 ForSt 使用本地磁盘进行缓存和缓冲。缓存粒度是整个文件。默认启用缓存功能，除非将主要存储位置设置为本地。缓存有两种容量限制策略：
@@ -146,5 +159,24 @@ ForSt 使用异步 I/O 来读取和写入状态。有 3 种类型的线程：
 - `state.backend.forst.executor.write-io-parallelism`: 写线程的数量，默认值是 1。
 - `state.backend.forst.executor.inline-write`: 写操作是否在分发线程内执行。默认值为 true。设置为 false 会提高 CPU 使用率。
 - `state.backend.forst.executor.inline-coordinator`: 是否让任务线程（即主线程）作为分发线程。默认值为 true。设置为 false 会提高 CPU 使用率。
+
+{{< hint info >}}
+`ForStStateBackend` 以 [ForSt](https://github.com/ververica/ForSt/) 作为其底层数据库核心。
+当前版本的 ForSt 是从 [frocksdb](https://github.com/ververica/frocksdb) fork 而来，
+专为 Flink 本地状态管理设计的嵌入式数据库核心。
+
+在将数据库向存算分离架构演进的过程中，我们在现有框架内遇到了重大的架构和工程挑战。
+为了解决这些挑战，社区成员正在开发基于 Rust 编写的下一代云原生 ForSt DB。
+
+#### 新 ForSt DB 的关键优势：
+- 架构简洁：为高扩展性而设计的精简代码库。
+- 流原生设计：专门针对大规模流处理的独特需求进行优化。
+- 云原生：从头设计以支持存算分离。
+
+#### 路线图与维护：
+- 发布计划：第一个稳定的开源版本预计于 2026 年下半年发布（乐观估计为 8 月）。
+- 弃用声明：随着我们将重心转移到新的基于 Rust 的实现，基于 frocksdb 的 ForSt 版本已不再活跃开发，并将在新版本发布后逐步退出（弃用）。
+
+{{< /hint >}}
 
 {{< top >}}
