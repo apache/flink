@@ -34,6 +34,10 @@ inputs:
     description: "Specifies the directory to which the code should be moved to (needed for containerized runs; not setting this parameter will omit moving the checkout)."
     required: false
     default: ""
+  free_disk_space:
+    description: "Runs tools/azure-pipelines/free_disk_space.sh to remove unneeded pre-installed software from the runner (only works for jobs that run directly on the host, not in a container)."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -48,7 +52,13 @@ runs:
       shell: bash
       run: df -h
 
+    - name: "Free up disk space"
+      if: ${{ inputs.free_disk_space == 'true' }}
+      shell: bash
+      run: ./tools/azure-pipelines/free_disk_space.sh
+
     - name: "Delete unused binaries"
+      if: ${{ inputs.free_disk_space != 'true' }}
       shell: bash
       run: |
         # inspired by https://github.com/easimon/maximize-build-space
