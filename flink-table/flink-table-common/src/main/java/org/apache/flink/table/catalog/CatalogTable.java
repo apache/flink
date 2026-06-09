@@ -109,6 +109,14 @@ public interface CatalogTable extends CatalogBaseTable {
         return Optional.empty();
     }
 
+    /**
+     * Returns the identifier of the connection that this table uses if the {@code USING CONNECTION}
+     * clause is defined.
+     */
+    default Optional<UnresolvedIdentifier> getConnection() {
+        return Optional.empty();
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** Builder for configuring and creating instances of {@link CatalogTable}. */
@@ -120,6 +128,7 @@ public interface CatalogTable extends CatalogBaseTable {
         private Map<String, String> options = Collections.emptyMap();
         private @Nullable Long snapshot;
         private @Nullable TableDistribution distribution;
+        private @Nullable UnresolvedIdentifier connection;
 
         private Builder() {}
 
@@ -154,9 +163,14 @@ public interface CatalogTable extends CatalogBaseTable {
             return this;
         }
 
+        public Builder connection(@Nullable UnresolvedIdentifier connection) {
+            this.connection = connection;
+            return this;
+        }
+
         public CatalogTable build() {
             return new DefaultCatalogTable(
-                    schema, comment, partitionKeys, options, snapshot, distribution);
+                    schema, comment, partitionKeys, options, snapshot, distribution, connection);
         }
     }
 }
