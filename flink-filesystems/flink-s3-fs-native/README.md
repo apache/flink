@@ -63,8 +63,8 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.access-key | (none) | AWS access key (fallback key: `s3.access.key`) |
 | s3.secret-key | (none) | AWS secret key (fallback key: `s3.secret.key`) |
 | s3.region | (auto-detect) | AWS region (auto-detected via AWS_REGION, ~/.aws/config, EC2 metadata) |
-| s3.endpoint | (none) | Custom S3 endpoint (for MinIO, LocalStack, etc.) |
-| s3.path-style-access | false | Use path-style access for S3 (required by most S3-compatible servers such as MinIO; fallback key: `s3.path.style.access`) |
+| s3.endpoint | (none) | Custom S3 endpoint (for SeaweedFS, LocalStack, etc.) |
+| s3.path-style-access | false | Use path-style access for S3 (required by most S3-compatible servers such as SeaweedFS; fallback key: `s3.path.style.access`) |
 | s3.chunked-encoding.enabled | true | Enable chunked encoding for S3 requests. Disable for S3-compatible servers that do not support it |
 | s3.checksum-validation.enabled | true | Enable checksum validation for S3 requests. Disable for S3-compatible servers that do not support it |
 | s3.upload.min.part.size | 5242880 | Minimum part size for multipart uploads (5MB to 5GB) |
@@ -271,20 +271,20 @@ s3.assume-role.session-duration: 3600  # 1 hour
 }
 ```
 
-## MinIO and S3-Compatible Storage
+## SeaweedFS and S3-Compatible Storage
 
-For S3-compatible servers (MinIO, LocalStack, Ceph RGW, etc.), set the endpoint plus any compatibility flags the server requires. These flags are not auto-detected from the endpoint value — the defaults target AWS S3 and must be overridden explicitly:
+For S3-compatible servers (SeaweedFS, LocalStack, Ceph RGW, etc.), set the endpoint plus any compatibility flags the server requires. These flags are not auto-detected from the endpoint value — the defaults target AWS S3 and must be overridden explicitly:
 
 ```yaml
-s3.access-key: minioadmin
-s3.secret-key: minioadmin
-s3.endpoint: http://localhost:9000
+s3.endpoint: http://localhost:8333
+fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 
-# Required: MinIO does not support virtual-hosted-style addressing.
+# Required: SeaweedFS serves the S3 API in path-style and does not support
+# virtual-hosted-style addressing by default.
 s3.path-style-access: true
 
-# Required: MinIO does not support AWS chunked encoding or AWS-style
-# checksum trailers used by the SDK by default.
+# Required: many S3-compatible servers do not support AWS chunked encoding or
+# AWS-style checksum trailers used by the SDK by default.
 s3.chunked-encoding.enabled: false
 s3.checksum-validation.enabled: false
 ```
@@ -402,25 +402,20 @@ Key classes:
 mvn clean package
 ```
 
-## Testing with MinIO
+## Testing with SeaweedFS
 
 ```bash
-# Start MinIO
-docker run -d -p 9000:9000 -p 9001:9001 \
-  -e "MINIO_ROOT_USER=minioadmin" \
-  -e "MINIO_ROOT_PASSWORD=minioadmin" \
-  minio/minio server /data --console-address ":9001"
+# Start SeaweedFS
+docker run -d --name seaweedfs -p 8333:8333 chrislusf/seaweedfs server -s3 -dir=/data
 
 # Create bucket
-mc alias set local http://localhost:9000 minioadmin minioadmin
-mc mb local/test-bucket
+docker exec -i seaweedfs sh -c 'echo "s3.bucket.create -name test-bucket" | weed shell'
 
-# Run Flink with MinIO
+# Run Flink with SeaweedFS
 export FLINK_HOME=/path/to/flink
 cat > $FLINK_HOME/conf/config.yaml <<EOF
-s3.endpoint: http://localhost:9000
-s3.access-key: minioadmin
-s3.secret-key: minioadmin
+s3.endpoint: http://localhost:8333
+fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 s3.path-style-access: true
 s3.chunked-encoding.enabled: false
 s3.checksum-validation.enabled: false

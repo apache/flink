@@ -18,8 +18,8 @@
 
 package org.apache.flink.fs.s3hadoop;
 
-import org.apache.flink.fs.s3.common.HAJobRunOnMinioS3StoreITCase;
-import org.apache.flink.fs.s3.common.S5CmdOnMinioITCase;
+import org.apache.flink.fs.s3.common.HAJobRunOnSeaweedFsS3StoreITCase;
+import org.apache.flink.fs.s3.common.S5CmdOnSeaweedFsITCase;
 
-/** Runs the {@link HAJobRunOnMinioS3StoreITCase} on the Hadoop S3 file system. */
-public class S5CmdOnHadoopS3FileSystemITCase extends S5CmdOnMinioITCase {}
+/** Runs the {@link HAJobRunOnSeaweedFsS3StoreITCase} on the Hadoop S3 file system. */
+public class S5CmdOnHadoopS3FileSystemITCase extends S5CmdOnSeaweedFsITCase {}

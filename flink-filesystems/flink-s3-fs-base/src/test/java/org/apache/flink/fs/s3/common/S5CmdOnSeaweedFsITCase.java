@@ -73,20 +73,21 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code HAJobRunOnMinioS3StoreITCase} covers a job run where the HA data is stored in Minio. The
- * implementation verifies whether the {@code JobResult} was written into the FileSystem-backed
- * {@code JobResultStore}.
+ * {@code HAJobRunOnSeaweedFsS3StoreITCase} covers a job run where the HA data is stored in
+ * SeaweedFs. The implementation verifies whether the {@code JobResult} was written into the
+ * FileSystem-backed {@code JobResultStore}.
  */
 @ExtendWith(TestLoggerExtension.class)
-public abstract class S5CmdOnMinioITCase {
+public abstract class S5CmdOnSeaweedFsITCase {
 
     private static final int CHECKPOINT_INTERVAL = 100;
 
     @RegisterExtension
     @Order(1)
-    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
-            MINIO_EXTENSION =
-                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+            SEAWEEDFS_EXTENSION =
+                    new AllCallbackWrapper<>(
+                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
 
     @RegisterExtension
     @Order(2)
@@ -103,17 +104,18 @@ public abstract class S5CmdOnMinioITCase {
 
     private static Configuration createConfiguration() {
         final Configuration config = new Configuration();
-        getMinioContainer().setS3ConfigOptions(config);
+        getSeaweedFsContainer().setS3ConfigOptions(config);
         File credentialsFile = new File(temporaryDirectory, "credentials");
 
         try {
             // It looks like on the CI machines s5cmd by default is using some other default
             // authentication mechanism, that takes precedence over passing secret and access keys
             // via environment variables. For example maybe there exists a credentials file in the
-            // default location with secrets from the S3, not MinIO. To circumvent it, lets use our
-            // own credentials file with secrets for MinIO.
+            // default location with secrets from the S3, not SeaweedFs. To circumvent it, lets use
+            // our
+            // own credentials file with secrets for SeaweedFs.
             checkState(credentialsFile.createNewFile());
-            getMinioContainer().writeCredentialsFile(credentialsFile);
+            getSeaweedFsContainer().writeCredentialsFile(credentialsFile);
             config.set(
                     S5CMD_EXTRA_ARGS,
                     S5CMD_EXTRA_ARGS.defaultValue()
@@ -132,8 +134,8 @@ public abstract class S5CmdOnMinioITCase {
 
     @TempDir public static File temporaryDirectory;
 
-    private static MinioTestContainer getMinioContainer() {
-        return MINIO_EXTENSION.getCustomExtension().getTestContainer();
+    private static SeaweedFsTestContainer getSeaweedFsContainer() {
+        return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
     @BeforeAll
@@ -342,7 +344,7 @@ public abstract class S5CmdOnMinioITCase {
     }
 
     private static String createS3URIWithSubPath(String... subfolders) {
-        return getMinioContainer().getS3UriForDefaultBucket() + createSubPath(subfolders);
+        return getSeaweedFsContainer().getS3UriForDefaultBucket() + createSubPath(subfolders);
     }
 
     private static String createSubPath(String... subfolders) {

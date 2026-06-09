@@ -34,7 +34,7 @@ under the License.
 		<fs.s3.aws.version>1.12.779</fs.s3.aws.version>
 		<japicmp.skip>true</japicmp.skip>
 		<surefire.module.config> <!--
-			S5CmdOnMinioITCase uses ArraysAsListSerializer indirectly
+			S5CmdOnSeaweedFsITCase uses ArraysAsListSerializer indirectly
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
 		</surefire.module.config>
 	</properties>
@@ -245,7 +245,7 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnMinioS3StoreITCase -->
+		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnSeaweedFsS3StoreITCase -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
