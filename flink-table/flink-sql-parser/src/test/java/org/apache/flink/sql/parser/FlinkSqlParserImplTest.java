@@ -143,7 +143,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "GROUP BY (ALL)");
     }
 
-
     @Test
     void testCastAsMapType() {
         this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");

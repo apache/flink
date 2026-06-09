@@ -212,14 +212,14 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             return;
         }
 
-        final boolean enabled = 
+        final boolean enabled =
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
-                    .get(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED);
+                        .get(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED);
         if (!enabled) {
             throw new ValidationException(
-                    "GROUP BY ALL is not enabled. Set '" 
+                    "GROUP BY ALL is not enabled. Set '"
                             + TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED.key()
-                            + "' to true to enable it."); 
+                            + "' to true to enable it.");
         }
 
         final List<SqlNode> keys = new ArrayList<>();
@@ -228,7 +228,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             if (expr instanceof SqlIdentifier && ((SqlIdentifier) expr).isStar()) {
                 throw new ValidationException(
                         "GROUP BY ALL does not support '*' in the SELECT list; "
-                            + "please list the grouping columns explicitly.");
+                                + "please list the grouping columns explicitly.");
             }
             if (!containsAggregateOrOver(expr)) {
                 keys.add(expr);
@@ -243,25 +243,24 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         }
 
         final SqlNode item = group.get(0);
-        return item instanceof SqlCall 
+        return item instanceof SqlCall
                 && ((SqlCall) item).getOperator() instanceof SqlGroupByAllOperator;
     }
 
     private static boolean containsAggregateOrOver(SqlNode node) {
         final boolean[] found = {false};
         node.accept(
-            new SqlBasicVisitor<Void>() {
-                @Override
-                public Void visit(SqlCall call) {
-                    if (call.getOperator() instanceof SqlAggFunction 
-                            || call.getKind() == SqlKind.OVER) {
-                        found[0] = true;
-                        return null;
+                new SqlBasicVisitor<Void>() {
+                    @Override
+                    public Void visit(SqlCall call) {
+                        if (call.getOperator() instanceof SqlAggFunction
+                                || call.getKind() == SqlKind.OVER) {
+                            found[0] = true;
+                            return null;
+                        }
+                        return super.visit(call);
                     }
-                    return super.visit(call);
-                }
-            }
-        );
+                });
         return found[0];
     }
 
