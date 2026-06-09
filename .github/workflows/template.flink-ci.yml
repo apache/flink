@@ -285,7 +285,7 @@ jobs:
           DOCKER_HOST: unix:///var/run/docker.sock
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
-          runuser -u flink -- bash -c '${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
+          runuser -u flink -- bash -c '${{ inputs.environment }} ./tools/azure-pipelines/uploading_watchdog.sh \
               ./tools/ci/test_controller.sh ${{ matrix.module }}'
 
       - name: "Post-build Disk Info"
@@ -430,7 +430,7 @@ jobs:
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
-          ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
+          ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh \
             flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
 
       - name: "Upload Logs"
