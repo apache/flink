@@ -357,6 +357,9 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          # the e2e tests download and generate more than 17GB of files; the e2e job runs
+          # directly on the host (not in a container), so the runner's disk can be cleaned up
+          free_disk_space: "true"
 
       - name: "Setup python"
         uses: actions/setup-python@v6
