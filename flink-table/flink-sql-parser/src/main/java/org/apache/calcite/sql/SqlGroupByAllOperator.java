@@ -19,13 +19,12 @@ package org.apache.calcite.sql;
 
 /**
  * Marker operator for a bare {@code GROUP BY ALL} clause.
- * 
+ *
  * <p>The parser emits a call to this operator as a placeholder, because at parse time it cannot
- * know the table's columns or which SELECT expressions are aggregates. {@code FlinkCalciteSqlValidator} 
- * rewrites the placeholder into the actual grouping expressions during validation, so this operator
- * never reaches type derivation or conversion.
+ * know the table's columns or which SELECT expressions are aggregates. {@code
+ * FlinkCalciteSqlValidator} rewrites the placeholder into the actual grouping expressions during
+ * validation, so this operator never reaches type derivation or conversion.
  */
-
 public class SqlGroupByAllOperator extends SqlSpecialOperator {
     public static final SqlGroupByAllOperator INSTANCE = new SqlGroupByAllOperator();
 
