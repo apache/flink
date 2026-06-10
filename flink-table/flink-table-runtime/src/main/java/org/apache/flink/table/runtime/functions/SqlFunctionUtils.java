@@ -603,7 +603,6 @@ public class SqlFunctionUtils {
         try {
             url = URL_CACHE.get(urlStr);
         } catch (Exception e) {
-            LOG.error("Parse URL error: " + urlStr, e);
             return null;
         }
         if ("HOST".equals(partToExtract)) {
@@ -666,16 +665,9 @@ public class SqlFunctionUtils {
 
     public static String subString(String str, long start, long len) {
         if (len < 0) {
-            LOG.error(
-                    "len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {}",
-                    len);
             return null;
         }
         if (len > Integer.MAX_VALUE || start > Integer.MAX_VALUE) {
-            LOG.error(
-                    "len or start of 'substring(str, start, len)' must be Int type, but len = {}, start = {}",
-                    len,
-                    start);
             return null;
         }
         int length = (int) len;
