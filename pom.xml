@@ -1015,7 +1015,7 @@ under the License.
 		<profile>
 			<id>enable-adaptive-scheduler</id>
 			<properties>
-				<surefire.excludedGroups.adaptive-scheduler>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</surefire.excludedGroups.adaptive-scheduler>
+				<surefire.excludedGroups.adaptive-scheduler>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler,</surefire.excludedGroups.adaptive-scheduler>
 			</properties>
 			<build>
 				<plugins>
@@ -1026,11 +1026,7 @@ under the License.
 							<systemProperties>
 								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
 							</systemProperties>
-							<excludedGroups>
-								${surefire.excludedGroups.github-actions},
-								${surefire.excludedGroups.adaptive-scheduler},
-								${surefire.excludedGroups.jdk}
-							</excludedGroups>
+							<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 						</configuration>
 					</plugin>
 				</plugins>
@@ -1046,11 +1042,7 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>
-									${surefire.excludedGroups.github-actions},
-									${surefire.excludedGroups.adaptive-scheduler},
-									${surefire.excludedGroups.jdk},
-								</excludedGroups>
+								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1093,7 +1085,7 @@ under the License.
 			</activation>
 
 			<properties>
-				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17</surefire.excludedGroups.jdk>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17,</surefire.excludedGroups.jdk>
 			</properties>
 
 			<build>
@@ -1103,11 +1095,7 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>
-									${surefire.excludedGroups.github-actions},
-									${surefire.excludedGroups.adaptive-scheduler},
-									${surefire.excludedGroups.jdk},
-								</excludedGroups>
+								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1156,11 +1144,7 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>
-									${surefire.excludedGroups.github-actions},
-									${surefire.excludedGroups.adaptive-scheduler},
-									${surefire.excludedGroups.jdk},
-								</excludedGroups>
+								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1201,7 +1185,7 @@ under the License.
 			</activation>
 
 			<properties>
-				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava25</surefire.excludedGroups.jdk>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava25,</surefire.excludedGroups.jdk>
 			</properties>
 
 			<build>
@@ -1211,11 +1195,7 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>
-									${surefire.excludedGroups.github-actions},
-									${surefire.excludedGroups.adaptive-scheduler},
-									${surefire.excludedGroups.jdk},
-								</excludedGroups>
+								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 							</configuration>
 						</plugin>
 						<plugin>
