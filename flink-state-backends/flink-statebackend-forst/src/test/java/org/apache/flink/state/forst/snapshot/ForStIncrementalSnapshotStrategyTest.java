@@ -199,7 +199,7 @@ class ForStIncrementalSnapshotStrategyTest {
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2),
                 UUID.randomUUID(),
                 new TreeMap<>(),
-                new ForStStateDataTransfer(4),
+                new ForStStateDataTransfer(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()),
                 -1);
     }
 
