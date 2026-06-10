@@ -57,6 +57,7 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSelect;
@@ -73,6 +74,7 @@ import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
 import org.apache.calcite.sql.validate.SelectScope;
+import org.apache.calcite.sql.validate.SqlDelegatingConformance;
 import org.apache.calcite.sql.validate.SqlQualified;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
@@ -128,7 +130,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                 opTab,
                 catalogReader,
                 typeFactory,
-                config,
+                enableGroupByOrdinalIfConfigured(config, relOptCluster),
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
                         .get(TableConfigOptions.LEGACY_NESTED_ROW_NULLABILITY));
         this.relOptCluster = relOptCluster;
@@ -137,6 +139,74 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         this.columnExpansionStrategies =
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
                         .get(TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY);
+    }
+
+    private static SqlValidator.Config enableGroupByOrdinalIfConfigured(
+            SqlValidator.Config config, RelOptCluster relOptCluster) {
+        final boolean enabled =
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                        .get(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED);
+        if (!enabled) {
+            return config;
+        }
+        return config.withConformance(
+                new SqlDelegatingConformance(config.conformance()) {
+                    @Override
+                    public boolean isGroupByOrdinal() {
+                        return true;
+                    }
+                });
+    }
+
+    @Override
+    protected void validateGroupClause(SqlSelect select) {
+        checkGroupByOrdinalInRange(select);
+        super.validateGroupClause(select);
+    }
+
+    /**
+     * When positional {@code GROUP BY} is enabled, an out-of-range ordinal is otherwise reported by
+     * Calcite with a message that mentions {@code ORDER BY} (the two clauses share Calcite's ordinal
+     * resolution). Pre-check bare integer literals here so we can raise a clear, {@code
+     * GROUP BY}-specific error. The ordinal resolution itself is still left to Calcite; this only
+     * improves the message for the out-of-range case.
+     *
+     * <p>Only top-level integer-literal positions (e.g. {@code GROUP BY 5}) are checked. Ordinals
+     * nested inside {@code GROUPING SETS} / {@code ROLLUP} / {@code CUBE} fall through to Calcite's
+     * own (less specific) message; those are far rarer and not worth duplicating Calcite's recursion
+     * for.
+     */
+    private void checkGroupByOrdinalInRange(SqlSelect select) {
+        if (!getConformance().isGroupByOrdinal()) {
+            return;
+        }
+        final SqlNodeList group = select.getGroup();
+        final SqlNodeList selectList = select.getSelectList();
+        if (group == null || selectList == null) {
+            return;
+        }
+        final int selectListSize = selectList.size();
+        for (SqlNode groupItem : group) {
+            if (!(groupItem instanceof SqlNumericLiteral)) {
+                continue;
+            }
+            final SqlNumericLiteral literal = (SqlNumericLiteral) groupItem;
+            if (!literal.isInteger()) {
+                continue;
+            }
+            final int ordinal = literal.intValue(false);
+            if (ordinal >= 1 && ordinal <= selectListSize) {
+                continue;
+            }
+            throw new ValidationException(
+                    String.format(
+                            "GROUP BY position %d is not in the SELECT list (which has %d %s). "
+                                    + "Positional references must be between 1 and %d.",
+                            ordinal,
+                            selectListSize,
+                            selectListSize == 1 ? "column" : "columns",
+                            selectListSize));
+        }
     }
 
     public RelOptCluster getRelOptCluster() {
