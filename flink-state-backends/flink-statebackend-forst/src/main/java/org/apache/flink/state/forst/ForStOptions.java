@@ -300,4 +300,12 @@ public class ForStOptions {
                                     + " Only valid when '"
                                     + EXECUTOR_WRITE_IO_INLINE.key()
                                     + "' is false.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
+            ConfigOptions.key("state.backend.forst.checkpoint.transfer.thread.num")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            "The number of transfer threads used to write or copy files to the state backend.");
 }

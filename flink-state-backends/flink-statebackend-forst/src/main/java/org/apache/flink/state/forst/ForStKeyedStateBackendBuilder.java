@@ -442,7 +442,7 @@ public class ForStKeyedStateBackendBuilder<K>
             long lastCompletedCheckpointId) {
         ForStStateDataTransfer stateTransfer =
                 new ForStStateDataTransfer(
-                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getDataTransferThreadNum(),
                         optionsContainer.getFileSystem());
 
         if (enableIncrementalCheckpointing) {
