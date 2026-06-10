@@ -21,6 +21,12 @@
             <td>When the number of eviction that a block in hot link is moved to cold link reaches this value, the block will be blocked from being promoted to the head of the LRU list. The default value is '3'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.forst.checkpoint.transfer.thread.num</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>Integer</td>
+            <td>The number of transfer threads used to write or copy files to the state backend.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.forst.executor.inline-coordinator</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
