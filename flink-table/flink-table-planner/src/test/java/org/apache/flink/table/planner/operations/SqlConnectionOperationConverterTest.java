@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.error.SqlValidateException;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -122,8 +123,8 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
     @Test
     void testCreateSystemConnectionWithoutTemporaryRejected() {
         assertThatThrownBy(() -> parse("CREATE SYSTEM CONNECTION my_conn WITH ('k' = 'v')"))
-                .hasRootCauseInstanceOf(SqlValidateException.class)
-                .hasMessageContaining("CREATE SYSTEM CONNECTION");
+                .isInstanceOf(SqlParserException.class)
+                .hasMessageContaining("CREATE SYSTEM CONNECTION is not supported");
     }
 
     @Test
