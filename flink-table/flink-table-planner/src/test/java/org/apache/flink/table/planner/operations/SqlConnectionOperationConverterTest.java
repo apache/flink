@@ -32,7 +32,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 import org.apache.flink.table.resource.ResourceManager;
 
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -130,9 +129,8 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
     @Test
     void testCreateConnectionWithEmptyOptionsRejected() {
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
-                .satisfiesAnyOf(
-                        t -> assertThat(t).isInstanceOf(SqlParseException.class),
-                        t -> assertThat(t.getCause()).isInstanceOf(SqlValidateException.class));
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining("Connection property list can not be empty.");
     }
 
     @Test
