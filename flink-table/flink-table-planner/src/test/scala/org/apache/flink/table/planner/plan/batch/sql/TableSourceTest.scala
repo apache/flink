@@ -131,6 +131,18 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
+  def testNestedProjectWithNonPushableFilter(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT id,
+        |    deepNested.nested1.name AS nestedName
+        |FROM NestedTable
+        |WHERE nested.`value` > 0
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
   def testNestProjectWithMetadata(): Unit = {
     val sqlQuery =
       """

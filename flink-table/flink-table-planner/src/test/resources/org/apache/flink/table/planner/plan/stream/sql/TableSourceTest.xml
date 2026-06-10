@@ -85,6 +85,29 @@ Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + dee
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedProjectWithNonPushableFilter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+    deepNested.nested1.name AS nestedName
+FROM T
+WHERE nested.`value` > 0
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name])
++- LogicalFilter(condition=[>($2.value, 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1_name AS nestedName], where=[(nested_value > 0)])
++- TableSourceScan(table=[[default_catalog, default_database, T, filter=[], project=[id, nested_value, deepNested_nested1_name], metadata=[]]], fields=[id, nested_value, deepNested_nested1_name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNoNestedProjectWithMetadata">
     <Resource name="sql">
       <![CDATA[

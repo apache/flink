@@ -217,6 +217,34 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
+  def testNestedProjectWithNonPushableFilter(): Unit = {
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
+         |  nested row<name string, `value` int>,
+         |  name string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
+
+    val sqlQuery =
+      """
+        |SELECT id,
+        |    deepNested.nested1.name AS nestedName
+        |FROM T
+        |WHERE nested.`value` > 0
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
   def testProjectWithoutInputRef(): Unit = {
     val ddl =
       s"""

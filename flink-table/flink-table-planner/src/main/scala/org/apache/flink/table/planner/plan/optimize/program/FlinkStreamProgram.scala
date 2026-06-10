@@ -254,7 +254,7 @@ object FlinkStreamProgram {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.PROJECT_RULES)
+        .add(FlinkStreamRuleSets.PROJECT_REWRITE_RULES)
         .build()
     )
 

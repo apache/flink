@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionR
 import org.apache.flink.table.planner.plan.rules.physical.common.{PhysicalMLPredictTableFunctionRule, PhysicalVectorSearchTableFunctionRule}
 import org.apache.flink.table.planner.plan.rules.physical.stream._
 
+import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
@@ -206,10 +207,9 @@ object FlinkStreamRuleSets {
     CoreRules.AGGREGATE_VALUES
   )
 
-  /** RuleSet about project */
-  val PROJECT_RULES: RuleSet = RuleSets.ofList(
+  private def projectRules(projectFilterTranspose: RelOptRule): RuleSet = RuleSets.ofList(
     // push a projection past a filter
-    CoreRules.PROJECT_FILTER_TRANSPOSE,
+    projectFilterTranspose,
     // push a projection to the children of a non semi/anti join
     // push all expressions to handle the time indicator correctly
     new FlinkProjectJoinTransposeRule(
@@ -230,6 +230,13 @@ object FlinkStreamRuleSets {
     // push a projection to the child of a WindowTableFunctionScan
     ProjectWindowTableFunctionTransposeRule.INSTANCE
   )
+
+  /** RuleSet about project for the HEP project rewrite phase. */
+  val PROJECT_REWRITE_RULES: RuleSet =
+    projectRules(CoreRules.PROJECT_FILTER_TRANSPOSE_WHOLE_EXPRESSIONS)
+
+  /** RuleSet about project */
+  val PROJECT_RULES: RuleSet = projectRules(CoreRules.PROJECT_FILTER_TRANSPOSE)
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge project to MultiJoin

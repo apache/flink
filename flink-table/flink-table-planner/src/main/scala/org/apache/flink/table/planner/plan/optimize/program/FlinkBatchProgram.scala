@@ -245,7 +245,7 @@ object FlinkBatchProgram {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.PROJECT_RULES)
+        .add(FlinkBatchRuleSets.PROJECT_REWRITE_RULES)
         .build()
     )
 

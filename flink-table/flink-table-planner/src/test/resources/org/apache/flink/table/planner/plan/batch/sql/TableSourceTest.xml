@@ -103,6 +103,29 @@ Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, 'i
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedProjectWithNonPushableFilter">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+    deepNested.nested1.name AS nestedName
+FROM NestedTable
+WHERE nested.`value` > 0
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name])
++- LogicalFilter(condition=[>($2.value, 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1_name AS nestedName], where=[(nested_value > 0)])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, filter=[], project=[id, nested_value, deepNested_nested1_name], metadata=[]]], fields=[id, nested_value, deepNested_nested1_name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectWithoutInputRef">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
