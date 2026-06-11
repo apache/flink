@@ -138,4 +138,11 @@ class FlinkCalciteSqlValidatorTest {
                 .hasMessageContaining(
                         "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
     }
+
+    @Test
+    void testMixedPositionalAndNamedArguments() {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse("SELECT myFunc(1, b => 2) FROM t1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot mix positional and named arguments");
+    }
 }

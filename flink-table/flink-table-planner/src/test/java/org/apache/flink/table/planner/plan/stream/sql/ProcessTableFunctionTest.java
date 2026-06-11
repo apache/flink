@@ -350,6 +350,11 @@ class ProcessTableFunctionTest extends TableTestBase {
     private static Stream<ErrorSpec> errorSpecs() {
         return Stream.of(
                 ErrorSpec.ofSelect(
+                        "mixed positional and named arguments",
+                        ScalarArgsFunction.class,
+                        "SELECT * FROM f(1, b => true)",
+                        "Cannot mix positional and named arguments when calling function 'f'"),
+                ErrorSpec.ofSelect(
                         "invalid uid",
                         ScalarArgsFunction.class,
                         "SELECT * FROM f(uid => '%', i => 1, b => true)",
