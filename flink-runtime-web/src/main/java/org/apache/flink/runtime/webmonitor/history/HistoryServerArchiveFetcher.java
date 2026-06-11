@@ -30,11 +30,8 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -42,11 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -69,8 +63,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Removes existing archives from these directories and the cache according to {@link
  * ArchiveRetainedStrategy} and {@link HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS}.
+ *
+ * @param <Entry> the type of entries returned by the underlying {@link ArchiveStorage}.
  */
-class HistoryServerArchiveFetcher {
+public class HistoryServerArchiveFetcher<Entry> {
 
     /** Possible archive operations in history-server. */
     public enum ArchiveEventType {
@@ -104,8 +100,9 @@ class HistoryServerArchiveFetcher {
     protected static final String JSON_FILE_ENDING = ".json";
     protected static final String JOBS_SUBDIR = "jobs";
     protected static final String JOB_OVERVIEWS_SUBDIR = "overviews";
+    protected static final String JOBS_KEY_PREFIX = JOBS_SUBDIR + "/";
+    protected static final String JOB_OVERVIEWS_KEY_PREFIX = JOB_OVERVIEWS_SUBDIR + "/";
 
-    protected final JsonFactory jacksonFactory = new JsonFactory();
     protected final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     protected final List<HistoryServer.RefreshLocation> refreshDirs;
@@ -116,17 +113,15 @@ class HistoryServerArchiveFetcher {
     /** Cache of all available archives identified by their id. */
     protected final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
 
-    protected final File webDir;
-    protected final File webJobDir;
-    protected final File webOverviewDir;
+    protected final ArchiveStorage<Entry> archiveStorage;
 
     HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
             File webDir,
             Consumer<ArchiveEvent> archiveEventListener,
             boolean cleanupExpiredArchives,
-            ArchiveRetainedStrategy retainedStrategy)
-            throws IOException {
+            ArchiveRetainedStrategy retainedStrategy,
+            ArchiveStorage<Entry> archiveStorage) {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
@@ -135,11 +130,8 @@ class HistoryServerArchiveFetcher {
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
         }
-        this.webDir = checkNotNull(webDir);
-        this.webJobDir = new File(webDir, JOBS_SUBDIR);
-        Files.createDirectories(webJobDir.toPath());
-        this.webOverviewDir = new File(webDir, JOB_OVERVIEWS_SUBDIR);
-        Files.createDirectories(webOverviewDir.toPath());
+        checkNotNull(webDir);
+        this.archiveStorage = archiveStorage;
         updateJobOverview();
 
         if (LOG.isInfoEnabled()) {
@@ -272,45 +264,23 @@ class HistoryServerArchiveFetcher {
             String path = archive.getPath();
             String json = archive.getJson();
 
-            File target;
+            String key;
             if (path.equals(JobsOverviewHeaders.URL)) {
-                target = new File(webOverviewDir, jobId + JSON_FILE_ENDING);
+                key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
             } else if (path.equals("/joboverview")) { // legacy path
                 LOG.debug("Migrating legacy archive {}", jobArchive);
                 json = convertLegacyJobOverview(json);
-                target = new File(webOverviewDir, jobId + JSON_FILE_ENDING);
+                key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
             } else {
-                // this implicitly writes into webJobDir
-                target = new File(webDir, path + JSON_FILE_ENDING);
+                // this implicitly writes into webJobDir; strip the leading '/' from the
+                // REST path so that the key is a relative sub-path under the storage root
+                key = path.substring(1) + JSON_FILE_ENDING;
             }
 
-            writeTargetFile(target, json);
+            archiveStorage.putArchiveContent(key, json);
         }
 
         return new ArchiveEvent(jobId, ArchiveEventType.CREATED);
-    }
-
-    void writeTargetFile(File target, String json) throws IOException {
-        java.nio.file.Path parent = target.getParentFile().toPath();
-
-        try {
-            Files.createDirectories(parent);
-        } catch (FileAlreadyExistsException ignored) {
-            // there may be left-over directories from the previous attempt
-        }
-
-        java.nio.file.Path targetPath = target.toPath();
-
-        // We overwrite existing files since this may be another attempt
-        // at fetching this archive.
-        // Existing files may be incomplete/corrupt.
-        Files.deleteIfExists(targetPath);
-
-        Files.createFile(target.toPath());
-        try (FileWriter fw = new FileWriter(target)) {
-            fw.write(json);
-            fw.flush();
-        }
     }
 
     List<ArchiveEvent> cleanupArchivesBeyondRetainedLimit(Map<Path, Set<Path>> archivesToRemove) {
@@ -357,23 +327,23 @@ class HistoryServerArchiveFetcher {
     }
 
     ArchiveEvent deleteJobFiles(String jobId) {
-        // Make sure we do not include this job in the overview
+        // Delete job overview file in overviews directory
         try {
-            Files.deleteIfExists(new File(webOverviewDir, jobId + JSON_FILE_ENDING).toPath());
+            archiveStorage.delete(JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING);
         } catch (IOException ioe) {
             LOG.warn("Could not delete file from overview directory.", ioe);
         }
 
-        // Clean up job files we may have created
-        File jobDirectory = new File(webJobDir, jobId);
+        // Delete job details directory in jobs directory, jobs/job-id/
         try {
-            FileUtils.deleteDirectory(jobDirectory);
+            archiveStorage.deleteEntriesByPrefix(JOBS_KEY_PREFIX + jobId + "/");
         } catch (IOException ioe) {
             LOG.warn("Could not clean up job directory.", ioe);
         }
 
+        // Delete job overview file in jobs directory, jobs/job-id.json
         try {
-            Files.deleteIfExists(new File(webJobDir, jobId + JSON_FILE_ENDING).toPath());
+            archiveStorage.delete(JOBS_KEY_PREFIX + jobId + JSON_FILE_ENDING);
         } catch (IOException ioe) {
             LOG.warn("Could not delete file from job directory.", ioe);
         }
@@ -464,21 +434,28 @@ class HistoryServerArchiveFetcher {
      * <p>For the display in the HistoryServer WebFrontend we have to combine these overviews.
      */
     void updateJobOverview() {
-        try (JsonGenerator gen =
-                jacksonFactory.createGenerator(
-                        HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
-            File[] overviews = new File(webOverviewDir.getPath()).listFiles();
-            if (overviews != null) {
-                Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
-                for (File overview : overviews) {
-                    MultipleJobsDetails subJobs =
-                            mapper.readValue(overview, MultipleJobsDetails.class);
-                    allJobs.addAll(subJobs.getJobs());
+        try {
+            Collection<JobDetails> allJobs = new ArrayList<>();
+            List<Entry> overviews = archiveStorage.getEntriesByPrefix(JOB_OVERVIEWS_KEY_PREFIX);
+            for (Entry overview : overviews) {
+                MultipleJobsDetails subJobs;
+                // We treated File as a special case, mainly as a performance trade-off to avoid the
+                // overhead of loading the archive into string.
+                if (overview instanceof File) {
+                    subJobs = mapper.readValue((File) overview, MultipleJobsDetails.class);
+                } else {
+                    subJobs =
+                            mapper.readValue(
+                                    archiveStorage.readArchiveContent(overview),
+                                    MultipleJobsDetails.class);
                 }
-                mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
+                allJobs.addAll(subJobs.getJobs());
             }
-        } catch (IOException ioe) {
-            LOG.error("Failed to update job overview.", ioe);
+            String overviewWithJobs = mapper.writeValueAsString(new MultipleJobsDetails(allJobs));
+            archiveStorage.putArchiveContent(
+                    JobsOverviewHeaders.URL.substring(1) + JSON_FILE_ENDING, overviewWithJobs);
+        } catch (Exception e) {
+            LOG.error("Failed to update job overview.", e);
         }
     }
 }
