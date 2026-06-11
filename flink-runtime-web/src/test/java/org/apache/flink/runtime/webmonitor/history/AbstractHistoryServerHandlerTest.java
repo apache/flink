@@ -37,8 +37,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,7 +63,14 @@ public class AbstractHistoryServerHandlerTest {
     @Parameters(name = "handlerFactory={0}")
     private static Collection<HandlerFactory> handlerFactories() {
         HandlerFactory staticFileServerHandlerFactory = HistoryServerStaticFileServerHandler::new;
-        return Collections.singletonList(staticFileServerHandlerFactory);
+        HandlerFactory rocksDBHandlerFactory =
+                webDir ->
+                        new HistoryServerRocksDBHandler(
+                                new RocksDBArchiveStorage(
+                                        new File(webDir, "rocksdb-" + UUID.randomUUID()),
+                                        new Configuration()),
+                                webDir);
+        return Arrays.asList(staticFileServerHandlerFactory, rocksDBHandlerFactory);
     }
 
     @Parameter public HandlerFactory handlerFactory;

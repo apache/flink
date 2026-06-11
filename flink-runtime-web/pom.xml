@@ -81,6 +81,16 @@ under the License.
 		</dependency>
 
 		<!-- ===================================================
+						RocksDB Storage Backend
+			=================================================== -->
+
+		<dependency>
+			<groupId>com.ververica</groupId>
+			<artifactId>frocksdbjni</artifactId>
+			<version>${rocksdb.version}</version>
+		</dependency>
+
+		<!-- ===================================================
 								Testing
 			=================================================== -->
 

@@ -51,6 +51,12 @@
             <td>The time-to-live duration to retain the archived entities (jobs and applications) in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. This option works together with the retention count limits (see <code class="highlighter-rouge">historyserver.archive.retained-applications</code> and <code class="highlighter-rouge">historyserver.archive.retained-jobs</code>). Archived entities will be removed if their TTL has expired or the retention count limit has been reached. <br />If set to equal to or less than <code class="highlighter-rouge">0</code> milliseconds, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul></td>
         </tr>
         <tr>
+            <td><h5>historyserver.archive.storage.type</h5></td>
+            <td style="word-wrap: break-word;">FILE</td>
+            <td><p>Enum</p></td>
+            <td>The type of archive storage.<br /><br />Possible values:<ul><li>"FILE"</li><li>"ROCKSDB"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

@@ -55,7 +55,8 @@ class ArchiveStorageTest {
     @Parameters(name = "storageFactory={0}")
     private static Collection<ArchiveStorageFactory<?>> storageFactories() {
         ArchiveStorageFactory<File> fileArchiveStorageFactory = FileArchiveStorage::new;
-        return List.of(fileArchiveStorageFactory);
+        ArchiveStorageFactory<String> rocksDBStorageFactory = RocksDBArchiveStorage::new;
+        return List.of(fileArchiveStorageFactory, rocksDBStorageFactory);
     }
 
     /** Creates an {@link ArchiveStorage} instance under the given temporary directory. */

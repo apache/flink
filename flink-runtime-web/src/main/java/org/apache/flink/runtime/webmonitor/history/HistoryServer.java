@@ -141,6 +141,7 @@ public class HistoryServer {
     private final Thread shutdownHook;
 
     private final ArchiveStorage<?> archiveStorage;
+    private final AbstractHistoryServerHandler<?> historyServerHandler;
 
     public static void main(String[] args) throws Exception {
         EnvironmentInformation.logEnvironmentInfo(LOG, "HistoryServer", args);
@@ -253,12 +254,31 @@ public class HistoryServer {
         refreshIntervalMillis =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
 
-        // create directories for job and application overview updates
-        Files.createDirectories(webDir.toPath().resolve(JOBS_SUBDIR));
-        Files.createDirectories(webDir.toPath().resolve(JOB_OVERVIEWS_SUBDIR));
-        Files.createDirectories(webDir.toPath().resolve(APPLICATIONS_SUBDIR));
-        Files.createDirectories(webDir.toPath().resolve(APPLICATION_OVERVIEWS_SUBDIR));
-        archiveStorage = new FileArchiveStorage(webDir);
+        HistoryServerOptions.HistoryServerArchiveStorageType archiveStorageType =
+                config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_STORAGE_TYPE);
+        switch (archiveStorageType) {
+            case FILE:
+                // create directories for job and application overview updates
+                Files.createDirectories(webDir.toPath().resolve(JOBS_SUBDIR));
+                Files.createDirectories(webDir.toPath().resolve(JOB_OVERVIEWS_SUBDIR));
+                Files.createDirectories(webDir.toPath().resolve(APPLICATIONS_SUBDIR));
+                Files.createDirectories(webDir.toPath().resolve(APPLICATION_OVERVIEWS_SUBDIR));
+                archiveStorage = new FileArchiveStorage(webDir);
+                historyServerHandler =
+                        new HistoryServerStaticFileServerHandler(
+                                (FileArchiveStorage) archiveStorage, webDir);
+                break;
+            case ROCKSDB:
+                File dbPath = new File(webDir, "rocksdb-" + UUID.randomUUID());
+                Files.createDirectories(dbPath.toPath());
+                archiveStorage = new RocksDBArchiveStorage(dbPath, config);
+                historyServerHandler =
+                        new HistoryServerRocksDBHandler(
+                                (RocksDBArchiveStorage) archiveStorage, webDir);
+                break;
+            default:
+                throw new FlinkException("Unsupported archive storage type: " + archiveStorageType);
+        }
 
         archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
@@ -363,12 +383,9 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet(
-                    "/:*",
-                    new HistoryServerStaticFileServerHandler(
-                            (FileArchiveStorage) archiveStorage, webDir));
-
             createDashboardConfigFile();
+
+            router.addGet("/:*", historyServerHandler);
 
             executor.scheduleWithFixedDelay(
                     getArchiveFetchingRunnable(), 0, refreshIntervalMillis, TimeUnit.MILLISECONDS);
