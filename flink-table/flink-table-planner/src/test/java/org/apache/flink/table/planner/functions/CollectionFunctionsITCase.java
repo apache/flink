@@ -175,6 +175,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 true,
                                 DataTypes.BOOLEAN().nullable())
                         .testResult(
+                                $("f4").arrayContains(lit(0, DataTypes.INT().notNull())),
+                                "ARRAY_CONTAINS(f4, 0)",
+                                false,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
                                 $("f5").arrayContains(lit(null, DataTypes.INT())),
                                 "ARRAY_CONTAINS(f5, CAST(NULL AS INT))",
                                 false,
@@ -188,6 +193,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f5").arrayContains(lit(3, DataTypes.INT().notNull())),
                                 "ARRAY_CONTAINS(f5, 3)",
                                 true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testSqlResult(
+                                "ARRAY_CONTAINS(ARRAY[1, NULL], 0)",
+                                false,
                                 DataTypes.BOOLEAN().notNull())
                         // invalid signatures
                         .testSqlValidationError(
