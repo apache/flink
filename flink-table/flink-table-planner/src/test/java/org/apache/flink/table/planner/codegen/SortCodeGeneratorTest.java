@@ -119,6 +119,7 @@ class SortCodeGeneratorTest {
 
     private RowType inputType;
     private SortSpec sortSpec;
+    private BinaryRowData[] customTestData;
 
     private static final DataType INT_ROW_TYPE =
             DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT())).bridgedTo(Row.class);
@@ -135,6 +136,26 @@ class SortCodeGeneratorTest {
             new RowTypeInfo(new RowTypeInfo(Types.INT))
                     .createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
+
+    @Test
+    void testFloatNegativeZeroSortKey() throws Exception {
+        inputType =
+                RowType.of(
+                        new TypeInformationRawType<>(Types.INT),
+                        new FloatType(),
+                        new BooleanType());
+        sortSpec =
+                SortSpec.builder()
+                        .addField(0, true, SortUtil.getNullDefaultOrder(true))
+                        .addField(1, true, SortUtil.getNullDefaultOrder(true))
+                        .build();
+        customTestData = buildNegativeZeroFloatTestData();
+        try {
+            testInner();
+        } finally {
+            customTestData = null;
+        }
+    }
 
     @Test
     void testMultiKeys() throws Exception {
@@ -212,7 +233,22 @@ class SortCodeGeneratorTest {
         return row;
     }
 
+    private BinaryRowData[] buildNegativeZeroFloatTestData() {
+        Object[][] values = new Object[3][];
+        values[0] = new Object[] {RawValueData.fromObject(0), RawValueData.fromObject(0)};
+        values[1] = new Object[] {0.0f, -0.0f};
+        values[2] = new Object[] {false, true};
+        BinaryRowData[] result = new BinaryRowData[2];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = row(i, values);
+        }
+        return result;
+    }
+
     private BinaryRowData[] getTestData() {
+        if (customTestData != null) {
+            return customTestData;
+        }
         BinaryRowData[] result = new BinaryRowData[RECORD_NUM];
         Object[][] values = new Object[inputType.getFieldCount()][];
         for (int i = 0; i < inputType.getFieldCount(); i++) {
@@ -477,7 +513,9 @@ class SortCodeGeneratorTest {
 
         List<BinaryRowData> data = Arrays.asList(dataArray.clone());
         List<BinaryRowData> binaryRows = Arrays.asList(dataArray.clone());
-        Collections.shuffle(binaryRows);
+        if (customTestData == null) {
+            Collections.shuffle(binaryRows);
+        }
 
         for (BinaryRowData row : binaryRows) {
             if (!sortBuffer.write(row)) {
