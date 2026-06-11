@@ -104,6 +104,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       transformColumnIndex(childProps.getWindowStartColumns, mapInToOutPos),
       transformColumnIndex(childProps.getWindowEndColumns, mapInToOutPos),
       transformColumnIndex(childProps.getWindowTimeColumns, mapInToOutPos),
+      transformColumnIndex(childProps.getTimeAttributeColumns, mapInToOutPos),
       updateWindowSpec(windowSpec, mapInToOutPos)
     )
   }
@@ -209,7 +210,9 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val starts = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowStartColumns)
     val ends = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowEndColumns)
     val times = inferWindowPropertyAfterExpand(inputWindowProperties.getWindowTimeColumns)
-    inputWindowProperties.copy(starts, ends, times)
+    val timeAttributes = inferWindowPropertyAfterExpand(
+      inputWindowProperties.getTimeAttributeColumns)
+    inputWindowProperties.copy(starts, ends, times, timeAttributes)
   }
 
   def getWindowProperties(rel: Exchange, mq: RelMetadataQuery): RelWindowProperties = {
@@ -229,7 +232,9 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       val starts = properties.map(_.getWindowStartColumns).reduce((l, r) => l.intersect(r))
       val ends = properties.map(_.getWindowEndColumns).reduce((l, r) => l.intersect(r))
       val times = properties.map(_.getWindowTimeColumns).reduce((l, r) => l.intersect(r))
-      properties.head.copy(starts, ends, times)
+      val timeAttributes =
+        properties.map(_.getTimeAttributeColumns).reduce((l, r) => l.intersect(r))
+      properties.head.copy(starts, ends, times, timeAttributes)
     } else {
       // window properties is lost if windows are not equal
       null
@@ -246,6 +251,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
         ImmutableBitSet.of(fieldCount - 3),
         ImmutableBitSet.of(fieldCount - 2),
         ImmutableBitSet.of(fieldCount - 1),
+        ImmutableBitSet.of(windowingStrategy.getTimeAttributeIndex),
         windowingStrategy.getWindow,
         windowingStrategy.getTimeAttributeType
       )
@@ -274,11 +280,16 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       .intersect(grouping)
       .map(grouping.indexOf(_))
       .toList
+    val timeAttributeColumns = windowProperties.getTimeAttributeColumns
+      .intersect(grouping)
+      .map(grouping.indexOf(_))
+      .toList
 
     RelWindowProperties.create(
       ImmutableBitSet.of(startColumns: _*),
       ImmutableBitSet.of(endColumns: _*),
       ImmutableBitSet.of(timeColumns: _*),
+      ImmutableBitSet.of(timeAttributeColumns: _*),
       windowProperties.getWindowSpec,
       windowProperties.getTimeAttributeType
     )
@@ -292,6 +303,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       ImmutableBitSet.of(fieldCount - 3),
       ImmutableBitSet.of(fieldCount - 2),
       ImmutableBitSet.of(fieldCount - 1),
+      ImmutableBitSet.of(rel.windowing.getTimeAttributeIndex),
       rel.windowing.getWindow,
       rel.windowing.getTimeAttributeType
     )
@@ -344,6 +356,9 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       ImmutableBitSet.of(starts: _*),
       ImmutableBitSet.of(ends: _*),
       ImmutableBitSet.of(times: _*),
+      // the original time attribute column is consumed by the window aggregate; only window_time
+      // remains as the time attribute of the aggregate output
+      ImmutableBitSet.of(),
       windowSpec,
       timeAttributeType
     )
@@ -454,7 +469,10 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val timeColumns = inferWindowPropertyAfterWindowJoin(
       leftWindowProperties.getWindowTimeColumns,
       rightWindowProperties.getWindowTimeColumns)
-    leftWindowProperties.copy(startColumns, endColumns, timeColumns)
+    val timeAttributeColumns = inferWindowPropertyAfterWindowJoin(
+      leftWindowProperties.getTimeAttributeColumns,
+      rightWindowProperties.getTimeAttributeColumns)
+    leftWindowProperties.copy(startColumns, endColumns, timeColumns, timeAttributeColumns)
   }
 
   def getWindowProperties(hepRelVertex: HepRelVertex, mq: RelMetadataQuery): RelWindowProperties = {

@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
+import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalRank, StreamPhysicalWindowDeduplicate}
@@ -339,7 +340,9 @@ object RankUtil {
    * @return
    *   True if the input rank could be converted to [[StreamPhysicalWindowDeduplicate]]
    */
-  def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
+  def canConvertToDeduplicate(
+      rank: FlinkLogicalRank,
+      windowProperties: RelWindowProperties): Boolean = {
     val sortCollation = rank.orderKey
     val rankRange = rank.rankRange
 
@@ -351,10 +354,28 @@ object RankUtil {
       case _ => false
     }
 
-    val inputRowType = rank.getInput.getRowType
-    val isSortOnTimeAttribute = sortOnTimeAttributeOnly(sortCollation, inputRowType)
+    val isSortOnWindowTimeAttribute =
+      sortOnWindowTimeAttributeColumn(sortCollation, windowProperties)
 
-    !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
+    !rank.outputRankNumber && isLimit1 && isSortOnWindowTimeAttribute && isRowNumberType
+  }
+
+  /**
+   * Window deduplication must sort on the window's original time attribute column, i.e. the column
+   * referenced by the window TVF time descriptor (tracked in
+   * [[RelWindowProperties.getTimeAttributeColumns]]). Sorting on window_time is forbidden because
+   * window_time is constant within a window and cannot distinguish the first/last row. After
+   * FLINK-39899 the original time attribute is materialized to a regular timestamp once it leaves
+   * the window TVF, so we identify it by column position instead of by time-indicator type.
+   */
+  private def sortOnWindowTimeAttributeColumn(
+      sortCollation: RelCollation,
+      windowProperties: RelWindowProperties): Boolean = {
+    if (windowProperties == null || sortCollation.getFieldCollations.size() != 1) {
+      return false
+    }
+    val firstSortField = sortCollation.getFieldCollations.get(0)
+    windowProperties.getTimeAttributeColumns.get(firstSortField.getFieldIndex)
   }
 
   private def sortOnTimeAttributeOnly(
