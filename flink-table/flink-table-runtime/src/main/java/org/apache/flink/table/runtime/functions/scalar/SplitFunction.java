@@ -52,9 +52,9 @@ public class SplitFunction extends BuiltInScalarFunction {
                 int i = 0;
                 while (i < str.length()) {
                     int codePoint = str.codePointAt(i);
-                    int charCount = Character.charCount(codePoint);
-                    res.add(StringData.fromString(str.substring(i, i + charCount)));
-                    i += charCount;
+                    int nextIndex = i + Character.charCount(codePoint);
+                    res.add(StringData.fromString(str.substring(i, nextIndex)));
+                    i = nextIndex;
                 }
                 return new GenericArrayData(res.toArray());
             }
