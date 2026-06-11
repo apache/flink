@@ -19,9 +19,6 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -97,17 +94,6 @@ public final class LogicalTypeUtils {
         }
         return normalizeNullability(newType).equals(normalizeNullability(oldType))
                 && !hasNullabilityNarrowing(newType, oldType);
-    }
-
-    public static boolean isSerializerCompatibleAfterNullabilityWidening(
-            TypeSerializer<?> serializer, TypeSerializer<?> previousSerializer) {
-        if (serializer.equals(previousSerializer)) {
-            return true;
-        }
-
-        TypeSerializerSchemaCompatibility<?> compatibility =
-                resolveSchemaCompatibility(serializer, previousSerializer);
-        return compatibility.isCompatibleAsIs();
     }
 
     /**
@@ -291,13 +277,6 @@ public final class LogicalTypeUtils {
             }
         }
         return false;
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static TypeSerializerSchemaCompatibility<?> resolveSchemaCompatibility(
-            TypeSerializer<?> serializer, TypeSerializer<?> previousSerializer) {
-        TypeSerializerSnapshot previousSnapshot = previousSerializer.snapshotConfiguration();
-        return serializer.snapshotConfiguration().resolveSchemaCompatibility(previousSnapshot);
     }
 
     private static class NullabilityNormalizer extends LogicalTypeDuplicator {

@@ -347,6 +347,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
             // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
+            // BinaryRowData always reserves the null bitmask regardless of declared nullability,
+            // so a field written as NOT NULL reads back through a nullable serializer with no
+            // binary layout change — this is why widening is compatible-as-is.
             if (!areTypesCompatibleAfterNullabilityWidening(
                     types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();

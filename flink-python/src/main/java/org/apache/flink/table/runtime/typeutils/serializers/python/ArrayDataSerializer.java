@@ -35,7 +35,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.runtime.typeutils.SerializerSchemaCompatibilityUtils.isSerializerCompatibleAfterNullabilityWidening;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
 
 /**

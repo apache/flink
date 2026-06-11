@@ -43,7 +43,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.runtime.typeutils.SerializerSchemaCompatibilityUtils.isSerializerCompatibleAfterNullabilityWidening;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
 
 /** Serializer for {@link ArrayData}. */

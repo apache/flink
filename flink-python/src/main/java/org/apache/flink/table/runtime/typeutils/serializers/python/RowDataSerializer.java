@@ -206,6 +206,8 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
 
             // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
+            // The mask-based python serializer always writes a null bit per field (same as
+            // BinaryRowData's null bitmask), so widening is binary-compatible-as-is.
             if (!areTypesCompatibleAfterNullabilityWidening(
                     types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
