@@ -363,7 +363,10 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            router.addGet(
+                    "/:*",
+                    new HistoryServerStaticFileServerHandler(
+                            (FileArchiveStorage) archiveStorage, webDir));
 
             createDashboardConfigFile();
 
