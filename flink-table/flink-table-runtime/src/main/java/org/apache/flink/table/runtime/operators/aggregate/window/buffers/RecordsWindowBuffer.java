@@ -120,6 +120,9 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                     recordsBuffer.getEntryIterator(requiresCopy);
             while (entryIterator.advanceNext()) {
                 WindowKey windowKey = entryIterator.getKey();
+                // When requiresCopy=true the iterator already returned a fresh copy.
+                // Otherwise it reuses a mutable WindowKey, so we must copy here before
+                // it escapes into the timer queue via combine().
                 combineFunction.combine(
                         requiresCopy ? windowKey : windowKeySerializer.copy(windowKey),
                         entryIterator.getValue());
