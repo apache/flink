@@ -427,6 +427,26 @@ public class QueryOperationTestPrograms {
                                     + " OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY")
                     .build();
 
+    static final TableTestProgram LIMIT_QUERY_OPERATION =
+            TableTestProgram.of("limit-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "a"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(Row.of(1L, "a"))
+                                    .build())
+                    .runTableApi(t -> t.from("s").limit(1), "sink")
+                    .runSql(
+                            "SELECT `$$T_SORT`.`a`, `$$T_SORT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`"
+                                    + ".`default_database`.`s` $$T_SOURCE\n"
+                                    + ") $$T_SORT OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY")
+                    .build();
+
     static final TableTestProgram SQL_QUERY_OPERATION =
             TableTestProgram.of("sql-query-operation", "verifies sql serialization")
                     .setupTableSource(
