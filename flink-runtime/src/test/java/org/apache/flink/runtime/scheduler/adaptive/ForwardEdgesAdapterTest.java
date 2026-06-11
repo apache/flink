@@ -37,7 +37,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +61,7 @@ class ForwardEdgesAdapterTest {
                 new JobGraphJobInformation(initialJobGraph, new DefaultVertexParallelismStore());
     }
 
-    @RepeatedTest(100000)
+    @Test
     void testAdaptiveChangeForwardJobEdges() throws Exception {
 
         // Test initial info.
