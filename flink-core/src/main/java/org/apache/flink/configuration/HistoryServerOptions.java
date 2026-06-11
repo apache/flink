@@ -247,5 +247,24 @@ public class HistoryServerOptions {
                                             text(CONFIGURE_CONSISTENT))
                                     .build());
 
+    public static final ConfigOption<HistoryServerArchiveStorageType>
+            HISTORY_SERVER_ARCHIVE_STORAGE_TYPE =
+                    key("historyserver.archive.storage.type")
+                            .enumType(HistoryServerArchiveStorageType.class)
+                            .defaultValue(HistoryServerArchiveStorageType.FILE)
+                            .withDescription(
+                                    Description.builder()
+                                            .text("The type of archive storage.")
+                                            .build());
+
+    /** The type of archive storage. */
+    public enum HistoryServerArchiveStorageType {
+        /** Local file system. */
+        FILE,
+
+        /** RocksDB. */
+        ROCKSDB
+    }
+
     private HistoryServerOptions() {}
 }
