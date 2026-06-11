@@ -70,7 +70,7 @@ jobs:
             bash -c "cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@7659d600d8bdd035bb5cdfba1d4bd0dd4a307ca6 # 8.0.2
+        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
         with:
           switches: --archive --compress --delete
           path: docs/target/
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload documentation alias
         if: env.flink_alias != ''
-        uses: burnett01/rsync-deployments@7659d600d8bdd035bb5cdfba1d4bd0dd4a307ca6 # 8.0.2
+        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
         with:
           switches: --archive --compress --delete
           path: docs/target/
