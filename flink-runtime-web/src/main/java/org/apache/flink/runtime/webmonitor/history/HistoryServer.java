@@ -59,7 +59,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
@@ -75,6 +74,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATIONS_SUBDIR;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATION_OVERVIEWS_SUBDIR;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.JOBS_SUBDIR;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.JOB_OVERVIEWS_SUBDIR;
 
 /**
  * The HistoryServer provides a WebInterface and REST API to retrieve information about finished
@@ -116,13 +120,13 @@ public class HistoryServer {
      * The archive fetcher is responsible for fetching job archives that are not part of an
      * application (legacy jobs created before application archiving was introduced in FLINK-38761).
      */
-    private final HistoryServerArchiveFetcher archiveFetcher;
+    private final HistoryServerArchiveFetcher<?> archiveFetcher;
 
     /**
      * The archive fetcher is responsible for fetching application archives and their associated job
      * archives.
      */
-    private final HistoryServerApplicationArchiveFetcher applicationArchiveFetcher;
+    private final HistoryServerApplicationArchiveFetcher<?> applicationArchiveFetcher;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
@@ -135,6 +139,8 @@ public class HistoryServer {
     private final Object startupShutdownLock = new Object();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
     private final Thread shutdownHook;
+
+    private final ArchiveStorage<?> archiveStorage;
 
     public static void main(String[] args) throws Exception {
         EnvironmentInformation.logEnvironmentInfo(LOG, "HistoryServer", args);
@@ -246,20 +252,30 @@ public class HistoryServer {
 
         refreshIntervalMillis =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
+
+        // create directories for job and application overview updates
+        Files.createDirectories(webDir.toPath().resolve(JOBS_SUBDIR));
+        Files.createDirectories(webDir.toPath().resolve(JOB_OVERVIEWS_SUBDIR));
+        Files.createDirectories(webDir.toPath().resolve(APPLICATIONS_SUBDIR));
+        Files.createDirectories(webDir.toPath().resolve(APPLICATION_OVERVIEWS_SUBDIR));
+        archiveStorage = new FileArchiveStorage(webDir);
+
         archiveFetcher =
-                new HistoryServerArchiveFetcher(
+                new HistoryServerArchiveFetcher<>(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredJobs,
-                        CompositeArchiveRetainedStrategy.createForJobFromConfig(config));
+                        CompositeArchiveRetainedStrategy.createForJobFromConfig(config),
+                        archiveStorage);
         applicationArchiveFetcher =
-                new HistoryServerApplicationArchiveFetcher(
+                new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
                         webDir,
                         applicationArchiveEventListener,
                         cleanupExpiredApplications,
-                        CompositeArchiveRetainedStrategy.createForApplicationFromConfig(config));
+                        CompositeArchiveRetainedStrategy.createForApplicationFromConfig(config),
+                        archiveStorage);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -383,6 +399,12 @@ public class HistoryServer {
                 ExecutorUtils.gracefulShutdown(1, TimeUnit.SECONDS, executor);
 
                 try {
+                    archiveStorage.close();
+                } catch (Throwable t) {
+                    LOG.warn("Error while closing archive storage.", t);
+                }
+
+                try {
                     LOG.info("Removing web dashboard root cache directory {}", webDir);
                     FileUtils.deleteDirectory(webDir);
                 } catch (Throwable t) {
@@ -401,31 +423,17 @@ public class HistoryServer {
     // File generation
     // ------------------------------------------------------------------------
 
-    static FileWriter createOrGetFile(File folder, String name) throws IOException {
-        File file = new File(folder, name + ".json");
-        if (!file.exists()) {
-            Files.createFile(file.toPath());
-        }
-        FileWriter fr = new FileWriter(file);
-        return fr;
-    }
-
     private void createDashboardConfigFile() throws IOException {
-        try (FileWriter fw = createOrGetFile(webDir, "config")) {
-            fw.write(
-                    createConfigJson(
-                            DashboardConfiguration.from(
-                                    webRefreshIntervalMillis,
-                                    ZonedDateTime.now(),
-                                    false,
-                                    false,
-                                    false,
-                                    true)));
-            fw.flush();
-        } catch (IOException ioe) {
-            LOG.error("Failed to write config file.");
-            throw ioe;
-        }
+        String configJson =
+                createConfigJson(
+                        DashboardConfiguration.from(
+                                webRefreshIntervalMillis,
+                                ZonedDateTime.now(),
+                                false,
+                                false,
+                                false,
+                                true));
+        archiveStorage.putArchiveContent("config.json", configJson);
     }
 
     private static String createConfigJson(DashboardConfiguration dashboardConfiguration)
