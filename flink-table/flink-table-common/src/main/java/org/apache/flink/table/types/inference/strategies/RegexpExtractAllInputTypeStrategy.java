@@ -30,7 +30,6 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,11 +38,11 @@ import java.util.Optional;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 
 /**
- * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT}. Validates literal
+ * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT_ALL}. Validates literal
  * regex patterns at planning time.
  */
 @Internal
-public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
+public class RegexpExtractAllInputTypeStrategy implements InputTypeStrategy {
 
     private static final int ARG_STR = 0;
     private static final int ARG_REGEX = 1;
@@ -51,7 +50,8 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
 
     private static final ArgumentTypeStrategy STRING_ARG =
             logical(LogicalTypeFamily.CHARACTER_STRING);
-    private static final ArgumentTypeStrategy INT_ARG = logical(LogicalTypeRoot.INTEGER);
+    private static final ArgumentTypeStrategy INTEGER_NUMERIC_ARG =
+            logical(LogicalTypeFamily.INTEGER_NUMERIC);
 
     @Override
     public ArgumentCount getArgumentCount() {
@@ -77,7 +77,8 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
         inferredDataTypes.add(inferredRegexType.get());
         if (callContext.getArgumentDataTypes().size() > ARG_EXTRACT_INDEX) {
             final Optional<DataType> inferredExtractIndexType =
-                    INT_ARG.inferArgumentType(callContext, ARG_EXTRACT_INDEX, throwOnFailure);
+                    INTEGER_NUMERIC_ARG.inferArgumentType(
+                            callContext, ARG_EXTRACT_INDEX, throwOnFailure);
             if (inferredExtractIndexType.isEmpty()) {
                 return Optional.empty();
             }
@@ -102,6 +103,6 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
                 Signature.of(
                         Argument.ofGroup("str", LogicalTypeFamily.CHARACTER_STRING),
                         Argument.ofGroup("regex", LogicalTypeFamily.CHARACTER_STRING),
-                        Argument.ofGroup("extractIndex", LogicalTypeRoot.INTEGER)));
+                        Argument.ofGroup("extractIndex", LogicalTypeFamily.INTEGER_NUMERIC)));
     }
 }
