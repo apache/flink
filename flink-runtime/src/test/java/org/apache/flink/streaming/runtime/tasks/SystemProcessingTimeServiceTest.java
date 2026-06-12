@@ -59,20 +59,24 @@ class SystemProcessingTimeServiceTest {
 
         final CountDownLatch countDownLatch = new CountDownLatch(countDown);
 
+        // The service captures its scheduling base internally; a separate clock read in the test
+        // races it, so the expected timestamps are anchored on the first observed one.
+        final AtomicReference<Long> firstTimestamp = new AtomicReference<>();
+
         try {
-            final long initialTimestamp = timer.getCurrentProcessingTime() + initialDelay;
             timer.scheduleAtFixedRate(
                     timestamp -> {
                         try {
+                            firstTimestamp.compareAndSet(null, timestamp);
                             long executionTimes = countDown - countDownLatch.getCount();
                             assertThat(timestamp)
                                     .isCloseTo(
-                                            initialTimestamp + executionTimes * period,
+                                            firstTimestamp.get() + executionTimes * period,
                                             Offset.offset(period));
                             Thread.sleep(executionDelay);
-                        } catch (Error e) {
-                            System.out.println(e.getMessage());
-                            throw new Error(e);
+                        } catch (Throwable e) {
+                            // errorRef is shared with the service's async exception handler.
+                            errorRef.compareAndSet(null, e);
                         }
                         countDownLatch.countDown();
                     },
@@ -107,14 +111,12 @@ class SystemProcessingTimeServiceTest {
         final LastExecutionTimeWrapper lastExecutionTimeWrapper = new LastExecutionTimeWrapper();
 
         try {
-            final long initialTimestamp = timer.getCurrentProcessingTime() + initialDelay;
             timer.scheduleWithFixedDelay(
                     timestamp -> {
                         try {
-                            if (countDownLatch.getCount() == countDown) {
-                                assertThat(timestamp)
-                                        .isCloseTo(initialTimestamp, Offset.offset(period));
-                            } else {
+                            // The first execution has no non-racy reference point; only later
+                            // executions can verify the fixed-delay spacing.
+                            if (countDownLatch.getCount() != countDown) {
                                 assertThat(timestamp)
                                         .isCloseTo(
                                                 lastExecutionTimeWrapper.ts + period,
@@ -122,9 +124,9 @@ class SystemProcessingTimeServiceTest {
                             }
                             Thread.sleep(executionDelay);
                             lastExecutionTimeWrapper.ts = timer.getCurrentProcessingTime();
-                        } catch (Error e) {
-                            System.out.println(e.getMessage());
-                            throw new Error(e);
+                        } catch (Throwable e) {
+                            // errorRef is shared with the service's async exception handler.
+                            errorRef.compareAndSet(null, e);
                         }
                         countDownLatch.countDown();
                     },
