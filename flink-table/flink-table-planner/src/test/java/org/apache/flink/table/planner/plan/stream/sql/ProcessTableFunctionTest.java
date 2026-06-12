@@ -108,6 +108,10 @@ class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE TABLE t_full_delete_sink (`name` STRING PRIMARY KEY NOT ENFORCED, `name0` STRING, `count` BIGINT, `mode` STRING) "
                                 + "WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_no_pk_sink (`name` STRING, `name0` STRING, `count` BIGINT, `mode` STRING) "
+                                + "WITH ('connector' = 'values', 'sink-insert-only' = 'false')");
     }
 
     @Test
@@ -513,6 +517,11 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name, on_time => DESCRIPTOR(ts))",
                         "Time operations using the `on_time` argument are currently not supported for "
                                 + "PTFs that consume or produce updates."),
+                ErrorSpec.ofInsertInto(
+                        "upsert output into sink without primary key",
+                        UpdatingUpsertFunction.class,
+                        "INSERT INTO t_no_pk_sink SELECT * FROM f(r => TABLE t_updating PARTITION BY name)",
+                        "declare a PRIMARY KEY on the sink"),
                 ErrorSpec.ofSelect(
                         "no pass-through for multiple table args",
                         InvalidPassThroughTables.class,

@@ -114,9 +114,24 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
     // step4: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
-      val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      throw new TableException(
-        "Can't generate a valid execution plan for the given query:\n" + plan)
+      val errorMessage =
+        if (containsUpdates(rootWithModifyKindSet)) {
+          // Point at the failing node and its inputs instead of dumping the whole plan.
+          val conflict = new StringBuilder(describeChangelog(rootWithModifyKindSet))
+          rootWithModifyKindSet.getInputs.foreach(
+            input => conflict.append("\n  +- ").append(describeChangelog(input)))
+          "Can't generate a valid execution plan for the given query.\n\n" +
+            "There is a changelog mismatch between two operators. One produces an upsert " +
+            "changelog (UPDATE_AFTER without UPDATE_BEFORE). The other requires a retract " +
+            "changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary " +
+            "key. To resolve it, declare a PRIMARY KEY on the sink, or make the input produce " +
+            "UPDATE_BEFORE.\n\n" +
+            "The conflict is at:\n" + conflict
+        } else {
+          val plan = FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)
+          "Can't generate a valid execution plan for the given query:\n" + plan
+        }
+      throw new TableException(errorMessage)
     } else {
       finalRoot.head
     }
@@ -1602,6 +1617,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   private def getModifyKindSet(node: RelNode): ModifyKindSet = {
     val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
     modifyKindSetTrait.modifyKindSet
+  }
+
+  /** Whether the node or any node in its input subtree produces UPDATE changes. */
+  private def containsUpdates(rel: RelNode): Boolean =
+    getModifyKindSet(rel).contains(ModifyKind.UPDATE) ||
+      rel.getInputs.exists(input => containsUpdates(input))
+
+  /** Renders a node's type and changelog mode, for example "Sink(changelogMode=[NONE])". */
+  private def describeChangelog(rel: RelNode): String = rel match {
+    case streamRel: StreamPhysicalRel =>
+      val typeName = rel.getRelTypeName.stripPrefix("StreamPhysical")
+      val mode =
+        ChangelogPlanUtils.stringifyChangelogMode(ChangelogPlanUtils.getChangelogMode(streamRel))
+      s"$typeName(changelogMode=[$mode])"
+    case _ => rel.getRelTypeName
   }
 
   private def getDeleteKind(node: RelNode): DeleteKind = {
