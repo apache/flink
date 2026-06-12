@@ -71,6 +71,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
                 QueryOperationTestPrograms.PTF_ROW_SEMANTIC_TABLE,
                 QueryOperationTestPrograms.PTF_SET_SEMANTIC_TABLE,
+                QueryOperationTestPrograms.PTF_TYPED_SET_SEMANTIC_TABLE,
                 QueryOperationTestPrograms.PTF_ORDER_BY,
                 QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION,
                 QueryOperationTestPrograms.ML_PREDICT_MODEL_API,
