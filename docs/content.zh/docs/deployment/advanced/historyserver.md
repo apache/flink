@@ -85,6 +85,19 @@ historyserver.archive.fs.refresh-interval: 10000
 
 请查看配置页面以获取[配置选项的完整列表]({{< ref "docs/deployment/config" >}}#history-server)。
 
+**存储后端**
+
+HistoryServer 支持通过 `historyserver.archive.storage.type` 选择本地存档存储后端：
+
+* `FILE`（默认）：每个存档解压为多个 JSON 文件，存放在 `historyserver.web.tmpdir` 下。
+* `ROCKSDB`：所有存档以 KV 形式存储在 `historyserver.web.tmpdir/rocksdb` 的单个 RocksDB 实例中，可避免"大量小文件"问题，适合存档数量较多的场景。
+
+启用 RocksDB 后端示例：
+
+```yaml
+historyserver.archive.storage.type: ROCKSDB
+```
+
 ## 日志集成
 
 Flink 本身并不提供已完成作业的日志收集功能。
