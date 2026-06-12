@@ -194,11 +194,15 @@ public final class SpecificInputTypeStrategies {
     /** Type strategy for {@link BuiltInFunctionDefinitions#TO_TIMESTAMP_LTZ}. */
     public static final InputTypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzInputTypeStrategy();
 
-    /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP}. */
+    /** Type strategy for two-argument regex functions such as REGEXP and REGEXP_SPLIT. */
     public static final InputTypeStrategy REGEXP = new RegexpInputTypeStrategy();
 
     /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT}. */
     public static final InputTypeStrategy REGEXP_EXTRACT = new RegexpExtractInputTypeStrategy();
+
+    /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT_ALL}. */
+    public static final InputTypeStrategy REGEXP_EXTRACT_ALL =
+            new RegexpExtractAllInputTypeStrategy();
 
     /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_REPLACE}. */
     public static final InputTypeStrategy REGEXP_REPLACE = new RegexpReplaceInputTypeStrategy();

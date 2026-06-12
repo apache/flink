@@ -491,17 +491,23 @@ public class SqlFunctionUtils {
      * cache for performance optimization.
      *
      * @param regex the regular expression pattern string
-     * @return the compiled Pattern, or null if regex is null or invalid
+     * @return the compiled Pattern, or null if regex is invalid
      */
-    public static @Nullable Pattern getRegexpPattern(@Nullable String regex) {
-        if (regex == null) {
-            return null;
-        }
+    public static @Nullable Pattern getRegexpPattern(String regex) {
         try {
             return REGEXP_PATTERN_CACHE.get(regex);
         } catch (PatternSyntaxException e) {
             return null;
         }
+    }
+
+    /** Splits the string into Unicode code points, preserving supplementary characters. */
+    public static StringData[] splitByCodePoints(String str) {
+        return str.codePoints()
+                .mapToObj(
+                        codePoint ->
+                                StringData.fromString(new String(Character.toChars(codePoint))))
+                .toArray(StringData[]::new);
     }
 
     /**

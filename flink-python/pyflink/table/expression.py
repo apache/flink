@@ -1364,10 +1364,20 @@ class Expression(Generic[T]):
 
     def regexp_split(self, regex) -> 'Expression':
         """
-        Splits the string by the regular expression regex and returns an array of strings.
-        null if any of the arguments are null or regex is invalid.
+        Returns an array of substrings by splitting the input string based on a regular expression
+        pattern.
 
-        E.g., regexp_split('Hello123World456', '[0-9]+') returns ['Hello', 'World', ''].
+        If the pattern is not found in the string, the original string is returned as the only
+        element in the array. If the pattern is empty, every character in the string is split. If
+        the string or pattern is null, a null value is returned. If the pattern is found at the
+        beginning or end of the string, or there are contiguous matches, then an empty string is
+        added to the array.
+
+        E.g.:
+
+        - lit("Hello123World456").regexp_split("[0-9]+") returns ["Hello", "World", ""]
+        - lit("a,b;c").regexp_split("[,;]") returns ["a", "b", "c"]
+        - lit("one  two   three").regexp_split("\\s+") returns ["one", "two", "three"]
 
         :param regex: A STRING expression with a matching pattern.
         :return: An ARRAY<STRING> of split substrings.
