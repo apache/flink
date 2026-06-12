@@ -98,7 +98,7 @@ class RescaleOnCheckpointITCase {
         configuration.set(
                 JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING, Duration.ZERO);
         configuration.set(
-                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED, true);
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED, false);
 
         return configuration;
     }
