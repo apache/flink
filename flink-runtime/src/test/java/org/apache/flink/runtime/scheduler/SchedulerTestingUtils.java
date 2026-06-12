@@ -362,6 +362,38 @@ public class SchedulerTestingUtils {
                 RETRY_ATTEMPTS);
     }
 
+    /**
+     * Waits until the task deployment descriptor of every current execution has been created. Call
+     * this before forcing executions into a later state; deployment is rejected once an execution
+     * leaves DEPLOYING.
+     *
+     * <p>Unlike {@code ExecutionUtils#waitForTaskDeploymentDescriptorsCreation}, this may run
+     * concurrently with {@code Execution.deploy()}: executions are observable in DEPLOYING before
+     * the descriptor future is assigned, so the {@code IllegalStateException} thrown while the
+     * future is unset is treated as "not yet ready".
+     *
+     * @param executionGraph the ExecutionGraph to wait for
+     * @throws Exception if the condition is not met within the timeout period
+     */
+    public static void waitForAllTasksDeploymentDescriptorsCreated(
+            final ExecutionGraph executionGraph) throws Exception {
+        for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+            waitUntilCondition(
+                    () -> {
+                        try {
+                            vertex.getCurrentExecutionAttempt()
+                                    .getTddCreationDuringDeployFuture()
+                                    .join();
+                            return true;
+                        } catch (IllegalStateException deploymentNotStartedYet) {
+                            return false;
+                        }
+                    },
+                    RETRY_INTERVAL_MILLIS,
+                    RETRY_ATTEMPTS);
+        }
+    }
+
     private static ExecutionJobVertex getJobVertex(
             DefaultScheduler scheduler, JobVertexID jobVertexId) {
         final ExecutionVertexID id = new ExecutionVertexID(jobVertexId, 0);
