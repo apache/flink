@@ -31,14 +31,15 @@ import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 
 /**
- * Input type strategy for {@link BuiltInFunctionDefinitions#REGEXP}. Validates literal regex
- * patterns at planning time.
+ * Input type strategy for two-argument regex functions such as {@link
+ * BuiltInFunctionDefinitions#REGEXP}. Validates literal regex patterns at planning time.
  */
 @Internal
 public class RegexpInputTypeStrategy implements InputTypeStrategy {
@@ -57,10 +58,14 @@ public class RegexpInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure).isEmpty()) {
+        final Optional<DataType> inferredStrType =
+                STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure);
+        if (inferredStrType.isEmpty()) {
             return Optional.empty();
         }
-        if (STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure).isEmpty()) {
+        final Optional<DataType> inferredRegexType =
+                STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure);
+        if (inferredRegexType.isEmpty()) {
             return Optional.empty();
         }
 
@@ -70,7 +75,10 @@ public class RegexpInputTypeStrategy implements InputTypeStrategy {
             return patternError;
         }
 
-        return Optional.of(callContext.getArgumentDataTypes());
+        final List<DataType> inferredDataTypes = new ArrayList<>(2);
+        inferredDataTypes.add(inferredStrType.get());
+        inferredDataTypes.add(inferredRegexType.get());
+        return Optional.of(inferredDataTypes);
     }
 
     @Override

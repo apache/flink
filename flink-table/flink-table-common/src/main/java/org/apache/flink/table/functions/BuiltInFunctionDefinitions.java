@@ -485,10 +485,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("REGEXP_SPLIT")
                     .sqlName("REGEXP_SPLIT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.ARRAY(STRING()))))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpSplitFunction")
@@ -1506,12 +1503,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP_COUNT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    Arrays.asList("str", "regex"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(explicit(DataTypes.INT()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpCountFunction")
@@ -1530,19 +1522,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP_EXTRACT_ALL")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            or(
-                                    sequence(
-                                            Arrays.asList("str", "regex"),
-                                            Arrays.asList(
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING))),
-                                    sequence(
-                                            Arrays.asList("str", "regex", "extractIndex"),
-                                            Arrays.asList(
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_EXTRACT_ALL)
                     .outputTypeStrategy(explicit(DataTypes.ARRAY(DataTypes.STRING())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpExtractAllFunction")
@@ -1552,12 +1532,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP_INSTR")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    Arrays.asList("str", "regex"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(explicit(DataTypes.INT()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpInstrFunction")
@@ -1567,12 +1542,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("REGEXP_SUBSTR")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            sequence(
-                                    Arrays.asList("str", "regex"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP)
                     .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpSubstrFunction")
