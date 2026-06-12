@@ -18,6 +18,8 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.plugin.MetricsAware;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.WrappingProxy;
 
@@ -30,7 +32,7 @@ import java.util.List;
  * {@link FileSystem} operations.
  */
 public class PluginFileSystemFactory
-        implements FileSystemFactory, WrappingProxy<FileSystemFactory> {
+        implements FileSystemFactory, WrappingProxy<FileSystemFactory>, MetricsAware {
     private final FileSystemFactory inner;
     private final ClassLoader loader;
 
@@ -56,6 +58,20 @@ public class PluginFileSystemFactory
     @Override
     public void configure(final Configuration config) {
         inner.configure(config);
+    }
+
+    /**
+     * Forwards the metric group to the wrapped factory if it opts into metrics, using the plugin
+     * classloader so the factory observes the same isolation as every other call routed through
+     * this wrapper.
+     */
+    @Override
+    public void setMetricGroup(final MetricGroup metricGroup) {
+        if (inner instanceof MetricsAware) {
+            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
+                ((MetricsAware) inner).setMetricGroup(metricGroup);
+            }
+        }
     }
 
     @Override
