@@ -36,6 +36,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
@@ -464,6 +465,10 @@ class S3ClientProvider implements AutoCloseableAsync {
         private long crtMinPartSizeInBytes =
                 NativeS3FileSystemFactory.PART_UPLOAD_MIN_SIZE.defaultValue();
 
+        // Optional AWS SDK metric publisher (e.g. the Flink metric bridge). Attached to both the
+        // sync and async clients via the shared ClientOverrideConfiguration. Null = no metrics.
+        @Nullable private MetricPublisher metricPublisher;
+
         public Builder accessKey(@Nullable String accessKey) {
             this.accessKey = accessKey;
             return this;
@@ -633,6 +638,11 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder metricPublisher(@Nullable MetricPublisher metricPublisher) {
+            this.metricPublisher = metricPublisher;
+            return this;
+        }
+
         S3ClientProvider build() {
             if (endpoint == null) {
                 endpoint = System.getProperty("s3.endpoint");
@@ -674,7 +684,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                     retryMaxBackoff,
                     retryThrottleBaseDelay);
 
-            ClientOverrideConfiguration overrideConfig =
+            ClientOverrideConfiguration.Builder overrideConfigBuilder =
                     ClientOverrideConfiguration.builder()
                             .retryStrategy(
                                     StandardRetryStrategy.builder()
@@ -687,8 +697,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                                                             retryThrottleBaseDelay,
                                                             retryMaxBackoff))
                                             .circuitBreakerEnabled(retryCircuitBreakerEnabled)
-                                            .build())
-                            .build();
+                                            .build());
 
             if (useCrt) {
                 LOG.info(
@@ -697,6 +706,11 @@ class S3ClientProvider implements AutoCloseableAsync {
                                 ? crtTargetThroughputGbps + " Gbps"
                                 : "(CRT runtime default)");
             }
+
+            if (metricPublisher != null) {
+                overrideConfigBuilder.addMetricPublisher(metricPublisher);
+            }
+            ClientOverrideConfiguration overrideConfig = overrideConfigBuilder.build();
 
             S3Client s3Client =
                     buildSyncClient(
