@@ -377,6 +377,28 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             configuration.set(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
             configuration.set(JobManagerOptions.PORT, commonRpcService.getPort());
 
+            metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
+
+            final RpcService metricQueryServiceRpcService =
+                    MetricUtils.startRemoteMetricsRpcService(
+                            configuration,
+                            commonRpcService.getAddress(),
+                            configuration.get(JobManagerOptions.BIND_HOST),
+                            rpcSystem);
+            metricRegistry.startQueryService(metricQueryServiceRpcService, null);
+
+            final String hostname = RpcUtils.getHostname(commonRpcService);
+
+            processMetricGroup =
+                    MetricUtils.instantiateProcessMetricGroup(
+                            metricRegistry,
+                            hostname,
+                            ConfigurationUtils.getSystemResourceMetricsProbingInterval(
+                                    configuration));
+
+            // Attach file system metrics before HA/blob services can create cached clients.
+            FileSystem.attachMetrics(processMetricGroup);
+
             ioExecutor =
                     Executors.newFixedThreadPool(
                             ClusterEntrypointUtils.getPoolSize(configuration),
@@ -400,24 +422,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             configuration.set(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
             heartbeatServices = createHeartbeatServices(configuration);
             failureEnrichers = FailureEnricherUtils.getFailureEnrichers(configuration);
-            metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
-
-            final RpcService metricQueryServiceRpcService =
-                    MetricUtils.startRemoteMetricsRpcService(
-                            configuration,
-                            commonRpcService.getAddress(),
-                            configuration.get(JobManagerOptions.BIND_HOST),
-                            rpcSystem);
-            metricRegistry.startQueryService(metricQueryServiceRpcService, null);
-
-            final String hostname = RpcUtils.getHostname(commonRpcService);
-
-            processMetricGroup =
-                    MetricUtils.instantiateProcessMetricGroup(
-                            metricRegistry,
-                            hostname,
-                            ConfigurationUtils.getSystemResourceMetricsProbingInterval(
-                                    configuration));
 
             archivedApplicationStore =
                     createArchivedApplicationStore(

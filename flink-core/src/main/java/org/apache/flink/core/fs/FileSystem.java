@@ -32,7 +32,9 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystemFactory;
+import org.apache.flink.core.plugin.MetricsAware;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.WrappingProxy;
@@ -311,6 +313,53 @@ public abstract class FileSystem implements IFileSystem {
         LOCK.lock();
         try {
             return new ArrayList<>(FS_FACTORIES.values());
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
+     * Hands a runtime-owned, process-level {@link MetricGroup} to every registered {@link
+     * FileSystemFactory} that opts into metrics via {@link MetricsAware}.
+     *
+     * <p>This is the second phase of file system initialization. {@link #initialize(Configuration,
+     * PluginManager)} runs at process startup, before the {@code MetricRegistry} exists; this
+     * method is therefore invoked separately, once the registry and a process-level {@link
+     * MetricGroup} are available. It is called from the TaskManager and JobManager entrypoints
+     * only. Contexts without a process-level {@link MetricGroup} (CLI, HistoryServer, YARN client)
+     * simply never call it, and their file system plugins continue to operate without emitting
+     * metrics.
+     *
+     * <p>The call is idempotent: factories receive a child group {@code <process>.filesystem}, and
+     * {@link MetricGroup#addGroup} returns the same child on repeated calls with the same parent,
+     * so re-invocation does not register duplicate metrics. Factories that do not implement {@link
+     * MetricsAware} are skipped.
+     *
+     * @param processMetricGroup the process-level metric group to register file system metrics
+     *     under.
+     */
+    @Internal
+    public static void attachMetrics(MetricGroup processMetricGroup) {
+        checkNotNull(processMetricGroup, "processMetricGroup");
+        LOCK.lock();
+        try {
+            final MetricGroup fsGroup = processMetricGroup.addGroup("filesystem");
+            for (FileSystemFactory factory : FS_FACTORIES.values()) {
+                // Plugin-loaded factories are wrapped in a PluginFileSystemFactory, which is itself
+                // MetricsAware and forwards setMetricGroup to the inner factory under the plugin
+                // classloader, so this plain instanceof reaches both wrapped and direct factories.
+                if (factory instanceof MetricsAware) {
+                    try {
+                        ((MetricsAware) factory).setMetricGroup(fsGroup);
+                    } catch (Exception e) {
+                        // A misbehaving plugin must never break process startup.
+                        LOG.warn(
+                                "Failed to attach metrics to file system factory {}",
+                                factory.getClass().getName(),
+                                e);
+                    }
+                }
+            }
         } finally {
             LOCK.unlock();
         }

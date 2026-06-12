@@ -35,6 +35,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
@@ -365,6 +366,10 @@ class S3ClientProvider implements AutoCloseableAsync {
         // Custom credentials provider class names (comma-separated)
         @Nullable private String credentialsProviderClasses;
 
+        // Optional AWS SDK metric publisher (e.g. the Flink metric bridge). Attached to both the
+        // sync and async clients via the shared ClientOverrideConfiguration. Null = no metrics.
+        @Nullable private MetricPublisher metricPublisher;
+
         public Builder accessKey(@Nullable String accessKey) {
             this.accessKey = accessKey;
             return this;
@@ -498,6 +503,11 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder metricPublisher(@Nullable MetricPublisher metricPublisher) {
+            this.metricPublisher = metricPublisher;
+            return this;
+        }
+
         S3ClientProvider build() {
             if (endpoint == null) {
                 endpoint = System.getProperty("s3.endpoint");
@@ -553,6 +563,13 @@ class S3ClientProvider implements AutoCloseableAsync {
                                                             retryMaxBackoff))
                                             .build())
                             .build();
+
+            if (metricPublisher != null) {
+                // Re-wrap the immutable override config with the publisher attached. The same
+                // publisher feeds both the sync and async clients below.
+                overrideConfig =
+                        overrideConfig.toBuilder().addMetricPublisher(metricPublisher).build();
+            }
 
             ApacheHttpClient.Builder httpClientBuilder =
                     ApacheHttpClient.builder()

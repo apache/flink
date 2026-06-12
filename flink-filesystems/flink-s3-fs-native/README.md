@@ -77,6 +77,26 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.async.enabled | true | Enable async read/write with TransferManager |
 | s3.read.buffer.size | 262144 (256KB) | Read buffer size per stream (64KB - 4MB) |
 
+### Metrics
+
+When the native S3 plugin is loaded in a JobManager or TaskManager, it can publish AWS SDK operation metrics into Flink's process-level metric group. Metrics are scoped under `filesystem.filesystem_type.<scheme>`, where `<scheme>` is `s3` or `s3a`.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| s3.metrics.enabled | true | Enable S3 operation metrics. Set to `false` to avoid attaching the AWS SDK metric publisher |
+| s3.metrics.allowlist | `api_call_count`, `api_call_duration_ms`, `throttle_count`, `retry_count`, `iops` | Metrics to register. Use `*` to register every metric emitted by the plugin. Empty lists are rejected; set `s3.metrics.enabled: false` to disable metrics. `iops` is derived by reporters from `api_call_count`, so allowing `iops` also registers `api_call_count` |
+| s3.metrics.histogram.window-size | 1024 | Number of recent samples retained per `api_call_duration_ms` histogram |
+
+The plugin emits the following metric names:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| api_call_count | Counter | `op`, `status_class` | Number of completed S3 API calls, grouped by operation and result class |
+| api_call_duration_ms | Histogram | `op` | Completed S3 API call latency in milliseconds |
+| throttle_count | Counter | `op` | Number of throttled S3 responses (`429` or `503`) |
+| retry_count | Counter | `op`, `reason` | Number of AWS SDK retries, grouped by retry reason |
+| iops | Derived rate | `op`, `status_class` | Reporter-side rate derived from `api_call_count` |
+
 ### Credentials Provider
 
 | Key | Default | Description |

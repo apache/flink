@@ -26,6 +26,9 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.core.plugin.MetricsAware;
+import org.apache.flink.fs.s3native.metrics.AwsSdkMetricBridge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -33,11 +36,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -54,7 +59,7 @@ import java.util.Map;
  * @see org.apache.flink.core.fs.FileSystemFactory
  */
 @Experimental
-public class NativeS3FileSystemFactory implements FileSystemFactory {
+public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAware {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystemFactory.class);
 
@@ -321,8 +326,61 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "When not set, the default chain is used: delegation tokens -> "
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
+    public static final ConfigOption<Boolean> METRICS_ENABLED =
+            ConfigOptions.key("s3.metrics.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Master switch for publishing S3 operation metrics to Flink's metric "
+                                    + "system. When false, no metric publisher is attached to the SDK "
+                                    + "and no metric is registered. Metrics are only emitted under the "
+                                    + "TaskManager and JobManager entrypoints, which provide a "
+                                    + "process-level metric group; other contexts (CLI, etc.) emit "
+                                    + "none regardless of this setting.");
+
+    public static final ConfigOption<List<String>> METRICS_ALLOWLIST =
+            ConfigOptions.key("s3.metrics.allowlist")
+                    .stringType()
+                    .asList()
+                    .defaultValues(
+                            "api_call_count",
+                            "api_call_duration_ms",
+                            "throttle_count",
+                            "retry_count",
+                            "iops")
+                    .withDescription(
+                            "Names of S3 metrics to register. Replaces (does not merge with) the "
+                                    + "default list. Use \"*\" to register every metric the plugin "
+                                    + "emits. An empty list with s3.metrics.enabled=true is invalid; "
+                                    + "disable metrics with s3.metrics.enabled=false instead. ('iops' "
+                                    + "is derived at reporter time from api_call_count and is not a "
+                                    + "separately registered metric.)");
+
+    public static final ConfigOption<Integer> METRICS_HISTOGRAM_WINDOW_SIZE =
+            ConfigOptions.key("s3.metrics.histogram.window-size")
+                    .intType()
+                    .defaultValue(1024)
+                    .withDescription(
+                            "Reservoir size for S3 latency histograms (api_call_duration_ms). "
+                                    + "Bounds memory regardless of request volume. Must be positive.");
+
     @Nullable private Configuration flinkConfig;
     @Nullable private BucketConfigProvider bucketConfigProvider;
+
+    // setMetricGroup writes under synchronized(this); resolveMetricBridge reads the cached state
+    // lock-free, so pluginMetrics and metricBridge are volatile while attachedMetricGroup stays
+    // guarded by this.
+
+    /** The label scope derived from the attached group; read lock-free when building the bridge. */
+    @Nullable private volatile MetricGroup pluginMetrics;
+
+    /** The parent group last received via {@link #setMetricGroup(MetricGroup)}. */
+    @GuardedBy("this")
+    @Nullable
+    private MetricGroup attachedMetricGroup;
+
+    /** Lazily built once and shared across all clients created by this factory instance. */
+    @Nullable private volatile AwsSdkMetricBridge metricBridge;
 
     @Override
     public String getScheme() {
@@ -339,6 +397,45 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
     public void configure(Configuration config) {
         this.flinkConfig = config;
         this.bucketConfigProvider = new BucketConfigProvider(config);
+    }
+
+    @Override
+    public synchronized void setMetricGroup(MetricGroup metricGroup) {
+        if (metricGroup == attachedMetricGroup) {
+            return;
+        }
+        // Re-attaching with a different group must re-scope future metrics.
+        this.attachedMetricGroup = metricGroup;
+        this.pluginMetrics = metricGroup.addGroup("filesystem_type", getScheme());
+        this.metricBridge = null;
+    }
+
+    /**
+     * Returns the SDK metric publisher to attach to clients, or {@code null} when metrics are
+     * disabled or no metric group has been attached yet (e.g. CLI / embedded usage). The bridge is
+     * built lazily and cached so all clients of this factory share one set of metric handles.
+     */
+    @Nullable
+    private AwsSdkMetricBridge resolveMetricBridge(Configuration config) {
+        final MetricGroup metrics = this.pluginMetrics;
+        if (metrics == null || !config.get(METRICS_ENABLED)) {
+            return null;
+        }
+        AwsSdkMetricBridge bridge = this.metricBridge;
+        if (bridge == null) {
+            synchronized (this) {
+                bridge = this.metricBridge;
+                if (bridge == null) {
+                    bridge =
+                            new AwsSdkMetricBridge(
+                                    metrics,
+                                    config.get(METRICS_ALLOWLIST),
+                                    config.get(METRICS_HISTOGRAM_WINDOW_SIZE));
+                    this.metricBridge = bridge;
+                }
+            }
+        }
+        return bridge;
     }
 
     @Override
@@ -486,6 +583,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .retryMaxBackoff(config.get(RETRY_MAX_BACKOFF))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
+                        .metricPublisher(resolveMetricBridge(config))
                         .build();
 
         NativeS3BulkCopyHelper bulkCopyHelper = null;
