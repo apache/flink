@@ -31,6 +31,7 @@ import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,13 +59,19 @@ public class RegexpReplaceInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure).isEmpty()) {
+        final Optional<DataType> inferredStrType =
+                STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure);
+        if (inferredStrType.isEmpty()) {
             return Optional.empty();
         }
-        if (STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure).isEmpty()) {
+        final Optional<DataType> inferredRegexType =
+                STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure);
+        if (inferredRegexType.isEmpty()) {
             return Optional.empty();
         }
-        if (STRING_ARG.inferArgumentType(callContext, ARG_REPLACEMENT, throwOnFailure).isEmpty()) {
+        final Optional<DataType> inferredReplacementType =
+                STRING_ARG.inferArgumentType(callContext, ARG_REPLACEMENT, throwOnFailure);
+        if (inferredReplacementType.isEmpty()) {
             return Optional.empty();
         }
 
@@ -74,7 +81,11 @@ public class RegexpReplaceInputTypeStrategy implements InputTypeStrategy {
             return patternError;
         }
 
-        return Optional.of(callContext.getArgumentDataTypes());
+        final List<DataType> inferredDataTypes = new ArrayList<>(3);
+        inferredDataTypes.add(inferredStrType.get());
+        inferredDataTypes.add(inferredRegexType.get());
+        inferredDataTypes.add(inferredReplacementType.get());
+        return Optional.of(inferredDataTypes);
     }
 
     @Override

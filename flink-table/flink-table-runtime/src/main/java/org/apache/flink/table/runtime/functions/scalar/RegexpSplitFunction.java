@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.getRegexpPattern;
+import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.splitByCodePoints;
 
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#REGEXP_SPLIT}.
@@ -58,13 +59,7 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
 
         String regexStr = regex.toString();
         if (regexStr.isEmpty()) {
-            // If regex is empty, split by each character
-            String strValue = str.toString();
-            StringData[] result = new StringData[strValue.length()];
-            for (int i = 0; i < strValue.length(); i++) {
-                result[i] = StringData.fromString(String.valueOf(strValue.charAt(i)));
-            }
-            return new GenericArrayData(result);
+            return new GenericArrayData(splitByCodePoints(str.toString()));
         }
 
         Pattern pattern = getRegexpPattern(regexStr);
