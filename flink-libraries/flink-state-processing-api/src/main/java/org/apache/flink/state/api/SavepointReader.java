@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
@@ -401,6 +402,32 @@ public class SavepointReader {
             TypeInformation<K> keyTypeInfo,
             TypeInformation<OUT> outTypeInfo)
             throws IOException {
+        return readKeyedState(identifier, function, keyTypeInfo, outTypeInfo, null);
+    }
+
+    /**
+     * Read keyed state from an operator in a {@code Savepoint}, optionally pruning input splits and
+     * keys with a {@link SavepointKeyFilter}.
+     *
+     * @param identifier The identifier of the operator.
+     * @param function The {@link KeyedStateReaderFunction} that is called for each key in state.
+     * @param keyTypeInfo The type information of the key in state.
+     * @param outTypeInfo The type information of the output of the transform reader function.
+     * @param keyFilter Optional filter on the state key. When present, splits whose key groups
+     *     cannot contain any matching key are skipped, and within each split only matching keys are
+     *     iterated.
+     * @param <K> The type of the key in state.
+     * @param <OUT> The output type of the transform function.
+     * @return A {@code DataStream} of objects read from keyed state.
+     * @throws IOException If the savepoint does not contain operator state with the given uid.
+     */
+    public <K, OUT> DataStream<OUT> readKeyedState(
+            OperatorIdentifier identifier,
+            KeyedStateReaderFunction<K, OUT> function,
+            TypeInformation<K> keyTypeInfo,
+            TypeInformation<OUT> outTypeInfo,
+            @Nullable SavepointKeyFilter keyFilter)
+            throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
         KeyedStateInputFormat<K, VoidNamespace, OUT> inputFormat =
@@ -409,7 +436,8 @@ public class SavepointReader {
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
                         new KeyedStateReaderOperator<>(function, keyTypeInfo),
-                        env.getConfig());
+                        env.getConfig(),
+                        keyFilter);
 
         return SourceBuilder.fromFormat(env, inputFormat, outTypeInfo);
     }
