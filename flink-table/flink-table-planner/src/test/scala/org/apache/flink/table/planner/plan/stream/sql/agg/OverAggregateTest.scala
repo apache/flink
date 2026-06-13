@@ -56,6 +56,48 @@ class OverAggregateTest extends TableTestBase {
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
+  @Test
+  def testExclusionGroupIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE GROUP)
+        |from MyTable
+      """.stripMargin
+
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage("SQL parse failed. Exclusion of group is not supported")
+  }
+
+  @Test
+  def testExclusionTiesIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE TIES)
+        |from MyTable
+      """.stripMargin
+
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage("SQL parse failed. Exclusion of ties is not supported")
+  }
+
+  @Test
+  def testExclusionCurrentRowIsNotSupported(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a,
+        |    COUNT(*) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW EXCLUDE CURRENT ROW)
+        |from MyTable
+      """.stripMargin
+
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage("SQL parse failed. Exclusion of current row is not supported")
+  }
+
   /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test
   def testInvalidOverAggregation(): Unit = {
