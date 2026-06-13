@@ -75,10 +75,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -123,8 +125,6 @@ import static java.util.Objects.requireNonNull;
  * The class contains CALCITE-6599 fix from 1.39.0, should be dropped after upgrade to that version
  *
  * <p>Lines 181 ~ 217
- *
- * <p>Lines 560 ~ 562 disable CALCITE-6044 optimization
  */
 public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicates> {
     public static final RelMetadataProvider SOURCE =
@@ -557,9 +557,36 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
      * null)} are {@code 'y = 2'} and {@code 'z is null'}.
      */
     public RelOptPredicateList getPredicates(Values values, RelMetadataQuery mq) {
-        // FLINK MODIFICATION BEGIN
+        ImmutableList<ImmutableList<RexLiteral>> tuples = values.tuples;
+        if (tuples.size() > 0) {
+            Set<Integer> constants = new HashSet<>();
+            IntStream.range(0, tuples.size()).boxed().forEach(constants::add);
+            List<RexLiteral> firstTuple = new ArrayList<>(tuples.get(0));
+            for (ImmutableList<RexLiteral> tuple : tuples) {
+                if (constants.isEmpty()) {
+                    break;
+                }
+                for (int i = 0; i < tuple.size(); i++) {
+                    if (!Objects.equals(tuple.get(i), firstTuple.get(i))) {
+                        constants.remove(i);
+                    }
+                }
+            }
+            RexBuilder rexBuilder = values.getCluster().getRexBuilder();
+            List<RexNode> predicates = new ArrayList<>();
+            for (int i = 0; i < firstTuple.size(); i++) {
+                if (constants.contains(i)) {
+                    RexLiteral literal = firstTuple.get(i);
+                    predicates.add(
+                            rexBuilder.makeCall(
+                                    SqlStdOperatorTable.EQUALS,
+                                    rexBuilder.makeInputRef(literal.getType(), i),
+                                    literal));
+                }
+            }
+            return RelOptPredicateList.of(rexBuilder, predicates);
+        }
         return RelOptPredicateList.EMPTY;
-        // FLINK MODIFICATION END
     }
 
     // CHECKSTYLE: IGNORE 1
