@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
@@ -112,6 +113,7 @@ class TaskStateAssignment {
             outputRescalingDescriptors = new HashMap<>();
 
     private final boolean recoverOutputOnDownstreamTask;
+    @Nullable private final EdgeDistributionPatternSnapshot oldEdgePatterns;
 
     @Nullable private TaskStateAssignment[] downstreamAssignments;
     @Nullable private TaskStateAssignment[] upstreamAssignments;
@@ -127,6 +129,22 @@ class TaskStateAssignment {
             Map<IntermediateDataSetID, TaskStateAssignment> consumerAssignment,
             Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments,
             boolean recoverOutputOnDownstreamTask) {
+        this(
+                executionJobVertex,
+                oldState,
+                consumerAssignment,
+                vertexAssignments,
+                recoverOutputOnDownstreamTask,
+                null);
+    }
+
+    public TaskStateAssignment(
+            ExecutionJobVertex executionJobVertex,
+            Map<OperatorID, OperatorState> oldState,
+            Map<IntermediateDataSetID, TaskStateAssignment> consumerAssignment,
+            Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments,
+            boolean recoverOutputOnDownstreamTask,
+            @Nullable EdgeDistributionPatternSnapshot oldEdgePatterns) {
 
         this.executionJobVertex = executionJobVertex;
         this.oldState = oldState;
@@ -144,6 +162,7 @@ class TaskStateAssignment {
         this.consumerAssignment = checkNotNull(consumerAssignment);
         this.vertexAssignments = checkNotNull(vertexAssignments);
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+        this.oldEdgePatterns = oldEdgePatterns;
         final int expectedNumberOfSubtasks = newParallelism * oldState.size();
 
         subManagedOperatorState =
@@ -368,9 +387,10 @@ class TaskStateAssignment {
                         .map(assignment -> mappingRetriever.apply(assignment, false))
                         .toArray(SubtasksRescaleMapping[]::new);
 
-        // no state on input and output, especially for any aligned checkpoint
+        // PW edges: pattern change alters subpartition coverage even at same parallelism
         if (subtaskGateOrPartitionMappings.isEmpty()
-                && Arrays.stream(rescaledChannelsMappings).allMatch(Objects::isNull)) {
+                && Arrays.stream(rescaledChannelsMappings).allMatch(Objects::isNull)
+                && !hasPointwiseEdge(connectedAssignments, isInput)) {
             return InflightDataRescalingDescriptor.NO_RESCALE;
         }
 
@@ -411,6 +431,25 @@ class TaskStateAssignment {
                             }
                             TaskStateAssignment connectedAssignment =
                                     connectedAssignments[partition];
+
+                            DistributionPattern oldPattern =
+                                    resolveOldDistributionPattern(
+                                            isInput, partition, connectedAssignment);
+                            DistributionPattern newPattern =
+                                    resolveNewDistributionPattern(isInput, partition);
+
+                            if (oldEdgePatterns != null
+                                    && (oldPattern == DistributionPattern.POINTWISE
+                                            || newPattern == DistributionPattern.POINTWISE)) {
+                                return createPointwiseRescalingDescriptor(
+                                        instanceID,
+                                        partition,
+                                        isInput,
+                                        connectedAssignment,
+                                        oldPattern,
+                                        newPattern);
+                            }
+
                             SubtasksRescaleMapping rescaleMapping =
                                     Optional.ofNullable(rescaledChannelsMappings[partition])
                                             .orElseGet(
@@ -508,9 +547,39 @@ class TaskStateAssignment {
                                 .get(gateIndex)
                                 .getUpstreamSubtaskStateMapper(),
                         "No channel rescaler found during rescaling of channel state");
-        final RescaleMappings mapping =
-                mapper.getNewToOldSubtasksMapping(
-                        oldState.get(outputOperatorID).getParallelism(), newParallelism);
+
+        final RescaleMappings mapping;
+        if (mapper == SubtaskStateMapper.POINTWISE_UPSTREAM) {
+            PointwiseRescaleParams params =
+                    buildOutputPointwiseRescaleParams(partitionIndex, downstreamAssignment);
+            int oldParallelism = oldState.get(outputOperatorID).getParallelism();
+            boolean isIdentity =
+                    oldParallelism == newParallelism
+                            && params.getOldUpParallelism() == params.getNewUpParallelism()
+                            && params.getOldDownParallelism() == params.getNewDownParallelism()
+                            && params.getOldDistributionPattern()
+                                    == params.getNewDistributionPattern();
+            if (isIdentity) {
+                mapping =
+                        RescaleMappings.of(
+                                IntStream.range(0, newParallelism).mapToObj(idx -> new int[] {idx}),
+                                oldParallelism);
+            } else {
+                mapping =
+                        RescaleMappings.of(
+                                IntStream.range(0, newParallelism)
+                                        .mapToObj(
+                                                idx ->
+                                                        PointwiseChannelMappingUtils
+                                                                .computeInheritedOldUpstreams(
+                                                                        idx, params)),
+                                oldParallelism);
+            }
+        } else {
+            mapping =
+                    mapper.getNewToOldSubtasksMapping(
+                            oldState.get(outputOperatorID).getParallelism(), newParallelism);
+        }
         return outputSubtaskMappings.compute(
                 partitionIndex,
                 (idx, oldMapping) ->
@@ -581,10 +650,160 @@ class TaskStateAssignment {
         return false;
     }
 
+    boolean hasPointwiseEdge(TaskStateAssignment[] connectedAssignments, boolean isInput) {
+        if (oldEdgePatterns == null) {
+            return false;
+        }
+        for (int i = 0; i < connectedAssignments.length; i++) {
+            if (!hasInFlightData(isInput, i)) {
+                continue;
+            }
+            DistributionPattern oldPattern =
+                    resolveOldDistributionPattern(isInput, i, connectedAssignments[i]);
+            DistributionPattern newPattern = resolveNewDistributionPattern(isInput, i);
+            if (oldPattern == DistributionPattern.POINTWISE
+                    || newPattern == DistributionPattern.POINTWISE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private DistributionPattern resolveOldDistributionPattern(
+            boolean isInput, int gateOrPartitionIdx, TaskStateAssignment connectedAssignment) {
+        if (oldEdgePatterns == null) {
+            return DistributionPattern.ALL_TO_ALL;
+        }
+        if (isInput) {
+            int partitionIdxInUpstream =
+                    Arrays.asList(connectedAssignment.getDownstreamAssignments()).indexOf(this);
+            if (partitionIdxInUpstream < 0) {
+                return DistributionPattern.ALL_TO_ALL;
+            }
+            DistributionPattern pattern =
+                    oldEdgePatterns.getOutputPattern(
+                            connectedAssignment.outputOperatorID, partitionIdxInUpstream);
+            return pattern != null ? pattern : DistributionPattern.ALL_TO_ALL;
+        } else {
+            DistributionPattern pattern =
+                    oldEdgePatterns.getOutputPattern(outputOperatorID, gateOrPartitionIdx);
+            return pattern != null ? pattern : DistributionPattern.ALL_TO_ALL;
+        }
+    }
+
+    private DistributionPattern resolveNewDistributionPattern(
+            boolean isInput, int gateOrPartitionIdx) {
+        if (isInput) {
+            return executionJobVertex
+                    .getInputs()
+                    .get(gateOrPartitionIdx)
+                    .getConsumingDistributionPattern();
+        } else {
+            return executionJobVertex.getProducedDataSets()[gateOrPartitionIdx]
+                    .getConsumingDistributionPattern();
+        }
+    }
+
+    private InflightDataGateOrPartitionRescalingDescriptor createPointwiseRescalingDescriptor(
+            OperatorInstanceID instanceID,
+            int partition,
+            boolean isInput,
+            TaskStateAssignment connectedAssignment,
+            DistributionPattern oldPattern,
+            DistributionPattern newPattern) {
+        final int oldUpParallelism;
+        final int oldDownParallelism;
+        final int newUpParallelism;
+        final int newDownParallelism;
+
+        if (isInput) {
+            oldUpParallelism =
+                    connectedAssignment
+                            .oldState
+                            .get(connectedAssignment.outputOperatorID)
+                            .getParallelism();
+            oldDownParallelism = oldState.get(inputOperatorID).getParallelism();
+            newUpParallelism = connectedAssignment.newParallelism;
+            newDownParallelism = newParallelism;
+        } else {
+            oldUpParallelism = oldState.get(outputOperatorID).getParallelism();
+            oldDownParallelism =
+                    connectedAssignment
+                            .oldState
+                            .get(connectedAssignment.inputOperatorID)
+                            .getParallelism();
+            newUpParallelism = newParallelism;
+            newDownParallelism = connectedAssignment.newParallelism;
+        }
+
+        PointwiseRescaleParams params =
+                new PointwiseRescaleParams(
+                        oldPattern,
+                        newPattern,
+                        oldUpParallelism,
+                        oldDownParallelism,
+                        newUpParallelism,
+                        newDownParallelism);
+
+        int[] oldSubtaskInstances =
+                computePointwiseOldSubtaskInstances(instanceID.getSubtaskId(), isInput, params);
+
+        // identity: no old state to recover, or both parallelism + pattern unchanged (in-place)
+        boolean isIdentity =
+                oldSubtaskInstances.length == 0
+                        || (oldUpParallelism == newUpParallelism
+                                && oldDownParallelism == newDownParallelism
+                                && oldPattern == newPattern);
+
+        // PW edges: channel mapping and ambiguous are unused on TM (TM re-routes via params)
+        return log(
+                new InflightDataGateOrPartitionRescalingDescriptor(
+                        oldSubtaskInstances,
+                        RescaleMappings.SYMMETRIC_IDENTITY,
+                        emptySet(),
+                        isIdentity ? MappingType.IDENTITY : MappingType.RESCALING,
+                        params),
+                instanceID.getSubtaskId(),
+                partition);
+    }
+
+    private static int[] computePointwiseOldSubtaskInstances(
+            int newSubtaskIdx, boolean isInput, PointwiseRescaleParams params) {
+        if (isInput) {
+            // input: ROUND_ROBIN exact mapping, new downstream inherits a set of old downstreams
+            return SubtaskStateMapper.ROUND_ROBIN.getOldSubtasks(
+                    newSubtaskIdx, params.getOldDownParallelism(), params.getNewDownParallelism());
+        } else {
+            // output: computeInheritedOldUpstreams traces historical upstreams, may overlap
+            return PointwiseChannelMappingUtils.computeInheritedOldUpstreams(newSubtaskIdx, params);
+        }
+    }
+
+    private PointwiseRescaleParams buildOutputPointwiseRescaleParams(
+            int partitionIndex, TaskStateAssignment downstreamAssignment) {
+        DistributionPattern oldPattern =
+                resolveOldDistributionPattern(false, partitionIndex, downstreamAssignment);
+        DistributionPattern newPattern = resolveNewDistributionPattern(false, partitionIndex);
+        int oldUpParallelism = oldState.get(outputOperatorID).getParallelism();
+        int oldDownParallelism =
+                downstreamAssignment
+                        .oldState
+                        .get(downstreamAssignment.inputOperatorID)
+                        .getParallelism();
+        return new PointwiseRescaleParams(
+                oldPattern,
+                newPattern,
+                oldUpParallelism,
+                oldDownParallelism,
+                newParallelism,
+                downstreamAssignment.newParallelism);
+    }
+
     void distributeOutputBuffersToDownstream() {
         for (Map.Entry<OperatorInstanceID, List<ResultSubpartitionStateHandle>> entry :
                 resultSubpartitionStates.entrySet()) {
             OperatorInstanceID operatorInstanceID = entry.getKey();
+            int newUpstreamSubtaskIndex = operatorInstanceID.getSubtaskId();
             List<ResultSubpartitionStateHandle> stateHandles = entry.getValue();
 
             ResultSubpartitionDistributor distributor =
@@ -592,23 +811,44 @@ class TaskStateAssignment {
                             getOutputRescalingDescriptor(operatorInstanceID));
 
             for (final ResultSubpartitionStateHandle stateHandle : stateHandles) {
-                distributeOutputBufferToDownstream(stateHandle, distributor);
+                ResultSubpartitionInfo info = stateHandle.getInfo();
+                int partitionIdx = info.getPartitionIdx();
+                TaskStateAssignment downstreamAssignment = getDownstreamAssignments()[partitionIdx];
+
+                DistributionPattern oldPattern =
+                        resolveOldDistributionPattern(false, partitionIdx, downstreamAssignment);
+                DistributionPattern newPattern = resolveNewDistributionPattern(false, partitionIdx);
+                if (oldEdgePatterns != null
+                        && (oldPattern == DistributionPattern.POINTWISE
+                                || newPattern == DistributionPattern.POINTWISE)) {
+                    // PW edge: subpartition index ≠ global subtask ID, topology-aware routing
+                    // needed
+                    distributePointwiseOutputBufferToDownstream(
+                            stateHandle,
+                            partitionIdx,
+                            downstreamAssignment,
+                            newUpstreamSubtaskIndex);
+                } else {
+                    // A2A edge: local index == global subtask ID, original distributor suffices
+                    distributeA2AOutputBufferToDownstream(
+                            stateHandle, distributor, partitionIdx, downstreamAssignment);
+                }
             }
         }
     }
 
-    private void distributeOutputBufferToDownstream(
-            ResultSubpartitionStateHandle stateHandle, ResultSubpartitionDistributor distributor) {
-        // From the perspective of the downstream task, the oldUpstreamSubtaskIndex will be
-        // treated as the inputChannelIdx, and the info.getSubPartitionIdx() will be treated
-        // as the oldDownstreamSubtaskIndex.
-        int oldUpstreamSubtaskIndex = stateHandle.getSubtaskIndex();
+    private void distributeA2AOutputBufferToDownstream(
+            ResultSubpartitionStateHandle stateHandle,
+            ResultSubpartitionDistributor distributor,
+            int partitionIdx,
+            TaskStateAssignment downstreamAssignment) {
         ResultSubpartitionInfo info = stateHandle.getInfo();
-        int partitionIdx = info.getPartitionIdx();
+        // A2A path: oldUpstreamSubtaskIndex is the inputChannelIdx, and
+        // info.getSubPartitionIdx() is the oldDownstreamSubtaskIndex.
+        int oldUpstreamSubtaskIndex = stateHandle.getSubtaskIndex();
         int oldDownstreamSubtaskIndex = info.getSubPartitionIdx();
 
         int gateIdxResultPartition = findInputGateIdxForResultPartition(partitionIdx);
-        TaskStateAssignment downstreamAssignment = getDownstreamAssignments()[partitionIdx];
 
         List<ResultSubpartitionInfo> mappedSubpartitions = distributor.getMappedSubpartitions(info);
         for (final ResultSubpartitionInfo mappedSubpartition : mappedSubpartitions) {
@@ -634,6 +874,87 @@ class TaskStateAssignment {
                             downstreamOperatorInstance, k -> new ArrayList<>());
             upstreamOutputBufferHandles.add(upstreamOutputBufferHandle);
         }
+    }
+
+    private void distributePointwiseOutputBufferToDownstream(
+            ResultSubpartitionStateHandle stateHandle,
+            int partitionIdx,
+            TaskStateAssignment downstreamAssignment,
+            int newUpstreamSubtaskIndex) {
+        int oldUpstreamSubtaskIndex = stateHandle.getSubtaskIndex();
+        ResultSubpartitionInfo info = stateHandle.getInfo();
+        int subPartitionIdx = info.getSubPartitionIdx();
+
+        PointwiseRescaleParams params =
+                buildOutputPointwiseRescaleParams(partitionIdx, downstreamAssignment);
+
+        int oldUpPar = params.getOldUpParallelism();
+        int oldDownPar = params.getOldDownParallelism();
+        int newDownPar = params.getNewDownParallelism();
+
+        DistributionPattern oldPattern = params.getOldDistributionPattern();
+
+        int globalOldDownstream =
+                PointwiseChannelMappingUtils.localIndexToGlobalSubtaskIndex(
+                        oldUpstreamSubtaskIndex,
+                        subPartitionIdx,
+                        oldUpPar,
+                        oldDownPar,
+                        false,
+                        oldPattern);
+
+        int targetDownstreamSubtaskId =
+                PointwiseChannelMappingUtils.newSubtaskAssignedFrom(
+                        globalOldDownstream, newDownPar);
+
+        if (!getOutputMapping(partitionIdx).rescaleMappings.isIdentity()) {
+            // identity: computeInheritedOldUpstreams(N)={N}, each upstream recovers itself only;
+            // non-identity: multiple upstreams may trace the same old upstream, only primary
+            // recovers
+            int upstreamSubpartitionIfResponsive =
+                    PointwiseChannelMappingUtils.computeNewLocalSubpartitionIndex(
+                            targetDownstreamSubtaskId, newUpstreamSubtaskIndex, params);
+            if (upstreamSubpartitionIfResponsive < 0) {
+                return;
+            }
+        }
+
+        int oldDownstreamChannelIndex =
+                PointwiseChannelMappingUtils.globalSubtaskIndexToLocalIndex(
+                        globalOldDownstream,
+                        oldUpstreamSubtaskIndex,
+                        oldUpPar,
+                        oldDownPar,
+                        true,
+                        oldPattern);
+        checkState(
+                oldDownstreamChannelIndex >= 0,
+                "Failed to find a subtask channel for "
+                        + stateHandle
+                        + " when distributing output buffers for "
+                        + params);
+
+        int gateIdxResultPartition = findInputGateIdxForResultPartition(partitionIdx);
+
+        OperatorInstanceID downstreamOperatorInstance =
+                new OperatorInstanceID(
+                        targetDownstreamSubtaskId, downstreamAssignment.inputOperatorID);
+
+        InputChannelInfo inputChannelInfo =
+                new InputChannelInfo(gateIdxResultPartition, oldDownstreamChannelIndex);
+
+        InputChannelStateHandle upstreamOutputBufferHandle =
+                new InputChannelStateHandle(
+                        globalOldDownstream,
+                        inputChannelInfo,
+                        stateHandle.getDelegate(),
+                        stateHandle.getOffsets(),
+                        stateHandle.getStateSize());
+
+        List<InputChannelStateHandle> upstreamOutputBufferHandles =
+                downstreamAssignment.upstreamOutputBufferStates.computeIfAbsent(
+                        downstreamOperatorInstance, k -> new ArrayList<>());
+        upstreamOutputBufferHandles.add(upstreamOutputBufferHandle);
     }
 
     private int findInputGateIdxForResultPartition(int partitionIndex) {

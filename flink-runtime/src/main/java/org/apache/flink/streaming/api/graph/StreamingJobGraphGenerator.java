@@ -1712,11 +1712,13 @@ public class StreamingJobGraphGenerator {
                         .isUnalignedCheckpointsEnabled()
                 && !partitioner.isSupportsUnalignedCheckpoint(false)
                 && partitioner.isSupportsUnalignedCheckpoint(true)) {
+            // PW edges: downstream via ROUND_ROBIN, upstream via POINTWISE_UPSTREAM
+            // (topology-aware)
             if (downstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
                 downstreamMapper = SubtaskStateMapper.ROUND_ROBIN;
             }
             if (upstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
-                upstreamMapper = SubtaskStateMapper.ROUND_ROBIN;
+                upstreamMapper = SubtaskStateMapper.POINTWISE_UPSTREAM;
             }
         }
 

@@ -1811,13 +1811,25 @@ public class CheckpointCoordinator {
                 vertexFinishedStateChecker.validateOperatorsFinishedState();
             }
 
+            // Extract old edge patterns from MasterState (persisted by
+            // EdgeDistributionPatternHook).
+            // null means old checkpoint lacks this info; fallback to ALL_TO_ALL.
+            EdgeDistributionPatternSnapshot oldEdgePatterns = null;
+            for (MasterState ms : latest.getMasterHookStates()) {
+                if (EdgeDistributionPatternSnapshot.HOOK_IDENTIFIER.equals(ms.name())) {
+                    oldEdgePatterns = EdgeDistributionPatternSnapshot.fromBytes(ms.bytes());
+                    break;
+                }
+            }
+
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
                             latest.getCheckpointID(),
                             tasks,
                             operatorStates,
                             allowNonRestoredState,
-                            recoverOutputOnDownstreamTask);
+                            recoverOutputOnDownstreamTask,
+                            oldEdgePatterns);
 
             stateAssignmentOperation.assignStates();
 

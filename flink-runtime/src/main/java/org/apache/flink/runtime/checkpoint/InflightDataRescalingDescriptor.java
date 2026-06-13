@@ -57,6 +57,11 @@ public class InflightDataRescalingDescriptor implements Serializable {
         return gateOrPartitionDescriptors[gateOrPartitionIndex].getRescaleMappings();
     }
 
+    public InflightDataGateOrPartitionRescalingDescriptor getGateOrPartitionDescriptor(
+            int gateOrPartitionIndex) {
+        return gateOrPartitionDescriptors[gateOrPartitionIndex];
+    }
+
     public boolean isAmbiguous(int gateOrPartitionIndex, int oldSubtaskIndex) {
         return gateOrPartitionDescriptors[gateOrPartitionIndex].ambiguousSubtaskIndexes.contains(
                 oldSubtaskIndex);
@@ -144,7 +149,7 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         /**
          * Set when channels are merged because the connected operator has been rescaled for each
-         * gate/partition. Used for ALL_TO_ALL → ALL_TO_ALL path.
+         * gate/partition.
          */
         private final RescaleMappings rescaledChannelsMappings;
 
@@ -271,6 +276,12 @@ public class InflightDataRescalingDescriptor implements Serializable {
         @Override
         public int[] getOldSubtaskIndexes(int gateOrPartitionIndex) {
             return EMPTY_INT_ARRAY;
+        }
+
+        @Override
+        public InflightDataGateOrPartitionRescalingDescriptor getGateOrPartitionDescriptor(
+                int gateOrPartitionIndex) {
+            return InflightDataGateOrPartitionRescalingDescriptor.NO_STATE;
         }
 
         @Override

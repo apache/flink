@@ -1908,6 +1908,225 @@ class StateAssignmentOperationTest {
     }
 
     /**
+     * Parameterized test for POINTWISE output state distribution.
+     *
+     * <p>Tests all combinations of:
+     *
+     * <ul>
+     *   <li>Old pattern: A2A or PW
+     *   <li>New pattern: A2A or PW
+     *   <li>Scale: upscale, downscale, noscale
+     * </ul>
+     *
+     * <p>Verifies that ALL upstream output state handles are distributed to downstream tasks (no
+     * state is silently dropped).
+     */
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "A2A_A2A_UP",
+                "A2A_A2A_DOWN",
+                "A2A_A2A_NO",
+                "A2A_PW_UP",
+                "A2A_PW_DOWN",
+                "A2A_PW_NO",
+                "PW_PW_UP",
+                "PW_PW_DOWN",
+                "PW_PW_NO",
+                "PW_A2A_UP",
+                "PW_A2A_DOWN",
+                "PW_A2A_NO"
+            })
+    void testPointwiseOutputStateDistribution(String testCase)
+            throws JobException, JobExecutionException {
+        // Parse test case
+        String[] parts = testCase.split("_");
+        DistributionPattern oldPattern =
+                parts[0].equals("A2A")
+                        ? DistributionPattern.ALL_TO_ALL
+                        : DistributionPattern.POINTWISE;
+        DistributionPattern newPattern =
+                parts[1].equals("A2A")
+                        ? DistributionPattern.ALL_TO_ALL
+                        : DistributionPattern.POINTWISE;
+        String scaleType = parts[2];
+
+        // Determine parallelisms
+        // For POINTWISE edges, we need oldUp > oldDown to trigger the bug where multiple
+        // upstreams map to the same downstream and primary producer dedup incorrectly drops state
+        int oldUpParallelism, newUpParallelism, oldDownParallelism, newDownParallelism;
+        switch (scaleType) {
+            case "UP":
+                oldUpParallelism = 4;
+                newUpParallelism = 6;
+                oldDownParallelism = 3;
+                newDownParallelism = 6;
+                break;
+            case "DOWN":
+                // Use 12->6 to ensure oldUp > oldDown, triggering multiple upstreams per downstream
+                oldUpParallelism = 12;
+                newUpParallelism = 4;
+                oldDownParallelism = 6;
+                newDownParallelism = 3;
+                break;
+            case "NO":
+            default:
+                // Use 12->6 to ensure oldUp > oldDown
+                oldUpParallelism = 12;
+                newUpParallelism = 12;
+                oldDownParallelism = 6;
+                newDownParallelism = 6;
+                break;
+        }
+
+        // Create upstream and downstream operators with appropriate parallelisms
+        OperatorID upstreamOpId = new OperatorID();
+        OperatorID downstreamOpId = new OperatorID();
+
+        JobVertex upstream = createJobVertex(upstreamOpId, upstreamOpId, newUpParallelism);
+        JobVertex downstream = createJobVertex(downstreamOpId, downstreamOpId, newDownParallelism);
+
+        // Connect with appropriate distribution pattern
+        if (newPattern == DistributionPattern.POINTWISE) {
+            connectVerticesPointwise(
+                    upstream, downstream, SubtaskStateMapper.POINTWISE_UPSTREAM, ROUND_ROBIN);
+        } else {
+            connectVertices(upstream, downstream, ROUND_ROBIN, ROUND_ROBIN);
+        }
+
+        Map<OperatorID, ExecutionJobVertex> vertices = toExecutionVertices(upstream, downstream);
+
+        // Build EdgeDistributionPatternSnapshot with old pattern
+        // The snapshot stores patterns keyed by the OUTPUT operator ID
+        // For output side, resolveOldDistributionPattern looks up using outputOperatorID
+        EdgeDistributionPatternSnapshot edgePatterns =
+                buildEdgePatternSnapshot(upstreamOpId, oldPattern);
+
+        // Create output state for upstream
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random(42);
+
+        // Track all original output state handles
+        List<ResultSubpartitionStateHandle> allOriginalHandles = new ArrayList<>();
+
+        OperatorState upstreamState =
+                new OperatorState("", "", upstreamOpId, oldUpParallelism, MAX_P);
+        for (int subtask = 0; subtask < oldUpParallelism; subtask++) {
+            // Create output state for each subpartition this subtask connects to
+            List<ResultSubpartitionStateHandle> subtaskHandles = new ArrayList<>();
+
+            if (oldPattern == DistributionPattern.POINTWISE) {
+                // POINTWISE: each upstream connects to a subset of downstreams
+                int[] consumers =
+                        PointwiseChannelMappingUtils.consumersOf(
+                                subtask, oldUpParallelism, oldDownParallelism);
+                for (int localSP = 0; localSP < consumers.length; localSP++) {
+                    ResultSubpartitionStateHandle handle =
+                            createNewResultSubpartitionStateHandle(10, subtask, 0, localSP, random);
+                    subtaskHandles.add(handle);
+                    allOriginalHandles.add(handle);
+                }
+            } else {
+                // A2A: each upstream connects to all downstreams
+                for (int downstreamIdx = 0; downstreamIdx < oldDownParallelism; downstreamIdx++) {
+                    ResultSubpartitionStateHandle handle =
+                            createNewResultSubpartitionStateHandle(
+                                    10, subtask, 0, downstreamIdx, random);
+                    subtaskHandles.add(handle);
+                    allOriginalHandles.add(handle);
+                }
+            }
+
+            upstreamState.putState(
+                    subtask,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<OutputStateHandle>(
+                                            new ArrayList<>(subtaskHandles)))
+                            .build());
+        }
+        states.put(upstreamOpId, upstreamState);
+
+        // Create empty state for downstream
+        OperatorState downstreamState =
+                new OperatorState("", "", downstreamOpId, oldDownParallelism, MAX_P);
+        for (int subtask = 0; subtask < oldDownParallelism; subtask++) {
+            downstreamState.putState(subtask, OperatorSubtaskState.builder().build());
+        }
+        states.put(downstreamOpId, downstreamState);
+
+        // Run state assignment with recoverOutputOnDownstreamTask=true
+        new StateAssignmentOperation(
+                        0, new HashSet<>(vertices.values()), states, false, true, edgePatterns)
+                .assignStates();
+
+        // Collect all distributed InputChannelStateHandles across all downstream subtasks
+        List<InputChannelStateHandle> allDistributedHandles = new ArrayList<>();
+        for (int subtask = 0; subtask < newDownParallelism; subtask++) {
+            OperatorSubtaskState assignedState =
+                    getAssignedState(vertices.get(downstreamOpId), downstreamOpId, subtask);
+            if (assignedState != null && assignedState.getUpstreamOutputBufferState() != null) {
+                for (InputChannelStateHandle handle :
+                        assignedState.getUpstreamOutputBufferState()) {
+                    allDistributedHandles.add(handle);
+                }
+            }
+        }
+
+        // CRITICAL ASSERTION: All original output state handles must be distributed
+        // This catches the bug where primary producer dedup silently drops state
+        assertThat(allDistributedHandles)
+                .as(
+                        "Test case %s: all %d original output state handles must be distributed to downstream (found %d)",
+                        testCase, allOriginalHandles.size(), allDistributedHandles.size())
+                .hasSize(allOriginalHandles.size());
+
+        // Verify each original handle appears exactly once fin distributed results
+        for (ResultSubpartitionStateHandle original : allOriginalHandles) {
+            long matchCount =
+                    allDistributedHandles.stream()
+                            .filter(
+                                    distributed ->
+                                            distributed.getDelegate() == original.getDelegate()
+                                                    && distributed
+                                                            .getOffsets()
+                                                            .equals(original.getOffsets())
+                                                    && distributed.getStateSize()
+                                                            == original.getStateSize())
+                            .count();
+            assertThat(matchCount)
+                    .as(
+                            "Test case %s: original handle from subtask %d subpartition %d must appear exactly once",
+                            testCase,
+                            original.getSubtaskIndex(),
+                            original.getInfo().getSubPartitionIdx())
+                    .isEqualTo(1);
+        }
+    }
+
+    private void connectVerticesPointwise(
+            JobVertex upstream,
+            JobVertex downstream,
+            SubtaskStateMapper upstreamRescaler,
+            SubtaskStateMapper downstreamRescaler) {
+        final JobEdge jobEdge =
+                connectNewDataSetAsInput(
+                        downstream,
+                        upstream,
+                        DistributionPattern.POINTWISE,
+                        ResultPartitionType.PIPELINED);
+        jobEdge.setDownstreamSubtaskStateMapper(downstreamRescaler);
+        jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
+    }
+
+    private EdgeDistributionPatternSnapshot buildEdgePatternSnapshot(
+            OperatorID outputOperatorId, DistributionPattern pattern) {
+        Map<OperatorID, DistributionPattern[]> map = new HashMap<>();
+        map.put(outputOperatorId, new DistributionPattern[] {pattern});
+        return new EdgeDistributionPatternSnapshot(map);
+    }
+
+    /**
      * Test utility class that manages ResultSubpartitionStateHandles for all operators in a job.
      */
     private static class JobResultSubpartitionHandlers {
