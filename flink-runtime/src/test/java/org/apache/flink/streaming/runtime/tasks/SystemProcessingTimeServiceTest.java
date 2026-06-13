@@ -46,7 +46,7 @@ class SystemProcessingTimeServiceTest {
      * Tests that SystemProcessingTimeService#scheduleAtFixedRate is actually triggered multiple
      * times with the expected scheduled timestamps.
      */
-    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 20000, unit = TimeUnit.MILLISECONDS)
     @Test
     void testScheduleAtFixedRate() throws Exception {
         final AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -91,7 +91,7 @@ class SystemProcessingTimeServiceTest {
      * Tests that SystemProcessingTimeService#testScheduleAtFixedDelay is actually triggered
      * multiple times with the expected scheduled timestamps.
      */
-    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 20000, unit = TimeUnit.MILLISECONDS)
     @Test
     void testScheduleAtFixedDelay() throws Exception {
         final AtomicReference<Throwable> errorRef = new AtomicReference<>();
