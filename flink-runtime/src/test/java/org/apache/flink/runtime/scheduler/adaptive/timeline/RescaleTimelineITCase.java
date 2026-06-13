@@ -276,11 +276,19 @@ class RescaleTimelineITCase {
 
         waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
 
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
         updateJobResourceRequirements(miniCluster, jobGraph, 1, PARALLELISM * 2);
+
+        // The upper bound (PARALLELISM * 2) exceeds the available slots, so this rescale is only
+        // recorded in the history without changing the parallelism. Wait until it is recorded
+        // before unblocking, otherwise on a slow machine the task can finish first and the size-2
+        // condition below times out.
+        waitUntilConditionWithTimeout(
+                () -> getRescaleHistory(miniCluster, jobGraph).size() == 2, 10000);
 
         OnceBlockingNoOpInvokable.unblock();
 
-        assumeThat(enabledRescaleHistory(configuration)).isTrue();
         waitUntilConditionWithTimeout(
                 () -> {
                     List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
