@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -142,7 +144,7 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         /**
          * Set when channels are merged because the connected operator has been rescaled for each
-         * gate/partition.
+         * gate/partition. Used for ALL_TO_ALL → ALL_TO_ALL path.
          */
         private final RescaleMappings rescaledChannelsMappings;
 
@@ -150,6 +152,9 @@ public class InflightDataRescalingDescriptor implements Serializable {
         private final Set<Integer> ambiguousSubtaskIndexes;
 
         private final MappingType mappingType;
+
+        /** Bundled scalar topology parameters for POINTWISE-aware rescaling. */
+        private PointwiseRescaleParams rescaleParams;
 
         /** Type of mapping which should be used for this in-flight data. */
         public enum MappingType {
@@ -162,10 +167,25 @@ public class InflightDataRescalingDescriptor implements Serializable {
                 RescaleMappings rescaledChannelsMappings,
                 Set<Integer> ambiguousSubtaskIndexes,
                 MappingType mappingType) {
+            this(
+                    oldSubtaskIndexes,
+                    rescaledChannelsMappings,
+                    ambiguousSubtaskIndexes,
+                    mappingType,
+                    PointwiseRescaleParams.EMPTY);
+        }
+
+        public InflightDataGateOrPartitionRescalingDescriptor(
+                int[] oldSubtaskIndexes,
+                RescaleMappings rescaledChannelsMappings,
+                Set<Integer> ambiguousSubtaskIndexes,
+                MappingType mappingType,
+                PointwiseRescaleParams rescaleParams) {
             this.oldSubtaskIndexes = oldSubtaskIndexes;
             this.rescaledChannelsMappings = rescaledChannelsMappings;
             this.ambiguousSubtaskIndexes = ambiguousSubtaskIndexes;
             this.mappingType = mappingType;
+            this.rescaleParams = rescaleParams;
         }
 
         public int[] getOldSubtaskInstances() {
@@ -178,6 +198,21 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         public boolean isIdentity() {
             return mappingType == MappingType.IDENTITY;
+        }
+
+        public PointwiseRescaleParams getPointwiseRescaleParams() {
+            return rescaleParams;
+        }
+
+        public boolean isPointwiseRescaling() {
+            return !rescaleParams.equals(PointwiseRescaleParams.EMPTY);
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            in.defaultReadObject();
+            if (rescaleParams == null) {
+                rescaleParams = PointwiseRescaleParams.EMPTY;
+            }
         }
 
         @Override
@@ -193,13 +228,18 @@ public class InflightDataRescalingDescriptor implements Serializable {
             return Arrays.equals(oldSubtaskIndexes, that.oldSubtaskIndexes)
                     && Objects.equals(rescaledChannelsMappings, that.rescaledChannelsMappings)
                     && Objects.equals(ambiguousSubtaskIndexes, that.ambiguousSubtaskIndexes)
-                    && mappingType == that.mappingType;
+                    && mappingType == that.mappingType
+                    && Objects.equals(rescaleParams, that.rescaleParams);
         }
 
         @Override
         public int hashCode() {
             int result =
-                    Objects.hash(rescaledChannelsMappings, ambiguousSubtaskIndexes, mappingType);
+                    Objects.hash(
+                            rescaledChannelsMappings,
+                            ambiguousSubtaskIndexes,
+                            mappingType,
+                            rescaleParams);
             result = 31 * result + Arrays.hashCode(oldSubtaskIndexes);
             return result;
         }
@@ -215,6 +255,8 @@ public class InflightDataRescalingDescriptor implements Serializable {
                     + ambiguousSubtaskIndexes
                     + ", mappingType="
                     + mappingType
+                    + ", rescaleParams="
+                    + rescaleParams
                     + '}';
         }
     }
