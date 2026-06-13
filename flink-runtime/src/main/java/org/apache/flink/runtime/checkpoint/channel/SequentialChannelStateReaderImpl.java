@@ -52,9 +52,15 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     private final TaskStateSnapshot taskStateSnapshot;
     private final ChannelStateSerializer serializer;
     private final ChannelStateChunkReader chunkReader;
+    private final int subtaskIndex;
 
     public SequentialChannelStateReaderImpl(TaskStateSnapshot taskStateSnapshot) {
+        this(taskStateSnapshot, 0);
+    }
+
+    public SequentialChannelStateReaderImpl(TaskStateSnapshot taskStateSnapshot, int subtaskIndex) {
         this.taskStateSnapshot = taskStateSnapshot;
+        this.subtaskIndex = subtaskIndex;
         serializer = new ChannelStateSerializerImpl();
         chunkReader = new ChannelStateChunkReader(serializer);
     }
@@ -75,7 +81,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                                 inputGates,
                                 taskStateSnapshot.getInputRescalingDescriptor(),
                                 filteringHandler,
-                                filterContext.getMemorySegmentSize())) {
+                                filterContext.getMemorySegmentSize(),
+                                subtaskIndex)) {
             read(
                     stateHandler,
                     groupByDelegate(
@@ -102,7 +109,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                 new ResultSubpartitionRecoveredStateHandler(
                         writers,
                         notifyAndBlockOnCompletion,
-                        taskStateSnapshot.getOutputRescalingDescriptor())) {
+                        taskStateSnapshot.getOutputRescalingDescriptor(),
+                        subtaskIndex)) {
             read(
                     stateHandler,
                     groupByDelegate(

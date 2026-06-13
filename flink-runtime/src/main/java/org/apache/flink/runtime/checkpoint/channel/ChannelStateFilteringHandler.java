@@ -21,6 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.PointwiseChannelMappingUtils;
+import org.apache.flink.runtime.checkpoint.PointwiseRescaleParams;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -194,31 +197,68 @@ public class ChannelStateFilteringHandler implements Closeable {
 
         Map<SubtaskConnectionDescriptor, VirtualChannel<T>> gateVirtualChannels = new HashMap<>();
 
-        for (int oldSubtaskIndex : oldSubtaskIndexes) {
-            int numChannels = gate.getNumberOfInputChannels();
-            int[] oldChannelIndexes = getOldChannelIndexes(channelMapping, numChannels);
+        InflightDataGateOrPartitionRescalingDescriptor gateDesc =
+                rescalingDescriptor.getGateOrPartitionDescriptor(gateIndex);
 
-            for (int oldChannelIndex : oldChannelIndexes) {
-                SubtaskConnectionDescriptor key =
-                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
+        if (gateDesc.isPointwiseRescaling()) {
+            PointwiseRescaleParams params = gateDesc.getPointwiseRescaleParams();
+            for (int oldSubtaskIndex : oldSubtaskIndexes) {
+                int numLocal =
+                        PointwiseChannelMappingUtils.getOldLocalChannelCount(
+                                oldSubtaskIndex, params);
+                for (int localIdx = 0; localIdx < numLocal; localIdx++) {
+                    int oldChannelIndex =
+                            PointwiseChannelMappingUtils.localIndexToGlobalSubtaskIndex(
+                                    oldSubtaskIndex,
+                                    localIdx,
+                                    params.getOldUpParallelism(),
+                                    params.getOldDownParallelism(),
+                                    true,
+                                    params.getOldDistributionPattern());
+                    SubtaskConnectionDescriptor key =
+                            new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
+                    if (gateVirtualChannels.containsKey(key)) {
+                        continue;
+                    }
 
-                if (gateVirtualChannels.containsKey(key)) {
-                    continue;
+                    // PW edges use deterministic distribution, no record-level filtering needed
+                    RecordFilter<T> recordFilter =
+                            VirtualChannelRecordFilterFactory.createPassThroughFilter();
+                    RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
+                            createDeserializer(filterContext.getTmpDirectories());
+                    VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
+                    gateVirtualChannels.put(key, vc);
                 }
+            }
+        } else {
+            for (int oldSubtaskIndex : oldSubtaskIndexes) {
+                int numChannels = gate.getNumberOfInputChannels();
+                int[] oldChannelIndexes = getOldChannelIndexes(channelMapping, numChannels);
 
-                // Only ambiguous channels need actual filtering; non-ambiguous ones pass through
-                boolean isAmbiguous = rescalingDescriptor.isAmbiguous(gateIndex, oldSubtaskIndex);
+                for (int oldChannelIndex : oldChannelIndexes) {
+                    SubtaskConnectionDescriptor key =
+                            new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
 
-                RecordFilter<T> recordFilter =
-                        isAmbiguous
-                                ? filterFactory.createFilter()
-                                : VirtualChannelRecordFilterFactory.createPassThroughFilter();
+                    if (gateVirtualChannels.containsKey(key)) {
+                        continue;
+                    }
 
-                RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
-                        createDeserializer(filterContext.getTmpDirectories());
+                    // Only ambiguous channels need actual filtering; non-ambiguous ones pass
+                    // through
+                    boolean isAmbiguous =
+                            rescalingDescriptor.isAmbiguous(gateIndex, oldSubtaskIndex);
 
-                VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
-                gateVirtualChannels.put(key, vc);
+                    RecordFilter<T> recordFilter =
+                            isAmbiguous
+                                    ? filterFactory.createFilter()
+                                    : VirtualChannelRecordFilterFactory.createPassThroughFilter();
+
+                    RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
+                            createDeserializer(filterContext.getTmpDirectories());
+
+                    VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
+                    gateVirtualChannels.put(key, vc);
+                }
             }
         }
 
