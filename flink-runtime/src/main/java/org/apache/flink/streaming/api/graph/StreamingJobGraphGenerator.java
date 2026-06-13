@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobgraph.forwardgroup.JobVertexForwardGroup;
@@ -1634,8 +1635,29 @@ public class StreamingJobGraphGenerator {
 
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
-        jobEdge.setDownstreamSubtaskStateMapper(partitioner.getDownstreamSubtaskStateMapper());
-        jobEdge.setUpstreamSubtaskStateMapper(partitioner.getUpstreamSubtaskStateMapper());
+        SubtaskStateMapper downstreamMapper = partitioner.getDownstreamSubtaskStateMapper();
+        SubtaskStateMapper upstreamMapper = partitioner.getUpstreamSubtaskStateMapper();
+
+        if (jobVertexBuildContext
+                        .getStreamGraph()
+                        .getCheckpointConfig()
+                        .isForceUnalignedCheckpoints()
+                && jobVertexBuildContext
+                        .getStreamGraph()
+                        .getCheckpointConfig()
+                        .isUnalignedCheckpointsEnabled()
+                && !partitioner.isSupportsUnalignedCheckpoint(false)
+                && partitioner.isSupportsUnalignedCheckpoint(true)) {
+            if (downstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
+                downstreamMapper = SubtaskStateMapper.ROUND_ROBIN;
+            }
+            if (upstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
+                upstreamMapper = SubtaskStateMapper.ROUND_ROBIN;
+            }
+        }
+
+        jobEdge.setDownstreamSubtaskStateMapper(downstreamMapper);
+        jobEdge.setUpstreamSubtaskStateMapper(upstreamMapper);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(
