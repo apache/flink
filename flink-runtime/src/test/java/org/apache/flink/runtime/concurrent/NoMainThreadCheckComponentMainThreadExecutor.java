@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +36,15 @@ import java.util.concurrent.TimeUnit;
  */
 public class NoMainThreadCheckComponentMainThreadExecutor implements ComponentMainThreadExecutor {
 
-    private final DirectScheduledExecutorService executor = new DirectScheduledExecutorService();
+    private final ScheduledExecutorService executor;
+
+    public NoMainThreadCheckComponentMainThreadExecutor() {
+        this.executor = new DirectScheduledExecutorService();
+    }
+
+    public NoMainThreadCheckComponentMainThreadExecutor(ScheduledExecutorService executor) {
+        this.executor = Preconditions.checkNotNull(executor);
+    }
 
     @Override
     public void assertRunningInMainThread() {
