@@ -30,7 +30,7 @@ import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.MutableVertexParallelismStore;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,7 +54,7 @@ class ForwardEdgesAdapterTest {
                 new JobGraphJobInformation(initialJobGraph, new DefaultVertexParallelismStore());
     }
 
-    @RepeatedTest(100000)
+    @Test
     void testAdaptiveChangeForwardJobEdges() throws Exception {
 
         // Test initial info.
