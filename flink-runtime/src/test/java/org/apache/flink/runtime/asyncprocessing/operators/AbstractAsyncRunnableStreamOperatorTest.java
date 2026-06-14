@@ -241,17 +241,20 @@ public class AbstractAsyncRunnableStreamOperatorTest {
                     (SimpleAsyncExecutionController)
                             ((AbstractAsyncRunnableStreamOperator) testHarness.getOperator())
                                     .getAsyncExecutionController();
+            CompletableFuture<Void> unblockAsyncRequest = new CompletableFuture<>();
             ((AbstractAsyncRunnableStreamOperator<String>) testHarness.getOperator())
                     .setAsyncKeyedContextElement(
                             new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
             ((AbstractAsyncRunnableStreamOperator<String>) testHarness.getOperator())
                     .asyncProcess(
                             () -> {
+                                unblockAsyncRequest.get(10, TimeUnit.SECONDS);
                                 return null;
                             });
             ((AbstractAsyncRunnableStreamOperator<String>) testHarness.getOperator())
                     .postProcessElement();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
+            unblockAsyncRequest.complete(null);
             testHarness.drainAsyncRequests();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
