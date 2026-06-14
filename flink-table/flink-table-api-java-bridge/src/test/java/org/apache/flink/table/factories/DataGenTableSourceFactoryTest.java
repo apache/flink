@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +77,13 @@ class DataGenTableSourceFactoryTest {
                     Column.physical("f0", DataTypes.ARRAY(DataTypes.STRING())),
                     Column.physical("f1", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT())),
                     Column.physical("f2", DataTypes.MULTISET(DataTypes.INT())));
+
+    /**
+     * Upper bound on the number of rows generated for unbounded (random-only) sources, where {@link
+     * DataGenTableSource#computeEffectiveCount()} returns {@link Long#MAX_VALUE}. Tests that assert a
+     * specific row count always configure {@code number-of-rows} explicitly and never hit this cap.
+     */
+    private static final long DEFAULT_UNBOUNDED_TEST_LIMIT = 1_000L;
 
     @Test
     void testDataTypeCoverage() throws Exception {
@@ -426,7 +434,7 @@ class DataGenTableSourceFactoryTest {
         // Cap the number of generated rows to a sane upper bound when no explicit limit was
         // configured (e.g. unbounded random-only sources). Tests that depend on a specific count
         // always set NUMBER_OF_ROWS explicitly.
-        long limit = count == Long.MAX_VALUE ? 1_000L : count;
+        long limit = count == Long.MAX_VALUE ? DEFAULT_UNBOUNDED_TEST_LIMIT : count;
 
         List<RowData> results = new ArrayList<>();
         for (long i = 0; i < limit; i++) {
@@ -476,6 +484,36 @@ class DataGenTableSourceFactoryTest {
         }
         assertThat(emitted).isEqualTo(expected);
         assertThat(results).hasSize(101);
+    }
+
+    @Test
+    void testRowGeneratorIsSerializable() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.SEQUENCE);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START, 0);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END, 10);
+
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT()));
+        DataGenTableSource source =
+                (DataGenTableSource) createTableSource(schema, descriptor.asMap());
+
+        // The generator functions are shipped to the TaskManagers, so they must survive Java
+        // serialization. Clone the freshly built generator and verify the round-tripped copy still
+        // produces the full [0, 10] sequence.
+        GeneratorFunction<Long, RowData> cloned =
+                InstantiationUtil.clone(source.buildRowGenerator());
+        cloned.open(stubReaderContext());
+
+        List<Long> emitted = new ArrayList<>();
+        for (long i = 0; i < source.computeEffectiveCount(); i++) {
+            emitted.add(cloned.map(i).getLong(0));
+        }
+        assertThat(emitted).containsExactly(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L);
     }
 
     @Test
