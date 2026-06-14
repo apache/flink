@@ -42,7 +42,9 @@ case $INPUT_TYPE in
         source "$(dirname "$0")"/common_s3_seaweedfs.sh
         s3_setup hadoop
         ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
-        OUTPUT_PATH="$TEST_INFRA_DIR/$IT_CASE_S3_BUCKET/$S3_PREFIX"
+        OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
+        on_exit "s3_delete_by_full_path_prefix '$S3_PREFIX'"
+        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" true)
     ;;
     (hadoop_with_provider)
         source "$(dirname "$0")"/common_s3.sh
@@ -60,11 +62,10 @@ case $INPUT_TYPE in
         on_exit "s3_delete_by_full_path_prefix '$S3_PREFIX'"
         fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" true)
     ;;
-    (presto_seaweedfs)
+    (presto_seaweedfs_read)
         source "$(dirname "$0")"/common_s3_seaweedfs.sh
         s3_setup presto
-        ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
-        OUTPUT_PATH="$TEST_INFRA_DIR/$IT_CASE_S3_BUCKET/$S3_PREFIX"
+        ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output ${OUTPUT_PATH}"
     ;;
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh

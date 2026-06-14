@@ -189,6 +189,9 @@ function run_group_3 {
     run_test "New File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local FileSink" "skip_check_exceptions"
     run_test "New File Sink s3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh s3 FileSink" "skip_check_exceptions"
 
+    run_test "Wordcount Hadoop S3 SeaweedFS read-write end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_seaweedfs"
+    run_test "Wordcount Presto S3 SeaweedFS read end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh presto_seaweedfs_read"
+
     run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
 
     run_test "Netty shuffle direct memory consumption end-to-end test" "$END_TO_END_DIR/test-scripts/test_netty_shuffle_memory_control.sh"
