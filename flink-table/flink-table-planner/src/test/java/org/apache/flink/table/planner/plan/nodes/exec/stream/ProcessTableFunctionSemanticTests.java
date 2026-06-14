@@ -42,6 +42,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS,
+                ProcessTableFunctionTestPrograms.PROCESS_SCALAR_DECIMAL_ARG,
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE,
                 ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_TABLE_API,

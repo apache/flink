@@ -117,6 +117,74 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "Invalid number of arguments. At least 2 arguments expected but 1 passed."),
 
+                // a constant literal that overflows the expected DECIMAL precision must raise a
+                // type error instead of being silently reduced to NULL
+                TestSpec.forStrategy(
+                                "literal decimal overflowing the expected precision",
+                                explicitSequence(DataTypes.DECIMAL(2, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(6, 3))
+                        .calledWithLiteralAt(0, new BigDecimal("123.456"))
+                        .expectErrorMessage(
+                                "The value '123.456' does not fit the expected data type"),
+
+                // a constant literal that only requires scale rounding still fits
+                TestSpec.forStrategy(
+                                "literal decimal rounded within the expected precision",
+                                explicitSequence(DataTypes.DECIMAL(2, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(3, 3))
+                        .calledWithLiteralAt(0, new BigDecimal("0.456"))
+                        .expectArgumentTypes(DataTypes.DECIMAL(2, 2)),
+
+                // a constant literal that fits the expected precision is accepted
+                TestSpec.forStrategy(
+                                "literal decimal fitting the expected precision",
+                                explicitSequence(DataTypes.DECIMAL(2, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 2))
+                        .calledWithLiteralAt(0, new BigDecimal("0.45"))
+                        .expectArgumentTypes(DataTypes.DECIMAL(2, 2)),
+
+                // a constant literal whose integer part overflows the expected precision is
+                // rejected, also for precisions other than DECIMAL(2, 2)
+                TestSpec.forStrategy(
+                                "literal decimal overflowing the integer digits",
+                                explicitSequence(DataTypes.DECIMAL(5, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(6, 2))
+                        .calledWithLiteralAt(0, new BigDecimal("1234.56"))
+                        .expectErrorMessage(
+                                "The value '1234.56' does not fit the expected data type"),
+
+                // a negative constant literal that overflows the expected precision is rejected
+                TestSpec.forStrategy(
+                                "negative literal decimal overflowing the expected precision",
+                                explicitSequence(DataTypes.DECIMAL(4, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(5, 2))
+                        .calledWithLiteralAt(0, new BigDecimal("-123.45"))
+                        .expectErrorMessage(
+                                "The value '-123.45' does not fit the expected data type"),
+
+                // a constant literal that fits a larger expected precision is accepted
+                TestSpec.forStrategy(
+                                "literal decimal fitting a larger expected precision",
+                                explicitSequence(DataTypes.DECIMAL(10, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(10, 2))
+                        .calledWithLiteralAt(0, new BigDecimal("12345678.90"))
+                        .expectArgumentTypes(DataTypes.DECIMAL(10, 2)),
+
+                // a NULL literal carries no value and must not raise an overflow error
+                TestSpec.forStrategy(
+                                "NULL decimal literal is not range-checked",
+                                explicitSequence(DataTypes.DECIMAL(2, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(6, 3))
+                        .calledWithLiteralAt(0)
+                        .expectArgumentTypes(DataTypes.DECIMAL(2, 2)),
+
+                // a non-literal (runtime) decimal argument is not range-checked, only constants are
+                TestSpec.forStrategy(
+                                "non-literal decimal is not range-checked",
+                                explicitSequence(DataTypes.DECIMAL(2, 2)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(6, 3))
+                        .expectArgumentTypes(DataTypes.DECIMAL(2, 2)),
+
                 // any type
                 TestSpec.forStrategy(sequence(ANY))
                         .calledWithArgumentTypes(DataTypes.BIGINT())

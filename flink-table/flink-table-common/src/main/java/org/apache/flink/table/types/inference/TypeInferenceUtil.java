@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
@@ -29,10 +30,12 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CastCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -155,9 +158,57 @@ public final class TypeInferenceUtil {
                                 "Invalid argument type at position %d. Data type %s expected but %s passed.",
                                 pos, expectedType, actualType));
             }
+
+            // Beyond type-level castability, a constant DECIMAL literal must also fit the
+            // expected type on the value level.
+            if (throwOnInferInputFailure) {
+                validateDecimalLiteralFitsExpectedType(callContext, pos, expectedType);
+            }
         }
 
         return castCallContext;
+    }
+
+    /**
+     * Validates that a constant {@code DECIMAL} literal argument fits the expected type on the
+     * value level and not only on the type level. For example, {@code 123.456} is implicitly
+     * castable to a {@code DECIMAL(2, 2)} but would otherwise be silently reduced to {@code NULL}
+     * during constant folding instead of raising a type error.
+     *
+     * <p>Only {@code DECIMAL} is covered here; other value-level overflows (e.g. {@code CHAR}
+     * overruns or out-of-range integer literals) are out of scope for this check.
+     */
+    private static void validateDecimalLiteralFitsExpectedType(
+            CallContext callContext, int pos, DataType expectedType) {
+        if (!expectedType.getLogicalType().is(LogicalTypeRoot.DECIMAL)) {
+            return;
+        }
+        final BigDecimal value;
+        try {
+            if (!callContext.isArgumentLiteral(pos)) {
+                return;
+            }
+            // Absent for a NULL literal or a literal that cannot be represented as a BigDecimal.
+            value = callContext.getArgumentValue(pos, BigDecimal.class).orElse(null);
+        } catch (UnsupportedOperationException e) {
+            // Some call contexts (e.g. procedure calls backed by an ExplicitOperatorBinding)
+            // expose only argument types, not values, so the value-level check cannot run here.
+            // Such constants are reduced and validated separately by the caller.
+            return;
+        }
+        if (value == null) {
+            return;
+        }
+        final DecimalType decimalType = (DecimalType) expectedType.getLogicalType();
+        final DecimalData converted =
+                DecimalData.fromBigDecimal(
+                        value, decimalType.getPrecision(), decimalType.getScale());
+        if (converted == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid argument value at position %d. The value '%s' does not fit the expected data type %s.",
+                            pos, value, expectedType));
+        }
     }
 
     /**
