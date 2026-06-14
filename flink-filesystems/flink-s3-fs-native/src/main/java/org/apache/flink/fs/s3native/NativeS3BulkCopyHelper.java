@@ -30,6 +30,8 @@ import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -68,6 +70,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * consolidate S3 URI handling across the codebase.
  */
 @Internal
+@ThreadSafe
 class NativeS3BulkCopyHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3BulkCopyHelper.class);

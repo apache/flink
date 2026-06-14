@@ -21,6 +21,8 @@ package org.apache.flink.fs.s3native.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.IOException;
 import java.util.stream.Collectors;
 
@@ -39,6 +41,7 @@ import java.util.stream.Collectors;
  * <p>The "empty parts" check is a defensive measure against programming errors - in normal
  * operation, a multipart upload should always have at least one part before committing.
  */
+@ThreadSafe
 class NativeS3Committer implements RecoverableFsDataOutputStream.Committer {
 
     private final NativeS3ObjectOperations s3AccessHelper;

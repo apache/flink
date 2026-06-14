@@ -25,6 +25,9 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -41,6 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * can be safely invoked from another thread (e.g. during task cancellation) per {@link
  * org.apache.flink.core.fs.FSDataOutputStream} contract.
  */
+@ThreadSafe
 class NativeS3OutputStream extends FSDataOutputStream {
 
     private static final int BUFFER_SIZE = 64 * 1024;
@@ -54,9 +58,11 @@ class NativeS3OutputStream extends FSDataOutputStream {
 
     private final ReentrantLock lock = new ReentrantLock();
 
+    @GuardedBy("lock")
     private long position;
 
     /** Flag to ensure upload happens exactly once. */
+    @GuardedBy("lock")
     private boolean fileUploaded = false;
 
     public NativeS3OutputStream(

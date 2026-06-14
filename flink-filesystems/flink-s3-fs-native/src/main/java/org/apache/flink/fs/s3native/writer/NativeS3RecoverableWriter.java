@@ -27,6 +27,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -34,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Recoverable writer for S3 using multipart uploads for exactly-once semantics. */
 @Experimental
+@ThreadSafe
 public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3RecoverableWriter.class);

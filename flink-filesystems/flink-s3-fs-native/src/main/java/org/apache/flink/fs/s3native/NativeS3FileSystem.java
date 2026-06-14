@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -93,6 +94,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       return errors
  * </ul>
  */
+@ThreadSafe
 class NativeS3FileSystem extends FileSystem
         implements EntropyInjectingFileSystem, PathsCopyingFileSystem, AutoCloseableAsync {
 
