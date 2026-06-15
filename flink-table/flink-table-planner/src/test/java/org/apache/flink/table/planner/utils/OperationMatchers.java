@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.TableDistribution;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
@@ -142,24 +141,6 @@ public class OperationMatchers {
      */
     public static Matcher<CreateTableOperation> withNoDistribution() {
         return withDistribution(null);
-    }
-
-    /**
-     * Checks that {@link CreateTableOperation} references the given connection identifier from a
-     * {@code USING CONNECTION} clause.
-     *
-     * @see #isCreateTableOperation(Matcher[])
-     */
-    public static Matcher<CreateTableOperation> withConnection(UnresolvedIdentifier connection) {
-        return new FeatureMatcher<CreateTableOperation, Optional<UnresolvedIdentifier>>(
-                equalTo(Optional.ofNullable(connection)),
-                "connection of the derived table",
-                "connection") {
-            @Override
-            protected Optional<UnresolvedIdentifier> featureValueOf(CreateTableOperation actual) {
-                return actual.getCatalogTable().getConnection();
-            }
-        };
     }
 
     /**
