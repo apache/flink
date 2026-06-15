@@ -42,7 +42,10 @@ public class TableLineageDatasetImpl implements TableLineageDataset {
 
     public TableLineageDatasetImpl(
             ContextResolvedTable contextResolvedTable, Optional<LineageDataset> lineageDatasetOpt) {
-        this.name = contextResolvedTable.getIdentifier().asSummaryString();
+        this.name =
+                lineageDatasetOpt
+                        .map(lineageDataset -> lineageDataset.name())
+                        .orElse(contextResolvedTable.getIdentifier().asSummaryString());
         this.namespace =
                 lineageDatasetOpt.map(lineageDataset -> lineageDataset.namespace()).orElse("");
         this.catalogContext =

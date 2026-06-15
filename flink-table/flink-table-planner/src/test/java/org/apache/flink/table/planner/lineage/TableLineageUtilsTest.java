@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.lineage;
 
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultLineageVertex;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -114,5 +116,45 @@ class TableLineageUtilsTest {
         TableLineageDatasetImpl tableLineageDataset = (TableLineageDatasetImpl) lineageDataset;
         assertThat(tableLineageDataset.catalogContext().getCatalogName()).isEmpty();
         assertThat(tableLineageDataset.name()).isEqualTo(objectIdentifier.asSummaryString());
+    }
+
+    @Test
+    void testCreateTableLineageDatasetWithConnectorNameOverride() {
+        final ObjectIdentifier objectIdentifier =
+                ObjectIdentifier.of(DEFAULT_CATALOG, "my_db", "my_table");
+        final ContextResolvedTable resolvedTable =
+                ContextResolvedTable.permanent(
+                        objectIdentifier,
+                        CATALOG,
+                        new ResolvedCatalogTable(
+                                CatalogTable.newBuilder()
+                                        .schema(CATALOG_TABLE_SCHEMA)
+                                        .comment("my table")
+                                        .partitionKeys(Collections.emptyList())
+                                        .options(TABLE_OPTIONS)
+                                        .build(),
+                                CATALOG_TABLE_RESOLVED_SCHEMA));
+
+        // Simulate a connector (like Paimon) overriding the dataset name with a custom
+        // catalog-key instead of the Flink catalog-name.
+        DefaultLineageVertex connectorLineageVertex = new DefaultLineageVertex();
+        connectorLineageVertex.addLineageDataset(
+                new DefaultLineageDataset(
+                        "jdbc-catalog-key.my_db.my_table",
+                        "paimon://warehouse",
+                        Collections.emptyMap()));
+
+        LineageDataset lineageDataset =
+                createTableLineageDataset(resolvedTable, Optional.of(connectorLineageVertex));
+        assertThat(lineageDataset).isInstanceOf(TableLineageDatasetImpl.class);
+
+        TableLineageDatasetImpl tableLineageDataset = (TableLineageDatasetImpl) lineageDataset;
+        // name() should use the connector-provided name
+        assertThat(tableLineageDataset.name()).isEqualTo("jdbc-catalog-key.my_db.my_table");
+        // namespace should come from the connector
+        assertThat(tableLineageDataset.namespace()).isEqualTo("paimon://warehouse");
+        // catalogContext should still reflect the Flink catalog
+        assertThat(tableLineageDataset.catalogContext().getCatalogName())
+                .isEqualTo(DEFAULT_CATALOG);
     }
 }
