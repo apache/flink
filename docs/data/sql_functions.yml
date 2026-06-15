@@ -1611,6 +1611,14 @@ aggregate:
       `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
       
       Returns a `DOUBLE` if percentage is numeric, or an `ARRAY<DOUBLE>` if percentage is an array. `NULL` if percentage is an empty array.
+  - sql: SINGLE_VALUE(expression)
+    description: |
+      Returns a single value of the expression within a group.
+
+      If the group contains more than one distinct value, an exception is thrown at runtime.
+
+      This function is typically used in contexts where exactly one value is expected,
+      such as scalar subqueries or planner-generated aggregate expressions.
 
 bitmapagg:
   - sql: BITMAP_AND_AGG(bitmap)
