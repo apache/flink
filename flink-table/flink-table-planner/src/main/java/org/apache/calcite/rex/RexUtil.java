@@ -76,10 +76,9 @@ import static org.apache.calcite.rel.type.RelDataType.PRECISION_NOT_SPECIFIED;
 
 /**
  * Default implementation of {@link org.apache.calcite.rex.RexUtil}, the class was copied over
- * because of current Calcite way of inferring constants from IS NOT DISTINCT FROM clashes with
- * filter push down.
+ * because of Flink modifications.
  *
- * <p>FLINK modifications (backport of CALCITE-6764): Line 2489~2494
+ * <p>FLINK modifications (backport of CALCITE-6764): Line 2488~2492
  */
 public class RexUtil {
 
