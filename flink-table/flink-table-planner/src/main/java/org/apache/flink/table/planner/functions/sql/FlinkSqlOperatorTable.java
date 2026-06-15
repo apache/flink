@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunctio
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
+import org.apache.flink.table.types.logical.GeographyType;
 
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -71,6 +72,16 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     /** The table of contains Flink-specific operators. */
     private static final Map<Boolean, FlinkSqlOperatorTable> cachedInstances = new HashMap<>();
+
+    private static final SqlReturnTypeInference GEOGRAPHY_NULLABLE_IF_ARGS =
+            opBinding -> {
+                boolean nullable = false;
+                for (int i = 0; i < opBinding.getOperandCount(); i++) {
+                    nullable |= opBinding.getOperandType(i).isNullable();
+                }
+                return ((FlinkTypeFactory) opBinding.getTypeFactory())
+                        .createFieldTypeFromLogicalType(new GeographyType(nullable));
+            };
 
     /** Returns the Flink operator table, creating it if necessary. */
     public static synchronized FlinkSqlOperatorTable instance(boolean isBatchMode) {
@@ -866,6 +877,42 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     null,
                     OperandTypes.family(SqlTypeFamily.BINARY, SqlTypeFamily.CHARACTER),
                     SqlFunctionCategory.STRING);
+
+    // GEOGRAPHY FUNCTIONS
+    public static final SqlFunction ST_GEOGFROMTEXT =
+            BuiltInSqlFunction.newBuilder()
+                    .name(BuiltInFunctionDefinitions.ST_GEOGFROMTEXT.getName())
+                    .returnType(GEOGRAPHY_NULLABLE_IF_ARGS)
+                    .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ANY))
+                    .category(SqlFunctionCategory.STRING)
+                    .build();
+
+    public static final SqlFunction ST_GEOGFROMWKB =
+            BuiltInSqlFunction.newBuilder()
+                    .name(BuiltInFunctionDefinitions.ST_GEOGFROMWKB.getName())
+                    .returnType(GEOGRAPHY_NULLABLE_IF_ARGS)
+                    .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ANY))
+                    .category(SqlFunctionCategory.STRING)
+                    .build();
+
+    public static final SqlFunction ST_ASTEXT =
+            BuiltInSqlFunction.newBuilder()
+                    .name(BuiltInFunctionDefinitions.ST_ASTEXT.getName())
+                    .returnType(VARCHAR_FORCE_NULLABLE)
+                    .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ANY))
+                    .category(SqlFunctionCategory.STRING)
+                    .build();
+
+    public static final SqlFunction ST_ASWKB =
+            BuiltInSqlFunction.newBuilder()
+                    .name(BuiltInFunctionDefinitions.ST_ASWKB.getName())
+                    .returnType(
+                            ReturnTypes.cascade(
+                                    ReturnTypes.explicit(SqlTypeName.VARBINARY),
+                                    SqlTypeTransforms.TO_NULLABLE))
+                    .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ANY))
+                    .category(SqlFunctionCategory.STRING)
+                    .build();
 
     public static final SqlFunction INSTR =
             new SqlFunction(
