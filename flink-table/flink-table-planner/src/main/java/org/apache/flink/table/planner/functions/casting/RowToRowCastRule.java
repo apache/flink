@@ -40,6 +40,9 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
 /**
  * {@link LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} to {@link
  * LogicalTypeRoot#ROW} and {@link LogicalTypeRoot#STRUCTURED_TYPE} cast rule.
+ *
+ * <p>This rule is used for arbitrary nested ROW/STRUCTURED casts where carrying RowKind would be
+ * semantically wrong. This should be rather done on the caller side.
  */
 class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, RowData> {
 

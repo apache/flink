@@ -106,6 +106,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_MULTI_INPUT,
                 ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY,
-                ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_TABLE_API);
+                ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_TABLE_API,
+                ProcessTableFunctionTestPrograms.PROCESS_IMPLICIT_CASTS);
     }
 }
