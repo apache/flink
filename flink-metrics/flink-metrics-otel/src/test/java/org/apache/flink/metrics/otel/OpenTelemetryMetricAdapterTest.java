@@ -65,7 +65,7 @@ public class OpenTelemetryMetricAdapterTest {
         assertThat(metricData.get().getName()).isEqualTo("foo.bar.count");
         assertThat(metricData.get().getLongSumData().getAggregationTemporality())
                 .isEqualTo(AggregationTemporality.DELTA);
-        assertThat(metricData.get().getLongSumData().isMonotonic()).isEqualTo(true);
+        assertThat(metricData.get().getLongSumData().isMonotonic()).isFalse();
         assertThat(metricData.get().getType()).isEqualTo(MetricDataType.LONG_SUM);
         assertThat(metricData.get().getLongSumData().getPoints().size()).isEqualTo(1);
         LongPointData data = metricData.get().getLongSumData().getPoints().iterator().next();
@@ -75,6 +75,21 @@ public class OpenTelemetryMetricAdapterTest {
         assertThat(metricData.get().getLongGaugeData()).isEqualTo(ImmutableGaugeData.empty());
         assertThat(metricData.get().getDoubleGaugeData()).isEqualTo(ImmutableGaugeData.empty());
         assertThat(metricData.get().getHistogramData()).isEqualTo(ImmutableHistogramData.empty());
+    }
+
+    @Test
+    public void testCounterNonMonotonicDelta() {
+        Optional<MetricData> metricData =
+                OpenTelemetryMetricAdapter.convertCounter(
+                        METADATA, 40L, 50L, new MetricMetadata("foo.bar.count", VARIABLES));
+
+        assertThat(metricData).isPresent();
+        assertThat(metricData.get().getLongSumData().getAggregationTemporality())
+                .isEqualTo(AggregationTemporality.DELTA);
+        assertThat(metricData.get().getLongSumData().isMonotonic()).isFalse();
+        LongPointData data = metricData.get().getLongSumData().getPoints().iterator().next();
+        assertThat(data.getValue()).isEqualTo(-10L);
+        assertThat(asStringMap(data.getAttributes())).isEqualTo(VARIABLES);
     }
 
     @Test
