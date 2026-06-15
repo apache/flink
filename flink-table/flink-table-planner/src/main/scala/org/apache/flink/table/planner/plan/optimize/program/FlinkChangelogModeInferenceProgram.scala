@@ -114,9 +114,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
     // step4: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
+      // Reaching here means no node assignment satisfies the changelog requirements. When the root
+      // is a sink that cannot consume the upsert changelog produced by its input, point at the
+      // conflict directly. Any other failure falls back to the full annotated plan.
       val errorMessage =
-        if (containsUpdates(rootWithModifyKindSet)) {
-          // Point at the failing node and its inputs instead of dumping the whole plan.
+        if (
+          rootWithModifyKindSet.isInstanceOf[StreamPhysicalSink]
+          && containsUpdates(rootWithModifyKindSet)
+        ) {
           val conflict = new StringBuilder(describeChangelog(rootWithModifyKindSet))
           rootWithModifyKindSet.getInputs.foreach(
             input => conflict.append("\n  +- ").append(describeChangelog(input)))
@@ -124,8 +129,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             "There is a changelog mismatch between two operators. One produces an upsert " +
             "changelog (UPDATE_AFTER without UPDATE_BEFORE). The other requires a retract " +
             "changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary " +
-            "key. To resolve it, declare a PRIMARY KEY on the sink, or make the input produce " +
-            "UPDATE_BEFORE.\n\n" +
+            "key. In such cases, ensure that the sink is able to digest upserts where the " +
+            "PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n" +
             "The conflict is at:\n" + conflict
         } else {
           val plan = FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)
@@ -1626,6 +1631,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
   /** Renders a node's type and changelog mode, for example "Sink(changelogMode=[NONE])". */
   private def describeChangelog(rel: RelNode): String = rel match {
+    case sink: StreamPhysicalSink =>
+      // A sink's own changelog mode is empty; show the mode it expects from its input instead.
+      val expected =
+        sink.tableSink.getChangelogMode(getModifyKindSet(sink.getInput).toDefaultChangelogMode)
+      s"Sink(ExpectedChangelogMode=[${ChangelogPlanUtils.stringifyChangelogMode(Some(expected))}])"
     case streamRel: StreamPhysicalRel =>
       val typeName = rel.getRelTypeName.stripPrefix("StreamPhysical")
       val mode =

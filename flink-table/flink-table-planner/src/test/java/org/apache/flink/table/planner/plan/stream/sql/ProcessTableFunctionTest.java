@@ -521,7 +521,31 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "upsert output into sink without primary key",
                         UpdatingUpsertFunction.class,
                         "INSERT INTO t_no_pk_sink SELECT * FROM f(r => TABLE t_updating PARTITION BY name)",
-                        "declare a PRIMARY KEY on the sink"),
+                        "There is a changelog mismatch between two operators. "
+                                + "One produces an upsert changelog (UPDATE_AFTER without UPDATE_BEFORE). "
+                                + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
+                                + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
+                                + "The conflict is at:\n"
+                                + "Sink(ExpectedChangelogMode=[I,UB,UA,D])\n"
+                                + "  +- ProcessTableFunction(changelogMode=[I,UA,D])"),
+                ErrorSpec.ofSelect(
+                        "upsert conflict that does not surface at a sink",
+                        UpdatingUpsertFunction.class,
+                        "SELECT name, SUM(`count`) OVER (PARTITION BY name ORDER BY name) "
+                                + "FROM f(r => TABLE t_updating PARTITION BY name)",
+                        "Can't generate a valid execution plan for the given query:\n"),
+                ErrorSpec.ofInsertInto(
+                        "upsert conflict buried below a calc",
+                        UpdatingUpsertFunction.class,
+                        "INSERT INTO t_no_pk_sink SELECT name, name0, `count`, mode "
+                                + "FROM f(r => TABLE t_updating PARTITION BY name) WHERE name0 <> ''",
+                        "There is a changelog mismatch between two operators. "
+                                + "One produces an upsert changelog (UPDATE_AFTER without UPDATE_BEFORE). "
+                                + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
+                                + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
+                                + "The conflict is at:\n"
+                                + "Sink(ExpectedChangelogMode=[I,UB,UA,D])\n"
+                                + "  +- Calc(changelogMode=[I,UA,D])"),
                 ErrorSpec.ofSelect(
                         "no pass-through for multiple table args",
                         InvalidPassThroughTables.class,
