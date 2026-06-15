@@ -232,7 +232,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                 position + 1, oldColumn, newColumn);
     }
 
-    private static String toString(TableChange tableChange) {
+    static String toString(TableChange tableChange) {
         if (tableChange instanceof ModifyRefreshStatus) {
             ModifyRefreshStatus refreshStatus = (ModifyRefreshStatus) tableChange;
             return String.format(
