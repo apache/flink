@@ -4,8 +4,8 @@
   "scripts": {
     "start": "ng serve",
     "build": "ng build --configuration production --base-href ./",
-    "lint": "eslint --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\"",
-    "lint:fix": "eslint --fix --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\" --fix",
+    "lint": "eslint \"src/**/*.{ts,html}\" && stylelint \"**/*.less\"",
+    "lint:fix": "eslint --fix \"src/**/*.{ts,html}\" && stylelint \"**/*.less\" --fix",
     "ci-check": "npm run lint && npm run build",
     "proxy": "ng serve --proxy-config proxy.conf.json"
   },
