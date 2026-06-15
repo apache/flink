@@ -68,8 +68,11 @@ public class CheckpointAcknowledgeFailureITCase extends TestLogger {
     // let all the state go via checkpoint ACK RPC to exceed frame size limit
     private static final MemorySize IN_MEM_STATE_THRESHOLD = new MemorySize(STATE_SIZE * 2);
 
-    // let pekko time out checkpoint ACK
-    private static final Duration ASK_TIMEOUT = Duration.ofMillis(250);
+    // The oversized checkpoint ACK exceeds the pekko frame size, so it can never be delivered and
+    // always surfaces as an AskTimeoutException; this ask timeout only controls how quickly that
+    // surfaces, not whether the ACK fails. Because it is the cluster-wide RPC timeout it also
+    // covers task deployment, so keep it large enough that deployment does not time out on slow CI.
+    private static final Duration ASK_TIMEOUT = Duration.ofSeconds(1);
     // do NOT let flink time out the checkpoint
     private static final Duration CHECKPOINT_TIMEOUT = ASK_TIMEOUT.multipliedBy(1000);
 
