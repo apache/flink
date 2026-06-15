@@ -110,7 +110,6 @@ import static org.apache.flink.table.planner.operations.SqlDdlToOperationConvert
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
-import static org.apache.flink.table.planner.utils.OperationMatchers.withConnection;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withDistribution;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withNoDistribution;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
@@ -663,26 +662,24 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     @Test
     void testCreateTableWithConnection() {
         final String sql =
-                "create table derivedTable(\n"
-                        + "  a int\n"
+                "CREATE TABLE derivedTable(\n"
+                        + "  a INT\n"
                         + ")\n"
                         + "USING CONNECTION mycat.mydb.myconn";
         Operation operation = parseAndConvert(sql);
-        assertThat(operation)
-                .is(
-                        new HamcrestCondition<>(
-                                isCreateTableOperation(
-                                        withConnection(
-                                                UnresolvedIdentifier.of(
-                                                        "mycat", "mydb", "myconn")))));
+        assertThat(operation).isInstanceOf(CreateTableOperation.class);
+        CreateTableOperation op = (CreateTableOperation) operation;
+        assertThat(op.getCatalogTable().getConnection())
+                .hasValue(UnresolvedIdentifier.of("mycat", "mydb", "myconn"));
     }
 
     @Test
     void testCreateTableWithoutConnection() {
-        final String sql = "create table derivedTable(\n" + "  a int\n" + ")";
+        final String sql = "CREATE TABLE derivedTable(\n" + "  a INT\n" + ")";
         Operation operation = parseAndConvert(sql);
-        assertThat(operation)
-                .is(new HamcrestCondition<>(isCreateTableOperation(withConnection(null))));
+        assertThat(operation).isInstanceOf(CreateTableOperation.class);
+        CreateTableOperation op = (CreateTableOperation) operation;
+        assertThat(op.getCatalogTable().getConnection()).isEmpty();
     }
 
     @Test
