@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -65,9 +65,9 @@ class OverAggregateTest extends TableTestBase {
         |from MyTable
       """.stripMargin
 
-    assertThatExceptionOfType(classOf[SqlParserException])
-      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .withMessage("SQL parse failed. Exclusion of group is not supported")
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Frame exclusion 'EXCLUDE GROUP' is not supported in over windows.")
   }
 
   @Test
@@ -79,9 +79,9 @@ class OverAggregateTest extends TableTestBase {
         |from MyTable
       """.stripMargin
 
-    assertThatExceptionOfType(classOf[SqlParserException])
-      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .withMessage("SQL parse failed. Exclusion of ties is not supported")
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Frame exclusion 'EXCLUDE TIES' is not supported in over windows.")
   }
 
   @Test
@@ -93,9 +93,10 @@ class OverAggregateTest extends TableTestBase {
         |from MyTable
       """.stripMargin
 
-    assertThatExceptionOfType(classOf[SqlParserException])
-      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .withMessage("SQL parse failed. Exclusion of current row is not supported")
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage(
+        "Frame exclusion 'EXCLUDE CURRENT ROW' is not supported in over windows.")
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
