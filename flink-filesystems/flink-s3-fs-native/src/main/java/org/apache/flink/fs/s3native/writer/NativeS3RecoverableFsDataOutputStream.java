@@ -25,6 +25,7 @@ import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -83,7 +84,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize)
             throws IOException {
-        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L);
+        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L, null);
     }
 
     public NativeS3RecoverableFsDataOutputStream(
@@ -93,7 +94,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize,
             List<PartETag> existingParts,
-            long numBytesInParts)
+            long numBytesInParts,
+            @Nullable File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -106,7 +108,22 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.currentPartSize = 0;
         this.closed = false;
 
-        createNewTempFile();
+        if (incompleteTailFile != null) {
+            resumeFromIncompleteTail(incompleteTailFile);
+        } else {
+            createNewTempFile();
+        }
+    }
+
+    private void resumeFromIncompleteTail(File tailFile) throws IOException {
+        if (!tailFile.exists()) {
+            throw new IOException("Incomplete-tail file does not exist: " + tailFile);
+        }
+        currentTempFile = tailFile;
+        currentPartSize = tailFile.length();
+        // Append mode so subsequent writes land after the recovered bytes.
+        currentFileStream = new FileOutputStream(currentTempFile, true);
+        currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
     }
 
     private void createNewTempFile() throws IOException {
