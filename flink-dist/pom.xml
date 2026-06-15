@@ -402,6 +402,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-s3-fs-native</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-oss-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
