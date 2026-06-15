@@ -30,6 +30,9 @@ import static java.util.Objects.requireNonNull;
  * BasicSqlType represents a standard atomic SQL type (excluding interval types).
  *
  * <p>Instances of this class are immutable.
+ *
+ * <p>The reason this class is here is CALCITE-7531 where isNullable was done final and no
+ * constructors to pass it together with precision and scale. Fixes in Calcite 1.42.0.
  */
 public class BasicSqlType extends AbstractSqlType {
     // ~ Static fields/initializers ---------------------------------------------

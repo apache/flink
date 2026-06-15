@@ -93,7 +93,7 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * <p>Lines 765 ~ 767, 785 ~ 787, 796 ~ 798, 807 ~ 809, 818 ~ 820, 829 ~ 831, 840 ~ 842, Flink
  * changes the return type of the {@code IS [NOT] JSON ...} predicates from {@link
  * ReturnTypes#BOOLEAN_NULLABLE} to {@link ReturnTypes#BOOLEAN} so that they always return a
- * non-nullable {@code BOOLEAN}.
+ * non-nullable {@code BOOLEAN}, see also FLINK-39943.
  */
 public class SqlStdOperatorTable extends ReflectiveSqlOperatorTable {
 
