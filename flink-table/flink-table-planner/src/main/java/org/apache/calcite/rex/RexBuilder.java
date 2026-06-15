@@ -87,7 +87,9 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  *
  * <p>Some common literal values (NULL, TRUE, FALSE, 0, 1, '') are cached.
  *
- * <p>FLINK modifications (backport of CALCITE-6764): Lines 234, 241, 245, 249 ~ 253
+ * <p>FLINK modifications (backport of CALCITE-6764): Lines 237, 243, 247, 251 ~ 255
+ *
+ * <p>FLINK modifications (backport of FLINK-39945): Lines 1270-1284
  */
 public class RexBuilder {
     /**
@@ -1265,6 +1267,7 @@ public class RexBuilder {
                 o = ((TimestampWithTimeZoneString) o).round(p);
                 break;
             /*
+            FLINK MODIFICATION BEGIN
             case DECIMAL:
                 if (o != null && type.getScale() != RelDataType.SCALE_NOT_SPECIFIED) {
                     assert o instanceof BigDecimal;
@@ -1278,6 +1281,7 @@ public class RexBuilder {
                     }
                 }
                 break;
+                FLINK MODIFICATION ENF
                  */
             default:
                 break;
