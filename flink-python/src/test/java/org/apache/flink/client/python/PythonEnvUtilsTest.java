@@ -195,7 +195,7 @@ class PythonEnvUtilsTest {
         if (OperatingSystem.isWindows()) {
             assertThat(env.pythonExec).isEqualTo("python.exe");
         } else {
-            assertThat(env.pythonExec).isEqualTo("python");
+            assertThat(env.pythonExec).isEqualTo("python3");
         }
 
         Map<String, String> systemEnv = new HashMap<>(System.getenv());

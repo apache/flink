@@ -91,7 +91,7 @@ Python Options
      - String
      - Add python archive files for job. The archive files will be extracted to the working directory of python UDF worker. For each archive file, a target directory is specified. If the target directory name is specified, the archive file will be extracted to a directory with the specified name. Otherwise, the archive file will be extracted to a directory with the same name of the archive file. The files uploaded via this option are accessible via relative path. '#' could be used as the separator of the archive file path and the target directory name. Comma (',') could be used as the separator to specify multiple archive files. This option can be used to upload the virtual environment, the data files used in Python UDF. The data files could be accessed in Python UDF, e.g.: f = open('data/data.txt', 'r'). The option is equivalent to the command line option "-pyarch".
    * - python.client.executable
-     - "python"
+     - "python3"
      - String
      - The path of the Python interpreter used to launch the Python process when submitting the Python jobs via "flink run" or compiling the Java/Scala jobs containing Python UDFs. Equivalent to the command line option "-pyclientexec" or the environment variable PYFLINK_CLIENT_EXECUTABLE. The priority is as following:
        - the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);
@@ -99,9 +99,9 @@ Python Options
        - the configuration 'python.client.executable' defined in config.yaml
        - the environment variable PYFLINK_CLIENT_EXECUTABLE;
    * - python.executable
-     - "python"
+     - "python3"
      - String
-     - Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.8+, Apache Beam (version >= 2.54.0, <= 2.61.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".
+     - Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.9+, Apache Beam (version >= 2.54.0, <= 2.61.0), Pip (version >= 20.3) and SetupTools (version >= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".
    * - python.execution-mode
      - "process"
      - String

@@ -28,35 +28,29 @@ Environment Requirements
 
 .. code-block:: bash
 
-   $ python --version
+   $ python3 --version
    # the version printed here must be 3.9, 3.10, 3.11 or 3.12
 
 Environment Setup
 -----------------
 
 Your system may include multiple Python versions, and thus also include multiple Python binary executables.
-You can run the following ``ls`` command to find out what Python binary executables are available in your system:
+You can run the following command to find out what Python binary executables are available in your system:
 
 .. code-block:: bash
 
-   $ ls /usr/bin/python*
+   $ command -v python3
 
-To satisfy the PyFlink requirement regarding the Python environment version, you can choose to soft link ``python`` to point to your ``python3`` interpreter:
-
-.. code-block:: bash
-
-   ln -s /usr/bin/python3 python
-
-In addition to creating a soft link, you can also choose to create a Python virtual environment (``venv``):
+To satisfy the PyFlink requirement regarding the Python environment version, you can create a Python virtual environment (``venv``):
 
 .. code-block:: bash
 
-   python -m venv myenv
+   python3 -m venv myenv
    source myenv/bin/activate  # On Windows: myenv\Scripts\activate
 
 You can refer to the :flinkdoc:`Deployment Preparation <docs/deployment/resource-providers/standalone/overview/>` documentation page for details on how to achieve that setup.
 
-If you don't want to use a soft link to change the system's ``python`` interpreter point to, you can use the configuration way to specify the Python interpreter.
+If you want to use a different Python interpreter, you can use the configuration way to specify the Python interpreter.
 For specifying the Python interpreter used to compile the jobs, you can refer to the configuration :doc:`../user_guide/configuration`.
 For specifying the Python interpreter used to execute the Python UDF, you can refer to the configuration :doc:`../user_guide/configuration`.
 
@@ -67,7 +61,7 @@ PyFlink is available in `PyPi <https://pypi.org/project/apache-flink/>`_ and can
 
 .. code-block:: bash
 
-   $ python -m pip install apache-flink
+   $ python3 -m pip install apache-flink
 
 You can also build PyFlink from source by following the `development guide <https://flink.apache.org/docs/latest/flinkdev/building/#build-pyflink>`_.
 
