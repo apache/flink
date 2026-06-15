@@ -157,4 +157,33 @@ class TableLineageUtilsTest {
         assertThat(tableLineageDataset.catalogContext().getCatalogName())
                 .isEqualTo(DEFAULT_CATALOG);
     }
+
+    @Test
+    void testCreateTableLineageDatasetIgnoresEmptyConnectorName() {
+        final ObjectIdentifier objectIdentifier =
+                ObjectIdentifier.of(DEFAULT_CATALOG, "my_db", "my_table");
+        final ContextResolvedTable resolvedTable =
+                ContextResolvedTable.permanent(
+                        objectIdentifier,
+                        CATALOG,
+                        new ResolvedCatalogTable(
+                                CatalogTable.newBuilder()
+                                        .schema(CATALOG_TABLE_SCHEMA)
+                                        .comment("my table")
+                                        .partitionKeys(Collections.emptyList())
+                                        .options(TABLE_OPTIONS)
+                                        .build(),
+                                CATALOG_TABLE_RESOLVED_SCHEMA));
+
+        // Connector provides a LineageDataset with an empty name — should fall back to identifier.
+        DefaultLineageVertex connectorLineageVertex = new DefaultLineageVertex();
+        connectorLineageVertex.addLineageDataset(
+                new DefaultLineageDataset("", "some://namespace", Collections.emptyMap()));
+
+        LineageDataset lineageDataset =
+                createTableLineageDataset(resolvedTable, Optional.of(connectorLineageVertex));
+        TableLineageDatasetImpl tableLineageDataset = (TableLineageDatasetImpl) lineageDataset;
+
+        assertThat(tableLineageDataset.name()).isEqualTo(objectIdentifier.asSummaryString());
+    }
 }

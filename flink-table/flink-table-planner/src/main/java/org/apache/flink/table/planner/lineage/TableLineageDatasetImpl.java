@@ -44,14 +44,15 @@ public class TableLineageDatasetImpl implements TableLineageDataset {
      * Connectors can override the default dataset name and/or namespace by implementing {@link
      * org.apache.flink.streaming.api.lineage.LineageVertexProvider} on their runtime provider. For
      * example, for LineageDataset Paimon uses its JDBC catalog-key which is more consistent than
-     * catalog-name to produce {@code <catalog-key>.<db-name>.<table-name>} instead of the default
-     * Flink table identifier which is {@code <catalog-name>.<db-name>.<table-name>}.
+     * catalog-name to produce "catalog-key.db-name.table-name" instead of the default Flink table
+     * identifier which is "catalog-name.db-name.table-name".
      */
     public TableLineageDatasetImpl(
             ContextResolvedTable contextResolvedTable, Optional<LineageDataset> lineageDatasetOpt) {
         this.name =
                 lineageDatasetOpt
                         .map(lineageDataset -> lineageDataset.name())
+                        .filter(n -> n != null && !n.isEmpty())
                         .orElse(contextResolvedTable.getIdentifier().asSummaryString());
         this.namespace =
                 lineageDatasetOpt.map(lineageDataset -> lineageDataset.namespace()).orElse("");
