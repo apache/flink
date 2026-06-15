@@ -42,6 +42,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -430,7 +431,9 @@ public class AdaptiveGraphManager
     private void connectToFinishedUpStreamVertex(JobVertexBuildContext jobVertexBuildContext) {
         Map<Integer, OperatorChainInfo> chainInfos = jobVertexBuildContext.getChainInfosInOrder();
         for (OperatorChainInfo chainInfo : chainInfos.values()) {
-            List<StreamEdge> transitiveInEdges = chainInfo.getTransitiveInEdges();
+            List<StreamEdge> transitiveInEdges =
+                    getTransitiveInEdgesInOrder(
+                            chainInfo.getTransitiveInEdges(), jobVertexBuildContext);
             for (StreamEdge transitiveInEdge : transitiveInEdges) {
                 NonChainedOutput output =
                         intermediateOutputsCaches
@@ -445,6 +448,55 @@ public class AdaptiveGraphManager
                         jobVertexBuildContext);
             }
         }
+    }
+
+    private List<StreamEdge> getTransitiveInEdgesInOrder(
+            List<StreamEdge> transitiveInEdges, JobVertexBuildContext jobVertexBuildContext) {
+        final List<StreamEdge> transitiveInEdgesInOrder =
+                transitiveInEdges.stream()
+                        .sorted(
+                                Comparator.comparing(
+                                        inEdge -> getStartNodeId(inEdge.getSourceId())))
+                        .collect(Collectors.toList());
+        final List<StreamEdge> uidTransitiveInEdges =
+                transitiveInEdgesInOrder.stream()
+                        .filter(this::hasUidBackedUpstream)
+                        .sorted(
+                                Comparator.comparing(
+                                        inEdge ->
+                                                getStartNodeJobVertexId(
+                                                        inEdge, jobVertexBuildContext)))
+                        .collect(Collectors.toList());
+
+        if (uidTransitiveInEdges.size() < 2) {
+            return transitiveInEdgesInOrder;
+        }
+
+        int uidTransitiveInEdgeIndex = 0;
+        for (int transitiveInEdgeIndex = 0;
+                transitiveInEdgeIndex < transitiveInEdgesInOrder.size();
+                transitiveInEdgeIndex++) {
+            if (hasUidBackedUpstream(transitiveInEdgesInOrder.get(transitiveInEdgeIndex))) {
+                transitiveInEdgesInOrder.set(
+                        transitiveInEdgeIndex,
+                        uidTransitiveInEdges.get(uidTransitiveInEdgeIndex++));
+            }
+        }
+        return transitiveInEdgesInOrder;
+    }
+
+    private boolean hasUidBackedUpstream(StreamEdge inEdge) {
+        return streamGraph
+                        .getStreamNode(getStartNodeId(inEdge.getSourceId()))
+                        .getTransformationUID()
+                != null;
+    }
+
+    private JobVertexID getStartNodeJobVertexId(
+            StreamEdge inEdge, JobVertexBuildContext jobVertexBuildContext) {
+        return new JobVertexID(
+                Preconditions.checkNotNull(
+                        jobVertexBuildContext.getHash(getStartNodeId(inEdge.getSourceId()))));
     }
 
     private void recordCreatedJobVerticesInfo(JobVertexBuildContext jobVertexBuildContext) {
@@ -473,11 +525,17 @@ public class AdaptiveGraphManager
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildAndGetChainEntryPoints(streamNodes, jobVertexBuildContext);
 
+        chainEntryPoints.values().stream()
+                .filter(
+                        chainInfo ->
+                                streamGraph
+                                                .getStreamNode(chainInfo.getStartNodeId())
+                                                .getTransformationUID()
+                                        != null)
+                .forEach(chainInfo -> generateHashesByStreamNodeId(chainInfo.getStartNodeId()));
         final Collection<OperatorChainInfo> initialEntryPoints =
-                chainEntryPoints.entrySet().stream()
-                        .sorted(Map.Entry.comparingByKey())
-                        .map(Map.Entry::getValue)
-                        .collect(Collectors.toList());
+                StreamingJobGraphGenerator.getInitialEntryPoints(
+                        chainEntryPoints.values(), jobVertexBuildContext);
 
         for (OperatorChainInfo info : initialEntryPoints) {
             // We use generateHashesByStreamNodeId to subscribe the visited stream node id and

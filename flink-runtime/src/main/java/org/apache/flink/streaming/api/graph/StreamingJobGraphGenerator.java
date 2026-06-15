@@ -607,10 +607,7 @@ public class StreamingJobGraphGenerator {
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildChainedInputsAndGetHeadInputs();
         final Collection<OperatorChainInfo> initialEntryPoints =
-                chainEntryPoints.entrySet().stream()
-                        .sorted(Comparator.comparing(Map.Entry::getKey))
-                        .map(Map.Entry::getValue)
-                        .collect(Collectors.toList());
+                getInitialEntryPoints(chainEntryPoints.values(), jobVertexBuildContext);
 
         // iterate over a copy of the values, because this map gets concurrently modified
         for (OperatorChainInfo info : initialEntryPoints) {
@@ -624,6 +621,57 @@ public class StreamingJobGraphGenerator {
                     jobVertexBuildContext,
                     null);
         }
+    }
+
+    static Collection<OperatorChainInfo> getInitialEntryPoints(
+            Collection<OperatorChainInfo> chainEntryPoints,
+            JobVertexBuildContext jobVertexBuildContext) {
+        final List<OperatorChainInfo> initialEntryPoints =
+                chainEntryPoints.stream()
+                        .sorted(Comparator.comparing(OperatorChainInfo::getStartNodeId))
+                        .collect(Collectors.toList());
+        final List<OperatorChainInfo> uidEntryPoints =
+                initialEntryPoints.stream()
+                        .filter(
+                                chainInfo ->
+                                        hasTransformationUid(
+                                                chainInfo, jobVertexBuildContext.getStreamGraph()))
+                        .sorted(
+                                Comparator.comparing(
+                                        chainInfo ->
+                                                getStartNodeJobVertexId(
+                                                        chainInfo, jobVertexBuildContext)))
+                        .collect(Collectors.toList());
+
+        if (uidEntryPoints.size() < 2) {
+            return initialEntryPoints;
+        }
+
+        int uidEntryPointIndex = 0;
+        for (int entryPointIndex = 0;
+                entryPointIndex < initialEntryPoints.size();
+                entryPointIndex++) {
+            if (hasTransformationUid(
+                    initialEntryPoints.get(entryPointIndex),
+                    jobVertexBuildContext.getStreamGraph())) {
+                // Input gates are restored by position, so align source traversal with the stable
+                // JobVertexID for UIDed heads while keeping the other heads in their legacy
+                // positions.
+                initialEntryPoints.set(entryPointIndex, uidEntryPoints.get(uidEntryPointIndex++));
+            }
+        }
+        return initialEntryPoints;
+    }
+
+    private static boolean hasTransformationUid(
+            OperatorChainInfo chainInfo, StreamGraph streamGraph) {
+        return streamGraph.getStreamNode(chainInfo.getStartNodeId()).getTransformationUID() != null;
+    }
+
+    private static JobVertexID getStartNodeJobVertexId(
+            OperatorChainInfo chainInfo, JobVertexBuildContext jobVertexBuildContext) {
+        return new JobVertexID(
+                checkNotNull(jobVertexBuildContext.getHash(chainInfo.getStartNodeId())));
     }
 
     public static List<StreamEdge> createChain(

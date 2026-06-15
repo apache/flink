@@ -1187,6 +1187,24 @@ abstract class JobGraphGeneratorTestBase {
         }
     }
 
+    @Test
+    void testStableUnionInputOrderWithOperatorUids() {
+        assertThat(getInputSourceNames(getUidUnionJobGraph(false)))
+                .isEqualTo(getInputSourceNames(getUidUnionJobGraph(true)));
+    }
+
+    @Test
+    void testStableUnionInputOrderWithOperatorUidsAndUnrelatedSource() {
+        assertThat(getMultiInputSourceNames(getUidUnionJobGraphWithUnrelatedSource(false)))
+                .isEqualTo(getMultiInputSourceNames(getUidUnionJobGraphWithUnrelatedSource(true)));
+    }
+
+    @Test
+    void testUidHashUnionInputOrderKeepsDeclarationOrder() {
+        assertThat(getInputSourceNames(getUidHashUnionJobGraph()))
+                .containsExactly("Source: source-b", "Source: source-a");
+    }
+
     private JobGraph getUnionJobGraph(StreamExecutionEnvironment env) {
 
         createSource(env, 1)
@@ -1200,6 +1218,87 @@ abstract class JobGraphGeneratorTestBase {
 
     private DataStream<Integer> createSource(StreamExecutionEnvironment env, int index) {
         return env.fromData(index).name("source" + index).map(i -> i).name("map" + index);
+    }
+
+    private JobGraph getUidUnionJobGraph(boolean reverseSources) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.disableOperatorChaining();
+
+        DataStream<Integer> firstSource =
+                createUidSource(
+                        env, reverseSources ? "source-b" : "source-a", reverseSources ? 2 : 1);
+        DataStream<Integer> secondSource =
+                createUidSource(
+                        env, reverseSources ? "source-a" : "source-b", reverseSources ? 1 : 2);
+
+        firstSource.union(secondSource).sinkTo(new DiscardingSink<>()).name("sink").uid("sink");
+
+        return createJobGraph(env.getStreamGraph());
+    }
+
+    private DataStream<Integer> createUidSource(
+            StreamExecutionEnvironment env, String sourceName, int value) {
+        return env.fromData(value).name(sourceName).uid(sourceName);
+    }
+
+    private JobGraph getUidUnionJobGraphWithUnrelatedSource(boolean reverseSources) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.disableOperatorChaining();
+
+        env.fromData(0)
+                .name("unrelated-source")
+                .sinkTo(new DiscardingSink<>())
+                .name("unrelated-sink");
+
+        DataStream<Integer> firstSource =
+                createUidSource(
+                        env, reverseSources ? "source-b" : "source-a", reverseSources ? 2 : 1);
+        DataStream<Integer> secondSource =
+                createUidSource(
+                        env, reverseSources ? "source-a" : "source-b", reverseSources ? 1 : 2);
+
+        firstSource.union(secondSource).sinkTo(new DiscardingSink<>()).name("sink").uid("sink");
+
+        return createJobGraph(env.getStreamGraph());
+    }
+
+    private JobGraph getUidHashUnionJobGraph() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.disableOperatorChaining();
+
+        DataStream<Integer> firstSource =
+                createUidHashSource(env, "source-b", 2, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        DataStream<Integer> secondSource =
+                createUidHashSource(env, "source-a", 1, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        firstSource.union(secondSource).sinkTo(new DiscardingSink<>()).name("sink").uid("sink");
+
+        return createJobGraph(env.getStreamGraph());
+    }
+
+    private DataStream<Integer> createUidHashSource(
+            StreamExecutionEnvironment env, String sourceName, int value, String uidHash) {
+        return env.fromData(value).name(sourceName).setUidHash(uidHash);
+    }
+
+    private List<String> getInputSourceNames(JobGraph jobGraph) {
+        JobVertex jobSink = Iterables.getLast(jobGraph.getVerticesSortedTopologicallyFromSources());
+        return getInputSourceNames(jobSink);
+    }
+
+    private List<String> getMultiInputSourceNames(JobGraph jobGraph) {
+        JobVertex jobSink =
+                jobGraph.getVerticesSortedTopologicallyFromSources().stream()
+                        .filter(jobVertex -> jobVertex.getInputs().size() > 1)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Expected a multi-input sink"));
+        return getInputSourceNames(jobSink);
+    }
+
+    private List<String> getInputSourceNames(JobVertex jobSink) {
+        return jobSink.getInputs().stream()
+                .map(edge -> edge.getSource().getProducer().getName())
+                .collect(Collectors.toList());
     }
 
     @Test
