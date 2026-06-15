@@ -51,7 +51,7 @@ jobs:
           fi
       - name: Build documentation
         run: |
-          docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386_jammy bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+          docker run --rm --volume "$PWD:/root/flink" apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy bash -c "cd /root/flink && ./.github/workflows/docs.sh"
       - name: Upload documentation
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
         with:
