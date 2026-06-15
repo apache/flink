@@ -17,10 +17,12 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.python.FlinkSlf4jLogWriter;
 
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -73,6 +76,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -227,7 +231,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                         if (refCount > 0) {
                                             LOG.warn(
                                                     "Expiring environment {} with {} remaining bundle references. Taking note to clean it up during shutdown if the references are not removed by then.",
-                                                    notification.getKey(),
+                                                    getEnvironmentForLogging(notification.getKey()),
                                                     refCount);
                                             evictedActiveClients.add(client);
                                         }
@@ -698,7 +702,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 // the next one will be added via Throwable#addSuppressed.
                 closed = true;
             } catch (Exception e) {
-                LOG.warn("Error cleaning up servers {}", environment.getEnvironment(), e);
+                LOG.warn(
+                        "Error cleaning up servers {}",
+                        getEnvironmentForLogging(environment.getEnvironment()),
+                        e);
             }
             // TODO: Wait for executor shutdown?
         }
@@ -712,11 +719,40 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             Preconditions.checkState(refCount >= 0, "Reference count must not be negative.");
             if (refCount == 0) {
                 // Close environment after it was removed from cache and all bundles finished.
-                LOG.info("Closing environment {}", environment.getEnvironment());
+                LOG.info(
+                        "Closing environment {}",
+                        getEnvironmentForLogging(environment.getEnvironment()));
                 close();
             }
             return refCount;
         }
+    }
+
+    @VisibleForTesting
+    static String getEnvironmentForLogging(Environment environment) {
+        if (BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS)
+                .equals(environment.getUrn())) {
+            try {
+                ProcessPayload processPayload = ProcessPayload.parseFrom(environment.getPayload());
+                ProcessPayload processPayloadWithHiddenSensitiveValues =
+                        processPayload.toBuilder()
+                                .clearEnv()
+                                .putAllEnv(
+                                        ConfigurationUtils.hideSensitiveValues(
+                                                processPayload.getEnvMap(),
+                                                Collections.emptyList()))
+                                .build();
+                return environment.toBuilder()
+                        .setPayload(processPayloadWithHiddenSensitiveValues.toByteString())
+                        .build()
+                        .toString();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.debug("Could not parse process environment payload for logging.", e);
+                // Fail closed and omit the malformed payload because it may contain sensitive data.
+                return environment.toBuilder().clearPayload().build().toString();
+            }
+        }
+        return environment.toString();
     }
 
     private ServerInfo createServerInfo(JobInfo jobInfo, ServerFactory serverFactory)
