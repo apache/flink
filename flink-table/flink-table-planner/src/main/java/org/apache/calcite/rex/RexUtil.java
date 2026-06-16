@@ -76,13 +76,9 @@ import static org.apache.calcite.rel.type.RelDataType.PRECISION_NOT_SPECIFIED;
 
 /**
  * Default implementation of {@link org.apache.calcite.rex.RexUtil}, the class was copied over
- * because of current Calcite way of inferring constants from IS NOT DISTINCT FROM clashes with
- * filter push down.
+ * because of Flink modifications.
  *
- * <p>Lines 402 ~ 404, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
- * RexNode, Map, Set, RexBuilder)}.
- *
- * <p>FLINK modifications (backport of CALCITE-6764): Line 2481~2485
+ * <p>FLINK modifications (backport of CALCITE-6764): Line 2488~2492
  */
 public class RexUtil {
 
@@ -401,9 +397,7 @@ public class RexUtil {
         final RexNode right;
         switch (predicate.getKind()) {
             case EQUALS:
-                // FLINK BEGIN MODIFICATION
-                // case IS_NOT_DISTINCT_FROM:
-                // FLINK END MODIFICATION
+            case IS_NOT_DISTINCT_FROM:
                 left = ((RexCall) predicate).getOperands().get(0);
                 right = ((RexCall) predicate).getOperands().get(1);
                 break;

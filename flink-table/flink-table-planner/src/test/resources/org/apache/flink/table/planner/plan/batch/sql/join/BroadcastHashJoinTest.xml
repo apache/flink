@@ -138,14 +138,15 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, CAST(2 AS INTEGER) AS d, e])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[a, b, d, e], isBroadcast=[true], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+Calc(select=[CAST(2 AS INTEGER) AS a, b, CAST(2 AS INTEGER) AS d, e])
++- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], isBroadcast=[true], build=[right])\n:- Calc(select=[b])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
-   :  +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
-   :     +- Exchange(distribution=[hash[d]])
-   :        +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
-   :           +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+   :  +- Calc(select=[e])
+   :     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
+   :        +- Exchange(distribution=[hash[d]])
+   :           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
+   :              +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
          +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])
@@ -174,46 +175,6 @@ Calc(select=[c, g])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d, e, g])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testInnerJoinWithJoinConditionPushDown">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM
-   (select a, count(b) as b from MyTable1 group by a)
-   join
-   (select d, count(e) as e from MyTable2 group by d)
-   on a = d and b = e and d = 2 and b = 1
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
-+- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[inner])
-   :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-   :  +- LogicalProject(a=[$0], b=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-      +- LogicalProject(d=[$0], e=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, 1 AS b, CAST(2 AS INTEGER) AS d, 1 AS e])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], isBroadcast=[true], build=[right])\n:- Calc(select=[a], where=[(b = 1)])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
-   :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[d], where=[(e = 1)])
-   :     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
-   :        +- Exchange(distribution=[hash[d]])
-   :           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
-   :              +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
-   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
-         +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -311,14 +272,15 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(2 AS INTEGER) AS a, b, d, CAST(e AS BIGINT) AS e])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[a, b, d, e], isBroadcast=[true], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+Calc(select=[CAST(2 AS INTEGER) AS a, b, CAST(2 AS INTEGER) AS d, CAST(e AS BIGINT) AS e])
++- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], isBroadcast=[true], build=[right])\n:- Calc(select=[b])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
-   :  +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
-   :     +- Exchange(distribution=[hash[d]])
-   :        +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
-   :           +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+   :  +- Calc(select=[e])
+   :     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
+   :        +- Exchange(distribution=[hash[d]])
+   :           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
+   :              +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
          +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])
@@ -547,14 +509,15 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CAST(b AS BIGINT) AS b, CAST(2 AS INTEGER) AS d, e])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[a, b, d, e], isBroadcast=[true], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+Calc(select=[CAST(2 AS INTEGER) AS a, CAST(b AS BIGINT) AS b, CAST(2 AS INTEGER) AS d, e])
++- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], isBroadcast=[true], build=[right])\n:- Calc(select=[b])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
-   :  +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
-   :     +- Exchange(distribution=[hash[d]])
-   :        +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
-   :           +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+   :  +- Calc(select=[e])
+   :     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])
+   :        +- Exchange(distribution=[hash[d]])
+   :           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
+   :              +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
          +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])

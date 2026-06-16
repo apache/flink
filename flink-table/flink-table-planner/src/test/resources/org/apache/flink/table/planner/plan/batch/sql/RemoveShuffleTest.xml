@@ -490,19 +490,20 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
-:- Exchange(distribution=[hash[a]])
-:  +- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])
-:     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- Exchange(distribution=[hash[d]])
-:        +- Calc(select=[d, CAST(2 AS BIGINT) AS e, f], where=[(e = 2)])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[d]])
-   +- Calc(select=[d, CAST(2 AS BIGINT) AS e, f], where=[(e = 2)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Calc(select=[a, b, c, d, CAST(2 AS BIGINT) AS e, f, a0, b0, c0, d0, CAST(2 AS BIGINT) AS e0, f0])
++- MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, f, a0, b0, c0, d0, f0], build=[left])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, f], build=[right])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, f], build=[right])
+   :     :- Exchange(distribution=[hash[a]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- Exchange(distribution=[hash[d]])
+   :        +- Calc(select=[d, f], where=[(e = 2)])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :- Exchange(distribution=[hash[a]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, f], where=[(e = 2)])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1158,19 +1159,20 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])\n:- [#1] Exchange(distribution=[hash[a]])\n+- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
-:- Exchange(distribution=[hash[a]])
-:  +- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])
-:     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- Exchange(distribution=[hash[d]])
-:        +- Calc(select=[d, CAST(2 AS BIGINT) AS e, f], where=[(e = 2)])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[d]])
-   +- Calc(select=[d, CAST(2 AS BIGINT) AS e, f], where=[(e = 2)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+Calc(select=[a, b, c, d, CAST(2 AS BIGINT) AS e, f, a0, b0, c0, d0, CAST(2 AS BIGINT) AS e0, f0])
++- MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, f, a0, b0, c0, d0, f0])\n:- [#1] Exchange(distribution=[hash[a]])\n+- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, f])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, f])
+   :     :- Exchange(distribution=[hash[a]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- Exchange(distribution=[hash[d]])
+   :        +- Calc(select=[d, f], where=[(e = 2)])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :- Exchange(distribution=[hash[a]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, f], where=[(e = 2)])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
