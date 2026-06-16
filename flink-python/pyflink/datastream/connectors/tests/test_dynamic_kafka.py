@@ -421,7 +421,7 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         stopping_offset = KafkaOffsetsInitializer.latest()
 
         metadata_service = SingleClusterTopicMetadataService(
-            'test-cluster', 
+            'test-cluster',
             {'bootstrap.servers': 'localhost:9092'},
             starting_offset,
             stopping_offset
@@ -430,22 +430,26 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         self.assertIsNotNone(metadata_service._j_metadata_service)
 
         j_starting_initializer = get_field_value(
-          metadata_service._j_metadata_service, 'startingOffsetsInitializer')
+            metadata_service._j_metadata_service,
+            'startingOffsetsInitializer'
+        )
         j_stopping_initializer = get_field_value(
-          metadata_service._j_metadata_service, 'stoppingOffsetsInitializer')
+            metadata_service._j_metadata_service,
+            'stoppingOffsetsInitializer'
+        )
 
         self.assertIsNotNone(j_starting_initializer)
         self.assertIsNotNone(j_stopping_initializer)
 
         self.assertEqual(
-          j_starting_initializer.getClass().getCanonicalName(),
-          'org.apache.flink.connector.kafka.source.enumerator.initializer.'
-          'EarliestOffsetsInitializer'
+            j_starting_initializer.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+            'EarliestOffsetsInitializer'
         )
         self.assertEqual(
-          j_stopping_initializer.getClass().getCanonicalName(),
-          'org.apache.flink.connector.kafka.source.enumerator.initializer.'
-          'LatestOffsetsInitializer'
+            j_stopping_initializer.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+            'LatestOffsetsInitializer'
         )
 
     def test_single_cluster_metadata_service_default_offsets(self):
@@ -456,9 +460,13 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         metadata_service = self._build_metadata_service()
 
         j_starting_initializer = get_field_value(
-          metadata_service._j_metadata_service, 'startingOffsetsInitializer')
+            metadata_service._j_metadata_service,
+            'startingOffsetsInitializer'
+        )
         j_stopping_initializer = get_field_value(
-          metadata_service._j_metadata_service, 'stoppingOffsetsInitializer')
+            metadata_service._j_metadata_service,
+            'stoppingOffsetsInitializer'
+        )
 
         self.assertIsNone(j_starting_initializer)
         self.assertIsNone(j_stopping_initializer)
@@ -481,20 +489,24 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         self.assertIsNotNone(cluster_metadata._j_cluster_metadata)
 
         j_starting_initializer = get_field_value(
-          cluster_metadata._j_cluster_metadata, 'startingOffsetsInitializer')
+            cluster_metadata._j_cluster_metadata,
+            'startingOffsetsInitializer'
+        )
         j_stopping_initializer = get_field_value(
-          cluster_metadata._j_cluster_metadata, 'stoppingOffsetsInitializer')
+            cluster_metadata._j_cluster_metadata,
+            'stoppingOffsetsInitializer'
+        )
 
         self.assertIsNotNone(j_starting_initializer)
         self.assertIsNotNone(j_stopping_initializer)
 
         self.assertEqual(
-          j_starting_initializer.getClass().getCanonicalName(),
-          'org.apache.flink.connector.kafka.source.enumerator.initializer.'
-          'EarliestOffsetsInitializer'
+            j_starting_initializer.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+            'EarliestOffsetsInitializer'
         )
         self.assertEqual(
-          j_stopping_initializer.getClass().getCanonicalName(),
-          'org.apache.flink.connector.kafka.source.enumerator.initializer.'
-          'LatestOffsetsInitializer'
+            j_stopping_initializer.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+            'LatestOffsetsInitializer'
         )
