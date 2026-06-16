@@ -19,9 +19,9 @@ import json
 from typing import Dict
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy
-from pyflink.datastream.connectors.dynamic_kafka import DynamicKafkaSource, \
-    KafkaRecordDeserializationSchema, KafkaStreamSetSubscriber, StreamPatternSubscriber, \
-    SingleClusterTopicMetadataService
+from pyflink.datastream.connectors.dynamic_kafka import ClusterMetadata, DynamicKafkaSource, \
+    KafkaRecordDeserializationSchema, KafkaStreamSetSubscriber, SingleClusterTopicMetadataService, \
+    StreamPatternSubscriber
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaOffsetResetStrategy, \
     KafkaTopicPartition
 from pyflink.java_gateway import get_gateway
@@ -411,3 +411,94 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         self.assertTrue(
             offset_reset_strategy.equals(reset_strategy._to_j_offset_reset_strategy())
         )
+
+    def test_single_cluster_metadata_service_with_offsets(self):
+        """
+        Test the new constructor parameters for SingleClusterTopicMetadataService
+        to ensure offsets are correctly forwarded to the underlying Java object.
+        """
+        starting_offset = KafkaOffsetsInitializer.earliest()
+        stopping_offset = KafkaOffsetsInitializer.latest()
+
+        metadata_service = SingleClusterTopicMetadataService(
+            'test-cluster',
+            {'bootstrap.servers': 'localhost:9092'},
+            starting_offset,
+            stopping_offset
+        )
+
+        self.assertIsNotNone(metadata_service._j_metadata_service)
+
+        self._check_cluster_offsets(
+            metadata_service._j_metadata_service,
+            {'EarliestOffsetsInitializer', 'ReaderHandledOffsetsInitializer'},
+            {'LatestOffsetsInitializer', 'ReaderHandledOffsetsInitializer'})
+
+    def test_single_cluster_metadata_service_default_offsets(self):
+        """
+        Test that SingleClusterTopicMetadataService maintains backward compatibility
+        and leaves offsets unset when not explicitly provided.
+        """
+        metadata_service = self._build_metadata_service()
+
+        self._check_default_cluster_offsets(metadata_service._j_metadata_service)
+
+    def test_cluster_metadata_with_offsets(self):
+        """
+        Test that ClusterMetadata correctly forwards optional offsets initializers
+        to the underlying Java object.
+        """
+        starting_offset = KafkaOffsetsInitializer.earliest()
+        stopping_offset = KafkaOffsetsInitializer.latest()
+
+        cluster_metadata = ClusterMetadata(
+            {'test-topic'},
+            {'bootstrap.servers': 'localhost:9092'},
+            starting_offset,
+            stopping_offset
+        )
+
+        self.assertIsNotNone(cluster_metadata._j_cluster_metadata)
+
+        self._check_cluster_offsets(
+            cluster_metadata._j_cluster_metadata,
+            {'EarliestOffsetsInitializer', 'ReaderHandledOffsetsInitializer'},
+            {'LatestOffsetsInitializer', 'ReaderHandledOffsetsInitializer'})
+
+    def test_cluster_metadata_default_offsets(self):
+        """
+        Test that ClusterMetadata keeps using the legacy Java constructor when offsets
+        are not explicitly provided.
+        """
+        cluster_metadata = ClusterMetadata(
+            {'test-topic'}, {'bootstrap.servers': 'localhost:9092'})
+
+        self._check_default_cluster_offsets(cluster_metadata._j_cluster_metadata)
+
+    def _check_default_cluster_offsets(self, cluster_metadata):
+        j_starting_initializer = get_field(cluster_metadata.getClass(), 'startingOffsetsInitializer')
+        j_stopping_initializer = get_field(cluster_metadata.getClass(), 'stoppingOffsetsInitializer')
+
+        if j_starting_initializer is not None:
+            self.assertIsNone(j_starting_initializer.get(cluster_metadata))
+        if j_stopping_initializer is not None:
+            self.assertIsNone(j_stopping_initializer.get(cluster_metadata))
+
+    def _check_cluster_offsets(self, cluster_metadata, expected_starting_class_names,
+                               expected_stopping_class_names):
+        j_starting_initializer = get_field_value(
+            cluster_metadata, 'startingOffsetsInitializer')
+        j_stopping_initializer = get_field_value(
+            cluster_metadata, 'stoppingOffsetsInitializer')
+
+        self.assertIsNotNone(j_starting_initializer)
+        self.assertIsNotNone(j_stopping_initializer)
+
+        initializer_class_name = \
+            'org.apache.flink.connector.kafka.source.enumerator.initializer.{}'
+        self.assertIn(
+            j_starting_initializer.getClass().getCanonicalName(),
+            {initializer_class_name.format(class_name) for class_name in expected_starting_class_names})
+        self.assertIn(
+            j_stopping_initializer.getClass().getCanonicalName(),
+            {initializer_class_name.format(class_name) for class_name in expected_stopping_class_names})
