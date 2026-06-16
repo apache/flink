@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical;
 
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -25,12 +26,17 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 class FlinkExpandConversionRuleTest extends TableTestBase {
 
-    private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
+    private BatchTableTestUtil util;
 
     @BeforeEach
     void setup() {
+        util = batchTestUtil(TableConfig.getDefault());
+        util.tableEnv().getConfig().set("parallelism.default", "1");
+
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE MyTable ("
@@ -44,6 +50,9 @@ class FlinkExpandConversionRuleTest extends TableTestBase {
 
     @Test
     void testOrderByWithGlobalAggregate() {
-        util.verifyRelPlan("SELECT MAX(a) FROM (SELECT a, b FROM MyTable ORDER BY b ASC)");
+        Table src = util.tableEnv().from("MyTable");
+        Table result = src.orderBy($("b").asc()).select($("a").max());
+
+        util.verifyRelPlan(result);
     }
 }
