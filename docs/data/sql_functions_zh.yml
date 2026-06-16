@@ -1704,7 +1704,13 @@ aggregate:
 
       If the group contains more than one distinct value, an exception is thrown at runtime.
 
-      E.g., SELECT SINGLE_VALUE(id) FROM T.
+      E.g.,
+      ```sql
+      SELECT SINGLE_VALUE(word) AS single_val
+      FROM VALUES ('Hello'), ('Ciao'), ('World')
+      AS WordTable(word)
+      GROUP BY word
+      ```
 
       This function is typically used in contexts where exactly one value is expected,
       such as scalar subqueries or planner-generated aggregate expressions.
