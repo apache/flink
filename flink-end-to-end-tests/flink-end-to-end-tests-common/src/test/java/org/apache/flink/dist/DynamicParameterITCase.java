@@ -17,6 +17,7 @@
 
 package org.apache.flink.dist;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -31,7 +32,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -46,6 +49,8 @@ class DynamicParameterITCase {
             Pattern.compile(".*ClusterEntrypoint +\\[] - +(.*)");
     private static final Pattern ENTRYPOINT_CLASSPATH_LOG_PATTERN =
             Pattern.compile(".*ClusterEntrypoint +\\[] - +Classpath:.*");
+
+    private static final Duration LOG_TIMEOUT = Duration.ofMinutes(1);
 
     private static final String HOST = "localhost";
     private static final int PORT = 8081;
@@ -122,16 +127,14 @@ class DynamicParameterITCase {
 
         dist.callJobManagerScript(args.toArray(new String[0]));
 
-        while (!allProgramArgumentsLogged(dist)) {
-            Thread.sleep(500);
-        }
+        // The backgrounded JobManager writes its log asynchronously; wait until the complete
+        // program arguments block has been flushed, otherwise the parser may observe a
+        // partially-written block or never observe it at all.
+        final String[] programArguments = waitForProgramArguments(dist);
 
-        try (Stream<String> lines =
-                dist.searchAllLogs(ENTRYPOINT_LOG_PATTERN, matcher -> matcher.group(1))) {
-
+        try {
             final EntrypointClusterConfiguration entrypointConfig =
-                    ClusterEntrypoint.parseArguments(
-                            lines.filter(new ProgramArgumentsFilter()).toArray(String[]::new));
+                    ClusterEntrypoint.parseArguments(programArguments);
 
             assertThat(entrypointConfig.getHostname()).isEqualTo(withHost ? HOST : null);
             assertThat(entrypointConfig.getRestPort()).isEqualTo(withPort ? PORT : -1);
@@ -148,11 +151,42 @@ class DynamicParameterITCase {
         }
     }
 
-    private static boolean allProgramArgumentsLogged(FlinkDistribution dist) throws IOException {
+    private static String[] waitForProgramArguments(FlinkDistribution dist) throws Exception {
+        final List<String[]> captured = new ArrayList<>(1);
+        CommonTestUtils.waitUtil(
+                () -> {
+                    // The "Classpath:" line is logged after the program arguments, so its presence
+                    // means the complete arguments block has been flushed.
+                    if (!allProgramArgumentsLogged(dist)) {
+                        return false;
+                    }
+                    captured.clear();
+                    captured.add(readProgramArguments(dist));
+                    return true;
+                },
+                LOG_TIMEOUT,
+                Duration.ofMillis(500),
+                "The JobManager did not log its complete program arguments in time.");
+        return captured.get(0);
+    }
+
+    private static String[] readProgramArguments(FlinkDistribution dist) {
+        try (Stream<String> lines =
+                dist.searchAllLogs(ENTRYPOINT_LOG_PATTERN, matcher -> matcher.group(1), true)) {
+            return lines.filter(new ProgramArgumentsFilter()).toArray(String[]::new);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static boolean allProgramArgumentsLogged(FlinkDistribution dist) {
         // the classpath is logged after the program arguments
         try (Stream<String> lines =
-                dist.searchAllLogs(ENTRYPOINT_CLASSPATH_LOG_PATTERN, matcher -> matcher.group(0))) {
+                dist.searchAllLogs(
+                        ENTRYPOINT_CLASSPATH_LOG_PATTERN, matcher -> matcher.group(0), true)) {
             return lines.iterator().hasNext();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
