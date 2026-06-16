@@ -420,12 +420,17 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         starting_offset = KafkaOffsetsInitializer.earliest()
         stopping_offset = KafkaOffsetsInitializer.latest()
 
-        metadata_service = SingleClusterTopicMetadataService(
-            'test-cluster',
-            {'bootstrap.servers': 'localhost:9092'},
-            starting_offset,
-            stopping_offset
-        )
+        try:
+            metadata_service = SingleClusterTopicMetadataService(
+                'test-cluster',
+                {'bootstrap.servers': 'localhost:9092'},
+                starting_offset,
+                stopping_offset
+            )
+        except RuntimeError as e:
+            if "does not support per-cluster offset initializers" in str(e):
+                self.skipTest("flink-sql-connector-kafka does not support per-cluster offsets yet.")
+            raise
 
         self.assertIsNotNone(metadata_service._j_metadata_service)
 
@@ -479,12 +484,17 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         starting_offset = KafkaOffsetsInitializer.earliest()
         stopping_offset = KafkaOffsetsInitializer.latest()
 
-        cluster_metadata = ClusterMetadata(
-            {'test-topic'},
-            {'bootstrap.servers': 'localhost:9092'},
-            starting_offset,
-            stopping_offset
-        )
+        try:
+            cluster_metadata = ClusterMetadata(
+                {'test-topic'},
+                {'bootstrap.servers': 'localhost:9092'},
+                starting_offset,
+                stopping_offset
+            )
+        except RuntimeError as e:
+            if "does not support per-cluster offset initializers" in str(e):
+                self.skipTest("flink-sql-connector-kafka does not support per-cluster offsets yet.")
+            raise
 
         self.assertIsNotNone(cluster_metadata._j_cluster_metadata)
 

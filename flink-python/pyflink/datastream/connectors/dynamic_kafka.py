@@ -60,13 +60,40 @@ class ClusterMetadata(object):
         for key, value in properties.items():
             j_properties.setProperty(key, value)
 
-        j_starting_offset = starting_offsets_initializer._j_initializer \
-            if starting_offsets_initializer else None
-        j_stopping_offset = stopping_offsets_initializer._j_initializer \
-            if stopping_offsets_initializer else None
+        j_meta_dir = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata
+        j_cluster_cls = j_meta_dir.ClusterMetadata
 
-        self._j_cluster_metadata = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
-            .ClusterMetadata(j_topics, j_properties, j_starting_offset, j_stopping_offset)
+        if starting_offsets_initializer is None and stopping_offsets_initializer is None:
+            self._j_cluster_metadata = j_cluster_cls(j_topics, j_properties)
+        else:
+            j_starting_initializer = starting_offsets_initializer._j_initializer \
+                if starting_offsets_initializer is not None else None
+            j_stopping_initializer = stopping_offsets_initializer._j_initializer \
+                if stopping_offsets_initializer is not None else None
+            j_offsets_cls = gateway.jvm.org.apache.flink.connector.kafka.source \
+                .enumerator.initializer.OffsetsInitializer._java_lang_class
+            j_param_types = gateway.new_array(gateway.jvm.Class, 4)
+            j_param_types[0] = gateway.jvm.java.util.Set._java_lang_class
+            j_param_types[1] = gateway.jvm.java.util.Properties._java_lang_class
+            j_param_types[2] = j_offsets_cls
+            j_param_types[3] = j_offsets_cls
+            try:
+                j_constructor = j_cluster_cls._java_lang_class \
+                    .getDeclaredConstructor(j_param_types)
+            except Exception as e:
+                if 'NoSuchMethodException' in str(e):
+                    raise RuntimeError(
+                        "The installed flink-sql-connector-kafka version does not support "
+                        "per-cluster offset initializers in ClusterMetadata. "
+                        "Please use a newer connector version."
+                    )
+                raise
+            j_args = gateway.new_array(gateway.jvm.Object, 4)
+            j_args[0] = j_topics
+            j_args[1] = j_properties
+            j_args[2] = j_starting_initializer
+            j_args[3] = j_stopping_initializer
+            self._j_cluster_metadata = j_constructor.newInstance(j_args)
 
 
 class KafkaMetadataService(object):
@@ -82,6 +109,7 @@ class SingleClusterTopicMetadataService(KafkaMetadataService):
     """
     A KafkaMetadataService backed by a single Kafka cluster where stream ids map to topics.
     """
+
     def __init__(self, kafka_cluster_id: str, properties: Dict[str, str],
                  starting_offsets_initializer: Optional[KafkaOffsetsInitializer] = None,
                  stopping_offsets_initializer: Optional[KafkaOffsetsInitializer] = None):
@@ -96,15 +124,40 @@ class SingleClusterTopicMetadataService(KafkaMetadataService):
         for key, value in properties.items():
             j_properties.setProperty(key, value)
 
-        j_starting_offset = starting_offsets_initializer._j_initializer \
-            if starting_offsets_initializer else None
-        j_stopping_offset = stopping_offsets_initializer._j_initializer \
-            if stopping_offsets_initializer else None
+        j_meta_dir = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata
+        j_cls = j_meta_dir.SingleClusterTopicMetadataService
 
-        j_cls = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
-            .SingleClusterTopicMetadataService
-        j_service = j_cls(
-            kafka_cluster_id, j_properties, j_starting_offset, j_stopping_offset)
+        if starting_offsets_initializer is None and stopping_offsets_initializer is None:
+            j_service = j_cls(kafka_cluster_id, j_properties)
+        else:
+            j_starting_initializer = starting_offsets_initializer._j_initializer \
+                if starting_offsets_initializer is not None else None
+            j_stopping_initializer = stopping_offsets_initializer._j_initializer \
+                if stopping_offsets_initializer is not None else None
+            j_offsets_cls = gateway.jvm.org.apache.flink.connector.kafka.source \
+                .enumerator.initializer.OffsetsInitializer._java_lang_class
+            j_param_types = gateway.new_array(gateway.jvm.Class, 4)
+            j_param_types[0] = gateway.jvm.java.lang.String._java_lang_class
+            j_param_types[1] = gateway.jvm.java.util.Properties._java_lang_class
+            j_param_types[2] = j_offsets_cls
+            j_param_types[3] = j_offsets_cls
+            try:
+                j_constructor = j_cls._java_lang_class \
+                    .getDeclaredConstructor(j_param_types)
+            except Exception as e:
+                if 'NoSuchMethodException' in str(e):
+                    raise RuntimeError(
+                        "The installed flink-sql-connector-kafka version does not support "
+                        "per-cluster offset initializers in SingleClusterTopicMetadataService. "
+                        "Please use a newer connector version."
+                    )
+                raise
+            j_args = gateway.new_array(gateway.jvm.Object, 4)
+            j_args[0] = kafka_cluster_id
+            j_args[1] = j_properties
+            j_args[2] = j_starting_initializer
+            j_args[3] = j_stopping_initializer
+            j_service = j_constructor.newInstance(j_args)
         super().__init__(j_service)
 
 
