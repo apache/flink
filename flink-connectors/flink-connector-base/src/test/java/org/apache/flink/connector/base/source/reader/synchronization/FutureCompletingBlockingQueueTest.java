@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader.synchronization;
 
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
@@ -28,6 +29,8 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -100,6 +103,55 @@ public class FutureCompletingBlockingQueueTest {
         queue.wakeUpPuttingThread(0);
         latch.await();
         assertThat(latch.getCount()).isEqualTo(0);
+    }
+
+    /**
+     * A putter gracefully woken via {@link FutureCompletingBlockingQueue#wakeUpPuttingThread(int)}
+     * must not prevent another, genuinely waiting putter from being signalled once a slot frees up.
+     * See FLINK-37663.
+     */
+    @Test(timeout = 60_000)
+    public void testWakeUpDoesNotStrandAnotherPutter() throws Exception {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+
+        queue.put(2, 0);
+
+        final AtomicBoolean wokenPutterResult = new AtomicBoolean(true);
+        final Thread wokenPutter =
+                new Thread(() -> wokenPutterResult.set(putUnchecked(queue, 0, 1)), "wokenPutter");
+        final CountDownLatch genuinePutterDone = new CountDownLatch(1);
+        final Thread genuinePutter =
+                new Thread(
+                        () -> {
+                            putUnchecked(queue, 1, 2);
+                            genuinePutterDone.countDown();
+                        },
+                        "genuinePutter");
+
+        // Block putter 0 before putter 1 so putter 0 is at the head of the wait queue.
+        wokenPutter.start();
+        CommonTestUtils.waitUntilCondition(() -> queue.getNumberOfQueuedPutters() == 1);
+        genuinePutter.start();
+        CommonTestUtils.waitUntilCondition(() -> queue.getNumberOfQueuedPutters() == 2);
+
+        queue.wakeUpPuttingThread(0);
+        wokenPutter.join();
+        assertThat(wokenPutterResult).isFalse();
+
+        queue.poll();
+
+        assertThat(genuinePutterDone.await(10, TimeUnit.SECONDS))
+                .as("A still-waiting putter must be signalled when a slot frees up")
+                .isTrue();
+    }
+
+    private static boolean putUnchecked(
+            FutureCompletingBlockingQueue<Integer> queue, int threadIndex, int value) {
+        try {
+            return queue.put(threadIndex, value);
+        } catch (InterruptedException e) {
+            return fail("Putting thread interrupted unexpectedly.");
+        }
     }
 
     @Test
