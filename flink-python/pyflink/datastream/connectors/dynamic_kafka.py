@@ -36,6 +36,7 @@ __all__ = [
     'SingleClusterTopicMetadataService'
 ]
 
+
 class ClusterMetadata(object):
     """
     Wrapper for Java ClusterMetadata.
@@ -59,8 +60,10 @@ class ClusterMetadata(object):
         for key, value in properties.items():
             j_properties.setProperty(key, value)
 
-        j_starting_offset = starting_offsets_initializer._j_initializer if starting_offsets_initializer else None
-        j_stopping_offset = stopping_offsets_initializer._j_initializer if stopping_offsets_initializer else None
+        j_starting_offset = starting_offsets_initializer._j_initializer \
+          if starting_offsets_initializer else None
+        j_stopping_offset = stopping_offsets_initializer._j_initializer \
+          if stopping_offsets_initializer else None
 
         self._j_cluster_metadata = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
             .ClusterMetadata(j_topics, j_properties, j_starting_offset, j_stopping_offset)
@@ -93,12 +96,17 @@ class SingleClusterTopicMetadataService(KafkaMetadataService):
         for key, value in properties.items():
             j_properties.setProperty(key, value)
 
-        j_starting_offset = starting_offsets_initializer._j_initializer if starting_offsets_initializer else None
-        j_stopping_offset = stopping_offsets_initializer._j_initializer if stopping_offsets_initializer else None
+        j_starting_offset = starting_offsets_initializer._j_initializer \
+          if starting_offsets_initializer else None
+        j_stopping_offset = stopping_offsets_initializer._j_initializer \
+          if stopping_offsets_initializer else None
 
-        j_service = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
-            .SingleClusterTopicMetadataService(kafka_cluster_id, j_properties, j_starting_offset, j_stopping_offset)
+        j_cls = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
+            .SingleClusterTopicMetadataService
+        j_service = j_cls(
+            kafka_cluster_id, j_properties, j_starting_offset, j_stopping_offset)
         super().__init__(j_service)
+
 
 class KafkaStreamSubscriber(object):
     """
