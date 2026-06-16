@@ -73,4 +73,25 @@ class AggregateTest extends TableTestBase {
 
     util.verifyExecPlan(resultTable)
   }
+
+  @Test
+  def testOrderByWithGlobalAggregate(): Unit = {
+    val util = batchTestUtil()
+    util.tableEnv.getConfig.set("parallelism.default", "1")
+
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE MyTableTest (
+                               |  a INT,
+                               |  b STRING
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+
+    val src = util.tableEnv.from("MyTableTest")
+    val result = src.orderBy($"b".asc).select($"a".max)
+
+    util.verifyRelPlan(result)
+  }
 }
