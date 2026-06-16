@@ -307,6 +307,16 @@ public class FutureCompletingBlockingQueue<T> {
         }
     }
 
+    @VisibleForTesting
+    int getNumberOfQueuedPutters() {
+        lock.lock();
+        try {
+            return notFull.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * Gracefully wakes up the thread with the given {@code threadIndex} if it is blocked in adding
      * an element. to the queue. If the thread is blocked in {@link #put(int, Object)} it will
