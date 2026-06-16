@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Dict, Set, Union
+from typing import Dict, Optional, Set, Union
 
 from py4j.java_gateway import JavaObject
 
@@ -25,6 +25,7 @@ from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
+    'ClusterMetadata',
     'DynamicKafkaSource',
     'DynamicKafkaSourceBuilder',
     'KafkaMetadataService',
@@ -34,6 +35,52 @@ __all__ = [
     'StreamPatternSubscriber',
     'SingleClusterTopicMetadataService'
 ]
+
+
+def _to_j_offsets_initializer(
+        offsets_initializer: Optional[KafkaOffsetsInitializer]) -> Optional[JavaObject]:
+    return offsets_initializer._j_initializer if offsets_initializer is not None else None
+
+
+def _has_cluster_offsets(
+        starting_offsets_initializer: Optional[KafkaOffsetsInitializer],
+        stopping_offsets_initializer: Optional[KafkaOffsetsInitializer]) -> bool:
+    return starting_offsets_initializer is not None or stopping_offsets_initializer is not None
+
+
+class ClusterMetadata(object):
+    """
+    Wrapper for Java ClusterMetadata.
+    """
+
+    def __init__(self, topics: Set[str], properties: Dict[str, str],
+                 starting_offsets_initializer: Optional[KafkaOffsetsInitializer] = None,
+                 stopping_offsets_initializer: Optional[KafkaOffsetsInitializer] = None):
+        """
+        :param topics: The topics belonging to a cluster.
+        :param properties: The properties to access a cluster.
+        :param starting_offsets_initializer: Optional starting offsets initializer for the cluster.
+        :param stopping_offsets_initializer: Optional stopping offsets initializer for the cluster.
+        """
+        gateway = get_gateway()
+        j_topics = gateway.jvm.java.util.HashSet()
+        for topic in topics:
+            j_topics.add(topic)
+
+        j_properties = gateway.jvm.java.util.Properties()
+        for key, value in properties.items():
+            j_properties.setProperty(key, value)
+
+        j_cluster_metadata = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
+            .ClusterMetadata
+        if _has_cluster_offsets(starting_offsets_initializer, stopping_offsets_initializer):
+            self._j_cluster_metadata = j_cluster_metadata(
+                j_topics,
+                j_properties,
+                _to_j_offsets_initializer(starting_offsets_initializer),
+                _to_j_offsets_initializer(stopping_offsets_initializer))
+        else:
+            self._j_cluster_metadata = j_cluster_metadata(j_topics, j_properties)
 
 
 class KafkaMetadataService(object):
@@ -50,13 +97,30 @@ class SingleClusterTopicMetadataService(KafkaMetadataService):
     A KafkaMetadataService backed by a single Kafka cluster where stream ids map to topics.
     """
 
-    def __init__(self, kafka_cluster_id: str, properties: Dict[str, str]):
+    def __init__(self, kafka_cluster_id: str, properties: Dict[str, str],
+                 starting_offsets_initializer: Optional[KafkaOffsetsInitializer] = None,
+                 stopping_offsets_initializer: Optional[KafkaOffsetsInitializer] = None):
+        """
+        :param kafka_cluster_id: The ID of the Kafka cluster.
+        :param properties: The properties to access the cluster.
+        :param starting_offsets_initializer: Optional starting offsets initializer for this cluster.
+        :param stopping_offsets_initializer: Optional stopping offsets initializer for this cluster.
+        """
         gateway = get_gateway()
         j_properties = gateway.jvm.java.util.Properties()
         for key, value in properties.items():
             j_properties.setProperty(key, value)
-        j_service = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
-            .SingleClusterTopicMetadataService(kafka_cluster_id, j_properties)
+
+        j_metadata_service = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
+            .SingleClusterTopicMetadataService
+        if _has_cluster_offsets(starting_offsets_initializer, stopping_offsets_initializer):
+            j_service = j_metadata_service(
+                kafka_cluster_id,
+                j_properties,
+                _to_j_offsets_initializer(starting_offsets_initializer),
+                _to_j_offsets_initializer(stopping_offsets_initializer))
+        else:
+            j_service = j_metadata_service(kafka_cluster_id, j_properties)
         super().__init__(j_service)
 
 
