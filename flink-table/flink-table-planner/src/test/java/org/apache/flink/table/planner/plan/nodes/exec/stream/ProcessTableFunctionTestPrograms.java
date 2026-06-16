@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ImplicitCastingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
@@ -1919,5 +1920,25 @@ public class ProcessTableFunctionTestPrograms {
                                     + "in1 => TABLE t PARTITION BY name ORDER BY (ts ASC, score DESC), "
                                     + "in2 => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
                                     + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_IMPLICIT_CASTS =
+            TableTestProgram.of(
+                            "process-implicit-casts",
+                            "implicits casts for both scalar and table args")
+                    .setupTemporarySystemFunction("f", ImplicitCastingFunction.class)
+                    .setupSql(
+                            "CREATE VIEW v AS SELECT 'Bob', 12, (42, TIMESTAMP '2020-01-01 12:12:12')")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{CastingPojo(s='Bob', b=12, r=+I[42, 2020-01-01T12:12:12]), 42}]")
+                                    .build())
+                    // The function expects wider types (BIGINT and TIMESTAMP(6)),
+                    // implicit casts are added to fix the mismatch between INT vs. BIGINT and
+                    // TIMESTAMP(0) vs. TIMESTAMP(6).
+                    // Also in constructed types: ROW (table input) vs. STRUCTURED (expected).
+                    .runSql("INSERT INTO sink SELECT * FROM f(p => TABLE v, b => 42)")
                     .build();
 }
