@@ -61,9 +61,9 @@ class ClusterMetadata(object):
             j_properties.setProperty(key, value)
 
         j_starting_offset = starting_offsets_initializer._j_initializer \
-          if starting_offsets_initializer else None
+            if starting_offsets_initializer else None
         j_stopping_offset = stopping_offsets_initializer._j_initializer \
-          if stopping_offsets_initializer else None
+            if stopping_offsets_initializer else None
 
         self._j_cluster_metadata = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
             .ClusterMetadata(j_topics, j_properties, j_starting_offset, j_stopping_offset)
@@ -97,9 +97,9 @@ class SingleClusterTopicMetadataService(KafkaMetadataService):
             j_properties.setProperty(key, value)
 
         j_starting_offset = starting_offsets_initializer._j_initializer \
-          if starting_offsets_initializer else None
+            if starting_offsets_initializer else None
         j_stopping_offset = stopping_offsets_initializer._j_initializer \
-          if stopping_offsets_initializer else None
+            if stopping_offsets_initializer else None
 
         j_cls = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
             .SingleClusterTopicMetadataService
