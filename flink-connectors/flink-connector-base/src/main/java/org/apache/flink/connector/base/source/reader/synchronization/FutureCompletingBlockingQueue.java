@@ -373,7 +373,13 @@ public class FutureCompletingBlockingQueue<T> {
         maybeCreateCondition(fetcherIndex);
         Condition cond = putConditionAndFlags[fetcherIndex].condition();
         notFull.add(cond);
-        cond.await();
+        try {
+            cond.await();
+        } finally {
+            // drop the condition once the thread stops waiting, so a later signalNextPutter()
+            // does not signal a putter that is no longer waiting
+            notFull.remove(cond);
+        }
     }
 
     @GuardedBy("lock")
