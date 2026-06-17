@@ -720,9 +720,8 @@ public class RexNodeJsonSerdeTest {
                         FACTORY.createSqlType(SqlTypeName.INTEGER)),
                 rexBuilder.makeExactLiteral(
                         new BigDecimal(Long.MAX_VALUE), FACTORY.createSqlType(SqlTypeName.BIGINT)),
-                rexBuilder.makeExactLiteral(
-                        BigDecimal.valueOf(Double.MAX_VALUE),
-                        FACTORY.createSqlType(SqlTypeName.DOUBLE)),
+                rexBuilder.makeApproxLiteral(
+                        Double.MAX_VALUE, FACTORY.createSqlType(SqlTypeName.DOUBLE)),
                 rexBuilder.makeApproxLiteral(
                         BigDecimal.valueOf(Float.MAX_VALUE),
                         FACTORY.createSqlType(SqlTypeName.FLOAT)),

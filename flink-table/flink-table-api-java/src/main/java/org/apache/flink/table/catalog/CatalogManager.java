@@ -1405,6 +1405,44 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
+     * Converts an existing regular table to a materialized table in place. Identity and storage are
+     * preserved; only the kind and the materialized-table specific metadata change.
+     *
+     * @param originalTable the existing regular table
+     * @param materializedTable the new materialized table definition
+     * @param changes describe the modification from originalTable to materializedTable
+     * @param objectIdentifier fully qualified path of the table being converted
+     */
+    public void convertTableToMaterializedTable(
+            CatalogTable originalTable,
+            CatalogMaterializedTable materializedTable,
+            List<TableChange> changes,
+            ObjectIdentifier objectIdentifier) {
+        execute(
+                (catalog, path) -> {
+                    final CatalogTable resolvedOriginal =
+                            (CatalogTable) resolveCatalogBaseTable(originalTable);
+                    final CatalogMaterializedTable resolvedMt =
+                            (CatalogMaterializedTable) resolveCatalogBaseTable(materializedTable);
+                    catalog.convertTableToMaterializedTable(
+                            path, resolvedOriginal, resolvedMt, changes);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            AlterTableEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedMt,
+                                                    false)));
+                },
+                objectIdentifier,
+                false,
+                "ConvertTableToMaterializedTable");
+    }
+
+    /**
      * Drops a table in a given fully qualified path.
      *
      * @param objectIdentifier The fully qualified path of the table to drop.

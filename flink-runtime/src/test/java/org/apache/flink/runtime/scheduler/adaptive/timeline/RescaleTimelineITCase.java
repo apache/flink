@@ -276,11 +276,19 @@ class RescaleTimelineITCase {
 
         waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
 
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
         updateJobResourceRequirements(miniCluster, jobGraph, 1, PARALLELISM * 2);
+
+        // The upper bound (PARALLELISM * 2) exceeds the available slots, so this rescale is only
+        // recorded in the history without changing the parallelism. Wait until it is recorded
+        // before unblocking, otherwise on a slow machine the task can finish first and the size-2
+        // condition below times out.
+        waitUntilConditionWithTimeout(
+                () -> getRescaleHistory(miniCluster, jobGraph).size() == 2, 10000);
 
         OnceBlockingNoOpInvokable.unblock();
 
-        assumeThat(enabledRescaleHistory(configuration)).isTrue();
         waitUntilConditionWithTimeout(
                 () -> {
                     List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
@@ -384,6 +392,49 @@ class RescaleTimelineITCase {
 
     @TestTemplate
     void testRescaleTerminatedByResourceRequirementsUpdated() throws Exception {
+        // This case only asserts on the recorded rescale history; skip the disabled-history
+        // parameter before the cluster rebuild below so it does not pay for an unused cluster.
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
+        // This test asserts that the second resource-requirements update terminates the in-progress
+        // rescale started by the first update with terminal reason RESOURCE_REQUIREMENTS_UPDATED.
+        // For that to happen the second update must be processed while the first rescale is still
+        // in-progress: AdaptiveScheduler#recordRescaleForNewResourceRequirements only sets the
+        // RESOURCE_REQUIREMENTS_UPDATED reason via RescaleTimeline#updateRescale, which is a no-op
+        // once the current rescale is already terminated (DefaultRescaleTimeline#isIdling).
+        //
+        // The upper bound exceeds the available slots, so the first rescale cannot change the
+        // parallelism. With the short cooldown/stabilization timeouts shared by the other cases the
+        // DefaultStateTransitionManager re-enters its Idling phase and the Idling constructor
+        // terminates that rescale with NO_RESOURCES_OR_PARALLELISMS_CHANGE (a legitimate terminal
+        // reason for an in-progress rescale that cannot change parallelism). That termination is
+        // driven by wall-clock timers that start the moment the first rescale is recorded, so no
+        // amount of waiting between the two updates can guarantee the second update wins the race;
+        // waiting only consumes the same budget. Widening cooldown and stabilization for this case
+        // is therefore the only deterministic test-side fix: it keeps the in-progress rescale alive
+        // far longer than the single synchronous RPC round trip between the two updates.
+        //
+        // Rebuild the shared fixture cluster in place rather than starting a second one on top of
+        // it, so only one cluster is ever running and the @AfterEach teardown still applies. 60s is
+        // an intentionally generous bound (the suite already uses second-scale guards for slow CI);
+        // the test completes as soon as the second update lands, so a large value has no cost.
+        miniClusterResource.after();
+        final Configuration testConfiguration = new Configuration(configuration);
+        testConfiguration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                Duration.ofSeconds(60));
+        testConfiguration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofSeconds(60));
+        miniClusterResource =
+                new MiniClusterResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(testConfiguration)
+                                .setNumberSlotsPerTaskManager(NUMBER_SLOTS_PER_TASK_MANAGER)
+                                .setNumberTaskManagers(NUMBER_TASK_MANAGERS)
+                                .build());
+        miniClusterResource.before();
+
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
         miniCluster.submitJob(jobGraph).join();

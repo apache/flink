@@ -1872,14 +1872,14 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     private OperationHandle executeStatement(String statement) {
-        return executeStatement(statement, -1, new Configuration());
+        return MaterializedTableTestUtils.executeStatement(service, sessionHandle, statement);
     }
 
     private ContinuousRefreshHandler getContinuousRefreshHandler(
             ResolvedCatalogMaterializedTable resolvedTable)
             throws IOException, ClassNotFoundException {
-        return ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                resolvedTable.getSerializedRefreshHandler(), getClass().getClassLoader());
+        return MaterializedTableTestUtils.getContinuousRefreshHandler(
+                resolvedTable, getClass().getClassLoader());
     }
 
     private List<Column> getAddedColumns(ResolvedSchema newSchema, ResolvedSchema oldSchema) {
@@ -1934,7 +1934,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     private ResolvedCatalogMaterializedTable getTable(ObjectIdentifier identifier) {
-        return (ResolvedCatalogMaterializedTable) service.getTable(sessionHandle, identifier);
+        return MaterializedTableTestUtils.getTable(service, sessionHandle, identifier);
     }
 
     private static <M extends JobMessageParameters, R extends RequestBody, P extends ResponseBody>

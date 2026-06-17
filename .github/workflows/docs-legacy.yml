@@ -80,11 +80,11 @@ jobs:
           docker run --rm \
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
-            chesnay/flink-ci:java_8_11_17_21_maven_386_jammy \
+            apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy \
             bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@7659d600d8bdd035bb5cdfba1d4bd0dd4a307ca6 # 8.0.2
+        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
         with:
           switches: --archive --compress --delete --omit-dir-times
           path: docs/target/

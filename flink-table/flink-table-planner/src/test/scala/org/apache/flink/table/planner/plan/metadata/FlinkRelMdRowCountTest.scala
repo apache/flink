@@ -28,8 +28,6 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
-import scala.collection.JavaConversions._
-
 class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
 
   @Test
@@ -174,7 +172,7 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
         false,
         false,
         false,
-        List[Integer](3),
+        java.util.List.of[Integer](3),
         -1,
         null,
         RelCollations.EMPTY,

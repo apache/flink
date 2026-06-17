@@ -30,6 +30,7 @@ import java.nio.charset.Charset;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * Default implementation {@link SqlTypeFactoryImpl}, the class was copied over because of
@@ -38,10 +39,10 @@ import static java.util.Objects.requireNonNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-6342: Lines 100-102
- *   <li>Should be removed after fixing CALCITE-6342: Lines 484-496
- *   <li>Should be removed after fix of FLINK-31350: Lines 563-575.
- *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 225 ~ 248
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 113-115
+ *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 243 ~ 266
+ *   <li>Should be removed after fix of FLINK-31350: Lines 527-539.
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 606-618
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
@@ -65,12 +66,12 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
 
     @Override
     public RelDataType createSqlType(SqlTypeName typeName, int precision) {
+        if (typeName.allowsScale()) {
+            return createSqlType(typeName, precision, typeName.getDefaultScale());
+        }
         final int maxPrecision = typeSystem.getMaxPrecision(typeName);
         if (maxPrecision >= 0 && precision > maxPrecision) {
             precision = maxPrecision;
-        }
-        if (typeName.allowsScale()) {
-            return createSqlType(typeName, precision, typeName.getDefaultScale());
         }
         assertBasic(typeName);
         assert (precision >= 0) || (precision == RelDataType.PRECISION_NOT_SPECIFIED);
@@ -90,6 +91,17 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
         final int maxPrecision = typeSystem.getMaxPrecision(typeName);
         if (maxPrecision >= 0 && precision > maxPrecision) {
             precision = maxPrecision;
+        }
+        if (precision != RelDataType.PRECISION_NOT_SPECIFIED
+                && precision < typeSystem.getMinPrecision(typeName)) {
+            throw RESOURCE.invalidPrecisionForDecimalType(precision, maxPrecision).ex();
+        }
+        if (scale != RelDataType.SCALE_NOT_SPECIFIED && scale < typeSystem.getMinScale(typeName)) {
+            throw RESOURCE.invalidScaleForDecimalType(
+                            scale,
+                            typeSystem.getMinScale(typeName),
+                            typeSystem.getMaxNumericScale())
+                    .ex();
         }
         RelDataType newType = new BasicSqlType(typeSystem, typeName, precision, scale);
         newType = SqlTypeUtil.addCharsetAndCollation(newType, this);

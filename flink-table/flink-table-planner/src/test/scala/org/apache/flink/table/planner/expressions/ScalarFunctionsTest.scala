@@ -241,30 +241,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testSubstring(): Unit = {
-    testAllApis('f0.substring(2), "SUBSTRING(f0, 2)", "his is a test String.")
-
-    testAllApis('f0.substring(2, 5), "SUBSTRING(f0, 2, 5)", "his i")
-
-    testAllApis('f0.substring(1, 'f7), "SUBSTRING(f0, 1, f7)", "Thi")
-
-    testAllApis(
-      'f0.substring(1.cast(DataTypes.TINYINT), 'f7),
-      "SUBSTRING(f0, CAST(1 AS TINYINT), f7)",
-      "Thi")
-
-    testSqlApi("SUBSTRING(f0 FROM 2 FOR 1)", "h")
-
-    testSqlApi("SUBSTRING(f0 FROM 2)", "his is a test String.")
-
-    testSqlApi("SUBSTRING(f0 FROM -2)", "g.")
-
-    testSqlApi("SUBSTRING(f0 FROM -2 FOR 1)", "g")
-
-    testSqlApi("SUBSTRING(f0 FROM -2 FOR 0)", "")
-  }
-
-  @Test
   def testReplace(): Unit = {
     testAllApis('f0.replace(" ", "_"), "REPLACE(f0, ' ', '_')", "This_is_a_test_String.")
 
@@ -823,23 +799,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testSubString(): Unit = {
-    Array("substring", "substr").foreach {
-      substr =>
-        testAllApis('f0.substr(2, 3), s"$substr(f0, 2, 3)", "his")
-        testAllApis('f0.substr(2), s"$substr(f0, 2)", "his is a test String.")
-        testSqlApi(s"$substr(f0, 2, 100)", "his is a test String.")
-        testSqlApi(s"$substr(f0, 100, 10)", "")
-        testSqlApi(s"$substr(f0, 2, -1)", "NULL")
-        testSqlApi(s"$substr(f40, 2, 3)", "NULL")
-        testSqlApi(s"$substr(CAST(null AS VARCHAR), 2, 3)", "NULL")
-        testSqlApi(s"$substr(f0, 2, f14)", "NULL")
-        testSqlApi(s"$substr(f0, f30, f7)", "Thi")
-        testSqlApi(s"$substr(f39, 1, 2)", "1世")
-    }
-  }
-
-  @Test
   def testLPad(): Unit = {
     testSqlApi("lpad(f33,1,'??')", "NULL")
     testSqlApi("lpad(f35, 1, '??')", "a")
@@ -887,127 +846,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("rpad('üö',1,'??')", "ü")
     testSqlApi("rpad('abcd', 5, '')", "NULL")
     testAllApis("äää".rpad(13, "12345"), "rpad('äää',13,'12345')", "äää1234512345")
-  }
-
-  @Test
-  def testParseUrl(): Unit = {
-
-    // NOTE: parse_url() requires HOST PATH etc. all capitalized
-    def testUrl(
-        url: String,
-        host: String,
-        path: String,
-        query: String,
-        ref: String,
-        protocol: String,
-        file: String,
-        authority: String,
-        userInfo: String,
-        qv: String): Unit = {
-
-      val parts =
-        Map(
-          "HOST" -> host,
-          "PATH" -> path,
-          "QUERY" -> query,
-          "REF" -> ref,
-          "PROTOCOL" -> protocol,
-          "FILE" -> file,
-          "AUTHORITY" -> authority,
-          "USERINFO" -> userInfo)
-
-      for ((n, v) <- parts) {
-        testAllApis(url.parseUrl(s"$n"), s"parse_url('$url', '$n')", v)
-      }
-
-      testAllApis(url.parseUrl("QUERY", "query"), s"parse_url('$url', 'QUERY', 'query')", qv)
-    }
-
-    testUrl(
-      "http://userinfo@flink.apache.org/path?query=1#Ref",
-      "flink.apache.org",
-      "/path",
-      "query=1",
-      "Ref",
-      "http",
-      "/path?query=1",
-      "userinfo@flink.apache.org",
-      "userinfo",
-      "1"
-    )
-
-    testUrl(
-      "https://use%20r:pas%20s@example.com/dir%20/pa%20th.HTML?query=x%20y&q2=2#Ref%20two",
-      "example.com",
-      "/dir%20/pa%20th.HTML",
-      "query=x%20y&q2=2",
-      "Ref%20two",
-      "https",
-      "/dir%20/pa%20th.HTML?query=x%20y&q2=2",
-      "use%20r:pas%20s@example.com",
-      "use%20r:pas%20s",
-      "x%20y"
-    )
-
-    testUrl(
-      "http://user:pass@host",
-      "host",
-      "",
-      "NULL",
-      "NULL",
-      "http",
-      "",
-      "user:pass@host",
-      "user:pass",
-      "NULL")
-
-    testUrl(
-      "http://user:pass@host/",
-      "host",
-      "/",
-      "NULL",
-      "NULL",
-      "http",
-      "/",
-      "user:pass@host",
-      "user:pass",
-      "NULL")
-
-    testUrl(
-      "http://user:pass@host/?#",
-      "host",
-      "/",
-      "",
-      "",
-      "http",
-      "/?",
-      "user:pass@host",
-      "user:pass",
-      "NULL")
-
-    testUrl(
-      "http://user:pass@host/file;param?query;p2",
-      "host",
-      "/file;param",
-      "query;p2",
-      "NULL",
-      "http",
-      "/file;param?query;p2",
-      "user:pass@host",
-      "user:pass",
-      "NULL")
-
-    testUrl(
-      "invalid://user:pass@host/file;param?query;p2",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL",
-      "NULL")
   }
 
   @Test

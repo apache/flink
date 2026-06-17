@@ -370,11 +370,11 @@ public class CommonPythonUtil {
                     break;
                 case FLOAT:
                     type = 0;
-                    value = ((BigDecimal) o.getValue3()).floatValue();
+                    value = ((Number) o.getValue3()).floatValue();
                     break;
                 case DOUBLE:
                     type = 0;
-                    value = ((BigDecimal) o.getValue3()).doubleValue();
+                    value = ((Number) o.getValue3()).doubleValue();
                     break;
                 case DECIMAL:
                 case BOOLEAN:

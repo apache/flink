@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -34,6 +38,7 @@ import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -42,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for GenericInMemoryCatalog. */
 class GenericInMemoryCatalogTest extends CatalogTestBase {
@@ -53,6 +59,51 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
     }
 
     // ------ tables ------
+
+    @Nested
+    class ConvertTableToMaterializedTableTest {
+        @Test
+        void testConvertTableToMaterializedTable() throws Exception {
+            catalog.createDatabase(db1, createDb(), false);
+            catalog.createTable(path1, createTable(), false);
+            assertThat(catalog.getTable(path1).getTableKind())
+                    .isEqualTo(CatalogBaseTable.TableKind.TABLE);
+
+            catalog.convertTableToMaterializedTable(
+                    path1, createTable(), createMaterializedTable(), List.of());
+
+            final CatalogBaseTable converted = catalog.getTable(path1);
+            assertThat(converted).isInstanceOf(CatalogMaterializedTable.class);
+            assertThat(converted.getTableKind())
+                    .isEqualTo(CatalogBaseTable.TableKind.MATERIALIZED_TABLE);
+        }
+
+        @Test
+        void testConvertTableToMaterializedTable_tableNotExist() throws Exception {
+            catalog.createDatabase(db1, createDb(), false);
+            assertThatThrownBy(
+                            () ->
+                                    catalog.convertTableToMaterializedTable(
+                                            path1,
+                                            createTable(),
+                                            createMaterializedTable(),
+                                            List.of()))
+                    .isInstanceOf(TableNotExistException.class);
+        }
+
+        private CatalogMaterializedTable createMaterializedTable() {
+            return CatalogMaterializedTable.newBuilder()
+                    .schema(createTable().getUnresolvedSchema())
+                    .options(Map.of())
+                    .originalQuery("SELECT * FROM src")
+                    .expandedQuery("SELECT * FROM `builtin`.`default`.`src`")
+                    .freshness(IntervalFreshness.ofSecond(30))
+                    .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                    .refreshMode(RefreshMode.CONTINUOUS)
+                    .refreshStatus(RefreshStatus.INITIALIZING)
+                    .build();
+        }
+    }
 
     @Test
     void testDropTable_partitionedTable() throws Exception {

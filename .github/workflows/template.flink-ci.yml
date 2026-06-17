@@ -72,7 +72,7 @@ jobs:
     name: "Compile"
     runs-on: ubuntu-24.04
     container:
-      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -128,7 +128,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-24.04
     container:
-      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -173,7 +173,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-24.04
     container:
-      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -357,6 +357,9 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          # the e2e tests download and generate more than 17GB of files; the e2e job runs
+          # directly on the host (not in a container), so the runner's disk can be cleaned up
+          free_disk_space: "true"
 
       - name: "Setup python"
         uses: actions/setup-python@v6

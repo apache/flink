@@ -60,10 +60,11 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[cat, hh], select=[cat, hh, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
-+- Exchange(distribution=[hash[cat, hh]])
-   +- Calc(select=[cat, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2))])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
+Calc(select=[cat, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh, EXPR$2, EXPR$3])
++- HashAggregate(isMerge=[false], groupBy=[cat], select=[cat, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
+   +- Exchange(distribution=[hash[cat]])
+      +- Calc(select=[cat, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2))])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
 ]]>
     </Resource>
   </TestCase>

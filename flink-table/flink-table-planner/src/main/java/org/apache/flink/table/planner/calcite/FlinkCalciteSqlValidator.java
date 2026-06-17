@@ -380,6 +380,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         }
 
         final SqlBasicCall call = (SqlBasicCall) node;
+        checkNoNamedAndPositionalMixedArgs(call);
 
         // Special case for MODEL
         if (node instanceof SqlExplicitModelCall) {
@@ -430,6 +431,27 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         }
 
         return rewritten;
+    }
+
+    /** Mixing positional and named arguments is not supported and crashes operand permutation. */
+    private static void checkNoNamedAndPositionalMixedArgs(SqlBasicCall call) {
+        if (!(call.getOperator() instanceof SqlFunction)) {
+            return;
+        }
+        final List<SqlNode> operands = call.getOperandList();
+        final boolean anyNamed =
+                operands.stream()
+                        .anyMatch(op -> op != null && op.getKind() == SqlKind.ARGUMENT_ASSIGNMENT);
+        final boolean anyPositional =
+                operands.stream()
+                        .anyMatch(op -> op != null && op.getKind() != SqlKind.ARGUMENT_ASSIGNMENT);
+        if (anyNamed && anyPositional) {
+            throw new ValidationException(
+                    "Cannot mix positional and named arguments when calling function '"
+                            + call.getOperator().getName()
+                            + "'. Use either all positional arguments or all named arguments "
+                            + "(e.g. arg => value).");
+        }
     }
 
     @Override

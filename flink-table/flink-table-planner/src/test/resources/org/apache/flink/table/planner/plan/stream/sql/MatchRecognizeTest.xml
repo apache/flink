@@ -189,7 +189,7 @@ FROM T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], price_sum=[CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), null:INTEGER)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
+LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], price_sum=[CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), 0), SUM($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), null:INTEGER)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
 +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
    +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
       +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_LTZ(3) *ROWTIME* ts_ltz, INTEGER price, INTEGER tax)]
@@ -199,7 +199,7 @@ LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], price_sum=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[symbol, price, tax, matchRowtime, CASE(>(w0$o0, 0), w0$o1, null:INTEGER) AS price_sum]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
-+- OverAggregate(partitionBy=[symbol], orderBy=[matchRowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[symbol, price, tax, matchRowtime, COUNT(price) AS w0$o0, $SUM0(price) AS w0$o1]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, BIGINT w0$o0, INTEGER w0$o1)]
++- OverAggregate(partitionBy=[symbol], orderBy=[matchRowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[symbol, price, tax, matchRowtime, COUNT(price) AS w0$o0, SUM(price) AS w0$o1]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, BIGINT w0$o0, INTEGER w0$o1)]
    +- Exchange(distribution=[hash[symbol]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
       +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax, FINAL(MATCH_ROWTIME(*.ts_ltz)) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$2, 0), 0)}]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
          +- Exchange(distribution=[hash[symbol]]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_LTZ(3) *ROWTIME* ts_ltz, INTEGER price, INTEGER tax)]

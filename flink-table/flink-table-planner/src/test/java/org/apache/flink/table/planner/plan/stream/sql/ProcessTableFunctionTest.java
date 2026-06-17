@@ -79,7 +79,7 @@ import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
-public class ProcessTableFunctionTest extends TableTestBase {
+class ProcessTableFunctionTest extends TableTestBase {
 
     private TableTestUtil util;
 
@@ -114,6 +114,17 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testScalarArgsNoUid() {
         util.addTemporarySystemFunction("f", ScalarArgsFunction.class);
         util.verifyRelPlan("SELECT * FROM f(i => 1, b => true)");
+    }
+
+    @Test
+    void testFunctionWithMultipleTableArgs() {
+        util.addTemporarySystemFunction("f", MultiInputFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW v AS SELECT * FROM f("
+                                + "in1 => TABLE t PARTITION BY name,"
+                                + "in2 => TABLE t PARTITION BY name)");
+        util.verifyRelPlan("SELECT * FROM v");
     }
 
     @Test
@@ -338,6 +349,11 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     private static Stream<ErrorSpec> errorSpecs() {
         return Stream.of(
+                ErrorSpec.ofSelect(
+                        "mixed positional and named arguments",
+                        ScalarArgsFunction.class,
+                        "SELECT * FROM f(1, b => true)",
+                        "Cannot mix positional and named arguments when calling function 'f'"),
                 ErrorSpec.ofSelect(
                         "invalid uid",
                         ScalarArgsFunction.class,

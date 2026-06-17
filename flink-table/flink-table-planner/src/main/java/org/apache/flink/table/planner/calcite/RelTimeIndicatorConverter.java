@@ -276,6 +276,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                             group.isRows,
                             group.lowerBound,
                             group.upperBound,
+                            group.exclude,
                             group.orderKeys,
                             winCalls));
         }

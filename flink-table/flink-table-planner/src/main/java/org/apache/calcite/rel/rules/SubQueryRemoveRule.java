@@ -46,10 +46,10 @@ import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.util.Util.last;
 
 /**
@@ -65,7 +65,7 @@ public class SubQueryRemoveRule extends RelRule<SubQueryRemoveRule.Config>
     /** Creates a SubQueryRemoveRule. */
     protected SubQueryRemoveRule(Config config) {
         super(config);
-        Objects.requireNonNull(config.matchHandler());
+        requireNonNull(config.matchHandler());
     }
 
     @Override
@@ -849,8 +849,7 @@ public class SubQueryRemoveRule extends RelRule<SubQueryRemoveRule.Config>
     private static void matchProject(SubQueryRemoveRule rule, RelOptRuleCall call) {
         final Project project = call.rel(0);
         final RelBuilder builder = call.builder();
-        final RexSubQuery e = RexUtil.SubQueryFinder.find(project.getProjects());
-        assert e != null;
+        final RexSubQuery e = requireNonNull(RexUtil.SubQueryFinder.find(project.getProjects()));
         final RelOptUtil.Logic logic =
                 LogicVisitor.find(RelOptUtil.Logic.TRUE_FALSE_UNKNOWN, project.getProjects(), e);
         builder.push(project.getInput());
@@ -906,8 +905,7 @@ public class SubQueryRemoveRule extends RelRule<SubQueryRemoveRule.Config>
     private static void matchJoin(SubQueryRemoveRule rule, RelOptRuleCall call) {
         final Join join = call.rel(0);
         final RelBuilder builder = call.builder();
-        final RexSubQuery e = RexUtil.SubQueryFinder.find(join.getCondition());
-        assert e != null;
+        final RexSubQuery e = requireNonNull(RexUtil.SubQueryFinder.find(join.getCondition()));
         final RelOptUtil.Logic logic =
                 LogicVisitor.find(RelOptUtil.Logic.TRUE, ImmutableList.of(join.getCondition()), e);
         builder.push(join.getLeft());

@@ -41,12 +41,15 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                         bTrimTestCases(),
+                        concatenateTestCases(),
                         eltTestCases(),
                         endsWithTestCases(),
+                        parseUrlTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
-                        translateTestCases(),
-                        concatenateTestCases())
+                        substrTestCases(),
+                        substringTestCases(),
+                        translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -751,5 +754,235 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TRANSLATE(f0, '3', '5')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> parseUrlTestCases() {
+        return Stream.of(
+                parseUrl("http://userinfo@flink.apache.org/path?query=1#Ref")
+                        .part("HOST", "flink.apache.org")
+                        .part("PATH", "/path")
+                        .part("QUERY", "query=1")
+                        .part("REF", "Ref")
+                        .part("PROTOCOL", "http")
+                        .part("FILE", "/path?query=1")
+                        .part("AUTHORITY", "userinfo@flink.apache.org")
+                        .part("USERINFO", "userinfo")
+                        .queryParam("query", "1")
+                        .toSpec(),
+                parseUrl(
+                                "https://use%20r:pas%20s@example.com/dir%20/pa%20th.HTML?query=x%20y&q2=2#Ref%20two")
+                        .part("HOST", "example.com")
+                        .part("PATH", "/dir%20/pa%20th.HTML")
+                        .part("QUERY", "query=x%20y&q2=2")
+                        .part("REF", "Ref%20two")
+                        .part("PROTOCOL", "https")
+                        .part("FILE", "/dir%20/pa%20th.HTML?query=x%20y&q2=2")
+                        .part("AUTHORITY", "use%20r:pas%20s@example.com")
+                        .part("USERINFO", "use%20r:pas%20s")
+                        .queryParam("query", "x%20y")
+                        .queryParam("q2", "2")
+                        .toSpec(),
+                parseUrl("http://user:pass@host")
+                        .part("HOST", "host")
+                        .part("PATH", "")
+                        .part("QUERY", null)
+                        .part("REF", null)
+                        .part("PROTOCOL", "http")
+                        .part("FILE", "")
+                        .part("AUTHORITY", "user:pass@host")
+                        .part("USERINFO", "user:pass")
+                        .queryParam("query", null)
+                        .toSpec(),
+                parseUrl("http://user:pass@host/")
+                        .part("HOST", "host")
+                        .part("PATH", "/")
+                        .part("QUERY", null)
+                        .part("REF", null)
+                        .part("PROTOCOL", "http")
+                        .part("FILE", "/")
+                        .part("AUTHORITY", "user:pass@host")
+                        .part("USERINFO", "user:pass")
+                        .queryParam("query", null)
+                        .toSpec(),
+                parseUrl("http://user:pass@host/?#")
+                        .part("HOST", "host")
+                        .part("PATH", "/")
+                        .part("QUERY", "")
+                        .part("REF", "")
+                        .part("PROTOCOL", "http")
+                        .part("FILE", "/?")
+                        .part("AUTHORITY", "user:pass@host")
+                        .part("USERINFO", "user:pass")
+                        .queryParam("query", null)
+                        .toSpec(),
+                parseUrl("http://user:pass@host/file;param?query;p2")
+                        .part("HOST", "host")
+                        .part("PATH", "/file;param")
+                        .part("QUERY", "query;p2")
+                        .part("REF", null)
+                        .part("PROTOCOL", "http")
+                        .part("FILE", "/file;param?query;p2")
+                        .part("AUTHORITY", "user:pass@host")
+                        .part("USERINFO", "user:pass")
+                        .queryParam("query", null)
+                        .toSpec(),
+                parseUrl("invalid://user:pass@host/file;param?query;p2")
+                        .part("HOST", null)
+                        .part("PATH", null)
+                        .part("QUERY", null)
+                        .part("REF", null)
+                        .part("PROTOCOL", null)
+                        .part("FILE", null)
+                        .part("AUTHORITY", null)
+                        .part("USERINFO", null)
+                        .queryParam("query", null)
+                        .toSpec());
+    }
+
+    private ParseUrlCases parseUrl(String url) {
+        return new ParseUrlCases(url);
+    }
+
+    /** Fluent builder for PARSE_URL specs: one self-describing line per extracted URL part. */
+    private static final class ParseUrlCases {
+        private TestSetSpec spec;
+
+        ParseUrlCases(String url) {
+            spec =
+                    TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_URL, url)
+                            .onFieldsWithData(url)
+                            .andDataTypes(DataTypes.STRING());
+        }
+
+        ParseUrlCases part(String part, String expected) {
+            spec =
+                    spec.testResult(
+                            $("f0").parseUrl(part),
+                            "PARSE_URL(f0, '" + part + "')",
+                            expected,
+                            DataTypes.STRING());
+            return this;
+        }
+
+        ParseUrlCases queryParam(String key, String expected) {
+            spec =
+                    spec.testResult(
+                            $("f0").parseUrl("QUERY", key),
+                            "PARSE_URL(f0, 'QUERY', '" + key + "')",
+                            expected,
+                            DataTypes.STRING());
+            return this;
+        }
+
+        TestSetSpec toSpec() {
+            return spec;
+        }
+    }
+
+    private Stream<TestSetSpec> substringTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SUBSTRING)
+                        .onFieldsWithData("This is a test String.", 3, -3, 1, "1世3", null)
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // two-arg form
+                        .testResult(
+                                $("f0").substring(2),
+                                "SUBSTRING(f0, 2)",
+                                "his is a test String.",
+                                DataTypes.STRING())
+                        // three-arg form
+                        .testResult(
+                                $("f0").substring(2, 5),
+                                "SUBSTRING(f0, 2, 5)",
+                                "his i",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").substring(2, 3),
+                                "SUBSTRING(f0, 2, 3)",
+                                "his",
+                                DataTypes.STRING())
+                        // start/length from fields
+                        .testResult(
+                                $("f0").substring(1, $("f1")),
+                                "SUBSTRING(f0, 1, f1)",
+                                "Thi",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").substring($("f3"), $("f1")),
+                                "SUBSTRING(f0, f3, f1)",
+                                "Thi",
+                                DataTypes.STRING())
+                        // start with implicit cast from TINYINT
+                        .testResult(
+                                $("f0").substring(lit(1).cast(DataTypes.TINYINT()), $("f1")),
+                                "SUBSTRING(f0, CAST(1 AS TINYINT), f1)",
+                                "Thi",
+                                DataTypes.STRING())
+                        // multibyte characters counted by code point
+                        .testResult(
+                                $("f4").substring(1, 2),
+                                "SUBSTRING(f4, 1, 2)",
+                                "1世",
+                                DataTypes.STRING())
+                        // length past the end is clamped
+                        .testSqlResult(
+                                "SUBSTRING(f0, 2, 100)",
+                                "his is a test String.",
+                                DataTypes.STRING())
+                        // start past the end yields empty
+                        .testSqlResult("SUBSTRING(f0, 100, 10)", "", DataTypes.STRING())
+                        // negative length yields null
+                        .testSqlResult("SUBSTRING(f0, 2, -1)", null, DataTypes.STRING())
+                        .testSqlResult("SUBSTRING(f0, 2, f2)", null, DataTypes.STRING())
+                        // null input yields null
+                        .testSqlResult("SUBSTRING(f5, 2, 3)", null, DataTypes.STRING())
+                        .testSqlResult(
+                                "SUBSTRING(CAST(NULL AS VARCHAR), 2, 3)", null, DataTypes.STRING())
+                        // SQL FROM/FOR syntax
+                        .testSqlResult("SUBSTRING(f0 FROM 2 FOR 1)", "h", DataTypes.STRING())
+                        .testSqlResult(
+                                "SUBSTRING(f0 FROM 2)", "his is a test String.", DataTypes.STRING())
+                        .testSqlResult("SUBSTRING(f0 FROM -2)", "g.", DataTypes.STRING())
+                        .testSqlResult("SUBSTRING(f0 FROM -2 FOR 1)", "g", DataTypes.STRING())
+                        .testSqlResult("SUBSTRING(f0 FROM -2 FOR 0)", "", DataTypes.STRING()));
+    }
+
+    private Stream<TestSetSpec> substrTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SUBSTR)
+                        .onFieldsWithData("This is a test String.", 3, -3, 1, "1世3", null)
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").substr(2, 3), "SUBSTR(f0, 2, 3)", "his", DataTypes.STRING())
+                        .testResult(
+                                $("f0").substr(2),
+                                "SUBSTR(f0, 2)",
+                                "his is a test String.",
+                                DataTypes.STRING())
+                        .testSqlResult(
+                                "SUBSTR(f0, 2, 100)", "his is a test String.", DataTypes.STRING())
+                        .testSqlResult("SUBSTR(f0, 100, 10)", "", DataTypes.STRING())
+                        // negative length yields null
+                        .testSqlResult("SUBSTR(f0, 2, -1)", null, DataTypes.STRING())
+                        .testSqlResult("SUBSTR(f0, 2, f2)", null, DataTypes.STRING())
+                        // null input yields null
+                        .testSqlResult("SUBSTR(f5, 2, 3)", null, DataTypes.STRING())
+                        .testSqlResult(
+                                "SUBSTR(CAST(NULL AS VARCHAR), 2, 3)", null, DataTypes.STRING())
+                        .testSqlResult("SUBSTR(f0, f3, f1)", "Thi", DataTypes.STRING())
+                        // multibyte characters counted by code point
+                        .testSqlResult("SUBSTR(f4, 1, 2)", "1世", DataTypes.STRING()));
     }
 }
