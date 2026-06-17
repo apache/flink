@@ -27,6 +27,8 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultJobBundleFactory}. */
@@ -58,6 +60,32 @@ class DefaultJobBundleFactoryTest {
                 .contains(GlobalConfiguration.HIDDEN_CONTENT)
                 .doesNotContain("secret-token")
                 .doesNotContain("secret-password");
+    }
+
+    @Test
+    void getEnvironmentForLoggingHidesAdditionalSensitiveProcessEnvironmentVariables() {
+        ProcessPayload processPayload =
+                ProcessPayload.newBuilder()
+                        .setCommand("python")
+                        .putEnv("PATH", "/usr/bin")
+                        .putEnv("CUSTOMER_ID", "secret-customer")
+                        .build();
+        Environment environment =
+                Environment.newBuilder()
+                        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+                        .setPayload(processPayload.toByteString())
+                        .build();
+
+        String environmentForLogging =
+                DefaultJobBundleFactory.getEnvironmentForLogging(
+                        environment, Collections.singletonList("customer_id"));
+
+        assertThat(environmentForLogging)
+                .contains("PATH")
+                .contains("/usr/bin")
+                .contains("CUSTOMER_ID")
+                .contains(GlobalConfiguration.HIDDEN_CONTENT)
+                .doesNotContain("secret-customer");
     }
 
     @Test

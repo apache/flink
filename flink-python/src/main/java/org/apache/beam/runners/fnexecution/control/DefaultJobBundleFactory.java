@@ -78,6 +78,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -116,6 +117,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     private final Semaphore availableCachesSemaphore;
     private final LinkedBlockingDeque<EnvironmentCacheAndLock> availableCaches;
     private final boolean loadBalanceBundles;
+    private final ImmutableList<String> additionalSensitiveKeys;
 
     /**
      * Clients which were evicted due to environment expiration but still had pending references.
@@ -125,6 +127,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     private boolean closed;
 
     public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+        return create(jobInfo, Collections.emptyList());
+    }
+
+    public static DefaultJobBundleFactory create(
+            JobInfo jobInfo, List<String> additionalSensitiveKeys) {
         PipelineOptions pipelineOptions =
                 PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
         Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
@@ -137,7 +144,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                         new ExternalEnvironmentFactory.Provider(),
                         Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
                         new EmbeddedEnvironmentFactory.Provider(pipelineOptions));
-        return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
+        return new DefaultJobBundleFactory(
+                jobInfo, environmentFactoryProviderMap, additionalSensitiveKeys);
     }
 
     public static DefaultJobBundleFactory create(
@@ -148,6 +156,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     DefaultJobBundleFactory(
             JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryMap) {
+        this(jobInfo, environmentFactoryMap, Collections.emptyList());
+    }
+
+    DefaultJobBundleFactory(
+            JobInfo jobInfo,
+            Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
+            List<String> additionalSensitiveKeys) {
         IdGenerator stageIdSuffixGenerator = IdGenerators.incrementingLongs();
         this.environmentFactoryProviderMap = environmentFactoryMap;
         this.executor = Executors.newCachedThreadPool();
@@ -155,6 +170,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
         this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
         this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
+        this.additionalSensitiveKeys = ImmutableList.copyOf(additionalSensitiveKeys);
         this.environmentCaches =
                 createEnvironmentCaches(
                         serverFactory -> createServerInfo(jobInfo, serverFactory),
@@ -176,6 +192,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         this.stageIdGenerator = stageIdGenerator;
         this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
         this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
+        this.additionalSensitiveKeys = ImmutableList.of();
         this.environmentCaches =
                 createEnvironmentCaches(
                         serverFactory -> serverInfo, getMaxEnvironmentClients(jobInfo));
@@ -231,7 +248,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                         if (refCount > 0) {
                                             LOG.warn(
                                                     "Expiring environment {} with {} remaining bundle references. Taking note to clean it up during shutdown if the references are not removed by then.",
-                                                    getEnvironmentForLogging(notification.getKey()),
+                                                    getEnvironmentForLogging(
+                                                            notification.getKey(),
+                                                            additionalSensitiveKeys),
                                                     refCount);
                                             evictedActiveClients.add(client);
                                         }
@@ -289,7 +308,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                         return WrappedSdkHarnessClient.wrapping(
                                                 environmentFactory.createEnvironment(
                                                         environment, workerId),
-                                                serverInfo);
+                                                serverInfo,
+                                                additionalSensitiveKeys);
                                     } catch (Exception e) {
                                         close(serverInfo);
                                         throw e;
@@ -649,24 +669,32 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         private final RemoteEnvironment environment;
         private final SdkHarnessClient client;
         private final ServerInfo serverInfo;
+        private final ImmutableList<String> additionalSensitiveKeys;
         private final AtomicInteger bundleRefCount = new AtomicInteger();
 
         private boolean closed;
 
         static WrappedSdkHarnessClient wrapping(
-                RemoteEnvironment environment, ServerInfo serverInfo) {
+                RemoteEnvironment environment,
+                ServerInfo serverInfo,
+                List<String> additionalSensitiveKeys) {
             SdkHarnessClient client =
                     SdkHarnessClient.usingFnApiClient(
                             environment.getInstructionRequestHandler(),
                             serverInfo.getDataServer().getService());
-            return new WrappedSdkHarnessClient(environment, client, serverInfo);
+            return new WrappedSdkHarnessClient(
+                    environment, client, serverInfo, additionalSensitiveKeys);
         }
 
         private WrappedSdkHarnessClient(
-                RemoteEnvironment environment, SdkHarnessClient client, ServerInfo serverInfo) {
+                RemoteEnvironment environment,
+                SdkHarnessClient client,
+                ServerInfo serverInfo,
+                List<String> additionalSensitiveKeys) {
             this.environment = environment;
             this.client = client;
             this.serverInfo = serverInfo;
+            this.additionalSensitiveKeys = ImmutableList.copyOf(additionalSensitiveKeys);
             ref();
         }
 
@@ -704,7 +732,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             } catch (Exception e) {
                 LOG.warn(
                         "Error cleaning up servers {}",
-                        getEnvironmentForLogging(environment.getEnvironment()),
+                        getEnvironmentForLogging(
+                                environment.getEnvironment(), additionalSensitiveKeys),
                         e);
             }
             // TODO: Wait for executor shutdown?
@@ -721,7 +750,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 // Close environment after it was removed from cache and all bundles finished.
                 LOG.info(
                         "Closing environment {}",
-                        getEnvironmentForLogging(environment.getEnvironment()));
+                        getEnvironmentForLogging(
+                                environment.getEnvironment(), additionalSensitiveKeys));
                 close();
             }
             return refCount;
@@ -730,6 +760,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     @VisibleForTesting
     static String getEnvironmentForLogging(Environment environment) {
+        return getEnvironmentForLogging(environment, Collections.emptyList());
+    }
+
+    @VisibleForTesting
+    static String getEnvironmentForLogging(
+            Environment environment, List<String> additionalSensitiveKeys) {
         if (BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS)
                 .equals(environment.getUrn())) {
             try {
@@ -740,7 +776,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                 .putAllEnv(
                                         ConfigurationUtils.hideSensitiveValues(
                                                 processPayload.getEnvMap(),
-                                                Collections.emptyList()))
+                                                additionalSensitiveKeys))
                                 .build();
                 return environment.toBuilder()
                         .setPayload(processPayloadWithHiddenSensitiveValues.toByteString())

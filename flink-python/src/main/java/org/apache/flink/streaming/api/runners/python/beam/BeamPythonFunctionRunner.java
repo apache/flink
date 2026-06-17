@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -198,6 +199,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private transient Environment environment;
 
+    private transient List<String> additionalSensitiveKeys = Collections.emptyList();
+
     private transient volatile List<TimerRegistrationAction> unregisteredTimers;
 
     public BeamPythonFunctionRunner(
@@ -238,6 +241,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.bundleStarted = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
         this.reusableResultTuple = new Tuple3<>();
+        this.additionalSensitiveKeys = config.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS);
 
         stateRequestHandler =
                 getStateRequestHandler(
@@ -678,7 +682,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                             taskName,
                             taskName,
                             environmentManager.createRetrievalToken(),
-                            pipelineOptions));
+                            pipelineOptions),
+                    additionalSensitiveKeys);
         }
     }
 
