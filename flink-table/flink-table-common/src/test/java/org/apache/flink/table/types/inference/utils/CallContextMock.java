@@ -72,7 +72,7 @@ public class CallContextMock implements CallContext {
     @Override
     public boolean isArgumentNull(int pos) {
         if (argumentNulls == null || pos >= argumentNulls.size()) {
-        return true;
+            return true;
         }
         return Boolean.TRUE.equals(argumentNulls.get(pos));
     }
