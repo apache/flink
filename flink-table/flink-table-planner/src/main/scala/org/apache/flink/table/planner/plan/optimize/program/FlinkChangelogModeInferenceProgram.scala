@@ -1634,14 +1634,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
   /**
    * Renders a node's type and changelog mode, for example
-   * "Sink(ExpectedChangelogMode=[I,UB,UA,D])".
+   * "Sink(expectedChangelogMode=[I,UB,UA,D])".
    */
   private def describeChangelog(rel: RelNode): String = rel match {
     case sink: StreamPhysicalSink =>
       // A sink's own changelog mode is empty; show the mode it expects from its input instead.
       val expected =
         sink.tableSink.getChangelogMode(getModifyKindSet(sink.getInput).toDefaultChangelogMode)
-      s"Sink(ExpectedChangelogMode=[${ChangelogPlanUtils.stringifyChangelogMode(Some(expected))}])"
+      s"Sink(expectedChangelogMode=[${ChangelogPlanUtils.stringifyChangelogMode(Some(expected))}])"
     case streamRel: StreamPhysicalRel =>
       val typeName = rel.getRelTypeName.stripPrefix("StreamPhysical")
       val mode =

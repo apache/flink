@@ -526,7 +526,7 @@ class ProcessTableFunctionTest extends TableTestBase {
                                 + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
                                 + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
                                 + "The conflict is at:\n"
-                                + "Sink(ExpectedChangelogMode=[I,UB,UA,D])\n"
+                                + "Sink(expectedChangelogMode=[I,UB,UA,D])\n"
                                 + "  +- ProcessTableFunction(changelogMode=[I,UA,D])"),
                 ErrorSpec.ofSelect(
                         "upsert conflict that does not surface at a sink",
@@ -544,7 +544,7 @@ class ProcessTableFunctionTest extends TableTestBase {
                                 + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
                                 + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
                                 + "The conflict is at:\n"
-                                + "Sink(ExpectedChangelogMode=[I,UB,UA,D])\n"
+                                + "Sink(expectedChangelogMode=[I,UB,UA,D])\n"
                                 + "  +- Calc(changelogMode=[I,UA,D])"),
                 ErrorSpec.ofSelect(
                         "no pass-through for multiple table args",
