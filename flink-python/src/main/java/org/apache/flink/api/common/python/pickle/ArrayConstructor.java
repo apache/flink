@@ -27,8 +27,8 @@ public final class ArrayConstructor extends net.razorvine.pickle.objects.ArrayCo
 
     @Override
     public Object construct(Object[] args) {
-        if (args.length == 2 && args[0] == "l") {
-            // an array of typecode 'l' should be handled as long rather than int.
+        if (args.length == 2 && "l".equals(args[0])) {
+            // An array of typecode 'l' should be handled as long rather than int.
             ArrayList<Object> values = (ArrayList<Object>) args[1];
             long[] result = new long[values.size()];
             int i = 0;
