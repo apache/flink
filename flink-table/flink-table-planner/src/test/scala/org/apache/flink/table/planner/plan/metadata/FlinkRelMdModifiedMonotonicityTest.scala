@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalTableAggregate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
-import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.hint.RelHint
@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import java.util
+import java.util.stream.Collectors
 
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.postfixOps
@@ -62,7 +63,10 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     // project `age` field and corresponding output type
     val projection = java.util.List.of[RexInputRef](relBuilder.field("age"))
     val ageFieldType =
-      inputAgg.getRowType.getFieldList.stream().filter(x => x.getName.equals("age")).toList
+      inputAgg.getRowType.getFieldList
+        .stream()
+        .filter(x => x.getName.equals("age"))
+        .collect(Collectors.toList[RelDataTypeField]())
     val outputType = new RelRecordType(ageFieldType)
 
     // select age from (select id, age, count() from student by id, age) where ...
