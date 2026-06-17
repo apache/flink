@@ -283,7 +283,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     }
 
     private void awaitExpectedResults(
-            final TableTestProgram program, final List<CompletableFuture<?>> futures)
+            final TableTestProgram program,
+            final List<CompletableFuture<?>> futures,
+            final boolean ignoreAfter)
             throws Exception {
         try {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
@@ -292,11 +294,22 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             final StringBuilder message = new StringBuilder();
             message.append("Sink did not produce the expected results within ")
                     .append(RESULT_AWAIT_TIMEOUT_MILLIS)
-                    .append("ms for program '")
+                    .append(" ms for program '")
                     .append(program.id)
                     .append("'.");
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
+                // Mirror the expected set the observer waits on, so the dump is exact.
+                final List<String> expected =
+                        new ArrayList<>(sinkTestStep.getExpectedBeforeRestoreAsStrings());
+                if (!ignoreAfter) {
+                    expected.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
+                }
                 message.append(System.lineSeparator())
+                        .append("Sink '")
+                        .append(sinkTestStep.name)
+                        .append("' expected results: ")
+                        .append(expected)
+                        .append(System.lineSeparator())
                         .append("Sink '")
                         .append(sinkTestStep.name)
                         .append("' actual results: ")
@@ -366,7 +379,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
-        awaitExpectedResults(program, futures);
+        awaitExpectedResults(program, futures, true);
         final JobClient jobClient = tableResult.getJobClient().get();
         final String savepoint =
                 jobClient
@@ -461,8 +474,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         if (afterRestoreSource == AfterRestoreSource.INFINITE) {
             final TableResult tableResult = compiledPlan.execute();
-            awaitExpectedResults(program, futures);
-            tableResult.getJobClient().get().cancel().get();
+            try {
+                awaitExpectedResults(program, futures, false);
+            } finally {
+                tableResult.getJobClient().get().cancel().get();
+            }
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
