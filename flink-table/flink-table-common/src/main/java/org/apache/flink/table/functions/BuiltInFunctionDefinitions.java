@@ -936,7 +936,7 @@ public final class BuiltInFunctionDefinitions {
                             StaticArgument.scalar(
                                     "load_completed_condition", DataTypes.STRING(), true),
                             StaticArgument.scalar(
-                                    "load_completed_time", DataTypes.TIMESTAMP(3), true),
+                                    "load_completed_time", DataTypes.TIMESTAMP_LTZ(3), true),
                             StaticArgument.scalar(
                                     "load_completed_idle_timeout",
                                     DataTypes.INTERVAL(DataTypes.SECOND()),
@@ -946,6 +946,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY)
                     .runtimeProvided()
+                    // TODO: disableSystemArguments(true), once we have a dedicated translation rule
                     .notDeterministic()
                     .build();
 

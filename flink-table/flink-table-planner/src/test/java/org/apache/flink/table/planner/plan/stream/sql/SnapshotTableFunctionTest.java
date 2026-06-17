@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -60,14 +61,16 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE TABLE Rates ("
                                 + "  currency STRING,"
-                                + "  rate INT"
+                                + "  rate INT,"
+                                + "  rate_time TIMESTAMP(3)"
                                 + ") WITH ('connector' = 'values')");
         // Sinks used by the execution tests below.
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE RatesSink ("
                                 + "  currency STRING,"
-                                + "  rate INT"
+                                + "  rate INT,"
+                                + "  rate_time TIMESTAMP(3)"
                                 + ") WITH ('connector' = 'blackhole')");
         util.tableEnv()
                 .executeSql(
@@ -85,7 +88,7 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 "SELECT * FROM SNAPSHOT("
                         + "input => TABLE Rates, "
                         + "load_completed_condition => 'user_time', "
-                        + "load_completed_time => TIMESTAMP '2026-07-01 00:00:00.001', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00.001' AS TIMESTAMP_LTZ(3)), "
                         + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
                         + "state_ttl => INTERVAL '1' DAY)");
     }
@@ -97,6 +100,38 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 "SELECT o.order_id, o.amount, r.rate "
                         + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT(input => TABLE Rates)) AS r "
                         + "WHERE o.currency = r.currency");
+    }
+
+    @Test
+    @Disabled(
+            "SNAPSHOT should disable the implicit system arguments (on_time, uid), but that is not "
+                    + "wired up yet. disableSystemArguments(true) is only legal for a PTF that is "
+                    + "rewritten by its own optimizer rule before reaching "
+                    + "StreamPhysicalProcessTableFunctionRule (which otherwise rejects it with "
+                    + "'Disabling system arguments is not supported for user-defined PTF').")
+    void testSystemArgumentsNotAllowed() {
+        // SNAPSHOT must disable the implicit system arguments (e.g. `on_time`). Passing one must be
+        // rejected because the argument is not allowed.
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM SNAPSHOT("
+                                                + "input => TABLE Rates, "
+                                                + "on_time => DESCRIPTOR(rate_time))"))
+                .satisfies(anyCauseMatches("on_time"));
+    }
+
+    @Test
+    void testPartitionByNotAllowed() {
+        // The table argument uses row semantics, so it does not accept a PARTITION BY clause.
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM SNAPSHOT("
+                                                + "input => TABLE Rates PARTITION BY currency)"))
+                .satisfies(
+                        anyCauseMatches(
+                                "Only tables with set semantics may be partitioned. Invalid PARTITION BY clause in the 0-th operand of table function 'SNAPSHOT'"));
     }
 
     @Test

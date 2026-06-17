@@ -45,9 +45,9 @@ import java.util.Set;
  *   <li>{@code input} (TABLE, required)
  *   <li>{@code load_completed_condition} (STRING literal, optional, default {@code 'compile_time'},
  *       allowed values: {@code 'compile_time'}, {@code 'user_time'})
- *   <li>{@code load_completed_time} (TIMESTAMP(3) literal, optional)
- *   <li>{@code load_completed_idle_timeout} (INTERVAL SECOND literal, optional)
- *   <li>{@code state_ttl} (INTERVAL SECOND literal, optional)
+ *   <li>{@code load_completed_time} (TIMESTAMP_LTZ(3), optional)
+ *   <li>{@code load_completed_idle_timeout} (INTERVAL SECOND, optional)
+ *   <li>{@code state_ttl} (INTERVAL SECOND, optional)
  * </ul>
  *
  * <p>and ensures cross-argument consistency:
@@ -69,7 +69,7 @@ public final class LateralSnapshotTypeStrategy {
     /** Argument index of the {@code load_completed_condition} STRING. */
     public static final int LOAD_COMPLETED_CONDITION_ARG_INDEX = 1;
 
-    /** Argument index of the {@code load_completed_time} TIMESTAMP. */
+    /** Argument index of the {@code load_completed_time} TIMESTAMP_LTZ. */
     public static final int LOAD_COMPLETED_TIME_ARG_INDEX = 2;
 
     /** Argument index of the {@code load_completed_idle_timeout} INTERVAL. */
@@ -118,7 +118,7 @@ public final class LateralSnapshotTypeStrategy {
                             Signature.of(
                                     Argument.of("input", "TABLE"),
                                     Argument.of("load_completed_condition", "STRING"),
-                                    Argument.of("load_completed_time", "TIMESTAMP(3)"),
+                                    Argument.of("load_completed_time", "TIMESTAMP_LTZ(3)"),
                                     Argument.of("load_completed_idle_timeout", "INTERVAL SECOND"),
                                     Argument.of("state_ttl", "INTERVAL SECOND")));
                 }
@@ -176,14 +176,8 @@ public final class LateralSnapshotTypeStrategy {
                     condition);
         }
 
-        // Check that load_completed_time, if provided, is a literal.
         final boolean hasLoadCompletedTime =
                 isArgumentProvided(callContext, LOAD_COMPLETED_TIME_ARG_INDEX);
-        if (isProvidedNonLiteral(callContext, LOAD_COMPLETED_TIME_ARG_INDEX)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Argument 'load_completed_time' of SNAPSHOT must be a TIMESTAMP literal.");
-        }
 
         // Cross-argument consistency: condition <-> load_completed_time
         if (LOAD_COMPLETED_CONDITION_USER_TIME.equals(condition) && !hasLoadCompletedTime) {
@@ -197,20 +191,6 @@ public final class LateralSnapshotTypeStrategy {
                     throwOnFailure,
                     "SNAPSHOT does not accept 'load_completed_time' when "
                             + "'load_completed_condition' is not 'user_time'.");
-        }
-
-        // check that load_completed_idle_timeout, if provided, is literal
-        if (isProvidedNonLiteral(callContext, LOAD_COMPLETED_IDLE_TIMEOUT_ARG_INDEX)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Argument 'load_completed_idle_timeout' of SNAPSHOT must be an INTERVAL literal.");
-        }
-
-        // check that state_ttl, if provided, is literal
-        if (isProvidedNonLiteral(callContext, STATE_TTL_ARG_INDEX)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Argument 'state_ttl' of SNAPSHOT must be an INTERVAL literal.");
         }
 
         return Optional.of(callContext.getArgumentDataTypes());

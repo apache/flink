@@ -172,54 +172,6 @@ class LateralSnapshotInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         // Intentionally no literal provided for load_completed_condition
                         .expectErrorMessage(
-                                "Argument 'load_completed_condition' of SNAPSHOT must be a STRING literal."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: load_completed_time provided as a non-literal expression.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: non-literal load_completed_time",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, STRING_TYPE, TIMESTAMP_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, "user_time")
-                        // Intentionally no literal provided for load_completed_time
-                        .expectErrorMessage(
-                                "Argument 'load_completed_time' of SNAPSHOT must be a TIMESTAMP literal."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: load_completed_idle_timeout provided as a non-literal expression.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: non-literal load_completed_idle_timeout",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                TABLE_TYPE, STRING_TYPE, TIMESTAMP_TYPE, INTERVAL_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, "user_time")
-                        .calledWithLiteralAt(2, LocalDateTime.parse("2026-07-01T00:00:00.001"))
-                        // Intentionally no literal provided for load_completed_idle_timeout
-                        .expectErrorMessage(
-                                "Argument 'load_completed_idle_timeout' of SNAPSHOT must be an INTERVAL literal."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: state_ttl provided as a non-literal expression.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: non-literal state_ttl",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                TABLE_TYPE,
-                                STRING_TYPE,
-                                TIMESTAMP_TYPE,
-                                INTERVAL_TYPE,
-                                INTERVAL_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, "user_time")
-                        .calledWithLiteralAt(2, LocalDateTime.parse("2026-07-01T00:00:00.001"))
-                        .calledWithLiteralAt(3, Duration.ofSeconds(10))
-                        // Intentionally no literal provided for state_ttl
-                        .expectErrorMessage(
-                                "Argument 'state_ttl' of SNAPSHOT must be an INTERVAL literal."));
+                                "Argument 'load_completed_condition' of SNAPSHOT must be a STRING literal."));
     }
 }

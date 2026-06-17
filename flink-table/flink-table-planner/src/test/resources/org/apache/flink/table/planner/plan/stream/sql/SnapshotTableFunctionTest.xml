@@ -18,20 +18,20 @@ limitations under the License.
 <Root>
   <TestCase name="testFromContext">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM SNAPSHOT(input => TABLE Rates, load_completed_condition => 'user_time', load_completed_time => TIMESTAMP '2026-07-01 00:00:00.001', load_completed_idle_timeout => INTERVAL '10' SECOND, state_ttl => INTERVAL '1' DAY)]]>
+      <![CDATA[SELECT * FROM SNAPSHOT(input => TABLE Rates, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00.001' AS TIMESTAMP_LTZ(3)), load_completed_idle_timeout => INTERVAL '10' SECOND, state_ttl => INTERVAL '1' DAY)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$0], rate=[$1])
-+- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', 2026-07-01 00:00:00.001:TIMESTAMP(3), 10000:INTERVAL SECOND, 86400000:INTERVAL DAY, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate)])
-   +- LogicalProject(currency=[$0], rate=[$1])
+LogicalProject(currency=[$0], rate=[$1], rate_time=[$2])
++- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00.001:TIMESTAMP(3)):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, 10000:INTERVAL SECOND, 86400000:INTERVAL DAY, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) rate_time)])
+   +- LogicalProject(currency=[$0], rate=[$1], rate_time=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Rates]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', 2026-07-01 00:00:00.001:TIMESTAMP(3), 10000:INTERVAL SECOND, 86400000:INTERVAL DAY, DEFAULT(), DEFAULT())], uid=[null], select=[currency,rate], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate)])
-+- TableSourceScan(table=[[default_catalog, default_database, Rates]], fields=[currency, rate])
+ProcessTableFunction(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00.001:TIMESTAMP(3)):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, 10000:INTERVAL SECOND, 86400000:INTERVAL DAY, DEFAULT(), DEFAULT())], uid=[null], select=[currency,rate,rate_time], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) rate_time)])
++- TableSourceScan(table=[[default_catalog, default_database, Rates]], fields=[currency, rate, rate_time])
 ]]>
     </Resource>
   </TestCase>
@@ -46,8 +46,8 @@ LogicalProject(order_id=[$0], amount=[$2], rate=[$5])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[order_time], watermark=[$3])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate)])
-         +- LogicalProject(currency=[$0], rate=[$1])
+      +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) rate_time)])
+         +- LogicalProject(currency=[$0], rate=[$1], rate_time=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, Rates]])
 ]]>
     </Resource>
@@ -60,8 +60,9 @@ Calc(select=[order_id, amount, rate])
    :     +- WatermarkAssigner(rowtime=[order_time], watermark=[order_time])
    :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, currency, amount, order_time])
    +- Exchange(distribution=[hash[currency]])
-      +- ProcessTableFunction(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[currency,rate], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate)])
-         +- TableSourceScan(table=[[default_catalog, default_database, Rates]], fields=[currency, rate])
+      +- Calc(select=[currency, rate])
+         +- ProcessTableFunction(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[currency,rate,rate_time], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) rate_time)])
+            +- TableSourceScan(table=[[default_catalog, default_database, Rates]], fields=[currency, rate, rate_time])
 ]]>
     </Resource>
   </TestCase>
