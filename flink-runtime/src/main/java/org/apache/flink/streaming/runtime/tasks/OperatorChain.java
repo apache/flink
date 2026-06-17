@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.CountingOutput;
+import org.apache.flink.streaming.api.operators.EmitsRecordsOnFinalCheckpoint;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -386,6 +387,22 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return reverse
                 ? new StreamOperatorWrapper.ReadIterator(tailOperatorWrapper, true)
                 : new StreamOperatorWrapper.ReadIterator(mainOperatorWrapper, false);
+    }
+
+    /**
+     * Whether any operator in the chain emits records downstream while processing the final
+     * checkpoint's {@code notifyCheckpointComplete} (see {@link EmitsRecordsOnFinalCheckpoint}).
+     * The owning task defers broadcasting {@code EndOfData} until then (FLINK-38614).
+     */
+    public boolean emitsRecordsOnFinalCheckpoint() {
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(false)) {
+            StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+            if (operator instanceof EmitsRecordsOnFinalCheckpoint
+                    && ((EmitsRecordsOnFinalCheckpoint) operator).emitsRecordsOnFinalCheckpoint()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Input getFinishedOnRestoreInputOrDefault(Input defaultInput) {
