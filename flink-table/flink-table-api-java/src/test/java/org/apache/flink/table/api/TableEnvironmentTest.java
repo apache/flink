@@ -119,6 +119,7 @@ class TableEnvironmentTest {
                 tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getTable(objectPath);
         assertThat(catalogView).isInstanceOf(CatalogView.class);
         assertThat(catalogView.getUnresolvedSchema()).isEqualTo(TEST_SCHEMA);
+        assertThat(catalogView.getComment()).isEmpty();
     }
 
     @Test
