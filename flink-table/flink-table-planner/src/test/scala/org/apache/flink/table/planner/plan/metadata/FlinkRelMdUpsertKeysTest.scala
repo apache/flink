@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
@@ -27,12 +28,13 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankTyp
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.prepare.CalciteCatalogReader
-import org.apache.calcite.rel.`type`.RelDataTypeFieldImpl
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.{RelCollations, RelFieldCollation, RelNode}
 import org.apache.calcite.rel.core.{JoinRelType, Window}
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexWindowBounds}
-import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
+import org.apache.calcite.sql.`type`.SqlTypeName.{VARBINARY, VARCHAR}
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN, MAX}
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -42,7 +44,7 @@ import org.junit.jupiter.api.Test
 
 import java.util.Collections
 
-import scala.collection.JavaConverters.setAsJavaSetConverter
+import scala.collection.JavaConverters.{seqAsJavaListConverter, setAsJavaSetConverter}
 
 class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
 
@@ -172,6 +174,55 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
 
     // The key is LOST because STRING->INT is not injective
     assertEquals(toBitSet(), mq.getUpsertKeys(narrowedProject))
+  }
+
+  @Test
+  def testGetUpsertKeysOnProjectInjectiveBytesToStringCast(): Unit = {
+    // VARCHAR(100) -> VARBINARY(400) is injective: 400 bytes covers the worst-case UTF-8
+    // expansion (100 chars * 4 bytes), so the key survives.
+    val keyedByString = castField(studentLogicalScan, 0, typeFactory.createSqlType(VARCHAR, 100))
+    val keyedByBytes = castField(keyedByString, 0, typeFactory.createSqlType(VARBINARY, 400))
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(keyedByBytes))
+
+    // VARBINARY(400) -> VARCHAR(400) is injective, so the key survives.
+    val keyedByStringAgain = castField(keyedByBytes, 0, typeFactory.createSqlType(VARCHAR, 400))
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(keyedByStringAgain))
+  }
+
+  @Test
+  def testGetUpsertKeysOnProjectBytesToStringCastLosesKeyInLegacyMode(): Unit = {
+    // Legacy mode replaces invalid UTF-8 with U+FFFD, so distinct bytes can collide and the cast
+    // is no longer injective.
+    tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_LEGACY_BYTES_TO_STRING_CAST,
+      Boolean.box(true))
+
+    val keyedByString = castField(studentLogicalScan, 0, typeFactory.createSqlType(VARCHAR, 100))
+    val keyedByBytes = castField(keyedByString, 0, typeFactory.createSqlType(VARBINARY, 400))
+    val keyedByStringAgain = castField(keyedByBytes, 0, typeFactory.createSqlType(VARCHAR, 400))
+
+    assertEquals(toBitSet(), mq.getUpsertKeys(keyedByStringAgain))
+  }
+
+  /**
+   * Projects `input` with the field at `fieldIndex` cast to `targetType` and all other fields
+   * passed through unchanged, preserving the input field names.
+   */
+  private def castField(
+      input: RelNode,
+      fieldIndex: Int,
+      targetType: RelDataType): LogicalProject = {
+    val rowType = input.getRowType
+    val exprs: Seq[RexNode] = (0 until rowType.getFieldCount).map {
+      i =>
+        val ref = RexInputRef.of(i, rowType)
+        if (i == fieldIndex) rexBuilder.makeCast(targetType, ref) else ref
+    }
+    LogicalProject.create(
+      input,
+      Collections.emptyList[RelHint](),
+      exprs.asJava,
+      rowType.getFieldNames)
   }
 
   @Test
