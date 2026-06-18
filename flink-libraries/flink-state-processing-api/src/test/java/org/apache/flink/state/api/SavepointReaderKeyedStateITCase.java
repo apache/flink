@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -25,23 +27,29 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.SavepointTestBase;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.testing.CollectingSink;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for reading state. */
 public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
@@ -51,8 +59,10 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     private static ValueStateDescriptor<Integer> valueState =
             new ValueStateDescriptor<>("value", Types.INT);
 
+    private static final String STATE_READS_ACCUMULATOR = "stateReadsAccumulator";
+
     private static final List<Pojo> elements =
-            Arrays.asList(Pojo.of(1, 1), Pojo.of(2, 2), Pojo.of(3, 3));
+            IntStream.rangeClosed(1, 10).mapToObj(i -> Pojo.of(i, i)).collect(Collectors.toList());
 
     protected abstract Tuple2<Configuration, B> getStateBackendTuple();
 
@@ -63,13 +73,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
-        env.addSource(createSource(elements))
-                .returns(Pojo.class)
-                .rebalance()
-                .keyBy(id -> id.key)
-                .process(new KeyedStatefulOperator())
-                .uid(uid)
-                .sinkTo(new DiscardingSink<>());
+        applyStatefulPipeline(env);
 
         String savepointPath = takeSavepoint(env);
 
@@ -83,6 +87,151 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         Assert.assertEquals(
                 "Unexpected results from keyed state", expected, new HashSet<>(results));
+    }
+
+    @Test
+    public void testReadKeyedStateWithExactFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(savepoint, SavepointKeyFilter.exact(5));
+        // Only key=5 reaches the reader and reads state.
+        assertThat(result.values).containsExactly(5);
+        assertThat(result.counter).isEqualTo(1);
+    }
+
+    @Test
+    public void testReadKeyedStateWithInclusiveRangeFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.range(3, true, 6, true));
+        // [3, 6]: only the in-range keys reach the reader and read state.
+        assertThat(result.values).containsExactlyInAnyOrder(3, 4, 5, 6);
+        assertThat(result.counter).isEqualTo(4);
+    }
+
+    @Test
+    public void testReadKeyedStateWithInclusiveLowerExclusiveUpperRangeFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.range(3, true, 6, false));
+        // [3, 6): the exclusive upper bound drops key 6.
+        assertThat(result.values).containsExactlyInAnyOrder(3, 4, 5);
+        assertThat(result.counter).isEqualTo(3);
+    }
+
+    @Test
+    public void testReadKeyedStateWithExclusiveLowerInclusiveUpperRangeFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.range(3, false, 6, true));
+        // (3, 6]: the exclusive lower bound drops key 3.
+        assertThat(result.values).containsExactlyInAnyOrder(4, 5, 6);
+        assertThat(result.counter).isEqualTo(3);
+    }
+
+    @Test
+    public void testReadKeyedStateWithExclusiveRangeFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.range(3, false, 6, false));
+        // (3, 6): both bounds exclusive, dropping keys 3 and 6.
+        assertThat(result.values).containsExactlyInAnyOrder(4, 5);
+        assertThat(result.counter).isEqualTo(2);
+    }
+
+    @Test
+    public void testReadKeyedStateWithEmptyFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(savepoint, SavepointKeyFilter.empty());
+        // No key reaches the reader, so no state is read.
+        assertThat(result.values).isEmpty();
+        assertThat(result.counter).isZero();
+    }
+
+    private void applyStatefulPipeline(StreamExecutionEnvironment env) {
+        env.addSource(createSource(elements))
+                .returns(Pojo.class)
+                .rebalance()
+                .keyBy(id -> id.key)
+                .process(new KeyedStatefulOperator())
+                .uid(uid)
+                .sinkTo(new DiscardingSink<>());
+    }
+
+    private CountingReadResult readKeyedStateWithCountingReader(
+            SavepointReader savepoint, SavepointKeyFilter keyFilter) throws Exception {
+        DataStream<Integer> stateValues =
+                savepoint.readKeyedState(
+                        OperatorIdentifier.forUid(uid),
+                        new CountingReader(),
+                        Types.INT,
+                        Types.INT,
+                        keyFilter);
+        CollectingSink<Integer> collectingSink = new CollectingSink<>();
+        stateValues.sinkTo(collectingSink);
+        JobExecutionResult jobResult = stateValues.getExecutionEnvironment().execute();
+        Integer counter = jobResult.getAccumulatorResult(STATE_READS_ACCUMULATOR);
+        return new CountingReadResult(
+                collectingSink.getRemainingOutput(), counter == null ? 0 : counter);
     }
 
     private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
@@ -121,6 +270,34 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
             pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
 
             out.collect(pojo);
+        }
+    }
+
+    private static class CountingReader extends KeyedStateReaderFunction<Integer, Integer> {
+
+        private transient ValueState<Integer> state;
+        private transient IntCounter counter;
+
+        @Override
+        public void open(OpenContext openContext) {
+            state = getRuntimeContext().getState(valueState);
+            counter = getRuntimeContext().getIntCounter(STATE_READS_ACCUMULATOR);
+        }
+
+        @Override
+        public void readKey(Integer key, Context ctx, Collector<Integer> out) throws Exception {
+            counter.add(1);
+            out.collect(state.value());
+        }
+    }
+
+    private static class CountingReadResult {
+        private final List<Integer> values;
+        private final int counter;
+
+        private CountingReadResult(List<Integer> values, int counter) {
+            this.values = values;
+            this.counter = counter;
         }
     }
 

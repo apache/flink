@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
@@ -62,6 +63,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for keyed state input format. */
@@ -114,6 +116,54 @@ class KeyedStateInputFormatTest {
                 "Failed to properly partition operator state into input splits",
                 128,
                 splits.length);
+    }
+
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testExactKeyFilterPrunesInputSplits(boolean asyncState) throws Exception {
+        OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
+        operatorState.putState(0, state);
+
+        KeyedStateInputFormat<?, ?, ?> format =
+                new KeyedStateInputFormat<>(
+                        operatorState,
+                        new HashMapStateBackend(),
+                        new Configuration(),
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig(),
+                        SavepointKeyFilter.exact(5));
+        KeyGroupRangeInputSplit[] splits = format.createInputSplits(10);
+
+        assertThat(splits)
+                .as("Single-key exact filter maps to exactly one key group range")
+                .hasSize(1);
+    }
+
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testEmptyFilterProducesNoInputSplits(boolean asyncState) throws Exception {
+        OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
+        operatorState.putState(0, state);
+
+        KeyedStateInputFormat<?, ?, ?> format =
+                new KeyedStateInputFormat<>(
+                        operatorState,
+                        new HashMapStateBackend(),
+                        new Configuration(),
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig(),
+                        SavepointKeyFilter.empty());
+        KeyGroupRangeInputSplit[] splits = format.createInputSplits(10);
+
+        assertThat(splits).isEmpty();
     }
 
     @ParameterizedTest(name = "Enable async state = {0}")

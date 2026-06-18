@@ -18,31 +18,20 @@
 
 package org.apache.flink.state.table;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.state.api.OperatorIdentifier;
-import org.apache.flink.state.api.filter.SavepointKeyFilter;
-import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
-import org.apache.flink.state.api.input.KeyedStateInputFormat;
-import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
-import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
-import org.apache.flink.state.api.runtime.SavepointLoader;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
@@ -238,9 +227,11 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(tEnv.sqlQuery("SELECT k FROM state_table WHERE k = 5"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getField("k")).isEqualTo(5L);
@@ -252,9 +243,11 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(tEnv.sqlQuery("SELECT * FROM state_table WHERE k = 5"))
-                        .executeAndCollect(100);
+        String sql = "SELECT * FROM state_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(1);
         Row row = result.get(0);
@@ -277,10 +270,11 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(
-                                tEnv.sqlQuery("SELECT k FROM state_table WHERE k >= 7 ORDER BY k"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE k >= 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(3);
         assertThat(result.get(0).getField("k")).isEqualTo(7L);
@@ -293,35 +287,13 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(tEnv.sqlQuery("SELECT k FROM state_table WHERE k = 999"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE k = 999";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).isEmpty();
-    }
-
-    @Test
-    void testFilterPushDownReducesSplitCount() throws Exception {
-        final String statePath = "src/test/resources/table-state";
-        final OperatorIdentifier opId = OperatorIdentifier.forUid("keyed-state-process-uid");
-
-        SavepointMetadataV2 metadata = loadMetadata(statePath);
-        OperatorState operatorState = metadata.getOperatorState(opId);
-        Configuration config = new Configuration();
-
-        KeyedStateInputFormat<Long, ?, Row> formatFiltered =
-                new KeyedStateInputFormat<>(
-                        operatorState,
-                        null,
-                        config,
-                        new KeyedStateReaderOperator<>(new NoOpReaderFunction(), Types.LONG),
-                        new ExecutionConfig(),
-                        SavepointKeyFilter.exact(5L));
-        KeyGroupRangeInputSplit[] filteredSplits = formatFiltered.createInputSplits(10);
-
-        assertThat(filteredSplits)
-                .as("Single-key exact filter maps to exactly one key group range")
-                .hasSize(1);
     }
 
     @Test
@@ -329,11 +301,11 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(
-                                tEnv.sqlQuery(
-                                        "SELECT k FROM state_table WHERE k IN (3, 7) ORDER BY k"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE k IN (3, 7) ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getField("k")).isEqualTo(3L);
@@ -348,12 +320,13 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(
-                                tEnv.sqlQuery(
-                                        "SELECT k, KeyedPrimitiveValueMap FROM state_table"
-                                                + " WHERE k = 5 AND KeyedPrimitiveValueMap['5'] > 3"))
-                        .executeAndCollect(100);
+        String sql =
+                "SELECT k, KeyedPrimitiveValueMap FROM state_table"
+                        + " WHERE k = 5 AND KeyedPrimitiveValueMap['5'] > 3";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getField("k")).isEqualTo(5L);
@@ -367,11 +340,11 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(
-                                tEnv.sqlQuery(
-                                        "SELECT k FROM state_table WHERE k BETWEEN 3 AND 6 ORDER BY k"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE k BETWEEN 3 AND 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(4);
         assertThat(result.get(0).getField("k")).isEqualTo(3L);
@@ -386,51 +359,32 @@ class SavepointDynamicTableSourceTest {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(tEnv.sqlQuery("SELECT k FROM state_table WHERE 5 = k"))
-                        .executeAndCollect(100);
+        String sql = "SELECT k FROM state_table WHERE 5 = k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getField("k")).isEqualTo(5L);
     }
 
     @Test
-    void testEmptyFilterProducesZeroSplits() throws Exception {
-        final String statePath = "src/test/resources/table-state";
-        final OperatorIdentifier opId = OperatorIdentifier.forUid("keyed-state-process-uid");
-
-        SavepointMetadataV2 metadata = loadMetadata(statePath);
-        OperatorState operatorState = metadata.getOperatorState(opId);
-        Configuration config = new Configuration();
-
-        KeyedStateInputFormat<Long, ?, Row> format =
-                new KeyedStateInputFormat<>(
-                        operatorState,
-                        null,
-                        config,
-                        new KeyedStateReaderOperator<>(new NoOpReaderFunction(), Types.LONG),
-                        new ExecutionConfig(),
-                        SavepointKeyFilter.empty());
-        KeyGroupRangeInputSplit[] splits = format.createInputSplits(10);
-
-        assertThat(splits).isEmpty();
-    }
-
-    @Test
     @SuppressWarnings("unchecked")
-    void testFilterPushDownOrWithNonKeyColumnStillReturnsCorrectResult() throws Exception {
+    void testOrAcrossKeyAndNonKeyColumnIsNotPushedDownButReturnsCorrectResult() throws Exception {
         // OR involving a non-pushable column: correctness must be preserved
         // regardless of whether the planner pushes the filter or not.
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
-        List<Row> result =
-                tEnv.toDataStream(
-                                tEnv.sqlQuery(
-                                        "SELECT k, KeyedPrimitiveValueMap FROM state_table"
-                                                + " WHERE k = 5 OR KeyedPrimitiveValueMap['0'] = 0"
-                                                + " ORDER BY k"))
-                        .executeAndCollect(100);
+        String sql =
+                "SELECT k, KeyedPrimitiveValueMap FROM state_table"
+                        + " WHERE k = 5 OR KeyedPrimitiveValueMap['0'] = 0"
+                        + " ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getField("k")).isEqualTo(0L);
@@ -440,39 +394,38 @@ class SavepointDynamicTableSourceTest {
         assertThat(result.get(1).getField("k")).isEqualTo(5L);
     }
 
+    @Test
+    void testUnsupportedFilterIsNotPushedDownButReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k % 2 = 0 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
+
+        List<Long> keys =
+                result.stream().map(r -> (Long) r.getField("k")).collect(Collectors.toList());
+        assertThat(keys).containsExactly(0L, 2L, 4L, 6L, 8L);
+    }
+
     // -------------------------------------------------------------------------
     //  Helpers
     // -------------------------------------------------------------------------
-
-    private static SavepointMetadataV2 loadMetadata(String path) throws Exception {
-        var checkpoint = SavepointLoader.loadSavepointMetadata(path);
-        int maxParallelism =
-                checkpoint.getOperatorStates().stream()
-                        .map(OperatorState::getMaxParallelism)
-                        .max(java.util.Comparator.naturalOrder())
-                        .orElseThrow();
-        return new SavepointMetadataV2(
-                checkpoint.getCheckpointId(),
-                maxParallelism,
-                checkpoint.getMasterStates(),
-                checkpoint.getOperatorStates());
-    }
-
-    /** A no-op reader function used only to construct the input format for split-count tests. */
-    private static class NoOpReaderFunction extends KeyedStateReaderFunction<Long, Row> {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public void open(org.apache.flink.api.common.functions.OpenContext openContext) {}
-
-        @Override
-        public void readKey(Long key, Context ctx, Collector<Row> out) {}
-    }
 
     private static StreamTableEnvironment createBatchTableEnv() {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
         return StreamTableEnvironment.create(env);
+    }
+
+    private static final Pattern PUSHED_DOWN_FILTER =
+            Pattern.compile(
+                    "TableSourceScan\\(table=\\[\\[default_catalog, default_database, state_table, filter=\\[.+?]]]");
+
+    private static boolean hasPushedDownFilter(StreamTableEnvironment tEnv, String sql) {
+        return PUSHED_DOWN_FILTER.matcher(tEnv.explainSql(sql)).find();
     }
 }
