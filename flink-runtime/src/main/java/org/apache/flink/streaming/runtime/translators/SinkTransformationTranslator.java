@@ -277,6 +277,13 @@ public class SinkTransformationTranslator<Input, Output>
                         adjustTransformations(
                                 writerResult, preCommittingSink::addPreCommitTopology, true, false);
             } else {
+                // Default to co-location for sinks without pre-commit topology ensuring
+                // writer and committer run on the same TaskManager.
+                if (transformation.getCoLocationGroupKey() == null) {
+                    transformation.setCoLocationGroupKey(
+                            "sink-writer-committer-" + transformation.getId());
+                }
+
                 precommitted = addWriter(sink, inputStream, committableTypeInformation);
             }
 
