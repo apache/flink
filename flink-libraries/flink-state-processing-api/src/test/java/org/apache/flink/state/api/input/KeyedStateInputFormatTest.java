@@ -168,6 +168,37 @@ class KeyedStateInputFormatTest {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
+    void testRangeFilterDoesNotPruneInputSplits(boolean asyncState) throws Exception {
+        OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
+        operatorState.putState(0, state);
+
+        KeyedStateInputFormat<?, ?, ?> formatRange =
+                new KeyedStateInputFormat<>(
+                        operatorState,
+                        new HashMapStateBackend(),
+                        new Configuration(),
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig(),
+                        SavepointKeyFilter.range(3, true, 7, true));
+        KeyedStateInputFormat<?, ?, ?> formatNoFilter =
+                new KeyedStateInputFormat<>(
+                        operatorState,
+                        new HashMapStateBackend(),
+                        new Configuration(),
+                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
+                        new ExecutionConfig());
+
+        assertThat(formatRange.createInputSplits(10))
+                .as("Range filters cannot prune key-group splits")
+                .hasSize(formatNoFilter.createInputSplits(10).length);
+    }
+
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     void testReadState(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 

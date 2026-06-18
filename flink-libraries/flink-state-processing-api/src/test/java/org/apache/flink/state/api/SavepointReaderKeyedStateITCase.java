@@ -109,6 +109,25 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
+    public void testReadKeyedStateWithMultiKeyExactFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.exact(Set.of(3, 5, 7)));
+        assertThat(result.values).containsExactlyInAnyOrder(3, 5, 7);
+        assertThat(result.counter).isEqualTo(3);
+    }
+
+    @Test
     public void testReadKeyedStateWithInclusiveRangeFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
