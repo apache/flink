@@ -114,11 +114,34 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
     // step4: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
-      val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
-      throw new TableException(
-        "Can't generate a valid execution plan for the given query:\n" + plan)
+      // Reaching here means no node assignment satisfies the changelog requirements. When the root
+      // is a sink that cannot consume the upsert changelog produced by its input, point at the
+      // conflict directly. Any other failure falls back to the full annotated plan.
+      val errorMessage = createTargetedErrorMessage(rootWithModifyKindSet)
+      throw new TableException(errorMessage)
     } else {
       finalRoot.head
+    }
+  }
+
+  private def createTargetedErrorMessage(rootWithModifyKindSet: StreamPhysicalRel) = {
+    if (
+      rootWithModifyKindSet.isInstanceOf[StreamPhysicalSink]
+      && containsUpdates(rootWithModifyKindSet)
+    ) {
+      val conflict = new StringBuilder(describeChangelog(rootWithModifyKindSet))
+      rootWithModifyKindSet.getInputs.foreach(
+        input => conflict.append("\n  +- ").append(describeChangelog(input)))
+      "Can't generate a valid execution plan for the given query.\n\n" +
+        "There is a changelog mismatch between two operators. One produces an upsert " +
+        "changelog (UPDATE_AFTER without UPDATE_BEFORE). The other requires a retract " +
+        "changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary " +
+        "key. In such cases, ensure that the sink is able to digest upserts where the " +
+        "PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n" +
+        "The conflict is at:\n" + conflict
+    } else {
+      val plan = FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)
+      "Can't generate a valid execution plan for the given query:\n" + plan
     }
   }
 
@@ -1602,6 +1625,29 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   private def getModifyKindSet(node: RelNode): ModifyKindSet = {
     val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
     modifyKindSetTrait.modifyKindSet
+  }
+
+  /** Whether the node or any node in its input subtree produces UPDATE changes. */
+  private def containsUpdates(rel: RelNode): Boolean =
+    getModifyKindSet(rel).contains(ModifyKind.UPDATE) ||
+      rel.getInputs.exists(input => containsUpdates(input))
+
+  /**
+   * Renders a node's type and changelog mode, for example
+   * "Sink(expectedChangelogMode=[I,UB,UA,D])".
+   */
+  private def describeChangelog(rel: RelNode): String = rel match {
+    case sink: StreamPhysicalSink =>
+      // A sink's own changelog mode is empty; show the mode it expects from its input instead.
+      val expected =
+        sink.tableSink.getChangelogMode(getModifyKindSet(sink.getInput).toDefaultChangelogMode)
+      s"Sink(expectedChangelogMode=[${ChangelogPlanUtils.stringifyChangelogMode(Some(expected))}])"
+    case streamRel: StreamPhysicalRel =>
+      val typeName = rel.getRelTypeName.stripPrefix("StreamPhysical")
+      val mode =
+        ChangelogPlanUtils.stringifyChangelogMode(ChangelogPlanUtils.getChangelogMode(streamRel))
+      s"$typeName(changelogMode=[$mode])"
+    case _ => rel.getRelTypeName
   }
 
   private def getDeleteKind(node: RelNode): DeleteKind = {
