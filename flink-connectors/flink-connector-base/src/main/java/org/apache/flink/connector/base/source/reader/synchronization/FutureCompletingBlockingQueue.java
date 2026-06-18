@@ -307,6 +307,16 @@ public class FutureCompletingBlockingQueue<T> {
         }
     }
 
+    @VisibleForTesting
+    int getNumberOfQueuedPutters() {
+        lock.lock();
+        try {
+            return notFull.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * Gracefully wakes up the thread with the given {@code threadIndex} if it is blocked in adding
      * an element. to the queue. If the thread is blocked in {@link #put(int, Object)} it will
@@ -363,7 +373,13 @@ public class FutureCompletingBlockingQueue<T> {
         maybeCreateCondition(fetcherIndex);
         Condition cond = putConditionAndFlags[fetcherIndex].condition();
         notFull.add(cond);
-        cond.await();
+        try {
+            cond.await();
+        } finally {
+            // drop the condition once the thread stops waiting, so a later signalNextPutter()
+            // does not signal a putter that is no longer waiting
+            notFull.remove(cond);
+        }
     }
 
     @GuardedBy("lock")
