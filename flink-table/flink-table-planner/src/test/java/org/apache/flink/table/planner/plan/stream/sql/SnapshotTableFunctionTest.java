@@ -62,7 +62,8 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                         "CREATE TABLE Rates ("
                                 + "  currency STRING,"
                                 + "  rate INT,"
-                                + "  rate_time TIMESTAMP(3)"
+                                + "  rate_time TIMESTAMP(3),"
+                                + "  WATERMARK FOR rate_time AS rate_time"
                                 + ") WITH ('connector' = 'values')");
         // Sinks used by the execution tests below.
         util.tableEnv()

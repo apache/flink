@@ -19,6 +19,8 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableSemantics;
@@ -30,10 +32,13 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Type strategies for the {@code SNAPSHOT} table function used by the {@code LATERAL SNAPSHOT}
@@ -58,7 +63,8 @@ import java.util.Set;
  *       load_completed_time}.
  * </ul>
  *
- * <p>The output type passes the input table's row type through unchanged.
+ * <p>The output type forwards the input table's row type, but materializes any rowtime attribute
+ * indicator into a regular timestamp.
  */
 @Internal
 public final class LateralSnapshotTypeStrategy {
@@ -125,7 +131,7 @@ public final class LateralSnapshotTypeStrategy {
             };
 
     // --------------------------------------------------------------------------------------------
-    // Output type inference: pass-through of input table row type.
+    // Output type inference: forward the input table row type with time attributes materialized.
     // --------------------------------------------------------------------------------------------
 
     public static final TypeStrategy OUTPUT_TYPE_STRATEGY =
@@ -137,12 +143,31 @@ public final class LateralSnapshotTypeStrategy {
                                         () ->
                                                 new ValidationException(
                                                         "Argument 'input' of SNAPSHOT must be a table."));
-                return Optional.of(semantics.dataType());
+                return Optional.of(materializeTimeAttributes(semantics.dataType()));
             };
 
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Rebuilds {@code inputTableType} as a ROW with all fields identical to the input, except for
+     * time attributes which get stripped off their time indicator property.
+     */
+    private static DataType materializeTimeAttributes(final DataType inputTableType) {
+        final List<DataType> fieldTypes = DataType.getFieldDataTypes(inputTableType);
+        final List<String> fieldNames = DataType.getFieldNames(inputTableType);
+        final List<Field> fields =
+                IntStream.range(0, fieldTypes.size())
+                        .mapToObj(
+                                pos ->
+                                        DataTypes.FIELD(
+                                                fieldNames.get(pos),
+                                                DataTypeUtils.removeTimeAttribute(
+                                                        fieldTypes.get(pos))))
+                        .collect(Collectors.toList());
+        return DataTypes.ROW(fields);
+    }
 
     private static Optional<List<DataType>> validateInputs(
             final CallContext callContext, final boolean throwOnFailure) {
