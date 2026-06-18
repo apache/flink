@@ -179,6 +179,12 @@ class MemorySizeTest {
         // negative number
         assertThatThrownBy(() -> MemorySize.parseBytes("-100 bytes"))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        // fractional number
+        assertThatThrownBy(() -> MemorySize.parseBytes("1.5g"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("integer optionally followed by a unit")
+                .hasMessageContaining("Fractional or malformed values are not supported");
     }
 
     @Test
