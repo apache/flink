@@ -408,6 +408,8 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     // Avoids dealing with a python call in the condition.
     PythonCalcSplitRule.SPLIT_CONDITION,
+    // Deduplicates Python UDF calls shared between condition and projection.
+    PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     // Avoids dealing with Java calls in the same Calc as python calls.
     PythonCalcSplitRule.SPLIT_PROJECT,
     // Splits calcs which contain both general Python functions and pandas Python functions

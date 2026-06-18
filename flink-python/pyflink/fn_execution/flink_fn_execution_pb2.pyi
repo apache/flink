@@ -32,14 +32,16 @@ class JobParameter(_message.Message):
     def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
 
 class Input(_message.Message):
-    __slots__ = ("udf", "inputOffset", "inputConstant")
+    __slots__ = ("udf", "inputOffset", "inputConstant", "refIndex")
     UDF_FIELD_NUMBER: _ClassVar[int]
     INPUTOFFSET_FIELD_NUMBER: _ClassVar[int]
     INPUTCONSTANT_FIELD_NUMBER: _ClassVar[int]
+    REFINDEX_FIELD_NUMBER: _ClassVar[int]
     udf: UserDefinedFunction
     inputOffset: int
     inputConstant: bytes
-    def __init__(self, udf: _Optional[_Union[UserDefinedFunction, _Mapping]] = ..., inputOffset: _Optional[int] = ..., inputConstant: _Optional[bytes] = ...) -> None: ...
+    refIndex: int
+    def __init__(self, udf: _Optional[_Union[UserDefinedFunction, _Mapping]] = ..., inputOffset: _Optional[int] = ..., inputConstant: _Optional[bytes] = ..., refIndex: _Optional[int] = ...) -> None: ...
 
 class UserDefinedFunction(_message.Message):
     __slots__ = ("payload", "inputs", "window_index", "takes_row_as_input", "is_pandas_udf")

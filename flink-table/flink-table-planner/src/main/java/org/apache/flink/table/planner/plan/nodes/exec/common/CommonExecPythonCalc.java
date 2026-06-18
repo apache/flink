@@ -44,7 +44,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -64,6 +63,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -94,6 +94,18 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_PROJECTION)
     private final List<RexNode> projection;
+
+    /**
+     * Total number of flattened Python UDF calls across all projection trees (-1 = not yet
+     * computed).
+     */
+    private int cseFlattenedCount = -1;
+
+    /** Number of unique Python UDF calls after deduplication (-1 = not yet computed). */
+    private int cseDedupedCount = -1;
+
+    /** CSE annotation for plan description (null = not yet computed). */
+    private String cseAnnotation = null;
 
     public CommonExecPythonCalc(
             int id,
@@ -134,40 +146,6 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     // -------------------------------------------------------------------------
     //  Common Sub-expression Elimination for Python UDFs
     // -------------------------------------------------------------------------
-
-    /**
-     * Deduplicates deterministic Python RexCalls by their string digest. Only deterministic calls
-     * can be safely reused; non-deterministic calls must be evaluated independently each time.
-     *
-     * @return a tuple of (unique calls list, mapping from original index to deduplicated index)
-     */
-    @VisibleForTesting
-    Tuple2<List<RexCall>, int[]> deduplicatePythonCalls(List<RexCall> pythonRexCalls) {
-        LinkedHashMap<String, Integer> digestToIndex = new LinkedHashMap<>();
-        List<RexCall> uniqueCalls = new ArrayList<>();
-        int[] originalToDedup = new int[pythonRexCalls.size()];
-
-        for (int i = 0; i < pythonRexCalls.size(); i++) {
-            RexCall call = pythonRexCalls.get(i);
-            String digest = call.toString();
-
-            boolean canReuse = ShortcutUtils.isDeterministicThroughProgram(call, null);
-
-            Integer existingIndex = digestToIndex.get(digest);
-            if (canReuse && existingIndex != null) {
-                // Deterministic duplicate — reuse the existing call
-                originalToDedup[i] = existingIndex;
-            } else {
-                int newPos = uniqueCalls.size();
-                if (canReuse) {
-                    digestToIndex.put(digest, newPos);
-                }
-                uniqueCalls.add(call);
-                originalToDedup[i] = newPos;
-            }
-        }
-        return Tuple2.of(uniqueCalls, originalToDedup);
-    }
 
     /**
      * Creates a projection operator that expands deduplicated results back to the expected output
@@ -246,15 +224,33 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     private InternalTypeInfo<RowData> buildDedupOutputTypeInfo(
             List<Integer> forwardedFields,
             LogicalType[] inputLogicalTypes,
-            List<RexCall> uniquePythonRexCalls) {
+            List<RexCall> uniquePythonRexCalls,
+            List<String> outputFieldNames) {
         List<LogicalType> fieldTypes = new ArrayList<>();
+        List<String> fieldNames = new ArrayList<>();
         for (int idx : forwardedFields) {
             fieldTypes.add(inputLogicalTypes[idx]);
         }
         for (RexCall call : uniquePythonRexCalls) {
             fieldTypes.add(FlinkTypeFactory.toLogicalType(call.getType()));
         }
-        return InternalTypeInfo.ofFields(fieldTypes.toArray(new LogicalType[0]));
+        // Assign field names: use output field names for forwarded fields first,
+        // then for UDF results. When needsExpansionProjection is true, the unique
+        // call count may differ from the output field count; in that case the
+        // expansion projection handles the mapping, and the intermediate field
+        // names are derived from the output field names where possible.
+        int totalFields = fieldTypes.size();
+        int forwardedCount = forwardedFields.size();
+        for (int i = 0; i < totalFields && i < outputFieldNames.size(); i++) {
+            fieldNames.add(outputFieldNames.get(i));
+        }
+        // Fill remaining names (if unique calls count exceeds output names, e.g.
+        // flattened nested calls produce more fields than the output schema)
+        for (int i = fieldNames.size(); i < totalFields; i++) {
+            fieldNames.add("f" + i);
+        }
+        return InternalTypeInfo.ofFields(
+                fieldTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
     }
 
     // -------------------------------------------------------------------------
@@ -283,22 +279,42 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         RowType inputType =
                 ((InternalTypeInfo<RowData>) inputTransform.getOutputType()).toRowType();
 
-        // Deduplicate identical deterministic Python function calls
-        Tuple2<List<RexCall>, int[]> dedupResult = deduplicatePythonCalls(pythonRexCalls);
-        List<RexCall> uniquePythonRexCalls = dedupResult.f0;
-        int[] originalToDedup = dedupResult.f1;
-        boolean needsExpansionProjection = originalToDedup.length != uniquePythonRexCalls.size();
+        // Deduplicate identical deterministic Python function calls (full-tree CSE)
+        PythonCallCseResult cseResult = PythonCallDeduplicator.deduplicate(pythonRexCalls);
+        List<RexCall> uniquePythonRexCalls = cseResult.getUniqueCalls();
+        int[] originalToDedup = cseResult.getOriginalToDedupMapping();
+        Map<RexCall, Integer> refMap = cseResult.getRefMap();
+        boolean needsExpansionProjection = cseResult.needsExpansionProjection();
+
+        // Compute and log CSE statistics
+        cseFlattenedCount = PythonCallDeduplicator.countFlattenedCalls(pythonRexCalls);
+        cseDedupedCount = uniquePythonRexCalls.size();
+        cseAnnotation = buildCseTopLevelAnnotation();
+        if (cseFlattenedCount > cseDedupedCount && LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Python CSE in {}: {} UDF calls flattened to {} unique ({} saved, {}% reduction)",
+                    getDescription(),
+                    cseFlattenedCount,
+                    cseDedupedCount,
+                    cseFlattenedCount - cseDedupedCount,
+                    (cseFlattenedCount - cseDedupedCount) * 100 / cseFlattenedCount);
+        }
 
         Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonScalarFunctionInfos(uniquePythonRexCalls, classLoader);
+                extractPythonScalarFunctionInfos(uniquePythonRexCalls, classLoader, refMap);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
         InternalTypeInfo<RowData> pythonOperatorInputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
         // Build output type using deduplicated unique calls
+        RowType outputType = (RowType) getOutputType();
         InternalTypeInfo<RowData> pythonOperatorResultTypeInfo =
-                buildDedupOutputTypeInfo(forwardedFields, inputLogicalTypes, uniquePythonRexCalls);
+                buildDedupOutputTypeInfo(
+                        forwardedFields,
+                        inputLogicalTypes,
+                        uniquePythonRexCalls,
+                        outputType.getFieldNames());
 
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
@@ -340,14 +356,14 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(
-            List<RexCall> rexCalls, ClassLoader classLoader) {
+            List<RexCall> rexCalls, ClassLoader classLoader, Map<RexCall, Integer> refMap) {
         LinkedHashMap<RexNode, Integer> inputNodes = new LinkedHashMap<>();
         PythonFunctionInfo[] pythonFunctionInfos =
                 rexCalls.stream()
                         .map(
                                 x ->
                                         CommonPythonUtil.createPythonFunctionInfo(
-                                                x, inputNodes, classLoader))
+                                                x, inputNodes, classLoader, refMap))
                         .collect(Collectors.toList())
                         .toArray(new PythonFunctionInfo[rexCalls.size()]);
 
@@ -475,5 +491,51 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         } catch (Exception e) {
             throw new TableException("Python Scalar Function Operator constructed failed.", e);
         }
+    }
+
+    @Override
+    public String getDescription() {
+        ensureCseStatsComputed();
+        if (cseAnnotation != null && !cseAnnotation.isEmpty()) {
+            return super.getDescription() + cseAnnotation;
+        }
+        return super.getDescription();
+    }
+
+    /**
+     * Lazily computes CSE statistics for plan visualization. Called from {@link #getDescription()}
+     * which may be invoked before {@link #translateToPlanInternal}.
+     */
+    private void ensureCseStatsComputed() {
+        if (cseFlattenedCount >= 0) {
+            return;
+        }
+
+        List<RexCall> pythonCalls =
+                projection.stream()
+                        .filter(x -> x instanceof RexCall)
+                        .map(x -> (RexCall) x)
+                        .filter(PythonUtil::isPythonCall)
+                        .collect(Collectors.toList());
+
+        if (pythonCalls.isEmpty()) {
+            cseFlattenedCount = 0;
+            cseDedupedCount = 0;
+            cseAnnotation = "";
+            return;
+        }
+
+        cseFlattenedCount = PythonCallDeduplicator.countFlattenedCalls(pythonCalls);
+        cseDedupedCount = PythonCallDeduplicator.deduplicate(pythonCalls).getUniqueCount();
+        cseAnnotation = buildCseTopLevelAnnotation();
+    }
+
+    /**
+     * Builds a CSE annotation showing top-level reuse relationships. Example: {@code (CSE: $2->$1,
+     * $3->$2)} indicates $2 reuses $1 as a sub-expression.
+     */
+    private String buildCseTopLevelAnnotation() {
+        List<String> outputFieldNames = ((RowType) getOutputType()).getFieldNames();
+        return PythonCallDeduplicator.buildCseTopLevelAnnotation(projection, outputFieldNames);
     }
 }

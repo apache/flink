@@ -138,24 +138,55 @@ class ScalarFunctionOperation(BaseOperation):
 
     def generate_func(self, serialized_fn):
         """
-        Generates a lambda function based on udfs.
-        :param serialized_fn: serialized function which contains a list of the proto
-                              representation of the Python :class:`ScalarFunction`
-        :return: the generated lambda function
+        Generates a UDF execution function. Uses sequential execution with result references
+        when refIndex is present (CSE mode), otherwise uses lambda-based approach.
         """
-        scalar_functions, variable_dict, user_defined_funcs = reduce(
-            lambda x, y: (
-                ','.join([x[0], y[0]]),
-                dict(chain(x[1].items(), y[1].items())),
-                x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(
+        udf_infos = [
+            operation_utils.extract_user_defined_function(
                 udf, one_arg_optimization=self._one_arg_optimization)
-                for udf in serialized_fn.udfs])
+            for udf in serialized_fn.udfs]
+
+        variable_dict = {}
+        user_defined_funcs = []
+        func_strs = []
+        for func_str, var_dict, funcs in udf_infos:
+            variable_dict.update(var_dict)
+            user_defined_funcs.extend(funcs)
+            func_strs.append(func_str)
+
+        # Check if any UDF uses refIndex via the results[N] pattern
+        has_ref = any('results[' in fs for fs in func_strs)
+
+        if not has_ref:
+            # Keep original lambda-based approach for backward compatibility
+            scalar_functions = ','.join(func_strs)
+            if self._one_result_optimization:
+                func_str = 'lambda value: %s' % scalar_functions
+            else:
+                func_str = 'lambda value: [%s]' % scalar_functions
+            generate_func = eval(func_str, variable_dict)
+            self._generated_code = func_str
+            return generate_func, user_defined_funcs
+
+        # Sequential execution: each UDF stores its result in results[N] so that
+        # later UDFs can reference it via results[N]. This enables full-tree CSE.
+        #
+        # exec() is required because multi-statement logic cannot be expressed as a
+        # lambda. The generated code is deterministic and built from trusted internal
+        # UDF descriptors only.
+        code_lines = ['def _sequential_execute(value):']
+        code_lines.append('    results = [None] * %d' % len(func_strs))
+        for i, fn in enumerate(func_strs):
+            code_lines.append('    results[%d] = %s' % (i, fn))
         if self._one_result_optimization:
-            func_str = 'lambda value: %s' % scalar_functions
+            code_lines.append('    return results[0]')
         else:
-            func_str = 'lambda value: [%s]' % scalar_functions
-        generate_func = eval(func_str, variable_dict)
+            code_lines.append('    return results')
+        code = '\n'.join(code_lines)
+
+        exec(code, variable_dict)
+        generate_func = variable_dict['_sequential_execute']
+        self._generated_code = code
         return generate_func, user_defined_funcs
 
 

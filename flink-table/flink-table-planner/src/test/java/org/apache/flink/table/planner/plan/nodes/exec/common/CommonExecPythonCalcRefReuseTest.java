@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
@@ -35,6 +34,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -46,18 +46,8 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for the reference reuse (deduplication) logic in {@link CommonExecPythonCalc}.
- *
- * <p>This test verifies that the {@code deduplicatePythonCalls} method correctly identifies and
- * deduplicates structurally identical deterministic RexCalls, while preserving non-deterministic
- * calls independently.
- */
+/** Tests for {@link PythonCallDeduplicator} and ref-reuse logic in {@link CommonExecPythonCalc}. */
 class CommonExecPythonCalcRefReuseTest {
-
-    // -------------------------------------------------------------------------
-    //  Parameterized tests for deduplicatePythonCalls
-    // -------------------------------------------------------------------------
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("inputForDeduplicatePythonCalls")
@@ -66,11 +56,14 @@ class CommonExecPythonCalcRefReuseTest {
             List<RexCall> calls,
             int expectedUniqueCount,
             int[] expectedMapping) {
-        CommonExecPythonCalc calc = new TestPythonCalc(Collections.emptyList());
-        Tuple2<List<RexCall>, int[]> result = calc.deduplicatePythonCalls(calls);
+        PythonCallCseResult result = PythonCallDeduplicator.deduplicate(calls);
 
-        assertThat(result.f0).as("unique call count").hasSize(expectedUniqueCount);
-        assertThat(result.f1).as("original-to-dedup mapping").containsExactly(expectedMapping);
+        assertThat(result.getUniqueCalls()).as("unique call count").hasSize(expectedUniqueCount);
+        assertThat(result.getOriginalToDedupMapping())
+                .as("original-to-dedup mapping")
+                .containsExactly(expectedMapping);
+        assertThat(result.getRefMap()).as("ref map").isNotNull();
+        assertThat(result.getRefMap()).as("ref map").isNotNull().isNotEmpty();
     }
 
     static Stream<Arguments> inputForDeduplicatePythonCalls() {
@@ -102,6 +95,17 @@ class CommonExecPythonCalcRefReuseTest {
         RexNode innerPlus = rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
         RexCall nestedCall1 = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, innerPlus, innerPlus);
         RexCall nestedCall2 = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, innerPlus, innerPlus);
+        RexCall innerPlusCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
+
+        // Calls that differ only in return type (same operator, same operands).
+        // For non-CAST operators, RexCall.toString() omits the type suffix (digestWithType()
+        // returns false), so toString()-based dedup would incorrectly merge these.
+        // RexCall.equals() includes the return type and correctly keeps them separate.
+        RexCall plusIntType =
+                (RexCall) rb.makeCall(intTp, SqlStdOperatorTable.PLUS, Arrays.asList(ref0, ref1));
+        RexCall plusBigintType =
+                (RexCall)
+                        rb.makeCall(bigintTp, SqlStdOperatorTable.PLUS, Arrays.asList(ref0, ref1));
 
         return Stream.of(
                 Arguments.of(
@@ -143,12 +147,54 @@ class CommonExecPythonCalcRefReuseTest {
                         "partial duplicates with different args",
                         Arrays.asList(plusAB1, plusAB2, plusAC),
                         2,
-                        new int[] {0, 0, 1}));
+                        new int[] {0, 0, 1}),
+                Arguments.of(
+                        "calls with identical structure but different return types are not deduplicated",
+                        Arrays.asList(plusIntType, plusBigintType),
+                        2,
+                        new int[] {0, 1}),
+                Arguments.of(
+                        "full-tree CSE: nested call tree is flattened; inner call deduplicated when shared",
+                        Arrays.asList(nestedCall1, innerPlusCall),
+                        2,
+                        new int[] {0, 1}));
     }
 
-    // -------------------------------------------------------------------------
-    //  Parameterized tests for buildRefReuseDetailName
-    // -------------------------------------------------------------------------
+    @Test
+    void testRefMapResolvesStructurallyEqualSubExpressions() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        FlinkTypeFactory factory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
+        RexBuilder rb = new RexBuilder(factory);
+        RelDataType intTp =
+                factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.INTEGER), true);
+
+        RexNode ref0 = new RexInputRef(0, intTp);
+        RexNode ref1 = new RexInputRef(1, intTp);
+        RexNode ref2 = new RexInputRef(2, intTp);
+
+        // outerCall = PLUS(PLUS(ref0, ref1), ref2)
+        RexCall innerCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
+        RexCall outerCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, innerCall, ref2);
+        // standaloneCall is structurally equal to innerCall
+        RexCall standaloneCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
+
+        assertThat(innerCall).isEqualTo(standaloneCall);
+
+        PythonCallCseResult result =
+                PythonCallDeduplicator.deduplicate(Arrays.asList(outerCall, standaloneCall));
+
+        // outerCall and standaloneCall are different top-level calls → 2 unique
+        assertThat(result.getUniqueCalls()).hasSize(2);
+        assertThat(result.getOriginalToDedupMapping()).containsExactly(0, 1);
+
+        // refMap maps structurally-equal expressions to the same index
+        java.util.Map<RexCall, Integer> refMap = result.getRefMap();
+        assertThat(refMap).hasSize(2);
+        assertThat(refMap.get(outerCall)).isEqualTo(0);
+        assertThat(refMap.get(standaloneCall)).isEqualTo(1);
+        // innerCall resolves to same entry as standaloneCall (structural equality)
+        assertThat(refMap.get(innerCall)).isEqualTo(1);
+    }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("inputForBuildRefReuseDetailName")
@@ -202,14 +248,7 @@ class CommonExecPythonCalcRefReuseTest {
                         "PythonCalcRefReuse(d=c)"));
     }
 
-    // -------------------------------------------------------------------------
-    //  Test helper: minimal concrete subclass of CommonExecPythonCalc
-    // -------------------------------------------------------------------------
-
-    /**
-     * A minimal concrete subclass of {@link CommonExecPythonCalc} used only for testing the
-     * deduplication logic. The abstract methods are not needed for ref-reuse unit tests.
-     */
+    /** Minimal concrete subclass for testing deduplication logic. */
     private static class TestPythonCalc extends CommonExecPythonCalc {
 
         TestPythonCalc(List<RexNode> projection) {

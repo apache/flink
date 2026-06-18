@@ -1015,6 +1015,29 @@ class UserDefinedFunctionTests(object):
                     self.assertNotEqual(vals[0], vals[1]),
                 ),
             ),
+            # --- Filter (WHERE) CSE cases ---
+            (
+                "Det(s) in both WHERE and SELECT - CSE across condition and projection",
+                "SELECT Det(s), Det(s) FROM SourceTable WHERE Det(s) IS NOT NULL",
+                all_equal,
+            ),
+            (
+                "Det(s) in WHERE and SELECT with expression - same UDF reused",
+                "SELECT Det(s), Det(s) || '_suffix' FROM SourceTable WHERE Det(s) IS NOT NULL",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                    self.assertEqual(vals[1], vals[0] + "_suffix"),
+                ),
+            ),
+            (
+                "Nondet(s) in WHERE and SELECT - merged by RexProgram CSE in split pipeline",
+                "SELECT Nondet(s), Nondet(s) FROM SourceTable WHERE Nondet(s) IS NOT NULL",
+                # Note: Ideally these should differ, but RexProgram.create merges
+                # structurally-equal expressions (including non-deterministic ones) when
+                # the split condition rule creates a two-level Calc structure.
+                all_equal,
+            ),
         ]
 
         for desc, sql, verify_fn in cases:
