@@ -272,6 +272,75 @@ class SinkV2TransformationTranslatorITCase {
         assertThat(dest.getSlotSharingGroup()).isEqualTo(SLOT_SHARE_GROUP);
     }
 
+    @Test
+    void testWriterAndCommitterColocatedWithoutPreCommitTopology() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+
+        // Wrap the sink to forcefully hide SupportsPreCommitTopology
+        Sink<Integer> strictNoPreCommitSink = new ColocatedTestSink(sinkWithCommitter());
+
+        sinkTo(src.rebalance(), strictNoPreCommitSink).name(NAME).uid(UID);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Writer and committer should be co-located for sinks without pre-commit topology
+        assertThat(writerNode.getCoLocationGroup()).isNotNull();
+        assertThat(committerNode.getCoLocationGroup()).isNotNull();
+        assertThat(writerNode.getCoLocationGroup()).isEqualTo(committerNode.getCoLocationGroup());
+    }
+
+    @Test
+    void testWriterAndCommitterNotColocatedWithPreCommitTopology() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+
+        // Create sink with pre-commit topology
+        Sink<Integer> sinkWithPreCommit =
+                ((TestSinkV2.Builder<Integer, TestSinkV2.Record<Integer>>)
+                                TestSinkV2.<Integer>newBuilder()
+                                        .setCommitter(
+                                                new TestSinkV2.DefaultCommitter<>(),
+                                                TestSinkV2.RecordSerializer::new))
+                        .setWithPreCommitTopology(r -> r)
+                        .build();
+
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        sinkTo(src.rebalance(), sinkWithPreCommit).name(NAME).uid(UID);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Pre-commit topology sinks should not be co-located
+        assertThat(writerNode.getCoLocationGroup()).isNull();
+        assertThat(committerNode.getCoLocationGroup()).isNull();
+    }
+
+    @Test
+    void testUserSpecifiedCoLocationGroupIsRespected() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        final DataStreamSink<Integer> dataStreamSink = sinkTo(src, sinkWithCommitter());
+        dataStreamSink.name(NAME);
+
+        // Explicitly set user-specified co-location group
+        dataStreamSink.getTransformation().setCoLocationGroupKey("user-specified-group");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Both writer and sink should have the user-specified co-location group
+        assertThat(writerNode.getCoLocationGroup()).isEqualTo("user-specified-group");
+        assertThat(committerNode.getCoLocationGroup()).isEqualTo("user-specified-group");
+    }
+
     StreamGraph buildGraph(Sink<Integer> sink, RuntimeExecutionMode runtimeExecutionMode) {
         return buildGraph(sink, runtimeExecutionMode, true);
     }
@@ -323,5 +392,45 @@ class SinkV2TransformationTranslatorITCase {
 
     StreamNode findGlobalCommitter(StreamGraph streamGraph) {
         return findNodeName(streamGraph, name -> name.contains("Global Committer"));
+    }
+
+    // Wrapper to strictly hide SupportsPreCommitTopology from the translator
+    private static class ColocatedTestSink
+            implements Sink<Integer>,
+                    org.apache.flink.api.connector.sink2.SupportsCommitter<
+                            TestSinkV2.Record<Integer>> {
+        private final Sink<Integer> baseSink;
+        private final org.apache.flink.api.connector.sink2.SupportsCommitter<
+                        TestSinkV2.Record<Integer>>
+                baseCommitter;
+
+        @SuppressWarnings("unchecked")
+        public ColocatedTestSink(Sink<Integer> baseSink) {
+            this.baseSink = baseSink;
+            this.baseCommitter =
+                    (org.apache.flink.api.connector.sink2.SupportsCommitter<
+                                    TestSinkV2.Record<Integer>>)
+                            baseSink;
+        }
+
+        @Override
+        public org.apache.flink.api.connector.sink2.SinkWriter<Integer> createWriter(
+                org.apache.flink.api.connector.sink2.WriterInitContext context)
+                throws java.io.IOException {
+            return baseSink.createWriter(context);
+        }
+
+        @Override
+        public org.apache.flink.api.connector.sink2.Committer<TestSinkV2.Record<Integer>>
+                createCommitter(org.apache.flink.api.connector.sink2.CommitterInitContext context)
+                        throws java.io.IOException {
+            return baseCommitter.createCommitter(context);
+        }
+
+        @Override
+        public org.apache.flink.core.io.SimpleVersionedSerializer<TestSinkV2.Record<Integer>>
+                getCommittableSerializer() {
+            return baseCommitter.getCommittableSerializer();
+        }
     }
 }

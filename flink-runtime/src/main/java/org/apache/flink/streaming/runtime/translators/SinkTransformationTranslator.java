@@ -88,6 +88,16 @@ public class SinkTransformationTranslator<Input, Output>
 
     private Collection<Integer> translateInternal(
             SinkTransformation<Input, Output> transformation, Context context, boolean batch) {
+
+        Sink<Input> sink = transformation.getSink();
+        // Co-locate the writer and committer if there is no pre-commit topology
+        if (sink instanceof SupportsCommitter && !(sink instanceof SupportsPreCommitTopology)) {
+            if (transformation.getCoLocationGroupKey() == null) {
+                transformation.setCoLocationGroupKey(
+                        "sink-writer-committer-" + transformation.getId());
+            }
+        }
+
         SinkExpander<Input> expander =
                 new SinkExpander<>(
                         transformation.getInputStream(),
