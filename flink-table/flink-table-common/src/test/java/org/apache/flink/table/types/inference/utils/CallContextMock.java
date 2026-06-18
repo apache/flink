@@ -86,8 +86,8 @@ public class CallContextMock implements CallContext {
         if (argumentValues == null || pos >= argumentValues.size()) {
             return Optional.empty();
         }
-        return (Optional<T>) argumentValues.get(pos)
-                .filter(v -> clazz.isAssignableFrom(v.getClass()));
+        return (Optional<T>)
+                argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
     }
 
     @Override
