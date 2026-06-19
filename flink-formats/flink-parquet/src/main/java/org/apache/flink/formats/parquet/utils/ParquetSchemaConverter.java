@@ -81,6 +81,10 @@ public class ParquetSchemaConverter {
             case VARBINARY:
                 return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition)
                         .named(name);
+            case GEOGRAPHY:
+                return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition)
+                        .as(LogicalTypeAnnotation.geographyType())
+                        .named(name);
             case DECIMAL:
                 int precision = ((DecimalType) type).getPrecision();
                 int scale = ((DecimalType) type).getScale();

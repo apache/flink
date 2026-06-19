@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.parquet.vector;
 
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.formats.parquet.ParquetInputFile;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
 import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
@@ -31,12 +33,12 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
@@ -55,9 +57,6 @@ import java.util.Map;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.buildFieldsList;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
-import static org.apache.parquet.filter2.compat.RowGroupFilter.filterRowGroups;
-import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
-import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
 import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
 
 /** This reader is used to read a {@link VectorizedColumnBatch} from input split. */
@@ -122,24 +121,25 @@ public class ParquetColumnarRowSplitReader implements Closeable {
         this.utcTimestamp = utcTimestamp;
         this.selectedTypes = selectedTypes;
         this.batchSize = batchSize;
-        // then we need to apply the predicate push down filter
-        ParquetMetadata footer =
-                readFooter(conf, path, range(splitStart, splitStart + splitLength));
-        MessageType fileSchema = footer.getFileMetaData().getSchema();
         FilterCompat.Filter filter = getFilter(conf);
-        List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
+        ParquetReadOptions parquetReadOptions =
+                ParquetReadOptions.builder()
+                        .withRange(splitStart, splitStart + splitLength)
+                        .withRecordFilter(filter)
+                        .build();
+        org.apache.flink.core.fs.Path flinkPath =
+                new org.apache.flink.core.fs.Path(path.toUri().toString());
+        FileSystem fs = flinkPath.getFileSystem();
+        ParquetInputFile inputFile =
+                new ParquetInputFile(fs.open(flinkPath), fs.getFileStatus(flinkPath).getLen());
 
-        this.fileSchema = footer.getFileMetaData().getSchema();
+        this.reader = ParquetFileReader.open(inputFile, parquetReadOptions);
+        MessageType fileSchema = reader.getFooter().getFileMetaData().getSchema();
+        this.fileSchema = fileSchema;
         this.requestedSchema = clipParquetSchema(fileSchema, selectedFieldNames, caseSensitive);
-        this.reader =
-                new ParquetFileReader(
-                        conf, footer.getFileMetaData(), path, blocks, requestedSchema.getColumns());
+        this.reader.setRequestedSchema(requestedSchema);
 
-        long totalRowCount = 0;
-        for (BlockMetaData block : blocks) {
-            totalRowCount += block.getRowCount();
-        }
-        this.totalRowCount = totalRowCount;
+        this.totalRowCount = reader.getRecordCount();
         this.nextRow = 0;
         this.rowsInBatch = 0;
         this.rowsReturned = 0;
