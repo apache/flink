@@ -418,7 +418,7 @@ class VarArgsFunc0 extends TableFunction[String] {
 
 @SerialVersionUID(1L)
 class HierarchyTableFunction extends SplittableTableFunction[java.lang.Boolean, Integer] {
-  def eval(user: String) {
+  def eval(user: String): Unit = {
     if (user.contains("#")) {
       val splits = user.split("#")
       val age = splits(1).toInt

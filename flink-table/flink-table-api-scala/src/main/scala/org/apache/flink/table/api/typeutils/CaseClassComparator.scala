@@ -69,7 +69,7 @@ class CaseClassComparator[T <: Product](
     code
   }
 
-  def setReference(toCompare: T) {
+  def setReference(toCompare: T): Unit = {
     var i = 0
     try {
       while (i < keyPositions.length) {
@@ -126,7 +126,11 @@ class CaseClassComparator[T <: Product](
     0
   }
 
-  def putNormalizedKey(value: T, target: MemorySegment, offsetParam: Int, numBytesParam: Int) {
+  def putNormalizedKey(
+      value: T,
+      target: MemorySegment,
+      offsetParam: Int,
+      numBytesParam: Int): Unit = {
     var numBytes = numBytesParam
     var offset = offsetParam
     var i: Int = 0
