@@ -62,6 +62,15 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/ApplicationID"
+      - name: maxExceptions
+        in: query
+        description: Comma-separated list of integer values that specifies the upper
+          limit of exceptions to return.
+        required: false
+        style: form
+        schema:
+          type: integer
+          format: int32
       responses:
         "200":
           description: The request was successful.
