@@ -30,7 +30,11 @@ public interface SavepointKeyFilter extends Serializable {
     /** Returns {@code true} if the given key passes this filter. */
     boolean test(Object key);
 
-    /** Returns {@code true} if this filter rejects every key. */
+    /**
+     * Returns {@code true} if this filter rejects every key.
+     *
+     * <p>Used only while combining filters during push-down translation, not during the scan.
+     */
     default boolean isEmpty() {
         return false;
     }
@@ -47,6 +51,8 @@ public interface SavepointKeyFilter extends Serializable {
     /**
      * Returns the lower bound of this filter's range, or {@code null} if the filter does not define
      * a lower bound.
+     *
+     * <p>Used only while combining filters during push-down translation, not during the scan.
      */
     @Nullable
     default BoundInfo getLowerBound() {
@@ -56,6 +62,8 @@ public interface SavepointKeyFilter extends Serializable {
     /**
      * Returns the upper bound of this filter's range, or {@code null} if the filter does not define
      * an upper bound.
+     *
+     * <p>Used only while combining filters during push-down translation, not during the scan.
      */
     @Nullable
     default BoundInfo getUpperBound() {
@@ -65,8 +73,13 @@ public interface SavepointKeyFilter extends Serializable {
     /**
      * Returns a filter that accepts a key if and only if both {@code this} and {@code other} accept
      * it.
+     *
+     * <p>Used only while combining filters during push-down translation, not during the scan.
      */
-    SavepointKeyFilter intersect(SavepointKeyFilter other);
+    default SavepointKeyFilter intersect(SavepointKeyFilter other) {
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + " does not support intersect()");
+    }
 
     static SavepointKeyFilter filterKeys(Set<Object> keys, SavepointKeyFilter predicate) {
         final Set<Object> retained = new HashSet<>();
