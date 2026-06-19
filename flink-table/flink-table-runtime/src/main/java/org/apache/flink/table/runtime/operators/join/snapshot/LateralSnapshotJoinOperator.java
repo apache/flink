@@ -120,10 +120,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(LateralSnapshotJoinOperator.class);
 
-    /** operator state names */
+    /** Operator state names. */
     private static final String OPERATOR_PHASE_STATE_NAME = "lateral-snapshot-phase";
 
-    /** keyed state names */
+    /** Keyed state names. */
     @VisibleForTesting static final String BUILD_TABLE_STATE_NAME = "build-table";
 
     @VisibleForTesting static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
@@ -131,7 +131,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
-    /** timer service and namespace names */
+    /** Timer service and namespace names. */
     private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
 
     @VisibleForTesting static final String NS_FLIP = "flip";
