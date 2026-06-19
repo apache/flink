@@ -24,6 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
@@ -33,6 +35,7 @@ import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -49,10 +52,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
+import org.apache.parquet.io.LocalInputFile;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.PrimitiveType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -76,6 +83,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ParquetRowDataBuilder} and {@link ParquetRowDataWriter}. */
 class ParquetRowDataWriterTest {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
 
     private static final RowType ROW_TYPE =
             RowType.of(
@@ -190,6 +202,51 @@ class ParquetRowDataWriterTest {
         complexTypeTest(folder, conf, false);
         invalidTypeTest(folder, conf, true);
         invalidTypeTest(folder, conf, false);
+    }
+
+    @Test
+    void testGeographyType(@TempDir java.nio.file.Path folder) throws Exception {
+        RowType rowType = RowType.of(new GeographyType());
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(GenericRowData.of(GeographyData.fromBytes(POINT_WKB)));
+        writer.flush();
+        writer.finish();
+
+        try (ParquetFileReader fileReader =
+                ParquetFileReader.open(new LocalInputFile(new File(path.getPath()).toPath()))) {
+            PrimitiveType field =
+                    fileReader.getFileMetaData().getSchema().getType(0).asPrimitiveType();
+            assertThat(field.getPrimitiveTypeName())
+                    .isEqualTo(PrimitiveType.PrimitiveTypeName.BINARY);
+            assertThat(field.getLogicalTypeAnnotation())
+                    .isInstanceOf(LogicalTypeAnnotation.GeographyLogicalTypeAnnotation.class);
+        }
+
+        ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        true,
+                        true,
+                        conf,
+                        rowType.getFieldNames().toArray(new String[0]),
+                        rowType.getChildren().stream()
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .toArray(DataType[]::new),
+                        new HashMap<>(),
+                        IntStream.range(0, rowType.getFieldCount()).toArray(),
+                        50,
+                        path,
+                        0,
+                        Long.MAX_VALUE);
+
+        assertThat(reader.reachedEnd()).isFalse();
+        assertThat(reader.nextRecord().getGeography(0).toBytes()).isEqualTo(POINT_WKB);
+        assertThat(reader.reachedEnd()).isTrue();
     }
 
     private void innerTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
