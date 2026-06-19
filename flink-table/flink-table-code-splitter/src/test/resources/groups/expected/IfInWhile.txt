@@ -1,0 +1,5 @@
+{
+    myFun_rewriteGroup6(a, b);
+
+    myFun_rewriteGroup7(a, b);
+}

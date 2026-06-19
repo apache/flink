@@ -1,0 +1,326 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.jobmaster;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.runtime.client.JobCancellationException;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.util.OptionalFailure;
+import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.SerializedValue;
+
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * Similar to {@link org.apache.flink.api.common.JobExecutionResult} but with an optional {@link
+ * SerializedThrowable} when the job failed.
+ *
+ * <p>This is used by the {@link JobMaster} to send the results to the {@link Dispatcher}.
+ */
+public class JobResult implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    private final JobID jobId;
+
+    private final String jobName;
+
+    /** Stores the job status, null if unknown. */
+    @Nullable private final JobStatus jobStatus;
+
+    private final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
+
+    private final long netRuntime;
+
+    /** Stores the cause of the job failure, or {@code null} if the job finished successfully. */
+    @Nullable private final SerializedThrowable serializedThrowable;
+
+    @Nullable private final ApplicationID applicationId;
+
+    private final long startTime;
+
+    private final long endTime;
+
+    private JobResult(
+            final JobID jobId,
+            final String jobName,
+            @Nullable final JobStatus jobStatus,
+            final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
+            final long netRuntime,
+            @Nullable final SerializedThrowable serializedThrowable,
+            @Nullable final ApplicationID applicationId,
+            final long startTime,
+            final long endTime) {
+
+        checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
+        checkArgument(
+                jobStatus == null || jobStatus.isGloballyTerminalState(),
+                "jobStatus must be globally terminal or unknow(null)");
+
+        this.jobId = requireNonNull(jobId);
+        this.jobName = requireNonNull(jobName);
+        this.jobStatus = jobStatus;
+        this.accumulatorResults = requireNonNull(accumulatorResults);
+        this.netRuntime = netRuntime;
+        this.serializedThrowable = serializedThrowable;
+        this.applicationId = applicationId;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
+
+    /** Returns {@code true} if the job finished successfully. */
+    public boolean isSuccess() {
+        return jobStatus == JobStatus.FINISHED
+                || (jobStatus == null && serializedThrowable == null);
+    }
+
+    public JobID getJobId() {
+        return jobId;
+    }
+
+    public String getJobName() {
+        return jobName;
+    }
+
+    public Optional<JobStatus> getJobStatus() {
+        return Optional.ofNullable(jobStatus);
+    }
+
+    public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorResults() {
+        return accumulatorResults;
+    }
+
+    public long getNetRuntime() {
+        return netRuntime;
+    }
+
+    /**
+     * Returns an empty {@code Optional} if the job finished successfully, otherwise the {@code
+     * Optional} will carry the failure cause.
+     */
+    public Optional<SerializedThrowable> getSerializedThrowable() {
+        return Optional.ofNullable(serializedThrowable);
+    }
+
+    public Optional<ApplicationID> getApplicationId() {
+        return Optional.ofNullable(applicationId);
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }
+
+    /**
+     * Converts the {@link JobResult} to a {@link JobExecutionResult}.
+     *
+     * @param classLoader to use for deserialization
+     * @return JobExecutionResult
+     * @throws JobCancellationException if the job was cancelled
+     * @throws JobExecutionException if the job execution did not succeed
+     * @throws IOException if the accumulator could not be deserialized
+     * @throws ClassNotFoundException if the accumulator could not deserialized
+     */
+    public JobExecutionResult toJobExecutionResult(ClassLoader classLoader)
+            throws JobExecutionException, IOException, ClassNotFoundException {
+        if (jobStatus == JobStatus.FINISHED) {
+            return new JobExecutionResult(
+                    jobId,
+                    netRuntime,
+                    AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader));
+        } else {
+            final Throwable cause;
+
+            if (serializedThrowable == null) {
+                cause = null;
+            } else {
+                cause = serializedThrowable.deserializeError(classLoader);
+            }
+
+            final JobExecutionException exception;
+
+            if (jobStatus == JobStatus.FAILED) {
+                exception = new JobExecutionException(jobId, "Job execution failed.", cause);
+            } else if (jobStatus == JobStatus.CANCELED) {
+                exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
+            } else {
+                exception =
+                        new JobExecutionException(
+                                jobId,
+                                "Job completed with illegal status: " + jobStatus + '.',
+                                cause);
+            }
+
+            throw exception;
+        }
+    }
+
+    /** Builder for {@link JobResult}. */
+    @Internal
+    public static class Builder {
+
+        private JobID jobId;
+
+        private String jobName = "unknown";
+
+        private JobStatus jobStatus;
+
+        private Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
+
+        private long netRuntime = -1;
+
+        private SerializedThrowable serializedThrowable;
+
+        private ApplicationID applicationId;
+
+        private long startTime = -1;
+
+        private long endTime = -1;
+
+        public Builder jobId(final JobID jobId) {
+            this.jobId = jobId;
+            return this;
+        }
+
+        public Builder jobName(final String jobName) {
+            this.jobName = jobName;
+            return this;
+        }
+
+        public Builder jobStatus(final JobStatus jobStatus) {
+            this.jobStatus = jobStatus;
+            return this;
+        }
+
+        public Builder accumulatorResults(
+                final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults) {
+            this.accumulatorResults = accumulatorResults;
+            return this;
+        }
+
+        public Builder netRuntime(final long netRuntime) {
+            this.netRuntime = netRuntime;
+            return this;
+        }
+
+        public Builder serializedThrowable(final SerializedThrowable serializedThrowable) {
+            this.serializedThrowable = serializedThrowable;
+            return this;
+        }
+
+        public Builder applicationId(final ApplicationID applicationId) {
+            this.applicationId = applicationId;
+            return this;
+        }
+
+        public Builder startTime(final long startTime) {
+            this.startTime = startTime;
+            return this;
+        }
+
+        public Builder endTime(final long endTime) {
+            this.endTime = endTime;
+            return this;
+        }
+
+        public JobResult build() {
+            return new JobResult(
+                    jobId,
+                    jobName,
+                    jobStatus,
+                    accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
+                    netRuntime,
+                    serializedThrowable,
+                    applicationId,
+                    startTime,
+                    endTime);
+        }
+    }
+
+    /**
+     * Creates the {@link JobResult} from the given {@link AccessExecutionGraph} which must be in a
+     * globally terminal state.
+     *
+     * @param accessExecutionGraph to create the JobResult from
+     * @return JobResult of the given AccessExecutionGraph
+     */
+    public static JobResult createFrom(AccessExecutionGraph accessExecutionGraph) {
+        final JobID jobId = accessExecutionGraph.getJobID();
+        final JobStatus jobStatus = accessExecutionGraph.getState();
+
+        checkArgument(
+                jobStatus.isTerminalState(),
+                "The job "
+                        + accessExecutionGraph.getJobName()
+                        + '('
+                        + jobId
+                        + ") is not in a "
+                        + "terminal state. It is in state "
+                        + jobStatus
+                        + '.');
+
+        final JobResult.Builder builder = new JobResult.Builder();
+        builder.jobId(jobId);
+        builder.jobName(accessExecutionGraph.getJobName());
+
+        builder.jobStatus(jobStatus.isGloballyTerminalState() ? jobStatus : null);
+
+        final long startTime = accessExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
+        final long endTime = accessExecutionGraph.getStatusTimestamp(jobStatus);
+        builder.startTime(startTime).endTime(endTime);
+
+        final long netRuntime = endTime - startTime;
+        // guard against clock changes
+        final long guardedNetRuntime = Math.max(netRuntime, 0L);
+        builder.netRuntime(guardedNetRuntime);
+        builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
+
+        if (jobStatus == JobStatus.FAILED) {
+            final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
+            checkNotNull(errorInfo, "No root cause is found for the job failure.");
+
+            builder.serializedThrowable(errorInfo.getException());
+        }
+
+        builder.applicationId(accessExecutionGraph.getApplicationId().orElse(null));
+
+        return builder.build();
+    }
+}

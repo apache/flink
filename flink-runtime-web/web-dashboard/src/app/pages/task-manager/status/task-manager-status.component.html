@@ -1,0 +1,58 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<ng-container *ngIf="!loading; else loadingContent">
+  <div class="title-wrapper" [attr.title]="taskManagerDetail?.id">
+    <span class="title">{{ taskManagerDetail?.id }}</span>
+    <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
+  </div>
+  <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Path">
+      {{ taskManagerDetail.path }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Free/All Slots">
+      {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Assigned Tasks">
+      {{ taskManagerDetail.assignedTasks }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
+      {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Data Port">
+      {{ taskManagerDetail.dataPort }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="CPU Cores">
+      {{ taskManagerDetail.hardware.cpuCores }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Physical Memory">
+      {{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="JVM Heap Size">
+      {{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Flink Managed Memory">
+      {{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}
+    </nz-descriptions-item>
+  </nz-descriptions>
+  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+</ng-container>
+
+<ng-template #loadingContent>
+  <nz-skeleton [nzActive]="true" [nzTitle]="false" [nzParagraph]="{ rows: 6 }"></nz-skeleton>
+</ng-template>

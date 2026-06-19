@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+set -e
+
+# override env to use Java 17 to for build instead default Java 8
+# path to JDK is taken from https://github.com/apache/flink-connector-shared-utils/blob/ci_utils/docker/base/Dockerfile#L37-L40
+export JAVA_HOME=$JAVA_HOME_17_X64
+export PATH=$JAVA_HOME_17_X64/bin:$PATH
+
+mvn --version
+java -version
+javadoc -J-version
+
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
+git submodule update --init --recursive
+
+cd docs
+
+# setup hugo
+source setup_hugo.sh
+
+# Setup the external documentation modules
+source setup_docs.sh
+
+cd ..
+
+# Build the docs
+hugo --source docs
+
+# generate docs into docs/target
+hugo -v --source docs --destination target
+if [ $? -ne 0 ]; then
+	echo "Error building the docs"
+	exit 1
+fi
+
+# Generate .htaccess with dynamic 404 path based on branch
+BRANCH=$(git branch --show-current)
+cat > docs/target/.htaccess << EOF
+# Ensure index.html is served for directory requests
+DirectoryIndex index.html
+
+# Custom 404 error page
+ErrorDocument 404 /flink/flink-docs-${BRANCH}/404.html
+EOF
+
+# build Flink; required for Javadoc step
+mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
+
+# build java/scala docs
+mkdir -p docs/target/api
+mvn javadoc:aggregate -B \
+    -Pskip-webui-build \
+    -Dmaven.javadoc.failOnError=true \
+    -Dcheckstyle.skip=true \
+    -Dspotless.check.skip=true \
+    -Denforcer.skip=true \
+    -Dheader="<a href=\"http://flink.apache.org/\" target=\"_top\"><h1>Back to Flink Website</h1></a> <script>var _paq=window._paq=window._paq||[];_paq.push([\"disableCookies\"]),_paq.push([\"setDomains\",[\"*.flink.apache.org\",\"*.nightlies.apache.org/flink\"]]),_paq.push([\"trackPageView\"]),_paq.push([\"enableLinkTracking\"]),function(){var u=\"//analytics.apache.org/\";_paq.push([\"setTrackerUrl\",u+\"matomo.php\"]),_paq.push([\"setSiteId\",\"1\"]);var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s)}();</script>"
+
+# Inject canonical tags into Javadoc HTML files to point to stable docs version
+CANONICAL_BASE="https://nightlies.apache.org/flink/flink-docs-stable/api/java"
+find target/site/apidocs -name "*.html" -type f | while read -r file; do
+    REL_PATH="${file#target/site/apidocs/}"
+    CANONICAL_URL="${CANONICAL_BASE}/${REL_PATH}"
+    sed -i "s|<head>|<head>\n<link rel=\"canonical\" href=\"${CANONICAL_URL}\">|" "$file"
+done
+
+mv target/site/apidocs docs/target/api/java
+
+# build python docs
+if [ -f  ./flink-python/dev/lint-python.sh ]; then
+    # Just completely ignore sudo in conda.
+    unset SUDO_UID SUDO_GID SUDO_USER
+
+    # Set base URL for cross-references to main Flink docs (used by sphinx extlinks)
+    export FLINK_DOCS_BASE_URL="https://nightlies.apache.org/flink/flink-docs-${BRANCH}"
+
+    # build English python docs
+    # disable the gateway, because otherwise it tries to find FLINK_HOME to access Java classes
+    PYFLINK_GATEWAY_DISABLED=1 ./flink-python/dev/lint-python.sh -i "sphinx"
+
+    # build Chinese python docs into _build/html/zh/ subdirectory
+    # Ensure uv (installed by lint-python.sh into .uv/bin/) is on PATH so the Makefile auto-detects it
+    export PATH="$(pwd)/flink-python/dev/.uv/bin:$PATH"
+    pushd flink-python/docs
+    make zh
+    popd
+
+    # move python docs (English at root, Chinese at zh/)
+    mv flink-python/docs/_build/html docs/target/api/python
+fi

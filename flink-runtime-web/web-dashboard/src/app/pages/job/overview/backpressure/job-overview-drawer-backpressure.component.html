@@ -1,0 +1,141 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-table
+  nzSize="small"
+  [nzLoading]="isLoading"
+  [nzData]="listOfSubTaskBackpressure"
+  [nzScroll]="{ y: 'calc( 100% - 90px )' }"
+  [nzWidthConfig]="['16%', '16%', '16%', '16%', '16%', '20%']"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false"
+  [nzVirtualItemSize]="36"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualForTrackBy]="trackBySubtask"
+>
+  <thead>
+    <tr>
+      <th colspan="6" class="title">
+        <span *ngIf="selectedVertex?.detail?.status === 'RUNNING'">
+          Measurement:
+          <span *ngIf="backpressure['end-timestamp']">
+            {{ now - backpressure['end-timestamp'] | humanizeDuration }} ago
+          </span>
+          <span *ngIf="backpressure['status'] === 'deprecated'">Sampling in progress...</span>
+          <span *ngIf="!backpressure['end-timestamp'] && backpressure['status'] !== 'deprecated'">
+            -
+          </span>
+          <nz-divider [nzType]="'vertical'"></nz-divider>
+          Back Pressure Status:
+          <span>
+            <flink-dynamic-host
+              [data]="{ state: backpressure['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
+          </span>
+        </span>
+        <span
+          *ngIf="
+            selectedVertex?.detail?.status !== 'RUNNING' &&
+            selectedVertex?.detail?.status !== 'INITIALIZING'
+          "
+        >
+          Operator is not running or initializing. Cannot sample back pressure.
+        </span>
+      </th>
+    </tr>
+    <tr>
+      <th>SubTask</th>
+      <th [nzSortFn]="sortByBackpressureRatio">Backpressure</th>
+      <th [nzSortFn]="sortByIdleRatio">Idle</th>
+      <th [nzSortFn]="sortByBusyRatio" [nzSortOrder]="'descend'">Busy</th>
+      <th>Backpressure Status</th>
+      <th>Thread Dump</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-template nz-virtual-scroll let-data>
+      <ng-container *ngIf="narrowType(data) as subtask">
+        <tr>
+          <td
+            [nzShowExpand]="subtask['other-concurrent-attempts']?.length > 0"
+            [nzExpand]="expandSet.has(subtask['subtask'])"
+            (nzExpandChange)="onExpandChange(subtask, $event)"
+          >
+            {{ subtask['subtask'] }}
+            <span class="left-margin" *ngIf="subtask['attempt-number'] !== undefined">
+              [attempt-{{ subtask['attempt-number'] + 1 }}]
+            </span>
+          </td>
+          <td>{{ this.prettyPrint(subtask['ratio']) }}</td>
+          <td>{{ this.prettyPrint(subtask['idleRatio']) }}</td>
+          <td>{{ this.prettyPrint(subtask['busyRatio']) }}</td>
+          <td>
+            <flink-dynamic-host
+              [data]="{ state: subtask['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
+          </td>
+          <td>
+            <a
+              *ngIf="mapOfSubtask.get(subtask['subtask'])"
+              [routerLink]="[
+                '/task-manager',
+                mapOfSubtask.get(subtask['subtask'])['taskmanager-id'],
+                'thread-dump'
+              ]"
+              [queryParams]="{
+                vertexName: selectedVertex.detail.name + ' (' + (subtask['subtask'] + 1) + '/'
+              }"
+              target="_blank"
+            >
+              Dump
+            </a>
+          </td>
+        </tr>
+        <ng-container *ngIf="expandSet.has(subtask['subtask'])">
+          <ng-container
+            *ngFor="
+              let attempt of subtask['other-concurrent-attempts'];
+              trackBy: trackBySubtaskAttempt
+            "
+          >
+            <tr>
+              <td [nzIndentSize]="1">
+                {{ attempt['subtask'] }}
+                <ng-container *ngIf="attempt['attempt-number'] !== undefined">
+                  &nbsp;[attempt-{{ attempt['attempt-number'] + 1 }}]
+                </ng-container>
+              </td>
+              <td>{{ this.prettyPrint(attempt['ratio']) }}</td>
+              <td>{{ this.prettyPrint(attempt['idleRatio']) }}</td>
+              <td>{{ this.prettyPrint(attempt['busyRatio']) }}</td>
+              <td>
+                <flink-dynamic-host
+                  [data]="{ state: attempt['backpressure-level'] }"
+                  [component]="stateBadgeComponent"
+                ></flink-dynamic-host>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </ng-template>
+  </tbody>
+</nz-table>

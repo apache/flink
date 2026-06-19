@@ -1,0 +1,194 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/datastream_tutorial.rst:23
+msgid "DataStream API Tutorial"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:25
+msgid ""
+"Apache Flink offers a DataStream API for building robust, stateful "
+"streaming applications. It provides fine-grained control over state and "
+"time, which allows for the implementation of advanced event-driven "
+"systems. In this step-by-step guide, you’ll learn how to build a simple "
+"streaming application with PyFlink and the DataStream API."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:32
+msgid "What Will You Be Building?"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:34
+msgid ""
+"In this tutorial, you will learn how to write a simple Python DataStream "
+"pipeline. The pipeline will read data from a csv file, compute the word "
+"frequency and write the results to an output file."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:39
+msgid "Prerequisites"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:41
+msgid ""
+"This walkthrough assumes that you have some familiarity with Python, but "
+"you should be able to follow along even if you come from a different "
+"programming language."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:46
+msgid "Help, I’m Stuck!"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:48
+msgid ""
+"If you get stuck, check out the `community support resources "
+"<https://flink.apache.org/community.html>`__. In particular, Apache "
+"Flink’s `user mailing list "
+"<https://flink.apache.org/community.html#mailinglists>`__ consistently "
+"ranks as one of the most active of any Apache project and a great way to "
+"get help quickly."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:55
+msgid "How To Follow Along"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:57
+msgid "If you want to follow along, you will require a computer with:"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:59
+msgid "Java 11"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:60
+msgid "Python 3.9, 3.10, 3.11 or 3.12"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:62
+msgid ""
+"Using Python DataStream API requires installing PyFlink, which is "
+"available on `PyPI <https://pypi.org/project/apache-flink/>`__ and can be"
+" easily installed using ``pip``."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:70
+msgid ""
+"Once PyFlink is installed, you can move on to write a Python DataStream "
+"job."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:74
+msgid "Writing a Flink Python DataStream API Program"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:76
+msgid ""
+"DataStream API applications begin by declaring an execution environment "
+"(``StreamExecutionEnvironment``), the context in which a streaming "
+"program is executed. This is what you will use to set the properties of "
+"your job (e.g. default parallelism, restart strategy), create your "
+"sources and finally trigger the execution of the job."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:88
+msgid ""
+"Once a ``StreamExecutionEnvironment`` is created, you can use it to "
+"declare your *source*. Sources ingest data from external systems, such as"
+" Apache Kafka, Rabbit MQ, or Apache Pulsar, into Flink Jobs."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:92
+msgid ""
+"To keep things simple, this walkthrough uses a source which reads data "
+"from a file."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:105
+msgid ""
+"You can now perform transformations on this data stream, or just write "
+"the data to an external system using a *sink*. This walkthrough uses the "
+"``FileSink`` sink connector to write the data into a file."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:133
+msgid ""
+"The last step is to execute the actual PyFlink DataStream API job. "
+"PyFlink applications are built lazily and shipped to the cluster for "
+"execution only once fully formed. To execute an application, you simply "
+"call ``env.execute()``."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:142
+msgid "The complete code so far:"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:264
+msgid "Executing a Flink Python DataStream API Program"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:266
+msgid ""
+"Now that you defined your PyFlink program, you can run the example you "
+"just created on the command line:"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:273
+msgid ""
+"The command builds and runs your PyFlink program in a local mini cluster."
+" You can alternatively submit it to a remote cluster using the "
+"instructions detailed in :flinkdoc:`Job Submission Examples "
+"<docs/deployment/cli/#submitting-pyflink-jobs>`."
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:277
+msgid "Finally, you can see the execution results similar to the following:"
+msgstr ""
+
+#: ../../user_guide/datastream_tutorial.rst:287
+msgid ""
+"This walkthrough gives you the foundations to get started writing your "
+"own PyFlink DataStream API programs. You can also refer to `PyFlink "
+"Examples <https://github.com/apache/flink/tree/master/flink-"
+"python/pyflink/examples>`_ for more examples. To learn more about the "
+"Python DataStream API, please refer to `Flink Python API Docs "
+"<https://nightlies.apache.org/flink/flink-docs-stable/api/python/>`_ for "
+"more details."
+msgstr ""
+

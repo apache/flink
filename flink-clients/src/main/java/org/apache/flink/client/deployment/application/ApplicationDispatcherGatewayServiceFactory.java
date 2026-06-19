@@ -1,0 +1,172 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.client.deployment.application;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ApplicationOptionsInternal;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.dispatcher.ApplicationBootstrap;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherFactory;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithPersistenceComponents;
+import org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherGatewayService;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * A {@link
+ * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
+ * DispatcherGatewayServiceFactory} used when executing a job in Application Mode, i.e. the user's
+ * main is executed on the same machine as the {@link Dispatcher} and the lifecycle of the cluster
+ * is the same as the one of the application.
+ *
+ * <p>It instantiates a {@link
+ * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayService
+ * DispatcherGatewayService} with an {@link ApplicationBootstrap} containing the user's program.
+ */
+@Internal
+public class ApplicationDispatcherGatewayServiceFactory
+        implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+
+    private final Configuration configuration;
+
+    private final DispatcherFactory dispatcherFactory;
+
+    private final PackagedProgram program;
+
+    private final RpcService rpcService;
+
+    private final PartialDispatcherServices partialDispatcherServices;
+
+    public ApplicationDispatcherGatewayServiceFactory(
+            Configuration configuration,
+            DispatcherFactory dispatcherFactory,
+            PackagedProgram program,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices) {
+        this.configuration = configuration;
+        this.dispatcherFactory = dispatcherFactory;
+        this.program = checkNotNull(program);
+        this.rpcService = rpcService;
+        this.partialDispatcherServices = partialDispatcherServices;
+    }
+
+    @Override
+    public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
+            DispatcherId fencingToken,
+            Collection<ExecutionPlan> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
+            Collection<AbstractApplication> recoveredApplications,
+            Collection<ApplicationResult> recoveredDirtyApplicationResults,
+            ExecutionPlanWriter executionPlanWriter,
+            JobResultStore jobResultStore,
+            ApplicationStore applicationStore,
+            ApplicationResultStore applicationResultStore) {
+
+        final List<JobInfo> recoveredJobInfos = getRecoveredJobInfos(recoveredJobs);
+        final List<JobInfo> recoveredTerminalJobInfos =
+                getRecoveredTerminalJobInfos(recoveredDirtyJobResults);
+
+        final Tuple2<Integer, Integer> jobCountLimits =
+                ApplicationJobUtils.getJobCountLimits(configuration);
+        ApplicationJobUtils.maybeFixIds(configuration);
+        final ApplicationID applicationId =
+                configuration
+                        .getOptional(ApplicationOptionsInternal.FIXED_APPLICATION_ID)
+                        .map(ApplicationID::fromHexString)
+                        .orElseGet(ApplicationID::new);
+
+        PackagedProgramApplication bootstrapApplication =
+                new PackagedProgramApplication(
+                        applicationId,
+                        program,
+                        recoveredJobInfos,
+                        recoveredTerminalJobInfos,
+                        configuration,
+                        jobCountLimits.f0,
+                        jobCountLimits.f1,
+                        true,
+                        configuration.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR),
+                        configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH));
+
+        final Dispatcher dispatcher;
+        try {
+            dispatcher =
+                    dispatcherFactory.createDispatcher(
+                            rpcService,
+                            fencingToken,
+                            recoveredJobs,
+                            recoveredDirtyJobResults,
+                            recoveredApplications,
+                            recoveredDirtyApplicationResults,
+                            (dispatcherGateway, scheduledExecutor, errorHandler) ->
+                                    new ApplicationBootstrap(bootstrapApplication),
+                            PartialDispatcherServicesWithPersistenceComponents.from(
+                                    partialDispatcherServices,
+                                    executionPlanWriter,
+                                    jobResultStore,
+                                    applicationStore,
+                                    applicationResultStore));
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
+        }
+
+        dispatcher.start();
+
+        return DefaultDispatcherGatewayService.from(dispatcher);
+    }
+
+    private List<JobInfo> getRecoveredJobInfos(final Collection<ExecutionPlan> recoveredJobs) {
+        return recoveredJobs.stream()
+                .map(
+                        executionPlan ->
+                                new JobInfoImpl(executionPlan.getJobID(), executionPlan.getName()))
+                .collect(Collectors.toList());
+    }
+
+    private List<JobInfo> getRecoveredTerminalJobInfos(
+            final Collection<JobResult> recoveredDirtyJobResults) {
+        return recoveredDirtyJobResults.stream()
+                .map(jobResult -> new JobInfoImpl(jobResult.getJobId(), jobResult.getJobName()))
+                .collect(Collectors.toList());
+    }
+}

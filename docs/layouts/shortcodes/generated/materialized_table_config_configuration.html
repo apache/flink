@@ -1,0 +1,42 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>materialized-table.default-freshness.continuous</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The default freshness interval for continuous refresh mode when the FRESHNESS clause is omitted in a materialized table definition.</td>
+        </tr>
+        <tr>
+            <td><h5>materialized-table.default-freshness.full</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The default freshness interval for full refresh mode when the FRESHNESS clause is omitted in a materialized table definition.</td>
+        </tr>
+        <tr>
+            <td><h5>materialized-table.default-start-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FROM_BEGINNING</td>
+            <td><p>Enum</p></td>
+            <td>The default start mode for materialized tables.Supported values: FROM_BEGINNING, FROM_NOW, RESUME_OR_FROM_BEGINNING, RESUME_OR_FROM_NOW.<br /><br />Possible values:<ul><li>"FROM_BEGINNING"</li><li>"FROM_NOW"</li><li>"FROM_TIMESTAMP"</li><li>"RESUME_OR_FROM_BEGINNING"</li><li>"RESUME_OR_FROM_NOW"</li><li>"RESUME_OR_FROM_TIMESTAMP"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>materialized-table.refresh-mode.freshness-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">30 min</td>
+            <td>Duration</td>
+            <td>Specifies a time threshold for determining the materialized table refresh mode. If the materialized table defined FRESHNESS is below this threshold, it run in continuous mode. Otherwise, it switches to full refresh mode.</td>
+        </tr>
+        <tr>
+            <td><h5>partition.fields.#.date-formatter</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specifies the time partition formatter for the partitioned materialized table, where '#' denotes a string-based partition field name. This serves as a hint to the framework regarding which partition to refresh in full refresh mode.</td>
+        </tr>
+    </tbody>
+</table>

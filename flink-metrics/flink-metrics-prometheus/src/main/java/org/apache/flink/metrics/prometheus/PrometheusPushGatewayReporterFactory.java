@@ -1,0 +1,140 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.metrics.prometheus;
+
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
+
+/** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
+public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PrometheusPushGatewayReporterFactory.class);
+
+    @Override
+    public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
+        MetricConfig metricConfig = (MetricConfig) properties;
+        String configuredJobName = metricConfig.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
+        boolean randomSuffix =
+                metricConfig.getBoolean(
+                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
+        boolean deleteOnShutdown =
+                metricConfig.getBoolean(
+                        DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+        Map<String, String> groupingKey =
+                parseGroupingKey(
+                        metricConfig.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+
+        String hostUrl = metricConfig.getString(HOST_URL.key(), HOST_URL.defaultValue());
+
+        if (StringUtils.isNullOrWhitespaceOnly(hostUrl)) {
+            throw new IllegalArgumentException("hostUrl must not be null or empty");
+        }
+
+        String jobName = configuredJobName;
+        if (randomSuffix) {
+            jobName = configuredJobName + new AbstractID();
+        }
+
+        String username = metricConfig.getString(USERNAME.key(), USERNAME.defaultValue());
+        String password = metricConfig.getString(PASSWORD.key(), PASSWORD.defaultValue());
+
+        if ((username != null && password == null) || (username == null && password != null)) {
+            LOG.warn(
+                    "Both username and password must be configured to enable HTTP Basic Authentication. "
+                            + "Currently only {} is configured, Basic Auth will be disabled.",
+                    username != null ? "username" : "password");
+        }
+
+        try {
+            PrometheusPushGatewayReporter reporter =
+                    new PrometheusPushGatewayReporter(
+                            new URL(hostUrl),
+                            jobName,
+                            groupingKey,
+                            deleteOnShutdown,
+                            username,
+                            password);
+
+            LOG.info(
+                    "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}, basicAuth:{}}",
+                    hostUrl,
+                    jobName,
+                    randomSuffix,
+                    deleteOnShutdown,
+                    groupingKey,
+                    reporter.basicAuthEnabled);
+
+            return reporter;
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @VisibleForTesting
+    static Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
+        if (!groupingKeyConfig.isEmpty()) {
+            Map<String, String> groupingKey = new HashMap<>();
+            String[] kvs = groupingKeyConfig.split(";");
+            for (String kv : kvs) {
+                int idx = kv.indexOf("=");
+                if (idx < 0) {
+                    LOG.warn("Invalid prometheusPushGateway groupingKey:{}, will be ignored", kv);
+                    continue;
+                }
+
+                String labelKey = kv.substring(0, idx);
+                String labelValue = kv.substring(idx + 1);
+                if (StringUtils.isNullOrWhitespaceOnly(labelKey)
+                        || StringUtils.isNullOrWhitespaceOnly(labelValue)) {
+                    LOG.warn(
+                            "Invalid groupingKey {labelKey:{}, labelValue:{}} must not be empty",
+                            labelKey,
+                            labelValue);
+                    continue;
+                }
+                groupingKey.put(labelKey, labelValue);
+            }
+
+            return groupingKey;
+        }
+
+        return Collections.emptyMap();
+    }
+}

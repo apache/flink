@@ -1,0 +1,1924 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.table.planner.plan.stream.sql
+
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists
+import org.apache.flink.table.api.{DataTypes, ExplainDetail, Schema}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
+import org.apache.flink.table.api.config.OptimizerConfigOptions.DeltaJoinStrategy
+import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedCatalogTable}
+import org.apache.flink.table.planner.{JList, JMap}
+import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
+
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.util.Maps
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import java.util.{Collections, HashMap => JHashMap}
+
+/** Test for delta join. */
+class DeltaJoinTest extends TableTestBase {
+
+  private val util = streamTestUtil()
+  private val tEnv: TestingTableEnvironment = util.tableEnv.asInstanceOf[TestingTableEnvironment]
+
+  private val testComment = "test comment"
+  private val testValuesTableOptions: JMap[String, String] = {
+    val options = new JHashMap[String, String]()
+    options.put("connector", "values")
+    options.put("bounded", "false")
+    options.put("sink-insert-only", "false")
+    options.put("sink-changelog-mode-enforced", "I,UA,D")
+    options.put("async", "true")
+    options
+  }
+
+  @BeforeEach
+  def setup(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      OptimizerConfigOptions.DeltaJoinStrategy.AUTO)
+
+    addTable(
+      "src1",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .build()
+    )
+
+    addTable(
+      "src2",
+      Schema
+        .newBuilder()
+        .column("b0", DataTypes.INT.notNull)
+        .column("b2", DataTypes.STRING)
+        .column("b1", DataTypes.DOUBLE)
+        .index("b2")
+        .build()
+    )
+
+    addTable(
+      "no_delete_src1",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING.notNull)
+        .column("a3", DataTypes.INT)
+        .primaryKey("a0", "a1", "a2")
+        .index("a1", "a2")
+        .index("a1")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
+      "no_delete_src2",
+      Schema
+        .newBuilder()
+        .column("b0", DataTypes.INT)
+        .column("b2", DataTypes.STRING.notNull)
+        .column("b1", DataTypes.DOUBLE.notNull)
+        .primaryKey("b1", "b2")
+        .index("b2")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
+      "no_delete_src3",
+      Schema
+        .newBuilder()
+        .column("c0", DataTypes.INT)
+        .column("c1", DataTypes.DOUBLE.notNull)
+        .column("c2", DataTypes.STRING.notNull)
+        .primaryKey("c1", "c2")
+        .index("c1", "c2")
+        .index("c1")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
+      "no_delete_src4",
+      Schema
+        .newBuilder()
+        .column("d0", DataTypes.INT)
+        .column("d1", DataTypes.DOUBLE.notNull)
+        .column("d2", DataTypes.STRING.notNull)
+        .primaryKey("d1", "d2")
+        .index("d1", "d2")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
+      "snk",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT.notNull)
+        .column("l1", DataTypes.DOUBLE)
+        .column("l2", DataTypes.STRING)
+        .column("l3", DataTypes.INT)
+        .column("r0", DataTypes.INT.notNull)
+        .column("r2", DataTypes.STRING)
+        .column("r1", DataTypes.DOUBLE)
+        .primaryKey("l0", "r0")
+        .build()
+    )
+
+    addTable(
+      "snk_for_cdc_src",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT.notNull)
+        .column("l1", DataTypes.DOUBLE.notNull)
+        .column("l2", DataTypes.STRING.notNull)
+        .column("l3", DataTypes.INT)
+        .column("r0", DataTypes.INT)
+        .column("r2", DataTypes.STRING.notNull)
+        .column("r1", DataTypes.DOUBLE.notNull)
+        .primaryKey("l0", "l1", "l2", "r1", "r2")
+        .build()
+    )
+
+    addTable(
+      "dim",
+      Schema
+        .newBuilder()
+        .column("f0", DataTypes.INT.notNull)
+        .column("f1", DataTypes.DOUBLE.notNull)
+        .build()
+    )
+  }
+
+  @Test
+  def testJoinKeysContainIndexOnBothSide(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testJoinKeysContainIndexOnBothSide2(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src1.a3 = src2.b0 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testJoinKeysNotContainIndexOnOneSide(): Unit = {
+    // could not optimize into delta join because join keys do not contain indexes strictly
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testWithNonEquiCondition1(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src2.b0 > src1.a0 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testWithNonEquiCondition2(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src2.b0 > src1.a0 " +
+        "and src2.b2 <> 'Hello' " +
+        "and src1.a0 > 99 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testWithNonDeterministicInNonEquiCondition(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src1.a0 + rand(10) < src2.b0 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testJsonPlanWithTableHints(): Unit = {
+    util.verifyJsonPlan(
+      "insert into snk select * from src1 /*+ OPTIONS('failing-source'='true') */" +
+        "join src2 /*+ OPTIONS('failing-source'='true') */" +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src2.b0 > src1.a0 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testProjectFieldsAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoinWhileModifyingOnIndex(): Unit = {
+    // a2 is modified
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoinWhileModifyingOnOneIndexButRetainingAnother(): Unit = {
+    addTable(
+      "src1WithMultiIndexes",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .index("a1")
+        .build()
+    )
+
+    // a2 is modified
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoinWhileAliasAndReorderOnIndex(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk(l1, l2, l0, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a1 as a0, a2 as a1, a0 as a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a0 = src2.b1 " +
+        "and tmp.a1 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testSourceDDLContainsComputingCol(): Unit = {
+    addTable(
+      "src1WithComputingCol",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .columnByExpression("new_a1", "a1 + 1")
+        .index("a1", "a2")
+        .build()
+    )
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
+        "from src1WithComputingCol join src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testSourceDDLContainsNonDeterministicComputingCol(): Unit = {
+    addTable(
+      "src1WithComputingCol",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .columnByExpression("new_a1", "a1 + rand(10)")
+        .index("a1", "a2")
+        .build()
+    )
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
+        "from src1WithComputingCol join src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testFilterFieldsBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from (  " +
+        "  select * from src1 where a1 > 1.1 " +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testFilterFieldsAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "where a3 > b0 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testFilterFieldsBeforeJoinWithFilterPushDown(): Unit = {
+    replaceTable("src1", "src1", Maps.newHashMap("filterable-fields", "a0"))
+    replaceTable("src2", "src2", Maps.newHashMap("filterable-fields", "b0"))
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > 1
+                               |  ) join (
+                               |    select b1, b2, b0 from src2 where b1 < 10
+                               |  )
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  and b0 <> 0
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoin1(): Unit = {
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > rand(10)
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoin2(): Unit = {
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |  select * from src1
+                               |  join (
+                               |    select * from src2 where b0 > rand(10)
+                               |  )
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoinWithFilterPushDown(): Unit = {
+    replaceTable("src1", "src1", Maps.newHashMap("filterable-fields", "a0"))
+
+    // actually, 'values' source will not push down filter 'a0 > rand(10)' into source
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > rand(10)
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testPartitionPushDown(): Unit = {
+    addTable(
+      "src1WithPartition",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("pt", DataTypes.INT)
+        .index("a1", "a2")
+        .build(),
+      Maps.newHashMap("partition-list", "pt:1;pt:2"),
+      Lists.newArrayList("pt")
+    )
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, r0, r2)
+                               |  select a0, b0, b2 from (
+                               |    select a0, a2, a1 from src1WithPartition where pt = 1
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testReadingMetadata(): Unit = {
+    addTable(
+      "src1WithMetadata",
+      Schema
+        .newBuilder()
+        .columnByMetadata("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .build(),
+      Maps.newHashMap("readable-metadata", "a0:int")
+    )
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, r0, r2)
+                               |  select a0, b0, b2 from (
+                               |    select a0, a2, a1 from src1WithMetadata
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete()
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown(): Unit = {
+    replaceTable("no_delete_src1", "no_delete_src1", Maps.newHashMap("filterable-fields", "a3"))
+    testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete()
+  }
+
+  private def testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a3 > 1",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a3 > b0",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner()
+  }
+
+  @Test
+  def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown(): Unit = {
+    replaceTable("no_delete_src1", "no_delete_src1", Maps.newHashMap("filterable-fields", "a0"))
+    testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner()
+  }
+
+  private def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a0 > 1",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testFilterOnUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a0 > b1",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testMultiRootsWithReusingJoinView(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
+
+    util.tableEnv.executeSql("create table snk2 like snk")
+
+    util.tableEnv.executeSql(
+      "create temporary view mv as " +
+        "select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql("insert into snk select * from mv on conflict do deduplicate")
+    stmt.addInsertSql("insert into snk2 select * from mv on conflict do deduplicate")
+
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testMultiRootsWithReusingJoinView2(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
+
+    util.tableEnv.executeSql(
+      "create table snk2 like snk(" +
+        "  EXCLUDING CONSTRAINTS" +
+        ")")
+
+    util.tableEnv.executeSql(
+      "create temporary view mv as " +
+        "select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql("insert into snk select * from mv on conflict do deduplicate")
+    stmt.addInsertSql("insert into snk2 select * from mv on conflict do deduplicate")
+
+    // the join could not be optimized to delta join
+    // because one of the sink doesn't satisfy the requirement
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testMultiRootsWithReusingDeltaJoin(): Unit = {
+    util.tableEnv.executeSql("create table snk2 like snk")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    stmt.addInsertSql(
+      "insert into snk2 select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testMultiRootsWithoutReusingDeltaJoin1(): Unit = {
+    // one sink has pk but another doesn't
+    util.tableEnv.executeSql(
+      "create table snk2 like snk(" +
+        "  EXCLUDING CONSTRAINTS" +
+        ")")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    stmt.addInsertSql(
+      "insert into snk2 select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testMultiRootsWithoutReusingDeltaJoin2(): Unit = {
+    // one sink is an upsert sink but another is a retract sink
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE snk2 WITH (\n"
+          + "  'sink-changelog-mode-enforced' = 'I,UA,UB,D'"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    // snk2 is a retract sink, so ON CONFLICT is not allowed
+    stmt.addInsertSql(
+      "insert into snk2 select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testExplainPlanAdvice(): Unit = {
+    util.verifyExplainInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate",
+      ExplainDetail.PLAN_ADVICE
+    )
+  }
+
+  @Test
+  def testLookupTableWithCache(): Unit = {
+    val lookupOptions = new JHashMap[String, String]()
+    lookupOptions.put("lookup.cache", "partial")
+    lookupOptions.put("lookup.partial-cache.max-rows", "1000")
+
+    replaceTable("src1", "src1", lookupOptions)
+
+    util.verifyExplainInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate",
+      ExplainDetail.PLAN_ADVICE
+    )
+  }
+
+  @Test
+  def testWithWatermarkAssigner(): Unit = {
+    addTable(
+      "wm_source",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT)
+        .column("a1", DataTypes.STRING)
+        .column("a2", DataTypes.TIMESTAMP(3))
+        .watermark("a2", "a2 - INTERVAL '1' SECOND")
+        .index("a1")
+        .build()
+    )
+    addTable(
+      "tmp_sink",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT)
+        .column("l1", DataTypes.STRING)
+        .column("l2", DataTypes.TIMESTAMP(3))
+        .column("r0", DataTypes.INT.notNull)
+        .column("r2", DataTypes.STRING)
+        .column("r1", DataTypes.DOUBLE)
+        .build()
+    )
+
+    // could not optimize into delta join because there is a watermark assigner
+    // between join and source
+    util.verifyRelPlanInsert(
+      "insert into tmp_sink select * from wm_source join src2 " +
+        "on wm_source.a1 = src2.b2")
+  }
+
+  @Test
+  def testWithoutLookupTable(): Unit = {
+    replaceTable("src2", "non_lookup_src", Maps.newHashMap("disable-lookup", "true"))
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join non_lookup_src " +
+        "on src1.a1 = non_lookup_src.b1 " +
+        "and src1.a2 = non_lookup_src.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testConstantConditionInIndex(): Unit = {
+    // could not optimize into delta join because currently, we do not support
+    // using constant fields as join keys
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = 1.1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testComputeIndexKeyOnJoinCondition(): Unit = {
+    // could not optimize into delta join because the index fields has been computed
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = TRIM(src2.b2) " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFuncBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select a0, a1, a2, a3, b0, b2, b1 from (" +
+        "  select a0, a1, a2, cast(RAND() * a3 AS int) as a3 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFuncAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk " +
+        "select cast(a0 + RAND() as int), a1, a2, a3, b0, b2, b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testSourceWithAllRowKinds(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    replaceTable("src2", "cdc_src", Maps.newHashMap("changelog-mode", "I,UA,UB,D"))
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join cdc_src " +
+        "on src1.a1 = cdc_src.b1 " +
+        "and src1.a2 = cdc_src.b2")
+  }
+
+  @Test
+  def testPKContainsJoinKeyAndTwoSourcesNoDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_src1 join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testPKNotContainJoinKeyAndTwoSourcesNoDelete(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_src1 join no_delete_src2 " +
+        "on a0 = b0 " +
+        "and a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testPKContainJoinKeyAndOnlyOneSourceNoDelete(): Unit = {
+    replaceTable(
+      "no_delete_src1",
+      "all_changelog_src",
+      Maps.newHashMap("changelog-mode", "I,UA,UB,D"))
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from all_changelog_src join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testPKContainsJoinKeyAndSourceNoUBAndD(): Unit = {
+    // FLINK-38489 Currently, ChangelogNormalize will always generate changelog mode with D,
+    // and Join with D cannot be optimized into Delta Join
+    replaceTable(
+      "no_delete_src1",
+      "no_delete_and_update_before_src1",
+      Maps.newHashMap("changelog-mode", "I,UA"))
+
+    replaceTable(
+      "no_delete_src2",
+      "no_delete_and_update_before_src2",
+      Maps.newHashMap("changelog-mode", "I,UA"))
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_and_update_before_src1 " +
+        "join no_delete_and_update_before_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinAppendOnlySourceAndSourceWithoutDelete(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.tableEnv.executeSql("""
+                               |create table tmp_snk (
+                               | primary key (r1, r2) not enforced
+                               |) like snk_for_cdc_src (
+                               |  EXCLUDING CONSTRAINTS
+                               |)
+                               |""".stripMargin)
+
+    // the join could not be converted into the delta join
+    // because the upsert key of the join is `null`
+    util.verifyRelPlanInsert(
+      "insert into tmp_snk " +
+        "select * from src1 join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWithAggregatingSourceTableBeforeJoin(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from ( " +
+        "  select distinct max(a0) as a0, a1, max(a2) as a2, max(a3) as a3 from src1 group by a1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2")
+  }
+
+  @Test
+  def testWithAggregatingAfterJoin(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk " +
+        "select a0, max(a1), max(a2), max(a3), max(b0), max(b2), b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "group by a0, b1")
+  }
+
+  @Test
+  def testWithCascadeJoin(): Unit = {
+    replaceTable("src2", "src3", Collections.emptyMap(), dropOldTable = false)
+
+    addTable(
+      "tmp_snk",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT.notNull)
+        .column("l1", DataTypes.DOUBLE)
+        .column("l2", DataTypes.STRING)
+        .column("l3", DataTypes.INT)
+        .column("r0", DataTypes.INT.notNull)
+        .column("r2", DataTypes.STRING)
+        .column("r1", DataTypes.DOUBLE)
+        .column("r00", DataTypes.INT.notNull)
+        .column("r22", DataTypes.STRING)
+        .column("r11", DataTypes.DOUBLE)
+        .primaryKey("l0", "r0", "r00")
+        .build()
+    )
+
+    // could not be converted to cascaded join because join with only consumes insert only
+    // can not consume duplicated changes
+    util.verifyRelPlanInsert(
+      "insert into tmp_snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "join src3 " +
+        "on src1.a1 = src3.b1 " +
+        "and src1.a2 = src3.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testWithUnsupportedJoinType(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 left join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+  }
+
+  @Test
+  def testWithAlwaysTrueJoinCondition(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on 1 = 1 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testSourceWithoutIndexes(): Unit = {
+    addTable(
+      "non_index_src",
+      Schema
+        .newBuilder()
+        .column("b0", DataTypes.INT.notNull)
+        .column("b2", DataTypes.STRING)
+        .column("b1", DataTypes.DOUBLE)
+        .primaryKey("b0")
+        .build()
+    )
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join non_index_src " +
+        "on src1.a1 = non_index_src.b1 " +
+        "and src1.a2 = non_index_src.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testDeltaJoinStrategyWithNone(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      DeltaJoinStrategy.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testDeltaJoinStrategyWithForce(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      DeltaJoinStrategy.FORCE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testDeltaJoinStrategyWithForce2(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      DeltaJoinStrategy.FORCE)
+
+    // the join could not be converted into the delta join
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "insert into snk select * from src1 join src2 " +
+            "on src1.a1 = src2.b1 " +
+            "on conflict do deduplicate"))
+      .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
+
+  }
+
+  @Test
+  def testDeltaJoinStrategyWithForce3(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      DeltaJoinStrategy.FORCE)
+
+    util.tableEnv.executeSql(
+      "create table snk2 like snk(" +
+        "  EXCLUDING CONSTRAINTS" +
+        ")")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    stmt.addInsertSql(
+      "insert into snk2 select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+
+    // one of the joins can be converted into the delta join
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testDeltaJoinStrategyWithForce4(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+      DeltaJoinStrategy.FORCE)
+
+    addTable(
+      "tmp_snk",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT.notNull)
+        .column("l1", DataTypes.DOUBLE)
+        .primaryKey("l0")
+        .build()
+    )
+
+    // no joins on this query
+    util.verifyRelPlanInsert(
+      "insert into tmp_snk select a0, a1 from src1 on conflict do deduplicate")
+  }
+
+  @Test
+  def testRetractSink(): Unit = {
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE retract_snk WITH (\n"
+          + "  'sink-changelog-mode-enforced' = 'I,UA,UB,D'"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
+
+    util.verifyRelPlanInsert(
+      "insert into retract_snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+  }
+
+  @Test
+  def testAppendSink(): Unit = {
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE append_snk WITH (\n"
+          + "  'sink-insert-only' = 'true',\n"
+          + "  'sink-changelog-mode-enforced' = 'I'\n"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
+
+    util.verifyRelPlanInsert(
+      "insert into append_snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+  }
+
+  @Test
+  def testMultiIndexesInSourceWhileJoinKeyContainsOneOfThem(): Unit = {
+    addTable(
+      "tmp_src11",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .index("a2")
+        .build()
+    )
+
+    addTable(
+      "tmp_src12",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a2")
+        .index("a1", "a2")
+        .build()
+    )
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from tmp_src11 join src2 " +
+        "on tmp_src11.a2 = src2.b2 on conflict do deduplicate")
+    stmt.addInsertSql(
+      "insert into snk select * from tmp_src12 join src2 " +
+        "on tmp_src12.a2 = src2.b2 on conflict do deduplicate")
+    util.verifyRelPlan(stmt)
+  }
+
+  @Test
+  def testLookupJoinAfterDeltaJoin(): Unit = {
+    tEnv.executeSql("""
+                      |create temporary view myv as
+                      |select *, proctime() as pt from src1 join src2
+                      | on src1.a1 = src2.b1
+                      |   and src1.a2 = src2.b2
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |select a0, a1, a2, a3, b0, b2, b1 from myv
+                               |  join dim for system_time as of pt
+                               |  on a0 = f0
+                               |on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testLookupJoinBeforeJoin(): Unit = {
+    tEnv.executeSql("""
+                      |create temporary view src1_v as
+                      |select *, proctime() as pt from src1
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |create temporary view lookup_v as
+                      |select a0, a1, a2, a3 from src1_v
+                      |  join dim for system_time as of pt
+                      |  on a0 = f0
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |select a0, a1, a2, a3, b0, b2, b1 from lookup_v
+                               |  join src2
+                               |  on a1 = b1 and a2 = b2
+                               |on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testLHS1(): Unit = {
+    //       DT
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_ab
+        |    join no_delete_src3 C
+        |     on a1 = c1 and a2 = c2 and c1 <> cast(a0 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testLHS2(): Unit = {
+    //       DT
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // when records from C come, lookup chain is:
+    // C -> B -> A
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_ab
+        |    join no_delete_src3 C
+        |     on b1 = c1 and b2 = c2 and c1 <> cast(b2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiLHS1(): Unit = {
+    //          DT
+    //        /    \
+    //       DT     D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // when records from C come, lookup chain is:
+    // C -> B -> A
+    // when records from D come, lookup chain is:
+    // D -> B -> A -> C
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on b1 = c1 and b2 = c2 and c1 <> cast(b2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on b1 = d1 and b2 = d2 and d1 <> cast(b2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiLHS2(): Unit = {
+    //          DT
+    //        /    \
+    //       DT     D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // when records from C come, lookup chain is:
+    // C -> B -> A
+    // when records from D come, lookup chain is:
+    // D -> A -> B -> C
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on b1 = c1 and b2 = c2 and c1 <> cast(b2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on a1 = d1 and a2 = d2 and d1 <> cast(a2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiLHS3(): Unit = {
+    //          DT
+    //        /    \
+    //       DT     D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    // when records from D come, lookup chain is:
+    // D -> C -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, c0, c2, c1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testRHS1(): Unit = {
+    //       DT
+    //     /    \
+    //    C      DT
+    //         /    \
+    //        A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from no_delete_src3 C
+        |    join tmp_ab
+        |     on a1 = c1 and a2 = c2 and c1 <> cast(a0 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testRHS2(): Unit = {
+    //       DT
+    //     /    \
+    //    C      DT
+    //         /    \
+    //        A      B
+    // when records from C come, lookup chain is:
+    // C -> B -> A
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from no_delete_src3 C
+        |    join tmp_ab
+        |     on b1 = c1 and b2 = c2 and c1 <> cast(b2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiRHS1(): Unit = {
+    //      DT
+    //    /    \
+    //   D     DT
+    //       /    \
+    //      C     DT
+    //          /    \
+    //         A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    // when records from D come, lookup chain is:
+    // D -> B -> A -> C
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from no_delete_src4 D
+        |    join tmp_abc
+        |     on b1 = d1 and b2 = d2 and d1 <> cast(b2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiRHS2(): Unit = {
+    //      DT
+    //    /    \
+    //   D     DT
+    //       /    \
+    //      C     DT
+    //          /    \
+    //         A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    // when records from D come, lookup chain is:
+    // D -> A -> B -> C
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from no_delete_src4 D
+        |    join tmp_abc
+        |     on a1 = d1 and a2 = d2 and d1 <> cast(a2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMultiRHS3(): Unit = {
+    //      DT
+    //    /    \
+    //   D     DT
+    //       /    \
+    //      C     DT
+    //          /    \
+    //         A      B
+    // when records from C come, lookup chain is:
+    // C -> A -> B
+    // when records from D come, lookup chain is:
+    // D -> C -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_cab as
+                      |  select C.*, tmp_ab.*
+                      |  from no_delete_src3 C
+                      |    join tmp_ab
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, c0, c2, c1 from no_delete_src4 D
+        |    join tmp_cab
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testBushy1(): Unit = {
+    //        DT-3
+    //      /      \
+    //   DT-1      DT-2
+    //  /    \    /    \
+    // A      B  C      D
+    // when records from DT-1 come, lookup chain is:
+    // DT-1 -> C -> D
+    // when records from DT-2 come, lookup chain is:
+    // DT-2 -> B -> A
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_cd as
+                      |  select D.*, C.*
+                      |  from no_delete_src3 C
+                      |    join no_delete_src4 D
+                      |     on c1 = d1 and c2 = d2 and c1 <> cast(d2 as double)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_ab
+        |    join tmp_cd
+        |     on b1 = c1 and b2 = c2 and c1 <> cast(b2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testBushy2(): Unit = {
+    //        DT-3
+    //      /      \
+    //   DT-1      DT-2
+    //  /    \    /    \
+    // A      B  C      D
+    // when records from DT-1 come, lookup chain is:
+    // DT-1 -> D -> C
+    // when records from DT-2 come, lookup chain is:
+    // DT-2 -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_cd as
+                      |  select D.*, C.*
+                      |  from no_delete_src3 C
+                      |    join no_delete_src4 D
+                      |     on c1 = d1 and c2 = d2 and c1 <> cast(d2 as double)
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, b0, b2, b1 from tmp_ab
+        |    join tmp_cd
+        |     on a1 = d1 and a2 = d2
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testCalcBetweenCascadedDeltaJoin(): Unit = {
+    testCalcBetweenCascadedDeltaJoinInner(dml => util.verifyRelPlanInsert(dml))
+  }
+
+  @Test
+  def testCalcBetweenCascadedDeltaJoinJsonPlan(): Unit = {
+    testCalcBetweenCascadedDeltaJoinInner(dml => util.verifyJsonPlan(dml))
+  }
+
+  private def testCalcBetweenCascadedDeltaJoinInner(verifyFunc: String => Unit): Unit = {
+    //        DT-3
+    //      /      \
+    //   DT-1      DT-2
+    //  /    \    /    \
+    // A      B  C      D
+    // when records from DT-1 come, lookup chain is:
+    // DT-1 -> D -> C
+    // when records from DT-2 come, lookup chain is:
+    // DT-2 -> A -> B
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select b0 + 1 as b0, b1, b2, A.*, a3 + b0 as mix_ab
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_cd as
+                      |  select D.*, c0, c1 - 1.0 as c1, c2, c1 + d1 as mix_cd
+                      |  from no_delete_src3 C
+                      |    join no_delete_src4 D
+                      |     on c1 = d1 and c2 = d2 and c1 <> cast(d2 as double)
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |alter table snk_for_cdc_src add (mix_ab_cd int)
+                      |""".stripMargin)
+
+    val dml = """
+                |insert into snk_for_cdc_src
+                |  select a0, a1, a2, a3, b0, b2, b1, mix_ab + cast(mix_cd as int) from tmp_ab
+                |    join tmp_cd
+                |     on a1 = d1 and a2 = d2
+                |""".stripMargin
+
+    verifyFunc.apply(dml)
+  }
+
+  @Test
+  def testTopJoinCouldNotBeConvertedIntoDeltaJoin(): Unit = {
+    //       Regular Join
+    //         /     \
+    //       DT       D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // the top join could not be converted into the delta join
+    // because there are no indexes in table D
+    replaceTable("no_delete_src4", "no_delete_src4", Collections.emptyMap(), dropIndexes = true)
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, c0, c2, c1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testTopJoinCouldNotBeConvertedIntoDeltaJoin2(): Unit = {
+    //       Regular Join
+    //         /     \
+    //       DT       D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // the top join could not be converted into the delta join
+    // because it is an outer join
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, d0, c0, c2, c1 from tmp_abc
+        |    left join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testBottomJoinCouldNotBeConvertedIntoDeltaJoin(): Unit = {
+    //                Regular Join
+    //                /          \
+    //          Regular Join       D
+    //           /         \
+    //    Regular Join      C
+    //       /    \
+    //      A      B
+    // all joins could not be converted into delta joins
+    // because there are no indexes in table B
+    replaceTable("no_delete_src2", "no_delete_src2", Collections.emptyMap(), dropIndexes = true)
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, a3, c0, c2, c1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testBottomJoinCouldNotBeConvertedIntoDeltaJoin2(): Unit = {
+    //                Regular Join
+    //                /          \
+    //          Regular Join       D
+    //           /         \
+    //    Regular Join      C
+    //       /    \
+    //      A      B
+    // all joins could not be converted into delta joins
+    // because the bottom join is an outer join
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    left join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, b0, c0, c2, c1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testPickLeftSourceToLookupFirst(): Unit = {
+    //       DT
+    //     /    \
+    //    DT     D
+    //  /    \
+    // B      C
+    // when records from C come, lookup chain is:
+    // D -> B -> C
+    // although A and B can both as lookup tables for C, A is picked as the first lookup table
+    addTable(
+      "tmp_snk",
+      Schema
+        .newBuilder()
+        .column("b0", DataTypes.INT)
+        .column("b2", DataTypes.STRING.notNull)
+        .column("b1", DataTypes.DOUBLE.notNull)
+        .column("c0", DataTypes.INT)
+        .column("c1", DataTypes.DOUBLE.notNull)
+        .column("c2", DataTypes.STRING.notNull)
+        .column("d0", DataTypes.INT)
+        .column("d1", DataTypes.DOUBLE.notNull)
+        .column("d2", DataTypes.STRING.notNull)
+        .primaryKey("d1", "d2")
+        .build()
+    )
+
+    tEnv.executeSql("""
+                      |create temporary view tmp_bc as
+                      |  select *
+                      |  from no_delete_src2 B
+                      |    join no_delete_src3 C
+                      |     on b1 = c1 and b2 = c2
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      """
+        |insert into tmp_snk
+        |  select * from tmp_bc
+        |    join no_delete_src4 D
+        |     on d1 = b1 and d1 = c1 and d2 = b2 and d2 = c2
+        |  on conflict do deduplicate
+        |""".stripMargin
+    )
+  }
+
+  private def addTable(
+      tableName: String,
+      schema: Schema,
+      extraOptions: JMap[String, String] = Collections.emptyMap(),
+      partitionKeys: JList[String] = Collections.emptyList()): Unit = {
+    val currentCatalog = tEnv.getCurrentCatalog
+    val currentDatabase = tEnv.getCurrentDatabase
+    val tablePath = new ObjectPath(currentDatabase, tableName)
+    val catalog = tEnv.getCatalog(currentCatalog).get()
+    val schemaResolver = tEnv.getCatalogManager.getSchemaResolver
+
+    val options = new JHashMap[String, String](testValuesTableOptions)
+    options.putAll(extraOptions)
+
+    val original = CatalogTable
+      .newBuilder()
+      .schema(schema)
+      .comment(testComment)
+      .partitionKeys(partitionKeys)
+      .options(options)
+      .build()
+    val resolvedTable = new ResolvedCatalogTable(original, schemaResolver.resolve(schema))
+
+    catalog.createTable(tablePath, resolvedTable, false)
+  }
+
+  /** TODO remove this after fix FLINK-38571. */
+  private def replaceTable(
+      oldTableName: String,
+      newTableName: String,
+      overridesOptions: JMap[String, String],
+      dropIndexes: Boolean = false,
+      dropOldTable: Boolean = true): Unit = {
+    val currentCatalog = tEnv.getCurrentCatalog
+    val currentDatabase = tEnv.getCurrentDatabase
+    val oldTablePath = new ObjectPath(currentDatabase, oldTableName)
+    val newTablePath = new ObjectPath(currentDatabase, newTableName)
+    val catalog = tEnv.getCatalog(currentCatalog).get()
+    val schemaResolver = tEnv.getCatalogManager.getSchemaResolver
+
+    val originalTable = catalog.getTable(oldTablePath).asInstanceOf[CatalogTable]
+    if (dropOldTable) {
+      catalog.dropTable(oldTablePath, false)
+    }
+
+    val originalOptions = originalTable.getOptions
+    val newOptions = new JHashMap[String, String]()
+    newOptions.putAll(originalOptions)
+    newOptions.putAll(overridesOptions)
+
+    var schema = originalTable.getUnresolvedSchema
+    if (dropIndexes) {
+      schema = new Schema(
+        schema.getColumns,
+        schema.getWatermarkSpecs,
+        schema.getPrimaryKey.orElse(null),
+        Collections.emptyList())
+    }
+
+    val newTable = CatalogTable
+      .newBuilder()
+      .schema(schema)
+      .comment(originalTable.getComment)
+      .partitionKeys(originalTable.getPartitionKeys)
+      .options(newOptions)
+      .build()
+
+    val newResolvedTable =
+      new ResolvedCatalogTable(newTable, schemaResolver.resolve(schema))
+
+    catalog.createTable(newTablePath, newResolvedTable, false)
+  }
+
+}

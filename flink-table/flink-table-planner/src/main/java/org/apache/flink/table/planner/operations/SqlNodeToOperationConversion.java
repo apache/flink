@@ -1,0 +1,786 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.operations;
+
+import org.apache.flink.sql.parser.ddl.SqlAddJar;
+import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
+import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
+import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
+import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
+import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
+import org.apache.flink.sql.parser.ddl.SqlReplaceTableAs;
+import org.apache.flink.sql.parser.ddl.SqlReset;
+import org.apache.flink.sql.parser.ddl.SqlSet;
+import org.apache.flink.sql.parser.ddl.SqlStopJob;
+import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
+import org.apache.flink.sql.parser.ddl.SqlUseModules;
+import org.apache.flink.sql.parser.ddl.catalog.SqlDropCatalog;
+import org.apache.flink.sql.parser.ddl.catalog.SqlUseCatalog;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTableAs;
+import org.apache.flink.sql.parser.ddl.table.SqlDropTable;
+import org.apache.flink.sql.parser.ddl.view.SqlDropView;
+import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
+import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
+import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
+import org.apache.flink.sql.parser.dml.SqlExecute;
+import org.apache.flink.sql.parser.dml.SqlExecutePlan;
+import org.apache.flink.sql.parser.dml.SqlInsertConflictBehavior;
+import org.apache.flink.sql.parser.dml.SqlStatementSet;
+import org.apache.flink.sql.parser.dql.SqlLoadModule;
+import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
+import org.apache.flink.sql.parser.dql.SqlShowColumns;
+import org.apache.flink.sql.parser.dql.SqlShowCreateMaterializedTable;
+import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
+import org.apache.flink.sql.parser.dql.SqlShowCreateView;
+import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
+import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
+import org.apache.flink.sql.parser.dql.SqlShowJars;
+import org.apache.flink.sql.parser.dql.SqlShowJobs;
+import org.apache.flink.sql.parser.dql.SqlShowModules;
+import org.apache.flink.sql.parser.dql.SqlUnloadModule;
+import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
+import org.apache.flink.table.operations.DeleteFromFilterOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyType;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowColumnsOperation;
+import org.apache.flink.table.operations.ShowCreateMaterializedTableOperation;
+import org.apache.flink.table.operations.ShowCreateTableOperation;
+import org.apache.flink.table.operations.ShowCreateViewOperation;
+import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
+import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
+import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.command.ShowJobsOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CompilePlanOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
+
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.hint.HintStrategyTable;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalTableModify;
+import org.apache.calcite.sql.SqlDelete;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlUpdate;
+import org.apache.calcite.sql.SqlUtil;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+/**
+ * Mix-in tool class for {@code SqlNode} that allows DDL commands to be converted to {@link
+ * Operation}.
+ *
+ * <p>For every kind of {@link SqlNode}, there needs to have a corresponding #convert(type) method,
+ * the 'type' argument should be the subclass of the supported {@link SqlNode}.
+ *
+ * <p>Every #convert() should return a {@link Operation} which can be used in {@link
+ * org.apache.flink.table.delegation.Planner}.
+ */
+public class SqlNodeToOperationConversion {
+    private final FlinkPlannerImpl flinkPlanner;
+    private final CatalogManager catalogManager;
+    @Nullable private final String originalSql;
+
+    // ~ Constructors -----------------------------------------------------------
+
+    private SqlNodeToOperationConversion(
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            @Nullable String originalSql) {
+        this.flinkPlanner = flinkPlanner;
+        this.catalogManager = catalogManager;
+        this.originalSql = originalSql;
+    }
+
+    /**
+     * This is the main entrance for executing all kinds of DDL/DML {@code SqlNode}s, different
+     * SqlNode will have its implementation in the #convert(type) method whose 'type' argument is
+     * subclass of {@code SqlNode}.
+     *
+     * @param flinkPlanner FlinkPlannerImpl to convertCreateTable sql node to rel node
+     * @param catalogManager CatalogManager to resolve full path for operations
+     * @param sqlNode SqlNode to execute on
+     * @param originalSql original SQL statement text, or {@code null} when the node has no source
+     *     text (e.g. a synthesized node)
+     */
+    public static Optional<Operation> convert(
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            SqlNode sqlNode,
+            @Nullable String originalSql) {
+        final SqlNode validated = flinkPlanner.validate(sqlNode);
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql);
+    }
+
+    /**
+     * Converts the given {@link SqlNode} without an original statement text. Used for nested
+     * conversions where the node was reached recursively (e.g. the {@code AS} query of {@code
+     * CREATE TABLE AS}) and the verbatim source text is neither available nor needed.
+     */
+    public static Optional<Operation> convert(
+            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode sqlNode) {
+        return convert(flinkPlanner, catalogManager, sqlNode, null);
+    }
+
+    /** Convert a validated sql node to Operation. */
+    private static Optional<Operation> convertValidatedSqlNode(
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            SqlNode validated,
+            @Nullable String statement) {
+        beforeConversion();
+
+        // delegate conversion to the registered converters first
+        SqlNodeConvertContext context =
+                new SqlNodeConvertContext(flinkPlanner, catalogManager, statement);
+        Optional<Operation> operation = SqlNodeConverters.convertSqlNode(validated, context);
+        if (operation.isPresent()) {
+            return operation;
+        }
+
+        // TODO: all the below conversion logic should be migrated to SqlNodeConverters
+        SqlNodeToOperationConversion converter =
+                new SqlNodeToOperationConversion(flinkPlanner, catalogManager, statement);
+        if (validated instanceof SqlDropCatalog) {
+            return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
+        } else if (validated instanceof SqlLoadModule) {
+            return Optional.of(converter.convertLoadModule((SqlLoadModule) validated));
+        } else if (validated instanceof SqlShowCurrentCatalog) {
+            return Optional.of(
+                    converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
+        } else if (validated instanceof SqlShowModules) {
+            return Optional.of(converter.convertShowModules((SqlShowModules) validated));
+        } else if (validated instanceof SqlUnloadModule) {
+            return Optional.of(converter.convertUnloadModule((SqlUnloadModule) validated));
+        } else if (validated instanceof SqlUseCatalog) {
+            return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
+        } else if (validated instanceof SqlUseModules) {
+            return Optional.of(converter.convertUseModules((SqlUseModules) validated));
+        } else if (validated instanceof SqlCreateDatabase) {
+            return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
+        } else if (validated instanceof SqlDropDatabase) {
+            return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
+        } else if (validated instanceof SqlAlterDatabase) {
+            return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
+        } else if (validated instanceof SqlShowCurrentDatabase) {
+            return Optional.of(
+                    converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
+        } else if (validated instanceof SqlUseDatabase) {
+            return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
+        } else if (validated instanceof SqlDropTable) {
+            return Optional.of(converter.convertDropTable((SqlDropTable) validated));
+        } else if (validated instanceof SqlShowColumns) {
+            return Optional.of(converter.convertShowColumns((SqlShowColumns) validated));
+        } else if (validated instanceof SqlDropView) {
+            return Optional.of(converter.convertDropView((SqlDropView) validated));
+        } else if (validated instanceof SqlShowCreateTable) {
+            return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
+        } else if (validated instanceof SqlShowCreateMaterializedTable) {
+            return Optional.of(
+                    converter.convertShowCreateMaterializedTable(
+                            (SqlShowCreateMaterializedTable) validated));
+        } else if (validated instanceof SqlShowCreateView) {
+            return Optional.of(converter.convertShowCreateView((SqlShowCreateView) validated));
+        } else if (validated instanceof SqlRichExplain) {
+            return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
+        } else if (validated instanceof SqlRichDescribeTable) {
+            return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
+        } else if (validated instanceof SqlAddJar) {
+            return Optional.of(converter.convertAddJar((SqlAddJar) validated));
+        } else if (validated instanceof SqlRemoveJar) {
+            return Optional.of(converter.convertRemoveJar((SqlRemoveJar) validated));
+        } else if (validated instanceof SqlShowJars) {
+            return Optional.of(converter.convertShowJars((SqlShowJars) validated));
+        } else if (validated instanceof SqlShowJobs) {
+            return Optional.of(converter.convertShowJobs((SqlShowJobs) validated));
+        } else if (validated instanceof RichSqlInsert) {
+            return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
+        } else if (validated instanceof SqlBeginStatementSet) {
+            return Optional.of(
+                    converter.convertBeginStatementSet((SqlBeginStatementSet) validated));
+        } else if (validated instanceof SqlEndStatementSet) {
+            return Optional.of(converter.convertEndStatementSet((SqlEndStatementSet) validated));
+        } else if (validated instanceof SqlSet) {
+            return Optional.of(converter.convertSet((SqlSet) validated));
+        } else if (validated instanceof SqlReset) {
+            return Optional.of(converter.convertReset((SqlReset) validated));
+        } else if (validated instanceof SqlStatementSet) {
+            return Optional.of(converter.convertSqlStatementSet((SqlStatementSet) validated));
+        } else if (validated instanceof SqlExecute) {
+            return convertValidatedSqlNode(
+                    flinkPlanner,
+                    catalogManager,
+                    ((SqlExecute) validated).getStatement(),
+                    statement);
+        } else if (validated instanceof SqlExecutePlan) {
+            return Optional.of(converter.convertExecutePlan((SqlExecutePlan) validated));
+        } else if (validated instanceof SqlCompilePlan) {
+            return Optional.of(converter.convertCompilePlan((SqlCompilePlan) validated));
+        } else if (validated instanceof SqlCompileAndExecutePlan) {
+            return Optional.of(
+                    converter.convertCompileAndExecutePlan((SqlCompileAndExecutePlan) validated));
+        } else if (validated instanceof SqlStopJob) {
+            return Optional.of(converter.convertStopJob((SqlStopJob) validated));
+        } else if (validated instanceof SqlDelete) {
+            return Optional.of(converter.convertDelete((SqlDelete) validated));
+        } else if (validated instanceof SqlUpdate) {
+            return Optional.of(converter.convertUpdate((SqlUpdate) validated));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private Operation convertValidatedSqlNodeOrFail(SqlNode validated) {
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated, originalSql)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        "Unsupported node type "
+                                                + validated.getClass().getSimpleName()));
+    }
+
+    // ~ Tools ------------------------------------------------------------------
+
+    private static void beforeConversion() {
+        // clear row-level modification context
+        RowLevelModificationContextUtils.clearContext();
+    }
+
+    /** Convert DROP TABLE statement. */
+    private Operation convertDropTable(SqlDropTable sqlDropTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlDropTable.getFullName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        return new DropTableOperation(
+                identifier, sqlDropTable.getIfExists(), sqlDropTable.isTemporary());
+    }
+
+    /** Convert statement set into statement. */
+    private StatementSetOperation convertSqlStatementSet(SqlStatementSet statementSet) {
+        return new StatementSetOperation(
+                statementSet.getInserts().stream()
+                        .map(this::convertSqlInsert)
+                        .map(op -> (ModifyOperation) op)
+                        .collect(Collectors.toList()));
+    }
+
+    /** Convert insert into statement. */
+    private Operation convertSqlInsert(RichSqlInsert insert) {
+        // Get sink table name.
+        List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTableID()).names;
+        // Get sink table hints.
+        HintStrategyTable hintStrategyTable =
+                flinkPlanner.config().getSqlToRelConverterConfig().getHintStrategyTable();
+        List<RelHint> tableHints = SqlUtil.getRelHint(hintStrategyTable, insert.getTableHints());
+        Map<String, String> dynamicOptions = FlinkHints.getHintedOptions(tableHints);
+
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        // If it is materialized table, convert it to catalog table for query optimize
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(identifier).toCatalogTable();
+
+        PlannerQueryOperation query =
+                (PlannerQueryOperation) convertValidatedSqlNodeOrFail(insert.getSource());
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31301 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
+
+        // Convert parser conflict strategy to API conflict strategy
+        InsertConflictStrategy conflictStrategy =
+                insert.getConflictStrategy()
+                        .map(SqlNodeToOperationConversion::convertConflictStrategy)
+                        .orElse(null);
+
+        return new SinkModifyOperation(
+                contextResolvedTable,
+                query,
+                insert.getStaticPartitionKVs(),
+                columnIndices,
+                insert.isOverwrite(),
+                dynamicOptions,
+                ModifyType.INSERT,
+                conflictStrategy);
+    }
+
+    private static InsertConflictStrategy convertConflictStrategy(
+            SqlInsertConflictBehavior parserBehavior) {
+        switch (parserBehavior) {
+            case ERROR:
+                return InsertConflictStrategy.error();
+            case NOTHING:
+                return InsertConflictStrategy.nothing();
+            case DEDUPLICATE:
+                return InsertConflictStrategy.deduplicate();
+            default:
+                throw new IllegalArgumentException("Unknown conflict behavior: " + parserBehavior);
+        }
+    }
+
+    /** Convert BEGIN STATEMENT SET statement. */
+    private Operation convertBeginStatementSet(SqlBeginStatementSet sqlBeginStatementSet) {
+        return new BeginStatementSetOperation();
+    }
+
+    /** Convert END statement. */
+    private Operation convertEndStatementSet(SqlEndStatementSet sqlEndStatementSet) {
+        return new EndStatementSetOperation();
+    }
+
+    /** Convert use catalog statement. */
+    private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
+        return new UseCatalogOperation(useCatalog.catalogName());
+    }
+
+    /** Convert DROP CATALOG statement. */
+    private Operation convertDropCatalog(SqlDropCatalog sqlDropCatalog) {
+        String catalogName = sqlDropCatalog.catalogName();
+        return new DropCatalogOperation(catalogName, sqlDropCatalog.getIfExists());
+    }
+
+    /** Convert use database statement. */
+    private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
+        String[] fullDatabaseName = useDatabase.fullDatabaseName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException("use database identifier format error");
+        }
+        String catalogName =
+                fullDatabaseName.length == 2
+                        ? fullDatabaseName[0]
+                        : catalogManager.getCurrentCatalog();
+        String databaseName =
+                fullDatabaseName.length == 2 ? fullDatabaseName[1] : fullDatabaseName[0];
+        return new UseDatabaseOperation(catalogName, databaseName);
+    }
+
+    /** Convert CREATE DATABASE statement. */
+    private Operation convertCreateDatabase(SqlCreateDatabase sqlCreateDatabase) {
+        String[] fullDatabaseName = sqlCreateDatabase.getFullName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException("create database identifier format error");
+        }
+        String catalogName =
+                (fullDatabaseName.length == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName[0];
+        String databaseName =
+                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+        boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
+        String databaseComment = sqlCreateDatabase.getComment();
+        // set with properties
+        final Map<String, String> properties = sqlCreateDatabase.getProperties();
+        CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
+        return new CreateDatabaseOperation(
+                catalogName, databaseName, catalogDatabase, ignoreIfExists);
+    }
+
+    /** Convert DROP DATABASE statement. */
+    private Operation convertDropDatabase(SqlDropDatabase sqlDropDatabase) {
+        String[] fullDatabaseName = sqlDropDatabase.getFullName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException("drop database identifier format error");
+        }
+        String catalogName =
+                (fullDatabaseName.length == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName[0];
+        String databaseName =
+                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+        return new DropDatabaseOperation(
+                catalogName,
+                databaseName,
+                sqlDropDatabase.getIfExists(),
+                sqlDropDatabase.isCascade());
+    }
+
+    /** Convert ALTER DATABASE statement. */
+    private Operation convertAlterDatabase(SqlAlterDatabase sqlAlterDatabase) {
+        String[] fullDatabaseName = sqlAlterDatabase.getFullName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException("alter database identifier format error");
+        }
+        String catalogName =
+                (fullDatabaseName.length == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName[0];
+        String databaseName =
+                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+        final Map<String, String> properties;
+        CatalogDatabase originCatalogDatabase;
+        Optional<Catalog> catalog = catalogManager.getCatalog(catalogName);
+        if (catalog.isPresent()) {
+            try {
+                originCatalogDatabase = catalog.get().getDatabase(databaseName);
+                properties = new HashMap<>(originCatalogDatabase.getProperties());
+            } catch (DatabaseNotExistException e) {
+                throw new ValidationException(
+                        String.format("Database %s not exists", databaseName), e);
+            }
+        } else {
+            throw new ValidationException(String.format("Catalog %s not exists", catalogName));
+        }
+        // set with properties
+        properties.putAll(sqlAlterDatabase.getProperties());
+        CatalogDatabase catalogDatabase =
+                new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
+        return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
+    }
+
+    /** Convert SHOW CURRENT CATALOG statement. */
+    private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
+        return new ShowCurrentCatalogOperation();
+    }
+
+    /** Convert SHOW CURRENT DATABASE statement. */
+    private Operation convertShowCurrentDatabase(SqlShowCurrentDatabase sqlShowCurrentDatabase) {
+        return new ShowCurrentDatabaseOperation();
+    }
+
+    /** Convert SHOW COLUMNS statement. */
+    private Operation convertShowColumns(SqlShowColumns sqlShowColumns) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlShowColumns.getSqlIdentifierNameList());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ShowLikeOperator likeOp =
+                ShowLikeOperator.of(
+                        LikeType.of(sqlShowColumns.getLikeType(), sqlShowColumns.isNotLike()),
+                        sqlShowColumns.getLikeSqlPattern());
+        return new ShowColumnsOperation(identifier, sqlShowColumns.getLikeSqlPattern(), likeOp);
+    }
+
+    /** Convert SHOW CREATE TABLE statement. */
+    private Operation convertShowCreateTable(SqlShowCreateTable sqlShowCreateTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlShowCreateTable.getFullTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateTableOperation(identifier);
+    }
+
+    /** Convert SHOW CREATE MATERIALIZED TABLE statement. */
+    private Operation convertShowCreateMaterializedTable(
+            SqlShowCreateMaterializedTable sqlShowCreateMaterializedTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        sqlShowCreateMaterializedTable.getFullMaterializedTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateMaterializedTableOperation(
+                identifier, sqlShowCreateMaterializedTable.isCreateOrAlter());
+    }
+
+    /** Convert SHOW CREATE VIEW statement. */
+    private Operation convertShowCreateView(SqlShowCreateView sqlShowCreateView) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlShowCreateView.getFullViewName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateViewOperation(identifier);
+    }
+
+    /** Convert DROP VIEW statement. */
+    private Operation convertDropView(SqlDropView sqlDropView) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlDropView.getFullName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        return new DropViewOperation(
+                identifier, sqlDropView.getIfExists(), sqlDropView.isTemporary());
+    }
+
+    /** Convert RICH EXPLAIN statement. */
+    private Operation convertRichExplain(SqlRichExplain sqlExplain) {
+        SqlNode sqlNode = sqlExplain.getStatement();
+        Operation operation;
+        if (sqlNode instanceof RichSqlInsert) {
+            operation = convertSqlInsert((RichSqlInsert) sqlNode);
+        } else if (sqlNode instanceof SqlStatementSet) {
+            operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
+        } else if (sqlNode instanceof SqlExecute) {
+            // Handle EXPLAIN EXECUTE STATEMENT SET by extracting the inner statement
+            SqlNode innerStatement = ((SqlExecute) sqlNode).getStatement();
+            if (innerStatement instanceof SqlStatementSet) {
+                operation = convertSqlStatementSet((SqlStatementSet) innerStatement);
+            } else if (innerStatement instanceof RichSqlInsert) {
+                operation = convertSqlInsert((RichSqlInsert) innerStatement);
+            } else if (innerStatement.getKind().belongsTo(SqlKind.QUERY)) {
+                operation = convertSqlQuery(innerStatement);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "EXPLAIN EXECUTE statement doesn't support %s",
+                                innerStatement.getKind()));
+            }
+        } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
+            operation = convertSqlQuery(sqlExplain.getStatement());
+        } else if ((sqlNode instanceof SqlCreateTableAs)
+                || (sqlNode instanceof SqlReplaceTableAs)) {
+            operation =
+                    convert(flinkPlanner, catalogManager, sqlNode)
+                            .orElseThrow(
+                                    () ->
+                                            new ValidationException(
+                                                    String.format(
+                                                            "EXPLAIN statement doesn't support %s",
+                                                            sqlNode.getKind())));
+        } else {
+            throw new ValidationException(
+                    String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
+        }
+        return new ExplainOperation(operation, sqlExplain.getExplainDetails());
+    }
+
+    /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
+    private Operation convertDescribeTable(SqlRichDescribeTable sqlRichDescribeTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlRichDescribeTable.fullTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
+    }
+
+    /** Convert LOAD MODULE statement. */
+    private Operation convertLoadModule(SqlLoadModule sqlLoadModule) {
+        String moduleName = sqlLoadModule.moduleName();
+        Map<String, String> properties = sqlLoadModule.getProperties();
+        return new LoadModuleOperation(moduleName, properties);
+    }
+
+    private Operation convertAddJar(SqlAddJar sqlAddJar) {
+        return new AddJarOperation(sqlAddJar.getPath());
+    }
+
+    private Operation convertRemoveJar(SqlRemoveJar sqlRemoveJar) {
+        return new RemoveJarOperation(sqlRemoveJar.getPath());
+    }
+
+    private Operation convertShowJars(SqlShowJars sqlShowJars) {
+        return new ShowJarsOperation();
+    }
+
+    /** Convert UNLOAD MODULE statement. */
+    private Operation convertUnloadModule(SqlUnloadModule sqlUnloadModule) {
+        String moduleName = sqlUnloadModule.moduleName();
+        return new UnloadModuleOperation(moduleName);
+    }
+
+    /** Convert USE MODULES statement. */
+    private Operation convertUseModules(SqlUseModules sqlUseModules) {
+        return new UseModulesOperation(sqlUseModules.moduleNames());
+    }
+
+    /** Convert SHOW [FULL] MODULES statement. */
+    private Operation convertShowModules(SqlShowModules sqlShowModules) {
+        return new ShowModulesOperation(sqlShowModules.requireFull());
+    }
+
+    /** Convert SET ['key' = 'value']. */
+    private Operation convertSet(SqlSet sqlSet) {
+        if (sqlSet.getKey() == null && sqlSet.getValue() == null) {
+            return new SetOperation();
+        } else {
+            return new SetOperation(sqlSet.getKeyString(), sqlSet.getValueString());
+        }
+    }
+
+    /** Convert RESET ['key']. */
+    private Operation convertReset(SqlReset sqlReset) {
+        return new ResetOperation(sqlReset.getKeyString());
+    }
+
+    /** Fallback method for sql query. */
+    private Operation convertSqlQuery(SqlNode node) {
+        return toQueryOperation(flinkPlanner, node);
+    }
+
+    private Operation convertExecutePlan(SqlExecutePlan sqlExecutePlan) {
+        return new ExecutePlanOperation(sqlExecutePlan.getPlanFile());
+    }
+
+    private Operation convertCompilePlan(SqlCompilePlan compilePlan) {
+        return new CompilePlanOperation(
+                compilePlan.getPlanFile(),
+                compilePlan.isIfNotExists(),
+                convertValidatedSqlNodeOrFail(compilePlan.getOperandList().get(0)));
+    }
+
+    private Operation convertCompileAndExecutePlan(SqlCompileAndExecutePlan compileAndExecutePlan) {
+        return new CompileAndExecutePlanOperation(
+                compileAndExecutePlan.getPlanFile(),
+                convertValidatedSqlNodeOrFail(compileAndExecutePlan.getOperandList().get(0)));
+    }
+
+    private Operation convertShowJobs(SqlShowJobs sqlStopJob) {
+        return new ShowJobsOperation();
+    }
+
+    private Operation convertStopJob(SqlStopJob sqlStopJob) {
+        return new StopJobOperation(
+                sqlStopJob.getId(), sqlStopJob.isWithSavepoint(), sqlStopJob.isWithDrain());
+    }
+
+    private Operation convertDelete(SqlDelete sqlDelete) {
+        // set it's delete
+        RowLevelModificationContextUtils.setModificationType(
+                SupportsRowLevelModificationScan.RowLevelModificationType.DELETE);
+        RelRoot deleteRelational = flinkPlanner.rel(sqlDelete);
+        LogicalTableModify tableModify = (LogicalTableModify) deleteRelational.rel;
+        UnresolvedIdentifier unresolvedTableIdentifier =
+                UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(
+                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
+        // try push down delete
+        Optional<DynamicTableSink> optionalDynamicTableSink =
+                DeletePushDownUtils.getDynamicTableSink(contextResolvedTable, tableModify);
+        if (optionalDynamicTableSink.isPresent()) {
+            DynamicTableSink dynamicTableSink = optionalDynamicTableSink.get();
+            // if the table sink supports delete push down
+            if (dynamicTableSink instanceof SupportsDeletePushDown) {
+                SupportsDeletePushDown supportsDeletePushDownSink =
+                        (SupportsDeletePushDown) dynamicTableSink;
+                // get resolved filter expression
+                Optional<List<ResolvedExpression>> filters =
+                        DeletePushDownUtils.getResolvedFilterExpressions(tableModify);
+                if (filters.isPresent()
+                        && supportsDeletePushDownSink.applyDeleteFilters(filters.get())) {
+                    return new DeleteFromFilterOperation(
+                            contextResolvedTable, supportsDeletePushDownSink, filters.get());
+                }
+            }
+        }
+        // delete push down is not applicable, use row-level delete
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Delete statements are not SQL serializable.");
+                        });
+        return new SinkModifyOperation(
+                contextResolvedTable,
+                queryOperation,
+                null, // targetColumns
+                ModifyType.DELETE);
+    }
+
+    private Operation convertUpdate(SqlUpdate sqlUpdate) {
+        // set it's update
+        RowLevelModificationContextUtils.setModificationType(
+                SupportsRowLevelModificationScan.RowLevelModificationType.UPDATE);
+        RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
+        // get target sink table
+        LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
+        UnresolvedIdentifier unresolvedTableIdentifier =
+                UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(
+                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
+        // get query
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Update statements are not SQL serializable.");
+                        });
+
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31344 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
+
+        return new SinkModifyOperation(
+                contextResolvedTable, queryOperation, columnIndices, ModifyType.UPDATE);
+    }
+
+    private int[][] getTargetColumnIndices(
+            @Nonnull ContextResolvedTable contextResolvedTable,
+            @Nullable SqlNodeList targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        return targetColumns.stream()
+                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                .mapToObj(idx -> new int[] {idx})
+                .toArray(int[][]::new);
+    }
+
+    private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {
+        // transform to a relational tree
+        RelRoot relational = planner.rel(validated);
+        return new PlannerQueryOperation(
+                relational.project(),
+                () -> OperationConverterUtils.getQuotedSqlString(validated, planner));
+    }
+}

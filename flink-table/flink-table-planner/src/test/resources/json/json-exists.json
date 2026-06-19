@@ -1,0 +1,19 @@
+{
+  "type": "post",
+  "author": {
+    "name": "Jon Doe",
+    "address": {
+      "country": "Germany",
+      "city": "Munich"
+    }
+  },
+  "metadata": {
+    "tags": ["flink", "streaming", "json"],
+    "references": [
+      {
+        "name": "GitHub",
+        "url": "https://www.github.com/apache/flink"
+      }
+    ]
+  }
+}

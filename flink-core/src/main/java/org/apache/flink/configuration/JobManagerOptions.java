@@ -1,0 +1,894 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.configuration;
+
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
+
+import java.time.Duration;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
+import static org.apache.flink.configuration.StateRecoveryOptions.LOCAL_RECOVERY;
+import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
+
+/** Configuration options for the JobManager. */
+@PublicEvolving
+public class JobManagerOptions {
+
+    public static final MemorySize MIN_JVM_HEAP_SIZE = MemorySize.ofMebiBytes(128);
+
+    /**
+     * The config parameter defining the network address to connect to for communication with the
+     * job manager.
+     *
+     * <p>This value is only interpreted in setups where a single JobManager with static name or
+     * address exists (simple standalone setups, or container setups with dynamic service name
+     * resolution). It is not used in many high-availability setups, when a leader-election service
+     * (like ZooKeeper) is used to elect and discover the JobManager leader from potentially
+     * multiple standby JobManagers.
+     */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<String> ADDRESS =
+            key("jobmanager.rpc.address")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The config parameter defining the network address to connect to"
+                                    + " for communication with the job manager."
+                                    + " This value is only interpreted in setups where a single JobManager with static"
+                                    + " name or address exists (simple standalone setups, or container setups with dynamic"
+                                    + " service name resolution). It is not used in many high-availability setups, when a"
+                                    + " leader-election service (like ZooKeeper) is used to elect and discover the JobManager"
+                                    + " leader from potentially multiple standby JobManagers.");
+
+    /** The local address of the network interface that the job manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<String> BIND_HOST =
+            key("jobmanager.bind-host")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The local address of the network interface that the job manager binds to. If not"
+                                    + " configured, '0.0.0.0' will be used.");
+
+    /**
+     * The config parameter defining the network port to connect to for communication with the job
+     * manager.
+     *
+     * <p>Like {@link JobManagerOptions#ADDRESS}, this value is only interpreted in setups where a
+     * single JobManager with static name/address and port exists (simple standalone setups, or
+     * container setups with dynamic service name resolution). This config option is not used in
+     * many high-availability setups, when a leader-election service (like ZooKeeper) is used to
+     * elect and discover the JobManager leader from potentially multiple standby JobManagers.
+     */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> PORT =
+            key("jobmanager.rpc.port")
+                    .intType()
+                    .defaultValue(6123)
+                    .withDescription(
+                            "The config parameter defining the network port to connect to"
+                                    + " for communication with the job manager."
+                                    + " Like "
+                                    + ADDRESS.key()
+                                    + ", this value is only interpreted in setups where"
+                                    + " a single JobManager with static name/address and port exists (simple standalone setups,"
+                                    + " or container setups with dynamic service name resolution)."
+                                    + " This config option is not used in many high-availability setups, when a"
+                                    + " leader-election service (like ZooKeeper) is used to elect and discover the JobManager"
+                                    + " leader from potentially multiple standby JobManagers.");
+
+    /** The local port that the job manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> RPC_BIND_PORT =
+            key("jobmanager.rpc.bind-port")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The local RPC port that the JobManager binds to. If not configured, the external port"
+                                    + " (configured by '"
+                                    + PORT.key()
+                                    + "') will be used.");
+
+    /** Total Process Memory size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
+            key("jobmanager.memory.process.size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Total Process Memory size for the JobManager. This includes all the memory that a "
+                                    + "JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. "
+                                    + "In containerized setups, this should be set to the container memory. See also "
+                                    + "'jobmanager.memory.flink.size' for Total Flink Memory size configuration.");
+
+    /** Total Flink Memory size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
+            key("jobmanager.memory.flink.size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            String.format(
+                                    "Total Flink Memory size for the JobManager. This includes all the "
+                                            + "memory that a JobManager consumes, except for JVM Metaspace and JVM Overhead. It consists of "
+                                            + "JVM Heap Memory and Off-heap Memory. See also '%s' for total process memory size configuration.",
+                                    TOTAL_PROCESS_MEMORY.key()));
+
+    /** JVM Heap Memory size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> JVM_HEAP_MEMORY =
+            key("jobmanager.memory.heap.size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "JVM Heap Memory size for JobManager. The minimum recommended JVM Heap size is "
+                                    + MIN_JVM_HEAP_SIZE.toHumanReadableString()
+                                    + '.');
+
+    /** Off-heap Memory size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> OFF_HEAP_MEMORY =
+            key("jobmanager.memory.off-heap.size")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(128))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Off-heap Memory size for JobManager. This option covers all off-heap memory usage including "
+                                                    + "direct and native memory allocation. The JVM direct memory limit of the JobManager process "
+                                                    + "(-XX:MaxDirectMemorySize) will be set to this value if the limit is enabled by "
+                                                    + "'jobmanager.memory.enable-jvm-direct-memory-limit'. ")
+                                    .build());
+
+    /** Off-heap Memory size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<Boolean> JVM_DIRECT_MEMORY_LIMIT_ENABLED =
+            key("jobmanager.memory.enable-jvm-direct-memory-limit")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable the JVM direct memory limit of the JobManager process "
+                                                    + "(-XX:MaxDirectMemorySize). The limit will be set to the value of '%s' option. ",
+                                            text(OFF_HEAP_MEMORY.key()))
+                                    .build());
+
+    /** JVM Metaspace Size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> JVM_METASPACE =
+            key("jobmanager.memory.jvm-metaspace.size")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(256))
+                    .withDescription("JVM Metaspace Size for the JobManager.");
+
+    private static final String JVM_OVERHEAD_DESCRIPTION =
+            "This is off-heap memory reserved for JVM "
+                    + "overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct "
+                    + "memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size "
+                    + "of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the "
+                    + "derived size is less or greater than the configured min or max size, the min or max size will be used. The "
+                    + "exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.";
+
+    /** Min JVM Overhead size for the JobManager. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
+            key("jobmanager.memory.jvm-overhead.min")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(192))
+                    .withDescription(
+                            "Min JVM Overhead size for the JobManager. "
+                                    + JVM_OVERHEAD_DESCRIPTION);
+
+    /** Max JVM Overhead size for the TaskExecutors. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> JVM_OVERHEAD_MAX =
+            key("jobmanager.memory.jvm-overhead.max")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1g"))
+                    .withDescription(
+                            "Max JVM Overhead size for the JobManager. "
+                                    + JVM_OVERHEAD_DESCRIPTION);
+
+    /** Fraction of Total Process Memory to be reserved for JVM Overhead. */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<Float> JVM_OVERHEAD_FRACTION =
+            key("jobmanager.memory.jvm-overhead.fraction")
+                    .floatType()
+                    .defaultValue(0.1f)
+                    .withDescription(
+                            "Fraction of Total Process Memory to be reserved for JVM Overhead. "
+                                    + JVM_OVERHEAD_DESCRIPTION);
+
+    /** The maximum number of historical execution attempts kept in history. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
+            key("jobmanager.execution.attempts-history-size")
+                    .intType()
+                    .defaultValue(16)
+                    .withDeprecatedKeys("job-manager.max-attempts-history-size")
+                    .withDescription(
+                            "The maximum number of historical execution attempts kept in history.");
+
+    /**
+     * Flag indicating whether JobManager should load available Failure Enricher plugins at startup.
+     * An optional list of Failure Enricher names. If empty, NO enrichers will be started. If
+     * configured, only enrichers whose name (as returned by class.getName()) matches any of the
+     * names in the list will be started.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * jobmanager.failure-enrichers = org.apache.flink.test.plugin.jar.failure.TypeFailureEnricher, org.apache.flink.runtime.failure.FailureEnricherUtilsTest$TestEnricher
+     *
+     * }</pre>
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> FAILURE_ENRICHERS_LIST =
+            key("jobmanager.failure-enrichers")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "An optional list of failure enricher names."
+                                    + " If empty, NO failure enrichers will be started."
+                                    + " If configured, only enrichers whose name matches"
+                                    + " any of the names in the list will be started.");
+
+    /**
+     * This option specifies the failover strategy, i.e. how the job computation recovers from task
+     * failures.
+     */
+    @Documentation.Section({
+        Documentation.Sections.ALL_JOB_MANAGER,
+        Documentation.Sections.EXPERT_FAULT_TOLERANCE
+    })
+    public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
+            key("jobmanager.execution.failover-strategy")
+                    .stringType()
+                    .defaultValue("region")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "This option specifies how the job computation recovers from task failures. "
+                                                    + "Accepted values are:")
+                                    .list(
+                                            text("'full': Restarts all tasks to recover the job."),
+                                            text(
+                                                    "'region': Restarts all tasks that could be affected by the task failure. "
+                                                            + "More details can be found %s.",
+                                                    link(
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy",
+                                                            "here")))
+                                    .build());
+
+    /** The location where the JobManager stores the archives of completed jobs. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> ARCHIVE_DIR =
+            key("jobmanager.archive.fs.dir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Directory for JobManager to store the archives of completed jobs.");
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_CACHE_SIZE}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
+            key("jobstore.cache-size")
+                    .longType()
+                    .defaultValue(50L * 1024L * 1024L)
+                    .withDescription(
+                            "The job store cache size in bytes which is used to keep completed jobs in memory.");
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_EXPIRATION_TIME}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
+            key("jobstore.expiration-time")
+                    .longType()
+                    .defaultValue(60L * 60L)
+                    .withDescription(
+                            "The time in seconds after which a completed job expires and is purged from the job store.");
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_MAX_CAPACITY}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
+            key("jobstore.max-capacity")
+                    .intType()
+                    .defaultValue(Integer.MAX_VALUE)
+                    .withDescription(
+                            "The max number of completed jobs that can be kept in the job store. "
+                                    + "NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.");
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_TYPE}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<JobStoreType> JOB_STORE_TYPE =
+            key("jobstore.type")
+                    .enumType(JobStoreType.class)
+                    .defaultValue(JobStoreType.File)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines which job store implementation is used in session cluster. Accepted values are:")
+                                    .list(
+                                            text(
+                                                    "'File': the file job store keeps the archived execution graphs in files"),
+                                            text(
+                                                    "'Memory': the memory job store keeps the archived execution graphs in memory. You"
+                                                            + " may need to limit the %s to mitigate FullGC or OOM when there are too many graphs",
+                                                    code(JOB_STORE_MAX_CAPACITY.key())))
+                                    .build());
+
+    /** Type of job store implementation. */
+    public enum JobStoreType {
+        File,
+        Memory
+    }
+
+    /** The cache size in bytes which is used to keep completed applications in memory. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Long> COMPLETED_APPLICATION_STORE_CACHE_SIZE =
+            key("completed-application-store.cache-size")
+                    .longType()
+                    .defaultValue(50L * 1024L * 1024L)
+                    .withDeprecatedKeys("jobstore.cache-size")
+                    .withDescription(
+                            "The cache size in bytes which is used to keep completed applications in memory.");
+
+    /** The time after which a completed application expires and is purged from the store. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Duration> COMPLETED_APPLICATION_STORE_EXPIRATION_TIME =
+            key("completed-application-store.expiration-time")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The time after which a completed application expires and is purged from the store.");
+
+    /** The max number of completed applications that can be kept in the store. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    @Documentation.OverrideDefault("infinite")
+    public static final ConfigOption<Integer> COMPLETED_APPLICATION_STORE_MAX_CAPACITY =
+            key("completed-application-store.max-capacity")
+                    .intType()
+                    .defaultValue(Integer.MAX_VALUE)
+                    .withDeprecatedKeys("jobstore.max-capacity")
+                    .withDescription(
+                            "The max number of completed applications that can be kept in the store. "
+                                    + "NOTICE: if memory store keeps too many applications in session cluster, it may cause FullGC or OOM in jm.");
+
+    /**
+     * Config parameter determining the store implementation in session cluster.
+     *
+     * <p>FLINK-38845 replaces job store with application store because every job is now associated
+     * with an application. The legacy job store expires jobs individually, risking partial loss of
+     * an application's job history and breaking application-level consistency. The application
+     * store manages and expires applications (with all its jobs) as a whole, ensuring complete,
+     * consistent, and queryable application state until explicitly discarded.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<ArchivedApplicationStoreType>
+            COMPLETED_APPLICATION_STORE_TYPE =
+                    key("completed-application-store.type")
+                            .enumType(ArchivedApplicationStoreType.class)
+                            .defaultValue(ArchivedApplicationStoreType.File)
+                            .withDeprecatedKeys("jobstore.type")
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Determines which store implementation is used in session cluster. Accepted values are:")
+                                            .list(
+                                                    text(
+                                                            "'File': the file store keeps the completed applications in files"),
+                                                    text(
+                                                            "'Memory': the memory store keeps the completed applications in memory. You"
+                                                                    + " may need to limit the %s to mitigate FullGC or OOM when there are too many applications",
+                                                            code(
+                                                                    COMPLETED_APPLICATION_STORE_MAX_CAPACITY
+                                                                            .key())))
+                                            .build());
+
+    /** Type of archived application store implementation. */
+    public enum ArchivedApplicationStoreType {
+        File,
+        Memory
+    }
+
+    /**
+     * Flag indicating whether JobManager would retrieve canonical host name of TaskManager during
+     * registration.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Boolean> RETRIEVE_TASK_MANAGER_HOSTNAME =
+            key("jobmanager.retrieve-taskmanager-hostname")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Flag indicating whether JobManager would retrieve canonical "
+                                    + "host name of TaskManager during registration. "
+                                    + "If the option is set to \"false\", TaskManager registration with "
+                                    + "JobManager could be faster, since no reverse DNS lookup is performed. "
+                                    + "However, local input split assignment (such as for HDFS files) may be impacted.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_JOB_MANAGER,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> JOB_MANAGER_FUTURE_POOL_SIZE =
+            key("jobmanager.future-pool.size")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The size of the future thread pool to execute future callbacks for all spawned JobMasters. "
+                                    + "If no value is specified, then Flink defaults to the number of available CPU cores.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_JOB_MANAGER,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> JOB_MANAGER_IO_POOL_SIZE =
+            key("jobmanager.io-pool.size")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The size of the IO thread pool to run blocking operations for all spawned JobMasters. "
+                                    + "This includes recovery and completion of checkpoints. "
+                                    + "Increase this value if you experience slow checkpoint operations when running many jobs. "
+                                    + "If no value is specified, then Flink defaults to the number of available CPU cores.");
+
+    /** The timeout in milliseconds for requesting a slot from Slot Pool. */
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_REQUEST_TIMEOUT =
+            key("slot.request.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5L * 60L * 1000L))
+                    .withDescription("The timeout for requesting a slot from Slot Pool.");
+
+    /** The timeout in milliseconds for a idle slot in Slot Pool. */
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_IDLE_TIMEOUT =
+            key("slot.idle.timeout")
+                    .durationType()
+                    // default matches heartbeat.timeout so that sticky allocation is not lost on
+                    // timeouts for local recovery
+                    .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
+                    .withDescription("The timeout for a idle slot in Slot Pool.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_REQUEST_MAX_INTERVAL =
+            key("slot.request.max-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(20L))
+                    .withDescription("The max interval duration for slots request.");
+
+    /** Config parameter determining the scheduler implementation. */
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<SchedulerType> SCHEDULER =
+            key("jobmanager.scheduler")
+                    .enumType(SchedulerType.class)
+                    .defaultValue(SchedulerType.Default)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines which scheduler implementation is used to schedule tasks. "
+                                                    + "If this option is not explicitly set, batch jobs will use the "
+                                                    + "'AdaptiveBatch' scheduler as the default, while streaming jobs "
+                                                    + "will default to the 'Default' scheduler. ")
+                                    .build());
+
+    /** Type of scheduler implementation. */
+    public enum SchedulerType implements DescribedEnum {
+        Default(text("Default scheduler")),
+        Adaptive(
+                text(
+                        "Adaptive scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
+                                "here"))),
+        AdaptiveBatch(
+                text(
+                        "Adaptive batch scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
+                                "here")));
+
+        private final InlineElement description;
+
+        SchedulerType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<SchedulerExecutionMode> SCHEDULER_MODE =
+            key("scheduler-mode")
+                    .enumType(SchedulerExecutionMode.class)
+                    .defaultValue(null)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the mode of the scheduler. Note that %s=%s is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.",
+                                            code("scheduler-mode"),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
+            key("jobmanager.adaptive-scheduler.scaling-interval.min")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    // rescaling and let the user increase the value for high workloads
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING =
+            key("jobmanager.adaptive-scheduler.executing.cooldown-after-rescaling")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDeprecatedKeys(SCHEDULER_SCALING_INTERVAL_MIN.key())
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.executing.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the duration the JobManager delays the scaling operation after a resource change if only sufficient resources are available. "
+                                                    + "The scaling operation is performed immediately if the resources have changed and the desired resources are available. "
+                                                    + "The timeout begins as soon as either the available resources or the job's resource requirements are changed.")
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING} and
+     *     {@link JobManagerOptions#SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
+            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Configure the minimum increase in parallelism for a job to scale up. "
+                                                    + "It's not used anymore. Use the configuration option %s and %s to control the sensitivity of a scaling operation.",
+                                            code(
+                                                    SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING
+                                                            .key()),
+                                            code(
+                                                    SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT
+                                                            .key()))
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
+            key("jobmanager.adaptive-scheduler.scaling-interval.max")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the maximum interval time after which a scaling operation is forced even if the %s aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.",
+                                            code(MIN_PARALLELISM_INCREASE.key()))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.resource-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. "
+                                                    + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
+                                    .linebreak()
+                                    .text(
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).")
+                                    .linebreak()
+                                    .text(
+                                            "Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.submission.resource-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDeprecatedKeys(RESOURCE_WAIT_TIMEOUT.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. "
+                                                    + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
+                                    .linebreak()
+                                    .text(
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).")
+                                    .linebreak()
+                                    .text(
+                                            "Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_RESCALE_TRIGGER_MAX_DELAY =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.max-delay")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
+                                                    + "and the checkpointing interval multiplied by the by-1-incremented parameter value of %s if checkpointing is enabled).",
+                                            text(
+                                                    SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES
+                                                            .key()))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link
+     *     JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10L))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. "
+                                                    + "The timeout starts once sufficient resources for running the job are available. "
+                                                    + "Once this timeout has passed, the job will start executing with the available resources.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to 0, so that jobs are starting immediately with the available resources.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.submission.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10L))
+                    .withDeprecatedKeys(RESOURCE_STABILIZATION_TIMEOUT.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available during job submission. "
+                                                    + "The timeout starts once sufficient resources for running the job are available. "
+                                                    + "Once this timeout has passed, the job will start executing with the available resources.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to 0, so that jobs are starting immediately with the available resources.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Experimental
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED =
+            key("jobmanager.adaptive-scheduler.prefer-minimal-taskmanagers")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "This parameter defines whether the adaptive scheduler prioritizes "
+                                                    + "using the minimum number of %s when scheduling tasks.",
+                                            code("TaskManagers"))
+                                    .linebreak()
+                                    .text(
+                                            "Note, this parameter is suitable if %s is not enabled. "
+                                                    + "More details about this configuration are available at %s.",
+                                            code(LOCAL_RECOVERY.key()),
+                                            link(
+                                                    "https://issues.apache.org/jira/browse/FLINK-33977",
+                                                    "FLINK-33977"))
+                                    .build());
+
+    /**
+     * Config parameter controlling whether partitions should already be released during the job
+     * execution.
+     */
+    @Documentation.ExcludeFromDocumentation(
+            "User normally should not be expected to deactivate this feature. "
+                    + "We aim at removing this flag eventually.")
+    public static final ConfigOption<Boolean> PARTITION_RELEASE_DURING_JOB_EXECUTION =
+            key("jobmanager.partition.release-during-job-execution")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Controls whether partitions should already be released during the job execution.");
+
+    /**
+     * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> JOB_MANAGER_RESOURCE_ID =
+            key("jobmanager.resource-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
+
+    /** Constraints of upstream hybrid partition data consumption by downstream. */
+    public enum HybridPartitionDataConsumeConstraint {
+        ALL_PRODUCERS_FINISHED(true),
+        ONLY_FINISHED_PRODUCERS(true),
+        UNFINISHED_PRODUCERS(false);
+
+        private final boolean onlyConsumeFinishedPartition;
+
+        HybridPartitionDataConsumeConstraint(boolean onlyConsumeFinishedPartition) {
+            this.onlyConsumeFinishedPartition = onlyConsumeFinishedPartition;
+        }
+
+        public boolean isOnlyConsumeFinishedPartition() {
+            return onlyConsumeFinishedPartition;
+        }
+    }
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<HybridPartitionDataConsumeConstraint>
+            HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT =
+                    key("jobmanager.partition.hybrid.partition-data-consume-constraint")
+                            .enumType(HybridPartitionDataConsumeConstraint.class)
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Controls the constraint that hybrid partition data can be consumed. "
+                                                            + "Note that this option is allowed only when %s has been set to %s. "
+                                                            + "Accepted values are:",
+                                                    code(SCHEDULER.key()),
+                                                    code(SchedulerType.AdaptiveBatch.name()))
+                                            .list(
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed only when all producers are finished.",
+                                                            code(ALL_PRODUCERS_FINISHED.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed when its producer is finished.",
+                                                            code(ONLY_FINISHED_PRODUCERS.name())),
+                                                    text(
+                                                            "'%s': hybrid partition data can be consumed even if its producer is un-finished.",
+                                                            code(UNFINISHED_PRODUCERS.name())))
+                                            .build());
+
+    // ---------------------------------------------------------------------------------------------
+
+    private JobManagerOptions() {
+        throw new IllegalAccessError();
+    }
+}

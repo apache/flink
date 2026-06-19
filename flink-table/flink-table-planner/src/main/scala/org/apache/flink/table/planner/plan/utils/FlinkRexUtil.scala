@@ -1,0 +1,553 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.table.planner.plan.utils
+
+import org.apache.flink.table.planner.{JInt, JList, JMap}
+import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
+import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.utils.ShortcutUtils
+
+import com.google.common.base.Function
+import com.google.common.collect.{ImmutableList, Lists}
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.logical.LogicalUnion
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
+import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
+import org.apache.calcite.util._
+
+import java.lang.{Iterable => JIterable}
+import java.math.BigDecimal
+import java.util
+import java.util.Optional
+import java.util.function.Predicate
+
+import scala.collection.JavaConversions._
+
+/** Utility methods concerning [[RexNode]]. */
+object FlinkRexUtil {
+
+  /**
+   * Converts an expression to conjunctive normal form (CNF). See more at
+   * [[RexUtil#toCnf(RexBuilder, RexNode)]].
+   *
+   * <p>We strongly discourage use the [[RexUtil#toCnf(RexBuilder, RexNode)]] and
+   * [[RexUtil#toCnf(RexBuilder, Int, RexNode)]], because there are many bad case when using
+   * [[RexUtil#toCnf(RexBuilder, RexNode)]], such as predicate in TPC-DS q41.sql will be converted
+   * to extremely complex expression (including 736450 RexCalls); and we can not give an appropriate
+   * value for `maxCnfNodeCount` when using [[RexUtil#toCnf(RexBuilder, Int, RexNode)]].
+   */
+  def toCnf(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    val maxCnfNodeCnt = getNumberOfRexCall(rex) * 2
+    new CnfHelper(rexBuilder, maxCnfNodeCnt).toCnf(rex)
+  }
+
+  /**
+   * Returns true if a input blocks only consist of [[Filter]], [[Project]], [[TableScan]],
+   * [[Calc]], [[Values]], and [[Sink]] nodes.
+   */
+  def shouldSkipMiniBatch(blocks: Seq[RelNodeBlock]): Boolean = {
+
+    val noMiniBatchRequired = {
+      (node: RelNode) =>
+        node match {
+          case project: Project =>
+            // TODO: to avoid FLINK-37280, require mini batch if ROW_NUMBER is used
+            !project.getProjects.exists(ex => ex.getKind.equals(SqlKind.ROW_NUMBER))
+          case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
+              _: LegacySink =>
+            true
+          case unionNode: LogicalUnion => unionNode.all
+          case _ => false
+        }
+    }
+
+    def nodeTraverser(node: RelNode): Boolean = {
+      noMiniBatchRequired(node) && node.getInputs
+        .map(n => nodeTraverser(n))
+        .forall(r => r)
+    }
+
+    blocks.map(b => nodeTraverser(b.outputNode)).forall(r => r)
+  }
+
+  /** Returns true if the RexNode contains any node in the given expected [[RexInputRef]] nodes. */
+  def containsExpectedInputRef(rex: RexNode, expectedInputRefs: ImmutableBitSet): Boolean = {
+    val visitor = new InputRefVisitor
+    rex.accept(visitor)
+    val inputRefs = ImmutableBitSet.of(visitor.getFields: _*)
+    !inputRefs.intersect(expectedInputRefs).isEmpty
+  }
+
+  /** Get the number of RexCall in the given node. */
+  private def getNumberOfRexCall(rex: RexNode): Int = {
+    var numberOfNodes = 0
+    rex.accept(new RexVisitorImpl[Unit](true) {
+      override def visitCall(call: RexCall): Unit = {
+        numberOfNodes += 1
+        super.visitCall(call)
+      }
+    })
+    numberOfNodes
+  }
+
+  /** Helps [[toCnf]] */
+  private class CnfHelper(rexBuilder: RexBuilder, maxNodeCount: Int) {
+
+    /** Exception to catch when we pass the limit. */
+    @SuppressWarnings(Array("serial"))
+    private class OverflowError extends ControlFlowException {}
+
+    @SuppressWarnings(Array("ThrowableInstanceNeverThrown"))
+    private val INSTANCE = new OverflowError
+
+    private val ADD_NOT = new Function[RexNode, RexNode]() {
+      override def apply(input: RexNode): RexNode =
+        rexBuilder.makeCall(input.getType, SqlStdOperatorTable.NOT, ImmutableList.of(input))
+    }
+
+    def toCnf(rex: RexNode): RexNode = try {
+      toCnf2(rex)
+    } catch {
+      case e: OverflowError =>
+        Util.swallow(e, null)
+        rex
+    }
+
+    private def toCnf2(rex: RexNode): RexNode = {
+      rex.getKind match {
+        case SqlKind.AND =>
+          val cnfOperands: util.List[RexNode] = Lists.newArrayList()
+          val operands = RexUtil.flattenAnd(rex.asInstanceOf[RexCall].operands)
+          operands.foreach {
+            node =>
+              val cnf = toCnf2(node)
+              cnf.getKind match {
+                case SqlKind.AND =>
+                  cnfOperands.addAll(cnf.asInstanceOf[RexCall].operands)
+                case _ =>
+                  cnfOperands.add(cnf)
+              }
+          }
+          val node = and(cnfOperands)
+          checkCnfRexCallCount(node)
+          node
+        case SqlKind.OR =>
+          val operands = RexUtil.flattenOr(rex.asInstanceOf[RexCall].operands)
+          val head = operands.head
+          val headCnf = toCnf2(head)
+          val headCnfs: util.List[RexNode] = RelOptUtil.conjunctions(headCnf)
+          val tail = or(Util.skip(operands))
+          val tailCnf: RexNode = toCnf2(tail)
+          val tailCnfs: util.List[RexNode] = RelOptUtil.conjunctions(tailCnf)
+          val list: util.List[RexNode] = Lists.newArrayList()
+          headCnfs.foreach(h => tailCnfs.foreach(t => list.add(or(ImmutableList.of(h, t)))))
+          val node = and(list)
+          checkCnfRexCallCount(node)
+          node
+        case SqlKind.NOT =>
+          val arg = rex.asInstanceOf[RexCall].operands.head
+          arg.getKind match {
+            case SqlKind.NOT =>
+              toCnf2(arg.asInstanceOf[RexCall].operands.head)
+            case SqlKind.OR =>
+              val operands = arg.asInstanceOf[RexCall].operands
+              toCnf2(and(Lists.transform(RexUtil.flattenOr(operands), ADD_NOT)))
+            case SqlKind.AND =>
+              val operands = arg.asInstanceOf[RexCall].operands
+              toCnf2(or(Lists.transform(RexUtil.flattenAnd(operands), ADD_NOT)))
+            case _ => rex
+          }
+        case _ => rex
+      }
+    }
+
+    private def checkCnfRexCallCount(node: RexNode): Unit = {
+      // TODO use more efficient solution to get number of RexCall in CNF node
+      if (maxNodeCount >= 0 && getNumberOfRexCall(node) > maxNodeCount) {
+        throw INSTANCE
+      }
+    }
+
+    private def and(nodes: JIterable[_ <: RexNode]): RexNode =
+      RexUtil.composeConjunction(rexBuilder, nodes, false)
+
+    private def or(nodes: JIterable[_ <: RexNode]): RexNode =
+      RexUtil.composeDisjunction(rexBuilder, nodes)
+  }
+
+  /** Simplifies the result expression by [[RexSimplify]]. */
+  def simplify(rexBuilder: RexBuilder, expr: RexNode, executor: RexExecutor): RexNode = {
+    if (expr.isAlwaysTrue || expr.isAlwaysFalse) {
+      return expr
+    }
+
+    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, executor)
+    rexSimplify.simplifyUnknownAs(expr, RexUnknownAs.falseIf(true))
+  }
+
+  /**
+   * Find all inputRefs.
+   *
+   * @return
+   *   InputRef HashSet.
+   */
+  def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
+    val set = new util.HashSet[RexInputRef]
+    node.accept(new RexVisitorImpl[Void](true) {
+      override def visitInputRef(inputRef: RexInputRef): Void = {
+        set.add(inputRef)
+        null
+      }
+    })
+    set
+  }
+
+  /**
+   * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
+   *
+   * @param expr
+   *   The expression to be adjusted.
+   * @param fieldsOldToNewIndexMapping
+   *   A map containing the mapping the old field indices to new field indices.
+   * @param rowType
+   *   The row type of the new output.
+   * @return
+   *   Return new expression with new field indices.
+   */
+  private[flink] def adjustInputRef(
+      expr: RexNode,
+      fieldsOldToNewIndexMapping: Map[Int, Int],
+      rowType: RelDataType): RexNode = expr.accept(new RexShuttle() {
+
+    override def visitInputRef(inputRef: RexInputRef): RexNode = {
+      require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+      val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
+      val ref = RexInputRef.of(newIndex, rowType)
+      if (ref.getIndex == inputRef.getIndex && (ref.getType eq inputRef.getType)) {
+        inputRef
+      } else {
+        // re-use old object, to prevent needless expr cloning
+        ref
+      }
+    }
+  })
+
+  /** Expands the RexProgram to projection list and condition. */
+  def expandRexProgram(program: RexProgram): (JList[RexNode], Option[RexNode]) = {
+    val projection = program.getProjectList.map(program.expandLocalRef)
+    val filter = if (program.getCondition != null) {
+      Some(program.expandLocalRef(program.getCondition))
+    } else {
+      None
+    }
+    (projection, filter)
+  }
+
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  def expandSearch(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    expandSearch(rexBuilder, rex, _ => true)
+  }
+
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  def expandSearch(rexBuilder: RexBuilder, rex: RexNode, tester: RexCall => Boolean): RexNode = {
+    val shuttle = new RexShuttle() {
+      override def visitCall(call: RexCall): RexNode = {
+        if (call.getKind == SqlKind.SEARCH && tester(call)) {
+          RexUtil.expandSearch(rexBuilder, null, call)
+        } else {
+          super.visitCall(call)
+        }
+      }
+    }
+    rex.accept(shuttle)
+  }
+
+  /**
+   * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
+   *
+   * @param expr
+   *   The expression to be adjusted.
+   * @param fieldsOldToNewIndexMapping
+   *   A map containing the mapping the old field indices to new field indices.
+   * @return
+   *   Return new expression with new field indices.
+   */
+  def adjustInputRef(expr: RexNode, fieldsOldToNewIndexMapping: JMap[JInt, JInt]): RexNode =
+    expr.accept(new RexShuttle() {
+      override def visitInputRef(inputRef: RexInputRef): RexNode = {
+        require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+        val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
+        new RexInputRef(newIndex, inputRef.getType)
+      }
+    })
+
+  def getExpressionString(expr: RexNode, inFields: Seq[String]): String = {
+    getExpressionString(expr, inFields, ExpressionDetail.Digest)
+  }
+
+  def getExpressionString(
+      expr: RexNode,
+      inFields: Seq[String],
+      expressionDetail: ExpressionDetail): String = {
+    getExpressionString(
+      expr,
+      inFields,
+      Option.empty[List[RexNode]],
+      ExpressionFormat.Prefix,
+      expressionDetail)
+  }
+
+  def getExpressionString(
+      expr: RexNode,
+      inFields: Seq[String],
+      localExprsTable: Option[List[RexNode]],
+      expressionFormat: ExpressionFormat,
+      expressionDetail: ExpressionDetail): String = {
+    expr match {
+      case pr: RexPatternFieldRef =>
+        val alpha = pr.getAlpha
+        val field = inFields(pr.getIndex)
+        s"$alpha.$field"
+
+      case i: RexInputRef =>
+        inFields(i.getIndex)
+
+      case l: RexLiteral =>
+        expressionDetail match {
+          case ExpressionDetail.Digest =>
+            // the digest for the literal
+            l.toString
+          case ExpressionDetail.Explain =>
+            val value = l.getValue
+            if (value == null) {
+              // return null with type
+              "null:" + l.getType
+            } else {
+              l.getTypeName match {
+                case SqlTypeName.DOUBLE => Util.toScientificNotation(value.asInstanceOf[Double])
+                case SqlTypeName.BIGINT => s"${value.asInstanceOf[BigDecimal].longValue()}L"
+                case SqlTypeName.BINARY => s"X'${value.asInstanceOf[ByteString].toString(16)}'"
+                case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+                  s"'${value.asInstanceOf[NlsString].getValue}'"
+                case SqlTypeName.TIME | SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE =>
+                  l.getValueAs(classOf[TimeString]).toString
+                case SqlTypeName.DATE =>
+                  l.getValueAs(classOf[DateString]).toString
+                case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+                  l.getValueAs(classOf[TimestampString]).toString
+                case typ if SqlTypeName.INTERVAL_TYPES.contains(typ) => l.toString
+                case _ => value.toString
+              }
+            }
+        }
+
+      case _: RexLocalRef if localExprsTable.isEmpty =>
+        throw new IllegalArgumentException(
+          "Encountered RexLocalRef without " +
+            "local expression table")
+
+      case l: RexLocalRef =>
+        val lExpr = localExprsTable.get(l.getIndex)
+        getExpressionString(lExpr, inFields, localExprsTable, expressionFormat, expressionDetail)
+
+      case c: RexCall =>
+        val op = c.getOperator.toString
+        val ops = c.getOperands.map(
+          getExpressionString(_, inFields, localExprsTable, expressionFormat, expressionDetail))
+        c.getOperator match {
+          case _: SqlAsOperator => ops.head
+          case _: SqlCastFunction | _: SqlTryCastFunction =>
+            val typeStr = expressionDetail match {
+              case ExpressionDetail.Digest => c.getType.getFullTypeString
+              case ExpressionDetail.Explain => c.getType.toString
+            }
+            s"$op(${ops.head} AS $typeStr)"
+          case _ =>
+            if (ops.size() == 1) {
+              val operand = ops.head
+              expressionFormat match {
+                case ExpressionFormat.Infix =>
+                  c.getKind match {
+                    case SqlKind.IS_FALSE | SqlKind.IS_NOT_FALSE | SqlKind.IS_TRUE |
+                        SqlKind.IS_NOT_TRUE | SqlKind.IS_UNKNOWN | SqlKind.IS_NULL |
+                        SqlKind.IS_NOT_NULL =>
+                      s"$operand $op"
+                    case _ => s"$op($operand)"
+                  }
+                case ExpressionFormat.PostFix => s"$operand $op"
+                case ExpressionFormat.Prefix => s"$op($operand)"
+              }
+            } else {
+              c.getKind match {
+                case SqlKind.TIMES | SqlKind.DIVIDE | SqlKind.PLUS | SqlKind.MINUS |
+                    SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL | SqlKind.GREATER_THAN |
+                    SqlKind.GREATER_THAN_OR_EQUAL | SqlKind.EQUALS | SqlKind.NOT_EQUALS |
+                    SqlKind.OR | SqlKind.AND =>
+                  expressionFormat match {
+                    case ExpressionFormat.Infix => s"(${ops.mkString(s" $op ")})"
+                    case ExpressionFormat.PostFix => s"(${ops.mkString(", ")})$op"
+                    case ExpressionFormat.Prefix => s"$op(${ops.mkString(", ")})"
+                  }
+                case _ => s"$op(${ops.mkString(", ")})"
+              }
+            }
+        }
+
+      case fa: RexFieldAccess =>
+        val referenceExpr = getExpressionString(
+          fa.getReferenceExpr,
+          inFields,
+          localExprsTable,
+          expressionFormat,
+          expressionDetail)
+        val field = fa.getField.getName
+        s"$referenceExpr.$field"
+      case cv: RexCorrelVariable =>
+        cv.toString
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
+    }
+  }
+
+  /**
+   * Similar to [[RexUtil#findOperatorCall(SqlOperator, RexNode)]], but with a broader predicate
+   * support and returning a boolean.
+   */
+  def hasOperatorCallMatching(expr: RexNode, predicate: Predicate[SqlOperator]): Boolean = {
+    try {
+      val visitor = new RexVisitorImpl[Void](true) {
+        override def visitCall(call: RexCall): Void = {
+          if (predicate.test(call.getOperator)) {
+            throw new Util.FoundOne(call)
+          }
+          super.visitCall(call)
+        }
+      }
+      expr.accept(visitor)
+    } catch {
+      case e: Util.FoundOne =>
+        Util.swallow(e, null)
+        return true
+    }
+    false
+  }
+
+  /**
+   * Returns the non-deterministic call name for a given expression. Use java [[Optional]] for
+   * scala-free goal.
+   */
+  def getNonDeterministicCallName(e: RexNode): Optional[String] = try {
+    val visitor = new RexVisitorImpl[Void](true) {
+      override def visitCall(call: RexCall): Void = {
+        if (!call.getOperator.isDeterministic) {
+          throw new Util.FoundOne(call.getOperator.getName)
+        }
+        super.visitCall(call)
+      }
+    }
+    e.accept(visitor)
+    Optional.empty[String]
+  } catch {
+    case ex: Util.FoundOne =>
+      Util.swallow(ex, null)
+      Optional.ofNullable(ex.getNode.toString)
+  }
+
+  /**
+   * Returns whether a given [[RexProgram]] is deterministic.
+   *
+   * @return
+   *   false if any expression of the program is not deterministic
+   */
+  def isDeterministic(rexProgram: RexProgram): Boolean = try {
+    if (null != rexProgram.getCondition) {
+      val rexCondi = rexProgram.expandLocalRef(rexProgram.getCondition)
+      if (!RexUtil.isDeterministic(rexCondi)) {
+        return false
+      }
+    }
+    val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
+    projects.forall(RexUtil.isDeterministic)
+  }
+
+  /**
+   * Return convertible rex nodes and unconverted rex nodes extracted from the filter expression.
+   */
+  def extractPredicates(
+      inputNames: Array[String],
+      filterExpression: RexNode,
+      rel: RelNode,
+      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+    val context = ShortcutUtils.unwrapContext(rel)
+    val converter =
+      new RexNodeToExpressionConverter(
+        rexBuilder,
+        inputNames,
+        context.getFunctionCatalog,
+        context.getCatalogManager,
+        Some(rel.getRowType));
+
+    RexNodeExtractor.extractConjunctiveConditions(filterExpression, rexBuilder, converter);
+  }
+
+  def extractConjunctiveConditions(
+      rexBuilder: RexBuilder,
+      program: RexProgram): util.List[RexNode] = {
+    if (program.getCondition == null) {
+      return util.List.of[RexNode]
+    }
+    val condition = RexUtil.toCnf(
+      rexBuilder,
+      RexUtil.expandSearch(rexBuilder, program, program.expandLocalRef(program.getCondition)))
+    RelOptUtil.conjunctions(condition)
+  }
+
+  def expandLocalRef(operand: RexNode, localRefs: util.List[RexNode]): RexNode = {
+    var expanded = operand
+    while (expanded.isInstanceOf[RexLocalRef] && localRefs != null) {
+      expanded = localRefs.get(expanded.asInstanceOf[RexLocalRef].getIndex)
+    }
+    expanded
+  }
+}
+
+/**
+ * Infix, Postfix and Prefix notations are three different but equivalent ways of writing
+ * expressions. It is easiest to demonstrate the differences by looking at examples of operators
+ * that take two operands. Infix notation: (X + Y) Postfix notation: (X Y) + Prefix notation: + (X
+ * Y)
+ */
+object ExpressionFormat extends Enumeration {
+  type ExpressionFormat = Value
+  val Infix, PostFix, Prefix = Value
+}
+
+/** ExpressionDetail defines the types of details for expression string result. */
+object ExpressionDetail extends Enumeration {
+  type ExpressionDetail = Value
+  val Explain, Digest = Value
+}

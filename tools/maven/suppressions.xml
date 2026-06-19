@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<!DOCTYPE suppressions PUBLIC
+		"-//Puppy Crawl//DTD Suppressions 1.1//EN"
+		"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+		<!-- Star import is used for all the expressions -->
+		<suppress files="BaseExpressions.java" checks="AvoidStarImport"/>
+
+		<!-- These use star import for all the generated Tuple classes -->
+		<suppress files="CsvReader.java" checks="AvoidStarImport"/>
+
+		<suppress files="NoticeFileChecker.java" checks="Regexp"/>
+		<suppress files="NoticeFileChecker.java" checks="IllegalImport"/>
+		<suppress files="NoticeFileCheckerTest.java" checks="IllegalImport"/>
+		<suppress files="DependencyTree.java" checks="IllegalImport"/>
+
+		<suppress files="FlinkSqlParserImplTest.java" checks="FileLength"/>
+		<suppress files="JoinOperator.java" checks="FileLength"/>
+		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
+		<suppress files="WindowOperatorContractTest.java" checks="FileLength"/>
+		<suppress files="NFAITCase.java" checks="FileLength"/>
+		<suppress files="HyperLogLogPlusPlus.java" checks="FileLength"/>
+		<suppress files="BuiltInFunctionDefinitions.java" checks="FileLength"/>
+
+		<!-- Legacy mockito usages -->
+		<!-- Updated this suppress files section due to FLINK-36063, which migrated many classes from flink-streaming-java to flink-runtime. This allows runtime access to stream graph. -->
+		<suppress files="BufferDataOverWindowOperatorTest.java|CEPOperatorTest.java|CepRuntimeContextTest.java|CliFrontendListTest.java|CliFrontendPackageProgramTest.java|CliFrontendSavepointTest.java|DemultiplexingRecordDeserializerTest.java|DropwizardMeterWrapperTest.java|DynamicEventTimeSessionWindowsTest.java|DynamicProcessingTimeSessionWindowsTest.java|EmbeddedRocksDBStateBackendTest.java|EventTimeSessionWindowsTest.java|FlinkCalciteCatalogReaderTest.java|FlinkMeterWrapperTest.java|HadoopDataInputStreamTest.java|HadoopInputFormatTest.java|HadoopOutputFormatTest.java|HadoopNoLocalWriteTest.java|HadoopUtilsTest.java|HiveTableSourceITCase.java|HybridSourceReaderTest.java|HybridSourceSplitEnumeratorTest.java|InputSortBufferTest.java|InternalWindowFunctionTest.java|LocalStateForwardingTest.java|MailboxPartialWatermarkProcessorTest.java|MergingWindowSetTest.java|NFAITCase.java|NonBufferOverWindowOperatorTest.java|PatternTest.java|ProcessingTimeSessionWindowsTest.java|PythonOperatorChainingOptimizerTest.java|PythonTestUtils.java|RawFormatSerDeSchemaTest.java|RegisterApplicationMasterResponseReflectorTest.java|RichAsyncFunctionTest.java|RocksDBIncrementalCheckpointUtilsTest.java|RocksDBKeyedStateBackendTestFactory.java|RocksDBStateBackendConfigTest.java|TestS3FileSystemFactory.java|SessionWindowAssignerTest.java|StreamSourceOperatorWatermarksTest.java|StreamTaskCancellationBarrierTest.java|StreamTaskSystemExitTest.java|StreamTaskTest.java|TestPartitionDiscoverer.java|Whitebox.java|WindowOperatorContractTest.java|WindowOperatorTest.java|WindowReaderTest.java"
+				  checks="IllegalImport"/>
+
+		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
+		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]parquet[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
+		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
+		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
+
+		<!-- Temporarily fix TM Metaspace memory leak caused by Apache Beam sdk harness. -->
+		<suppress files="org[\\/]apache[\\/]beam.*.java" checks="[a-zA-Z0-9]*"/>
+
+	    <!-- Have to use guava directly -->
+	    <suppress
+			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java|FlinkAggregateProjectMergeRule.java|BatchPhysicalConstantTableFunctionScanRule.java|StreamPhysicalConstantTableFunctionScanRule.java|AggregateReduceGroupingRule.java|SplitAggregateRule.java"
+			checks="IllegalImport"/>
+		<!-- Classes copied from AWS -->
+		<suppress
+			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
+			checks=".*"/>
+		<!-- target directory is not relevant for checkstyle -->
+		<suppress
+			files="[\\/]target[\\/]"
+			checks=".*"/>
+		<!-- suppress check for copied hive code -->
+		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>
+		<suppress files="org[\\/]apache[\\/]hive[\\/]service[\\/]rpc[\\/]thrift[\\/].*.java" checks=".*"/>
+</suppressions>

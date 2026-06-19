@@ -1,0 +1,561 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.table.planner.catalog
+
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, Schema, Table, TableDescriptor, TableEnvironment, TableException}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.factories.TableFactoryHarness
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.utils.TableITCaseBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.types.Row
+import org.apache.flink.util.CollectionUtil
+
+import org.assertj.core.api.Assertions.{assertThatList, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
+
+import java.util
+
+import scala.collection.JavaConverters._
+
+/** Test cases for view related DDLs. */
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
+  // ~ Instance fields --------------------------------------------------------
+
+  private val settings = if (isStreamingMode) {
+    EnvironmentSettings.newInstance().inStreamingMode().build()
+  } else {
+    EnvironmentSettings.newInstance().inBatchMode().build()
+  }
+
+  private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)
+
+  @BeforeEach
+  def before(): Unit = {
+    tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
+    TestCollectionTableFactory.reset()
+  }
+
+  // ~ Tools ------------------------------------------------------------------
+
+  implicit def rowOrdering: Ordering[Row] = Ordering.by(
+    (r: Row) => {
+      val builder = new StringBuilder
+      (0 until r.getArity).foreach(idx => builder.append(r.getField(idx)))
+      builder.toString()
+    })
+
+  def toRow(args: Any*): Row = {
+    val row = new Row(args.length)
+    (0 until args.length).foreach(i => row.setField(i, args(i)))
+    row
+  }
+
+  @TestTemplate
+  def testCreateViewIfNotExistsTwice(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewWith3ColumnDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val viewWith2ColumnDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3(d, e) AS SELECT a, b FROM T1
+      """.stripMargin
+
+    val query = "SELECT d, e, f FROM T3"
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewWith3ColumnDDL)
+    tableEnv.executeSql(viewWith2ColumnDDL)
+
+    tableEnv.sqlQuery(query).executeInsert("T2").await()
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+  }
+
+  @TestTemplate
+  def testCreateViewWithoutFieldListAndWithStar(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T3 AS SELECT * FROM T1
+      """.stripMargin
+
+    val query = "SELECT * FROM T3"
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewDDL)
+
+    tableEnv.sqlQuery(query).executeInsert("T2").await()
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+  }
+
+  @TestTemplate
+  def testCreateTemporaryView(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE TEMPORARY VIEW T3(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val query = "SELECT d, e, f FROM T3"
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewDDL)
+
+    tableEnv.sqlQuery(query).executeInsert("T2").await()
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+  }
+
+  @TestTemplate
+  def testTemporaryViewMaskPermanentViewWithSameName(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val permanentView =
+      """
+        |CREATE VIEW IF NOT EXISTS T3 AS SELECT a, b, c FROM T1
+      """.stripMargin
+
+    val permanentViewData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val temporaryView =
+      """
+        |CREATE TEMPORARY VIEW IF NOT EXISTS T3 AS SELECT a, b, c+1 FROM T1
+      """.stripMargin
+
+    val temporaryViewData = List(
+      toRow(1, "1000", 3),
+      toRow(2, "1", 4),
+      toRow(3, "2000", 5),
+      toRow(1, "2", 3),
+      toRow(2, "3000", 4))
+
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(permanentView)
+    tableEnv.executeSql(temporaryView)
+
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val query = "SELECT * FROM T3"
+
+    tableEnv.sqlQuery(query).executeInsert("T2").await()
+    // temporary view T3 masks permanent view T3
+    assertThatList(temporaryViewData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val dropTemporaryView =
+      """
+        |DROP TEMPORARY VIEW IF EXISTS T3
+      """.stripMargin
+    tableEnv.executeSql(dropTemporaryView)
+    tableEnv.sqlQuery(query).executeInsert("T2").await()
+    // now we only have permanent view T3
+    assertThatList(permanentViewData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+  }
+
+  private def buildTableDescriptor(): TableDescriptor = {
+    val tableDescriptor: TableDescriptor = TableFactoryHarness
+      .newBuilder()
+      .boundedScanSource()
+      .schema(
+        Schema
+          .newBuilder()
+          .column("a", DataTypes.INT())
+          .column("b", DataTypes.STRING())
+          .column("c", DataTypes.INT())
+          .column("ts", DataTypes.TIMESTAMP())
+          .build())
+      .sink()
+      .build()
+    tableDescriptor
+  }
+
+  @TestTemplate
+  def testShowCreateQueryOperationCatalogView(): Unit = {
+
+    val table: Table = tableEnv.from(buildTableDescriptor())
+
+    tableEnv.createTemporaryView("QueryOperationCatalogView", table)
+
+    assertThatThrownBy(() => tableEnv.executeSql("show create view QueryOperationCatalogView"))
+      .hasMessageContaining("SHOW CREATE VIEW is not supported for views registered by Table API.")
+      .isInstanceOf[TableException]
+  }
+
+  @TestTemplate
+  def testShowCreateTemporaryView(): Unit = {
+
+    tableEnv.createTable("T1", buildTableDescriptor())
+
+    val tView1DDL: String = "CREATE TEMPORARY VIEW t_v1 AS SELECT a, b, c FROM T1"
+    tableEnv.executeSql(tView1DDL)
+    val tView1ShowCreateResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view t_v1")
+        .collect()
+    )
+    assertThatList(tView1ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1` (
+           |  `a`,
+           |  `b`,
+           |  `c`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
+           |""".stripMargin
+      )
+    )
+
+    val tView2DDL: String = "CREATE TEMPORARY VIEW t_v2(d, e, f) AS SELECT a, b, c FROM T1"
+    tableEnv.executeSql(tView2DDL)
+    val tView2ShowCreateResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view t_v2")
+        .collect()
+    )
+    assertThatList(tView2ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2` (
+           |  `d`,
+           |  `e`,
+           |  `f`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
+           |""".stripMargin
+      )
+    )
+  }
+
+  @TestTemplate
+  def testShowCreateCatalogView(): Unit = {
+
+    tableEnv.createTable("T1", buildTableDescriptor())
+
+    val view1DDL: String = "CREATE VIEW v1 AS SELECT a, b, c FROM T1"
+    tableEnv.executeSql(view1DDL)
+    val view1ShowCreateResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view v1")
+        .collect()
+    )
+    assertThatList(view1ShowCreateResult)
+      .containsExactly(
+        Row.of(
+          s"""CREATE VIEW `default_catalog`.`default_database`.`v1` (
+             |  `a`,
+             |  `b`,
+             |  `c`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1` AS `T1`
+             |""".stripMargin
+        )
+      )
+
+    val view2DDL: String = "CREATE VIEW v2(x, y, z) AS SELECT a, b, c FROM T1"
+    tableEnv.executeSql(view2DDL)
+    val view2ShowCreateResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view v2")
+        .collect()
+    )
+    assertThatList(view2ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`v2` (
+           |  `x`,
+           |  `y`,
+           |  `z`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
+           |""".stripMargin
+      )
+    )
+  }
+
+  @TestTemplate
+  def testShowCreateViewWithLeftJoinGroupBy(): Unit = {
+    tableEnv.createTable("t1", buildTableDescriptor())
+    tableEnv.createTable("t2", buildTableDescriptor())
+
+    val viewWithLeftJoinGroupByDDL: String =
+      s"""create view viewLeftJoinGroupBy as
+         |select max(t1.a) max_value
+         |from t1 left join t2 on t1.c=t2.c""".stripMargin
+    tableEnv.executeSql(viewWithLeftJoinGroupByDDL)
+    val showCreateLeftJoinGroupByViewResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view viewLeftJoinGroupBy")
+        .collect()
+    )
+    assertThatList(showCreateLeftJoinGroupByViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy` (
+           |  `max_value`
+           |)
+           |AS SELECT MAX(`t1`.`a`) AS `max_value`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |LEFT JOIN `default_catalog`.`default_database`.`t2` AS `t2` ON `t1`.`c` = `t2`.`c`
+           |""".stripMargin
+      )
+    )
+  }
+
+  @TestTemplate
+  def testShowCreateViewWithUDFOuterJoin(): Unit = {
+    tableEnv.createTable("t1", buildTableDescriptor())
+    tableEnv.createTable("t2", buildTableDescriptor())
+    tableEnv.createTemporarySystemFunction(
+      "udfEqualsOne",
+      new ScalarFunction {
+        def eval(): Int = {
+          1
+        }
+      })
+    val viewWithCrossJoinDDL: String =
+      s"""create view viewWithCrossJoin as
+         |select udfEqualsOne() a, t1.a a1, t2.b b2 from t1 cross join t2""".stripMargin
+    tableEnv.executeSql(viewWithCrossJoinDDL)
+    val showCreateCrossJoinViewResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view viewWithCrossJoin")
+        .collect()
+    )
+    assertThatList(showCreateCrossJoinViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin` (
+           |  `a`,
+           |  `a1`,
+           |  `b2`
+           |)
+           |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |CROSS JOIN `default_catalog`.`default_database`.`t2` AS `t2`
+           |""".stripMargin
+      )
+    )
+  }
+
+  @TestTemplate
+  def testShowCreateViewWithInnerJoin(): Unit = {
+
+    tableEnv.createTable("t1", buildTableDescriptor())
+    tableEnv.createTable("t2", buildTableDescriptor())
+    val viewWithInnerJoinDDL: String =
+      s"""create view innerJoinView as
+         |select t1.a a1, t2.b b2
+         |from t1 inner join t2
+         |on t1.c=t2.c""".stripMargin
+    tableEnv.executeSql(viewWithInnerJoinDDL)
+    val showCreateInnerJoinViewResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("show create view innerJoinView")
+        .collect()
+    )
+    assertThatList(showCreateInnerJoinViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView` (
+           |  `a1`,
+           |  `b2`
+           |)
+           |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |INNER JOIN `default_catalog`.`default_database`.`t2` AS `t2` ON `t1`.`c` = `t2`.`c`
+           |""".stripMargin
+      )
+    )
+  }
+
+  @TestTemplate
+  def testShowCreateViewWithTumbleWindow(): Unit = {
+    // FLINK-38950: Verify window TVF with ORDER BY generates correct expanded SQL
+    // without duplicating the ORDER BY clause in the catalog view definition.
+    tableEnv.createTable("t1", buildTableDescriptor())
+    val viewWithTumbleWindowDDL: String =
+      s"""CREATE VIEW tumbleWindowViewWithOrderBy AS
+         |SELECT a
+         |FROM TUMBLE(TABLE t1, DESCRIPTOR(ts), INTERVAL '1' MINUTE)
+         |ORDER BY ts""".stripMargin
+    tableEnv.executeSql(viewWithTumbleWindowDDL)
+    val showCreateViewWithTumbleWindowResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("SHOW CREATE VIEW tumbleWindowViewWithOrderBy")
+        .collect()
+    )
+    assertThatList(showCreateViewWithTumbleWindowResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`tumbleWindowViewWithOrderBy` (
+           |  `a`
+           |)
+           |AS SELECT `EXPR$$0`.`a`
+           |FROM TABLE(TUMBLE((SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`ts`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`), DESCRIPTOR(`ts`), INTERVAL '1' MINUTE)) AS `EXPR$$0`
+           |ORDER BY `EXPR$$0`.`ts`
+           |""".stripMargin
+      )
+    )
+  }
+}
+
+object CatalogViewITCase {
+  @Parameters(name = "{0}")
+  def parameters(): java.util.Collection[Boolean] = {
+    util.Arrays.asList(true, false)
+  }
+}

@@ -1,0 +1,102 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<ng-container *ngIf="node">
+  <div class="name">
+    {{ node.description }}
+  </div>
+  <nz-divider></nz-divider>
+  <div nz-row class="wrapper">
+    <div nz-col [nzSpan]="12">
+      <dl>
+        <dd>State</dd>
+        <dt>
+          <flink-dynamic-host
+            [data]="{ state: node.detail.status }"
+            [component]="stateBadgeComponent"
+          ></flink-dynamic-host>
+        </dt>
+        <dd>Parallelism</dd>
+        <dt>
+          {{ node.detail.parallelism }}
+        </dt>
+        <dd>
+          Max Parallelism
+          <i nz-tooltip [nzTooltipTitle]="maxParallelismTitle" nz-icon nzType="info-circle"></i>
+        </dd>
+        <dt>
+          {{ node.detail.maxParallelism }}
+        </dt>
+        <dd>Start Time</dd>
+        <dt>
+          {{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+        </dt>
+        <dd>End Time</dd>
+        <dt>
+          {{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+        </dt>
+        <dd>Duration</dd>
+        <dt>
+          {{ node.detail.duration | humanizeDuration }}
+        </dt>
+      </dl>
+    </div>
+    <div nz-col [nzSpan]="12">
+      <dl>
+        <dd>Task</dd>
+        <dt>
+          <flink-dynamic-host
+            [data]="{ tasks: node.detail.tasks }"
+            [component]="taskCountComponent"
+          ></flink-dynamic-host>
+        </dt>
+        <dd>Records Sent</dd>
+        <dt>
+          <span *ngIf="node.detail.metrics['write-records-complete']; else loadingTemplate">
+            {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
+          </span>
+        </dt>
+        <dd>Records Received</dd>
+        <dt>
+          <span *ngIf="node.detail.metrics['read-records-complete']; else loadingTemplate">
+            {{ node.detail.metrics['read-records'] | number: '1.0-0' }}
+          </span>
+        </dt>
+        <dd>Bytes Sent</dd>
+        <dt>
+          <span *ngIf="node.detail.metrics['write-bytes-complete']; else loadingTemplate">
+            {{ node.detail.metrics['write-bytes'] | humanizeBytes }}
+          </span>
+        </dt>
+        <dd>Bytes Received</dd>
+        <dt>
+          <span *ngIf="node.detail.metrics['read-bytes-complete']; else loadingTemplate">
+            {{ node.detail.metrics['read-bytes'] | humanizeBytes }}
+          </span>
+        </dt>
+      </dl>
+    </div>
+  </div>
+  <ng-template #loadingTemplate>
+    <i nz-icon nzType="loading"></i>
+  </ng-template>
+  <ng-template #maxParallelismTitle>
+    This value represents the maximum parallelism the vertex can scale to, calculated as the minimum
+    of maximum parallelisms of underlying operators that the vertex consists of.
+  </ng-template>
+</ng-container>

@@ -1,0 +1,74 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "theme";
+
+:host {
+  float: left;
+  width: 33.33%;
+  margin-bottom: 12px;
+  padding: 12px;
+
+  &.big {
+    width: 100%;
+  }
+}
+
+.close {
+  margin-left: 8px;
+}
+
+.chart {
+  position: relative;
+  border: 1px solid @border-color-split;
+}
+
+.title {
+  position: relative;
+  padding: 12px;
+  border-bottom: 1px solid @border-color-split;
+}
+
+.text {
+  overflow: hidden;
+  max-width: calc(~"100% - 128px");
+  font-size: 12px;
+  line-height: 24px;
+  text-overflow: ellipsis;
+}
+
+.operate {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.content {
+  padding: 12px;
+
+  .numeric {
+    font-size: 32px;
+    line-height: 150px;
+    text-align: center;
+  }
+}
+
+button {
+  transition: none;
+}

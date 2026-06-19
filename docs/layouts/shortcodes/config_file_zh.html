@@ -1,0 +1,126 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+<table class="configuration file table table-bordered">
+    <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Config Type</th>
+        <th class="text-left" style="width: 80%">配置格式参考</th>
+    </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>Integer</h5></td>
+            <td>正则表达式：<code>[-+]? [0-9]+</code><br><br>示例：<code>100</code></td>
+        </tr>
+        <tr>
+            <td><h5>Long</h5></td>
+            <td>正则表达式：<code>[-+]? [0-9]+</code><br><br>示例：<code>100</code></td>
+        </tr>
+        <tr>
+            <td><h5>Float</h5></td>
+            <td>正则表达式：<code>[-+]? ( \. [0-9]+ | [0-9]+ ( \. [0-9]* )? ) ( [eE] [-+]? [0-9]+ )?</code><br><br>示例：<code>100.1</code></td>
+        </tr>
+        <tr>
+            <td><h5>Double</h5></td>
+            <td>正则表达式：<code>[-+]? ( \. [0-9]+ | [0-9]+ ( \. [0-9]* )? ) ( [eE] [-+]? [0-9]+ )?</code><br><br>示例：<code>100.1</code></td>
+        </tr>
+        <tr>
+            <td><h5>Boolean</h5></td>
+            <td>正则表达式：<code>true | True | TRUE | false | False | FALSE</code><br><br>示例：<code>true</code></td>
+        </tr>
+        <tr id="config-type-string">
+            <td><h5>String</h5></td>
+            <td>
+                任意字符<br><br>
+                <strong>Note</strong>：如果 value 按字符串处理，且字符串中包含YAML中的
+                <a href="https://yaml.org/spec/1.2.2/#53-indicator-characters" target="_blank">特殊字符</a>,
+                则必须使用单引号或者双引号对其进行转义.
+            </td>
+        </tr>
+        <tr>
+            <td><h5>Map&ltString, String&gt</h5></td>
+            <td>
+                <ul>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Flow Style:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：使用花括号 "{}" 括起来，并且键值对之间由逗号 "," 分隔。在映射内部，键和值之间由冒号 ":" 分隔，并且在冒号后跟一个空格。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例：<code>{k1: v1, k2: v2}</code></li>
+                        </ul>
+                    </li>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Block Style:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：使用缩进来表示数据结构的层次关系，键和值之间用冒号 ":" 和一个空格分隔。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例:
+                                <pre><code>k1: v1<br>k2: v2</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Flink Legacy Map Pattern:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：键值对之间由逗号 "," 分隔。在映射内部，键和值之间由冒号 ":" 分隔。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例：<code>k1:v1,k2:v2</code></li>
+                        </ul>
+                    </li>
+                </ul>
+                注意：对于value中带有特殊字符的情况，需要考虑转义，详情可见 <a href="#config-type-string">Config Type: String</a> 的描述。
+            </td>
+        </tr>
+        <tr>
+            <td><h5>List</h5></td>
+            <td>
+                <ul>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Flow Style:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：使用方括号 "[]" 来表示，并且列表中的元素由逗号 "," 分隔。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例：<code>[a, b, c]</code></li>
+                        </ul>
+                    </li>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Block Style:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：使用缩进和短横线 "-" 来表示列表的条目。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例：
+                                <pre><code>- a<br>- b<br>- c</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li style="line-height: 1.8; margin-bottom: 10px;">Flink Legacy Map Pattern:
+                        <ul>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">说明：列表中的元素由分号 ";" 分隔。</li>
+                            <li style="line-height: 1.4; margin-bottom: 5px;">示例：<code>a;b;c</code></li>
+                        </ul>
+                    </li>
+                </ul>
+                注意：对于value中带有特殊字符的情况，需要考虑转义，详情可见 <a href="#config-type-string">Config Type: String</a> 的描述。
+            </td>
+        </tr>
+        <tr>
+            <td><h5>MemorySize</h5></td>
+            <td>正则表达式：<code>[0-9]+ (b | kb | kibibytes | m | mb | mebibytes | g | gb | gibibytes | t | tb | tebibytes)?</code><br><br>示例：<code>100 mb</code></td>
+        </tr>
+        <tr>
+            <td><h5>Duration</h5></td>
+            <td>正则表达式：<code>[0-9]+ (d | day | h | hour | m | min | minute | s | sec | second | ms | milli | millisecond | us | micro | microsecond | ns | nano | nanosecond)?</code><br><br>示例：<code>10 s</code></td>
+        </tr>
+        <tr>
+            <td><h5>Enum</h5></td>
+            <td>枚举类常量</td>
+        </tr>
+    </tbody>
+</table>

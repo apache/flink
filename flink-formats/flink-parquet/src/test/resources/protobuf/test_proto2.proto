@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package org.apache.flink.formats.parquet.protobuf;
+
+message TestProto2Record {
+  optional string name = 1;
+  optional int32 value = 2;
+  optional bool flag = 3;
+}

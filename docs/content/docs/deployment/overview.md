@@ -1,0 +1,331 @@
+---
+title: 'Overview'
+weight: 1
+type: docs
+aliases:
+  - /deployment/
+  - /apis/cluster_execution.html
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+# Deployment
+
+Flink is a versatile framework, supporting many different deployment scenarios in a mix and match fashion.
+
+Below, we briefly explain the building blocks of a Flink cluster, their purpose and available implementations.
+If you just want to start Flink locally, we recommend setting up a [Standalone Cluster]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}).
+
+## Overview and Reference Architecture
+
+The figure below shows the building blocks of every Flink cluster. There is always somewhere a client running. It takes the code of the Flink applications, transforms it into a JobGraph and submits it to the JobManager.
+
+The JobManager distributes the work onto the TaskManagers, where the actual operators (such as sources, transformations and sinks) are running.
+
+When deploying Flink, there are often multiple options available for each building block. We have listed them in the table below the figure.
+
+
+<!-- Image source: https://docs.google.com/drawings/d/1s_ZlXXvADqxWfTMNRVwQeg7HZ3hN1Xb7goxDPjTEPrI/edit?usp=sharing -->
+{{< img class="img-fluid" width="80%" src="/fig/deployment_overview.svg" alt="Figure for Overview and Reference Architecture" >}}
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Component</th>
+      <th class="text-left" style="width: 50%">Purpose</th>
+      <th class="text-left">Implementations</th>
+    </tr>
+   </thead>
+   <tbody>
+        <tr>
+            <td>Flink Client</td>
+            <td>
+              Compiles batch or streaming applications into a dataflow graph, which it then submits to the JobManager.
+            </td>
+            <td>
+                <ul>
+                    <li><a href="{{< ref "docs/deployment/cli" >}}">Command Line Interface</a></li>
+                    <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
+                    <li><a href="{{< ref "docs/sql/interfaces/sql-client" >}}">SQL Client</a></li>
+                    <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>JobManager</td>
+            <td>
+                JobManager is the name of the central work coordination component of Flink. It has implementations for different resource providers, which differ on high-availability, resource allocation behavior and supported job submission modes. <br />
+                JobManager <a href="#deployment-modes">modes for job submissions</a>:
+                <ul>
+                    <li><b>Application Mode</b>: runs the cluster exclusively for one application. The application's main method (or client) gets executed on the JobManager. Calling `execute`/`executeAsync` multiple times in an application is supported.</li>
+                    <li><b>Session Mode</b>: one JobManager instance manages multiple applications (and all jobs within them) sharing the same cluster of TaskManagers.</li>
+                </ul>
+            </td>
+            <td>
+                <ul id="jmimpls">
+                    <li><a href="{{< ref "docs/deployment/resource-providers/standalone/overview" >}}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{{< ref "docs/deployment/resource-providers/standalone/docker" >}}">Docker, Docker Swarm / Compose</a>, <a href="{{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
+                    </li>
+                    <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
+                    <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>TaskManager</td>
+            <td>
+                TaskManagers are the services actually performing the work of a Flink job.
+            </td>
+            <td>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" class="text-center">
+                <b>External Components</b> (all optional)
+            </td>
+        </tr>
+        <tr>
+            <td>High Availability Service Provider</td>
+            <td>
+                Flink's JobManager can be run in high availability mode which allows Flink to recover from JobManager faults. In order to failover faster, multiple standby JobManagers can be started to act as backups.
+            </td>
+            <td>
+                <ul>
+                    <li><a href="{{< ref "docs/deployment/ha/zookeeper_ha" >}}">Zookeeper</a></li>
+                    <li><a href="{{< ref "docs/deployment/ha/kubernetes_ha" >}}">Kubernetes HA</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>File Storage and Persistency</td>
+            <td>
+                For checkpointing (recovery mechanism for streaming jobs) Flink relies on external file storage systems
+            </td>
+            <td>See <a href="{{< ref "docs/deployment/filesystems/overview" >}}">FileSystems</a> page.</td>
+        </tr>
+        <tr>
+            <td>Resource Provider</td>
+            <td>
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes or YARN.
+            </td>
+            <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
+        </tr>
+        <tr>
+            <td>Metrics Storage</td>
+            <td>
+                Flink components report internal metrics and Flink jobs can report additional, job specific metrics as well.
+            </td>
+            <td>See <a href="{{< ref "docs/deployment/metric_reporters" >}}">Metrics Reporter</a> page.</td>
+        </tr>
+        <tr>
+            <td>Application-level data sources and sinks</td>
+            <td>
+                While application-level data sources and sinks are not technically part of the deployment of Flink cluster components, they should be considered when planning a new Flink production deployment. Colocating frequently used data with Flink can have significant performance benefits
+            </td>
+            <td>
+                For example:
+                <ul>
+                    <li>Apache Kafka</li>
+                    <li>Amazon S3</li>
+                    <li>Elasticsearch</li>
+                    <li>Apache Cassandra</li>
+                </ul>
+                See <a href="{{< ref "docs/connectors/datastream/overview" >}}">Connectors</a> page.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+
+### Repeatable Resource Cleanup
+
+Once a job has reached a globally terminal state of either finished, failed or cancelled, the
+external component resources associated with the job are then cleaned up. In the event of a
+failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
+[configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used. 
+Reaching the maximum number of retries without succeeding will leave the job in a dirty state. 
+Its artifacts would need to be cleaned up manually (see the 
+[High Availability Services / JobResultStore]({{< ref "docs/deployment/ha/overview#jobresultstore" >}})
+section for further details). Restarting the very same job (i.e. using the same 
+job ID) will result in the cleanup being restarted without running the job again.
+
+There is currently an issue with the cleanup of CompletedCheckpoints that failed to be deleted 
+while subsuming them as part of the usual CompletedCheckpoint management. These artifacts are 
+not covered by the repeatable cleanup, i.e. they have to be deleted manually, still. This is 
+covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
+
+The application resource cleanup is similar (see the
+[High Availability Services / ApplicationResultStore]({{< ref "docs/deployment/ha/overview#applicationresultstore" >}})
+section for further details).
+
+## Deployment Modes
+
+Flink can execute applications in two modes:
+- Application Mode,
+- Session Mode.
+
+ The above modes differ in:
+ - the cluster lifecycle and resource isolation guarantees
+ - whether the application's `main()` method is executed on the client or on the cluster.
+
+<!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
+{{< img class="img-fluid" width="70%" style="margin: 10px" src="/fig/deployment_modes.png" alt="Figure for Deployment Modes" >}}
+
+### Application Mode
+    
+If the application's `main()` method is executed on the client side, this process 
+includes downloading the application's dependencies locally, executing the `main()` to extract a representation
+of the application that Flink's runtime can understand (i.e. the `JobGraph`) and ship the dependencies and
+the `JobGraph(s)` to the cluster. This makes the Client a heavy resource consumer as it may need substantial
+network bandwidth to download dependencies and ship binaries to the cluster, and CPU cycles to execute the
+`main()`. This problem can be more pronounced when the Client is shared across users.
+
+Building on this observation, the *Application Mode* creates a cluster per submitted application, and
+the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
+seen as creating a session cluster shared only among the jobs of a particular application, and turning down when
+the application finishes. With this architecture, the *Application Mode* provides the application granularity resource isolation
+and load balancing guarantees.
+
+The *Application Mode* builds on an assumption that the user jars are already available on the classpath (`usrlib` folder)
+of all Flink components that needs access to it (*JobManager*, *TaskManager*). In other words, your application comes
+bundled with the Flink distribution. This allows the application mode to speed up the deployment / recovery process, by
+not having to distribute the user jars to the Flink components via RPC as the other deployment modes do.
+
+{{< hint info >}}
+The application mode assumes that the user jars are bundled with the Flink distribution.
+
+Executing the `main()` method on the cluster may have other implications for your code, such as any paths you register
+in your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
+{{< /hint >}}
+
+The *Application Mode* allows the submission of applications consisting of
+multiple jobs. The order of job execution is not affected by the deployment mode but by the call used
+to launch the job. Using `execute()`, which is blocking, establishes an order and it will lead to the 
+execution of the "next"  job being postponed until "this" job finishes. Using `executeAsync()`, which is 
+non-blocking, will lead to the "next" job starting before "this" job finishes.
+
+{{< hint warning >}}
+The Application Mode allows for multi-job applications (by calling `execute()` or `executeAsync()` multiple times in the `main()` method) but
+High-Availability is limited in these cases. High-Availability in Application Mode is only
+supported for applications with a single streaming job or multiple batch jobs.
+For more details, see [FLIP-560](https://cwiki.apache.org/confluence/display/FLINK/FLIP-560%3A+Application+Capability+Enhancement).
+
+Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down by default.
+This behavior can be configured through the [`execution.terminate-application-on-any-job-terminated-exceptionally`]({{< ref "docs/deployment/config" >}}#execution-terminate-application-on-any-job-terminated-exceptionally) option.
+Regular job completions (by the sources shutting down) are supported.
+{{< /hint >}}
+
+### Session Mode
+
+*Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
+submitted application. Applications executed in the same (session) cluster use, and consequently compete
+for, the same resources. This has the advantage that you do not pay the resource overhead of spinning up
+a full cluster for every submitted job. But, if one of the jobs misbehaves or brings down a TaskManager,
+then all jobs running on that TaskManager will be affected by the failure. This, apart from a negative
+impact on the job that caused the failure, implies a potential massive recovery process with all the 
+restarting jobs accessing the filesystem concurrently and making it unavailable to other services. 
+Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
+is responsible for the book-keeping of all the jobs in the cluster.
+
+In Session Mode, the application's `main()` method can be executed either on the client or on the cluster. 
+When submitting applications via Command-Line Interface (CLI) or the SQL Client, the `main()` method is executed on the client.
+However, when submitting applications via the REST API `/jars/:jarid/run-application`,
+the `main()` method is executed on the cluster.
+This provides the same benefits as Application Mode in terms of resource usage and network bandwidth for the client,
+while still maintaining the shared cluster resource model of Session Mode.
+
+### Summary
+
+In *Session Mode*, the cluster lifecycle is independent of that of any application running on the cluster
+and the resources are shared across all applications. The application's `main()` method can be executed either on the client or on the cluster.
+*Application Mode* creates a session cluster per application and executes the application's `main()`
+method on the cluster. 
+It thus comes with better resource isolation as the resources are only used by the job(s) launched from a single `main()` method.
+This comes at the price of spinning up a dedicated cluster for each application. 
+
+## Vendor Solutions
+
+A number of vendors offer managed or fully hosted Flink solutions.
+None of these vendors are officially supported or endorsed by the Apache Flink PMC.
+Please refer to vendor maintained documentation on how to use these products. 
+
+<!--
+Please keep this list in alphabetical order
+-->
+
+#### AliCloud Realtime Compute
+
+[Website](https://www.alibabacloud.com/products/realtime-compute)
+
+Supported Environments:
+{{< label AliCloud >}}
+
+#### Amazon EMR
+
+[Website](https://aws.amazon.com/emr/)
+
+Supported Environments:
+{{< label AWS >}}
+
+#### Amazon Managed Service for Apache Flink
+
+[Website](https://docs.aws.amazon.com/managed-flink/latest/java/what-is.html)
+
+Supported Environments:
+{{< label AWS >}}
+
+#### Cloudera Stream Processing
+
+[Website](https://www.cloudera.com/products/stream-processing.html)
+
+Supported Environment:
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+{{< label On-Premises >}}
+
+#### Confluent Cloud and Platform
+
+[Website](https://www.confluent.io/)
+
+Supported Environments:
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+{{< label On-Premises >}}
+
+#### Huawei Cloud Stream Service
+
+[Website](https://www.huaweicloud.com/intl/en-us/product/cs.html)
+
+Supported Environment:
+{{< label Huawei Cloud >}}
+
+#### Ververica's Unified Streaming Data Platform (Managed Service / BYOC / Self-Managed)
+
+[Website](https://www.ververica.com/product)
+
+Supported Environments:
+{{< label AliCloud >}}
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+{{< label On-Premises >}}
+
+{{< top >}}

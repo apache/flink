@@ -1,0 +1,146 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.test.program;
+
+import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.Model;
+import org.apache.flink.table.api.ModelDescriptor;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.types.AbstractDataType;
+
+import java.util.function.Function;
+
+/** Test step for execution of a Table API. Similar to {@link SqlTestStep}. */
+public class TableApiTestStep implements TestStep {
+    private final Function<TableEnvAccessor, Table> tableQuery;
+    private final String sinkName;
+    private final InsertConflictStrategy conflictStrategy;
+
+    TableApiTestStep(
+            Function<TableEnvAccessor, Table> tableQuery,
+            String sinkName,
+            InsertConflictStrategy conflictStrategy) {
+        this.tableQuery = tableQuery;
+        this.sinkName = sinkName;
+        this.conflictStrategy = conflictStrategy;
+    }
+
+    @Override
+    public TestKind getKind() {
+        return TestKind.TABLE_API;
+    }
+
+    public Table toTable(TableEnvironment env) {
+        return tableQuery.apply(
+                new TableEnvAccessor() {
+                    @Override
+                    public Table from(String path) {
+                        return env.from(path);
+                    }
+
+                    @Override
+                    public Table fromCall(String path, Object... arguments) {
+                        return env.fromCall(path, arguments);
+                    }
+
+                    @Override
+                    public Table fromCall(
+                            Class<? extends UserDefinedFunction> function, Object... arguments) {
+                        return env.fromCall(function, arguments);
+                    }
+
+                    @Override
+                    public Table fromValues(Object... values) {
+                        return env.fromValues(values);
+                    }
+
+                    @Override
+                    public Table fromValues(AbstractDataType<?> dataType, Object... values) {
+                        return env.fromValues(dataType, values);
+                    }
+
+                    @Override
+                    public Table sqlQuery(String query) {
+                        return env.sqlQuery(query);
+                    }
+
+                    @Override
+                    public Model fromModel(String modelPath) {
+                        return env.fromModel(modelPath);
+                    }
+
+                    @Override
+                    public Model from(ModelDescriptor modelDescriptor) {
+                        return env.fromModel(modelDescriptor);
+                    }
+                });
+    }
+
+    public TableResult apply(TableEnvironment env) {
+        final Table table = toTable(env);
+        return table.executeInsert(sinkName, conflictStrategy);
+    }
+
+    public TableResult applyAsSql(TableEnvironment env) {
+        final Table table = toTable(env);
+        final String query =
+                table.getQueryOperation().asSerializableString(DefaultSqlFactory.INSTANCE);
+        if (conflictStrategy == null) {
+            return env.executeSql(String.format("INSERT INTO %s %s", sinkName, query));
+        } else {
+            return env.executeSql(
+                    String.format(
+                            "INSERT INTO %s %s ON CONFLICT DO %s",
+                            sinkName, query, conflictStrategy.toString()));
+        }
+    }
+
+    /**
+     * An interface for starting a {@link Table}. It abstracts away the {@link TableEnvironment}.
+     */
+    public interface TableEnvAccessor {
+        /** See {@link TableEnvironment#from(String)}. */
+        Table from(String path);
+
+        /** See {@link TableEnvironment#fromCall(String, Object...)}. */
+        Table fromCall(String path, Object... arguments);
+
+        /** See {@link TableEnvironment#fromCall(Class, Object...)}. */
+        Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments);
+
+        /** See {@link TableEnvironment#fromValues(Object...)}. */
+        Table fromValues(Object... values);
+
+        /** See {@link TableEnvironment#fromValues(AbstractDataType, Object...)}. */
+        Table fromValues(AbstractDataType<?> dataType, Object... values);
+
+        /** See {@link TableEnvironment#sqlQuery(String)}. */
+        Table sqlQuery(String query);
+
+        /** See {@link TableEnvironment#fromModel(String)}. */
+        Model fromModel(String modelPath);
+
+        /** See {@link TableEnvironment#fromModel(ModelDescriptor)}. */
+        Model from(ModelDescriptor modelDescriptor);
+    }
+}

@@ -1,0 +1,833 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.flink.test.checkpointing;
+
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.Collector;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
+import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+
+/** Integration test for performing rescale of unaligned checkpoint. */
+@ExtendWith(ParameterizedTestExtension.class)
+class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
+    private static final int NUM_GROUPS = 100;
+    @Parameter private String desc;
+
+    @Parameter(1)
+    private Topology topology;
+
+    @Parameter(2)
+    private int oldParallelism;
+
+    @Parameter(3)
+    private int newParallelism;
+
+    @Parameter(4)
+    private long sourceSleepMs;
+
+    enum Topology implements DagCreator {
+        PIPELINE {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMillis) {
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> source =
+                        createSourcePipeline(
+                                env,
+                                minCheckpoints,
+                                slotSharing,
+                                expectedRestarts,
+                                parallelism,
+                                0,
+                                sourceSleepMillis,
+                                val -> true);
+                addFailingSink(source, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+
+        MULTI_INPUT {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+
+                final int parallelism = env.getParallelism();
+                DataStream<Long> combinedSource = null;
+                for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
+                    int finalInputIndex = inputIndex;
+                    final DataStream<Long> source =
+                            createSourcePipeline(
+                                    env,
+                                    minCheckpoints,
+                                    slotSharing,
+                                    expectedRestarts,
+                                    parallelism,
+                                    inputIndex,
+                                    sourceSleepMs,
+                                    val -> withoutHeader(val) % NUM_SOURCES == finalInputIndex);
+                    combinedSource =
+                            combinedSource == null
+                                    ? source
+                                    : combinedSource
+                                            .connect(source)
+                                            .map(new UnionLikeCoGroup())
+                                            .name("min" + inputIndex)
+                                            .uid("min" + inputIndex)
+                                            .slotSharingGroup(
+                                                    slotSharing ? "default" : ("min" + inputIndex));
+                }
+
+                addFailingSink(combinedSource, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+
+        KEYED_DIFFERENT_PARALLELISM {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> source1 =
+                        createSourcePipeline(
+                                env,
+                                minCheckpoints,
+                                slotSharing,
+                                expectedRestarts,
+                                parallelism / 2,
+                                0,
+                                sourceSleepMs,
+                                val -> withoutHeader(val) % 2 == 0);
+                final DataStream<Long> source2 =
+                        createSourcePipeline(
+                                env,
+                                minCheckpoints,
+                                slotSharing,
+                                expectedRestarts,
+                                parallelism / 3,
+                                1,
+                                sourceSleepMs,
+                                val -> withoutHeader(val) % 2 == 1);
+
+                KeySelector<Long, Long> keySelector = i -> withoutHeader(i) % NUM_GROUPS;
+                SingleOutputStreamOperator<Long> connected =
+                        source1.connect(source2)
+                                .keyBy(keySelector, keySelector)
+                                .process(new TestKeyedCoProcessFunction())
+                                .setParallelism(parallelism);
+
+                addFailingSink(connected, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+
+        UNION {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+
+                final int parallelism = env.getParallelism();
+                DataStream<Long> combinedSource = null;
+                for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
+                    int finalInputIndex = inputIndex;
+                    final DataStream<Long> source =
+                            createSourcePipeline(
+                                    env,
+                                    minCheckpoints,
+                                    slotSharing,
+                                    expectedRestarts,
+                                    parallelism,
+                                    inputIndex,
+                                    sourceSleepMs,
+                                    val -> withoutHeader(val) % NUM_SOURCES == finalInputIndex);
+                    combinedSource = combinedSource == null ? source : combinedSource.union(source);
+                }
+
+                addFailingSink(combinedSource, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+
+        BROADCAST {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> broadcastSide =
+                        env.fromSource(
+                                new LongSource(
+                                        minCheckpoints,
+                                        parallelism,
+                                        expectedRestarts,
+                                        env.getCheckpointInterval(),
+                                        sourceSleepMs),
+                                noWatermarks(),
+                                "source");
+                final DataStream<Long> source =
+                        createSourcePipeline(
+                                        env,
+                                        minCheckpoints,
+                                        slotSharing,
+                                        expectedRestarts,
+                                        parallelism,
+                                        0,
+                                        sourceSleepMs,
+                                        val -> true)
+                                .map(i -> checkHeader(i))
+                                .name("map")
+                                .uid("map")
+                                .slotSharingGroup(slotSharing ? "default" : "failing-map");
+
+                final MapStateDescriptor<Long, Long> descriptor =
+                        new MapStateDescriptor<>(
+                                "broadcast",
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                BasicTypeInfo.LONG_TYPE_INFO);
+                final BroadcastStream<Long> broadcast = broadcastSide.broadcast(descriptor);
+                final SingleOutputStreamOperator<Long> joined =
+                        source.connect(broadcast)
+                                .process(new TestBroadcastProcessFunction())
+                                .setParallelism(2 * parallelism);
+
+                addFailingSink(joined, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+
+        KEYED_BROADCAST {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> broadcastSide1 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval(),
+                                                sourceSleepMs),
+                                        noWatermarks(),
+                                        "source-1")
+                                .setParallelism(1);
+                final DataStream<Long> broadcastSide2 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval(),
+                                                sourceSleepMs),
+                                        noWatermarks(),
+                                        "source-2")
+                                .setParallelism(1);
+                final DataStream<Long> broadcastSide3 =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                1,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval(),
+                                                sourceSleepMs),
+                                        noWatermarks(),
+                                        "source-3")
+                                .setParallelism(1);
+                final DataStream<Long> source =
+                        createSourcePipeline(
+                                        env,
+                                        minCheckpoints,
+                                        slotSharing,
+                                        expectedRestarts,
+                                        parallelism,
+                                        0,
+                                        sourceSleepMs,
+                                        val -> true)
+                                .map(i -> checkHeader(i))
+                                .name("map")
+                                .uid("map")
+                                .slotSharingGroup(slotSharing ? "default" : "failing-map");
+
+                final MapStateDescriptor<Long, Long> descriptor =
+                        new MapStateDescriptor<>(
+                                "broadcast",
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                BasicTypeInfo.LONG_TYPE_INFO);
+                DataStream<Long> broadcastSide =
+                        broadcastSide1.union(broadcastSide2).union(broadcastSide3);
+                final BroadcastStream<Long> broadcast = broadcastSide.broadcast(descriptor);
+                final SingleOutputStreamOperator<Long> joined =
+                        source.keyBy(i -> withoutHeader(i) % NUM_GROUPS)
+                                .connect(broadcast)
+                                .process(new TestKeyedBroadcastProcessFunction())
+                                .setParallelism(parallelism + 2);
+
+                addFailingSink(joined, minCheckpoints, slotSharing, expectedRestarts);
+            }
+        },
+        CUSTOM_PARTITIONER {
+            final int sinkParallelism = 3;
+
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts,
+                    long sourceSleepMs) {
+                int parallelism = env.getParallelism();
+
+                env.fromSource(
+                                new LongSource(
+                                        minCheckpoints,
+                                        parallelism,
+                                        expectedRestarts,
+                                        env.getCheckpointInterval(),
+                                        sourceSleepMs),
+                                noWatermarks(),
+                                "source")
+                        .name("source")
+                        .uid("source")
+                        .map(
+                                new MapFunction<Long, String>() {
+                                    @Override
+                                    public String map(Long value) throws Exception {
+                                        value = withoutHeader(value);
+                                        return buildString(
+                                                value % sinkParallelism, value / sinkParallelism);
+                                    }
+                                })
+                        .name("long-to-string-map")
+                        .uid("long-to-string-map")
+                        .map(getFailingMapper(minCheckpoints, expectedRestarts))
+                        .name("failing-map")
+                        .uid("failing-map")
+                        .setParallelism(parallelism)
+                        .partitionCustom(new StringPartitioner(), str -> str.split(" ")[0])
+                        .addSink(new BackPressureInducingSink())
+                        .name("sink")
+                        .uid("sink")
+                        .setParallelism(sinkParallelism);
+            }
+
+            private String buildString(long partition, long index) {
+                String longStr = new String(new char[3713]).replace('\0', '\uFFFF');
+                return partition + " " + index + " " + longStr;
+            }
+        };
+
+        void addFailingSink(
+                DataStream<Long> combinedSource,
+                long minCheckpoints,
+                boolean slotSharing,
+                int expectedRestarts) {
+            combinedSource
+                    .shuffle()
+                    .map(getFailingMapper(minCheckpoints, expectedRestarts))
+                    .name("failing-map")
+                    .uid("failing-map")
+                    .slotSharingGroup(slotSharing ? "default" : "failing-map")
+                    .shuffle()
+                    .addSink(
+                            new VerifyingSink(
+                                    minCheckpoints,
+                                    combinedSource
+                                            .getExecutionEnvironment()
+                                            .getCheckpointInterval()))
+                    .setParallelism(1)
+                    .name("sink")
+                    .uid("sink")
+                    .slotSharingGroup(slotSharing ? "default" : "sink");
+        }
+
+        /**
+         * Creates a FailingMapper that only fails during snapshot operations.
+         *
+         * <p>When {@code expectedRestarts <= 0}, returns a no-op FailingMapper that never fails.
+         * This is used in phases where no failure is expected (e.g., checkpoint-and-cancel phase).
+         *
+         * <p>When {@code expectedRestarts > 0}, fails during snapshotState() when
+         * completedCheckpoints >= minCheckpoints/2 AND runNumber == 0. After job failovers
+         * internally, runNumber becomes attemptNumber > 0, so failure condition is no longer
+         * satisfied. This ensures the mapper fails exactly once during initial run to trigger job
+         * failover, but never fails again after recovery from checkpoint.
+         */
+        private static <T> FailingMapper<T> getFailingMapper(
+                long minCheckpoints, int expectedRestarts) {
+            if (expectedRestarts <= 0) {
+                return new FailingMapper<>(
+                        state -> false, state -> false, state -> false, state -> false);
+            }
+            return new FailingMapper<>(
+                    state -> false,
+                    state ->
+                            state.completedCheckpoints >= minCheckpoints / 2
+                                    && state.runNumber == 0,
+                    state -> false,
+                    state -> false);
+        }
+
+        DataStream<Long> createSourcePipeline(
+                StreamExecutionEnvironment env,
+                int minCheckpoints,
+                boolean slotSharing,
+                int expectedRestarts,
+                int parallelism,
+                int inputIndex,
+                long sourceSleepMs,
+                FilterFunction<Long> sourceFilter) {
+            return env.fromSource(
+                            new LongSource(
+                                    minCheckpoints,
+                                    parallelism,
+                                    expectedRestarts,
+                                    env.getCheckpointInterval(),
+                                    sourceSleepMs),
+                            noWatermarks(),
+                            "source" + inputIndex)
+                    .uid("source" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
+                    .filter(sourceFilter)
+                    .name("input-filter" + inputIndex)
+                    .uid("input-filter" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
+                    .map(new InputCountFunction())
+                    .name("input-counter" + inputIndex)
+                    .uid("input-counter" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
+                    .global()
+                    .map(i -> checkHeader(i))
+                    .name("global" + inputIndex)
+                    .uid("global" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("global" + inputIndex))
+                    .rebalance()
+                    .map(i -> checkHeader(i))
+                    .setParallelism(parallelism + 1)
+                    .name("rebalance" + inputIndex)
+                    .uid("rebalance" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("rebalance" + inputIndex))
+                    .shuffle()
+                    .map(i -> checkHeader(i))
+                    .name("upscale" + inputIndex)
+                    .uid("upscale" + inputIndex)
+                    .setParallelism(2 * parallelism)
+                    .slotSharingGroup(slotSharing ? "default" : ("upscale" + inputIndex))
+                    .shuffle()
+                    .map(i -> checkHeader(i))
+                    .name("downscale" + inputIndex)
+                    .uid("downscale" + inputIndex)
+                    .setParallelism(parallelism + 1)
+                    .slotSharingGroup(slotSharing ? "default" : ("downscale" + inputIndex))
+                    .keyBy(i -> withoutHeader(i) % NUM_GROUPS)
+                    .map(new StatefulKeyedMap())
+                    .name("keyby" + inputIndex)
+                    .uid("keyby" + inputIndex)
+                    .slotSharingGroup(slotSharing ? "default" : ("keyby" + inputIndex))
+                    .rescale()
+                    .map(i -> checkHeader(i))
+                    .name("rescale" + inputIndex)
+                    .uid("rescale" + inputIndex)
+                    .setParallelism(Math.max(parallelism + 1, parallelism * 3 / 2))
+                    .slotSharingGroup(slotSharing ? "default" : ("rescale" + inputIndex));
+        }
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
+
+        private static class TestBroadcastProcessFunction
+                extends BroadcastProcessFunction<Long, Long, Long> {
+            private static final long serialVersionUID = 7852973507735751404L;
+
+            TestBroadcastProcessFunction() {}
+
+            @Override
+            public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {}
+        }
+
+        private static class TestKeyedCoProcessFunction
+                extends KeyedCoProcessFunction<Long, Long, Long, Long> {
+            private static final long serialVersionUID = 1L;
+
+            TestKeyedCoProcessFunction() {}
+
+            @Override
+            public void processElement1(Long value, Context ctx, Collector<Long> out)
+                    throws Exception {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processElement2(Long value, Context ctx, Collector<Long> out)
+                    throws Exception {
+                out.collect(checkHeader(value));
+            }
+        }
+
+        private static class TestKeyedBroadcastProcessFunction
+                extends KeyedBroadcastProcessFunction<Long, Long, Long, Long> {
+            private static final long serialVersionUID = 7852973507735751404L;
+
+            TestKeyedBroadcastProcessFunction() {}
+
+            @Override
+            public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {}
+        }
+    }
+
+    @Parameters(name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}")
+    public static Object[][] getScaleFactors() {
+        // We use `sourceSleepMs` > 0 to test rescaling without backpressure and only very few
+        // captured in-flight records, see FLINK-31963.
+        Object[][] parameters =
+                new Object[][] {
+                    // Disable CUSTOM_PARTITIONER since it does not work well, see FLINK-39162
+                    new Object[] {"downscale", Topology.CUSTOM_PARTITIONER, 3, 2, 0L},
+                    new Object[] {"upscale", Topology.CUSTOM_PARTITIONER, 2, 3, 0L},
+                    new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7, 0L},
+                    new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 7, 12, 0L},
+                    new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 5, 3, 5L},
+                    new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 3, 5, 5L},
+                    new Object[] {"downscale", Topology.KEYED_BROADCAST, 7, 2, 0L},
+                    new Object[] {"upscale", Topology.KEYED_BROADCAST, 2, 7, 0L},
+                    new Object[] {"downscale", Topology.KEYED_BROADCAST, 5, 3, 5L},
+                    new Object[] {"upscale", Topology.KEYED_BROADCAST, 3, 5, 5L},
+                    new Object[] {"downscale", Topology.BROADCAST, 5, 2, 0L},
+                    new Object[] {"upscale", Topology.BROADCAST, 2, 5, 0L},
+                    new Object[] {"downscale", Topology.BROADCAST, 5, 3, 5L},
+                    new Object[] {"upscale", Topology.BROADCAST, 3, 5, 5L},
+                    new Object[] {"upscale", Topology.PIPELINE, 1, 2, 0L},
+                    new Object[] {"upscale", Topology.PIPELINE, 2, 3, 0L},
+                    new Object[] {"upscale", Topology.PIPELINE, 3, 7, 0L},
+                    new Object[] {"upscale", Topology.PIPELINE, 4, 8, 0L},
+                    new Object[] {"upscale", Topology.PIPELINE, 20, 21, 0L},
+                    new Object[] {"upscale", Topology.PIPELINE, 3, 5, 5L},
+                    new Object[] {"downscale", Topology.PIPELINE, 2, 1, 0L},
+                    new Object[] {"downscale", Topology.PIPELINE, 3, 2, 0L},
+                    new Object[] {"downscale", Topology.PIPELINE, 7, 3, 0L},
+                    new Object[] {"downscale", Topology.PIPELINE, 8, 4, 0L},
+                    new Object[] {"downscale", Topology.PIPELINE, 21, 20, 0L},
+                    new Object[] {"downscale", Topology.PIPELINE, 5, 3, 5L},
+                    new Object[] {"no scale", Topology.PIPELINE, 1, 1, 0L},
+                    new Object[] {"no scale", Topology.PIPELINE, 3, 3, 0L},
+                    new Object[] {"no scale", Topology.PIPELINE, 7, 7, 0L},
+                    new Object[] {"no scale", Topology.PIPELINE, 20, 20, 0L},
+                    new Object[] {"upscale", Topology.UNION, 1, 2, 0L},
+                    new Object[] {"upscale", Topology.UNION, 2, 3, 0L},
+                    new Object[] {"upscale", Topology.UNION, 3, 7, 0L},
+                    new Object[] {"upscale", Topology.UNION, 3, 5, 5L},
+                    new Object[] {"downscale", Topology.UNION, 2, 1, 0L},
+                    new Object[] {"downscale", Topology.UNION, 3, 2, 0L},
+                    new Object[] {"downscale", Topology.UNION, 7, 3, 0L},
+                    new Object[] {"downscale", Topology.UNION, 5, 3, 5L},
+                    new Object[] {"no scale", Topology.UNION, 1, 1, 0L},
+                    new Object[] {"no scale", Topology.UNION, 7, 7, 0L},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 1, 2, 0L},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 2, 3, 0L},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 3, 7, 0L},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 3, 5, 5L},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 2, 1, 0L},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 3, 2, 0L},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 7, 3, 0L},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 5, 3, 5L},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 1, 1, 0L},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7, 0L},
+                };
+        return Arrays.stream(parameters)
+                .map(params -> new Object[][] {ArrayUtils.insert(params.length, params)})
+                .flatMap(Arrays::stream)
+                .toArray(Object[][]::new);
+    }
+
+    /**
+     * Tests unaligned checkpoint rescaling behavior.
+     *
+     * <p>Prescale phase: Job fails when completedCheckpoints >= minCheckpoints/2 via FailingMapper.
+     * Generates checkpoint for rescale test.
+     *
+     * <p>Postscale phase: Job restores from checkpoint with different parallelism, failovers once,
+     * and finishes after source generates all records.
+     */
+    @TestTemplate
+    void shouldRescaleUnalignedCheckpoint(TestInfo testInfo) throws Exception {
+        // Phase 1: prescale - generate initial checkpoint (unchanged)
+        final UnalignedSettings prescaleSettings =
+                new UnalignedSettings(topology)
+                        .setParallelism(oldParallelism)
+                        .setExpectedFailures(1)
+                        .setSourceSleepMs(sourceSleepMs)
+                        .setExpectedFinalJobStatus(JobStatus.FAILED);
+        prescaleSettings.setCheckpointGenerationMode(CheckpointGenerationMode.WAIT_FOR_JOB_RESULT);
+        final String checkpointDir1 = super.execute(prescaleSettings, testInfo);
+        assertThat(checkpointDir1)
+                .as("First job must generate a checkpoint for rescale test to be valid.")
+                .isNotNull();
+
+        // Phase 2: postscale-checkpoint - recover from checkpoint1 and generate new checkpoint
+        // expectedFailures defaults to 0, so expectedRestarts passed to create() is also 0,
+        // which causes getFailingMapper to return a no-op mapper that never fails.
+        final UnalignedSettings phase2Settings =
+                new UnalignedSettings(topology)
+                        .setParallelism(newParallelism)
+                        .setCheckpointGenerationMode(
+                                CheckpointGenerationMode.WAIT_FOR_CHECKPOINT_AND_CANCEL)
+                        .setRestoreCheckpoint(checkpointDir1)
+                        .setSourceSleepMs(sourceSleepMs);
+        final String checkpointDir2 = super.execute(phase2Settings, testInfo);
+        assertThat(checkpointDir2)
+                .as("Phase 2 must generate a checkpoint for phase 3 to be valid.")
+                .isNotNull();
+
+        // Phase 3: recovery - recover from checkpoint2 and run to completion
+        // Randomly choose parallelism from oldParallelism or newParallelism
+        int phase3Parallelism =
+                ThreadLocalRandom.current().nextBoolean() ? oldParallelism : newParallelism;
+        final UnalignedSettings phase3Settings =
+                new UnalignedSettings(topology)
+                        .setParallelism(phase3Parallelism)
+                        .setExpectedFailures(1)
+                        .setRestoreCheckpoint(checkpointDir2)
+                        .setExpectedFinalJobStatus(JobStatus.FINISHED);
+        super.execute(phase3Settings, testInfo);
+    }
+
+    protected void checkCounters(JobExecutionResult result) {
+        assertAll(
+                () ->
+                        assertThat(result.<Long>getAccumulatorResult(NUM_OUTPUTS))
+                                .as("NUM_OUTPUTS = NUM_INPUTS")
+                                .isEqualTo(result.getAccumulatorResult(NUM_INPUTS)),
+                () -> {
+                    if (!topology.equals(Topology.CUSTOM_PARTITIONER)) {
+                        assertThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES))
+                                .as("NUM_DUPLICATES")
+                                .isZero();
+                    }
+                });
+    }
+
+    /**
+     * A sink that checks if the members arrive in the expected order without any missing values.
+     */
+    protected static class VerifyingSink extends VerifyingSinkBase<VerifyingSink.State> {
+        private boolean firstDuplicate = true;
+
+        protected VerifyingSink(long minCheckpoints, long checkpointingInterval) {
+            super(minCheckpoints, checkpointingInterval);
+        }
+
+        @Override
+        protected State createState() {
+            return new State();
+        }
+
+        @Override
+        public void invoke(Long value, Context context) throws Exception {
+            final int intValue = (int) withoutHeader(value);
+            if (state.encounteredNumbers.get(intValue)) {
+                state.numDuplicates++;
+                if (firstDuplicate) {
+                    LOG.info(
+                            "Duplicate record {} @ {} subtask ({} attempt)",
+                            intValue,
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
+                    firstDuplicate = false;
+                }
+            }
+            state.encounteredNumbers.set(intValue);
+            state.numOutput++;
+
+            induceBackpressure();
+        }
+
+        @Override
+        public void close() throws Exception {
+            state.numLostValues =
+                    state.encounteredNumbers.length() - state.encounteredNumbers.cardinality();
+            super.close();
+        }
+
+        public static class State extends VerifyingSinkStateBase {
+            private final BitSet encounteredNumbers = new BitSet();
+        }
+    }
+
+    private static class StatefulKeyedMap extends RichMapFunction<Long, Long> {
+        private static final ValueStateDescriptor<Long> DESC =
+                new ValueStateDescriptor<>("group", LongSerializer.INSTANCE);
+        ValueState<Long> state;
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            state = getRuntimeContext().getState(DESC);
+        }
+
+        @Override
+        public Long map(Long value) throws Exception {
+            final Long lastGroup = state.value();
+            final long rawValue = withoutHeader(value);
+            final long group = rawValue % NUM_GROUPS;
+            if (lastGroup != null) {
+                checkState(group == lastGroup, "Mismatched key group");
+            } else {
+                state.update(group);
+            }
+            return value;
+        }
+    }
+
+    private static class InputCountFunction extends RichMapFunction<Long, Long>
+            implements CheckpointedFunction {
+        private static final long serialVersionUID = -1098571965968341646L;
+        private final LongCounter numInputCounter = new LongCounter();
+        private ListState<Long> state;
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
+            getRuntimeContext().addAccumulator(NUM_INPUTS, numInputCounter);
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            ListStateDescriptor<Long> descriptor =
+                    new ListStateDescriptor<>("num-inputs", Types.LONG);
+            state = context.getOperatorStateStore().getListState(descriptor);
+            for (Long numInputs : state.get()) {
+                numInputCounter.add(numInputs);
+            }
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            state.update(Collections.singletonList(numInputCounter.getLocalValue()));
+        }
+
+        @Override
+        public Long map(Long value) throws Exception {
+            numInputCounter.add(1L);
+            return checkHeader(value);
+        }
+    }
+
+    private static class UnionLikeCoGroup implements CoMapFunction<Long, Long, Long> {
+        @Override
+        public Long map1(Long value) throws Exception {
+            return checkHeader(value);
+        }
+
+        @Override
+        public Long map2(Long value) throws Exception {
+            return checkHeader(value);
+        }
+    }
+
+    private static class StringPartitioner implements Partitioner<String> {
+        @Override
+        public int partition(String key, int numPartitions) {
+            return Integer.parseInt(key) % numPartitions;
+        }
+    }
+
+    private static class BackPressureInducingSink<T> implements SinkFunction<T> {
+        @Override
+        public void invoke(T value, Context ctx) throws Exception {
+            // TODO: maybe similarly to VerifyingSink, we should back pressure only until some point
+            // but currently it doesn't seem to be needed (test runs quickly enough)
+            Thread.sleep(1);
+        }
+    }
+}

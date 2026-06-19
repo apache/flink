@@ -1,0 +1,171 @@
+{
+  "flinkVersion" : "2.3",
+  "nodes" : [ {
+    "id" : 9,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`src_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "content",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "vector",
+              "dataType" : "ARRAY<FLOAT>"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `vector` ARRAY<FLOAT>>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, src_t]], fields=[id, content, vector])",
+    "dynamicFilteringDataListenerID" : "733d0e86-4dba-4d5e-986a-22f1d385c6ef"
+  }, {
+    "id" : 10,
+    "type" : "batch-exec-vector-search-table-function_1",
+    "configuration" : {
+      "table.exec.async-vector-search.max-concurrent-operations" : "10",
+      "table.exec.async-vector-search.output-mode" : "ORDERED",
+      "table.exec.async-vector-search.timeout" : "3 min"
+    },
+    "tableSourceSpec" : {
+      "vectorSearchTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`async_vector_table`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "label",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "vector",
+                "dataType" : "ARRAY<FLOAT>"
+              } ]
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`label` VARCHAR(2147483647), `vector` ARRAY<FLOAT>> NOT NULL"
+    },
+    "vectorSearchSpec" : {
+      "joinType" : "INNER",
+      "searchColumns" : {
+        "1" : {
+          "type" : "FieldRef",
+          "index" : 2
+        }
+      },
+      "topK" : {
+        "type" : "Constant",
+        "sourceType" : "INT NOT NULL",
+        "literal" : {
+          "kind" : "LITERAL",
+          "value" : 2,
+          "type" : "INT NOT NULL"
+        }
+      },
+      "runtimeConfig" : {
+        "async" : "false"
+      },
+      "outputType" : "ROW<`label` VARCHAR(2147483647), `vector` ARRAY<FLOAT>, `score` DOUBLE NOT NULL>"
+    },
+    "asyncOptions" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `vector` ARRAY<FLOAT>, `label` VARCHAR(2147483647), `vector0` ARRAY<FLOAT>, `score` DOUBLE NOT NULL>",
+    "description" : "VectorSearchTableFunction(table=[default_catalog.default_database.async_vector_table], joinType=[InnerJoin], columnToSearch=[vector], columnToQuery=[vector], topK=[2], config=[{async=false}], select=[id, content, vector, label, vector, score])"
+  }, {
+    "id" : 11,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `label` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[id, content, label])"
+  }, {
+    "id" : 12,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "content",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "label",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `label` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[id, content, label])"
+  } ],
+  "edges" : [ {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

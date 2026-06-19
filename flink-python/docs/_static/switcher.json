@@ -1,0 +1,17 @@
+[
+  {
+    "name": "dev",
+    "version": "master",
+    "url": "https://nightlies.apache.org/flink/flink-docs-master/api/python"
+  },
+  {
+    "name": "1.16 (stable)",
+    "version": "release-1.16",
+    "url": "https://nightlies.apache.org/flink/flink-docs-release-1.16/api/python/"
+  },
+  {
+    "name": "1.15",
+    "version": "release-1.15",
+    "url": "https://nightlies.apache.org/flink/flink-docs-release-1.15/api/python/"
+  }
+]

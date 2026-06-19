@@ -1,0 +1,9 @@
+.bundle/
+.jekyll-metadata
+.jekyll-cache/
+.rubydeps/
+ruby2/.bundle/
+ruby2/.rubydeps/
+public/
+resources/
+.hugo_build.lock

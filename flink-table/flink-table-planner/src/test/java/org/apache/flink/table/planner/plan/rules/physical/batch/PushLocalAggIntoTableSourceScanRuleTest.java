@@ -1,0 +1,378 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.plan.rules.physical.batch;
+
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.utils.BatchTableTestUtil;
+import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.table.runtime.functions.aggregate.CollectAggFunction;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Test for rules that extend {@link PushLocalAggIntoScanRuleBase} to push down local aggregates
+ * into table source.
+ */
+class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
+    protected BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
+
+    @BeforeEach
+    void setup() {
+        String ddl =
+                "CREATE TABLE inventory (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING not null,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  type STRING\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        String ddl2 =
+                "CREATE TABLE inventory_meta (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  type STRING,\n"
+                        + "  metadata_1 BIGINT METADATA,\n"
+                        + "  metadata_2 STRING METADATA,\n"
+                        + "  PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl2);
+
+        // partitioned table
+        String ddl3 =
+                "CREATE TABLE inventory_part (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  type STRING\n"
+                        + ") PARTITIONED BY (type)\n"
+                        + "WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'partition-list' = 'type:a;type:b',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl3);
+
+        // disable projection push down
+        String ddl4 =
+                "CREATE TABLE inventory_no_proj (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  type STRING\n"
+                        + ")\n"
+                        + "WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'enable-projection-push-down' = 'false',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl4);
+    }
+
+    @Test
+    void testCanPushDownLocalHashAggWithGroup() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testDisablePushDownLocalAgg() {
+        String ddl =
+                "CREATE TABLE inventory_without_agg_push_down (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING not null,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  type STRING\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'enable-aggregate-push-down' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory_without_agg_push_down\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCanPushDownLocalHashAggWithoutGroup() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(id),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  avg(price),\n"
+                        + "  count(id)\n"
+                        + "FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount() {
+        util.verifyRelPlan("SELECT count(*) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount1() {
+        util.verifyRelPlan("SELECT count(1) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNullableColumn() {
+        util.verifyRelPlan("SELECT count(id) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNotNullColumn() {
+        util.verifyRelPlan("SELECT count(name) FROM inventory");
+    }
+
+    @Test
+    void testCanPushDownLocalSortAggWithoutSort() {
+        // enable sort agg
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(id),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  avg(price),\n"
+                        + "  count(id)\n"
+                        + "FROM inventory");
+
+        // reset config
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+    }
+
+    @Test
+    void testCanPushDownLocalSortAggWithSort() {
+        // enable sort agg
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+
+        // reset config
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+    }
+
+    @Test
+    void testCanPushDownLocalAggAfterFilterPushDown() {
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  where id = 123\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCanPushDownLocalAggWithMetadata() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  max(metadata_1),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory_meta\n"
+                        + "  where id = 123\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCanPushDownLocalAggWithPartition() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  type,\n"
+                        + "  name\n"
+                        + "FROM inventory_part\n"
+                        + "  where type in ('a', 'b') and id = 123\n"
+                        + "  group by type, name");
+    }
+
+    @Test
+    void testCanPushDownLocalAggWithoutProjectionPushDown() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory_no_proj\n"
+                        + "  where id = 123\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCanPushDownLocalAggWithAuxGrouping() {
+        // enable two-phase aggregate, otherwise there is no local aggregate
+        util.getTableEnv()
+                .getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.TWO_PHASE);
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  id, name, count(*)\n"
+                        + "FROM inventory_meta\n"
+                        + "  group by id, name");
+    }
+
+    @Test
+    void testCannotPushDownLocalAggAfterLimitPushDown() {
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  sum(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM (\n"
+                        + "  SELECT\n"
+                        + "    *\n"
+                        + "  FROM inventory\n"
+                        + "  LIMIT 100\n"
+                        + ") t\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCannotPushDownLocalAggWithUDAF() {
+        // add udf
+        util.addTemporarySystemFunction(
+                "udaf_collect", new CollectAggFunction<>(DataTypes.BIGINT().getLogicalType()));
+
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  udaf_collect(amount),\n"
+                        + "  name,\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by name, type");
+    }
+
+    @Test
+    void testCannotPushDownLocalAggWithUnsupportedDataTypes() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  max(name),\n"
+                        + "  type\n"
+                        + "FROM inventory\n"
+                        + "  group by type");
+    }
+
+    @Test
+    void testCannotPushDownWithColumnExpression() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(amount + price),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  count(id),\n"
+                        + "  name\n"
+                        + "FROM inventory\n"
+                        + "  group by name");
+    }
+
+    @Test
+    void testCannotPushDownWithUnsupportedAggFunction() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(id),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  count(distinct id),\n"
+                        + "  name\n"
+                        + "FROM inventory\n"
+                        + "  group by name");
+    }
+
+    @Test
+    void testCannotPushDownWithWindowAggFunction() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  id,\n"
+                        + "  amount,\n"
+                        + "  sum(price) over (partition by name),\n"
+                        + "  name\n"
+                        + "FROM inventory");
+    }
+
+    @Test
+    void testCannotPushDownWithArgFilter() {
+        util.verifyRelPlan(
+                "SELECT\n"
+                        + "  min(id),\n"
+                        + "  max(amount),\n"
+                        + "  sum(price),\n"
+                        + "  count(id) FILTER(WHERE id > 100),\n"
+                        + "  name\n"
+                        + "FROM inventory\n"
+                        + "  group by name");
+    }
+}

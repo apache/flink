@@ -1,0 +1,101 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+nz-table {
+  &.no-border {
+    .ant-table-small {
+      border: none;
+    }
+  }
+
+  &.small {
+    .ant-table {
+      font-size: 12px;
+    }
+  }
+
+  &.full-height {
+    position: relative;
+    display: block;
+    height: 100%;
+
+    nz-spin {
+      display: block;
+      height: 100%;
+
+      .ant-spin-container {
+        position: relative;
+        height: 100%;
+        zoom: 1;
+
+        .ant-table {
+          height: 100%;
+
+          .ant-table-content {
+            height: 100%;
+
+            .ant-table-scroll {
+              height: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.ant-table-small
+  > .ant-table-content
+  > .ant-table-scroll
+  > .ant-table-header
+  > table
+  > .ant-table-thead
+  > tr
+  > th.ant-table-column-sort {
+  background: @table-header-sort-active-bg;
+}
+
+.ant-tabs-tab {
+  font-weight: 500;
+}
+
+.ant-tooltip {
+  max-width: 500px;
+}
+
+.ant-tooltip-inner {
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.ant-table table {
+  border-spacing: 0;
+  border-collapse: separate;
+}
+
+.ant-table-tbody > tr > td,
+.ant-table-thead > tr > th {
+  word-break: break-word;
+}
+
+li.ant-dropdown-menu-item-disabled {
+  a {
+    color: @text-color-secondary;
+    cursor: not-allowed;
+  }
+}

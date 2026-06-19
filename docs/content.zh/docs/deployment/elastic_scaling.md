@@ -1,0 +1,270 @@
+---
+title: 弹性扩缩容
+weight: 5
+type: docs
+
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+# 弹性扩缩容
+
+Historically, the parallelism of a job has been static throughout its lifecycle and defined once during its submission. Batch jobs couldn't be rescaled at all, while Streaming jobs could have been stopped with a savepoint and restarted with a different parallelism.
+
+This page describes a new class of schedulers that allow Flink to adjust job's parallelism at runtime, which pushes Flink one step closer to a truly cloud-native stream processor. The new schedulers are [Adaptive Scheduler](#adaptive-scheduler) (streaming) and [Adaptive Batch Scheduler]({{< ref "docs/deployment/adaptive_batch" >}}) (batch).
+
+## Adaptive 调度器
+
+The Adaptive Scheduler can adjust the parallelism of a job based on available slots. It will automatically reduce the parallelism if not enough slots are available to run the job with the originally configured parallelism; be it due to not enough resources being available at the time of submission, or TaskManager outages during the job execution. If new slots become available the job will be scaled up again, up to the configured parallelism.
+
+In Reactive Mode (see below) the configured parallelism is ignored and treated as if it was set to infinity, letting the job always use as many resources as possible.
+
+One benefit of the Adaptive Scheduler over the default scheduler is that it can handle TaskManager losses gracefully, since it would just scale down in these cases.
+
+{{< img src="/fig/adaptive_scheduler.png" >}}
+
+Adaptive Scheduler builds on top of a feature called [Declarative Resource Management](https://cwiki.apache.org/confluence/display/FLINK/FLIP-138%3A+Declarative+Resource+management). As you can see, instead of asking for the exact number of slots, JobMaster declares its desired resources (for reactive mode the maximum is set to infinity) to the ResourceManager, which then tries to fulfill those resources.
+
+{{< img src="/fig/adaptive_scheduler_rescale.png" >}}
+
+When JobMaster gets more resources during the runtime, it will automatically rescale the job using the latest available savepoint, eliminating the need for an external orchestration.
+
+Starting from **Flink 1.18.x**, you can re-declare the resource requirements of a running job using [Externalized Declarative Resource Management](#externalized-declarative-resource-management), otherwise the Adaptive Scheduler won't be able to handle cases where the job needs to be rescaled due to a change in the input rate, or a change in the performance of the workload.
+
+### Externalized Declarative Resource Management
+
+{{< hint warning >}}
+Externalized Declarative Resource Management is an MVP ("minimum viable product") feature. The Flink community is actively looking for feedback by users through our mailing lists. Please check the limitations listed on this page.
+{{< /hint >}}
+
+{{< hint info >}}
+You can use Externalized Declarative Resource Management with the [Apache Flink Kubernetes operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support) for a fully-fledged auto-scaling experience.
+{{< /hint >}}
+
+Externalized Declarative Resource Management aims to address two deployment scenarios:
+1. Adaptive Scheduler on Session Cluster, where multiple jobs can compete for resources, and you need a finer-grained control over the distribution of resources between jobs.
+2. Adaptive Scheduler on Application Cluster in combination with Active Resource Manager (e.g. [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})), where you rely on Flink to "greedily" spawn new TaskManagers, but you still want to leverage rescaling capabilities as with [Reactive Mode](#reactive-mode).
+
+by introducing a new [REST API endpoint]({{< ref "docs/ops/rest_api" >}}#jobs-jobid-resource-requirements-1), that allows you to re-declare resource requirements of a running job, by setting per-vertex parallelism boundaries.
+
+```
+PUT /jobs/<job-id>/resource-requirements
+ 
+REQUEST BODY:
+{
+    "<first-vertex-id>": {
+        "parallelism": {
+            "lowerBound": 3,
+            "upperBound": 5
+        }
+    },
+    "<second-vertex-id>": {
+        "parallelism": {
+            "lowerBound": 2,
+            "upperBound": 3
+        }
+    }
+}
+```
+
+To a certain extent, the above endpoint could be thought about as a "re-scaling endpoint" and it introduces an important building block for building an auto-scaling experience for Flink.
+
+You can manually try this feature out, by navigating the Job overview in the Flink UI and using up-scale/down-scale buttons in the task list.
+
+### Usage
+
+{{< hint info >}}
+If you are using Adaptive Scheduler on a [session cluster]({{< ref "docs/deployment/overview" >}}/#session-mode), there are no guarantees regarding the distribution of slots between multiple running jobs in the same session, in case the cluster doesn't have enough resources. The [External Declarative Resource Management](#externalized-declarative-resource-management) can partially mitigate this issue, but it is still recommended to use Adaptive Scheduler on a [application cluster]({{< ref "docs/deployment/overview" >}}/#application-mode).
+{{< /hint >}}
+
+The `jobmanager.scheduler` needs to be set to on the cluster level for the adaptive scheduler to be used instead of default scheduler.
+
+```yaml
+jobmanager.scheduler: adaptive
+```
+
+The behavior of Adaptive Scheduler is configured by [all configuration options prefixed with `jobmanager.adaptive-scheduler`]({{< ref "docs/deployment/config">}}#advanced-scheduling-options) in their name.
+
+### Limitations
+
+- **Streaming jobs only**: The Adaptive Scheduler runs with streaming jobs only. When submitting a batch job, Flink will use the default scheduler of batch jobs, i.e. [Adaptive Batch Scheduler]({{< ref "docs/deployment/adaptive_batch" >}})
+- **No support for partial failover**: Partial failover means that the scheduler is able to restart parts ("regions" in Flink's internals) of a failed job, instead of the entire job. This limitation impacts only recovery time of embarrassingly parallel jobs: Flink's default scheduler can restart failed parts, while Adaptive Scheduler will restart the entire job.
+- Scaling events trigger job and task restarts, which will increase the number of Task attempts.
+- 
+## Reactive 模式
+
+Reactive Mode is a special mode for Adaptive Scheduler, that assumes a single job per-cluster (enforced by the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). Reactive Mode configures a job so that it always uses all resources available in the cluster. Adding a TaskManager will scale up your job, removing resources will scale it down. Flink will manage the parallelism of the job, always setting it to the highest possible values.
+
+当发生扩缩容时，Job 会被重启，并且会从最新的 Checkpoint 中恢复。这就意味着不需要花费额外的开销去创建 Savepoint。当然，所需要重新处理的数据量取决于 Checkpoint 的间隔时长，而恢复的时间取决于状态的大小。
+
+借助 Reactive 模式，Flink 用户可以通过一些外部的监控服务产生的指标，例如：消费延迟、CPU 利用率汇总、吞吐量、延迟等，实现一个强大的自动扩缩容机制。当上述的这些指标超出或者低于一定的阈值时，增加或者减少 TaskManager 的数量。在 Kubernetes 中，可以通过改变 Deployment 的[副本数（Replica Factor）](https://kubernetes.io/zh/docs/concepts/workloads/controllers/deployment/#replicas) 实现。而在 AWS 中，可以通过改变 [Auto Scaling 组](https://docs.aws.amazon.com/zh_cn/autoscaling/ec2/userguide/AutoScalingGroup.html) 来实现。这类外部服务只需要负责资源的分配以及回收，而 Flink 则负责在这些资源上运行 Job。
+
+<a name="getting-started"></a>
+
+### 入门
+
+你可以参考下面的步骤试用 Reactive 模式。以下步骤假设你使用的是单台机器部署 Flink。
+
+```bash
+
+# 以下步骤假设你当前目录处于 Flink 发行版的根目录。
+
+# 将 Job 拷贝到 lib/ 目录下
+cp ./examples/streaming/TopSpeedWindowing.jar lib/
+# 使用 Reactive 模式提交 Job
+./bin/standalone-job.sh start -Dscheduler-mode=reactive -Dexecution.checkpointing.interval="10s" -j org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
+# 启动第一个 TaskManager
+./bin/taskmanager.sh start
+```
+
+让我们快速解释下上面每一条执行的命令：
+- `./bin/standalone-job.sh start` 使用 [Application 模式]({{< ref "docs/deployment/overview" >}}#application-mode) 部署 Flink。
+- `-Dscheduler-mode=reactive` 启动 Reactive 模式。
+- `-Dexecution.checkpointing.interval="10s"` 配置 Checkpoint 和重启策略。
+- 最后一个参数是 Job 的主函数名。
+
+你现在已经启动了一个 Reactive 模式下的 Flink Job。在[Web 界面](http://localhost:8081)上，你可以看到 Job 运行在一个 TaskManager 上。如果你想要扩容，可以再添加一个 TaskManager，
+```bash
+# 额外启动一个 TaskManager
+./bin/taskmanager.sh start
+```
+
+如果想要缩容，可以关掉一个 TaskManager。
+```bash
+# 关闭 TaskManager
+./bin/taskmanager.sh stop
+```
+
+### 用法
+
+#### 配置
+
+通过将 `scheduler-mode` 配置成 `reactive`，你可以开启 Reactive 模式。
+
+**每个独立算子的并行度都将由调度器来决定**，而不是由配置决定。当并行度在算子上或者整个 Job 上被显式设置时，这些值被会忽略。
+
+而唯一能影响并行度的方式只有通过设置算子的最大并行度（调度器不会忽略这个值）。
+最大并行度 maxParallelism 参数的值最大不能超过 2^15（32768）。如果你们没有给算子或者整个 Job 设置最大并行度，会采用[默认的最大并行度规则]({{< ref "docs/dev/datastream/execution/parallel" >}}#setting-the-maximum-parallelism)。
+这个值很有可能会低于它的最大上限。当使用默认的调度模式时，请参考[并行度的最佳实践]({{< ref "docs/ops/production_ready" >}}#set-an-explicit-max-parallelism)。
+
+需要注意的是，过大的并行度会影响 Job 的性能，因为 Flink 为此需要维护更多的[内部结构](https://flink.apache.org/features/2017/07/04/flink-rescalable-state.html)。
+
+当开启 Reactive 模式时，[`jobmanager.adaptive-scheduler.resource-wait-timeout`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-resource-wait-timeout) 配置的默认值是 `-1`。这意味着，JobManager 会一直等待，直到拥有足够的资源。
+如果你想要 JobManager 在没有拿到足够的 TaskManager 的一段时间后关闭，可以配置这个参数。
+
+当开启 Reactive 模式时，[`jobmanager.adaptive-scheduler.resource-stabilization-timeout`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-resource-stabilization-timeout) 配置的默认值是 `0`：Flink 只要有足够的资源，就会启动 Job。
+在 TaskManager 一个一个而不是同时启动的情况下，会造成 Job 在每一个 TaskManager 启动时重启一次。当你希望等待资源稳定后再启动 Job，那么可以增加这个配置的值。
+另外，你还可以配置 [`jobmanager.adaptive-scheduler.min-parallelism-increase`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-min-parallelism-increase)：这个配置能够指定在扩容前需要满足的最小额外增加的并行总数。例如，你的 Job 由并行度为 2 的 Source 和并行度为 2 的 Sink组成，并行总数为 4。这个配置的默认值是 `1`，所以任意并行总数的增加都会导致重启。
+
+#### 建议
+
+- **为有状态的 Job 配置周期性的 Checkpoint**：Reactive 模式在扩缩容时通过最新完成的 Checkpoint 恢复。如果没有配置周期性的 Checkpoint，你的程序会丢失状态。Checkpoint 同时还配置了**重启策略**，Reactive会使用配置的重启策略：如果没有设置，Reactive 模式会让 Job 失败而不是运行扩缩容。
+
+- 在 Ractive 模式下缩容可能会导致长时间的停顿，因为 Flink 需要等待 JobManager 和已经停止的 TaskManager 间心跳超时。当你降低 Job 并行度时，你会发现 Job 会停顿大约 50 秒左右。
+  
+  这是由于默认的心跳超时时间是 50 秒。在你的基础设施允许的情况下，可以降低 [`heartbeat.timeout`]({{< ref "docs/deployment/config">}}#heartbeat-timeout) 的值。但是降低超时时间，会导致比如在网络拥堵或者 GC Pause 的时候，TaskManager 无法响应心跳。需要注意的是，[`heartbeat.interval`]({{< ref "docs/deployment/config">}}#heartbeat-interval) 配置需要低于超时时间。
+
+### 局限性
+
+由于 Reactive 模式是一个新的实验特性，并不是所有在默认调度器下的功能都能支持（也包括 Adaptive 调度器）。Flink 社区正在解决这些局限性。
+
+- **仅支持 Standalone 部署模式**。其他主动的部署模式实现（例如：原生的 Kubernetes 以及 YARN）都明确不支持。Session 模式也同样不支持。仅支持单 Job 的部署。
+
+  仅支持如下的部署方式：[Application 模式下的 Standalone 部署]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}#application-mode)（可以参考[上文](#getting-started)）、[Application 模式下的 Docker 部署]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#application-mode-on-docker) 以及 [Standalone 的 Kubernetes Application 集群模式]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#deploy-application-cluster)。
+
+[Adaptive 调度器的局限性](#limitations-1) 同样也适用于 Reactive 模式.
+
+## Rescale History
+
+Before Flink 2.3, users and developers were unable to inspect the internal details of `AdaptiveScheduler` rescaling history,
+causing operational inconvenience.
+For instance, users need visibility into specific resource changes, parallelism adjustments,
+and the time spent on each internal state transition during the rescaling process.
+This information is crucial for tuning parameters to achieve lower latency and higher stability in rescaling.
+
+Therefore, Flink community introduced [FLIP-495](https://cwiki.apache.org/confluence/x/TQr0Ew) to support recording and storing rescaling history,
+and [FLIP-487](https://cwiki.apache.org/confluence/x/vZCMEw) to enable querying via the REST API and displaying this history on the Web UI.
+
+You can enable rescale history for stream jobs with the `AdaptiveScheduler` enabled by setting the following configuration item to a positive integer.
+This value indicates the number of recent rescale records retained for the job.
+
+- [`web.adaptive-scheduler.rescale-history.size`]({{< ref "docs/deployment/config" >}}#web-adaptive-scheduler-rescale-history-size): `4`
+
+The default value of the configuration option is `0`. When the configuration value is less than or equal to `0`, this feature will be disabled.
+
+### The Information and Style About Rescale History
+
+Since Flink version 2.3, a page for displaying `Rescales` has been introduced in the Web UI, 
+positioned at the same hierarchical level as the `Checkpoints` page and featuring a similar style.
+This primarily includes the following sub-pages:
+
+- `Overview`  
+  This sub-page displays recent rescale records across various rescale terminal states, 
+  along with fundamental job rescale statistics—such as the total number of rescales since job startup and the counts of failures or successes. 
+  Additionally, the page supports the display of detailed rescale information.
+
+- `History`  
+  This sub-page displays abbreviated information for the most recent rescale records (up to the configured [`web.adaptive-scheduler.rescale-history.size`]({{< ref "docs/deployment/config" >}}#web-adaptive-scheduler-rescale-history-size) limit). 
+  Additionally, the page supports the display of detailed rescale information as outlined below:
+    - The basic information of a rescale
+      - <u>Rescale UUID</u>: The unique ID in a rescale consists of 32 hexadecimal characters (The UUID definition below is identical to the one here).
+      - <u>Attempt ID</u>: The number of rescale attempts triggered on the same job resource requirements.
+      - <u>Requirements ID</u>: The unique UUID of resource requirements.
+      - <u>Trigger Cause</u>: The reason that triggered a rescale.
+      - <u>Terminal State</u>: The end state of a rescale.
+      - <u>Terminated Reason</u>: The reason of the rescale lifecycle termination.
+      - <u>Start Time</u>: The start time of a rescale.
+      - <u>Duration</u>: Duration from the start of the rescale to its completion or until now if the rescale operation hasn't completed, yet.
+      - <u>End Time</u>: The end time of a rescale if the rescale is terminated, current time else.
+    - The basic attributes and rescale change per `Job Vertex`
+      - <u>ID</u>: The unique UUID of target `Job Vertex`.
+      - <u>Name</u>: The short name of target vertex.
+      - <u>Slot Sharing Group ID</u>: The unique UUID of target `Slot Sharing Group`.
+      - <u>Previous Parallelism</u>: The parallelism of target vertex before the current rescale.
+      - <u>Acquired Parallelism</u>: The parallelism of target vertex after the current rescale.
+      - <u>Sufficient Parallelism</u>: The minimal parallelism of the vertex that would have allowed the rescale operation to go through even if the desired parallelism wasn't possible to be reached.
+      - <u>Desired Parallelism</u>: The desired parallelism of a `Job Vertex` that was specified in the initial change request that triggered the rescale operation.
+    - The basic attributes and rescale change per `Slot Sharing Group`
+      - <u>Slot Sharing Group ID</u>: The UUID of the `Slot Sharing Group` to which target slot belongs.
+      - <u>Slot Sharing Group Name</u>: The name of the `Slot Sharing Group` to which the slot belongs.
+      - <u>Previous Slot</u>: The number of slots before the rescale.
+      - <u>Acquired Slot</u>: The number of slots after the rescale.
+      - <u>Desired Slot</u>: The desired number of slots of the rescale.
+      - <u>Sufficient Slot</u>: The minimal number of slots to deploy tasks in the rescale.
+      - <u>Request Profile</u>: The request resource profile of the `Slot Sharing Group` in the rescale.
+      - <u>Acquired Profile</u>: The acquired resource profile of the `Slot Sharing Group` in the rescale.
+    - The internal `Scheduler State History`] of `AdaptiveScheduler` within a rescale (see [`AdaptiveScheduler states in FLIP-160`](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=173083547#FLIP160:AdaptiveScheduler-Statemachineofthescheduler) for further details)
+      - <u>State</u>: The scheduler state name.
+      - <u>Enter Time</u>: The time to enter the state.
+      - <u>Leave Time</u>: The time to leave the state.
+      - <u>Duration</u>: Time spent in the state (Leave Time − Enter Time).
+      - <u>Exception</u>: The exception information about current rescale within the state.
+- `Summary`  
+  This sub-page displays the total number of rescale events that have occurred since the job was launched,
+  along with the respective counts of failures and successes. 
+  Additionally, it provides statistical summaries of the rescale history, 
+  such as rescale duration statistics categorized by rescale status, including `Min`, `Max`, `Avg`, and `P50` metrics, etc.
+- `Configuration`  
+  This sub-page displays the relevant parameter values used by the `AdaptiveScheduler` during rescaling operations for the current streaming job.
+
+### More details
+
+See the [FLIP-495](https://cwiki.apache.org/confluence/x/TQr0Ew) and [FLIP-487](https://cwiki.apache.org/confluence/x/vZCMEw) for more details.
+
+{{< top >}}

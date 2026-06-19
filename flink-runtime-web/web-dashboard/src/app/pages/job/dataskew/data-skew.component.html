@@ -1,0 +1,68 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-card nzType="inner" nzTitle="What is Data Skew?">
+  <p>
+    Your Flink job has data skew when a subset of subtasks in any of the operators receives a
+    disproportionate number of records, potentially overloading a subset of task managers while the
+    rest remain idle, leading to inefficient processing and potentially backpressure and other
+    related problems.
+  </p>
+</nz-card>
+
+<nz-card nzType="inner" nzTitle="Data Skew" [nzLoading]="isLoading" [nzExtra]="extraTemplate">
+  <nz-table
+    class="no-border small"
+    [nzSize]="'small'"
+    [nzData]="listOfVerticesAndSkew"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+  >
+    <tbody>
+      <tr>
+        <th>Vertex</th>
+        <th>Data Skew Percentage</th>
+      </tr>
+      <ng-container *ngFor="let vertexSkew of listOfVerticesAndSkew">
+        <tr>
+          <td>{{ vertexSkew.vertexName }}</td>
+          <td>{{ vertexSkew.skewPct }}%</td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </nz-table>
+</nz-card>
+
+<nz-card nzType="inner" nzTitle="How is Data Skew Calculated?">
+  <p>
+    Data skew is calculated using the Coefficient of Variation (CV) statistic. The data skew
+    percentage shown here is calculated by using the
+    <i>numRecordsIn</i>
+    metric across the subtasks of your operators. The data skew percentage under the Overview tab
+    shows a live data skew percentage by using the
+    <i>numRecordsInPerSecond</i>
+    metric and therefore can be different from the skew percentage shown here.
+  </p>
+</nz-card>
+
+<ng-template #extraTemplate>
+  <button nz-button nzType="primary" class="refresh" nzSize="small" (click)="refresh()">
+    <i nz-icon nzType="sync"></i>
+    Refresh
+  </button>
+</ng-template>

@@ -1,0 +1,234 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.test.misc;
+
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.types.Value;
+import org.apache.flink.util.TestLoggerExtension;
+
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Test for proper error messages in case user-defined serialization is broken and detected in the
+ * network stack.
+ */
+@ExtendWith(TestLoggerExtension.class)
+class CustomSerializationITCase {
+
+    private static final int PARALLELISM = 5;
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(PARALLELISM)
+                            .build());
+
+    private static Configuration getConfiguration() {
+        Configuration config = new Configuration();
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("30m"));
+        return config;
+    }
+
+    @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
+    void testIncorrectSerializer1() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooMuch>() {
+                            @Override
+                            public ConsumesTooMuch map(Long value) throws Exception {
+                                return new ConsumesTooMuch();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
+    }
+
+    @Test
+    void testIncorrectSerializer2() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooMuchSpanning>() {
+                            @Override
+                            public ConsumesTooMuchSpanning map(Long value) throws Exception {
+                                return new ConsumesTooMuchSpanning();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
+    }
+
+    @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
+    void testIncorrectSerializer3() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooLittle>() {
+                            @Override
+                            public ConsumesTooLittle map(Long value) throws Exception {
+                                return new ConsumesTooLittle();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
+    }
+
+    @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
+    void testIncorrectSerializer4() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooLittleSpanning>() {
+                            @Override
+                            public ConsumesTooLittleSpanning map(Long value) throws Exception {
+                                return new ConsumesTooLittleSpanning();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
+    }
+
+    // ------------------------------------------------------------------------
+    //  Custom Data Types with broken Serialization Logic
+    // ------------------------------------------------------------------------
+
+    /** {@link Value} reading more data than written. */
+    public static class ConsumesTooMuch implements Value {
+
+        @Override
+        public void write(DataOutputView out) throws IOException {
+            // write 4 bytes
+            out.writeInt(42);
+        }
+
+        @Override
+        public void read(DataInputView in) throws IOException {
+            // read 8 bytes
+            in.readLong();
+        }
+    }
+
+    /** {@link Value} reading more buffers than written. */
+    public static class ConsumesTooMuchSpanning implements Value {
+
+        @Override
+        public void write(DataOutputView out) throws IOException {
+            byte[] bytes = new byte[22541];
+            out.write(bytes);
+        }
+
+        @Override
+        public void read(DataInputView in) throws IOException {
+            byte[] bytes = new byte[32941];
+            in.readFully(bytes);
+        }
+    }
+
+    /** {@link Value} reading less data than written. */
+    public static class ConsumesTooLittle implements Value {
+
+        @Override
+        public void write(DataOutputView out) throws IOException {
+            // write 8 bytes
+            out.writeLong(42L);
+        }
+
+        @Override
+        public void read(DataInputView in) throws IOException {
+            // read 4 bytes
+            in.readInt();
+        }
+    }
+
+    /** {@link Value} reading fewer buffers than written. */
+    public static class ConsumesTooLittleSpanning implements Value {
+
+        @Override
+        public void write(DataOutputView out) throws IOException {
+            byte[] bytes = new byte[32941];
+            out.write(bytes);
+        }
+
+        @Override
+        public void read(DataInputView in) throws IOException {
+            byte[] bytes = new byte[22541];
+            in.readFully(bytes);
+        }
+    }
+}

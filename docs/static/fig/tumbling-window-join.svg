@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<svg width="1000px" height="350px" viewBox="0 0 1000 350" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="background: #FFFFFF;">
+    <!-- Generator: Sketch 48.2 (47327) - http://www.bohemiancoding.com/sketch -->
+    <title>Tumbling Window Join</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Tumbling-Window-Join">
+            <text id="time" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                <tspan x="859" y="210">time</tspan>
+            </text>
+            <g id="Group-3" transform="translate(199.000000, 48.000000)">
+                <g id="Group-2" transform="translate(17.000000, 88.000000)">
+                    <g id="StreamRecord" transform="translate(159.714286, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="2" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">2</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy" transform="translate(239.571429, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="3" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">3</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-2" transform="translate(319.428571, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="4" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">4</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-3" transform="translate(399.285714, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="5" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">5</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-4" transform="translate(479.142857, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="6" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">6</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-5" transform="translate(559.000000, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="7" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">7</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-6">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="0" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">0</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-7" transform="translate(79.857143, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#F5A623" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="1" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">1</tspan>
+                        </text>
+                    </g>
+                </g>
+                <g id="Group" transform="translate(17.000000, 18.000000)">
+                    <g id="StreamRecord-Copy" transform="translate(239.571429, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#7ED321" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="3" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">3</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-2" transform="translate(319.428571, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#7ED321" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="4" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">4</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-6">
+                        <circle id="Oval" stroke="#979797" fill="#7ED321" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="0" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">0</tspan>
+                        </text>
+                    </g>
+                    <g id="StreamRecord-Copy-7" transform="translate(79.857143, 0.000000)">
+                        <circle id="Oval" stroke="#979797" fill="#7ED321" cx="12.5" cy="12.5" r="12.5"></circle>
+                        <text id="1" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#34323B">
+                            <tspan x="8" y="18">1</tspan>
+                        </text>
+                    </g>
+                </g>
+                <polyline id="Path-2" stroke="#979797" points="0 113 0 0 136 0 136 113"></polyline>
+                <polyline id="Path-2-Copy" stroke="#979797" points="161 113 161 0 297 0 297 113"></polyline>
+                <polyline id="Path-2-Copy-2" stroke="#979797" points="325 113 325 0 461 0 461 113"></polyline>
+                <polyline id="Path-2-Copy-3" stroke="#979797" points="483 113 483 0 619 0 619 113"></polyline>
+            </g>
+            <text id="0,0-0,1-1,0-1,1" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#34323B">
+                <tspan x="238" y="232">0,0</tspan>
+                <tspan x="238" y="254">0,1</tspan>
+                <tspan x="238" y="276">1,0</tspan>
+                <tspan x="238" y="298">1,1</tspan>
+            </text>
+            <text id="2,3-3,3" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#34323B">
+                <tspan x="402" y="232">2,3</tspan>
+                <tspan x="402" y="254">3,3</tspan>
+            </text>
+            <text id="4,4-5,4" font-family="AndaleMono, Andale Mono" font-size="20" font-weight="normal" fill="#34323B">
+                <tspan x="559" y="232">4,4</tspan>
+                <tspan x="559" y="254">5,4</tspan>
+            </text>
+            <path d="M93.5,180.5 L874.5,180.5" id="Line" stroke="#979797" stroke-linecap="square"></path>
+            <path id="Line-decoration-1" d="M874.5,180.5 L863.7,177.5 L863.7,183.5 L874.5,180.5 Z" stroke="#979797" stroke-linecap="square"></path>
+        </g>
+    </g>
+</svg>

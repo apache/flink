@@ -1,0 +1,91 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-tabs [nzTabBarGutter]="16" [nzSize]="'small'">
+  <nz-tab nzTitle="Vertex Accumulators">
+    <nz-table
+      nzSize="small"
+      [nzLoading]="isLoading"
+      [nzData]="listOfAccumulator"
+      [nzScroll]="{ y: '100%' }"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+      [nzVirtualItemSize]="virtualItemSize"
+      [nzVirtualMinBufferPx]="300"
+      [nzVirtualMaxBufferPx]="300"
+      [nzVirtualForTrackBy]="trackByName"
+    >
+      <thead>
+        <tr>
+          <th nzWidth="33.33%">Name</th>
+          <th nzWidth="33.33%">Type</th>
+          <th nzWidth="33.33%">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-template nz-virtual-scroll let-data>
+          <ng-container *ngIf="narrowUserAccumulators(data) as accumulator">
+            <tr>
+              <td>{{ accumulator.name }}</td>
+              <td>{{ accumulator.type }}</td>
+              <td>{{ (accumulator.value | number: '1.0-3') || accumulator.value }}</td>
+            </tr>
+          </ng-container>
+        </ng-template>
+      </tbody>
+    </nz-table>
+  </nz-tab>
+  <nz-tab nzTitle="SubTask Accumulators">
+    <nz-table
+      nzSize="small"
+      [nzLoading]="isLoading"
+      [nzData]="listOfSubTaskAccumulator"
+      [nzScroll]="{ y: '100%' }"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+      [nzVirtualItemSize]="virtualItemSize"
+      [nzVirtualMinBufferPx]="300"
+      [nzVirtualMaxBufferPx]="300"
+      [nzVirtualForTrackBy]="trackByName"
+    >
+      <thead>
+        <tr>
+          <th nzWidth="25%" nzLeft>SubTask</th>
+          <th nzWidth="25%">Name</th>
+          <th nzWidth="25%">Type</th>
+          <th nzWidth="25%" nzRight>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-template nz-virtual-scroll let-data>
+          <ng-container *ngIf="narrowSubTaskAccumulators(data) as subTaskAccumulator">
+            <tr>
+              <td nzLeft>
+                ({{ subTaskAccumulator['subtask'] }}) {{ subTaskAccumulator.host }}, attempt:
+                {{ subTaskAccumulator.attempt + 1 }}
+              </td>
+              <td>{{ subTaskAccumulator.name }}</td>
+              <td>{{ subTaskAccumulator.type }}</td>
+              <td nzRight>{{ subTaskAccumulator.value }}</td>
+            </tr>
+          </ng-container>
+        </ng-template>
+      </tbody>
+    </nz-table>
+  </nz-tab>
+</nz-tabs>

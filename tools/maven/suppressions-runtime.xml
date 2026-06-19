@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<!DOCTYPE suppressions PUBLIC
+	"-//Puppy Crawl//DTD Suppressions 1.1//EN"
+	"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+	<suppress files="StateBackendLoader.java" checks="FallThrough"/>
+	<suppress files="OutputEmitter.java" checks="FallThrough"/>
+	<suppress files="AllGroupReduceDriver.java" checks="FallThrough"/>
+	<!-- Plain Old Code-->
+	<suppress files="HeapSort.java" checks="ParameterName"/>
+	<suppress files="SignalHandler.java" checks="ParameterName"/>
+	<suppress files="TaskCancelAsyncProducerConsumerITCase.java" checks="StaticVariableName"/>
+	<suppress files="CheckpointCoordinatorTest.java" checks="FileLength"/>
+	<!-- Updated this suppress files section due to FLINK-36063, which migrated many classes from flink-streaming-java to flink-runtime. This allows runtime access to stream graph. -->
+	<suppress files="WindowOperatorContractTest.java" checks="FileLength"/>
+
+	<!-- Legacy mockito usages -->
+	<!-- Updated this suppress files section due to FLINK-36063, which migrated many classes from flink-streaming-java to flink-runtime. This allows runtime access to stream graph. -->
+	<!-- Updated this suppress files section due to FLINK-36158, which refactored job recovery process to use ExecutionPlan instead of JobGraph. -->
+	<suppress files="ZooKeeperExecutionPlansStoreITCase.java|TumblingProcessingTimeWindowsTest.java|SourceFunctionUtil.java|AbstractStreamOperatorTestHarnessTest.java|SynchronousCheckpointITCase.java|TestSpyWrapperStateBackend.java|InterruptSensitiveRestoreTest.java|TaskCheckpointingBehaviourTest.java|StreamTaskTerminationTest.java|StreamMockEnvironment.java|SlidingProcessingTimeWindowsTest.java|TumblingEventTimeWindowsTest.java|RegularWindowOperatorContractTest.java|WindowOperatorContractTest.java|PurgingTriggerTest.java|GlobalWindowsTest.java|SlidingEventTimeWindowsTest.java|StreamSourceOperatorLatencyMetricsTest.java|StreamElementSerializerTest.java|StateInitializationContextImplTest.java|OperatorSnapshotFuturesTest.java|StateSnapshotContextSynchronousImplTest.java|InternalTimerServiceImplTest.java|StreamTaskStateInitializerImplTest.java|BackendRestorerProcedureTest.java|StreamingRuntimeContextTest.java|OutputFormatSinkFunctionTest.java|BlobCachePutTest.java|CheckpointCoordinatorFailureTest.java|CheckpointCoordinatorMasterHooksTest.java|CheckpointCoordinatorRestoringTest.java|CheckpointCoordinatorTestingUtils.java|CheckpointCoordinatorTest.java|CheckpointMetadataLoadingTest.java|CheckpointSettingsSerializableTest.java|CheckpointStateRestoreTest.java|CheckpointStatsHistoryTest.java|CheckpointStatsSnapshotTest.java|CompletedCheckpointStatsSummaryTest.java|CompletedCheckpointTest.java|FailoverStrategyCheckpointCoordinatorTest.java|MasterHooksTest.java|PendingCheckpointStatsTest.java|PendingCheckpointTest.java|StateObjectCollectionTest.java|TaskStateSnapshotTest.java|FinalizeOnMasterTest.java|HadoopUserUtilsITCase.java|EmbeddedHaServicesTest.java|StandaloneHaServicesTest.java|AsynchronousBufferFileWriterTest.java|AsynchronousFileIOChannelTest.java|AbstractReaderTest.java|CancelPartitionRequestTest.java|ClientTransportErrorHandlingTest.java|CreditBasedPartitionRequestClientHandlerTest.java|PartitionRequestClientFactoryTest.java|ServerTransportErrorHandlingTest.java|NettyShuffleEnvironmentTest.java|InputChannelTest.java|LocalInputChannelTest.java|RemoteInputChannelTest.java|InputChannelTestUtils.java|PipelinedSubpartitionTest.java|BlockingBackChannelTest.java|ZooKeeperLeaderElectionTest.java|ConnectionUtilsTest.java|DataSinkTaskTest.java|KvStateLocationRegistryTest.java|RetryingRegistrationTest.java|DefaultJobLeaderIdServiceTest.java|FileUploadHandlerITCase.java|AbstractHandlerTest.java|AbstractMetricsHandlerTest.java|JobVertexWatermarksHandlerTest.java|CheckpointStatsCacheTest.java|HadoopModuleTest.java|HadoopDelegationTokenReceiverITCase.java|KerberosLoginProviderITCase.java|CheckpointStateOutputStreamTest.java|FsCheckpointStateOutputStreamTest.java|FsCheckpointStorageAccessTest.java|HeapStateBackendTestBase.java|IncrementalRemoteKeyedStateHandleTest.java|LatencyTrackingStateFactoryTest.java|OperatorStateBackendTest.java|SnapshotResultTest.java|StateBackendLoadingTest.java|StateBackendTestBase.java|StateSnapshotCompressionTest.java|TaskExecutorSubmissionTest.java|TaskManagerServicesBuilder.java|TaskSubmissionTestEnvironment.java|TaskAsyncCallTest.java|TaskManagerLocationTest.java|TaskTest.java|TestTaskBuilder.java|EnvironmentInformationTest.java|LeaderGatewayRetrieverTest.java|ZooKeeperStateHandleStoreTest.java"
+			  checks="IllegalImport"/>
+
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]checkpoint[/\\](.*)"
+		checks="AvoidStarImport|NeedBraces|RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]client[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]clusterframework[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]execution[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]executiongraph[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]highavailability[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]instance[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]io[/\\]disk[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]io[/\\]disk[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)runtime[/\\]io[/\\]network[/\\](netty|util)[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Test class copied from the netty project-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]io[/\\]network[/\\]buffer[/\\]AbstractByteBufTest.java"
+		checks="[a-zA-Z0-9]*"/>
+	<suppress
+		files="(.*)runtime[/\\]jobgraph[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]jobmanager[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]jobmanager[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)runtime[/\\]jobmaster[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]leaderelection[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]messages[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]operators[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]operators[/\\](.*)"
+		checks="AvoidStarImport|NeedBraces"/>
+	<suppress
+		files="(.*)runtime[/\\]resourcemanager[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]rpc[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]rpc[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)runtime[/\\]state[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]state[/\\](.*)"
+		checks="AvoidStarImport|NeedBraces"/>
+	<suppress
+		files="(.*)runtime[/\\]taskexecutor[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]taskexecutor[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)runtime[/\\]taskmanager[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]taskmanager[/\\](.*)"
+		checks="AvoidStarImport"/>
+	<suppress
+		files="(.*)runtime[/\\]testutils[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)runtime[/\\]util[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<!--Only additional checks for test sources. Those checks were present in the "pre-strict" checkstyle but were not applied to test sources. We do not want to suppress them for sources directory-->
+	<suppress
+		files="(.*)test[/\\](.*)runtime[/\\]util[/\\](.*)"
+		checks="AvoidStarImport|Needbraces"/>
+	<suppress
+		files="(.*)runtime[/\\]zookeeper[/\\](.*)"
+		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
+	<suppress
+		files="(.*)(StateBackendTestBase|TaskExecutorTest).java"
+		checks="FileLength"/>
+</suppressions>

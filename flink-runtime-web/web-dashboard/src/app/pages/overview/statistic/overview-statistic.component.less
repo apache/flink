@@ -1,0 +1,72 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "theme";
+
+:host {
+  nz-card {
+    ::ng-deep {
+      .ant-card-head {
+        border-bottom: 0;
+      }
+
+      .ant-card-body {
+        padding: 0 @padding-lg @padding-xs;
+      }
+    }
+  }
+
+  .total {
+    color: @success-color;
+    font-size: 36px;
+    line-height: 38px;
+  }
+
+  .footer {
+    margin-top: @margin-md;
+    padding-top: @padding-sm;
+    border-top: @border-width-base @border-style-base @border-color-split;
+
+    .field {
+      display: inline-block;
+      font-size: @font-size-base;
+      line-height: 22px;
+
+      span {
+        line-height: 22px;
+
+        &:last-child {
+          margin-left: @margin-xs;
+          color: @text-color;
+          font-weight: 600;
+        }
+
+        &.warning {
+          color: @warning-color;
+        }
+      }
+    }
+  }
+
+  .col {
+    margin-bottom: @margin-lg;
+  }
+
+  nz-divider {
+    margin: 0 @margin-sm;
+  }
+}

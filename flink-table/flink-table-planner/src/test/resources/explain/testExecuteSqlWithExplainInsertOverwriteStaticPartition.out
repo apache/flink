@@ -1,0 +1,14 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2])
++- LogicalProject(f0=[$0], f1=[$1], EXPR$2=[_UTF-16LE'123':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2])
++- Calc(select=[f0, f1, '123' AS EXPR$2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]], fields=[f0, f1, f2])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2])
++- Calc(select=[f0, f1, '123' AS EXPR$2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]], fields=[f0, f1, f2])

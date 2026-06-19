@@ -1,0 +1,2415 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`no_delete_src1`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a0",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "a1",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "a2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "a3",
+              "dataType" : "INT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a0_a1_a2",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a0", "a1", "a2" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_a1_a2",
+              "columns" : [ "a1", "a2" ]
+            }, {
+              "name" : "INDEX_a1",
+              "columns" : [ "a1" ]
+            } ]
+          },
+          "comment" : "test comment",
+          "options" : {
+            "async" : "true",
+            "bounded" : "false",
+            "changelog-mode" : "I,UA,UB",
+            "connector" : "values",
+            "sink-changelog-mode-enforced" : "I,UA,D",
+            "sink-insert-only" : "false"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1, 2 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT>",
+    "description" : "Exchange(distribution=[hash[a1, a2]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`no_delete_src2`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b0",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "b1",
+              "dataType" : "DOUBLE NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_b1_b2",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "b1", "b2" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_b2",
+              "columns" : [ "b2" ]
+            } ]
+          },
+          "comment" : "test comment",
+          "options" : {
+            "async" : "true",
+            "bounded" : "false",
+            "changelog-mode" : "I,UA,UB",
+            "connector" : "values",
+            "sink-changelog-mode-enforced" : "I,UA,D",
+            "sink-insert-only" : "false"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 2, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>",
+    "description" : "Exchange(distribution=[hash[b1, b2]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-delta-join_2",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
+    "joinType" : "INNER",
+    "leftJoinKeys" : [ 1, 2 ],
+    "leftUpsertKey" : [ 0, 1, 2 ],
+    "rightJoinKeys" : [ 2, 1 ],
+    "rightUpsertKey" : [ 1, 2 ],
+    "lookupRightTableJoinSpec" : null,
+    "lookupLeftTableJoinSpec" : null,
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$CAST$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 6,
+            "type" : "DOUBLE NOT NULL"
+          } ],
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "leftAllBinaryInputOrdinals" : [ 0 ],
+    "rightAllBinaryInputOrdinals" : [ 0 ],
+    "left2RightLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 0 ],
+        "lookupTableBinaryInputOrdinal" : 1,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src2`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "b0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "b2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    }, {
+                      "name" : "b1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_b1_b2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "b1", "b2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_b2",
+                      "columns" : [ "b2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 2
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 6,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "right2LeftLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 1 ],
+        "lookupTableBinaryInputOrdinal" : 0,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src1`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "a0",
+                      "dataType" : "INT NOT NULL"
+                    }, {
+                      "name" : "a1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "a2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    }, {
+                      "name" : "a3",
+                      "dataType" : "INT"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_a0_a1_a2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "a0", "a1", "a2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_a1_a2",
+                      "columns" : [ "a1", "a2" ]
+                    }, {
+                      "name" : "INDEX_a1",
+                      "columns" : [ "a1" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 2
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 6,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "allBinaryInputTables" : [ {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src1`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "a0",
+                "dataType" : "INT NOT NULL"
+              }, {
+                "name" : "a1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "a2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "name" : "a3",
+                "dataType" : "INT"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_a0_a1_a2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "a0", "a1", "a2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_a1_a2",
+                "columns" : [ "a1", "a2" ]
+              }, {
+                "name" : "INDEX_a1",
+                "columns" : [ "a1" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src2`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "b0",
+                "dataType" : "INT"
+              }, {
+                "name" : "b2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "name" : "b1",
+                "dataType" : "DOUBLE NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_b1_b2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "b1", "b2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_b2",
+                "columns" : [ "b2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL> NOT NULL"
+    } ],
+    "deltaJoinTree" : {
+      "root" : {
+        "type" : "JoinNode",
+        "joinType" : "INNER",
+        "condition" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$AND$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 1,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 6,
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 5,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 6,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          } ],
+          "type" : "BOOLEAN NOT NULL"
+        },
+        "projection" : null,
+        "filter" : null,
+        "rowTypeAfterCalc" : null,
+        "leftJoinKey" : [ 1, 2 ],
+        "rightJoinKey" : [ 2, 1 ],
+        "left" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 0,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT>"
+        },
+        "right" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 1,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>"
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>",
+    "description" : "DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2) AND (a0 <> CAST(b1 AS INTEGER)))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, a3, b0, b2, b1])",
+    "asyncOptions" : {
+      "capacity " : 100,
+      "timeout" : 180000,
+      "is-key-ordered" : true,
+      "output-mode" : "ORDERED"
+    }
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$+$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "INT"
+      }, {
+        "kind" : "LITERAL",
+        "value" : 1,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$+$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "INT"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "INT"
+      } ],
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` INT, `b1` DOUBLE NOT NULL, `b2` VARCHAR(2147483647) NOT NULL, `a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `mix_ab` INT>",
+    "description" : "Calc(select=[(b0 + 1) AS b0, b1, b2, a0, a1, a2, a3, (a3 + b0) AS mix_ab])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 4, 5 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` INT, `b1` DOUBLE NOT NULL, `b2` VARCHAR(2147483647) NOT NULL, `a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `mix_ab` INT>",
+    "description" : "Exchange(distribution=[hash[a1, a2]])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`no_delete_src3`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "c0",
+              "dataType" : "INT"
+            }, {
+              "name" : "c1",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "c2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_c1_c2",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "c1", "c2" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_c1_c2",
+              "columns" : [ "c1", "c2" ]
+            }, {
+              "name" : "INDEX_c1",
+              "columns" : [ "c1" ]
+            } ]
+          },
+          "comment" : "test comment",
+          "options" : {
+            "async" : "true",
+            "bounded" : "false",
+            "changelog-mode" : "I,UA,UB",
+            "connector" : "values",
+            "sink-changelog-mode-enforced" : "I,UA,D",
+            "sink-insert-only" : "false"
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, no_delete_src3, project=[c1, c2], metadata=[]]], fields=[c1, c2])"
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Exchange(distribution=[hash[c1, c2]])"
+  }, {
+    "id" : 13,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`no_delete_src4`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "d0",
+              "dataType" : "INT"
+            }, {
+              "name" : "d1",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "d2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_d1_d2",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "d1", "d2" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_d1_d2",
+              "columns" : [ "d1", "d2" ]
+            } ]
+          },
+          "comment" : "test comment",
+          "options" : {
+            "async" : "true",
+            "bounded" : "false",
+            "changelog-mode" : "I,UA,UB",
+            "connector" : "values",
+            "sink-changelog-mode-enforced" : "I,UA,D",
+            "sink-insert-only" : "false"
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, no_delete_src4, project=[d1, d2], metadata=[]]], fields=[d1, d2])"
+  }, {
+    "id" : 14,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 15,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "Exchange(distribution=[hash[d1, d2]])"
+  }, {
+    "id" : 16,
+    "type" : "stream-exec-delta-join_2",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
+    "joinType" : "INNER",
+    "leftJoinKeys" : [ 0, 1 ],
+    "leftUpsertKey" : [ 0, 1 ],
+    "rightJoinKeys" : [ 0, 1 ],
+    "rightUpsertKey" : [ 0, 1 ],
+    "lookupRightTableJoinSpec" : null,
+    "lookupLeftTableJoinSpec" : null,
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 3,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$CAST$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 3,
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "leftAllBinaryInputOrdinals" : [ 0 ],
+    "rightAllBinaryInputOrdinals" : [ 0 ],
+    "left2RightLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 0 ],
+        "lookupTableBinaryInputOrdinal" : 1,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src4`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "d0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "d1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "d2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_d1_d2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "d1", "d2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_d1_d2",
+                      "columns" : [ "d1", "d2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              },
+              "abilities" : [ {
+                "type" : "ProjectPushDown",
+                "projectedFields" : [ [ 1 ], [ 2 ] ],
+                "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              }, {
+                "type" : "ReadingMetadata",
+                "metadataKeys" : [ ],
+                "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              } ]
+            },
+            "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "0" : {
+              "type" : "FieldRef",
+              "index" : 0
+            },
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "right2LeftLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 1 ],
+        "lookupTableBinaryInputOrdinal" : 0,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src3`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "c0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "c1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "c2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_c1_c2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "c1", "c2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_c1_c2",
+                      "columns" : [ "c1", "c2" ]
+                    }, {
+                      "name" : "INDEX_c1",
+                      "columns" : [ "c1" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              },
+              "abilities" : [ {
+                "type" : "ProjectPushDown",
+                "projectedFields" : [ [ 1 ], [ 2 ] ],
+                "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              }, {
+                "type" : "ReadingMetadata",
+                "metadataKeys" : [ ],
+                "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              } ]
+            },
+            "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "0" : {
+              "type" : "FieldRef",
+              "index" : 0
+            },
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "allBinaryInputTables" : [ {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src3`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "c0",
+                "dataType" : "INT"
+              }, {
+                "name" : "c1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "c2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_c1_c2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "c1", "c2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_c1_c2",
+                "columns" : [ "c1", "c2" ]
+              }, {
+                "name" : "INDEX_c1",
+                "columns" : [ "c1" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 1 ], [ 2 ] ],
+          "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        } ]
+      },
+      "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src4`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "d0",
+                "dataType" : "INT"
+              }, {
+                "name" : "d1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "d2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_d1_d2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "d1", "d2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_d1_d2",
+                "columns" : [ "d1", "d2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 1 ], [ 2 ] ],
+          "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        } ]
+      },
+      "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+    } ],
+    "deltaJoinTree" : {
+      "root" : {
+        "type" : "JoinNode",
+        "joinType" : "INNER",
+        "condition" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$AND$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 3,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          } ],
+          "type" : "BOOLEAN NOT NULL"
+        },
+        "projection" : null,
+        "filter" : null,
+        "rowTypeAfterCalc" : null,
+        "leftJoinKey" : [ 0, 1 ],
+        "rightJoinKey" : [ 0, 1 ],
+        "left" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 0,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL>"
+        },
+        "right" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 1,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>"
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL, `d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>",
+    "description" : "DeltaJoin(joinType=[InnerJoin], where=[((c1 = d1) AND (c2 = d2) AND (c1 <> CAST(d2 AS DOUBLE)))], leftToRight=[Binary], rightToLeft=[Binary], select=[c1, c2, d1, d2])",
+    "asyncOptions" : {
+      "capacity " : 100,
+      "timeout" : 180000,
+      "is-key-ordered" : true,
+      "output-mode" : "ORDERED"
+    }
+  }, {
+    "id" : 17,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$+$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "DOUBLE NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "DOUBLE NOT NULL"
+      } ],
+      "type" : "DOUBLE NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL, `mix_cd` DOUBLE NOT NULL>",
+    "description" : "Calc(select=[d1, d2, (c1 + d1) AS mix_cd])"
+  }, {
+    "id" : 18,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL, `mix_cd` DOUBLE NOT NULL>",
+    "description" : "Exchange(distribution=[hash[d1, d2]])"
+  }, {
+    "id" : 19,
+    "type" : "stream-exec-delta-join_2",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
+    "joinType" : "INNER",
+    "leftJoinKeys" : [ 4, 5 ],
+    "leftUpsertKey" : [ 3, 4, 5 ],
+    "rightJoinKeys" : [ 0, 1 ],
+    "rightUpsertKey" : [ 0, 1 ],
+    "lookupRightTableJoinSpec" : null,
+    "lookupLeftTableJoinSpec" : null,
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 8,
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 9,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "leftAllBinaryInputOrdinals" : [ 0, 1 ],
+    "rightAllBinaryInputOrdinals" : [ 0, 1 ],
+    "left2RightLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 0, 1 ],
+        "lookupTableBinaryInputOrdinal" : 3,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src4`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "d0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "d1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "d2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_d1_d2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "d1", "d2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_d1_d2",
+                      "columns" : [ "d1", "d2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              },
+              "abilities" : [ {
+                "type" : "ProjectPushDown",
+                "projectedFields" : [ [ 1 ], [ 2 ] ],
+                "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              }, {
+                "type" : "ReadingMetadata",
+                "metadataKeys" : [ ],
+                "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              } ]
+            },
+            "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "0" : {
+              "type" : "FieldRef",
+              "index" : 4
+            },
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 5
+            }
+          },
+          "remainingCondition" : null
+        },
+        "joinType" : "INNER"
+      }, {
+        "inputTableBinaryInputOrdinals" : [ 3 ],
+        "lookupTableBinaryInputOrdinal" : 2,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src3`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "c0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "c1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "c2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_c1_c2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "c1", "c2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_c1_c2",
+                      "columns" : [ "c1", "c2" ]
+                    }, {
+                      "name" : "INDEX_c1",
+                      "columns" : [ "c1" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              },
+              "abilities" : [ {
+                "type" : "ProjectPushDown",
+                "projectedFields" : [ [ 1 ], [ 2 ] ],
+                "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              }, {
+                "type" : "ReadingMetadata",
+                "metadataKeys" : [ ],
+                "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+              } ]
+            },
+            "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "0" : {
+              "type" : "FieldRef",
+              "index" : 0
+            },
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "right2LeftLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 2, 3 ],
+        "lookupTableBinaryInputOrdinal" : 0,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src1`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "a0",
+                      "dataType" : "INT NOT NULL"
+                    }, {
+                      "name" : "a1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "a2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    }, {
+                      "name" : "a3",
+                      "dataType" : "INT"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_a0_a1_a2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "a0", "a1", "a2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_a1_a2",
+                      "columns" : [ "a1", "a2" ]
+                    }, {
+                      "name" : "INDEX_a1",
+                      "columns" : [ "a1" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 0
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : null
+        },
+        "joinType" : "INNER"
+      }, {
+        "inputTableBinaryInputOrdinals" : [ 0 ],
+        "lookupTableBinaryInputOrdinal" : 1,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`no_delete_src2`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "b0",
+                      "dataType" : "INT"
+                    }, {
+                      "name" : "b2",
+                      "dataType" : "VARCHAR(2147483647) NOT NULL"
+                    }, {
+                      "name" : "b1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    } ],
+                    "primaryKey" : {
+                      "name" : "PK_b1_b2",
+                      "type" : "PRIMARY_KEY",
+                      "columns" : [ "b1", "b2" ]
+                    },
+                    "indexes" : [ {
+                      "name" : "INDEX_b2",
+                      "columns" : [ "b2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "changelog-mode" : "I,UA,UB",
+                    "connector" : "values",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 2
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$<>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 6,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "allBinaryInputTables" : [ {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src1`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "a0",
+                "dataType" : "INT NOT NULL"
+              }, {
+                "name" : "a1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "a2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "name" : "a3",
+                "dataType" : "INT"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_a0_a1_a2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "a0", "a1", "a2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_a1_a2",
+                "columns" : [ "a1", "a2" ]
+              }, {
+                "name" : "INDEX_a1",
+                "columns" : [ "a1" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src2`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "b0",
+                "dataType" : "INT"
+              }, {
+                "name" : "b2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "name" : "b1",
+                "dataType" : "DOUBLE NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_b1_b2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "b1", "b2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_b2",
+                "columns" : [ "b2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src3`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "c0",
+                "dataType" : "INT"
+              }, {
+                "name" : "c1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "c2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_c1_c2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "c1", "c2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_c1_c2",
+                "columns" : [ "c1", "c2" ]
+              }, {
+                "name" : "INDEX_c1",
+                "columns" : [ "c1" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 1 ], [ 2 ] ],
+          "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        } ]
+      },
+      "outputType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`no_delete_src4`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "d0",
+                "dataType" : "INT"
+              }, {
+                "name" : "d1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "d2",
+                "dataType" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "primaryKey" : {
+                "name" : "PK_d1_d2",
+                "type" : "PRIMARY_KEY",
+                "columns" : [ "d1", "d2" ]
+              },
+              "indexes" : [ {
+                "name" : "INDEX_d1_d2",
+                "columns" : [ "d1", "d2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "changelog-mode" : "I,UA,UB",
+              "connector" : "values",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 1 ], [ 2 ] ],
+          "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+        } ]
+      },
+      "outputType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL> NOT NULL"
+    } ],
+    "deltaJoinTree" : {
+      "root" : {
+        "type" : "JoinNode",
+        "joinType" : "INNER",
+        "condition" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$AND$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 8,
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 5,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 9,
+              "type" : "VARCHAR(2147483647) NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          } ],
+          "type" : "BOOLEAN NOT NULL"
+        },
+        "projection" : null,
+        "filter" : null,
+        "rowTypeAfterCalc" : null,
+        "leftJoinKey" : [ 4, 5 ],
+        "rightJoinKey" : [ 0, 1 ],
+        "left" : {
+          "type" : "JoinNode",
+          "joinType" : "INNER",
+          "condition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$AND$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$=$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 1,
+                "type" : "DOUBLE NOT NULL"
+              }, {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 6,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$=$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 2,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 5,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$<>$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 0,
+                "type" : "INT NOT NULL"
+              }, {
+                "kind" : "CALL",
+                "syntax" : "SPECIAL",
+                "internalName" : "$CAST$1",
+                "operands" : [ {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 6,
+                  "type" : "DOUBLE NOT NULL"
+                } ],
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          },
+          "projection" : [ {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$+$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 1,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 6,
+            "type" : "DOUBLE NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 5,
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 0,
+            "type" : "INT NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 1,
+            "type" : "DOUBLE NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 3,
+            "type" : "INT"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$+$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 3,
+              "type" : "INT"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "INT"
+            } ],
+            "type" : "INT"
+          } ],
+          "filter" : null,
+          "rowTypeAfterCalc" : "ROW<`b0` INT, `b1` DOUBLE NOT NULL, `b2` VARCHAR(2147483647) NOT NULL, `a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `mix_ab` INT>",
+          "leftJoinKey" : [ 1, 2 ],
+          "rightJoinKey" : [ 2, 1 ],
+          "left" : {
+            "type" : "BinaryInputNode",
+            "inputOrdinal" : 0,
+            "projection" : null,
+            "filter" : null,
+            "rowTypeAfterCalc" : null,
+            "rowType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT>"
+          },
+          "right" : {
+            "type" : "BinaryInputNode",
+            "inputOrdinal" : 1,
+            "projection" : null,
+            "filter" : null,
+            "rowTypeAfterCalc" : null,
+            "rowType" : "ROW<`b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL>"
+          }
+        },
+        "right" : {
+          "type" : "JoinNode",
+          "joinType" : "INNER",
+          "condition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$AND$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$=$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 0,
+                "type" : "DOUBLE NOT NULL"
+              }, {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 2,
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$=$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 1,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              }, {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARCHAR(2147483647) NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$<>$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 0,
+                "type" : "DOUBLE NOT NULL"
+              }, {
+                "kind" : "CALL",
+                "syntax" : "SPECIAL",
+                "internalName" : "$CAST$1",
+                "operands" : [ {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 3,
+                  "type" : "VARCHAR(2147483647) NOT NULL"
+                } ],
+                "type" : "DOUBLE NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          },
+          "projection" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "DOUBLE NOT NULL"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 3,
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$+$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "DOUBLE NOT NULL"
+            } ],
+            "type" : "DOUBLE NOT NULL"
+          } ],
+          "filter" : null,
+          "rowTypeAfterCalc" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL, `mix_cd` DOUBLE NOT NULL>",
+          "leftJoinKey" : [ 0, 1 ],
+          "rightJoinKey" : [ 0, 1 ],
+          "left" : {
+            "type" : "BinaryInputNode",
+            "inputOrdinal" : 2,
+            "projection" : null,
+            "filter" : null,
+            "rowTypeAfterCalc" : null,
+            "rowType" : "ROW<`c1` DOUBLE NOT NULL, `c2` VARCHAR(2147483647) NOT NULL>"
+          },
+          "right" : {
+            "type" : "BinaryInputNode",
+            "inputOrdinal" : 3,
+            "projection" : null,
+            "filter" : null,
+            "rowTypeAfterCalc" : null,
+            "rowType" : "ROW<`d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL>"
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` INT, `b1` DOUBLE NOT NULL, `b2` VARCHAR(2147483647) NOT NULL, `a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `mix_ab` INT, `d1` DOUBLE NOT NULL, `d2` VARCHAR(2147483647) NOT NULL, `mix_cd` DOUBLE NOT NULL>",
+    "description" : "DeltaJoin(joinType=[InnerJoin], where=[((a1 = d1) AND (a2 = d2))], leftToRight=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src1, default_catalog.default_database.no_delete_src2], lookupTable=[default_catalog.default_database.no_delete_src4], lookupKeys=[d1=a1, d2=a2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src4], lookupTable=[default_catalog.default_database.no_delete_src3], lookupKeys=[c1=d1, c2=d2], remaining=[(c1 <> CAST(d2 AS DOUBLE))]}]], rightToLeft=[[{round=[1], sourceTables=[default_catalog.default_database.no_delete_src3, default_catalog.default_database.no_delete_src4], lookupTable=[default_catalog.default_database.no_delete_src1], lookupKeys=[a1=d1, a2=d2]}, {round=[2], sourceTables=[default_catalog.default_database.no_delete_src1], lookupTable=[default_catalog.default_database.no_delete_src2], lookupKeys=[b1=a1, b2=a2], remaining=[(a0 <> CAST(b1 AS INTEGER))]}]], select=[b0, b1, b2, a0, a1, a2, a3, mix_ab, d1, d2, mix_cd])",
+    "asyncOptions" : {
+      "capacity " : 100,
+      "timeout" : 180000,
+      "is-key-ordered" : true,
+      "output-mode" : "ORDERED"
+    }
+  }, {
+    "id" : 20,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$+$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 7,
+        "type" : "INT"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 10,
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL, `EXPR$7` INT>",
+    "description" : "Calc(select=[a0, a1, a2, a3, b0, b2, b1, (mix_ab + CAST(mix_cd AS INTEGER)) AS EXPR$7])"
+  }, {
+    "id" : 21,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`snk_for_cdc_src`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "l0",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "l1",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "l2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "l3",
+              "dataType" : "INT"
+            }, {
+              "name" : "r0",
+              "dataType" : "INT"
+            }, {
+              "name" : "r2",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "r1",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "mix_ab_cd",
+              "dataType" : "INT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_l0_l1_l2_r1_r2",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "l0", "l1", "l2", "r1", "r2" ]
+            }
+          },
+          "comment" : "test comment",
+          "options" : {
+            "async" : "true",
+            "bounded" : "false",
+            "connector" : "values",
+            "sink-changelog-mode-enforced" : "I,UA,D",
+            "sink-insert-only" : "false"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKey" : [ 0, 1, 2 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647) NOT NULL, `a3` INT, `b0` INT, `b2` VARCHAR(2147483647) NOT NULL, `b1` DOUBLE NOT NULL, `EXPR$7` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1, EXPR$7])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 15,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 16,
+    "target" : 17,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 17,
+    "target" : 18,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 18,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 19,
+    "target" : 20,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 20,
+    "target" : 21,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -1,0 +1,25 @@
+{
+    a[0] += b[1];
+    b[1] += a[1];
+    while (counter > 0) {
+        myFun_whileBody0_0(a, b);
+        if (a[0] > 0) {
+            myFun_whileBody0_0_ifBody0(a, b);
+        } else {
+            myFun_whileBody0_0_ifBody1(a, b);
+        }
+
+        a[2] += b[2];
+        b[3] += a[3];
+        if (a[0] > 0) {
+            System.out.println("Hello");
+        } else {
+            System.out.println("World");
+        }
+
+        counter--;
+    }
+
+    a[4] += b[4];
+    b[5] += a[5];
+}

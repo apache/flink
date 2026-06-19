@@ -1,0 +1,291 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<assembly
+	xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+	<id>bin</id>
+	<formats>
+		<format>dir</format>
+	</formats>
+
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<baseDirectory>flink-${project.version}</baseDirectory>
+
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>lib</outputDirectory>
+			<unpack>false</unpack>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.logging.log4j:log4j-api</include>
+				<include>org.apache.logging.log4j:log4j-core</include>
+				<include>org.apache.logging.log4j:log4j-slf4j-impl</include>
+				<include>org.apache.logging.log4j:log4j-1.2-api</include>
+				<include>org.apache.logging.log4j:log4j-layout-template-json</include>
+			</includes>
+		</dependencySet>
+	</dependencySets>
+
+	<files>
+		<!-- copy flink-dist fat jar -->
+		<file>
+			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<!-- The jar itself is actually scala-free, so we can remove the scala suffix for clarity. -->
+			<destName>flink-dist-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy bash utils -->
+		<file>
+			<source>target/bash-java-utils.jar</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Scala APIs -->
+		<file>
+			<source>../flink-dist-scala/target/flink-dist-scala_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-scala_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Table jars -->
+		<file>
+			<source>../flink-table/flink-table-api-java-uber/target/flink-table-api-java-uber-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-api-java-uber-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-table-runtime/target/flink-table-runtime-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-runtime-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-table-planner-loader/target/flink-table-planner-loader-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-planner-loader-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- CEP (required for SQL MATCH_RECOGNIZE) -->
+		<file>
+			<source>../flink-libraries/flink-cep/target/flink-cep-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-cep-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Built-in connectors and formats -->
+		<file>
+			<source>../flink-connectors/flink-connector-files/target/flink-connector-files-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-connector-files-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-formats/flink-csv/target/flink-csv-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-csv-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-formats/flink-json/target/flink-json-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-json-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy the config file -->
+		<file>
+			<source>src/main/resources/config.yaml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../LICENSE</source>
+			<outputDirectory/>
+			<fileMode>0644</fileMode>
+		</file>
+	</files>
+
+	<fileSets>
+		<!-- copy start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy plugins directory -->
+		<fileSet>
+			<directory>src/main/flink-bin/plugins</directory>
+			<outputDirectory>plugins</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy python scripts -->
+		<fileSet>
+			<directory>../flink-python/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy SQL client -->
+		<fileSet>
+			<directory>../flink-table/flink-sql-client/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy SQL gateway -->
+		<fileSet>
+			<directory>../flink-table/flink-sql-gateway/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy yarn start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/yarn-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy kubernetes start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/kubernetes-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy default configuration -->
+		<fileSet>
+			<directory>src/main/flink-bin/conf</directory>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
+		<!-- create an empty log directory -->
+		<fileSet>
+			<directory>src/main/flink-bin/</directory>
+			<outputDirectory>log</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>**/*</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy *.txt files -->
+		<fileSet>
+			<directory>src/main/flink-bin/</directory>
+			<outputDirectory/>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.txt</include>
+			</includes>
+		</fileSet>
+
+		<!-- copy JavaDocs -->
+		<fileSet>
+			<!-- <directory>../target/apidocs</directory -->
+			<directory>../target</directory>
+			<includes>
+				<include>flink-*-javadoc.jar</include>
+			</includes>
+			<outputDirectory>docs/javadoc</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
+		<!-- copy the tools -->
+		<fileSet>
+			<directory>src/main/flink-bin/tools</directory>
+			<outputDirectory>tools</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+				<exclude>MatrixVectorMul.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy files of the python examples -->
+		<fileSet>
+			<directory>../flink-python/pyflink/examples</directory>
+			<outputDirectory>examples/python</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<fileSet>
+			<directory>../flink-python/pyflink/table/examples</directory>
+			<outputDirectory>examples/python/table</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy jar file of the table examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-table/target</directory>
+			<outputDirectory>examples/table</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+	</fileSets>
+
+</assembly>

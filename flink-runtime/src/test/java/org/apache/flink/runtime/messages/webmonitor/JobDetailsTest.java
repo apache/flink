@@ -1,0 +1,132 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.messages.webmonitor;
+
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Tests for the {@link JobDetails}. */
+class JobDetailsTest {
+    private static final String COMPATIBLE_JOB_DETAILS =
+            "{"
+                    + "  \"jid\" : \"7a7c3291accebd10b6be8d4f8c8d8dfc\","
+                    + "  \"name\" : \"foobar\","
+                    + "  \"state\" : \"RUNNING\","
+                    + "  \"start-time\" : 1,"
+                    + "  \"end-time\" : 10,"
+                    + "  \"duration\" : 9,"
+                    + "  \"last-modification\" : 8,"
+                    + "  \"tasks\" : {"
+                    + "    \"total\" : 42,"
+                    + "    \"created\" : 1,"
+                    + "    \"scheduled\" : 3,"
+                    + "    \"deploying\" : 3,"
+                    + "    \"running\" : 4,"
+                    + "    \"finished\" : 7,"
+                    + "    \"canceling\" : 4,"
+                    + "    \"canceled\" : 2,"
+                    + "    \"failed\" : 7,"
+                    + "    \"reconciling\" : 3"
+                    + "  },"
+                    + "  \"pending-operators\" : 0"
+                    + "}";
+    private static final String UNKNOWN_FIELD_JOB_DETAILS =
+            "{"
+                    + "  \"jid\" : \"7a7c3291accebd10b6be8d4f8c8d8dfc\","
+                    + "  \"intentionally_unknown_which_must_be_skipped\" : 0,"
+                    + "  \"name\" : \"foobar\","
+                    + "  \"state\" : \"RUNNING\","
+                    + "  \"start-time\" : 1,"
+                    + "  \"end-time\" : 10,"
+                    + "  \"duration\" : 9,"
+                    + "  \"last-modification\" : 8,"
+                    + "  \"tasks\" : {"
+                    + "    \"total\" : 42,"
+                    + "    \"created\" : 1,"
+                    + "    \"scheduled\" : 3,"
+                    + "    \"deploying\" : 3,"
+                    + "    \"running\" : 4,"
+                    + "    \"finished\" : 7,"
+                    + "    \"canceling\" : 4,"
+                    + "    \"canceled\" : 2,"
+                    + "    \"failed\" : 7,"
+                    + "    \"reconciling\" : 3"
+                    + "  },"
+                    + "  \"pending-operators\" : 0"
+                    + "}";
+
+    private ObjectMapper objectMapper;
+    private ObjectMapper flexibleObjectMapper;
+
+    final JobDetails expected =
+            new JobDetails(
+                    JobID.fromHexString("7a7c3291accebd10b6be8d4f8c8d8dfc"),
+                    "foobar",
+                    1L,
+                    10L,
+                    9L,
+                    JobStatus.RUNNING,
+                    8L,
+                    new int[] {1, 3, 3, 4, 7, 4, 2, 7, 3, 0},
+                    42);
+
+    @BeforeEach
+    public void beforeEach() {
+        objectMapper = RestMapperUtils.getStrictObjectMapper();
+        flexibleObjectMapper = RestMapperUtils.getFlexibleObjectMapper();
+    }
+
+    /** Tests that we can marshal and unmarshal JobDetails instances. */
+    @Test
+    void testJobDetailsMarshalling() throws JsonProcessingException {
+        final JsonNode marshalled = objectMapper.valueToTree(expected);
+
+        final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
+
+        assertThat(unmarshalled).isEqualTo(expected);
+    }
+
+    @Test
+    void testJobDetailsCompatibleUnmarshalling() throws IOException {
+        final JobDetails unmarshalled =
+                objectMapper.readValue(COMPATIBLE_JOB_DETAILS, JobDetails.class);
+
+        assertThat(unmarshalled).isEqualTo(expected);
+    }
+
+    @Test
+    void testJobDetailsCompatibleUnmarshallingSkipUnknown() throws IOException {
+        final JobDetails unmarshalled =
+                flexibleObjectMapper.readValue(UNKNOWN_FIELD_JOB_DETAILS, JobDetails.class);
+
+        assertThat(unmarshalled).isEqualTo(expected);
+    }
+}

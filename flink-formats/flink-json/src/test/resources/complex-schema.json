@@ -1,0 +1,114 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "description": "A representation of a person, company, organization, or place",
+  "type": "object",
+  "required": [
+    "familyName",
+    "givenName"
+  ],
+  "properties": {
+    "fn": {
+      "description": "Formatted Name",
+      "type": "string"
+    },
+    "familyName": {
+      "type": "string"
+    },
+    "additionalName": {
+      "type": "boolean"
+    },
+    "tuples": {
+      "type": "array",
+      "items": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "Street",
+            "Avenue",
+            "Boulevard"
+          ]
+        },
+        {
+          "type": "string",
+          "enum": [
+            "NW",
+            "NE",
+            "SW",
+            "SE"
+          ]
+        }
+      ],
+      "additionalItems": false
+    },
+    "honorificPrefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "email": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "email"
+        }
+      }
+    },
+    tel: {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "string",
+          "format": "phone"
+        }
+      }
+    },
+    "sound": {
+      "type": "null"
+    },
+    "org": {
+      "type": "object",
+      "properties": {
+        "organizationUnit": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    }
+  }
+}

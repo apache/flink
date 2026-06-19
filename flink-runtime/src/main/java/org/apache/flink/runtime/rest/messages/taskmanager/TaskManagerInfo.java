@@ -1,0 +1,286 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.rest.messages.taskmanager;
+
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude.Include;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import javax.annotation.Nullable;
+
+import java.io.Serializable;
+import java.util.Objects;
+
+/** Base class containing information for a {@link TaskExecutor}. */
+public class TaskManagerInfo implements ResponseBody, Serializable {
+
+    public static final String FIELD_NAME_RESOURCE_ID = "id";
+
+    public static final String FIELD_NAME_ADDRESS = "path";
+
+    public static final String FIELD_NAME_DATA_PORT = "dataPort";
+
+    public static final String FIELD_NAME_JMX_PORT = "jmxPort";
+
+    public static final String FIELD_NAME_LAST_HEARTBEAT = "timeSinceLastHeartbeat";
+
+    public static final String FIELD_NAME_NUMBER_SLOTS = "slotsNumber";
+
+    public static final String FIELD_NAME_NUMBER_AVAILABLE_SLOTS = "freeSlots";
+
+    public static final String FIELD_NAME_ASSIGNED_TASKS = "assignedTasks";
+
+    public static final String FIELD_NAME_TOTAL_RESOURCE = "totalResource";
+
+    public static final String FIELD_NAME_AVAILABLE_RESOURCE = "freeResource";
+
+    public static final String FIELD_NAME_HARDWARE = "hardware";
+
+    public static final String FIELD_NAME_MEMORY = "memoryConfiguration";
+
+    public static final String FIELD_NAME_BLOCKED = "blocked";
+
+    private static final long serialVersionUID = 1L;
+
+    @JsonProperty(FIELD_NAME_RESOURCE_ID)
+    @JsonSerialize(using = ResourceIDSerializer.class)
+    private final ResourceID resourceId;
+
+    @JsonProperty(FIELD_NAME_ADDRESS)
+    private final String address;
+
+    @JsonProperty(FIELD_NAME_DATA_PORT)
+    private final int dataPort;
+
+    @JsonProperty(FIELD_NAME_JMX_PORT)
+    private final int jmxPort;
+
+    @JsonProperty(FIELD_NAME_LAST_HEARTBEAT)
+    private final long lastHeartbeat;
+
+    @JsonProperty(FIELD_NAME_NUMBER_SLOTS)
+    private final int numberSlots;
+
+    @JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS)
+    private final int numberAvailableSlots;
+
+    @JsonProperty(FIELD_NAME_ASSIGNED_TASKS)
+    private final int assignedTasks;
+
+    @JsonProperty(FIELD_NAME_TOTAL_RESOURCE)
+    private final ResourceProfileInfo totalResource;
+
+    @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE)
+    private final ResourceProfileInfo freeResource;
+
+    @JsonProperty(FIELD_NAME_HARDWARE)
+    private final HardwareDescription hardwareDescription;
+
+    @JsonProperty(FIELD_NAME_MEMORY)
+    private final TaskExecutorMemoryConfiguration memoryConfiguration;
+
+    @JsonProperty(FIELD_NAME_BLOCKED)
+    @JsonInclude(Include.NON_DEFAULT)
+    private final boolean blocked;
+
+    @JsonCreator
+    // blocked is Nullable since Jackson will assign null if the field is absent while parsing
+    public TaskManagerInfo(
+            @JsonDeserialize(using = ResourceIDDeserializer.class)
+                    @JsonProperty(FIELD_NAME_RESOURCE_ID)
+                    ResourceID resourceId,
+            @JsonProperty(FIELD_NAME_ADDRESS) String address,
+            @JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
+            @JsonProperty(FIELD_NAME_JMX_PORT) int jmxPort,
+            @JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
+            @JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
+            @JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
+            @JsonProperty(FIELD_NAME_ASSIGNED_TASKS) int assignedTasks,
+            @JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
+            @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
+            @JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+            @JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
+            @JsonProperty(FIELD_NAME_BLOCKED) @Nullable Boolean blocked) {
+        this.resourceId = Preconditions.checkNotNull(resourceId);
+        this.address = Preconditions.checkNotNull(address);
+        this.dataPort = dataPort;
+        this.jmxPort = jmxPort;
+        this.lastHeartbeat = lastHeartbeat;
+        this.numberSlots = numberSlots;
+        this.numberAvailableSlots = numberAvailableSlots;
+        this.assignedTasks = assignedTasks;
+        this.totalResource = totalResource;
+        this.freeResource = freeResource;
+        this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+        this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
+        this.blocked = (blocked != null) && blocked;
+    }
+
+    public TaskManagerInfo(
+            ResourceID resourceId,
+            String address,
+            int dataPort,
+            int jmxPort,
+            long lastHeartbeat,
+            int numberSlots,
+            int numberAvailableSlots,
+            int assignedTasks,
+            ResourceProfile totalResource,
+            ResourceProfile freeResource,
+            HardwareDescription hardwareDescription,
+            TaskExecutorMemoryConfiguration memoryConfiguration,
+            @Nullable Boolean blocked) {
+        this(
+                resourceId,
+                address,
+                dataPort,
+                jmxPort,
+                lastHeartbeat,
+                numberSlots,
+                numberAvailableSlots,
+                assignedTasks,
+                ResourceProfileInfo.fromResourceProfile(totalResource),
+                ResourceProfileInfo.fromResourceProfile(freeResource),
+                hardwareDescription,
+                memoryConfiguration,
+                blocked);
+    }
+
+    @JsonIgnore
+    public ResourceID getResourceId() {
+        return resourceId;
+    }
+
+    @JsonIgnore
+    public String getAddress() {
+        return address;
+    }
+
+    @JsonIgnore
+    public int getDataPort() {
+        return dataPort;
+    }
+
+    @JsonIgnore
+    public int getJmxPort() {
+        return jmxPort;
+    }
+
+    @JsonIgnore
+    public long getLastHeartbeat() {
+        return lastHeartbeat;
+    }
+
+    @JsonIgnore
+    public int getNumberSlots() {
+        return numberSlots;
+    }
+
+    @JsonIgnore
+    public int getNumberAvailableSlots() {
+        return numberAvailableSlots;
+    }
+
+    @JsonIgnore
+    public int getAssignedTasks() {
+        return assignedTasks;
+    }
+
+    @JsonIgnore
+    public ResourceProfileInfo getTotalResource() {
+        return totalResource;
+    }
+
+    @JsonIgnore
+    public ResourceProfileInfo getFreeResource() {
+        return freeResource;
+    }
+
+    @JsonIgnore
+    public HardwareDescription getHardwareDescription() {
+        return hardwareDescription;
+    }
+
+    @JsonIgnore
+    public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+        return memoryConfiguration;
+    }
+
+    @JsonIgnore
+    public boolean getBlocked() {
+        return blocked;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TaskManagerInfo that = (TaskManagerInfo) o;
+        return dataPort == that.dataPort
+                && jmxPort == that.jmxPort
+                && lastHeartbeat == that.lastHeartbeat
+                && numberSlots == that.numberSlots
+                && numberAvailableSlots == that.numberAvailableSlots
+                && Objects.equals(assignedTasks, that.assignedTasks)
+                && Objects.equals(totalResource, that.totalResource)
+                && Objects.equals(freeResource, that.freeResource)
+                && Objects.equals(resourceId, that.resourceId)
+                && Objects.equals(address, that.address)
+                && Objects.equals(hardwareDescription, that.hardwareDescription)
+                && Objects.equals(memoryConfiguration, that.memoryConfiguration)
+                && blocked == that.blocked;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                resourceId,
+                address,
+                dataPort,
+                jmxPort,
+                lastHeartbeat,
+                numberSlots,
+                numberAvailableSlots,
+                assignedTasks,
+                totalResource,
+                freeResource,
+                hardwareDescription,
+                memoryConfiguration,
+                blocked);
+    }
+}

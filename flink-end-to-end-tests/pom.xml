@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-parent</artifactId>
+		<version>2.4-SNAPSHOT</version>
+	</parent>
+
+	<packaging>pom</packaging>
+
+	<artifactId>flink-end-to-end-tests</artifactId>
+	<name>Flink : E2E Tests : </name>
+
+	<properties>
+		<excludeE2E/>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
+
+	<modules>
+		<module>flink-cli-test</module>
+		<module>flink-parent-child-classloading-test-program</module>
+		<module>flink-parent-child-classloading-test-lib-package</module>
+		<module>flink-datastream-allround-test</module>
+		<module>flink-batch-sql-test</module>
+		<module>flink-stream-sql-test</module>
+		<module>flink-distributed-cache-via-blob-test</module>
+		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
+		<module>flink-local-recovery-and-allocation-test</module>
+		<module>flink-quickstart-test</module>
+		<module>flink-quickstart-test-dummy-dependency</module>
+		<module>flink-confluent-schema-registry</module>
+		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
+		<module>flink-file-sink-test</module>
+		<module>flink-state-evolution-test</module>
+		<module>flink-rocksdb-state-memory-control-test</module>
+		<module>flink-end-to-end-tests-common</module>
+		<module>flink-metrics-availability-test</module>
+		<module>flink-metrics-reporter-prometheus-test</module>
+		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-plugins-test</module>
+		<module>flink-tpch-test</module>
+		<module>flink-tpcds-test</module>
+		<module>flink-netty-shuffle-memory-control-test</module>
+		<module>flink-python-test</module>
+		<module>flink-end-to-end-tests-scala</module>
+		<module>flink-end-to-end-tests-sql</module>
+		<module>flink-end-to-end-tests-jdbc-driver</module>
+		<module>flink-end-to-end-tests-restclient</module>
+		<module>flink-failure-enricher-test</module>
+		<module>flink-end-to-end-tests-table-api</module>
+		
+    </modules>
+
+	<dependencies>
+		<dependency>
+			<!-- this module depends on the flink-yarn-tests's "target/yarn.classpath" file -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-yarn-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>run-end-to-end-tests</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>end-to-end-tests</id>
+								<phase>integration-test</phase>
+								<goals>
+									<goal>test</goal>
+								</goals>
+								<configuration>
+									<includes>
+										<include>**/*.*</include>
+									</includes>
+									<excludedGroups>${excludeE2E}</excludedGroups>
+									<!-- E2E tests must not access flink-dist concurrently. -->
+									<forkCount>1</forkCount>
+									<systemPropertyVariables>
+										<moduleDir>${project.basedir}</moduleDir>
+									</systemPropertyVariables>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>[11,)</jdk>
+			</activation>
+		</profile>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<properties>
+				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava17</excludeE2E>
+			</properties>
+		</profile>
+		<profile>
+			<id>java25</id>
+			<activation>
+				<jdk>[25,)</jdk>
+			</activation>
+			<properties>
+				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava25</excludeE2E>
+			</properties>
+		</profile>
+	</profiles>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-test</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>integration-tests</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	
+</project>
