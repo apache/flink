@@ -152,8 +152,9 @@ public abstract class YarnTestBase {
         Pattern.compile(
                 "Remote connection to \\[.*\\] failed with java.nio.channels.NotYetConnectedException"),
         Pattern.compile("java\\.io\\.IOException: Connection reset by peer"),
+        // gated re-association WARN; the cause may now be Netty-wrapped
         Pattern.compile(
-                "Association with remote system \\[pekko.tcp://flink@[^]]+\\] has failed, address is now gated for \\[50\\] ms. Reason: \\[Association failed with \\[pekko.tcp://flink@[^]]+\\]\\] Caused by: \\[java.net.ConnectException: Connection refused: [^]]+\\]"),
+                "Association with remote system \\[pekko.tcp://flink@[^]]+\\] has failed, address is now gated for \\[50\\] ms. Reason: \\[Association failed with \\[pekko.tcp://flink@[^]]+\\]\\] Caused by: \\[(java\\.net\\.ConnectException|org\\.apache\\.flink\\.shaded\\.netty4\\.io\\.netty\\.channel\\.AbstractChannel\\$AnnotatedConnectException): Connection refused[^]]*\\]"),
 
         // filter out expected ResourceManagerException caused by intended shutdown request
         Pattern.compile(YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST),
