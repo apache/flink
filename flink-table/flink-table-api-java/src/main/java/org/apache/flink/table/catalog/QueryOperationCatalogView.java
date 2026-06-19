@@ -72,9 +72,7 @@ public final class QueryOperationCatalogView implements CatalogView {
 
     @Override
     public String getComment() {
-        return Optional.ofNullable(originalView)
-                .map(CatalogView::getComment)
-                .orElseGet(queryOperation::asSummaryString);
+        return Optional.ofNullable(originalView).map(CatalogView::getComment).orElse("");
     }
 
     @Override
