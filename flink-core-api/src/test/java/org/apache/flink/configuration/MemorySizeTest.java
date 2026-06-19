@@ -170,7 +170,9 @@ class MemorySizeTest {
 
         // wrong unit
         assertThatThrownBy(() -> MemorySize.parseBytes("16 gjah"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("integer optionally followed by a unit")
+                .hasMessageContaining("Fractional or malformed values are not supported");
 
         // multiple numbers
         assertThatThrownBy(() -> MemorySize.parseBytes("16 16 17 18 bytes"))

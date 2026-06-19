@@ -57,7 +57,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
     private static final List<MemoryUnit> ORDERED_UNITS =
             Arrays.asList(BYTES, KILO_BYTES, MEGA_BYTES, GIGA_BYTES, TERA_BYTES);
 
-    private static final Pattern MEMORY_SIZE_FORMAT = Pattern.compile("\\d+\\s*[a-zA-Z]*");
+    private static final Pattern MEMORY_SIZE_FORMAT =
+            Pattern.compile(
+                    "\\d+\\s*(?:b|bytes|k|kb|kibibytes|m|mb|mebibytes|g|gb|gibibytes|t|tb|tebibytes)?",
+                    Pattern.CASE_INSENSITIVE);
 
     // ------------------------------------------------------------------------
 
