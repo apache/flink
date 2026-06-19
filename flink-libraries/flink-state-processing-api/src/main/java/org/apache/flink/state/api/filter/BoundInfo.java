@@ -18,14 +18,11 @@
 
 package org.apache.flink.state.api.filter;
 
-import org.apache.flink.annotation.Internal;
-
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
 /** Information about a bound in a range filter. */
-@Internal
 public final class BoundInfo implements Serializable {
     private static final long serialVersionUID = 4L;
 
