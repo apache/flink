@@ -30,7 +30,7 @@ private class KryoTraversableSerializer[T, C <: Traversable[T]](
     override val isImmutable: Boolean = true)(implicit cbf: CanBuildFrom[C, T, C])
   extends Serializer[C] {
 
-  override def write(kser: Kryo, out: Output, obj: C) {
+  override def write(kser: Kryo, out: Output, obj: C): Unit = {
     // Write the size:
     out.writeInt(obj.size, true)
     obj.foreach {

@@ -120,7 +120,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   @Test
-  def testJoinTablesFromDifferentEnvsJava() {
+  def testJoinTablesFromDifferentEnvsJava(): Unit = {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)

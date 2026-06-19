@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 class TimeIndicatorRelDataTypeTest {
 
   @Test
-  def testGenerateTypeString() {
+  def testGenerateTypeString(): Unit = {
     val typeFactory = new FlinkTypeFactory(
       classOf[TimeIndicatorRelDataTypeTest].getClassLoader,
       FlinkTypeSystem.INSTANCE)

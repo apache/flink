@@ -341,7 +341,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
   }
 
   @TestTemplate
-  def testInnerJoinWithProcTimeAttributeOutput() {
+  def testInnerJoinWithProcTimeAttributeOutput(): Unit = {
 
     val data1 = List(
       (1L, 1, "LEFT:Hi"),
@@ -1588,7 +1588,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
   }
 
   @TestTemplate
-  def testJoinWithProcTimeAttributeOutput() {
+  def testJoinWithProcTimeAttributeOutput(): Unit = {
 
     val data1 = List(
       (1L, 1, "LEFT:Hi"),
