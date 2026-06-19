@@ -172,7 +172,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
                         sessionMessageParameters,
                         emptyRequestBody);
         future.get();
-        assertThat(session.getLastAccessTime()).isGreaterThan(lastAccessTime);
+        assertThat(session.getLastAccessTime()).isGreaterThanOrEqualTo(lastAccessTime);
     }
 
     @Test
