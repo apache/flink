@@ -1,0 +1,396 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`probe`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "pk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "pv",
+              "dataType" : "INT"
+            }, {
+              "name" : "pts",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "pts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`pts`"
+              }
+            } ]
+          },
+          "options" : {
+            "bounded" : "false",
+            "connector" : "values"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `pts` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "pk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "pv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "pts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[pts], watermark=[pts])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "pk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "pv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "pts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[pk, pv]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`b`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "bk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bv",
+              "dataType" : "INT"
+            }, {
+              "name" : "bts",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "bts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`bts`"
+              }
+            } ]
+          },
+          "options" : {
+            "bounded" : "false",
+            "changelog-mode" : "I,UB,UA,D",
+            "connector" : "values"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`bk` VARCHAR(2147483647), `bv` INT, `bts` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, b]], fields=[bk, bv, bts])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[bts], watermark=[bts])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[bk, bv]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-lateral-snapshot-join_1",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0, 1 ],
+      "rightKeys" : [ 0, 1 ],
+      "filterNulls" : [ true, true ],
+      "nonEquiCondition" : null
+    },
+    "rightTimeAttributeIndex" : 2,
+    "loadCompletedCondition" : "user_time",
+    "loadCompletedTime" : 1782864000000,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "pk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "pv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "pts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : "TIMESTAMP(3)"
+      } ]
+    },
+    "description" : "LateralSnapshotJoin(joinType=[InnerJoin], where=[((pk = bk) AND (pv = bv))], select=[pk, pv, pts, bk, bv, bts], loadCompletedCondition=[user_time], loadCompletedTime=[1782864000000])"
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "pk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "pv",
+              "dataType" : "INT"
+            }, {
+              "name" : "pts",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "bk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bv",
+              "dataType" : "INT"
+            }, {
+              "name" : "bts",
+              "dataType" : "TIMESTAMP(3)"
+            } ]
+          },
+          "options" : {
+            "connector" : "blackhole"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "pk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "pv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "pts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : "TIMESTAMP(3)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[pk, pv, pts, bk, bv, bts])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

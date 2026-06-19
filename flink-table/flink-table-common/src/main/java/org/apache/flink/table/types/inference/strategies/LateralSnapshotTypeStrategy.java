@@ -69,20 +69,30 @@ import java.util.stream.IntStream;
 @Internal
 public final class LateralSnapshotTypeStrategy {
 
-    /** Argument index of the {@code input} TABLE. */
+    /** The {@code input} TABLE argument. */
     public static final int INPUT_ARG_INDEX = 0;
 
-    /** Argument index of the {@code load_completed_condition} STRING. */
+    public static final String INPUT_ARG_NAME = "input";
+
+    /** The {@code load_completed_condition} STRING argument. */
     public static final int LOAD_COMPLETED_CONDITION_ARG_INDEX = 1;
 
-    /** Argument index of the {@code load_completed_time} TIMESTAMP_LTZ. */
+    public static final String LOAD_COMPLETED_CONDITION_ARG_NAME = "load_completed_condition";
+
+    /** The {@code load_completed_time} TIMESTAMP_LTZ argument. */
     public static final int LOAD_COMPLETED_TIME_ARG_INDEX = 2;
 
-    /** Argument index of the {@code load_completed_idle_timeout} INTERVAL. */
+    public static final String LOAD_COMPLETED_TIME_ARG_NAME = "load_completed_time";
+
+    /** The {@code load_completed_idle_timeout} INTERVAL argument. */
     public static final int LOAD_COMPLETED_IDLE_TIMEOUT_ARG_INDEX = 3;
 
-    /** Argument index of the {@code state_ttl} INTERVAL. */
+    public static final String LOAD_COMPLETED_IDLE_TIMEOUT_ARG_NAME = "load_completed_idle_timeout";
+
+    /** The {@code state_ttl} INTERVAL argument. */
     public static final int STATE_TTL_ARG_INDEX = 4;
+
+    public static final String STATE_TTL_ARG_NAME = "state_ttl";
 
     /** Default value for {@code load_completed_condition}. */
     public static final String LOAD_COMPLETED_CONDITION_COMPILE_TIME = "compile_time";
@@ -122,11 +132,13 @@ public final class LateralSnapshotTypeStrategy {
                 public List<Signature> getExpectedSignatures(final FunctionDefinition definition) {
                     return List.of(
                             Signature.of(
-                                    Argument.of("input", "TABLE"),
-                                    Argument.of("load_completed_condition", "STRING"),
-                                    Argument.of("load_completed_time", "TIMESTAMP_LTZ(3)"),
-                                    Argument.of("load_completed_idle_timeout", "INTERVAL SECOND"),
-                                    Argument.of("state_ttl", "INTERVAL SECOND")));
+                                    Argument.of(INPUT_ARG_NAME, "TABLE"),
+                                    Argument.of(LOAD_COMPLETED_CONDITION_ARG_NAME, "STRING"),
+                                    Argument.of(LOAD_COMPLETED_TIME_ARG_NAME, "TIMESTAMP_LTZ(3)"),
+                                    Argument.of(
+                                            LOAD_COMPLETED_IDLE_TIMEOUT_ARG_NAME,
+                                            "INTERVAL SECOND"),
+                                    Argument.of(STATE_TTL_ARG_NAME, "INTERVAL SECOND")));
                 }
             };
 

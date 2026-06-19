@@ -402,6 +402,9 @@ object FlinkStreamRuleSets {
     PushFilterInCalcIntoTableSourceScanRule.INSTANCE,
     // Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
+    // Rewrites a join over a SNAPSHOT table function call into a dedicated
+    // FlinkLogicalLateralSnapshotJoin for the LATERAL SNAPSHOT operator.
+    LogicalJoinToLateralSnapshotJoinRule.INSTANCE,
     // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from the result (projection).
@@ -509,6 +512,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalMultiJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
     StreamPhysicalTemporalJoinRule.INSTANCE,
+    StreamPhysicalLateralSnapshotJoinRule.INSTANCE,
     StreamPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     StreamPhysicalWindowJoinRule.INSTANCE,
