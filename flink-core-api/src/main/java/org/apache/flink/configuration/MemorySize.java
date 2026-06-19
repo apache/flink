@@ -59,7 +59,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
     private static final Pattern MEMORY_SIZE_FORMAT =
             Pattern.compile(
-                    "\\d+\\s*(?:b|bytes|k|kb|kibibytes|m|mb|mebibytes|g|gb|gibibytes|t|tb|tebibytes)?",
+                    "\\d+\\s*(?:" + MemoryUnit.getAllUnitsPattern() + ")?",
                     Pattern.CASE_INSENSITIVE);
 
     // ------------------------------------------------------------------------
@@ -399,6 +399,19 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
                     MEGA_BYTES.getUnits(),
                     GIGA_BYTES.getUnits(),
                     TERA_BYTES.getUnits());
+        }
+
+        private static String getAllUnitsPattern() {
+            final StringBuilder pattern = new StringBuilder();
+            for (MemoryUnit memoryUnit : values()) {
+                for (String unit : memoryUnit.getUnits()) {
+                    if (pattern.length() > 0) {
+                        pattern.append('|');
+                    }
+                    pattern.append(Pattern.quote(unit));
+                }
+            }
+            return pattern.toString();
         }
 
         public static boolean hasUnit(String text) {
