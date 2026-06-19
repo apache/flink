@@ -1115,6 +1115,16 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return ExternalTypeInfo(_from_java_type(
             TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
 
+    JInternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+    if _is_instance_of(j_type_info, JInternalTypeInfo):
+        LogicalTypeDataTypeConverter = \
+            gateway.jvm.org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter
+        TypeInfoDataTypeConverter = \
+            gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+        return _from_java_type(
+            TypeInfoDataTypeConverter.toLegacyTypeInfo(
+                LogicalTypeDataTypeConverter.toDataType(j_type_info.toLogicalType())))
+
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
 
