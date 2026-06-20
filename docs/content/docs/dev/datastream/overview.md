@@ -263,8 +263,11 @@ Sources are where your program reads its input from. You can attach a source to 
 using `StreamExecutionEnvironment.addSource(sourceFunction)`. Flink comes with a number of pre-implemented
 source functions, but you can always write your own custom sources by implementing the
 {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/source/legacy/SourceFunction.java" name="SourceFunction" >}}
-for non-parallel sources, or by implementing the `ParallelSourceFunction` interface or extending the
-`RichParallelSourceFunction` for parallel sources.
+interface for non-parallel sources, or by implementing the
+{{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/source/legacy/ParallelSourceFunction.java" name="ParallelSourceFunction" >}}
+interface or extending the
+{{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/source/legacy/RichParallelSourceFunction.java" name="RichParallelSourceFunction" >}}
+class for parallel sources.
 
 There are several predefined stream sources accessible from the `StreamExecutionEnvironment`:
 
