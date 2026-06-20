@@ -35,35 +35,34 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.util.Arrays;
-import java.util.Collection;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests to guard rescaling from checkpoint. */
-@RunWith(Parameterized.class)
-public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class ForStIncrementalCheckpointRescalingTest {
 
-    @Rule public TemporaryFolder rootFolder = new TemporaryFolder();
+    @TempDir Path rootFolder;
 
-    @Parameterized.Parameters(name = "useIngestDbRestoreMode: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(false, true);
+    @Parameters(name = "useIngestDbRestoreMode: {0}")
+    public static List<Boolean> parameters() {
+        return List.of(false, true);
     }
 
-    @Parameterized.Parameter public boolean useIngestDbRestoreMode;
+    @Parameter public boolean useIngestDbRestoreMode;
 
     private final int maxParallelism = 10;
 
@@ -71,73 +70,73 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
 
     private String[] records;
 
-    @Before
-    public void initRecords() throws Exception {
+    @BeforeEach
+    void initRecords() throws Exception {
         records = new String[10];
         records[0] = "8";
-        Assert.assertEquals(
-                0,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[0]), maxParallelism)); // group 0
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[0]), maxParallelism))
+                .isZero(); // group 0
 
         records[1] = "5";
-        Assert.assertEquals(
-                1,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[1]), maxParallelism)); // group 1
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[1]), maxParallelism))
+                .isOne(); // group 1
 
         records[2] = "25";
-        Assert.assertEquals(
-                2,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[2]), maxParallelism)); // group 2
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[2]), maxParallelism))
+                .isEqualTo(2); // group 2
 
         records[3] = "13";
-        Assert.assertEquals(
-                3,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[3]), maxParallelism)); // group 3
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[3]), maxParallelism))
+                .isEqualTo(3); // group 3
 
         records[4] = "4";
-        Assert.assertEquals(
-                4,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[4]), maxParallelism)); // group 4
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[4]), maxParallelism))
+                .isEqualTo(4); // group 4
 
         records[5] = "7";
-        Assert.assertEquals(
-                5,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[5]), maxParallelism)); // group 5
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[5]), maxParallelism))
+                .isEqualTo(5); // group 5
 
         records[6] = "1";
-        Assert.assertEquals(
-                6,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[6]), maxParallelism)); // group 6
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[6]), maxParallelism))
+                .isEqualTo(6); // group 6
 
         records[7] = "6";
-        Assert.assertEquals(
-                7,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[7]), maxParallelism)); // group 7
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[7]), maxParallelism))
+                .isEqualTo(7); // group 7
 
         records[8] = "9";
-        Assert.assertEquals(
-                8,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[8]), maxParallelism)); // group 8
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[8]), maxParallelism))
+                .isEqualTo(8); // group 8
 
         records[9] = "3";
-        Assert.assertEquals(
-                9,
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keySelector.getKey(records[9]), maxParallelism)); // group 9
+        assertThat(
+                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                keySelector.getKey(records[9]), maxParallelism))
+                .isEqualTo(9); // group 9
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testScalingUp() throws Exception {
+    void testScalingUp() throws Exception {
 
         // -----------------------------------------> test with initial parallelism 1
         // <---------------------------------------
@@ -148,8 +147,7 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
                 getHarnessTest(keySelector, maxParallelism, 1, 0)) {
             harness.setStateBackend(getStateBackend());
             harness.setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness.open();
 
             validHarnessResult(harness, 1, records);
@@ -181,24 +179,22 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [0, 4]
             KeyGroupRange localKeyGroupRange20 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
+            assertThat(localKeyGroupRange20).isEqualTo(new KeyGroupRange(0, 4));
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
             harness2[0].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness2[0].setup();
             harness2[0].initializeState(initState1);
             harness2[0].open();
 
             // task's key-group [5, 9]
             KeyGroupRange localKeyGroupRange21 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
+            assertThat(localKeyGroupRange21).isEqualTo(new KeyGroupRange(5, 9));
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
             harness2[1].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness2[1].setup();
             harness2[1].initializeState(initState2);
             harness2[1].open();
@@ -244,36 +240,33 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
             // task's key-group [0, 3]
             // this will choose the state handle to harness2[0] to init the target db with clipping.
             KeyGroupRange localKeyGroupRange30 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
+            assertThat(localKeyGroupRange30).isEqualTo(new KeyGroupRange(0, 3));
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
             harness3[0].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[0].setup();
             harness3[0].initializeState(initState1);
             harness3[0].open();
 
             // task's key-group [4, 6]
             KeyGroupRange localKeyGroupRange31 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
+            assertThat(localKeyGroupRange31).isEqualTo(new KeyGroupRange(4, 6));
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
             harness3[1].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[1].setup();
             harness3[1].initializeState(initState2);
             harness3[1].open();
 
             // task's key-group [7, 9]
             KeyGroupRange localKeyGroupRange32 = keyGroupPartitions.get(2);
-            Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
+            assertThat(localKeyGroupRange32).isEqualTo(new KeyGroupRange(7, 9));
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
             harness3[2].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[2].setup();
             harness3[2].initializeState(initState3);
             harness3[2].open();
@@ -286,9 +279,9 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
         }
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testScalingDown() throws Exception {
+    void testScalingDown() throws Exception {
 
         // -----------------------------------------> test with initial parallelism 3
         // <---------------------------------------
@@ -303,32 +296,29 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [0, 3], this should trigger the condition to use clip
             KeyGroupRange localKeyGroupRange30 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
+            assertThat(localKeyGroupRange30).isEqualTo(new KeyGroupRange(0, 3));
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
             harness3[0].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[0].open();
 
             // task's key-group [4, 6]
             KeyGroupRange localKeyGroupRange31 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
+            assertThat(localKeyGroupRange31).isEqualTo(new KeyGroupRange(4, 6));
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
             harness3[1].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[1].open();
 
             // task's key-group [7, 9]
             KeyGroupRange localKeyGroupRange32 = keyGroupPartitions.get(2);
-            Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
+            assertThat(localKeyGroupRange32).isEqualTo(new KeyGroupRange(7, 9));
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
             harness3[2].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness3[2].open();
 
             validHarnessResult(harness3[0], 1, records[0], records[1], records[2], records[3]);
@@ -371,12 +361,11 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
             // this will choose the state handle generated by harness3[0] to init the target db
             // without any clipping.
             KeyGroupRange localKeyGroupRange20 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
+            assertThat(localKeyGroupRange20).isEqualTo(new KeyGroupRange(0, 4));
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
             harness2[0].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness2[0].setup();
             harness2[0].initializeState(initState1);
             harness2[0].open();
@@ -384,12 +373,11 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
             // task's key-group [5, 9], this will open a empty db, and insert records from two state
             // handles.
             KeyGroupRange localKeyGroupRange21 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
+            assertThat(localKeyGroupRange21).isEqualTo(new KeyGroupRange(5, 9));
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
             harness2[1].setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness2[1].setup();
             harness2[1].initializeState(initState2);
             harness2[1].open();
@@ -422,8 +410,7 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
             // without any clipping.
             harness.setStateBackend(getStateBackend());
             harness.setCheckpointStorage(
-                    new FileSystemCheckpointStorage(
-                            "file://" + rootFolder.newFolder().getAbsolutePath()));
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
             harness.setup();
             harness.initializeState(initState1);
             harness.open();
@@ -450,8 +437,8 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
         for (String record : records) {
             harness.processElement(new StreamRecord<>(record, 1));
             StreamRecord<Integer> outputRecord = (StreamRecord<Integer>) harness.getOutput().poll();
-            Assert.assertNotNull(outputRecord);
-            Assert.assertEquals(expectedValue, outputRecord.getValue());
+            assertThat(outputRecord).isNotNull();
+            assertThat(outputRecord.getValue()).isEqualTo(expectedValue);
         }
     }
 
@@ -470,7 +457,7 @@ public class ForStIncrementalCheckpointRescalingTest extends TestLogger {
                 subtaskIdx);
     }
 
-    private StateBackend getStateBackend() throws Exception {
+    private StateBackend getStateBackend() {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         Configuration configuration = new Configuration();
         configuration.set(USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);

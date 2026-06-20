@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.lang3.RandomUtils;
@@ -54,11 +55,9 @@ import org.forstdb.DBOptions;
 import org.forstdb.FlushOptions;
 import org.forstdb.InfoLogLevel;
 import org.forstdb.util.SizeUnit;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,51 +70,44 @@ import java.util.Collections;
 
 import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for configuring the ForSt State Backend. */
-public class ForStStateBackendConfigTest {
+class ForStStateBackendConfigTest {
 
-    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir java.nio.file.Path tempFolder;
 
     // ------------------------------------------------------------------------
     //  default values
     // ------------------------------------------------------------------------
 
     @Test
-    public void testDefaultDbLogDir() throws Exception {
+    void testDefaultDbLogDir() throws Exception {
         final ForStStateBackend backend = new ForStStateBackend();
         final File logFile = File.createTempFile(getClass().getSimpleName() + "-", ".log");
         // set the environment variable 'log.file' with the Flink log file location
         System.setProperty("log.file", logFile.getPath());
         try (ForStResourceContainer container =
                 backend.createOptionsAndResourceContainer(new Path(tempFolder.toString()))) {
-            assertEquals(
-                    ForStConfigurableOptions.LOG_LEVEL.defaultValue(),
-                    container.getDbOptions().infoLogLevel());
-            assertEquals(logFile.getParent(), container.getDbOptions().dbLogDir());
+            assertThat(container.getDbOptions().infoLogLevel())
+                    .isEqualTo(ForStConfigurableOptions.LOG_LEVEL.defaultValue());
+            assertThat(container.getDbOptions().dbLogDir()).isEqualTo(logFile.getParent());
         } finally {
             logFile.delete();
         }
 
         StringBuilder longInstanceBasePath =
-                new StringBuilder(tempFolder.newFolder().getAbsolutePath());
+                new StringBuilder(TempDirUtils.newFolder(tempFolder).getAbsolutePath());
         while (longInstanceBasePath.length() < 255) {
             longInstanceBasePath.append("/append-for-long-path");
         }
         try (ForStResourceContainer container =
                 backend.createOptionsAndResourceContainer(
                         new Path(longInstanceBasePath.toString()))) {
-            assertTrue(container.getDbOptions().dbLogDir().isEmpty());
+            assertThat(container.getDbOptions().dbLogDir()).isEmpty();
         } finally {
             logFile.delete();
         }
@@ -127,36 +119,37 @@ public class ForStStateBackendConfigTest {
 
     /** This test checks the behavior for basic setting of local DB directories. */
     @Test
-    public void testSetDbPath() throws Exception {
+    void testSetDbPath() throws Exception {
         final ForStStateBackend forStStateBackend = new ForStStateBackend();
 
-        final String testDir1 = tempFolder.newFolder().getAbsolutePath();
-        final String testDir2 = tempFolder.newFolder().getAbsolutePath();
+        final String testDir1 = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
+        final String testDir2 = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
 
-        assertNull(forStStateBackend.getLocalDbStoragePaths());
+        assertThat(forStStateBackend.getLocalDbStoragePaths()).isNull();
 
         forStStateBackend.setLocalDbStoragePath(testDir1);
-        assertArrayEquals(new String[] {testDir1}, forStStateBackend.getLocalDbStoragePaths());
+        assertThat(forStStateBackend.getLocalDbStoragePaths()).containsExactly(testDir1);
 
         forStStateBackend.setLocalDbStoragePath(null);
-        assertNull(forStStateBackend.getLocalDbStoragePaths());
+        assertThat(forStStateBackend.getLocalDbStoragePaths()).isNull();
 
         forStStateBackend.setLocalDbStoragePaths(testDir1, testDir2);
-        assertArrayEquals(
-                new String[] {testDir1, testDir2}, forStStateBackend.getLocalDbStoragePaths());
+        assertThat(forStStateBackend.getLocalDbStoragePaths()).containsExactly(testDir1, testDir2);
 
-        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        final MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder));
         final ForStKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(forStStateBackend, env, IntSerializer.INSTANCE);
 
         try {
             Path instanceBasePath = keyedBackend.getLocalBasePath();
-            assertThat(
-                    instanceBasePath.getPath(), anyOf(startsWith(testDir1), startsWith(testDir2)));
+            assertThat(instanceBasePath.getPath())
+                    .satisfiesAnyOf(
+                            p -> assertThat(p).startsWith(testDir1),
+                            p -> assertThat(p).startsWith(testDir2));
 
             //noinspection NullArgumentToVariableArgMethod
             forStStateBackend.setLocalDbStoragePaths(null);
-            assertNull(forStStateBackend.getLocalDbStoragePaths());
+            assertThat(forStStateBackend.getLocalDbStoragePaths()).isNull();
         } finally {
             keyedBackend.dispose();
             keyedBackend.close();
@@ -165,8 +158,8 @@ public class ForStStateBackendConfigTest {
     }
 
     @Test
-    public void testConfigureForStCompressionPerLevel() throws Exception {
-        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+    void testConfigureForStCompressionPerLevel() throws Exception {
+        final MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder));
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         CompressionType[] compressionTypes = {
             CompressionType.NO_COMPRESSION, CompressionType.SNAPPY_COMPRESSION
@@ -181,40 +174,40 @@ public class ForStStateBackendConfigTest {
 
         ForStResourceContainer resourceContainer =
                 forStStateBackend.createOptionsAndResourceContainer(
-                        new Path(tempFolder.newFile().getAbsolutePath()));
+                        new Path(TempDirUtils.newFile(tempFolder).getAbsolutePath()));
         ColumnFamilyOptions columnFamilyOptions = resourceContainer.getColumnOptions();
-        assertArrayEquals(compressionTypes, columnFamilyOptions.compressionPerLevel().toArray());
+        assertThat(columnFamilyOptions.compressionPerLevel().toArray()).isEqualTo(compressionTypes);
 
         resourceContainer.close();
         env.close();
     }
 
     @Test
-    public void testStoragePathWithFilePrefix() throws Exception {
-        final File folder = tempFolder.newFolder();
+    void testStoragePathWithFilePrefix() throws Exception {
+        final File folder = TempDirUtils.newFolder(tempFolder);
         final String dbStoragePath = new Path(folder.toURI().toString()).toString();
 
-        assertTrue(dbStoragePath.startsWith("file:"));
+        assertThat(dbStoragePath).startsWith("file:");
 
         testLocalDbPaths(dbStoragePath, folder);
     }
 
     @Test
-    public void testWithDefaultFsSchemeNoStoragePath() throws Exception {
+    void testWithDefaultFsSchemeNoStoragePath() throws Exception {
         try {
             // set the default file system scheme
             Configuration config = new Configuration();
             config.set(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "file:///mydomain.com:8020/flink");
             FileSystem.initialize(config);
-            testLocalDbPaths(null, tempFolder.getRoot());
+            testLocalDbPaths(null, tempFolder.toFile());
         } finally {
             FileSystem.initialize(new Configuration());
         }
     }
 
     @Test
-    public void testWithDefaultFsSchemeAbsoluteStoragePath() throws Exception {
-        final File folder = tempFolder.newFolder();
+    void testWithDefaultFsSchemeAbsoluteStoragePath() throws Exception {
+        final File folder = TempDirUtils.newFolder(tempFolder);
         final String dbStoragePath = folder.getAbsolutePath();
 
         try {
@@ -233,17 +226,17 @@ public class ForStStateBackendConfigTest {
         final ForStStateBackend forStBackend = new ForStStateBackend();
         forStBackend.setLocalDbStoragePath(configuredPath);
 
-        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        final MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder));
         ForStKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
         try {
             Path instanceBasePath = keyedBackend.getLocalBasePath();
-            assertThat(instanceBasePath.getPath(), startsWith(expectedPath.getAbsolutePath()));
+            assertThat(instanceBasePath.getPath()).startsWith(expectedPath.getAbsolutePath());
 
             //noinspection NullArgumentToVariableArgMethod
             forStBackend.setLocalDbStoragePaths(null);
-            assertNull(forStBackend.getLocalDbStoragePaths());
+            assertThat(forStBackend.getLocalDbStoragePaths()).isNull();
         } finally {
             keyedBackend.dispose();
             keyedBackend.close();
@@ -252,30 +245,36 @@ public class ForStStateBackendConfigTest {
     }
 
     /** Validates that empty arguments for the local DB path are invalid. */
-    @Test(expected = IllegalArgumentException.class)
-    public void testSetEmptyPaths() throws Exception {
+    @Test
+    void testSetEmptyPaths() {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
-        forStStateBackend.setLocalDbStoragePaths();
+        assertThatThrownBy(forStStateBackend::setLocalDbStoragePaths)
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Validates that schemes other than 'file:/' are not allowed. */
-    @Test(expected = IllegalArgumentException.class)
-    public void testNonFileSchemePath() throws Exception {
+    @Test
+    void testNonFileSchemePath() {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
-        forStStateBackend.setLocalDbStoragePath("hdfs:///some/path/to/perdition");
+        assertThatThrownBy(
+                        () ->
+                                forStStateBackend.setLocalDbStoragePath(
+                                        "hdfs:///some/path/to/perdition"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testDbPathRelativePaths() throws Exception {
+    @Test
+    void testDbPathRelativePaths() {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
-        forStStateBackend.setLocalDbStoragePath("relative/path");
+        assertThatThrownBy(() -> forStStateBackend.setLocalDbStoragePath("relative/path"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @Timeout(value = 60)
-    public void testCleanRelocatedDbLogs() throws Exception {
-        final File folder = tempFolder.newFolder();
-        final File relocatedDBLogDir = tempFolder.newFolder("db_logs");
+    void testCleanRelocatedDbLogs() throws Exception {
+        final File folder = TempDirUtils.newFolder(tempFolder);
+        final File relocatedDBLogDir = TempDirUtils.newFolder(tempFolder, "db_logs");
         final File logFile = new File(relocatedDBLogDir, "taskManager.log");
         Files.createFile(logFile.toPath());
         System.setProperty("log.file", logFile.getAbsolutePath());
@@ -290,7 +289,7 @@ public class ForStStateBackendConfigTest {
         final String dbStoragePath = new Path(folder.toURI().toString()).toString();
         forStBackend.setLocalDbStoragePath(dbStoragePath);
 
-        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        final MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder));
         ForStKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
@@ -298,7 +297,7 @@ public class ForStStateBackendConfigTest {
         Path localForStPath = new Path(localBasePath, "db");
 
         // avoid tests without relocate.
-        Assume.assumeTrue(localForStPath.getPath().length() <= 255 - "_LOG".length());
+        assumeTrue(localForStPath.getPath().length() <= 255 - "_LOG".length());
 
         java.nio.file.Path[] relocatedDbLogs;
         try {
@@ -318,8 +317,8 @@ public class ForStStateBackendConfigTest {
         }
 
         relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
-        assertEquals(1, relocatedDbLogs.length);
-        assertEquals("taskManager.log", relocatedDbLogs[0].toFile().getName());
+        assertThat(relocatedDbLogs).hasSize(1);
+        assertThat(relocatedDbLogs[0].toFile().getName()).isEqualTo("taskManager.log");
     }
 
     // ------------------------------------------------------------------------
@@ -331,12 +330,12 @@ public class ForStStateBackendConfigTest {
      * {@link Environment} when no db storage path is set.
      */
     @Test
-    public void testUseTempDirectories() throws Exception {
+    void testUseTempDirectories() throws Exception {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
 
-        File dir1 = tempFolder.newFolder();
+        File dir1 = TempDirUtils.newFolder(tempFolder);
 
-        assertNull(forStStateBackend.getLocalDbStoragePaths());
+        assertThat(forStStateBackend.getLocalDbStoragePaths()).isNull();
 
         final MockEnvironment env = getMockEnvironment(dir1);
         JobID jobID = env.getJobID();
@@ -360,7 +359,7 @@ public class ForStStateBackendConfigTest {
 
         try {
             Path instanceBasePath = keyedBackend.getLocalBasePath();
-            assertThat(instanceBasePath.getPath(), startsWith(dir1.getAbsolutePath()));
+            assertThat(instanceBasePath.getPath()).startsWith(dir1.getAbsolutePath());
         } finally {
             keyedBackend.dispose();
             keyedBackend.close();
@@ -373,14 +372,13 @@ public class ForStStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testFailWhenNoLocalStorageDir() throws Exception {
-        final File targetDir = tempFolder.newFolder();
-        Assume.assumeTrue(
-                "Cannot mark directory non-writable", targetDir.setWritable(false, false));
+    void testFailWhenNoLocalStorageDir() throws Exception {
+        final File targetDir = TempDirUtils.newFolder(tempFolder);
+        assumeTrue(targetDir.setWritable(false, false), "Cannot mark directory non-writable");
 
         ForStStateBackend forStStateBackend = new ForStStateBackend();
 
-        try (MockEnvironment env = getMockEnvironment(tempFolder.newFolder())) {
+        try (MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder))) {
             forStStateBackend.setLocalDbStoragePath(targetDir.getAbsolutePath());
 
             boolean hasFailure = false;
@@ -404,12 +402,14 @@ public class ForStStateBackendConfigTest {
                                 Collections.emptyList(),
                                 cancelStreamRegistry));
             } catch (Exception e) {
-                assertTrue(e.getMessage().contains("No local storage directories available"));
-                assertTrue(e.getMessage().contains(targetDir.getAbsolutePath()));
+                assertThat(e.getMessage())
+                        .contains("No local storage directories available")
+                        .contains(targetDir.getAbsolutePath());
                 hasFailure = true;
             }
-            assertTrue(
-                    "We must see a failure because no storaged directory is feasible.", hasFailure);
+            assertThat(hasFailure)
+                    .as("We must see a failure because no storaged directory is feasible.")
+                    .isTrue();
         } finally {
             //noinspection ResultOfMethodCallIgnored
             targetDir.setWritable(true, false);
@@ -417,15 +417,14 @@ public class ForStStateBackendConfigTest {
     }
 
     @Test
-    public void testContinueOnSomeDbDirectoriesMissing() throws Exception {
-        final File targetDir1 = tempFolder.newFolder();
-        final File targetDir2 = tempFolder.newFolder();
-        Assume.assumeTrue(
-                "Cannot mark directory non-writable", targetDir1.setWritable(false, false));
+    void testContinueOnSomeDbDirectoriesMissing() throws Exception {
+        final File targetDir1 = TempDirUtils.newFolder(tempFolder);
+        final File targetDir2 = TempDirUtils.newFolder(tempFolder);
+        assumeTrue(targetDir1.setWritable(false, false), "Cannot mark directory non-writable");
 
         ForStStateBackend forStStateBackend = new ForStStateBackend();
 
-        try (MockEnvironment env = getMockEnvironment(tempFolder.newFolder())) {
+        try (MockEnvironment env = getMockEnvironment(TempDirUtils.newFolder(tempFolder))) {
             forStStateBackend.setLocalDbStoragePaths(
                     targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 
@@ -466,7 +465,7 @@ public class ForStStateBackendConfigTest {
     //  ForSt Options
     // ------------------------------------------------------------------------
     @Test
-    public void testConfigurableOptionsFromConfig() throws Exception {
+    void testConfigurableOptionsFromConfig() throws Exception {
         Configuration configuration = new Configuration();
 
         // verify illegal configuration
@@ -537,40 +536,39 @@ public class ForStStateBackendConfigTest {
                             false)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
-                assertEquals(-1, dbOptions.maxOpenFiles());
-                assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
-                assertEquals("/tmp/ForSt-logs/", dbOptions.dbLogDir());
-                assertEquals(10, dbOptions.keepLogFileNum());
-                assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
+                assertThat(dbOptions.maxOpenFiles()).isEqualTo(-1);
+                assertThat(dbOptions.infoLogLevel()).isEqualTo(InfoLogLevel.DEBUG_LEVEL);
+                assertThat(dbOptions.dbLogDir()).isEqualTo("/tmp/ForSt-logs/");
+                assertThat(dbOptions.keepLogFileNum()).isEqualTo(10);
+                assertThat(dbOptions.maxLogFileSize()).isEqualTo(2 * SizeUnit.MB);
 
                 ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
-                assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
-                assertTrue(columnOptions.levelCompactionDynamicLevelBytes());
-                assertEquals(8 * SizeUnit.MB, columnOptions.targetFileSizeBase());
-                assertEquals(128 * SizeUnit.MB, columnOptions.maxBytesForLevelBase());
-                assertEquals(4, columnOptions.maxWriteBufferNumber());
-                assertEquals(2, columnOptions.minWriteBufferNumberToMerge());
-                assertEquals(64 * SizeUnit.MB, columnOptions.writeBufferSize());
-                assertEquals(
-                        Arrays.asList(
+                assertThat(columnOptions.compactionStyle()).isEqualTo(CompactionStyle.LEVEL);
+                assertThat(columnOptions.levelCompactionDynamicLevelBytes()).isTrue();
+                assertThat(columnOptions.targetFileSizeBase()).isEqualTo(8 * SizeUnit.MB);
+                assertThat(columnOptions.maxBytesForLevelBase()).isEqualTo(128 * SizeUnit.MB);
+                assertThat(columnOptions.maxWriteBufferNumber()).isEqualTo(4);
+                assertThat(columnOptions.minWriteBufferNumberToMerge()).isEqualTo(2);
+                assertThat(columnOptions.writeBufferSize()).isEqualTo(64 * SizeUnit.MB);
+                assertThat(columnOptions.compressionPerLevel())
+                        .containsExactly(
                                 CompressionType.NO_COMPRESSION,
                                 CompressionType.SNAPPY_COMPRESSION,
-                                CompressionType.LZ4_COMPRESSION),
-                        columnOptions.compressionPerLevel());
-                assertEquals(3600, columnOptions.periodicCompactionSeconds());
+                                CompressionType.LZ4_COMPRESSION);
+                assertThat(columnOptions.periodicCompactionSeconds()).isEqualTo(3600);
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
-                assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
-                assertEquals(8 * SizeUnit.KB, tableConfig.metadataBlockSize());
-                assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
-                assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
+                assertThat(tableConfig.blockSize()).isEqualTo(4 * SizeUnit.KB);
+                assertThat(tableConfig.metadataBlockSize()).isEqualTo(8 * SizeUnit.KB);
+                assertThat(tableConfig.blockCacheSize()).isEqualTo(512 * SizeUnit.MB);
+                assertThat(tableConfig.filterPolicy()).isInstanceOf(BloomFilter.class);
             }
         }
     }
 
     @Test
-    public void testOptionsFactory() throws Exception {
+    void testOptionsFactory() throws Exception {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
 
         // verify that user-defined options factory could be configured via config.yaml
@@ -580,12 +578,12 @@ public class ForStStateBackendConfigTest {
 
         forStStateBackend = forStStateBackend.configure(config, getClass().getClassLoader());
 
-        assertTrue(forStStateBackend.getForStOptions() instanceof TestOptionsFactory);
+        assertThat(forStStateBackend.getForStOptions()).isInstanceOf(TestOptionsFactory.class);
 
         try (ForStResourceContainer optionsContainer =
                 forStStateBackend.createOptionsAndResourceContainer(null)) {
             DBOptions dbOptions = optionsContainer.getDbOptions();
-            assertEquals(4, dbOptions.maxBackgroundJobs());
+            assertThat(dbOptions.maxBackgroundJobs()).isEqualTo(4);
         }
 
         // verify that user-defined options factory could be set programmatically and override
@@ -609,12 +607,12 @@ public class ForStStateBackendConfigTest {
         try (ForStResourceContainer optionsContainer =
                 forStStateBackend.createOptionsAndResourceContainer(null)) {
             ColumnFamilyOptions colCreated = optionsContainer.getColumnOptions();
-            assertEquals(CompactionStyle.FIFO, colCreated.compactionStyle());
+            assertThat(colCreated.compactionStyle()).isEqualTo(CompactionStyle.FIFO);
         }
     }
 
     @Test
-    public void testConfigurableOptions() throws Exception {
+    void testConfigurableOptions() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(ForStConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
         try (final ForStResourceContainer optionsContainer =
@@ -629,8 +627,8 @@ public class ForStStateBackendConfigTest {
                         false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
-            assertNotNull(columnFamilyOptions);
-            assertEquals(CompactionStyle.UNIVERSAL, columnFamilyOptions.compactionStyle());
+            assertThat(columnFamilyOptions).isNotNull();
+            assertThat(columnFamilyOptions.compactionStyle()).isEqualTo(CompactionStyle.UNIVERSAL);
         }
 
         try (final ForStResourceContainer optionsContainer =
@@ -645,13 +643,13 @@ public class ForStStateBackendConfigTest {
                         false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
-            assertNotNull(columnFamilyOptions);
-            assertEquals(CompactionStyle.LEVEL, columnFamilyOptions.compactionStyle());
+            assertThat(columnFamilyOptions).isNotNull();
+            assertThat(columnFamilyOptions.compactionStyle()).isEqualTo(CompactionStyle.LEVEL);
         }
     }
 
     @Test
-    public void testPredefinedAndOptionsFactory() throws Exception {
+    void testPredefinedAndOptionsFactory() throws Exception {
         final ForStOptionsFactory optionsFactory =
                 new ForStOptionsFactory() {
                     @Override
@@ -672,8 +670,8 @@ public class ForStStateBackendConfigTest {
                 new ForStResourceContainer(optionsFactory)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
-            assertNotNull(columnFamilyOptions);
-            assertEquals(CompactionStyle.UNIVERSAL, columnFamilyOptions.compactionStyle());
+            assertThat(columnFamilyOptions).isNotNull();
+            assertThat(columnFamilyOptions.compactionStyle()).isEqualTo(CompactionStyle.UNIVERSAL);
         }
     }
 
@@ -682,15 +680,15 @@ public class ForStStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testForStReconfigurationCopiesExistingValues() throws Exception {
+    void testForStReconfigurationCopiesExistingValues() throws Exception {
         final ForStStateBackend original = new ForStStateBackend();
         final ForStOptionsFactory optionsFactory = new TestOptionsFactory();
         original.setForStOptions(optionsFactory);
 
         final String[] localDirs =
                 new String[] {
-                    tempFolder.newFolder().getAbsolutePath(),
-                    tempFolder.newFolder().getAbsolutePath()
+                    TempDirUtils.newFolder(tempFolder).getAbsolutePath(),
+                    TempDirUtils.newFolder(tempFolder).getAbsolutePath()
                 };
         original.setLocalDbStoragePaths(localDirs);
 
@@ -698,8 +696,8 @@ public class ForStStateBackendConfigTest {
                 original.configure(
                         new Configuration(), Thread.currentThread().getContextClassLoader());
 
-        assertArrayEquals(original.getLocalDbStoragePaths(), copy.getLocalDbStoragePaths());
-        assertEquals(original.getForStOptions(), copy.getForStOptions());
+        assertThat(copy.getLocalDbStoragePaths()).isEqualTo(original.getLocalDbStoragePaths());
+        assertThat(copy.getForStOptions()).isEqualTo(original.getForStOptions());
     }
 
     // ------------------------------------------------------------------------
@@ -707,36 +705,28 @@ public class ForStStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testDefaultMemoryControlParameters() {
+    void testDefaultMemoryControlParameters() {
         ForStMemoryConfiguration memSettings = new ForStMemoryConfiguration();
-        assertTrue(memSettings.isUsingManagedMemory());
-        assertFalse(memSettings.isUsingFixedMemoryPerSlot());
-        assertEquals(
-                ForStOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(),
-                memSettings.getHighPriorityPoolRatio(),
-                0.0);
-        assertEquals(
-                ForStOptions.WRITE_BUFFER_RATIO.defaultValue(),
-                memSettings.getWriteBufferRatio(),
-                0.0);
+        assertThat(memSettings.isUsingManagedMemory()).isTrue();
+        assertThat(memSettings.isUsingFixedMemoryPerSlot()).isFalse();
+        assertThat(memSettings.getHighPriorityPoolRatio())
+                .isEqualTo(ForStOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue());
+        assertThat(memSettings.getWriteBufferRatio())
+                .isEqualTo(ForStOptions.WRITE_BUFFER_RATIO.defaultValue());
 
         ForStMemoryConfiguration configured =
                 ForStMemoryConfiguration.fromOtherAndConfiguration(
                         memSettings, new Configuration());
-        assertTrue(configured.isUsingManagedMemory());
-        assertFalse(configured.isUsingFixedMemoryPerSlot());
-        assertEquals(
-                ForStOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(),
-                configured.getHighPriorityPoolRatio(),
-                0.0);
-        assertEquals(
-                ForStOptions.WRITE_BUFFER_RATIO.defaultValue(),
-                configured.getWriteBufferRatio(),
-                0.0);
+        assertThat(configured.isUsingManagedMemory()).isTrue();
+        assertThat(configured.isUsingFixedMemoryPerSlot()).isFalse();
+        assertThat(configured.getHighPriorityPoolRatio())
+                .isEqualTo(ForStOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue());
+        assertThat(configured.getWriteBufferRatio())
+                .isEqualTo(ForStOptions.WRITE_BUFFER_RATIO.defaultValue());
     }
 
     @Test
-    public void testConfigureManagedMemory() {
+    void testConfigureManagedMemory() {
         final Configuration config = new Configuration();
         config.set(ForStOptions.USE_MANAGED_MEMORY, true);
 
@@ -744,11 +734,11 @@ public class ForStStateBackendConfigTest {
                 ForStMemoryConfiguration.fromOtherAndConfiguration(
                         new ForStMemoryConfiguration(), config);
 
-        assertTrue(memSettings.isUsingManagedMemory());
+        assertThat(memSettings.isUsingManagedMemory()).isTrue();
     }
 
     @Test
-    public void testConfigureIllegalMemoryControlParameters() {
+    void testConfigureIllegalMemoryControlParameters() {
         ForStMemoryConfiguration memSettings = new ForStMemoryConfiguration();
 
         verifySetParameter(() -> memSettings.setFixedMemoryPerSlot("-1B"));
@@ -761,21 +751,17 @@ public class ForStStateBackendConfigTest {
         memSettings.setWriteBufferRatio(0.6);
         memSettings.setHighPriorityPoolRatio(0.6);
 
-        try {
-            // sum of writeBufferRatio and highPriPoolRatio larger than 1.0
-            memSettings.validate();
-            fail("Expected an IllegalArgumentException.");
-        } catch (IllegalArgumentException expected) {
-            // expected exception
-        }
+        // sum of writeBufferRatio and highPriPoolRatio larger than 1.0
+        assertThatThrownBy(memSettings::validate).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testPrimaryDirectory() throws Exception {
+    void testPrimaryDirectory() throws Exception {
         FileSystem.initialize(new Configuration(), null);
         Configuration configuration = new Configuration();
         configuration.set(
-                ForStOptions.PRIMARY_DIRECTORY, tempFolder.newFolder().toURI().toString());
+                ForStOptions.PRIMARY_DIRECTORY,
+                TempDirUtils.newFolder(tempFolder).toURI().toString());
         ForStStateBackend forStStateBackend =
                 new ForStStateBackend().configure(configuration, null);
         ForStKeyedStateBackend<Integer> keyedBackend = null;
@@ -783,13 +769,10 @@ public class ForStStateBackendConfigTest {
             keyedBackend =
                     createKeyedStateBackend(
                             forStStateBackend,
-                            getMockEnvironment(tempFolder.newFolder()),
+                            getMockEnvironment(TempDirUtils.newFolder(tempFolder)),
                             IntSerializer.INSTANCE);
-            assertTrue(
-                    keyedBackend
-                            .getRemoteBasePath()
-                            .toString()
-                            .startsWith(configuration.get(ForStOptions.PRIMARY_DIRECTORY)));
+            assertThat(keyedBackend.getRemoteBasePath().toString())
+                    .startsWith(configuration.get(ForStOptions.PRIMARY_DIRECTORY));
         } finally {
             if (keyedBackend != null) {
                 keyedBackend.dispose();
@@ -799,14 +782,15 @@ public class ForStStateBackendConfigTest {
     }
 
     @Test
-    public void testSupportSavepoint() {
+    void testSupportSavepoint() {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
-        assertFalse(forStStateBackend.supportsSavepointFormat(SavepointFormatType.CANONICAL));
-        assertTrue(forStStateBackend.supportsSavepointFormat(SavepointFormatType.NATIVE));
+        assertThat(forStStateBackend.supportsSavepointFormat(SavepointFormatType.CANONICAL))
+                .isFalse();
+        assertThat(forStStateBackend.supportsSavepointFormat(SavepointFormatType.NATIVE)).isTrue();
     }
 
     @Test
-    public void testConfigurePeriodicCompactionTime() throws Exception {
+    void testConfigurePeriodicCompactionTime() throws Exception {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         Configuration configuration = new Configuration();
         configuration.setString(
@@ -814,12 +798,12 @@ public class ForStStateBackendConfigTest {
         forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
         try (ForStResourceContainer resourceContainer =
                 forStStateBackend.createOptionsAndResourceContainer(null)) {
-            assertEquals(Duration.ofDays(1), resourceContainer.getPeriodicCompactionTime());
+            assertThat(resourceContainer.getPeriodicCompactionTime()).isEqualTo(Duration.ofDays(1));
         }
     }
 
     @Test
-    public void testConfigureQueryTimeAfterNumEntries() throws Exception {
+    void testConfigureQueryTimeAfterNumEntries() throws Exception {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         Configuration configuration = new Configuration();
         configuration.setString(
@@ -827,17 +811,12 @@ public class ForStStateBackendConfigTest {
         forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
         try (ForStResourceContainer resourceContainer =
                 forStStateBackend.createOptionsAndResourceContainer(null)) {
-            assertEquals(100L, resourceContainer.getQueryTimeAfterNumEntries().longValue());
+            assertThat(resourceContainer.getQueryTimeAfterNumEntries().longValue()).isEqualTo(100L);
         }
     }
 
     private void verifySetParameter(Runnable setter) {
-        try {
-            setter.run();
-            fail("No expected IllegalArgumentException.");
-        } catch (IllegalArgumentException expected) {
-            // expected exception
-        }
+        assertThatThrownBy(setter::run).isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------------------------------------------------
@@ -867,12 +846,8 @@ public class ForStStateBackendConfigTest {
         configuration.setString(configOption.key(), configValue);
 
         ForStStateBackend stateBackend = new ForStStateBackend();
-        try {
-            stateBackend.configure(configuration, null);
-            fail("Not throwing expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {
-            // ignored
-        }
+        assertThatThrownBy(() -> stateBackend.configure(configuration, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** An implementation of options factory for testing. */

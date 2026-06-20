@@ -20,15 +20,15 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test all native metrics can be set using configuration. */
-public class ForStNativeMetricOptionsTest {
+class ForStNativeMetricOptionsTest {
     @Test
-    public void testNativeMetricsConfigurable() {
+    void testNativeMetricsConfigurable() {
         for (ForStProperty property : ForStProperty.values()) {
             Configuration config = new Configuration();
             if (property.getConfigKey().contains("num-files-at-level")) {
@@ -39,17 +39,12 @@ public class ForStNativeMetricOptionsTest {
 
             ForStNativeMetricOptions options = ForStNativeMetricOptions.fromConfig(config);
 
-            Assert.assertTrue(
-                    String.format(
-                            "Failed to enable native metrics with property %s",
-                            property.getConfigKey()),
-                    options.isEnabled());
-
-            Assert.assertTrue(
-                    String.format(
-                            "Failed to enable native metric %s using config",
-                            property.getConfigKey()),
-                    options.getProperties().contains(property));
+            assertThat(options.isEnabled())
+                    .as("Failed to enable native metrics with property %s", property.getConfigKey())
+                    .isTrue();
+            assertThat(options.getProperties())
+                    .as("Failed to enable native metric %s using config", property.getConfigKey())
+                    .contains(property);
         }
     }
 }
