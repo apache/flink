@@ -27,14 +27,18 @@ import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentSchemaRegistryCoder;
+import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroDecodingFormat.ReadableMetadata;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
@@ -54,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -88,7 +93,7 @@ class DebeziumAvroSerDeSchemaTest {
 
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
-                        fromLogicalToDataType(rowType));
+                        fromLogicalToDataType(rowType), Collections.emptyList());
         RowType rowTypeSe =
                 DebeziumAvroSerializationSchema.createDebeziumAvroRowType(
                         fromLogicalToDataType(rowType));
@@ -146,10 +151,42 @@ class DebeziumAvroSerDeSchemaTest {
         assertThat(actual).isEqualTo(expected);
     }
 
+    @Test
+    void testDeserializationWithMetadata() throws Exception {
+        testDeserializationWithMetadata(
+                "debezium-avro-insert.avro",
+                row -> {
+                    // Physical columns
+                    assertThat(row.getLong(0)).isEqualTo(1L);
+                    assertThat(row.getString(1).toString()).isEqualTo("lisi");
+                    assertThat(row.getString(2).toString()).isEqualTo("test debezium avro data");
+                    assertThat(row.getDouble(3)).isEqualTo(21.799999237060547);
+
+                    // Metadata: ingestion-timestamp (field index 4)
+                    assertThat(row.getTimestamp(4, 3)).isNotNull();
+
+                    // Metadata: source.timestamp (field index 5)
+                    assertThat(row.getTimestamp(5, 3)).isNotNull();
+
+                    // Metadata: source.database (field index 6)
+                    assertThat(row.getString(6).toString()).isEqualTo("test1");
+
+                    // Metadata: source.schema (field index 7) - may be null for MySQL
+                    // MySQL doesn't have schema field in source
+
+                    // Metadata: source.table (field index 8)
+                    assertThat(row.getString(8).toString()).isEqualTo("person");
+
+                    // Metadata: source.properties (field index 9)
+                    assertThat(row.getMap(9)).isNotNull();
+                    assertThat(row.getMap(9).size()).isGreaterThan(0);
+                });
+    }
+
     public List<String> testDeserialization(String dataPath) throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
-                        fromLogicalToDataType(rowType));
+                        fromLogicalToDataType(rowType), Collections.emptyList());
 
         client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
@@ -162,6 +199,36 @@ class DebeziumAvroSerDeSchemaTest {
         dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
 
         return collector.list.stream().map(Object::toString).collect(Collectors.toList());
+    }
+
+    private void testDeserializationWithMetadata(String dataPath, Consumer<RowData> testConsumer)
+            throws Exception {
+        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+
+        final DataType producedDataType =
+                DataTypeUtils.appendRowFields(
+                        fromLogicalToDataType(rowType),
+                        requestedMetadata.stream()
+                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
+                                .collect(Collectors.toList()));
+
+        RowType rowTypeDe =
+                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
+                        fromLogicalToDataType(rowType), requestedMetadata);
+
+        client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
+
+        DebeziumAvroDeserializationSchema dbzDeserializer =
+                new DebeziumAvroDeserializationSchema(
+                        InternalTypeInfo.of(producedDataType.getLogicalType()),
+                        getDeserializationSchema(rowTypeDe));
+        dbzDeserializer.open(new MockInitializationContext());
+
+        SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
+
+        assertThat(collector.list).hasSize(1);
+        assertThat(collector.list.get(0)).satisfies(testConsumer);
     }
 
     private AvroRowDataDeserializationSchema getDeserializationSchema(RowType rowType) {
