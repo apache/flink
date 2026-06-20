@@ -68,7 +68,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>3.2.3</version>
+			<version>3.9.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
