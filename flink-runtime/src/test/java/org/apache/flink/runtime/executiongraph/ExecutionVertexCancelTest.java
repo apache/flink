@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.NoMainThreadCheckComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.utils.ExecutionUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -247,12 +248,14 @@ class ExecutionVertexCancelTest {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
                         JobGraphTestUtils.streamingJobGraph(createNoOpVertex(10)),
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new NoMainThreadCheckComponentMainThreadExecutor(),
                         EXECUTOR_RESOURCE.getExecutor());
         final ExecutionGraph graph = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
-
+        for (ExecutionVertex ev : graph.getAllExecutionVertices()) {
+            ExecutionUtils.waitForTaskDeploymentDescriptorsCreation(ev);
+        }
         ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);
         assertThat(graph.getState()).isEqualTo(JobStatus.RUNNING);
 
