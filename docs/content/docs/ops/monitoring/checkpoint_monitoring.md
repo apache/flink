@@ -29,7 +29,7 @@ under the License.
 
 ## Overview
 
-Flink's web interface provides a tab to monitor the checkpoints of jobs. These stats are also available after the job has terminated. There are four different tabs to display information about your checkpoints: Overview, History, Summary, and Configuration. The following sections will cover all of these in turn.
+Flink's web interface provides a tab to monitor the checkpoints of jobs. These stats are also available after the job has terminated. There are five different tabs to display information about your checkpoints: Overview, Timeline, History, Summary, and Configuration. The following sections will cover all of these in turn.
 
 ## Monitoring
 
@@ -49,6 +49,18 @@ The overview tabs lists the following statistics. Note that these statistics don
 - **Latest Restore**: There are two types of restore operations.
 	- Restore from Checkpoint: We restored from a regular periodic checkpoint.
 	- Restore from Savepoint: We restored from a savepoint.
+
+### Timeline Tab
+
+The timeline tab shows where the time of a checkpoint went, subtask by subtask.
+
+- **Recent Checkpoints**: One bar per checkpoint in the [history](#history-size-configuration), colored by status (completed, savepoint, in progress, failed). The bar height is the end to end duration. Hover over a bar for its status, duration and acknowledged subtasks.
+- **Per-subtask timeline**: One row per subtask, in operator then subtask order, plotted against wall-clock time from the moment the checkpoint was triggered. Each row stacks the subtask's phases: start delay, alignment, sync and async (see [History Tab](#history-tab) for what they mean). For unaligned checkpoints the alignment is part of the async phase, so it is not drawn separately. Hover over a bar for the full operator name, the phase durations and the state sizes.
+	- Subtasks that started their snapshot but did not finish it before the checkpoint failed are outlined as *aborted*.
+	- Subtasks that reported no statistics get a hatched bar spanning the checkpoint: *pending* while the checkpoint is in progress, *no ack* once it has failed.
+	- Subtasks whose phases all took 0 ms, for example tasks that have already finished, are marked with a thin line at the trigger time.
+
+By default the per-subtask timeline follows the newest checkpoint. Click a bar in *Recent Checkpoints* to pin that checkpoint instead, and click it again or click *Follow newest* to resume following. While the tab is open, it refreshes on its own at the checkpoint interval, bounded between 1.5 and 15 seconds.
 
 ### History Tab
 
