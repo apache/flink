@@ -1,0 +1,143 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="timeline-wrapper">
+  <section class="strip-section">
+    <header class="strip-header">
+      <div class="strip-title">
+        <strong>Recent Checkpoints</strong>
+        <span class="hint">Click a bar to load its per-subtask timeline below.</span>
+      </div>
+      <ul class="legend">
+        <li>
+          <span class="swatch completed"></span>
+          Completed
+        </li>
+        <li>
+          <span class="swatch savepoint"></span>
+          Savepoint
+        </li>
+        <li>
+          <span class="swatch in-progress"></span>
+          In progress
+        </li>
+        <li>
+          <span class="swatch failed"></span>
+          Failed
+        </li>
+      </ul>
+    </header>
+    <div class="strip-canvas" #stripContainer></div>
+    <nz-empty
+      *ngIf="!history || history.length === 0"
+      nzNotFoundContent="No checkpoint history yet"
+    ></nz-empty>
+  </section>
+
+  <section class="timeline-section">
+    <header class="timeline-header">
+      <div class="timeline-title">
+        <strong *ngIf="selected">
+          Checkpoint #{{ selected.id }}
+          <span
+            *ngIf="userPinned"
+            class="pin-badge"
+            title="Pinned: the timeline below will not change until you click another checkpoint or 'Follow newest'."
+          >
+            pinned
+          </span>
+        </strong>
+        <strong *ngIf="!selected">Per-subtask Timeline</strong>
+        <span *ngIf="selected" class="hint">
+          {{ selected.rawStatus }}
+          <ng-container *ngIf="selected.isSavepoint">· savepoint</ng-container>
+          · triggered {{ selected.triggered | date: 'yyyy-MM-dd HH:mm:ss.SSS' }} ·
+          {{ selected.duration | humanizeDuration }} · acked {{ selected.acked }} ·
+          {{ selected.size | humanizeBytes }}
+        </span>
+        <div class="timeline-actions">
+          <button *ngIf="userPinned" type="button" class="follow-newest" (click)="followNewest()">
+            Follow newest
+          </button>
+        </div>
+      </div>
+      <ul class="legend">
+        <li>
+          <span class="swatch phase-start"></span>
+          start_delay
+        </li>
+        <li>
+          <span class="swatch phase-align"></span>
+          alignment
+        </li>
+        <li>
+          <span class="swatch phase-sync"></span>
+          sync
+        </li>
+        <li>
+          <span class="swatch phase-async"></span>
+          async
+        </li>
+        <li
+          class="outlier-swatch"
+          nz-tooltip
+          [nzTooltipTitle]="stragglerTip"
+          nzTooltipPlacement="bottom"
+        >
+          <span class="swatch outlier"></span>
+          straggler / aborted
+        </li>
+        <ng-template #stragglerTip>
+          Subtasks outlined in red were aborted, or their total duration met or exceeded this
+          checkpoint's outlier threshold — the larger of the p95 and 1.5&times; the median subtask
+          duration. They are the rows to investigate first.
+        </ng-template>
+      </ul>
+    </header>
+
+    <!-- Reserve the line while a checkpoint is selected so the chart doesn't shift. -->
+    <div *ngIf="selected" class="rotated-out-note">
+      <span *ngIf="selectedRotatedOut && !timelineEmpty">
+        Checkpoint #{{ selected?.id }} is no longer in the recent-checkpoints strip above — showing
+        the frozen snapshot from when it was pinned.
+      </span>
+    </div>
+
+    <nz-alert
+      *ngIf="failedVertexCount > 0 && !loadFailed"
+      class="partial-failure"
+      nzType="warning"
+      nzShowIcon
+      [nzMessage]="partialFailureMessage"
+    ></nz-alert>
+
+    <div class="timeline-canvas-wrapper" [class.loading]="loadingTimeline">
+      <nz-spin [nzSpinning]="loadingTimeline">
+        <div class="timeline-canvas" [class.hidden]="timelineEmpty" #timelineContainer></div>
+        <nz-empty
+          *ngIf="timelineEmpty && !loadingTimeline"
+          [nzNotFoundContent]="
+            loadFailed
+              ? 'Could not load subtask data — this checkpoint may no longer be retained by the JobManager'
+              : 'No subtask data for this checkpoint'
+          "
+        ></nz-empty>
+      </nz-spin>
+    </div>
+  </section>
+</div>

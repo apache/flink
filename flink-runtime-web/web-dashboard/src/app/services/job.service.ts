@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, forkJoin, mergeMap, Observable } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { EMPTY, forkJoin, from, mergeMap, Observable, of } from 'rxjs';
+import { catchError, map, reduce } from 'rxjs/operators';
 
 import {
   Checkpoint,
@@ -53,11 +53,14 @@ import {
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JobService {
+  private static readonly SUBTASK_DETAILS_CONCURRENCY = 6;
+
   constructor(
     private readonly httpClient: HttpClient,
     private readonly configService: ConfigService
@@ -180,10 +183,32 @@ export class JobService {
   public loadCheckpointSubtaskDetails(
     jobId: string,
     checkPointId: number,
-    vertexId: string
+    vertexId: string,
+    expectNotFound = false
   ): Observable<CheckpointSubTask> {
     return this.httpClient.get<CheckpointSubTask>(
-      `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
+      `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`,
+      { context: new HttpContext().set(EXPECTED_NOT_FOUND, expectNotFound) }
+    );
+  }
+
+  public loadCheckpointAllSubtaskDetails(
+    jobId: string,
+    checkPointId: number,
+    vertexIds: string[]
+  ): Observable<Record<string, CheckpointSubTask | null>> {
+    // A 404 is expected here: the checkpoint may still be in progress or already reaped by the JM.
+    // Concurrency is bounded to avoid exhausting the browser connection pool on large jobs.
+    return from(vertexIds).pipe(
+      mergeMap(
+        vid =>
+          this.loadCheckpointSubtaskDetails(jobId, checkPointId, vid, true).pipe(
+            catchError(() => of<CheckpointSubTask | null>(null)),
+            map(result => ({ [vid]: result }))
+          ),
+        JobService.SUBTASK_DETAILS_CONCURRENCY
+      ),
+      reduce((acc, part) => Object.assign(acc, part), {} as Record<string, CheckpointSubTask | null>)
     );
   }
 
