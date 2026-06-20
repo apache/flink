@@ -222,11 +222,19 @@
       </tbody>
     </nz-table>
   </nz-tab>
+  <nz-tab nzTitle="Timeline">
+    <flink-job-checkpoints-timeline
+      [jobId]="jobDetail?.jid"
+      [vertices]="jobDetail?.vertices || []"
+      [history]="checkPointStats?.history || []"
+      [config]="checkPointConfig"
+    ></flink-job-checkpoints-timeline>
+  </nz-tab>
   <nz-tab nzTitle="History">
     <nz-table
       class="no-border small"
       [nzSize]="'small'"
-      [nzData]="checkPointStats['history'] || []"
+      [nzData]="checkPointStats?.history || []"
       [nzFrontPagination]="false"
       [nzShowPagination]="false"
     >
@@ -256,7 +264,7 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let checkpoint of checkPointStats['history']; trackBy: trackById">
+        <ng-container *ngFor="let checkpoint of checkPointStats?.history; trackBy: trackById">
           <tr>
             <td nzShowExpand [(nzExpand)]="checkpoint.expand"></td>
             <td>{{ checkpoint['id'] }}</td>

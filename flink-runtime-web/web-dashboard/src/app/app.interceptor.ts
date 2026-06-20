@@ -59,9 +59,18 @@ export class AppInterceptor implements HttpInterceptor {
           window.location.href = String(res.headers.get('Location'));
         }
 
+        // A per-subtask checkpoint fetch can race the JM reaping that checkpoint (or hit it
+        // before it acks), yielding a benign 404. Suppress only that case; real 5xx/auth on
+        // the same path still surface.
+        const isExpectedSubtaskNotFound =
+          res instanceof HttpResponseBase &&
+          res.status === HttpStatusCode.NotFound &&
+          /\/checkpoints\/details\/\d+\/subtasks\//.test(res.url || '');
+
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
         if (
           errorMessage &&
+          !isExpectedSubtaskNotFound &&
           ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url)) &&
           ignoreErrorMessage.every(message => errorMessage !== message)
         ) {
