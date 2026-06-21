@@ -33,7 +33,6 @@ import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.mapping.IntPair
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -147,15 +146,15 @@ object TemporalJoinUtil {
   private def makePrimaryKeyCall(
       rexBuilder: RexBuilder,
       rightPrimaryKeyExpression: Seq[RexNode]): RexNode = {
-    rexBuilder.makeCall(TEMPORAL_JOIN_CONDITION_PRIMARY_KEY, rightPrimaryKeyExpression)
+    rexBuilder.makeCall(TEMPORAL_JOIN_CONDITION_PRIMARY_KEY, rightPrimaryKeyExpression.asJava)
   }
 
   private def makeLeftJoinKeyCall(rexBuilder: RexBuilder, keyExpression: Seq[RexNode]): RexNode = {
-    rexBuilder.makeCall(TEMPORAL_JOIN_LEFT_KEY, keyExpression)
+    rexBuilder.makeCall(TEMPORAL_JOIN_LEFT_KEY, keyExpression.asJava)
   }
 
   private def makeRightJoinKeyCall(rexBuilder: RexBuilder, keyExpression: Seq[RexNode]): RexNode = {
-    rexBuilder.makeCall(TEMPORAL_JOIN_RIGHT_KEY, keyExpression)
+    rexBuilder.makeCall(TEMPORAL_JOIN_RIGHT_KEY, keyExpression.asJava)
   }
 
   def makeProcTimeTemporalFunctionJoinConCall(
@@ -242,12 +241,12 @@ object TemporalJoinUtil {
 
   def isInitialRowTimeTemporalTableJoin(rexCall: RexCall): Boolean = {
     // (LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY)
-    rexCall.getOperator == INITIAL_TEMPORAL_JOIN_CONDITION && rexCall.operands.length == 4
+    rexCall.getOperator == INITIAL_TEMPORAL_JOIN_CONDITION && rexCall.operands.size() == 4
   }
 
   def isInitialProcTimeTemporalTableJoin(rexCall: RexCall): Boolean = {
     // (LEFT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY)
-    rexCall.getOperator == INITIAL_TEMPORAL_JOIN_CONDITION && rexCall.operands.length == 3
+    rexCall.getOperator == INITIAL_TEMPORAL_JOIN_CONDITION && rexCall.operands.size() == 3
   }
 
   private def containsTemporalJoinCondition(condition: RexNode): Boolean = {
@@ -305,7 +304,7 @@ object TemporalJoinUtil {
 
   def isRowTimeTemporalFunctionJoinCon(rexCall: RexCall): Boolean = {
     // (LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, PRIMARY_KEY)
-    rexCall.getOperator == TEMPORAL_JOIN_CONDITION && rexCall.operands.length == 3
+    rexCall.getOperator == TEMPORAL_JOIN_CONDITION && rexCall.operands.size() == 3
   }
 
   def isTemporalFunctionJoin(rexBuilder: RexBuilder, joinInfo: JoinInfo): Boolean = {
@@ -328,7 +327,7 @@ object TemporalJoinUtil {
     // (LEFT_TIME_ATTRIBUTE, PRIMARY_KEY)
     // (LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, PRIMARY_KEY)
     rexCall.getOperator == TEMPORAL_JOIN_CONDITION &&
-    (rexCall.operands.length == 2 || rexCall.operands.length == 3)
+    (rexCall.operands.size() == 2 || rexCall.operands.size() == 3)
   }
 
   def validateTemporalFunctionCondition(
