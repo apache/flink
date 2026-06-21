@@ -73,9 +73,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code HAJobRunOnSeaweedFsS3StoreITCase} covers a job run where the HA data is stored in
- * SeaweedFs. The implementation verifies whether the {@code JobResult} was written into the
- * FileSystem-backed {@code JobResultStore}.
+ * {@code S5CmdOnSeaweedFsITCase} verifies that Flink uses the configured s5cmd binary for S3 state
+ * transfers (e.g. downloading RocksDB state on recovery) when running against a SeaweedFs-backed S3
+ * store.
  */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class S5CmdOnSeaweedFsITCase {
@@ -112,8 +112,7 @@ public abstract class S5CmdOnSeaweedFsITCase {
             // authentication mechanism, that takes precedence over passing secret and access keys
             // via environment variables. For example maybe there exists a credentials file in the
             // default location with secrets from the S3, not SeaweedFs. To circumvent it, lets use
-            // our
-            // own credentials file with secrets for SeaweedFs.
+            // our own credentials file with secrets for SeaweedFs.
             checkState(credentialsFile.createNewFile());
             getSeaweedFsContainer().writeCredentialsFile(credentialsFile);
             config.set(
