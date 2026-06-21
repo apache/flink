@@ -227,6 +227,7 @@ public class TaskMailboxImpl implements TaskMailbox {
     private void moveUrgentMailsToBatchIfNeeded(boolean onlyMoveUrgentMails) {
         checkIsMailboxThread();
         Mail peek = batch.peek();
+        final boolean isBatchEmpty = peek == null;
         if (peek != null) {
             if (peek.getMailOptions().isUrgent()) {
                 // To ensure that urgent mails are executed in FIFO order, moving mails from queue
@@ -247,6 +248,10 @@ public class TaskMailboxImpl implements TaskMailbox {
             }
         }
 
+        // When the batch is empty, also pull non-urgent mails in (not just urgent ones): otherwise a
+        // non-urgent mail queued behind an urgent one is put back and stranded until the next batch,
+        // starving processing-time timers between unaligned checkpoints.
+        final boolean shouldOnlyMoveUrgentMails = onlyMoveUrgentMails && !isBatchEmpty;
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -255,7 +260,7 @@ public class TaskMailboxImpl implements TaskMailbox {
                 if (mail.getMailOptions().isUrgent()) {
                     batch.addFirst(mail);
                 } else {
-                    if (onlyMoveUrgentMails) {
+                    if (shouldOnlyMoveUrgentMails) {
                         // Put non-urgent mail back into the queue, and stop the loop
                         queue.addFirst(mail);
                         break;
