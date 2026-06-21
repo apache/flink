@@ -102,7 +102,8 @@ class AdaptiveBatchSchedulerTest {
         // execution semantics without strict thread identity checks. This fixes flaky test
         // failures (FLINK-38970) caused by main thread constraint violations when
         // CompletableFuture callbacks are dispatched from background IO executor threads.
-        // The synchronous execution is preserved while eliminating the race condition.
+// No-op thread check avoids flakiness from FLINK-38970: scheduler callbacks
+// can complete on background IO threads rather than the main thread.
         mainThreadExecutor = new NoMainThreadCheckComponentMainThreadExecutor();
         taskRestartExecutor = new ManuallyTriggeredScheduledExecutor();
     }
