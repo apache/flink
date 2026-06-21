@@ -83,7 +83,7 @@ import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterable
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
-public class AdaptiveBatchSchedulerTest {
+class AdaptiveBatchSchedulerTest {
 
     private static final int SOURCE_PARALLELISM_1 = 6;
     private static final int SOURCE_PARALLELISM_2 = 4;
