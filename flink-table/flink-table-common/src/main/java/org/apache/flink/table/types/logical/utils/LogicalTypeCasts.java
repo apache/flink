@@ -167,6 +167,29 @@ public final class LogicalTypeCasts {
                 return (long) getLength(target) >= (long) getLength(source) * 4;
             };
 
+    /**
+     * Injective when the target char length can hold a UTF-8 byte string (at most one char per
+     * byte).
+     */
+    private static final BiPredicate<LogicalType, LogicalType> WHEN_CHAR_LENGTH_FITS_UTF8 =
+            (source, target) -> {
+                // Only CHAR with max length is safe.
+                // Bounded CHAR right-pads short values with spaces, so distinct inputs collide.
+                // Example of collision for CHAR(3):
+                //   bytes [0x61] -> "a" -> "a  "
+                //   bytes [0x61,0x20,0x20] -> "a  "
+                if (target.is(CHAR) && !hasMaxLength(target)) {
+                    return false;
+                }
+                if (hasMaxLength(target)) {
+                    return true;
+                }
+                if (hasMaxLength(source)) {
+                    return false;
+                }
+                return getLength(target) >= getLength(source);
+            };
+
     static {
         implicitCastingRules = new HashMap<>();
         explicitCastingRules = new HashMap<>();
@@ -188,6 +211,7 @@ public final class LogicalTypeCasts {
                 .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
+                .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
                 .build();
 
         castTo(VARCHAR)
@@ -196,6 +220,7 @@ public final class LogicalTypeCasts {
                 .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
+                .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
                 .build();
 
         // -----------------------------------------------------------------------------------------

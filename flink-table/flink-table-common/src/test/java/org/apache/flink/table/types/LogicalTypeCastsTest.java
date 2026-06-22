@@ -340,9 +340,9 @@ class LogicalTypeCastsTest {
                 // DECIMAL to STRING is NOT considered injective
                 Arguments.of(new DecimalType(10, 2), VarCharType.STRING_TYPE, false),
 
-                // BYTES to STRING is NOT injective (invalid UTF-8 sequences collapse)
-                Arguments.of(new VarBinaryType(100), VarCharType.STRING_TYPE, false),
-                Arguments.of(new BinaryType(100), VarCharType.STRING_TYPE, false),
+                // BYTES to STRING is injective: UTF-8 decodes to at most one char per byte
+                Arguments.of(new VarBinaryType(100), VarCharType.STRING_TYPE, true),
+                Arguments.of(new BinaryType(100), VarCharType.STRING_TYPE, true),
 
                 // TIMESTAMP_WITH_TIME_ZONE to STRING is NOT injective
                 // (theory: two timestamps with different zones could produce same string
@@ -507,7 +507,32 @@ class LogicalTypeCastsTest {
                 // CHAR(10) → VARBINARY(40): fixed char to var binary
                 Arguments.of(new CharType(10), new VarBinaryType(40), true),
                 // VARCHAR(10) → BINARY(40): var char to fixed binary
-                Arguments.of(new VarCharType(10), new BinaryType(40), true));
+                Arguments.of(new VarCharType(10), new BinaryType(40), true),
+
+                // ---- Binary to string injective casts (UTF-8: at most one char per byte) ----
+
+                // VARBINARY(MAX) → VARCHAR(MAX): both unbounded
+                Arguments.of(
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH), VarCharType.STRING_TYPE, true),
+                // BINARY(MAX) → VARCHAR(MAX): both unbounded
+                Arguments.of(new BinaryType(BinaryType.MAX_LENGTH), VarCharType.STRING_TYPE, true),
+                // VARBINARY(10) → VARCHAR(10): exact fit
+                Arguments.of(new VarBinaryType(10), new VarCharType(10), true),
+                // VARBINARY(10) → VARCHAR(9): one char short
+                Arguments.of(new VarBinaryType(10), new VarCharType(9), false),
+                // VARBINARY(10) → VARCHAR(MAX): bounded source, unbounded target
+                Arguments.of(new VarBinaryType(10), VarCharType.STRING_TYPE, true),
+                // VARBINARY(MAX) → VARCHAR(100): unbounded source, bounded target
+                Arguments.of(
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH), new VarCharType(100), false),
+                // BINARY(10) → VARCHAR(10): fixed binary to var char, exact fit
+                Arguments.of(new BinaryType(10), new VarCharType(10), true),
+                // VARBINARY(10) → CHAR(10): bounded CHAR pads short values, NOT injective
+                Arguments.of(new VarBinaryType(10), new CharType(10), false),
+                // VARBINARY(10) → CHAR(MAX): unbounded CHAR does not pad, injective
+                Arguments.of(new VarBinaryType(10), new CharType(CharType.MAX_LENGTH), true),
+                // BINARY(10) → CHAR(20): bounded CHAR pads even when wider, NOT injective
+                Arguments.of(new BinaryType(10), new CharType(20), false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")
