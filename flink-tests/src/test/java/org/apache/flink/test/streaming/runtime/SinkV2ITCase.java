@@ -210,7 +210,7 @@ class SinkV2ITCase extends AbstractTestBase {
             assertThat(remainingActual).contains(expectedRecord);
             remainingActual.remove(expectedRecord);
         }
-        assertThat(remainingActual).allSatisfy(record -> assertThat(expected).contains(record));
+        assertThat(remainingActual).isSubsetOf(expected);
     }
 
     private static List<Record<Integer>> duplicate(List<Record<Integer>> values) {
