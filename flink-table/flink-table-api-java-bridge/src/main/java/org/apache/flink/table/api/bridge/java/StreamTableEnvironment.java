@@ -19,11 +19,13 @@
 package org.apache.flink.table.api.bridge.java;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -88,7 +90,12 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        return create(executionEnvironment, EnvironmentSettings.newInstance().build());
+        final EnvironmentSettings.Builder settingsBuilder = EnvironmentSettings.newInstance();
+        if (executionEnvironment.getConfiguration().get(ExecutionOptions.RUNTIME_MODE)
+                == RuntimeExecutionMode.BATCH) {
+            settingsBuilder.inBatchMode();
+        }
+        return create(executionEnvironment, settingsBuilder.build());
     }
 
     /**
