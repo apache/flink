@@ -87,6 +87,8 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * Factory for row expressions.
  *
  * <p>Some common literal values (NULL, TRUE, FALSE, 0, 1, '') are cached.
+ *
+ * <p>FLINK modifications (because of FLINK-39945): Lines 858-860, 1277-1294
  */
 public class RexBuilder {
     /**
