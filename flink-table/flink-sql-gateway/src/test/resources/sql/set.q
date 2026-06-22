@@ -27,19 +27,17 @@ reset table.resources.download-dir;
 
 set;
 !output
-+-------------------------------------------------+--------------+
-|                                             key |        value |
-+-------------------------------------------------+--------------+
-|                 $internal.deployment.config-dir | /dummy/conf/ |
-|                              execution.attached |         true |
-|             execution.shutdown-on-attached-exit |        false |
-|             execution.state-recovery.claim-mode |     NO_CLAIM |
-| execution.state-recovery.ignore-unclaimed-state |        false |
-|                                execution.target |       remote |
-|                          jobmanager.rpc.address |    localhost |
-|                                       rest.port |        $VAR_REST_PORT |
-+-------------------------------------------------+--------------+
-8 rows in set
++-------------------------------------+--------------+
+|                                 key |        value |
++-------------------------------------+--------------+
+|     $internal.deployment.config-dir | /dummy/conf/ |
+|                  execution.attached |         true |
+| execution.shutdown-on-attached-exit |        false |
+|                    execution.target |       remote |
+|              jobmanager.rpc.address |    localhost |
+|                           rest.port |        $VAR_REST_PORT |
++-------------------------------------+--------------+
+6 rows in set
 !ok
 
 # set illegal value
@@ -50,17 +48,15 @@ java.lang.IllegalArgumentException: No enum constant org.apache.flink.table.api.
 
 set;
 !output
-+-------------------------------------------------+--------------+
-|                                             key |        value |
-+-------------------------------------------------+--------------+
-|                 $internal.deployment.config-dir | /dummy/conf/ |
-|                              execution.attached |         true |
-|             execution.shutdown-on-attached-exit |        false |
-|             execution.state-recovery.claim-mode |     NO_CLAIM |
-| execution.state-recovery.ignore-unclaimed-state |        false |
-|                                execution.target |       remote |
-|                          jobmanager.rpc.address |    localhost |
-|                                       rest.port |        $VAR_REST_PORT |
-+-------------------------------------------------+--------------+
-8 rows in set
++-------------------------------------+--------------+
+|                                 key |        value |
++-------------------------------------+--------------+
+|     $internal.deployment.config-dir | /dummy/conf/ |
+|                  execution.attached |         true |
+| execution.shutdown-on-attached-exit |        false |
+|                    execution.target |       remote |
+|              jobmanager.rpc.address |    localhost |
+|                           rest.port |        $VAR_REST_PORT |
++-------------------------------------+--------------+
+6 rows in set
 !ok
