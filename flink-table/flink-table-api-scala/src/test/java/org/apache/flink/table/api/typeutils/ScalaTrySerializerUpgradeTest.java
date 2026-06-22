@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.Condition;
-import org.junit.jupiter.api.Disabled;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +37,6 @@ import scala.util.Failure;
 import scala.util.Try;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link TrySerializer}. */
-@Disabled("FLINK-36334")
 class ScalaTrySerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Try<String>, Try<String>> {
 
