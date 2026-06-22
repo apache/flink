@@ -63,6 +63,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -186,10 +187,30 @@ class SinkV2ITCase extends AbstractTestBase {
         runStreamingWithScalingTest(
                 config, initialParallelism, trackingCommitter, false, miniCluster, clusterClient);
 
-        assertThat(committed.get())
-                .extracting(Committer.CommitRequest::getCommittable)
-                .containsExactlyInAnyOrderElementsOf(
-                        duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
+        assertRecordsContainAtLeastExpected(
+                committed.get().stream()
+                        .map(Committer.CommitRequest::getCommittable)
+                        .collect(Collectors.toList()),
+                duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
+    }
+
+    @Test
+    void committedRecordAssertionAllowsAdditionalRetriedCommittables() {
+        final List<Record<Integer>> expected = duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE);
+        final List<Record<Integer>> actual = new ArrayList<>(expected);
+        actual.add(expected.get(0));
+
+        assertRecordsContainAtLeastExpected(actual, expected);
+    }
+
+    private static void assertRecordsContainAtLeastExpected(
+            Collection<Record<Integer>> actual, List<Record<Integer>> expected) {
+        final List<Record<Integer>> remainingActual = new ArrayList<>(actual);
+        for (Record<Integer> expectedRecord : expected) {
+            assertThat(remainingActual).contains(expectedRecord);
+            remainingActual.remove(expectedRecord);
+        }
+        assertThat(remainingActual).allSatisfy(record -> assertThat(expected).contains(record));
     }
 
     private static List<Record<Integer>> duplicate(List<Record<Integer>> values) {
