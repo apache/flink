@@ -22,6 +22,7 @@ import org.apache.flink.client.program.ProgramAbortException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,19 +83,21 @@ public final class PythonDriver {
         PythonEnvUtils.setGatewayServer(gatewayServer);
 
         PythonEnvUtils.PythonProcessShutdownHook shutdownHook = null;
+        Process pythonProcess = null;
+        String tmpDir = null;
 
         // commands which will be exec in python progress.
         final List<String> commands = constructPythonCommands(pythonDriverOptions);
         try {
             // prepare the exec environment of python progress.
-            String tmpDir =
+            tmpDir =
                     System.getProperty("java.io.tmpdir")
                             + File.separator
                             + "pyflink"
                             + File.separator
                             + UUID.randomUUID();
             // start the python process.
-            Process pythonProcess =
+            pythonProcess =
                     PythonEnvUtils.launchPy4jPythonClient(
                             gatewayServer,
                             config,
@@ -131,6 +134,19 @@ public final class PythonDriver {
             }
         } catch (Throwable e) {
             LOG.error("Run python process failed", e);
+
+            if (shutdownHook == null) {
+                if (pythonProcess != null) {
+                    new PythonEnvUtils.PythonProcessShutdownHook(
+                                    pythonProcess, gatewayServer, tmpDir)
+                            .run();
+                } else {
+                    if (tmpDir != null) {
+                        FileUtils.deleteDirectoryQuietly(new File(tmpDir));
+                    }
+                    gatewayServer.shutdown();
+                }
+            }
 
             if (PythonEnvUtils.capturedJavaException != null) {
                 throw PythonEnvUtils.capturedJavaException;
