@@ -49,6 +49,7 @@ import org.apache.calcite.tools.RelBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -113,6 +114,82 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         return new Tuple2<>(result, newTableSourceTable);
     }
 
+    /**
+     * Classifies convertible predicates into physical and metadata, pushes each through the
+     * appropriate path, and returns the updated table plus any remaining predicates.
+     */
+    protected FilterClassificationResult classifyAndPushFilters(
+            RexNode[] convertiblePredicates,
+            TableSourceTable tableSourceTable,
+            TableScan scan,
+            RelBuilder relBuilder) {
+
+        boolean supportsPhysicalFilter = canPushdownFilter(tableSourceTable);
+        boolean supportsMetadataFilter = canPushdownMetadataFilter(tableSourceTable);
+        Set<Integer> metadataColumnIndices = metadataColumnIndices(tableSourceTable, scan);
+
+        List<RexNode> allRemainingRexNodes = new ArrayList<>();
+        TableSourceTable currentTable = tableSourceTable;
+
+        List<RexNode> physicalPredicates = new ArrayList<>();
+        List<RexNode> metadataPredicates = new ArrayList<>();
+        for (RexNode predicate : convertiblePredicates) {
+            if (referencesOnlyMetadataColumns(predicate, metadataColumnIndices)) {
+                if (supportsMetadataFilter) {
+                    metadataPredicates.add(predicate);
+                } else {
+                    allRemainingRexNodes.add(predicate);
+                }
+            } else if (referencesAnyMetadataColumns(predicate, metadataColumnIndices)) {
+                allRemainingRexNodes.add(predicate);
+            } else {
+                physicalPredicates.add(predicate);
+            }
+        }
+
+        if ((physicalPredicates.isEmpty() || !supportsPhysicalFilter)
+                && metadataPredicates.isEmpty()) {
+            return null;
+        }
+
+        if (!physicalPredicates.isEmpty() && supportsPhysicalFilter) {
+            Tuple2<SupportsFilterPushDown.Result, TableSourceTable> physicalResult =
+                    resolveFiltersAndCreateTableSourceTable(
+                            physicalPredicates.toArray(new RexNode[0]),
+                            currentTable,
+                            scan,
+                            relBuilder);
+            currentTable = physicalResult._2;
+            List<RexNode> physicalRemaining =
+                    convertExpressionToRexNode(physicalResult._1.getRemainingFilters(), relBuilder);
+            allRemainingRexNodes.addAll(physicalRemaining);
+        } else {
+            allRemainingRexNodes.addAll(physicalPredicates);
+        }
+
+        if (!metadataPredicates.isEmpty()) {
+            MetadataPushDownOutcome metadataResult =
+                    resolveMetadataFiltersAndCreateTableSourceTable(
+                            metadataPredicates.toArray(new RexNode[0]), currentTable, scan);
+            currentTable = metadataResult.newTableSourceTable;
+            allRemainingRexNodes.addAll(metadataResult.remainingInputRexNodes);
+        }
+
+        return new FilterClassificationResult(currentTable, allRemainingRexNodes);
+    }
+
+    /** Result of classifying and pushing filters through physical and metadata paths. */
+    protected static final class FilterClassificationResult {
+        final TableSourceTable updatedTable;
+        final List<RexNode> remainingPredicates;
+
+        FilterClassificationResult(
+                TableSourceTable updatedTable, List<RexNode> remainingPredicates) {
+            this.updatedTable = updatedTable;
+            this.remainingPredicates = remainingPredicates;
+        }
+    }
+
     /** Whether filter push-down is possible and not already assigned. */
     protected boolean canPushdownFilter(TableSourceTable tableSourceTable) {
         return tableSourceTable != null
@@ -143,13 +220,27 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
      * <p>A predicate like {@code OR(physical_pred, metadata_pred)} returns false because it
      * references both physical and metadata columns. Mixed predicates remain as runtime filters.
      */
-    protected boolean referencesOnlyMetadataColumns(RexNode predicate, int physicalColumnCount) {
+    protected boolean referencesOnlyMetadataColumns(
+            RexNode predicate, Set<Integer> metadataColumnIndices) {
+        boolean[] saw = classifyColumnReferences(predicate, metadataColumnIndices);
+        return saw[1] && !saw[0];
+    }
+
+    /** True if predicate references at least one metadata column (may also reference physical). */
+    protected boolean referencesAnyMetadataColumns(
+            RexNode predicate, Set<Integer> metadataColumnIndices) {
+        boolean[] saw = classifyColumnReferences(predicate, metadataColumnIndices);
+        return saw[1];
+    }
+
+    private boolean[] classifyColumnReferences(
+            RexNode predicate, Set<Integer> metadataColumnIndices) {
         boolean[] saw = new boolean[2]; // [0] = sawPhysical, [1] = sawMetadata
         predicate.accept(
                 new RexVisitorImpl<Void>(true) {
                     @Override
                     public Void visitInputRef(RexInputRef inputRef) {
-                        if (inputRef.getIndex() >= physicalColumnCount) {
+                        if (metadataColumnIndices.contains(inputRef.getIndex())) {
                             saw[1] = true;
                         } else {
                             saw[0] = true;
@@ -157,13 +248,24 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                         return null;
                     }
                 });
-        return saw[1] && !saw[0];
+        return saw;
     }
 
-    /** Number of physical columns in the scan's schema. */
-    protected int getPhysicalColumnCount(TableSourceTable tableSourceTable) {
-        ResolvedSchema schema = tableSourceTable.contextResolvedTable().getResolvedSchema();
-        return (int) schema.getColumns().stream().filter(Column::isPhysical).count();
+    /**
+     * Indices of metadata columns within the scan's current (possibly projection-narrowed) row
+     * type. Predicate {@link RexInputRef}s are positioned against this same row type, so the
+     * physical/metadata distinction must be derived from it rather than from the full table schema.
+     */
+    private Set<Integer> metadataColumnIndices(TableSourceTable tableSourceTable, TableScan scan) {
+        Map<String, String> columnToMetadataKey = buildColumnToMetadataKeyMap(tableSourceTable);
+        List<String> fieldNames = scan.getRowType().getFieldNames();
+        Set<Integer> indices = new HashSet<>();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            if (columnToMetadataKey.containsKey(fieldNames.get(i))) {
+                indices.add(i);
+            }
+        }
+        return indices;
     }
 
     /** Maps SQL column names to metadata keys for metadata columns. */
