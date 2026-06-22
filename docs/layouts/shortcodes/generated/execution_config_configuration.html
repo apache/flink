@@ -357,6 +357,12 @@ By default no operator is disabled.</td>
             <td>Whether to compress spilled data. Currently we only support compress spilled data for sort and hash-agg and hash-join operators.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.state.schema-evolution.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When enabled, RowData state serializers retain field names so that backward-compatible schema changes (adding nullable fields, reordering by name, nested ROW evolution) are migrated on state restore. Disabled by default; when disabled the serializer behaves exactly as today and any type-array change is rejected as incompatible.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>

@@ -58,6 +58,19 @@ public class ExecutionConfigOptions {
                                     + "NOTE: Cleaning up state requires additional overhead for bookkeeping. "
                                     + "Default value is 0, which means that it will never clean up state.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_STATE_SCHEMA_EVOLUTION_ENABLED =
+            key("table.exec.state.schema-evolution.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When enabled, RowData state serializers retain field names so that "
+                                    + "backward-compatible schema changes (adding nullable fields, "
+                                    + "reordering by name, nested ROW evolution) are migrated on "
+                                    + "state restore. Disabled by default; when disabled the "
+                                    + "serializer behaves exactly as today and any type-array change "
+                                    + "is rejected as incompatible.");
+
     // ------------------------------------------------------------------------
     //  Source Options
     // ------------------------------------------------------------------------
