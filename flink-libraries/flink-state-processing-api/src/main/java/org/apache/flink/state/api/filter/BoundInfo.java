@@ -18,19 +18,19 @@
 
 package org.apache.flink.state.api.filter;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Experimental;
 
 import java.io.Serializable;
 
 /** Information about a bound in a range filter. */
-@Internal
+@Experimental
 public final class BoundInfo implements Serializable {
     private static final long serialVersionUID = 4L;
 
     private final Comparable<?> value;
     private final boolean inclusive;
 
-    BoundInfo(Comparable<?> value, boolean inclusive) {
+    public BoundInfo(Comparable<?> value, boolean inclusive) {
         this.value = value;
         this.inclusive = inclusive;
     }

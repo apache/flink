@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -413,14 +414,15 @@ public class SavepointReader {
      * @param function The {@link KeyedStateReaderFunction} that is called for each key in state.
      * @param keyTypeInfo The type information of the key in state.
      * @param outTypeInfo The type information of the output of the transform reader function.
-     * @param keyFilter Optional filter on the state key. When present, splits whose key groups
-     *     cannot contain any matching key are skipped, and within each split only matching keys are
-     *     iterated.
+     * @param keyFilter Optional filter on the state key. When present, input splits whose key
+     *     groups cannot contain any matching key are skipped, and within each split only matching
+     *     keys are iterated.
      * @param <K> The type of the key in state.
      * @param <OUT> The output type of the transform function.
      * @return A {@code DataStream} of objects read from keyed state.
      * @throws IOException If the savepoint does not contain operator state with the given uid.
      */
+    @Experimental
     public <K, OUT> DataStream<OUT> readKeyedState(
             OperatorIdentifier identifier,
             KeyedStateReaderFunction<K, OUT> function,

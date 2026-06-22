@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.api.filter;
 
+import org.apache.flink.annotation.Experimental;
+
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
@@ -25,6 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** Represents a key filter that can be pushed down into a savepoint scan. */
+@Experimental
 public interface SavepointKeyFilter extends Serializable {
 
     /** Returns {@code true} if the given key passes this filter. */
