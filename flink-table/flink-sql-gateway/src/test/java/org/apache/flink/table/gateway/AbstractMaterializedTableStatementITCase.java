@@ -221,24 +221,7 @@ public abstract class AbstractMaterializedTableStatementITCase {
         long timeout = Duration.ofSeconds(20).toMillis();
         long pause = Duration.ofSeconds(2).toMillis();
 
-        String dataId = TestValuesTableFactory.registerData(data);
-        String sourceDdl =
-                String.format(
-                        "CREATE TABLE IF NOT EXISTS my_source (\n"
-                                + "  order_id BIGINT,\n"
-                                + "  user_id BIGINT,\n"
-                                + "  shop_id BIGINT,\n"
-                                + "  order_created_at STRING\n"
-                                + ")\n"
-                                + "WITH (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'bounded' = 'true',\n"
-                                + "  'data-id' = '%s'\n"
-                                + ")",
-                        dataId);
-        OperationHandle sourceHandle =
-                service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, sourceHandle);
+        createBoundedValuesSource(data);
 
         String partitionFields =
                 partitionFormatter != null && !partitionFormatter.isEmpty()
@@ -290,6 +273,28 @@ public abstract class AbstractMaterializedTableStatementITCase {
                 "Failed to verify the data in materialized table.");
     }
 
+    /** Registers a bounded {@code my_source} table backed by empty values data. */
+    public void createBoundedValuesSource(List<Row> data) throws Exception {
+        String dataId = TestValuesTableFactory.registerData(data);
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE IF NOT EXISTS my_source (\n"
+                                + "  order_id BIGINT,\n"
+                                + "  user_id BIGINT,\n"
+                                + "  shop_id BIGINT,\n"
+                                + "  order_created_at STRING\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'true',\n"
+                                + "  'data-id' = '%s'\n"
+                                + ")",
+                        dataId);
+        OperationHandle sourceHandle =
+                service.executeStatement(sessionHandle, sourceDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, sourceHandle);
+    }
+
     public List<RowData> fetchTableData(SessionHandle sessionHandle, String query) {
         OperationHandle queryHandle =
                 service.executeStatement(sessionHandle, query, -1, new Configuration());
@@ -337,7 +342,8 @@ public abstract class AbstractMaterializedTableStatementITCase {
     public void dropMaterializedTable(ObjectIdentifier objectIdentifier) throws Exception {
         String dropMaterializedTableDDL =
                 String.format(
-                        "DROP MATERIALIZED TABLE %s", objectIdentifier.asSerializableString());
+                        "DROP MATERIALIZED TABLE IF EXISTS %s",
+                        objectIdentifier.asSerializableString());
         OperationHandle dropMaterializedTableHandle =
                 service.executeStatement(
                         sessionHandle, dropMaterializedTableDDL, -1, new Configuration());

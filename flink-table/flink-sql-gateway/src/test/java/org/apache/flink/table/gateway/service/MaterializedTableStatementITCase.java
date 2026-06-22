@@ -54,11 +54,11 @@ import org.apache.flink.table.gateway.workflow.EmbeddedRefreshHandler;
 import org.apache.flink.table.gateway.workflow.EmbeddedRefreshHandlerSerializer;
 import org.apache.flink.table.gateway.workflow.WorkflowInfo;
 import org.apache.flink.table.gateway.workflow.scheduler.EmbeddedQuartzScheduler;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
 import org.apache.flink.types.Row;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.quartz.JobDetail;
@@ -98,6 +98,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * with the code in {@link SqlGatewayServiceITCase}.
  */
 class MaterializedTableStatementITCase extends AbstractMaterializedTableStatementITCase {
+
+    @AfterEach
+    void tearDown() throws Exception {
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        dropMaterializedTable(userShopsIdentifier);
+    }
 
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
@@ -161,9 +167,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -244,9 +247,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .containsKey("table.catalog-store.file.path")
                 .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -316,9 +316,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // default checkpoint interval is 3 minutes
         final int expectedCheckpointInterval = 60 * 3 * 1000;
         assertThat(checkpointInterval).isEqualTo(expectedCheckpointInterval);
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -370,31 +367,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         long actualCheckpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
     void testCreateMaterializedTableInFullMode() throws Exception {
-        String dataId = TestValuesTableFactory.registerData(List.of());
-        String sourceDdl =
-                String.format(
-                        "CREATE TABLE IF NOT EXISTS my_source (\n"
-                                + "  order_id BIGINT,\n"
-                                + "  user_id BIGINT,\n"
-                                + "  shop_id BIGINT,\n"
-                                + "  order_created_at STRING\n"
-                                + ")\n"
-                                + "WITH (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'bounded' = 'true',\n"
-                                + "  'data-id' = '%s'\n"
-                                + ")",
-                        dataId);
-
-        OperationHandle sourceHandle = executeStatement(sourceDdl);
-        awaitOperationTermination(service, sessionHandle, sourceHandle);
+        createBoundedValuesSource(List.of());
 
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
@@ -457,9 +434,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .containsKey("table.catalog-store.file.path")
                 .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -512,7 +486,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
 
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table",
+                "users_shops",
                 data,
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.CONTINUOUS);
@@ -522,7 +496,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         long currentTime = System.currentTimeMillis();
         String alterStatement =
-                "ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds = '2024-01-02')";
+                "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds = '2024-01-02')";
         OperationHandle alterHandle = executeStatement(alterStatement);
         awaitOperationTermination(service, sessionHandle, alterHandle);
         List<RowData> result = fetchAllResults(service, sessionHandle, alterHandle);
@@ -535,7 +509,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // 2. verify the new job overwrite the data
         CommonTestUtils.waitUtil(
                 () ->
-                        fetchTableData(sessionHandle, "SELECT * FROM my_materialized_table").size()
+                        fetchTableData(sessionHandle, "SELECT * FROM users_shops").size()
                                 == data.size(),
                 Duration.ofMillis(timeout),
                 Duration.ofMillis(pause),
@@ -543,12 +517,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(1);
-
-        // drop the materialized table
-        dropMaterializedTable(getObjectIdentifier("my_materialized_table"));
     }
 
     @Test
@@ -628,9 +599,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
                                 + "\n"
                                 + "ds2");
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -736,9 +704,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 getJobRestoreSavepointPath(restClusterClient, resumeJobId);
         assertThat(actualRestorePath).isNotEmpty();
         assertThat(actualRestorePath.get()).isEqualTo(actualSavepointPath);
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -790,9 +755,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Savepoint directory is not configured, can't stop job with savepoint.");
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -958,9 +920,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 fromJson((String) jobDetail.getJobDataMap().get(WORKFLOW_INFO), WorkflowInfo.class);
         assertThat(workflowInfo.getDynamicOptions())
                 .containsEntry("debezium-json.ignore-parse-errors", "true");
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1017,8 +976,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         String.format(
                                 "Materialized table %s refresh workflow has been resumed.",
                                 userShopsIdentifier));
-
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1098,6 +1055,100 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(oldTable.getSerializedRefreshHandler())
                 .isEqualTo(newTable.getSerializedRefreshHandler());
         assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableColumnListReordersSchemaOnCreatePath() throws Exception {
+        createBoundedValuesSource(List.of());
+
+        // users_shops does not exist yet, so CREATE OR ALTER falls through to the create path and
+        // honors the DDL column list order, exactly like a plain CREATE.
+        String materializedTableDDL =
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops (shop_id, user_id, oca, order_id)"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  order_created_at AS oca,\n"
+                        + "  order_id"
+                        + " FROM my_source";
+        OperationHandle handle = executeStatement(materializedTableDDL);
+        awaitOperationTermination(service, sessionHandle, handle);
+
+        ResolvedCatalogMaterializedTable table = getTable(getObjectIdentifier("users_shops"));
+        assertThat(table.getResolvedSchema().getColumnNames())
+                .containsExactly("shop_id", "user_id", "oca", "order_id");
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableColumnListIgnoredOnAlterPath() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedSchema oldSchema = getTable(userShopsIdentifier).getResolvedSchema();
+        assertThat(oldSchema.getColumnNames())
+                .containsExactly("user_id", "shop_id", "ds", "order_cnt");
+
+        // users_shops already exists as a materialized table, so CREATE OR ALTER takes the alter
+        // path. The DDL column list is treated as names only: it does NOT reorder the schema.
+        String materializedTableDDL =
+                "CREATE OR ALTER MATERIALIZED TABLE users_shops (shop_id, user_id, ds, order_cnt)"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle handle = executeStatement(materializedTableDDL);
+        awaitOperationTermination(service, sessionHandle, handle);
+
+        ResolvedSchema newSchema = getTable(userShopsIdentifier).getResolvedSchema();
+        assertThat(newSchema.getColumnNames())
+                .containsExactly("user_id", "shop_id", "ds", "order_cnt");
+        assertThat(newSchema).isEqualTo(oldSchema);
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryRejectsReorder() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        assertThat(getTable(userShopsIdentifier).getResolvedSchema().getColumnNames())
+                .containsExactly("user_id", "shop_id", "ds", "order_cnt");
+
+        // ALTER ... AS re-derives the schema from the new query. Swapping the first two
+        // projections asks to reorder existing columns. The query-evolution rules reject this: an
+        // existing materialized table may only append columns at the end, not reorder them.
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT \n"
+                        + "  shop_id,\n"
+                        + "  user_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle handle = executeStatement(alterMaterializedTableAsQueryDDL);
+
+        assertThatThrownBy(() -> awaitOperationTermination(service, sessionHandle, handle))
+                .hasStackTraceContaining("reordering columns are not supported");
+
+        // The rejected alter leaves the original schema untouched.
+        assertThat(getTable(userShopsIdentifier).getResolvedSchema().getColumnNames())
+                .containsExactly("user_id", "shop_id", "ds", "order_cnt");
     }
 
     @Test
@@ -1337,9 +1388,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 getJobRestoreSavepointPath(
                         restClusterClient, newContinuousRefreshHandler.getJobId());
         assertThat(restorePath).isEmpty();
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1412,9 +1460,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         ContinuousRefreshHandler newContinuousRefreshHandler =
                 getContinuousRefreshHandler(newTable);
         assertThat(newContinuousRefreshHandler.getRestorePath()).isEmpty();
-
-        // drop the materialized table
-        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1618,12 +1663,12 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
 
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table",
+                "users_shops",
                 data,
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier objectIdentifier = getObjectIdentifier("my_materialized_table");
+        ObjectIdentifier objectIdentifier = getObjectIdentifier("users_shops");
 
         // add more data to all data list
         data.add(Row.of(3L, 3L, 3L, "2024-01-01"));
@@ -1655,7 +1700,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
 
@@ -1663,12 +1708,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
-
-        // drop the materialized table
-        dropMaterializedTable(objectIdentifier);
     }
 
     @Test
@@ -1679,13 +1721,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // create materialized table without partition formatter
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table_without_partition_options",
-                data,
-                Map.of(),
-                RefreshMode.CONTINUOUS);
+                "users_shops", data, Map.of(), RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier tableWithoutFormatterIdentifier =
-                getObjectIdentifier("my_materialized_table_without_partition_options");
+        ObjectIdentifier tableWithoutFormatterIdentifier = getObjectIdentifier("users_shops");
 
         // add more data to all data list
         data.add(Row.of(3L, 3L, 3L, "2024-01-01"));
@@ -1719,19 +1757,16 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table_without_partition_options where ds = '2024-01-01'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-01'")
                                 .size())
                 .isEqualTo(getPartitionSize(data, "2024-01-01"));
 
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table_without_partition_options where ds = '2024-01-02'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
-
-        // drop the materialized table
-        dropMaterializedTable(tableWithoutFormatterIdentifier);
     }
 
     @Test
@@ -1740,12 +1775,12 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // create materialized table with partition formatter
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table",
+                "users_shops",
                 data,
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.FULL);
 
-        ObjectIdentifier materializedTableIdentifier = getObjectIdentifier("my_materialized_table");
+        ObjectIdentifier materializedTableIdentifier = getObjectIdentifier("users_shops");
 
         // add more data to all data list
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
@@ -1780,20 +1815,16 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // data of partition '2024-01-01' is not changed
         assertThat(
                         fetchTableData(
-                                sessionHandle,
-                                "SELECT * FROM my_materialized_table where ds = '2024-01-02'"))
+                                sessionHandle, "SELECT * FROM users_shops where ds = '2024-01-02'"))
                 .size()
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
 
         assertThat(
                         fetchTableData(
                                         sessionHandle,
-                                        "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
+                                        "SELECT * FROM users_shops where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
-
-        // drop the materialized table
-        dropMaterializedTable(materializedTableIdentifier);
     }
 
     @Test
@@ -1803,12 +1834,12 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
 
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table",
+                "users_shops",
                 data,
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier objectIdentifier = getObjectIdentifier("my_materialized_table");
+        ObjectIdentifier objectIdentifier = getObjectIdentifier("users_shops");
 
         // refresh the materialized table with schedule time not specified
         OperationHandle invalidRefreshTableHandle1 =
@@ -1853,9 +1884,86 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         String.format(
                                 "Failed to parse a valid partition value for the field 'ds' in materialized table %s using the scheduler time '20240103 00:00:00.000' based on the date format 'yyyy-MM-dd HH:mm:ss'.",
                                 objectIdentifier.asSerializableString()));
+    }
 
-        // drop the materialized table
-        dropMaterializedTable(getObjectIdentifier("my_materialized_table"));
+    @Test
+    void testExplainCreateOrAlterMaterializedTableOnExistingTable() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+
+        // CREATE OR ALTER on an existing table behaves like an alter-with-query. Re-state the same
+        // definition so EXPLAIN plans the sink over the (unchanged) table.
+        String explainDDL =
+                "EXPLAIN CREATE OR ALTER MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)"
+                        + " WITH ('format' = 'debezium-json')"
+                        + " FRESHNESS = INTERVAL '30' SECOND"
+                        + " REFRESH_MODE = FULL"
+                        + " AS SELECT"
+                        + "  user_id,"
+                        + "  shop_id,"
+                        + "  ds,"
+                        + "  COUNT(order_id) AS order_cnt"
+                        + " FROM ("
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle explainHandle = executeStatement(explainDDL);
+        awaitOperationTermination(service, sessionHandle, explainHandle);
+        List<RowData> explainResults = fetchAllResults(service, sessionHandle, explainHandle);
+        assertThat(explainResults).hasSize(1);
+        assertThat(explainResults.get(0).getString(0).toString())
+                .contains(
+                        "== Abstract Syntax Tree ==",
+                        "== Optimized Physical Plan ==",
+                        "== Optimized Execution Plan ==",
+                        "Sink(table=[",
+                        "users_shops");
+
+        // EXPLAIN is side-effect-free: the existing materialized table is unchanged.
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+        assertThat(newTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+    }
+
+    @Test
+    void testExplainAlterMaterializedTableAsQuery() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+
+        String explainDDL =
+                "EXPLAIN ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT"
+                        + "  user_id,"
+                        + "  shop_id,"
+                        + "  ds,"
+                        + "  COUNT(order_id) AS order_cnt"
+                        + " FROM ("
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle explainHandle = executeStatement(explainDDL);
+        awaitOperationTermination(service, sessionHandle, explainHandle);
+        List<RowData> explainResults = fetchAllResults(service, sessionHandle, explainHandle);
+        assertThat(explainResults).hasSize(1);
+        assertThat(explainResults.get(0).getString(0).toString())
+                .contains(
+                        "== Abstract Syntax Tree ==",
+                        "== Optimized Physical Plan ==",
+                        "== Optimized Execution Plan ==",
+                        "Sink(table=[",
+                        "users_shops");
+
+        // EXPLAIN is side-effect-free: the materialized table definition is unchanged.
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+        assertThat(newTable.getResolvedSchema()).isEqualTo(oldTable.getResolvedSchema());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
     }
 
     private void setupSavepointDir(Path temporaryPath) throws Exception {

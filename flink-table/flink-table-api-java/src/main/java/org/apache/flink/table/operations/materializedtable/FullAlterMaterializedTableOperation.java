@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.List;
 import java.util.function.Function;
@@ -42,8 +43,9 @@ public class FullAlterMaterializedTableOperation extends AlterMaterializedTableC
             final Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable,
             final ResolvedCatalogMaterializedTable oldTable,
             final Function<ResolvedCatalogMaterializedTable, CatalogMaterializedTable>
-                    newTableBuilder) {
-        super(tableIdentifier, tableChangeForTable, oldTable);
+                    newTableBuilder,
+            final QueryOperation sinkModifyQuery) {
+        super(tableIdentifier, tableChangeForTable, oldTable, sinkModifyQuery);
         this.newTableBuilder = newTableBuilder;
     }
 

@@ -194,6 +194,6 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
     private static AlterMaterializedTableAsQueryOperation operation(
             ResolvedCatalogMaterializedTable oldTable, List<TableChange> changes) {
         return new AlterMaterializedTableAsQueryOperation(
-                ObjectIdentifier.of("cat", "db", "mt"), ignored -> changes, oldTable);
+                ObjectIdentifier.of("cat", "db", "mt"), ignored -> changes, oldTable, null);
     }
 }

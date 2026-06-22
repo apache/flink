@@ -37,6 +37,9 @@ import org.apache.flink.table.catalog.TableChange.ModifyPhysicalColumnType;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
 import org.apache.flink.table.catalog.TableChange.ModifyStartMode;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyOperationVisitor;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.ArrayList;
@@ -50,9 +53,11 @@ import java.util.stream.IntStream;
  * Alter materialized table with new table definition and table changes represents the modification.
  */
 @Internal
-public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation {
+public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation
+        implements ModifyOperation {
 
     private final Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable;
+    private final QueryOperation sinkModifyQuery;
     private ResolvedCatalogMaterializedTable oldTable;
     private MaterializedTableChangeHandler handler;
     private CatalogMaterializedTable newTable;
@@ -62,9 +67,23 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             ObjectIdentifier tableIdentifier,
             Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable,
             ResolvedCatalogMaterializedTable oldTable) {
+        // Metadata-only changes (options, schema, distribution, ...) carry no sink-modifying query.
+        this(tableIdentifier, tableChangeForTable, oldTable, null);
+    }
+
+    public AlterMaterializedTableChangeOperation(
+            ObjectIdentifier tableIdentifier,
+            Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable,
+            ResolvedCatalogMaterializedTable oldTable,
+            QueryOperation sinkModifyQuery) {
         super(tableIdentifier);
         this.tableChangeForTable = tableChangeForTable;
         this.oldTable = oldTable;
+        this.sinkModifyQuery = sinkModifyQuery;
+    }
+
+    public QueryOperation getSinkModifyQuery() {
+        return sinkModifyQuery;
     }
 
     public List<TableChange> getTableChanges() {
@@ -76,7 +95,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
 
     public AlterMaterializedTableChangeOperation copyAsTableChangeOperation() {
         return new AlterMaterializedTableChangeOperation(
-                tableIdentifier, tableChangeForTable, oldTable);
+                tableIdentifier, tableChangeForTable, oldTable, sinkModifyQuery);
     }
 
     public CatalogMaterializedTable getNewTable() {
@@ -142,6 +161,16 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                         .collect(Collectors.joining(",\n"));
         return String.format(
                 "%s %s\n%s", getOperationName(), tableIdentifier.asSummaryString(), changes);
+    }
+
+    @Override
+    public QueryOperation getChild() {
+        return this.sinkModifyQuery;
+    }
+
+    @Override
+    public <T> T accept(final ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 
     /** Hook for subclasses to provide a different new-table builder. */

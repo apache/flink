@@ -23,6 +23,7 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.List;
 import java.util.function.Function;
@@ -40,8 +41,9 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
             Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangesForTable,
-            ResolvedCatalogMaterializedTable oldTable) {
-        super(tableIdentifier, tableChangesForTable, oldTable);
+            ResolvedCatalogMaterializedTable oldTable,
+            QueryOperation sinkModifyQuery) {
+        super(tableIdentifier, tableChangesForTable, oldTable, sinkModifyQuery);
     }
 
     @Override

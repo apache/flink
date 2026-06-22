@@ -17,11 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.{ConfigOption, Configuration}
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider
 import org.apache.flink.streaming.api.functions.source.legacy.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.data.RowData
@@ -925,6 +925,148 @@ class TableSinkTest extends TableTestBase {
     // Same as CTAS
     val expected =
       TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainCreateMaterializedTable(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE MATERIALIZED TABLE MyMTTable
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected = TableTestUtil.readFromResource("/explain/testExplainCreateMaterializedTable.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainCreateOrAlterMaterializedTable(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE OR ALTER MATERIALIZED TABLE MyMTTable (
+                                            | `b`,
+                                            | `a`
+                                            | )
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    CAST(`a` AS BIGINT) AS `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainCreateOrAlterMaterializedTable.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainAlterMaterializedTable(): Unit = {
+    util.addTable(s"""
+                     |CREATE OR ALTER MATERIALIZED TABLE MyMTTable
+                     | WITH (
+                     |   'connector' = 'values'
+                     |) AS
+                     |  SELECT
+                     |    `a`,
+                     |    `b`
+                     |  FROM
+                     |    MyTable
+                     |""".stripMargin)
+    // Reordering the columns of an existing materialized table is not a supported evolution.
+    // EXPLAIN mirrors execution and rejects it instead of printing an unexecutable plan.
+    assertThatThrownBy(() => util.tableEnv.explainSql("""
+                                                        |ALTER MATERIALIZED TABLE MyMTTable
+                                                        |AS
+                                                        |  SELECT
+                                                        |    `b`,
+                                                        |    `a`
+                                                        |  FROM
+                                                        |    MyTable
+                                                        |""".stripMargin))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("reordering columns are not supported")
+  }
+
+  @Test
+  def testExplainFullAlterMaterializedTable(): Unit = {
+    util.addTable(s"""
+                     |CREATE OR ALTER MATERIALIZED TABLE MyMTTable
+                     | WITH (
+                     |   'connector' = 'values'
+                     |) AS
+                     |  SELECT
+                     |    `a`,
+                     |    `b`
+                     |  FROM
+                     |    MyTable
+                     |""".stripMargin)
+    // Appending a column to an existing materialized table is supported. The DDL column list
+    // (`b`, `a`, `c`) is treated as names only on the alter path, so it does not reorder the
+    // schema: the result keeps the original order and appends `c`.
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE OR ALTER MATERIALIZED TABLE MyMTTable(
+                                            | `b`,
+                                            | `a`,
+                                            | `c`
+                                            | )
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |)
+                                            |AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`,
+                                            |    `c`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainFullAlterMaterializedTable.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+
+  }
+
+  @Test
+  def testExplainConvertTableToMaterializedTable(): Unit = {
+    val rootConfiguration = new Configuration()
+    rootConfiguration.set(
+      TableConfigOptions.MATERIALIZED_TABLE_CONVERSION_FROM_TABLE_ENABLED,
+      Boolean.box(true))
+    util.tableEnv.getConfig.setRootConfiguration(rootConfiguration)
+    util.addTable(s"""
+                     |CREATE TABLE MyConvertTable (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE OR ALTER MATERIALIZED TABLE MyConvertTable
+                                            | AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainConvertTableToMaterializedTable.out")
 
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
