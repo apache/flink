@@ -483,6 +483,24 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetRelMonotonicityOnRankNotConvertibleToDeduplicate(): Unit = {
+    // A Top-1 ROW_NUMBER whose ORDER BY is not a single time attribute is logically a
+    // deduplication but cannot be converted to a Deduplicate operator (see
+    // RankUtil.canConvertToDeduplicate). It is a regular Top-1 Rank that retracts and re-emits the
+    // kept row when a new winner arrives, so it must NOT be reported as all-CONSTANT (insert-only).
+    // Instead it falls through to the generic Rank monotonicity logic, which derives the order-by
+    // field from the input monotonicity and the sort direction (CONSTANT input + ASC => DECREASING,
+    // CONSTANT input + DESC => INCREASING). Guards against the FLINK-34702 dispatch regression.
+    assertEquals(
+      new RelModifiedMonotonicity(Array(DECREASING, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamTop1RankOnNonTimeAttribute))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(INCREASING, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamTop1RankOnMultipleColumns))
+  }
+
+  @Test
   def testGetRelMonotonicityOnChangelogNormalize(): Unit = {
     assertEquals(
       new RelModifiedMonotonicity(Array(CONSTANT, CONSTANT, NOT_MONOTONIC, NOT_MONOTONIC)),
