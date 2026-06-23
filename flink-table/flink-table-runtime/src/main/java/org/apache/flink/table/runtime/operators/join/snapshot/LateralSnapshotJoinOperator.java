@@ -34,11 +34,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -160,10 +157,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /** Gauge: probe-side records currently buffered during LOAD. */
     @VisibleForTesting
     static final String NUM_PROBE_BUFFERED_METRIC_NAME = "numProbeSideRecordsBuffered";
-
-    /** Gauge: build-side changes currently buffered during JOIN. */
-    @VisibleForTesting
-    static final String NUM_BUILD_BUFFERED_METRIC_NAME = "numBuildSideRecordsBuffered";
 
     /** Counter: keys evicted from state by TTL. */
     @VisibleForTesting
@@ -301,7 +294,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private transient Counter numUnmatchedBuildRetractions;
 
     private transient SimpleGauge<Long> probeBufferedGauge;
-    private transient SimpleGauge<Long> buildBufferedGauge;
     private transient SimpleGauge<Long> buildWmGauge;
     private transient SimpleGauge<Long> probeWmGauge;
     private transient SimpleGauge<Long> maxFanOutGauge;
@@ -311,7 +303,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /** Backing accumulators for the push-model gauges (in-memory, not persisted, best-effort). */
     private transient long probeBufferedCount;
 
-    private transient long buildBufferedCount;
     private transient long maxJoinFanOut;
     private transient long totalJoinFanOut;
     private transient long totalProbeJoins;
@@ -396,7 +387,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         currentProbeSideWm = Long.MIN_VALUE;
 
         probeBufferedCount = 0L;
-        buildBufferedCount = 0L;
         maxJoinFanOut = 0L;
         totalJoinFanOut = 0L;
         totalProbeJoins = 0L;
@@ -453,18 +443,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         numUnmatchedBuildRetractions =
                 metricGroup.counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
 
-        // Rebuild the buffer counts from restored keyed state so the gauges reflect the
-        // records buffered in this subtask after a restore/rescale.
-        recomputeBufferCountsFromState();
-
+        // The probe-buffered count is an in-memory, best-effort tally: it is not restored from
+        // keyed state, so it starts at 0 after a restore/rescale and reflects only buffering
+        // observed by this subtask since (re)start.
         probeBufferedGauge = new SimpleGauge<>(probeBufferedCount);
-        buildBufferedGauge = new SimpleGauge<>(buildBufferedCount);
         buildWmGauge = new SimpleGauge<>(currentBuildSideWm);
         probeWmGauge = new SimpleGauge<>(currentProbeSideWm);
         maxFanOutGauge = new SimpleGauge<>(maxJoinFanOut);
         avgFanOutGauge = new SimpleGauge<>(0.0d);
         metricGroup.gauge(NUM_PROBE_BUFFERED_METRIC_NAME, probeBufferedGauge);
-        metricGroup.gauge(NUM_BUILD_BUFFERED_METRIC_NAME, buildBufferedGauge);
         metricGroup.gauge(CURRENT_BUILD_WM_METRIC_NAME, buildWmGauge);
         metricGroup.gauge(CURRENT_PROBE_WM_METRIC_NAME, probeWmGauge);
         metricGroup.gauge(MAX_JOIN_FAN_OUT_METRIC_NAME, maxFanOutGauge);
@@ -483,56 +470,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
         LOG.info(
                 "Opened LateralSnapshotJoinOperator: phase={}, leftOuter={}, loadCompletedTime={}, "
-                        + "idleTimeoutMs={}, stateTtlMs=[{}, {}], buildRowtimeIndex={}, "
-                        + "restoredProbeBuffered={}, restoredBuildBuffered={}",
+                        + "idleTimeoutMs={}, stateTtlMs=[{}, {}], buildRowtimeIndex={}",
                 phase,
                 isLeftOuterJoin,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 minStateTtlMs,
                 maxStateTtlMs,
-                buildRowtimeIndex,
-                probeBufferedCount,
-                buildBufferedCount);
-    }
-
-    /**
-     * Recomputes the in-memory buffer counter ({@link #probeBufferedCount}, {@link
-     * #buildBufferedCount}) for the corresponding metrics by scanning the restored keyed buffer
-     * state.
-     */
-    private void recomputeBufferCountsFromState() throws Exception {
-        final KeyedStateBackend<Object> backend = getKeyedStateBackend();
-
-        LOG.info("Start recomputing buffered-record metrics from restored keyed state...");
-
-        probeBufferedCount = 0L;
-        backend.applyToAllKeys(
-                VoidNamespace.INSTANCE,
-                VoidNamespaceSerializer.INSTANCE,
-                new ListStateDescriptor<>(PROBE_BUFFER_STATE_NAME, leftType),
-                (key, state) -> {
-                    for (RowData ignored : state.get()) {
-                        probeBufferedCount++;
-                    }
-                });
-
-        buildBufferedCount = 0L;
-        backend.applyToAllKeys(
-                VoidNamespace.INSTANCE,
-                VoidNamespaceSerializer.INSTANCE,
-                new ListStateDescriptor<>(BUILD_CHANGE_BUFFER_STATE_NAME, rightType),
-                (key, state) -> {
-                    for (RowData ignored : state.get()) {
-                        buildBufferedCount++;
-                    }
-                });
-
-        LOG.info(
-                "Finished recomputing buffered-record metrics from restored keyed state: "
-                        + "probeBuffered={}, buildBuffered={}",
-                probeBufferedCount,
-                buildBufferedCount);
+                buildRowtimeIndex);
     }
 
     @Override
@@ -580,7 +525,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         if (bufferedAt == null || bufferedAt != currentBuildSideWm) {
             bufferedAtWmState.update(currentBuildSideWm);
         }
-        buildBufferedGauge.update(++buildBufferedCount);
         refreshStateTtl();
     }
 
@@ -650,6 +594,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                 drained++;
             }
             probeBuffer.clear();
+            // The count is a best-effort in-memory tally that is not restored from state, so a
+            // restore may drain more probes than were counted since (re)start. Floor it at 0.
             probeBufferedCount = Math.max(0, probeBufferedCount - drained);
             probeBufferedGauge.update(probeBufferedCount);
         }
@@ -683,13 +629,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         // clear all per-key state
         buildTableState.clear();
-        // Discount any build-side changes still buffered for this key before clearing.
-        long evictedBuffered = 0;
-        for (RowData ignored : buildChangeBuffer.get()) {
-            evictedBuffered++;
-        }
-        buildBufferedCount = Math.max(0, buildBufferedCount - evictedBuffered);
-        buildBufferedGauge.update(buildBufferedCount);
         buildChangeBuffer.clear();
         bufferedAtWmState.clear();
         ttlExpiryState.clear();
@@ -878,8 +817,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         buildChangeBuffer.clear();
         bufferedAtWmState.clear();
-        buildBufferedCount = Math.max(0, buildBufferedCount - changes.size());
-        buildBufferedGauge.update(buildBufferedCount);
     }
 
     /**
@@ -1022,11 +959,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting
     SimpleGauge<Long> getNumProbeSideRecordsBufferedGauge() {
         return probeBufferedGauge;
-    }
-
-    @VisibleForTesting
-    SimpleGauge<Long> getNumBuildSideRecordsBufferedGauge() {
-        return buildBufferedGauge;
     }
 
     @VisibleForTesting

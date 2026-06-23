@@ -987,8 +987,9 @@ class LateralSnapshotJoinOperatorTest {
             assertThat(buildTableForKey(h, op2, "k1"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 2L, "v2", 1L));
             assertThat(bufferedChangesForKey(h, op2, "k1")).hasSize(1);
-            // Gauge is rebuilt from restored keyed state: one probe buffered for k1.
-            assertThat(op2.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(1L);
+            // The buffer-count gauge is a best-effort in-memory tally that is not restored from
+            // state, so it reads 0 after restore even though one probe is buffered for k1.
+            assertThat(op2.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
 
             // Trigger flip; the buffered probe is joined post-restore, count-respecting against the
             // restored multi-set (2× v1 + 1× v2 = three rows).
@@ -996,9 +997,8 @@ class LateralSnapshotJoinOperatorTest {
             addBuildWm(h, 100L);
             assertPhase(op2, Phase.JOIN);
             assertThat(probeBufferKeys(h)).isEmpty();
-            // Draining the restored probe and build buffers brings both gauges back to 0.
+            // The probe-buffer gauge stays 0 (best-effort, not restored from state).
             assertThat(op2.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
-            assertThat(op2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
             assertThat(buildTableForKey(h, op2, "k1"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 2L, "v2", 1L, "v3", 1L));
 
@@ -1110,15 +1110,11 @@ class LateralSnapshotJoinOperatorTest {
             assertThat(op2.getCurrentBuildSideWm()).isEqualTo(Long.MIN_VALUE);
             assertThat(bufferedChangesForKey(h, op2, "k1")).hasSize(2);
             assertThat(bufferedChangesForKey(h, op2, "k2")).hasSize(2);
-            // Gauge is rebuilt from restored keyed state: four build-side changes buffered
-            // (two for k1, two for k2).
-            assertThat(op2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(4L);
 
             // k2: accessed while no build WM has arrived since restore → eager drain.
             addProbeRecord(h, 1L, "k2", "p-k2");
-            assertThat(bufferedChangesForKey(h, op2, "k2")).isEmpty();
             // Draining k2's two restored changes leaves k1's two still buffered.
-            assertThat(op2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(2L);
+            assertThat(bufferedChangesForKey(h, op2, "k2")).isEmpty();
             assertThat(buildTableForKey(h, op2, "k2"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("v2", 1L));
 
@@ -1127,9 +1123,8 @@ class LateralSnapshotJoinOperatorTest {
             assertThat(bufferedChangesForKey(h, op2, "k1")).hasSize(2);
             addBuildWm(h, 200L);
             addProbeRecord(h, 2L, "k1", "p-k1");
+            // All restored changes drained.
             assertThat(bufferedChangesForKey(h, op2, "k1")).isEmpty();
-            // All restored changes drained; gauge back to 0.
-            assertThat(op2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
             assertThat(buildTableForKey(h, op2, "k1"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("v2", 1L));
 
@@ -1206,33 +1201,6 @@ class LateralSnapshotJoinOperatorTest {
             addBuildWm(h, 100L);
             assertPhase(op, Phase.JOIN);
             assertThat(op.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
-        }
-    }
-
-    @Test
-    void buildBufferedGaugeTracksJoinBufferingAndDrains() throws Exception {
-        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
-        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
-                newHarness(op)) {
-            h.open();
-            // Flip to JOIN with an empty build state (no build records during LOAD).
-            addBuildWm(h, 100L);
-            assertPhase(op, Phase.JOIN);
-            assertThat(op.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
-
-            // JOIN-phase build changes are buffered (their tag equals the current build WM).
-            addBuildChange(h, insertRecord("k1", "v2", 101L));
-            addBuildChange(h, insertRecord("k1", "v3", 101L));
-            assertThat(op.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(2L);
-            addBuildChange(h, insertRecord("k2", "v1", 102L));
-            assertThat(op.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
-
-            // Advance build WM, then drain each key by accessing it from the probe side.
-            addBuildWm(h, 110L);
-            addProbeRecord(h, 1L, "k1", "p1");
-            assertThat(op.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(1L);
-            addProbeRecord(h, 2L, "k2", "p2");
-            assertThat(op.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
         }
     }
 
@@ -1373,67 +1341,6 @@ class LateralSnapshotJoinOperatorTest {
             h.setProcessingTime(150);
             assertThat(buildTableKeys(h)).isEmpty();
             assertThat(op.getNumStateTtlEvictions().getCount()).isEqualTo(2L);
-        }
-    }
-
-    @Test
-    void bufferGaugesAreRebuiltFromStateOnRestore() throws Exception {
-        // Snapshot in LOAD with probes buffered across multiple keys, and in JOIN with build-side
-        // changes buffered across multiple keys, then assert both gauges are rebuilt from the
-        // restored keyed state (the in-memory tallies start at 0 in the restored operator).
-
-        // --- LOAD-phase snapshot: three buffered probes spread over two keys. ---
-        LateralSnapshotJoinOperator loadOp = newOperator(false, 100L, null, null);
-        OperatorSubtaskState loadState;
-        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
-                newHarness(loadOp)) {
-            h.open();
-            addProbeRecord(h, 1L, "k1", "p1");
-            addProbeRecord(h, 2L, "k2", "p2");
-            addProbeRecord(h, 3L, "k1", "p3");
-            assertPhase(loadOp, Phase.LOAD);
-            assertThat(loadOp.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
-            loadState = h.snapshot(0L, 0L);
-        }
-
-        LateralSnapshotJoinOperator loadOp2 = newOperator(false, 100L, null, null);
-        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
-                newHarness(loadOp2)) {
-            h.initializeState(loadState);
-            h.open();
-            // Rebuilt from restored state: all three probes, across both keys.
-            assertThat(loadOp2.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
-            // The build gauge stays 0 — nothing was buffered on the build side.
-            assertThat(loadOp2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
-        }
-
-        // --- JOIN-phase snapshot: three buffered build-side changes spread over two keys. ---
-        LateralSnapshotJoinOperator joinOp = newOperator(false, 100L, null, null);
-        OperatorSubtaskState joinState;
-        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
-                newHarness(joinOp)) {
-            h.open();
-            addBuildChange(h, insertRecord("k1", "v1", 1L));
-            addBuildWm(h, 100L);
-            assertPhase(joinOp, Phase.JOIN);
-            // The v2 access drains the LOAD insert (v1); v2, v3 and k2/v1 remain buffered.
-            addBuildChange(h, insertRecord("k1", "v2", 101L));
-            addBuildChange(h, insertRecord("k1", "v3", 101L));
-            addBuildChange(h, insertRecord("k2", "v1", 101L));
-            assertThat(joinOp.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
-            joinState = h.snapshot(0L, 0L);
-        }
-
-        LateralSnapshotJoinOperator joinOp2 = newOperator(false, 100L, null, null);
-        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
-                newHarness(joinOp2)) {
-            h.initializeState(joinState);
-            h.open();
-            assertPhase(joinOp2, Phase.JOIN);
-            // Rebuilt from restored state: all three buffered changes, across both keys.
-            assertThat(joinOp2.getNumBuildSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
-            // The probe gauge stays 0 — nothing was buffered on the probe side.
-            assertThat(joinOp2.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
         }
     }
 
