@@ -175,7 +175,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     static final String M_NUM_UNMATCHED_BUILD_RETRACTIONS = "numUnmatchedBuildRetractions";
 
     /** Two-phase state machine. */
-    public enum Phase {
+    enum Phase {
         LOAD,
         JOIN
     }
@@ -207,7 +207,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * Timestamp at which the build-side watermark must arrive for the operator to flip from {@code
      * LOAD} to JOIN.
      */
-    private final Long loadCompletedTime;
+    private final long loadCompletedTime;
 
     /**
      * Processing-time idle timeout duration (millis) on build-side watermarks. When configured, the
@@ -311,6 +311,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         this.buildRowtimeIndex = buildRowtimeIndex;
         if (buildRowtimeIndex < 0) {
             throw new IllegalArgumentException("buildRowtimeIndex must be non-negative");
+        }
+        if (buildRowtimeIndex >= rightType.toRowType().getFieldCount()) {
+            throw new IllegalArgumentException("buildRowtimeIndex out of bounds for build row");
         }
         this.generatedJoinCondition = Preconditions.checkNotNull(generatedJoinCondition);
         this.filterNullKeys = Preconditions.checkNotNull(filterNullKeys);
