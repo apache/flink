@@ -268,13 +268,20 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     // -------------------------- keyed state --------------------------
 
-    /** Build-side table as multi-set: row → reference count. */
+    /**
+     * Build-side table as multi-set (row → reference count). Holds the committed snapshot, i.e. all
+     * build changes up to the last applied build watermark; probes join against this.
+     */
     private transient MapState<RowData, Long> buildTableState;
 
-    /** Buffer for build-side changes during JOIN to ensure atomic updates. */
+    /**
+     * Build-side changes not yet visible in {@link #buildTableState}; applied (atomically per
+     * watermark) once the build watermark passes their tag, so {@code -U}/{@code +U} pairs never
+     * split.
+     */
     private transient ListState<RowData> buildChangeBuffer;
 
-    /** Build-side watermark to ensure atomic application of build changes during JOIN. */
+    /** Build-side watermark to ensure atomic application of build changes. */
     private transient ValueState<Long> bufferedAtWmState;
 
     /**
