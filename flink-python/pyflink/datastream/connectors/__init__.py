@@ -46,7 +46,6 @@ def _install():
     setattr(connectors, 'Semantic', kafka.Semantic)
     # dynamic kafka
     from pyflink.datastream.connectors import dynamic_kafka
-    setattr(connectors, 'ClusterMetadata', dynamic_kafka.ClusterMetadata)
     setattr(connectors, 'DynamicKafkaSource', dynamic_kafka.DynamicKafkaSource)
     setattr(connectors, 'DynamicKafkaSourceBuilder', dynamic_kafka.DynamicKafkaSourceBuilder)
     setattr(connectors, 'KafkaMetadataService', dynamic_kafka.KafkaMetadataService)

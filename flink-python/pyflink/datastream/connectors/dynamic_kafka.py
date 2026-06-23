@@ -25,7 +25,6 @@ from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
-    'ClusterMetadata',
     'DynamicKafkaSource',
     'DynamicKafkaSourceBuilder',
     'KafkaMetadataService',
@@ -46,41 +45,6 @@ def _has_cluster_offsets(
         starting_offsets_initializer: Optional[KafkaOffsetsInitializer],
         stopping_offsets_initializer: Optional[KafkaOffsetsInitializer]) -> bool:
     return starting_offsets_initializer is not None or stopping_offsets_initializer is not None
-
-
-class ClusterMetadata(object):
-    """
-    Wrapper for Java ClusterMetadata.
-    """
-
-    def __init__(self, topics: Set[str], properties: Dict[str, str],
-                 starting_offsets_initializer: Optional[KafkaOffsetsInitializer] = None,
-                 stopping_offsets_initializer: Optional[KafkaOffsetsInitializer] = None):
-        """
-        :param topics: The topics belonging to a cluster.
-        :param properties: The properties to access a cluster.
-        :param starting_offsets_initializer: Optional starting offsets initializer for the cluster.
-        :param stopping_offsets_initializer: Optional stopping offsets initializer for the cluster.
-        """
-        gateway = get_gateway()
-        j_topics = gateway.jvm.java.util.HashSet()
-        for topic in topics:
-            j_topics.add(topic)
-
-        j_properties = gateway.jvm.java.util.Properties()
-        for key, value in properties.items():
-            j_properties.setProperty(key, value)
-
-        j_cluster_metadata = gateway.jvm.org.apache.flink.connector.kafka.dynamic.metadata \
-            .ClusterMetadata
-        if _has_cluster_offsets(starting_offsets_initializer, stopping_offsets_initializer):
-            self._j_cluster_metadata = j_cluster_metadata(
-                j_topics,
-                j_properties,
-                _to_j_offsets_initializer(starting_offsets_initializer),
-                _to_j_offsets_initializer(stopping_offsets_initializer))
-        else:
-            self._j_cluster_metadata = j_cluster_metadata(j_topics, j_properties)
 
 
 class KafkaMetadataService(object):
