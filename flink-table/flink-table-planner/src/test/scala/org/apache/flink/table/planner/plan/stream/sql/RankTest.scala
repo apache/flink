@@ -18,11 +18,13 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 class RankTest extends TableTestBase {
 
@@ -1009,6 +1011,105 @@ class RankTest extends TableTestBase {
         |""".stripMargin
     // verify UB should reserve and add upsertMaterialize if rank outputs' lost upsert keys
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  // A minibatch-enabled util with MyTable registered. Minibatch is required for these cases to
+  // exercise the FLINK-34702 fix end-to-end: a deduplication-style Top-1 Rank only forwards its
+  // updates downstream when minibatch is enabled (see RankUtil.outputInsertOnlyInDeduplicate); with
+  // minibatch disabled a FirstRow rank is forced insert-only and the modified-monotonicity guard is
+  // never reached. A fresh util is used (rather than mutating the shared one) to keep minibatch from
+  // leaking into the other test cases.
+  private def miniBatchUtil() = {
+    val mbUtil = streamTestUtil()
+    mbUtil.addDataStream[(Int, String, Long)](
+      "MyTable",
+      'a,
+      'b,
+      'c,
+      'proctime.proctime,
+      'rowtime.rowtime)
+    mbUtil.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(1000L))
+    mbUtil
+  }
+
+  /**
+   * A Top-1 ROW_NUMBER (i.e. RankUtil.isDeduplication) whose ORDER BY is a single time attribute in
+   * ascending order can be converted to a FirstRow Deduplicate, which is insert-only. Its modified
+   * monotonicity is CONSTANT, so the downstream MIN aggregate uses the non-retract Min. This is the
+   * insert-only control for the two cases below.
+   */
+  @Test
+  def testDeduplicateOnTimeAttributeIsInsertOnly(): Unit = {
+    val util = miniBatchUtil()
+    val sql =
+      """
+        |SELECT b, MIN(c) AS min_c
+        |FROM (
+        |  SELECT a, b, c,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime) AS rn
+        |  FROM MyTable
+        |) WHERE rn = 1
+        |GROUP BY b
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  /**
+   * A Top-1 ROW_NUMBER whose ORDER BY is a single NON-time attribute is a deduplication
+   * (RankUtil.isDeduplication) but can NOT be converted to a Deduplicate operator
+   * (RankUtil.canConvertToDeduplicate is false because it is not sorted on a time attribute). It
+   * stays a Top-1 Rank operator that retracts and re-emits the kept row when a new winner arrives,
+   * hence generates updates. Its modified monotonicity must NOT be CONSTANT, so the downstream MIN
+   * aggregate must use Min_Retract.
+   *
+   * Before the fix, FlinkRelMdModifiedMonotonicity wrongly treated this ascending single-column
+   * case as an insert-only FirstRow and marked it CONSTANT, planning a non-retract Min.
+   */
+  @Test
+  def testDeduplicateOnNonTimeAttributeGeneratesUpdates(): Unit = {
+    val util = miniBatchUtil()
+    val sql =
+      """
+        |SELECT b, MIN(c) AS min_c
+        |FROM (
+        |  SELECT a, b, c,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) AS rn
+        |  FROM MyTable
+        |) WHERE rn = 1
+        |GROUP BY b
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  /**
+   * Same as above but with a multi-column ORDER BY. A multi-column order key can never be a single
+   * time attribute, so the rank stays a Top-1 Rank operator and generates updates; the downstream
+   * MIN aggregate must use Min_Retract.
+   *
+   * This is the shape that originally exposed the bug: RankUtil.keepLastDeduplicateRow returns
+   * false for a multi-column order key (size != 1), so before the fix it fell through to the
+   * insert-only CONSTANT branch.
+   */
+  @Test
+  def testDeduplicateOnMultipleColumnsGeneratesUpdates(): Unit = {
+    val util = miniBatchUtil()
+    val sql =
+      """
+        |SELECT b, MIN(c) AS min_c
+        |FROM (
+        |  SELECT a, b, c,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC, c DESC) AS rn
+        |  FROM MyTable
+        |) WHERE rn = 1
+        |GROUP BY b
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
   }
 
   // TODO add tests about multi-sinks and udf

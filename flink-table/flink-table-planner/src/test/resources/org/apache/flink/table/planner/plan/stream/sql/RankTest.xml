@@ -118,6 +118,111 @@ Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDeduplicateOnMultipleColumnsGeneratesUpdates">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, MIN(c) AS min_c
+FROM (
+  SELECT a, b, c,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC, c DESC) AS rn
+  FROM MyTable
+) WHERE rn = 1
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], min_c=[MIN($1)])
++- LogicalProject(b=[$1], c=[$2])
+   +- LogicalFilter(condition=[=($3, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST, $2 DESC NULLS LAST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], select=[b, MIN_RETRACT(min$0) AS min_c])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, MIN_RETRACT(c) AS min$0, COUNT_RETRACT(*) AS count1$1])
+      +- Calc(select=[b, c])
+         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC, c DESC], select=[a, b, c])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeduplicateOnNonTimeAttributeGeneratesUpdates">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, MIN(c) AS min_c
+FROM (
+  SELECT a, b, c,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) AS rn
+  FROM MyTable
+) WHERE rn = 1
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], min_c=[MIN($1)])
++- LogicalProject(b=[$1], c=[$2])
+   +- LogicalFilter(condition=[=($3, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], select=[b, MIN_RETRACT(min$0) AS min_c])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, MIN_RETRACT(c) AS min$0, COUNT_RETRACT(*) AS count1$1])
+      +- Calc(select=[b, c])
+         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b ASC], select=[a, b, c])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeduplicateOnTimeAttributeIsInsertOnly">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, MIN(c) AS min_c
+FROM (
+  SELECT a, b, c,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime) AS rn
+  FROM MyTable
+) WHERE rn = 1
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], min_c=[MIN($1)])
++- LogicalProject(b=[$1], c=[$2])
+   +- LogicalFilter(condition=[=($3, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], select=[b, MIN(min$0) AS min_c])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, MIN(c) AS min$0, COUNT_RETRACT(*) AS count1$1])
+      +- Calc(select=[b, c])
+         +- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, proctime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedTopN">
     <Resource name="sql">
       <![CDATA[
