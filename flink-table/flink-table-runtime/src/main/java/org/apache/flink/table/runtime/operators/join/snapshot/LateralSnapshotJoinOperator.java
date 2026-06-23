@@ -370,7 +370,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         currentBuildSideWm = Long.MIN_VALUE;
         currentProbeSideWm = Long.MIN_VALUE;
 
-        // Initialize metric counters
         probeBufferedCount = 0L;
         buildBufferedCount = 0L;
         maxJoinFanOut = 0L;
@@ -454,7 +453,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // build-side idle status: it absorbs both.
         combinedWatermark.updateStatus(1, true);
 
-        // Register the load-completed idle-timeout timer if it is configured.
         if (phase == Phase.LOAD && loadCompletedIdleTimeoutMs != null) {
             scheduleIdleFlipTimer();
         }
@@ -621,7 +619,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             // If a recovery happened before, there might be buffered build-side changes.
             // Apply them before joining the buffered probe-side records.
             applyBufferedChanges();
-            // Join each buffered probe row.
             long drained = 0;
             for (RowData p : probeBuffer.get()) {
                 joinProbeRow(p);
@@ -735,7 +732,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // Without this anchor, keys loaded long before the flip would be evicted as soon as the
         // first TTL fire after the flip happens.
         flipProcTime = getProcessingTimeService().getCurrentProcessingTime();
-        // disable idle flip timer
         cancelIdleFlipTimer();
         // Fire all per-key flip timers (TS=1) so any probes buffered during LOAD are joined.
         long advanceTo = Math.max(currentProbeSideWm, FLIP_JOIN_TIMER_TS);
@@ -892,10 +888,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         change.setRowKind(RowKind.INSERT);
         Long currentCnt = buildTableState.get(change);
         if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
-            // +I / +U
             buildTableState.put(change, currentCnt == null ? 1L : currentCnt + 1L);
         } else {
-            // -D / -U
             if (currentCnt == null || currentCnt <= 0L) {
                 numUnmatchedBuildRetractions.inc();
                 return;
@@ -923,7 +917,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return;
         }
         if (currentTtlTimer != null) {
-            // Remove the current timer before setting a new one.
             timerService.deleteProcessingTimeTimer(NS_TTL, currentTtlTimer);
         }
         long newDeadline = now + maxStateTtlMs;
