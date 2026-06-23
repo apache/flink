@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
@@ -271,7 +272,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     // -------------------------- operator state --------------------------
 
-    private transient ListState<String> operatorPhaseState;
+    private transient ListState<Phase> operatorPhaseState;
 
     // -------------------------- metrics --------------------------
 
@@ -349,14 +350,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                 context.getOperatorStateStore()
                         .getUnionListState(
                                 new ListStateDescriptor<>(
-                                        OPERATOR_PHASE_STATE_NAME, StringSerializer.INSTANCE));
+                                        OPERATOR_PHASE_STATE_NAME,
+                                        new EnumSerializer<>(Phase.class)));
 
         // any LOAD entry → LOAD; empty (fresh start) → LOAD; else JOIN
         boolean phaseStateExists = false;
         boolean anyTaskInLoad = false;
-        for (String phase : operatorPhaseState.get()) {
+        for (Phase persistedPhase : operatorPhaseState.get()) {
             phaseStateExists = true;
-            if (Phase.LOAD.name().equals(phase)) {
+            if (persistedPhase == Phase.LOAD) {
                 anyTaskInLoad = true;
                 break;
             }
@@ -515,7 +517,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        operatorPhaseState.update(List.of(phase.name()));
+        operatorPhaseState.update(List.of(phase));
     }
 
     @Override
