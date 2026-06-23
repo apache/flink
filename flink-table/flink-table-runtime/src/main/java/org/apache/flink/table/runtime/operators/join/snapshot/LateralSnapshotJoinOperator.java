@@ -510,6 +510,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
             probeBufferedGauge.update(++probeBufferedCount);
         } else {
+            // Drain any probes still buffered for this key (flip drain not yet reached it) before
+            // the new one, preserving intra-key order.
+            if (probeBuffer.get().iterator().hasNext()) {
+                drainBufferedProbes();
+            }
             joinProbeRow(probe);
         }
         refreshStateTtl();
@@ -592,20 +597,27 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // FLIP_NAMESPACE timers drain the probes buffered during LOAD when the operator flips to
         // JOIN.
         if (FLIP_NAMESPACE.equals(namespace)) {
-            // If a recovery happened before, there might be buffered build-side changes.
-            // Apply them before joining the buffered probe-side records.
-            applyBufferedChanges();
-            long drained = 0;
-            for (RowData p : probeBuffer.get()) {
-                joinProbeRow(p);
-                drained++;
-            }
-            probeBuffer.clear();
-            // The count is a best-effort in-memory tally that is not restored from state, so a
-            // restore may drain more probes than were counted since (re)start. Floor it at 0.
-            probeBufferedCount = Math.max(0, probeBufferedCount - drained);
-            probeBufferedGauge.update(probeBufferedCount);
+            drainBufferedProbes();
         }
+    }
+
+    /**
+     * Applies the current key's buffered build-side changes, then joins and clears its probe-side
+     * buffered records.
+     */
+    private void drainBufferedProbes() throws Exception {
+        // If a recovery happened before, there might be buffered build-side changes.
+        // Apply them before joining the buffered probe-side records.
+        applyBufferedChanges();
+        long drained = 0;
+        for (RowData p : probeBuffer.get()) {
+            joinProbeRow(p);
+            drained++;
+        }
+        probeBuffer.clear();
+        // Best-effort count (not restored), so floor at 0.
+        probeBufferedCount = Math.max(0, probeBufferedCount - drained);
+        probeBufferedGauge.update(probeBufferedCount);
     }
 
     @Override
@@ -670,15 +682,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     // -------------------------- core logic --------------------------
 
     /**
-     * Transition from LOAD to JOIN.
-     *
-     * <p><b>Invocation context</b>: This method runs in a NON-KEYED context. The two callers are
-     * (a) {@link #processWatermark2}, which is invoked by the framework without a key context, and
-     * (b) {@link #idleFlipTimer}, which fires from the operator-level processing-time service.
-     * Therefore {@code flipToJoinPhase()} itself must not access keyed state. Per-key work (the
-     * buffered probe flush) is delegated to {@link #onEventTime} via {@code timeServiceManager
-     * .advanceWatermark(...)} below — that path establishes the correct key context for each fired
-     * timer before invoking the callback.
+     * Transition from LOAD to JOIN. Runs in a NON-KEYED context (callers {@link #processWatermark2}
+     * and {@link #idleFlipTimer}), so it must not touch keyed state directly; the per-key probe
+     * drain happens in the {@link #FLIP_NAMESPACE} timers fired below.
      */
     private void transitionToJoinPhase(FlipTrigger trigger) throws Exception {
         if (phase == Phase.JOIN) {
@@ -697,29 +703,19 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // first TTL fire after the flip happens.
         flipProcTime = getProcessingTimeService().getCurrentProcessingTime();
         cancelIdleFlipTimer();
-        // Fire all per-key flip timers (TS=1) so any probes buffered during LOAD are joined.
-        long advanceTo = Math.max(currentProbeSideWm, FLIP_JOIN_TIMER_TS);
-        if (timeServiceManager != null) {
-            timeServiceManager.advanceWatermark(new Watermark(advanceTo));
-        }
-        // Track the idle status which is cleared by updateWatermark()
-        boolean probeIdleAtFlip = combinedWatermark.isIdle();
-        // Emit the last observed probe-side wm downstream
-        if (currentProbeSideWm != Long.MIN_VALUE) {
-            combinedWatermark.updateWatermark(0, currentProbeSideWm);
-            output.emitWatermark(new Watermark(currentProbeSideWm));
-            // reset the idle status
-            combinedWatermark.updateStatus(0, probeIdleAtFlip);
-        }
-        // If the probe-side was idle at flip time, propagate the idle status downstream
-        if (probeIdleAtFlip) {
-            output.emitWatermarkStatus(WatermarkStatus.IDLE);
+
+        // If we have seen a probe-side WM, fire the FLIP timers to drain the buffered probes. Call
+        // processWatermark1 with the WM, so firing is interruptible and the watermark is forwarded
+        // after all buffered probe-side records were joined and the buffers cleared.
+        // If we haven't seen a probe-side WM yet, the joining is triggered by the next probe-side
+        // WM.
+        if (currentProbeSideWm >= FLIP_JOIN_TIMER_TS) {
+            super.processWatermark1(new Watermark(currentProbeSideWm));
         }
         LOG.info(
-                "Completed flip to JOIN phase (trigger={}): buffered probe records joined and "
-                        + "drained, emittedProbeWm={}",
+                "Completed flip to JOIN phase (trigger={}): emittedProbeWm={}",
                 trigger,
-                currentProbeSideWm == Long.MIN_VALUE ? "none" : currentProbeSideWm);
+                currentProbeSideWm >= FLIP_JOIN_TIMER_TS ? currentProbeSideWm : "none");
     }
 
     /**
@@ -819,7 +815,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     /** Clears the per-key build-side change buffer and its watermark tag. */
-    private void clearBuildChangeBuffer() throws Exception {
+    private void clearBuildChangeBuffer() {
         buildChangeBuffer.clear();
         bufferedAtWmState.clear();
     }
@@ -829,7 +825,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * probeBuffer} is expected to be empty in JOIN phase (where eviction runs) but is cleared
      * defensively; its best-effort gauge is intentionally not adjusted here.
      */
-    private void clearAllPerKeyState() throws Exception {
+    private void clearAllPerKeyState() {
         buildTableState.clear();
         clearBuildChangeBuffer();
         ttlExpiryState.clear();

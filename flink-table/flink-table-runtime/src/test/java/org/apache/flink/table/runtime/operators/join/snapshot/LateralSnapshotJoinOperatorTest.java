@@ -348,6 +348,140 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     @Test
+    void flipWithoutProbeWatermarkDrainsBufferedProbesOnNextProbeWatermark() throws Exception {
+        // No probe-side watermark before the flip (currentProbeSideWm == MIN_VALUE): the FLIP
+        // timers cannot fire at the flip, so the buffered probes stay buffered. The next
+        // probe-side watermark advances event time past the FLIP timer and drains them.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addProbeRecord(h, 1L, "k1", "p1"); // buffered during LOAD, no probe watermark
+            assertPhase(op, Phase.LOAD);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+
+            addBuildWm(h, 100L); // flip, but no probe watermark yet
+            assertPhase(op, Phase.JOIN);
+            // The buffered probe is NOT drained at the flip and nothing is emitted yet.
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+            assertThat(h.getOutput()).isEmpty();
+
+            // The next probe-side watermark fires the FLIP timer and drains the buffered probe.
+            addProbeWm(h, 100L);
+            assertThat(probeBufferKeys(h)).isEmpty();
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(1L, "k1", "p1", "k1", "v1", 1L));
+        }
+    }
+
+    @Test
+    void flipWithoutProbeWatermarkDrainsBufferedProbeEagerlyOnNextProbeRecord() throws Exception {
+        // After a flip without a probe-side watermark the buffered probe stays buffered. When a new
+        // probe for that key arrives, processElement1's guard drains the buffered probe first
+        // (preserving intra-key order) before joining the new one — no probe watermark required.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addProbeRecord(h, 1L, "k1", "p-load"); // buffered during LOAD
+            addBuildWm(h, 100L); // flip, no probe watermark
+            assertPhase(op, Phase.JOIN);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+            assertThat(h.getOutput()).isEmpty();
+
+            // A new probe for k1 drains the buffered probe (id 1) ahead of the new one (id 2).
+            addProbeRecord(h, 2L, "k1", "p-join");
+            assertThat(probeBufferForKey(h, op, "k1")).isEmpty();
+            List<Long> emittedProbeIds =
+                    h.getOutput().stream()
+                            .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
+                            .toList();
+            assertThat(emittedProbeIds).containsExactly(1L, 2L);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p-load", "k1", "v1", 1L),
+                    row(2L, "k1", "p-join", "k1", "v1", 1L));
+        }
+    }
+
+    @Test
+    void flipWithoutProbeWatermarkDrainsBufferedProbesViaProbeRecordAndWatermark()
+            throws Exception {
+        // After a flip without a probe-side watermark, probes buffered for different keys can drain
+        // via different paths: one key by a newly arriving probe record (eager drain), another by
+        // the next probe-side watermark.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addBuildChange(h, insertRecord("k2", "v2", 1L));
+            addProbeRecord(h, 1L, "k1", "p-k1"); // buffered during LOAD
+            addProbeRecord(h, 2L, "k2", "p-k2"); // buffered during LOAD
+            addBuildWm(h, 100L); // flip, no probe watermark
+            assertPhase(op, Phase.JOIN);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+            assertThat(probeBufferForKey(h, op, "k2")).hasSize(1);
+
+            // k1 drains eagerly when a new probe for k1 arrives; k2 stays buffered.
+            addProbeRecord(h, 3L, "k1", "p-k1-join");
+            assertThat(probeBufferForKey(h, op, "k1")).isEmpty();
+            assertThat(probeBufferForKey(h, op, "k2")).hasSize(1);
+
+            // The next probe-side watermark drains the remaining buffered probe for k2.
+            addProbeWm(h, 100L);
+            assertThat(probeBufferKeys(h)).isEmpty();
+
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p-k1", "k1", "v1", 1L),
+                    row(3L, "k1", "p-k1-join", "k1", "v1", 1L),
+                    row(2L, "k2", "p-k2", "k2", "v2", 1L));
+        }
+    }
+
+    @Test
+    void joinPhaseEagerlyDrainsBufferedProbesForNotYetFlippedKey() throws Exception {
+        // Simulates the interruptible-flip window: a probe for k1 was buffered during LOAD but its
+        // FLIP timer has not drained it yet (the mailbox processed a new record before the drain
+        // continuation reached this key) when a new probe for k1 arrives in JOIN. The guard in
+        // processElement1 must drain the buffered probe first (preserving intra-key order) before
+        // joining the newly arriving one.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addBuildWm(h, 100L); // flip to JOIN
+            assertPhase(op, Phase.JOIN);
+
+            // Inject a probe into k1's buffer as if its FLIP timer had not yet drained it.
+            h.getOperator().setCurrentKey(stringKey("k1"));
+            op.getProbeBuffer().add(insertRecord(1L, "k1", "p-buffered").getValue());
+
+            // A new probe for k1 arrives; the buffered probe must be drained ahead of it.
+            addProbeRecord(h, 2L, "k1", "p-new");
+
+            stripWatermarksAndStatusesFromOutput(h);
+            // Emission order: the buffered probe (id 1) before the newly arriving probe (id 2).
+            List<Long> emittedProbeIds =
+                    h.getOutput().stream()
+                            .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
+                            .toList();
+            assertThat(emittedProbeIds).containsExactly(1L, 2L);
+            // Both joined against k1's build row {v1:1}; buffer drained afterwards.
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p-buffered", "k1", "v1", 1L),
+                    row(2L, "k1", "p-new", "k1", "v1", 1L));
+            assertThat(probeBufferForKey(h, op, "k1")).isEmpty();
+        }
+    }
+
+    @Test
     void idleTimerRearmsOnBuildWatermark() throws Exception {
         LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -456,6 +590,7 @@ class LateralSnapshotJoinOperatorTest {
             h.processElement1(insertRecord("a", "9", "p-a-9"));
             h.processElement1(insertRecord("b", "1", "p-b-1"));
             h.processElement1(insertRecord("b", "9", "p-b-9"));
+            addProbeWm(h, 100L);
             // flip to JOIN phase
             addBuildWm(h, 100L);
 
@@ -701,7 +836,9 @@ class LateralSnapshotJoinOperatorTest {
             h.open();
             addBuildChange(h, insertRecord(null, "v_null", 1L));
             addProbeRecord(h, 1L, null, "p_null");
+            addProbeWm(h, 100L);
             addBuildWm(h, 100L);
+            stripWatermarksAndStatusesFromOutput(h);
 
             // test joining during LOAD -> JOIN transition
             if (filterNullKey) {
@@ -782,16 +919,13 @@ class LateralSnapshotJoinOperatorTest {
             assertThat(extractWatermarks(h.getOutput())).isEmpty();
             assertThat(extractWatermarkStatuses(h.getOutput())).isEmpty();
 
-            // Flip to JOIN phase — last probe WM emitted.
+            // Flip to JOIN phase — last probe WM emitted. Probe-side idleness is intentionally not
+            // propagated at the flip (all parallel instances are uniformly idle), so regardless of
+            // whether the probe was idle during LOAD, only the watermark is emitted here.
             addBuildWm(h, 100L);
             assertPhase(op, Phase.JOIN);
 
-            if (probeIdleDuringLoad) {
-                assertThat(extractWatermarkStatuses(h.getOutput()))
-                        .containsExactly(WatermarkStatus.IDLE);
-            } else {
-                assertThat(extractWatermarkStatuses(h.getOutput())).isEmpty();
-            }
+            assertThat(extractWatermarkStatuses(h.getOutput())).isEmpty();
             assertThat(extractWatermarks(h.getOutput())).containsExactly(new Watermark(50));
             h.getOutput().clear();
 
@@ -1183,7 +1317,7 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     @Test
-    void probeBufferedGaugeTracksLoadBufferingAndDrainsOnFlip() throws Exception {
+    void probeBufferedGaugeTracksLoadBufferingAndDrainsOnProbeWatermark() throws Exception {
         LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
@@ -1197,9 +1331,13 @@ class LateralSnapshotJoinOperatorTest {
             addProbeRecord(h, 3L, "k1", "p3");
             assertThat(op.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
 
-            // Flip drains all buffered probes across keys.
+            // The flip alone does not drain the probes: no probe-side watermark has arrived yet.
             addBuildWm(h, 100L);
             assertPhase(op, Phase.JOIN);
+            assertThat(op.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(3L);
+
+            // A probe-side watermark fires the FLIP timers and drains all buffered probes.
+            addProbeWm(h, 100L);
             assertThat(op.getNumProbeSideRecordsBufferedGauge().getValue()).isEqualTo(0L);
         }
     }
@@ -1251,6 +1389,7 @@ class LateralSnapshotJoinOperatorTest {
             addProbeRecord(h, 1L, "k2", "p1"); // fan-out 1
             // a probe record that does not match
             addProbeRecord(h, 2L, "k3", "p2"); // fan-out INNER: 0, LEFT OUTER: 1
+            addProbeWm(h, 100L);
             addBuildWm(h, 100L);
             assertPhase(op, Phase.JOIN);
 
