@@ -30,11 +30,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotAssigner.APPLICATION_MODE_EXECUTION_TARGET;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,29 +43,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultSlotAssignerTest {
 
     private static final TaskManagerLocation tml1 = new LocalTaskManagerLocation();
-    private static final SlotInfo slot1OfTml1 = new TestingSlot(tml1);
-    private static final SlotInfo slot2OfTml1 = new TestingSlot(tml1);
-    private static final SlotInfo slot3OfTml1 = new TestingSlot(tml1);
+    private static final PhysicalSlot slot1OfTml1 = new TestingSlot(tml1);
+    private static final PhysicalSlot slot2OfTml1 = new TestingSlot(tml1);
+    private static final PhysicalSlot slot3OfTml1 = new TestingSlot(tml1);
+    private static final PhysicalSlot slot4OfTml1 = new TestingSlot(tml1);
 
     private static final TaskManagerLocation tml2 = new LocalTaskManagerLocation();
-    private static final SlotInfo slot1OfTml2 = new TestingSlot(tml2);
-    private static final SlotInfo slot2OfTml2 = new TestingSlot(tml2);
-    private static final SlotInfo slot3OfTml2 = new TestingSlot(tml2);
+    private static final PhysicalSlot slot1OfTml2 = new TestingSlot(tml2);
+    private static final PhysicalSlot slot2OfTml2 = new TestingSlot(tml2);
+    private static final PhysicalSlot slot3OfTml2 = new TestingSlot(tml2);
 
     private static final TaskManagerLocation tml3 = new LocalTaskManagerLocation();
-    private static final SlotInfo slot1OfTml3 = new TestingSlot(tml3);
-    private static final SlotInfo slot2OfTml3 = new TestingSlot(tml3);
-
-    private static final List<SlotInfo> allSlots =
-            Arrays.asList(
-                    slot1OfTml1,
-                    slot2OfTml1,
-                    slot3OfTml1,
-                    slot1OfTml2,
-                    slot2OfTml2,
-                    slot3OfTml2,
-                    slot1OfTml3,
-                    slot2OfTml3);
+    private static final PhysicalSlot slot1OfTml3 = new TestingSlot(tml3);
+    private static final PhysicalSlot slot2OfTml3 = new TestingSlot(tml3);
 
     @Parameter int parallelism;
 
@@ -73,7 +63,7 @@ class DefaultSlotAssignerTest {
     Collection<PhysicalSlot> freeSlots;
 
     @Parameter(value = 2)
-    List<TaskManagerLocation> expectedTaskManagerLocations;
+    Map<TaskManagerLocation, Integer> expectedSlotsPerTaskManager;
 
     @TestTemplate
     void testPickSlotsIfNeeded() {
@@ -83,32 +73,128 @@ class DefaultSlotAssignerTest {
                         true,
                         DefaultSlotSharingResolver.INSTANCE,
                         SimpleSlotMatchingResolver.INSTANCE);
-        final Set<TaskManagerLocation> keptTaskExecutors =
-                slotAssigner.pickSlotsIfNeeded(parallelism, freeSlots).stream()
-                        .map(SlotInfo::getTaskManagerLocation)
-                        .collect(Collectors.toSet());
-        assertThat(expectedTaskManagerLocations)
-                .containsExactlyInAnyOrderElementsOf(keptTaskExecutors);
+
+        final Collection<PhysicalSlot> picked =
+                slotAssigner.pickSlotsIfNeeded(parallelism, freeSlots);
+
+        // The total number of picked slots must exactly match the requested parallelism. This
+        // is the key guarantee against the previous implementation, which could over-pick when
+        // a single TaskManager did not satisfy the full request on its own.
+        assertThat(picked).hasSize(parallelism);
+
+        // Each picked slot must come from the free-slot pool.
+        assertThat(freeSlots).containsAll(picked);
+
+        // The slot count contributed by each TaskManager must exactly match expectations.
+        // This validates both: (a) which TaskManagers are involved (minimal set), and (b) how
+        // many slots each one contributes (no fragmentation beyond what is unavoidable).
+        final Map<TaskManagerLocation, Long> actualPerTaskManager =
+                picked.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        SlotInfo::getTaskManagerLocation, Collectors.counting()));
+        final Map<TaskManagerLocation, Long> expectedPerTaskManager =
+                expectedSlotsPerTaskManager.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(Map.Entry::getKey, e -> e.getValue().longValue()));
+        assertThat(actualPerTaskManager).isEqualTo(expectedPerTaskManager);
     }
 
-    @Parameters(name = "parallelism={0}, freeSlots={1}, expectedTaskManagerLocations={2}")
+    @Parameters(name = "parallelism={0}, freeSlots={1}, expectedSlotsPerTaskManager={2}")
     private static Collection<Object[]> getTestingParameters() {
         return Arrays.asList(
+                // -------- Original test cases (kept, with stricter assertions) --------
+
+                // All 4 free slots are needed: every TM contributes all of its free slots.
                 new Object[] {
                     4,
                     Arrays.asList(slot1OfTml1, slot2OfTml1, slot1OfTml2, slot2OfTml3),
-                    Arrays.asList(tml1, tml2, tml3)
+                    expected(tml1, 2, tml2, 1, tml3, 1)
                 },
+                // Single largest TM (tml1 with 2 slots) already satisfies the request.
                 new Object[] {
                     2,
                     Arrays.asList(slot1OfTml1, slot2OfTml1, slot1OfTml2, slot2OfTml3),
-                    singletonList(tml1)
+                    singletonMap(tml1, 2)
                 },
+                // Single TM (tml2 with 3 slots) exactly matches the request; tml1 ignored.
                 new Object[] {
                     3,
                     Arrays.asList(slot1OfTml1, slot1OfTml2, slot2OfTml2, slot3OfTml2),
-                    Arrays.asList(tml2)
+                    singletonMap(tml2, 3)
                 },
-                new Object[] {7, allSlots, Arrays.asList(tml1, tml2, tml3)});
+
+                // -------- Regression guard: boundary trim --------
+
+                // The largest TM has more slots than requested - only the exact number must be
+                // taken. This is the fragmentation guard for the single-TM case.
+                new Object[] {
+                    1,
+                    Arrays.asList(slot1OfTml1, slot2OfTml1, slot3OfTml1, slot4OfTml1),
+                    singletonMap(tml1, 1)
+                },
+
+                // -------- Regression guard: cumulative case --------
+
+                // tml1(4) cannot satisfy parallelism=5 alone, so tml2 contributes the boundary
+                // slot. The previous implementation added ALL of tml2's slots, returning 7 slots
+                // (over-pick) and increasing fragmentation. The new implementation limits tml2 to
+                // 1 slot.
+                new Object[] {
+                    5,
+                    Arrays.asList(
+                            slot1OfTml1,
+                            slot2OfTml1,
+                            slot3OfTml1,
+                            slot4OfTml1,
+                            slot1OfTml2,
+                            slot2OfTml2,
+                            slot3OfTml2),
+                    expected(tml1, 4, tml2, 1)
+                },
+
+                // -------- Regression guard: three-TM case, smallest TM untouched --------
+
+                // tml1(4) + tml2(3) exactly equals 7, so tml3 must not be touched at all.
+                // Sort order is deterministic here because all three TMs have distinct sizes.
+                new Object[] {
+                    7,
+                    Arrays.asList(
+                            slot1OfTml1,
+                            slot2OfTml1,
+                            slot3OfTml1,
+                            slot4OfTml1,
+                            slot1OfTml2,
+                            slot2OfTml2,
+                            slot3OfTml2,
+                            slot1OfTml3,
+                            slot2OfTml3),
+                    expected(tml1, 4, tml2, 3)
+                },
+
+                // tml1(4) needs 2 more from tml2, tml3 stays untouched. Validates boundary
+                // trim happening in the middle of the sorted iteration, not just at the end.
+                new Object[] {
+                    6,
+                    Arrays.asList(
+                            slot1OfTml1,
+                            slot2OfTml1,
+                            slot3OfTml1,
+                            slot4OfTml1,
+                            slot1OfTml2,
+                            slot2OfTml2,
+                            slot3OfTml2,
+                            slot1OfTml3,
+                            slot2OfTml3),
+                    expected(tml1, 4, tml2, 2)
+                });
+    }
+
+    private static Map<TaskManagerLocation, Integer> expected(Object... pairs) {
+        final Map<TaskManagerLocation, Integer> map = new HashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            map.put((TaskManagerLocation) pairs[i], (Integer) pairs[i + 1]);
+        }
+        return map;
     }
 }
