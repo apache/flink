@@ -130,17 +130,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
     /**
-     * Name of the single {@link InternalTimerService} on which the operator registers two distinct
-     * kinds of keyed timers. The timer namespace tells them apart in the {@link
-     * #onEventTime}/{@link #onProcessingTime} callbacks:
-     *
-     * <ul>
-     *   <li>{@link #FLIP_NAMESPACE}: a one-shot per-key event-time timer (registered at {@link
-     *       #FLIP_JOIN_TIMER_TS}) that drains the probe records buffered for that key during LOAD
-     *       and joins them once the operator flips to JOIN.
-     *   <li>{@link #TTL_NAMESPACE}: a recurring per-key processing-time timer that evicts inactive
-     *       keyed state during JOIN (see {@link #refreshStateTtl}).
-     * </ul>
+     * Single timer service for two kinds of per-key timers, distinguished by namespace: {@link
+     * #FLIP_NAMESPACE} (one-shot event-time timer draining a key's LOAD-buffered probes at the
+     * flip) and {@link #TTL_NAMESPACE} (recurring processing-time timer for state eviction).
      */
     private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
 
@@ -443,9 +435,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         numUnmatchedBuildRetractions =
                 metricGroup.counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
 
-        // The probe-buffered count is an in-memory, best-effort tally: it is not restored from
-        // keyed state, so it starts at 0 after a restore/rescale and reflects only buffering
-        // observed by this subtask since (re)start.
+        // Best-effort in-memory tally; not restored, so it starts at 0 after a restore/rescale.
         probeBufferedGauge = new SimpleGauge<>(probeBufferedCount);
         buildWmGauge = new SimpleGauge<>(currentBuildSideWm);
         probeWmGauge = new SimpleGauge<>(currentProbeSideWm);
@@ -459,9 +449,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         phaseGauge = () -> phase == null ? -1 : phase.ordinal();
         metricGroup.gauge(CURRENT_PHASE_METRIC_NAME, phaseGauge);
 
-        // Mark the build-side input (index 1) as permanently idle in the inherited
-        // combinedWatermark accounting. This operator never forwards build-side WMs nor
-        // build-side idle status: it absorbs both.
+        // Pin the build-side input idle: the operator absorbs build-side watermarks and status.
         combinedWatermark.updateStatus(1, true);
 
         if (phase == Phase.LOAD && loadCompletedIdleTimeoutMs != null) {
@@ -526,14 +514,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesIfReady();
         buildChangeBuffer.add(build);
-        // Tag the buffer with the current build-side watermark so applyBufferedChangesIfReady() can
-        // later detect when the watermark has advanced past it and drain the buffer atomically.
-        // bufferedAtWmState is key-scoped, whereas currentBuildSideWm is a subtask-scoped variable;
-        // we (re)tag the key whenever this is the first buffered change (bufferedAt == null) or the
-        // tag differs from the current watermark. Note the tag can intentionally move *backwards*
-        // here: after a restore/rescale currentBuildSideWm starts at MIN_VALUE while the recovered
-        // tag may be higher, and re-anchoring the buffer to this subtask's watermark baseline is
-        // what lets it drain once this subtask's build watermark advances past it again.
+        // Tag the buffer with the current build watermark so it drains once the watermark passes.
+        // The tag may move backwards on restore (currentBuildSideWm resets to MIN_VALUE), which
+        // re-anchors a recovered buffer to this subtask's watermark.
         if (bufferedAt == null || bufferedAt != currentBuildSideWm) {
             bufferedAtWmState.update(currentBuildSideWm);
         }
@@ -574,15 +557,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
             throws Exception {
         if (index == 1) {
-            // Build-side idle status is absorbed entirely. partial[1] is initialized idle in
-            // open() and stays that way regardless of source-side toggles, so combined accounting
-            // is always driven by the probe side alone.
+            // Build-side idle status is absorbed; combined watermark is probe-driven.
             return;
         }
         if (phase == Phase.LOAD) {
-            // During LOAD, nothing is emitted downstream — neither watermarks nor status. But we
-            // do track partial[0]'s idle bit so that, after the flip, the operator has an accurate
-            // view of the probe-side's idle state.
+            // LOAD emits nothing downstream; track partial[0]'s idle bit for use after the flip.
             combinedWatermark.updateStatus(0, watermarkStatus.isIdle());
             return;
         }
@@ -635,9 +614,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return; // stale timer fire
         }
         long now = getProcessingTimeService().getCurrentProcessingTime();
-        // check if we need to reschedule the ttl timer. This is necessary if
-        //   a) we're still in LOAD phase, or
-        //   b) if we're in JOIN but the flip happened less than stateTtlMs ago.
+        // Reschedule if still in LOAD, or in JOIN but within stateTtlMs of the flip (grace window).
         if (phase == Phase.LOAD || (flipProcTime != null && now < flipProcTime + minStateTtlMs)) {
             // set the new TTL timer maxStateTtlMs ahead
             long newDeadline =
@@ -697,10 +674,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                 currentBuildSideWm,
                 loadCompletedTime);
         phase = Phase.JOIN;
-        // Record the flip wall-clock so the TTL handler can grant a grace period of
-        // stateTtlMs after the flip before any build-only key becomes eligible for eviction.
-        // Without this anchor, keys loaded long before the flip would be evicted as soon as the
-        // first TTL fire after the flip happens.
+        // Anchor the TTL grace window at the flip so keys loaded before it aren't evicted early.
         flipProcTime = getProcessingTimeService().getCurrentProcessingTime();
         cancelIdleFlipTimer();
 
@@ -784,13 +758,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             applyBufferedChanges();
             return null;
         } else if (phase == Phase.JOIN && currentBuildSideWm == Long.MIN_VALUE) {
-            // JOIN-phase fallback: no build-side watermark has ever been observed by this subtask.
-            // This happens
-            //   (a) after a recovery (e.g. JOIN-phase rescaled into this subtask), or
-            //   (b) when the operator flipped via the idle-timeout fallback and no build-side
-            //       watermark arrived afterwards.
-            // In either case we apply the buffered changes now because we do not know when the next
-            // build-side WM will arrive (if it ever will).
+            // JOIN-phase fallback: no build watermark seen by this subtask (recovery/rescale, or
+            // idle-timeout flip). Apply now, since the next build watermark may never arrive.
             applyBufferedChanges();
             return null;
         }
