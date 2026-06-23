@@ -134,6 +134,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
     @VisibleForTesting static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
+    private static final String PROBE_BUFFER_SIZE_STATE_NAME = "probe-buffer-size";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
     /**
@@ -276,8 +277,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /** Build-side watermark to ensure atomic application of build changes during JOIN. */
     private transient ValueState<Long> bufferedAtWmState;
 
-    /** Buffer for probe-side records during LOAD. */
-    private transient ListState<RowData> probeBuffer;
+    /**
+     * Buffer for probe-side records during LOAD, as an ordered sequence (index -> row) so the
+     * backend can stream entries on drain instead of materializing the whole per-key list.
+     */
+    private transient MapState<Long, RowData> probeBuffer;
+
+    /** Number of rows in {@link #probeBuffer} for the current key; also the next append index. */
+    private transient ValueState<Long> probeBufferSize;
 
     /** Most recently registered TTL timer deadline; used to advance TTL timer. */
     private transient ValueState<Long> ttlExpiryState;
@@ -412,7 +419,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                                 new ValueStateDescriptor<>(BUFFERED_AT_WM_STATE_NAME, Types.LONG));
         probeBuffer =
                 getRuntimeContext()
-                        .getListState(new ListStateDescriptor<>(PROBE_BUFFER_STATE_NAME, leftType));
+                        .getMapState(
+                                new MapStateDescriptor<>(
+                                        PROBE_BUFFER_STATE_NAME, Types.LONG, leftType));
+        probeBufferSize =
+                getRuntimeContext()
+                        .getState(
+                                new ValueStateDescriptor<>(
+                                        PROBE_BUFFER_SIZE_STATE_NAME, Types.LONG));
         ttlExpiryState =
                 getRuntimeContext()
                         .getState(new ValueStateDescriptor<>(TTL_EXPIRY_STATE_NAME, Types.LONG));
@@ -501,13 +515,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         applyBufferedChangesIfReady();
         if (phase == Phase.LOAD) {
-            probeBuffer.add(probe);
+            long next = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
+            probeBuffer.put(next, probe);
+            probeBufferSize.update(next + 1L);
             timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
             probeBufferedGauge.update(++probeBufferedCount);
         } else {
             // Drain any probes still buffered for this key (flip drain not yet reached it) before
-            // the new one, preserving intra-key order.
-            if (probeBuffer.get().iterator().hasNext()) {
+            // the new one.
+            if (probeBufferSize.value() != null) {
                 drainBufferedProbes();
             }
             joinProbeRow(probe);
@@ -595,14 +611,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // If a recovery happened before, there might be buffered build-side changes.
         // Apply them before joining the buffered probe-side records.
         applyBufferedChanges();
-        long drained = 0;
-        for (RowData p : probeBuffer.get()) {
-            joinProbeRow(p);
-            drained++;
+        long size = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
+        for (long i = 0; i < size; i++) {
+            joinProbeRow(probeBuffer.get(i));
         }
         probeBuffer.clear();
+        probeBufferSize.clear();
         // Best-effort count (not restored), so floor at 0.
-        probeBufferedCount = Math.max(0, probeBufferedCount - drained);
+        probeBufferedCount = Math.max(0, probeBufferedCount - size);
         probeBufferedGauge.update(probeBufferedCount);
     }
 
@@ -806,6 +822,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         clearBuildChangeBuffer();
         ttlExpiryState.clear();
         probeBuffer.clear();
+        probeBufferSize.clear();
     }
 
     /**
@@ -919,8 +936,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     @VisibleForTesting
-    ListState<RowData> getProbeBuffer() {
+    MapState<Long, RowData> getProbeBuffer() {
         return probeBuffer;
+    }
+
+    @VisibleForTesting
+    ValueState<Long> getProbeBufferSize() {
+        return probeBufferSize;
     }
 
     @VisibleForTesting

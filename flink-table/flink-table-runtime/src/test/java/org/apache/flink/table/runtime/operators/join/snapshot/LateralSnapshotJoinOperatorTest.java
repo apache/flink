@@ -460,7 +460,8 @@ class LateralSnapshotJoinOperatorTest {
 
             // Inject a probe into k1's buffer as if its FLIP timer had not yet drained it.
             h.getOperator().setCurrentKey(stringKey("k1"));
-            op.getProbeBuffer().add(insertRecord(1L, "k1", "p-buffered").getValue());
+            op.getProbeBuffer().put(0L, insertRecord(1L, "k1", "p-buffered").getValue());
+            op.getProbeBufferSize().update(1L);
 
             // A new probe for k1 arrives; the buffered probe must be drained ahead of it.
             addProbeRecord(h, 2L, "k1", "p-new");
@@ -1635,8 +1636,9 @@ class LateralSnapshotJoinOperatorTest {
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
         List<RowData> result = new ArrayList<>();
-        for (RowData r : op.getProbeBuffer().get()) {
-            result.add(r);
+        Long size = op.getProbeBufferSize().value();
+        for (long i = 0; size != null && i < size; i++) {
+            result.add(op.getProbeBuffer().get(i));
         }
         return result;
     }
