@@ -129,11 +129,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
-    private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
-
     /**
-     * The operator registers two distinct kinds of keyed timers on a single {@link
-     * InternalTimerService}, and uses the timer namespace to tell them apart in the {@link
+     * Name of the single {@link InternalTimerService} on which the operator registers two distinct
+     * kinds of keyed timers. The timer namespace tells them apart in the {@link
      * #onEventTime}/{@link #onProcessingTime} callbacks:
      *
      * <ul>
@@ -144,6 +142,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      *       keyed state during JOIN (see {@link #refreshStateTtl}).
      * </ul>
      */
+    private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
+
     @VisibleForTesting static final String FLIP_NAMESPACE = "flip";
 
     @VisibleForTesting static final String TTL_NAMESPACE = "ttl";
@@ -520,8 +520,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         RowData build = element.getValue();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesIfReady();
-        // Buffer the new change, tagged with the current build-side watermark.
         buildChangeBuffer.add(build);
+        // Tag the buffer with the current build-side watermark so applyBufferedChangesIfReady() can
+        // later detect when the watermark has advanced past it and drain the buffer atomically.
+        // bufferedAtWmState is key-scoped, whereas currentBuildSideWm is a subtask-scoped variable;
+        // we (re)tag the key whenever this is the first buffered change (bufferedAt == null) or the
+        // tag differs from the current watermark. Note the tag can intentionally move *backwards*
+        // here: after a restore/rescale currentBuildSideWm starts at MIN_VALUE while the recovered
+        // tag may be higher, and re-anchoring the buffer to this subtask's watermark baseline is
+        // what lets it drain once this subtask's build watermark advances past it again.
         if (bufferedAt == null || bufferedAt != currentBuildSideWm) {
             bufferedAtWmState.update(currentBuildSideWm);
         }
@@ -627,14 +634,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             ttlExpiryState.update(newDeadline);
             return;
         }
-        // clear all per-key state
-        buildTableState.clear();
-        buildChangeBuffer.clear();
-        bufferedAtWmState.clear();
-        ttlExpiryState.clear();
-        // probeBuffer should be empty because we are in JOIN phase, but clear out just in case.
-        // hence, we're also not updating the probeBufferedGauge.
-        probeBuffer.clear();
+        clearAllPerKeyState();
         numStateTtlEvictions.inc();
     }
 
@@ -815,8 +815,25 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         for (RowData c : changes) {
             applyBuildChange(c);
         }
+        clearBuildChangeBuffer();
+    }
+
+    /** Clears the per-key build-side change buffer and its watermark tag. */
+    private void clearBuildChangeBuffer() throws Exception {
         buildChangeBuffer.clear();
         bufferedAtWmState.clear();
+    }
+
+    /**
+     * Clears all keyed state for the current key. Used by the TTL-eviction path. The {@code
+     * probeBuffer} is expected to be empty in JOIN phase (where eviction runs) but is cleared
+     * defensively; its best-effort gauge is intentionally not adjusted here.
+     */
+    private void clearAllPerKeyState() throws Exception {
+        buildTableState.clear();
+        clearBuildChangeBuffer();
+        ttlExpiryState.clear();
+        probeBuffer.clear();
     }
 
     /**
