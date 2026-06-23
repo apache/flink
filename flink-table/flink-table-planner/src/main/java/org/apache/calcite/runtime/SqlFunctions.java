@@ -102,6 +102,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -112,6 +113,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -776,7 +778,7 @@ public class SqlFunctions {
                 int pos,
                 int occurrence,
                 @Nullable String matchType) {
-            if (pos < 1 || pos > s.length()) {
+            if (pos < 1 || pos > s.length() + 1) {
                 throw RESOURCE.invalidInputForRegexpReplace(Integer.toString(pos)).ex();
             }
 
@@ -788,7 +790,7 @@ public class SqlFunctions {
 
         /** SQL {@code REGEXP_REPLACE} function for PostgreSQL with 3 arguments. */
         public String regexpReplacePg(String s, String regex, String replacement) {
-            return regexpReplace(s, regex, replacement, 1, 1, null);
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, 1, null);
         }
 
         /** SQL {@code REGEXP_REPLACE} function for PostgreSQL with 4 arguments. */
@@ -796,7 +798,7 @@ public class SqlFunctions {
                 String s, String regex, String replacement, String matchType) {
             // Translate g flag to occurrence
             final int occurrence = matchType.contains("g") ? 0 : 1;
-            return regexpReplace(s, regex, replacement, 1, occurrence, matchType);
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, occurrence, matchType);
         }
 
         /**
@@ -804,6 +806,16 @@ public class SqlFunctions {
          * capturing groups.
          */
         public String regexpReplaceNonDollarIndexed(String s, String regex, String replacement) {
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, 0, null);
+        }
+
+        private String regexpReplaceNonDollarIndexed(
+                String s,
+                String regex,
+                String replacement,
+                int pos,
+                int occurrence,
+                @Nullable String matchType) {
             // Modify double-backslash capturing group indices in replacement argument,
             // retrieved from cache when available.
             String indexedReplacement;
@@ -817,7 +829,7 @@ public class SqlFunctions {
             }
 
             // Call generic regexp replace method with modified replacement pattern
-            return regexpReplace(s, regex, indexedReplacement, 1, 0, null);
+            return regexpReplace(s, regex, indexedReplacement, pos, occurrence, matchType);
         }
 
         private static int makeRegexpFlags(String stringFlags) {
@@ -6274,6 +6286,44 @@ public class SqlFunctions {
         return new ArrayList<>(result);
     }
 
+    /** Transforms a list, applying a function to each element. */
+    public static <F, T> List<T> transform(
+            List<? extends F> list, Function1<? super F, ? extends T> function) {
+        return new TransformingList<>(list, function);
+    }
+
+    /**
+     * List that returns the same number of elements as a backing list, applying a transformation
+     * function to each one.
+     *
+     * @param <F> Element type of backing list
+     * @param <T> Element type of this list
+     */
+    private static class TransformingList<F, T> extends AbstractList<T> {
+        private final Function1<? super F, ? extends T> function;
+        private final List<? extends F> list;
+
+        TransformingList(List<? extends F> list, Function1<? super F, ? extends T> function) {
+            this.function = function;
+            this.list = list;
+        }
+
+        @Override
+        public T get(int i) {
+            return function.apply(list.get(i));
+        }
+
+        @Override
+        public int size() {
+            return list.size();
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return listIterator();
+        }
+    }
+
     /** Support the SORT_ARRAY function. */
     public static List sortArray(List list, boolean ascending) {
         Comparator comparator =
@@ -6610,6 +6660,40 @@ public class SqlFunctions {
             isFirst = false;
         }
         return sb.toString();
+    }
+
+    /**
+     * SQL {@code STRING_TO_ARRAY(string, delimiter)} function. Returns a one-dimensional string[]
+     * array by splitting the input string value into subvalues using the specified string value as
+     * the "delimiter". Optionally, allows a specified string value to be interpreted as NULL.
+     */
+    public static List<String> stringToArray(String string, @Nullable String delimiter) {
+        return stringToArray(string, delimiter, null);
+    }
+
+    /** SQL {@code STRING_TO_ARRAY(string, delimiter, nullString)} function. */
+    public static List<String> stringToArray(
+            String string, @Nullable String delimiter, @Nullable String nullString) {
+        String[] parts;
+        if (delimiter == null) {
+            parts =
+                    string.chars()
+                            .mapToObj(c -> Character.toString((char) c))
+                            .toArray(String[]::new);
+        } else if (delimiter.isEmpty()) {
+            parts = new String[] {string};
+        } else {
+            parts = string.split(delimiter);
+        }
+        List<String> result = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            if (nullString != null && nullString.equals(part)) {
+                result.add(null);
+            } else {
+                result.add(part);
+            }
+        }
+        return result;
     }
 
     /**

@@ -43,6 +43,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public SelectAliasLookup isSelectAlias() {
+        return SqlConformanceEnum.DEFAULT.isSelectAlias();
+    }
+
+    @Override
     public boolean isGroupByOrdinal() {
         return false;
     }

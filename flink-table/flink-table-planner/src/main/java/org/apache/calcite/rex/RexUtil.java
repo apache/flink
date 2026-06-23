@@ -47,6 +47,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ControlFlowException;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
@@ -2585,7 +2586,7 @@ public class RexUtil {
             try {
                 this.currentCount = 0;
                 return toCnf2(rex);
-            } catch (OverflowError e) {
+            } catch (PlanTooComplexError e) {
                 Util.swallow(e, null);
                 return rex;
             }
@@ -2652,17 +2653,8 @@ public class RexUtil {
 
         private void incrementAndCheck() {
             if (maxNodeCount >= 0 && ++currentCount > maxNodeCount) {
-                throw OverflowError.INSTANCE;
+                throw new PlanTooComplexError();
             }
-        }
-
-        /** Exception to catch when we pass the limit. */
-        @SuppressWarnings("serial")
-        private static class OverflowError extends ControlFlowException {
-            @SuppressWarnings("ThrowableInstanceNeverThrown")
-            protected static final OverflowError INSTANCE = new OverflowError();
-
-            private OverflowError() {}
         }
 
         private RexNode pull(RexNode rex) {
@@ -2814,6 +2806,169 @@ public class RexUtil {
         }
     }
 
+    /**
+     * Helper class that expands predicates from disjunctions (split by K).
+     *
+     * @param <K> The dimension used to split predicates in disjunctions. If you want to expand
+     *     predicates that can be pushed down to a single table from the disjunction, K is {@link
+     *     RelTableRef}; if you want to expand predicates that can be pushed down to Join inputs
+     *     from the disjunction, K is string whose value is 'left' or 'right'.
+     */
+    public abstract static class ExpandDisjunctionHelper<K> {
+        private final RelBuilder relBuilder;
+
+        private final int maxNodeCount;
+
+        // Used to record the number of redundant expressions expanded.
+        private int expressionIncreaseAmount;
+
+        public ExpandDisjunctionHelper(RelBuilder relBuilder, int maxNodeCount) {
+            this.relBuilder = relBuilder;
+            this.maxNodeCount = maxNodeCount;
+        }
+
+        public Map<K, RexNode> expand(RexNode condition) {
+            try {
+                this.expressionIncreaseAmount = 0;
+                return expandDeep(condition);
+            } catch (PlanTooComplexError e) {
+                return new HashMap<>();
+            }
+        }
+
+        /**
+         * Expand predicates recursively that can be pushed down to a single K. As mentioned above,
+         * K is the dimension used to split predicates in disjunctions, which can be {@link
+         * RelTableRef} or string whose value is 'left' or 'right'.
+         *
+         * @param condition Predicate to be expanded
+         * @return A map from a K to a (combined) predicate that can be pushed down and only depends
+         *     on columns of K.
+         */
+        private Map<K, RexNode> expandDeep(RexNode condition) {
+            final Map<K, RexNode> additionalConditions = new HashMap<>();
+
+            if (canReturnEarly(condition, additionalConditions)) {
+                return additionalConditions;
+            }
+
+            // Recursively expand the expression according to whether it is a conjunction
+            // or a disjunction. If it is neither a disjunction nor a conjunction, it cannot
+            // be expanded further and an empty Map is returned.
+            switch (condition.getKind()) {
+                case AND:
+                    List<RexNode> andOperands =
+                            RexUtil.flattenAnd(((RexCall) condition).getOperands());
+                    for (RexNode andOperand : andOperands) {
+                        Map<K, RexNode> operandResult = expandDeep(andOperand);
+                        combinePredicatesUsingAnd(additionalConditions, operandResult);
+                    }
+                    break;
+                case OR:
+                    List<RexNode> orOperands =
+                            RexUtil.flattenOr(((RexCall) condition).getOperands());
+                    additionalConditions.putAll(expandDeep(orOperands.get(0)));
+                    for (int i = 1; i < orOperands.size(); i++) {
+                        Map<K, RexNode> operandResult = expandDeep(orOperands.get(i));
+                        combinePredicatesUsingOr(additionalConditions, operandResult);
+
+                        if (additionalConditions.isEmpty()) {
+                            break;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            return additionalConditions;
+        }
+
+        // If condition already belongs to a certain K, return early.
+        protected abstract boolean canReturnEarly(
+                RexNode condition, Map<K, RexNode> additionalConditions);
+
+        /**
+         * Combine predicates that depend on the same K using conjunctions. The result is returned
+         * by modifying baseMap. For example:
+         *
+         * <p>baseMap: {k1: p1, k2: p2}
+         *
+         * <p>forMergeMap: {k1: p11, k3: p3}
+         *
+         * <p>result: {k1: p1 AND p11, k2: p2, k3: p3}
+         *
+         * @param baseMap Additional predicates that current conjunction has already saved
+         * @param forMergeMap Additional predicates that current operand has expanded
+         */
+        private void combinePredicatesUsingAnd(
+                Map<K, RexNode> baseMap, Map<K, RexNode> forMergeMap) {
+            for (Map.Entry<K, RexNode> entry : forMergeMap.entrySet()) {
+                RexNode mergedRex =
+                        relBuilder.and(
+                                entry.getValue(),
+                                baseMap.getOrDefault(entry.getKey(), relBuilder.literal(true)));
+                int originalCount =
+                        entry.getValue().nodeCount()
+                                + (baseMap.containsKey(entry.getKey())
+                                        ? baseMap.get(entry.getKey()).nodeCount()
+                                        : 0);
+                checkExpandCount(mergedRex.nodeCount() - originalCount);
+                baseMap.put(entry.getKey(), mergedRex);
+            }
+        }
+
+        /**
+         * Combine predicates that depend on the same K using disjunctions. The result is returned
+         * by modifying baseMap. For example:
+         *
+         * <p>baseMap: {k1: p1, k2: p2}
+         *
+         * <p>forMergeMap: {k1: p11, k3: p3}
+         *
+         * <p>result: {k1: p1 OR p11}
+         *
+         * @param baseMap Additional predicates that current disjunction has already saved
+         * @param forMergeMap Additional predicates that current operand has expanded
+         */
+        private void combinePredicatesUsingOr(
+                Map<K, RexNode> baseMap, Map<K, RexNode> forMergeMap) {
+            if (baseMap.isEmpty()) {
+                return;
+            }
+
+            Iterator<Map.Entry<K, RexNode>> iterator = baseMap.entrySet().iterator();
+            while (iterator.hasNext()) {
+                int forMergeNodeCount = 0;
+
+                Map.Entry<K, RexNode> entry = iterator.next();
+                if (!forMergeMap.containsKey(entry.getKey())) {
+                    checkExpandCount(-entry.getValue().nodeCount());
+                    iterator.remove();
+                    continue;
+                } else {
+                    forMergeNodeCount = forMergeMap.get(entry.getKey()).nodeCount();
+                }
+                RexNode mergedRex =
+                        relBuilder.or(entry.getValue(), forMergeMap.get(entry.getKey()));
+                int originalCount = entry.getValue().nodeCount() + forMergeNodeCount;
+                checkExpandCount(mergedRex.nodeCount() - originalCount);
+                baseMap.put(entry.getKey(), mergedRex);
+            }
+        }
+
+        /**
+         * Check whether the number of redundant expressions generated in the expansion exceeds the
+         * limit.
+         */
+        protected void checkExpandCount(int changeCount) {
+            expressionIncreaseAmount += changeCount;
+            if (maxNodeCount > 0 && expressionIncreaseAmount > maxNodeCount) {
+                throw new PlanTooComplexError();
+            }
+        }
+    }
+
     /** Shuttle that adds {@code offset} to each {@link RexInputRef} in an expression. */
     private static class RexShiftShuttle extends RexShuttle {
         private final int offset;
@@ -2827,6 +2982,12 @@ public class RexUtil {
             return new RexInputRef(input.getIndex() + offset, input.getType());
         }
     }
+
+    /**
+     * Exception to catch when optimizing the plan produces a result that is too complex, either at
+     * the Rel or at the Rex level.
+     */
+    private static class PlanTooComplexError extends ControlFlowException {}
 
     /**
      * Visitor that throws {@link org.apache.calcite.util.Util.FoundOne} if applied to an expression

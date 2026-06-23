@@ -16,25 +16,32 @@
  */
 package org.apache.calcite.sql.fun;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.implicit.TypeCoercion;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /** The class copied from Calcite in order to turn off COALESCE rewrite with CASE ... WHEN ... */
 public class SqlCoalesceFunction extends SqlFunction {
@@ -88,6 +95,43 @@ public class SqlCoalesceFunction extends SqlFunction {
     }
 
     // ----- FLINK MODIFICATION END -----
+
+    @Override
+    @NonNull
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        RelDataType returnType = getReturnTypeInference().inferReturnType(opBinding);
+        if (returnType == null
+                && opBinding instanceof SqlCallBinding
+                && ((SqlCallBinding) opBinding).isTypeCoercionEnabled()) {
+            SqlCallBinding callBinding = (SqlCallBinding) opBinding;
+            List<RelDataType> argTypes = new ArrayList<>();
+            for (SqlNode operand : callBinding.operands()) {
+                RelDataType type = SqlTypeUtil.deriveType(callBinding, operand);
+                argTypes.add(type);
+            }
+            TypeCoercion typeCoercion = callBinding.getValidator().getTypeCoercion();
+            RelDataType commonType = typeCoercion.getWiderTypeFor(argTypes, true);
+            if (null != commonType) {
+                // COALESCE type coercion, find a common type across all branches and casts
+                // operands to this common type if necessary.
+                boolean coerced = typeCoercion.caseOrEquivalentCoercion(callBinding);
+                if (coerced) {
+                    return SqlTypeUtil.deriveType(callBinding);
+                }
+            }
+            throw callBinding.newValidationError(RESOURCE.illegalMixingOfTypes());
+        }
+
+        if (returnType == null) {
+            throw new IllegalArgumentException(
+                    "Cannot infer return type for "
+                            + opBinding.getOperator()
+                            + "; operand types: "
+                            + opBinding.collectOperandTypes());
+        }
+
+        return returnType;
+    }
 
     @Override
     public SqlReturnTypeInference getReturnTypeInference() {

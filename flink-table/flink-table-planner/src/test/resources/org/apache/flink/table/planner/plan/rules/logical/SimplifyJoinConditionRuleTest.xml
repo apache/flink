@@ -59,7 +59,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[=($1, CASE(IS NULL($5), 0:BIGINT, $5))])
-   +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[left])
+   +- LogicalJoin(condition=[AND(=($0, $3), IS NOT DISTINCT FROM($1, $4))], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT()])
          +- LogicalProject(a=[$3], b=[$4])

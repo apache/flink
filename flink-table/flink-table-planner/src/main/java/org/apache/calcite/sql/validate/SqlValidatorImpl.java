@@ -169,6 +169,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.joining;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.linq4j.Ord.forEach;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
@@ -184,42 +185,42 @@ import static org.apache.calcite.util.Util.first;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 241 ~ 244, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 242 ~ 245, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction.
  *
- * <p>Lines 1390 ~ 1392, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ * <p>Lines 1396 ~ 1398, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
  *
- * <p>Lines 2165 ~ 2179, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 2171 ~ 2185, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 2434 ~ 2445
+ * <p>Lines 2440 ~ 2451
  *
- * <p>Lines 2601 ~ 2603, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 2607 ~ 2609, CALCITE-7471 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 2717 ~ 2736, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
+ * <p>Lines 2723 ~ 2742, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
  * 1.42.0.
  *
- * <p>Lines 2767 ~ 2785, set the correct scope for VECTOR_SEARCH.
+ * <p>Lines 2773 ~ 2791, set the correct scope for VECTOR_SEARCH.
  *
- * <p>Lines 4335 ~ 4339, 7183 ~ 7189 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 4341 ~ 4345, 7193 ~ 7199 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5914 ~ 5920, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5923 ~ 5929, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  *
- * <p>Lines 6331-6346, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6340-6355, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 6356-6358, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6365-6367, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 6412-6414, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6421-6423, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7274-7282, Added in FLINK-39695 (backport of CALCITE-6764): propagate parent record
+ * <p>Lines 7284-7292, Added in FLINK-39695 (backport of CALCITE-6764): propagate parent record
  * nullability to nested fields.
  *
- * <p>Lines 7879-7902, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8025-8048, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7949-7966, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8095-8112, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 8011-8019, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8157-8165, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -427,6 +428,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             SqlNodeList selectList, SqlSelect select, boolean includeSystemVars) {
         final List<SqlNode> list = new ArrayList<>();
         final PairList<String, RelDataType> types = PairList.of();
+        final Map<String, SqlNode> expansions = new HashMap<>();
         for (final SqlNode selectItem : selectList) {
             final RelDataType originalType = getValidatedNodeTypeIfKnown(selectItem);
             expandSelectItem(
@@ -436,6 +438,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                     list,
                     catalogReader.nameMatcher().createSet(),
                     types,
+                    expansions,
                     includeSystemVars);
         }
         getRawSelectScopeNonNull(select).setExpandedSelectList(list);
@@ -490,6 +493,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
      * @param selectItems List that expanded items are written to
      * @param aliases Set of aliases
      * @param fields List of field names and types, in alias order
+     * @param expansions Maps simple identifiers defined in the current SELECT statement to their
+     *     expansions (used only when {@link SqlConformance#isSelectAlias()} requires it).
      * @param includeSystemVars If true include system vars in lists
      * @return Whether the node was expanded
      */
@@ -500,6 +505,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             List<SqlNode> selectItems,
             Set<String> aliases,
             PairList<String, RelDataType> fields,
+            Map<String, SqlNode> expansions,
             boolean includeSystemVars) {
         final SqlValidatorScope selectScope;
         SqlNode expanded;
@@ -516,7 +522,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             // parentheses-free functions such as LOCALTIME into explicit function
             // calls.
             selectScope = getSelectScope(select);
-            expanded = expandSelectExpr(selectItem, scope, select);
+            expanded = expandSelectExpr(selectItem, scope, select, expansions);
         }
         final String alias = SqlValidatorUtil.alias(selectItem, aliases.size());
 
@@ -5032,7 +5038,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         }
 
         // Nodes in the GROUP BY clause are expressions except if they are calls
-        // to the GROUPING SETS, ROLLUP or CUBE operators; this operators are not
+        // to the GROUPING SETS, ROLLUP or CUBE operators; these operators are not
         // expressions, because they do not have a type.
         for (SqlNode node : groupList) {
             switch (node.getKind()) {
@@ -5176,6 +5182,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         final List<SqlNode> expandedSelectItems = new ArrayList<>();
         final Set<String> aliases = new HashSet<>();
         final PairList<String, RelDataType> fieldList = PairList.of();
+        // Populated during select expansion when SqlConformance.isSelectAlias != UNSUPPORTED
+        final Map<String, SqlNode> expansions = new HashMap<>();
 
         for (SqlNode selectItem : selectItems) {
             if (selectItem instanceof SqlSelect) {
@@ -5196,6 +5204,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         expandedSelectItems,
                         aliases,
                         fieldList,
+                        expansions,
                         false);
             }
         }
@@ -6853,8 +6862,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         }
     }
 
-    public SqlNode expandSelectExpr(SqlNode expr, SelectScope scope, SqlSelect select) {
-        final Expander expander = new SelectExpander(this, scope, select);
+    public SqlNode expandSelectExpr(
+            SqlNode expr, SelectScope scope, SqlSelect select, Map<String, SqlNode> expansions) {
+        final Expander expander = new SelectExpander(this, scope, select, expansions);
         final SqlNode newExpr = expander.go(expr);
         if (expr != newExpr) {
             setOriginal(newExpr, expr);
@@ -7475,14 +7485,62 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     /**
      * Converts an expression into canonical form by fully-qualifying any identifiers. For common
-     * columns in USING, it will be converted to COALESCE(A.col, B.col) AS col.
+     * columns in USING, it will be converted to COALESCE(A.col, B.col) AS col. When using a
+     * conformance that allows isSelectAlias, it expands identifiers that refer to local select
+     * expressions into the expressions themselves.
      */
     static class SelectExpander extends Expander {
         final SqlSelect select;
+        // Maps simple identifiers to their expansions.
+        final Map<String, SqlNode> expansions;
+        // List of identifiers that are currently being looked-up.  Used to detect
+        // circular dependencies when SqlConformance#isSelectAlias is ANY.
+        final Set<String> lookingUp;
+        @Nullable SqlNode root = null;
 
-        SelectExpander(SqlValidatorImpl validator, SelectScope scope, SqlSelect select) {
+        private SelectExpander(
+                SqlValidatorImpl validator,
+                SelectScope scope,
+                SqlSelect select,
+                Map<String, SqlNode> expansions,
+                Set<String> lookingUp) {
             super(validator, scope);
             this.select = select;
+            this.expansions = expansions;
+            this.lookingUp = lookingUp;
+        }
+
+        /**
+         * Creates an expander for the items in a SELECT list.
+         *
+         * @param validator Validator to use.
+         * @param scope Scope to lookup identifiers in.
+         * @param select Select that is being expanded.
+         * @param expansions List of expansions computed for identifiers that are defined in the
+         *     current select list and also used in the select list. Only used if {@link
+         *     SqlConformance#isSelectAlias()} requires it.
+         */
+        private SelectExpander(
+                SqlValidatorImpl validator,
+                SelectScope scope,
+                SqlSelect select,
+                Map<String, SqlNode> expansions) {
+            this(validator, scope, select, expansions, new HashSet<>());
+        }
+
+        private SelectExpander(SelectExpander expander) {
+            this(
+                    expander.validator,
+                    (SelectScope) expander.getScope(),
+                    expander.select,
+                    expander.expansions,
+                    expander.lookingUp);
+        }
+
+        @Override
+        public SqlNode go(SqlNode root) {
+            this.root = root;
+            return super.go(root);
         }
 
         @Override
@@ -7492,8 +7550,87 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             if (node != id) {
                 return node;
             } else {
-                return super.visit(id);
+                try {
+                    return super.visit(id);
+                } catch (Exception ex) {
+                    if (!(ex instanceof CalciteContextException)) {
+                        throw ex;
+                    }
+                    String message = ex.getMessage();
+                    if (message != null && !message.contains("not found")) {
+                        throw ex;
+                    }
+                    // This point is reached only if the name lookup failed using standard rules
+                    SqlConformance.SelectAliasLookup selectAlias =
+                            validator.getConformance().isSelectAlias();
+                    if (selectAlias == SqlConformance.SelectAliasLookup.UNSUPPORTED
+                            || !id.isSimple()) {
+                        throw ex;
+                    }
+                    return expandAliases(id, (CalciteContextException) ex);
+                    // end of catch block
+                }
             }
+        }
+
+        // Handle "SELECT expr as X, X+1 as Y"
+        // where X is not defined previously.
+        // Try to look up the item in the select list itself.
+        private SqlNode expandAliases(SqlIdentifier id, CalciteContextException ex) {
+            String name = id.getSimple();
+            if (lookingUp.contains(name)) {
+                final String dependentColumns =
+                        lookingUp.stream().map(s -> "'" + s + "'").collect(joining(", "));
+                throw validator.newValidationError(
+                        id, RESOURCE.columnIsCyclic(name, dependentColumns));
+            }
+            SqlConformance.SelectAliasLookup selectAlias =
+                    validator.getConformance().isSelectAlias();
+            // Check whether we already have an expansion for this identifier
+            @Nullable SqlNode expr = null;
+            if (expansions.containsKey(name)) {
+                expr = expansions.get(name);
+            } else {
+                final SqlNameMatcher nameMatcher = validator.catalogReader.nameMatcher();
+                int matches = 0;
+                for (SqlNode s : select.getSelectList()) {
+                    if (s == this.root
+                            && selectAlias == SqlConformance.SelectAliasLookup.LEFT_TO_RIGHT) {
+                        // Stop lookup at the current item
+                        break;
+                    }
+                    final String alias = SqlValidatorUtil.alias(s);
+                    if (alias != null && nameMatcher.matches(alias, name)) {
+                        expr = s;
+                        matches++;
+                    }
+                }
+                if (matches == 0) {
+                    // Throw the original exception
+                    throw ex;
+                } else if (matches > 1) {
+                    // More than one column has this alias.
+                    throw validator.newValidationError(id, RESOURCE.columnAmbiguous(name));
+                }
+                expr = stripAs(requireNonNull(expr, "expr"));
+            }
+            // Recursively expand the result
+            lookingUp.add(name);
+            SelectExpander expander = new SelectExpander(this);
+            final SqlNode newExpr = expander.go(expr);
+            lookingUp.remove(name);
+            if (expr != newExpr) {
+                validator.setOriginal(newExpr, expr);
+            }
+            expr = newExpr;
+            if (expr instanceof SqlIdentifier) {
+                expr = getScope().fullyQualify((SqlIdentifier) expr).identifier;
+            }
+            if (!expansions.containsKey(name)) {
+                expansions.put(name, expr);
+                validator.setOriginal(expr, id);
+            }
+            return expr;
         }
     }
 
@@ -7529,11 +7666,11 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 return super.visit(id);
             }
 
+            final SelectScope selectScope = validator.getRawSelectScopeNonNull(select);
             final boolean replaceAliases = clause.shouldReplaceAliases(validator.config);
             if (!replaceAliases
                     || (clause == Clause.GROUP_BY && !aliasOrdinalExpandSet.contains(id))) {
-                final SelectScope scope = validator.getRawSelectScopeNonNull(select);
-                SqlNode node = expandCommonColumn(select, id, scope, validator);
+                SqlNode node = expandCommonColumn(select, id, selectScope, validator);
                 if (node != id) {
                     return node;
                 }
@@ -7565,6 +7702,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 }
             }
 
+            // expr cannot be null; in that case n = 0 would have returned
+            requireNonNull(expr, "expr");
+            if (validator.getConformance().isSelectAlias()
+                    != SqlConformance.SelectAliasLookup.UNSUPPORTED) {
+                Map<String, SqlNode> expansions = new HashMap<>();
+                final Expander expander =
+                        new SelectExpander(validator, selectScope, select, expansions);
+                expr = expander.go(expr);
+            }
             expr = stripAs(expr);
             if (expr instanceof SqlIdentifier) {
                 SqlIdentifier sid = (SqlIdentifier) expr;
@@ -8215,10 +8361,14 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         boolean shouldReplaceAliases(Config config) {
             switch (this) {
                 case GROUP_BY:
-                    return config.conformance().isGroupByAlias();
+                    return config.conformance().isGroupByAlias()
+                            || (config.conformance().isSelectAlias()
+                                    != SqlConformance.SelectAliasLookup.UNSUPPORTED);
 
                 case HAVING:
-                    return config.conformance().isHavingAlias();
+                    return config.conformance().isHavingAlias()
+                            || (config.conformance().isSelectAlias()
+                                    != SqlConformance.SelectAliasLookup.UNSUPPORTED);
 
                 case QUALIFY:
                     return true;
