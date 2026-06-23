@@ -487,6 +487,30 @@ public class SqlFunctionUtils {
     }
 
     /**
+     * Returns a compiled Pattern object for the given regular expression string, using a shared
+     * cache for performance optimization.
+     *
+     * @param regex the regular expression pattern string
+     * @return the compiled Pattern, or null if regex is invalid
+     */
+    public static @Nullable Pattern getRegexpPattern(String regex) {
+        try {
+            return REGEXP_PATTERN_CACHE.get(regex);
+        } catch (PatternSyntaxException e) {
+            return null;
+        }
+    }
+
+    /** Splits the string into Unicode code points, preserving supplementary characters. */
+    public static StringData[] splitByCodePoints(String str) {
+        return str.codePoints()
+                .mapToObj(
+                        codePoint ->
+                                StringData.fromString(new String(Character.toChars(codePoint))))
+                .toArray(StringData[]::new);
+    }
+
+    /**
      * Parse string as key-value string and return the value matches key name. example:
      * keyvalue('k1=v1;k2=v2', ';', '=', 'k2') = 'v2' keyvalue('k1:v1,k2:v2', ',', ':', 'k3') = NULL
      *
