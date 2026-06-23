@@ -1632,10 +1632,6 @@ class LateralSnapshotJoinOperatorTest {
         h.getOutput().removeIf(o -> o instanceof Watermark || o instanceof WatermarkStatus);
     }
 
-    private static List<Object> stripWatermarks(ConcurrentLinkedQueue<Object> output) {
-        return output.stream().filter(o -> !(o instanceof Watermark)).toList();
-    }
-
     private static List<Watermark> extractWatermarks(ConcurrentLinkedQueue<Object> output) {
         return output.stream().filter(o -> o instanceof Watermark).map(w -> (Watermark) w).toList();
     }

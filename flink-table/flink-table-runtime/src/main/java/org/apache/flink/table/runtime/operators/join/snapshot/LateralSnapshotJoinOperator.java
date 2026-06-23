@@ -421,8 +421,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // Create output collector
         collector = new TimestampedCollector<>(output);
 
-        timerService = getInternalTimerService(TIMER_SERVICE_NAME, StringSerializer.INSTANCE, this);
-
         // Register metrics
         final MetricGroup metricGroup = getRuntimeContext().getMetricGroup();
         numStateTtlEvictions = metricGroup.counter(M_NUM_STATE_TTL_EVICTIONS);
