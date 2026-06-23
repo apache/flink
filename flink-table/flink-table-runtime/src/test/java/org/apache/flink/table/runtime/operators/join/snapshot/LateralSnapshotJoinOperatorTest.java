@@ -231,16 +231,26 @@ class LateralSnapshotJoinOperatorTest {
             // access drains the buffered batch in event-time order before buffering the new change.
             addBuildWm(h, 50L);
             addBuildChange(h, insertRecord("k1", "v3", 30L));
-            // TODO: also add updateBefore and updateAfter changes, to ensure that these are handled
-            // correctly
 
             assertPhase(op, Phase.LOAD);
-            // Applied in row-time order: -D(ghost)@5 (ignored), +I(v2)@10, +I(v1)@20 ×2.
+            // First batch applied in row-time order: -D(ghost)@5 (ignored), +I(v2)@10, +I(v1)@20
+            // ×2.
             assertThat(buildTableKeys(h)).containsExactly("k1");
             assertThat(buildTableForKey(h, op, "k1"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 2L, "v2", 1L));
-            // The triggering v3 change is now buffered, awaiting the next drain.
-            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1);
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1); // v3
+
+            // Buffer an update pair with inverted after/before order, drained on the next access:
+            // -U removes one v1, +U adds v4.
+            addBuildChange(h, updateAfterRecord("k1", "v4", 20L));
+            addBuildChange(h, updateBeforeRecord("k1", "v1", 20L));
+            addBuildWm(h, 60L);
+            addBuildChange(h, insertRecord("k1", "v5", 70L)); // access drains v3, -U(v1), +U(v4)
+
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(
+                            Map.of("v1", 1L, "v2", 1L, "v3", 1L, "v4", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1); // v5
         }
     }
 
@@ -816,6 +826,35 @@ class LateralSnapshotJoinOperatorTest {
                     h,
                     row(1L, "k1", "p1", "k1", "v1", 105L),
                     row(2L, "k2", "p2", "k2", "v1", 105L));
+        }
+    }
+
+    @Test
+    void joinPhaseBufferedUpdatePairIsVisibleAtomicallyAfterWatermark() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "vOld", 10L));
+            addBuildWm(h, 100L); // flip; build WM = 100
+            addProbeRecord(h, 1L, "k1", "p-init"); // drains +I(vOld); joins vOld
+
+            // Buffer a -U/+U pair (tagged at WM 100). A probe joining before the WM advances must
+            // still see the old value (the pair is not yet applied).
+            addBuildChange(h, updateBeforeRecord("k1", "vOld", 10L));
+            addBuildChange(h, updateAfterRecord("k1", "vNew", 20L));
+            addProbeRecord(h, 2L, "k1", "p-mid"); // sees vOld
+
+            // After the build WM advances past the tag, the pair is applied atomically.
+            addBuildWm(h, 110L);
+            addProbeRecord(h, 3L, "k1", "p-after"); // sees vNew
+
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p-init", "k1", "vOld", 10L),
+                    row(2L, "k1", "p-mid", "k1", "vOld", 10L),
+                    row(3L, "k1", "p-after", "k1", "vNew", 20L));
         }
     }
 
@@ -1460,6 +1499,28 @@ class LateralSnapshotJoinOperatorTest {
             addBuildWm(h, 120L);
             addProbeRecord(h, 2L, "k1", "p2");
             assertThat(op.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(2L);
+        }
+    }
+
+    @Test
+    void buildRetractionAtCountOneRemovesRowWithoutGoingNegative() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addBuildWm(h, 100L); // flip
+            // Access drains +I(v1) → count 1; then buffer a -D for the same row.
+            addBuildChange(h, deleteRecord("k1", "v1", 1L));
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 1L));
+
+            // Drain the -D: count 1 → row removed from the multi-set (not a negative/0 entry), and
+            // it is not counted as an unmatched retraction.
+            addBuildWm(h, 110L);
+            addProbeRecord(h, 1L, "k1", "p1");
+            assertThat(buildTableForKey(h, op, "k1")).isEmpty();
+            assertThat(op.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(0L);
         }
     }
 
