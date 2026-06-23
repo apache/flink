@@ -107,6 +107,13 @@ import java.util.concurrent.ScheduledFuture;
  *
  * <p>State TTL eviction happens during JOIN phase and is implemented with keyed processing-time
  * timers (matching the semantics of Flink's standard {@code StateTtlConfig}).
+ *
+ * <p>Streaming only: The operator joins data with processing-time semantics which can't be (easily)
+ * done in batch. Also, the operator's phase is held in union operator state, which is incompatible
+ * with finished operators. Joins against LATERAL SNAPSHOT functions should be translated to regular
+ * joins. The changes on the build-side would be consolidated into a final table and then be joined
+ * with the probe-side. All probe-side records are then joined against the same (and final) version
+ * of the build-side input.
  */
 @Internal
 public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
