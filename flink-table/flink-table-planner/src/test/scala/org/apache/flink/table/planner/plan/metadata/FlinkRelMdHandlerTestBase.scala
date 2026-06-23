@@ -911,6 +911,78 @@ class FlinkRelMdHandlerTestBase {
     (calcOfFirstRow, calcOfLastRow)
   }
 
+  // A Top-1 ROW_NUMBER whose ORDER BY is NOT a single time attribute. It is logically a
+  // deduplication (RankUtil.isDeduplication), but it cannot be converted to a Deduplicate operator
+  // (RankUtil.canConvertToDeduplicate is false), so it stays a regular Top-1 Rank that retracts and
+  // re-emits the kept row. These guard the dispatch boundary in FlinkRelMdModifiedMonotonicity that
+  // FLINK-34702 introduced.
+  //
+  // equivalent SQL is
+  // select a, b, c from (
+  //  select a, b, c, ...,
+  //  ROW_NUMBER() over (partition by b order by a) rn from TemporalTable3
+  // ) t where rn <= 1
+  protected lazy val streamTop1RankOnNonTimeAttribute: RelNode = {
+    buildTop1RankNotConvertibleToDeduplicate(RelCollations.of(0))
+  }
+
+  // equivalent SQL is
+  // select a, b, c from (
+  //  select a, b, c, ...,
+  //  ROW_NUMBER() over (partition by b order by a desc, c desc) rn from TemporalTable3
+  // ) t where rn <= 1
+  protected lazy val streamTop1RankOnMultipleColumns: RelNode = {
+    buildTop1RankNotConvertibleToDeduplicate(
+      RelCollations.of(
+        new RelFieldCollation(
+          0,
+          RelFieldCollation.Direction.DESCENDING,
+          RelFieldCollation.NullDirection.LAST),
+        new RelFieldCollation(
+          2,
+          RelFieldCollation.Direction.DESCENDING,
+          RelFieldCollation.NullDirection.LAST)
+      ))
+  }
+
+  def buildTop1RankNotConvertibleToDeduplicate(orderKey: RelCollation): RelNode = {
+    val scan: StreamPhysicalDataStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable3"), streamPhysicalTraits)
+    val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
+    val streamExchange =
+      new StreamPhysicalExchange(cluster, scan.getTraitSet.replace(hash1), scan, hash1)
+    val rank = new StreamPhysicalRank(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      ImmutableBitSet.of(1),
+      orderKey,
+      RankType.ROW_NUMBER,
+      new ConstantRankRange(1, 1),
+      new RelDataTypeFieldImpl("rn", 7, longType),
+      outputRankNumber = false,
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
+    )
+
+    val builder = typeFactory.builder()
+    rank.getRowType.getFieldList.asScala.dropRight(2).foreach(builder.add)
+    val projectProgram = RexProgram.create(
+      rank.getRowType,
+      Array(0, 1, 2).map(i => RexInputRef.of(i, rank.getRowType)).toList.asJava,
+      null,
+      builder.build(),
+      rexBuilder
+    )
+    new StreamPhysicalCalc(
+      cluster,
+      streamPhysicalTraits,
+      rank,
+      projectProgram,
+      projectProgram.getOutputRowType
+    )
+  }
+
   protected lazy val streamChangelogNormalize = {
     val key = Array(1, 0)
     val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
