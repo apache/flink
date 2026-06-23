@@ -132,11 +132,24 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
-    /** Timer service and namespace names. */
     private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
 
-    @VisibleForTesting static final String NS_FLIP = "flip";
-    @VisibleForTesting static final String NS_TTL = "ttl";
+    /**
+     * The operator registers two distinct kinds of keyed timers on a single {@link
+     * InternalTimerService}, and uses the timer namespace to tell them apart in the {@link
+     * #onEventTime}/{@link #onProcessingTime} callbacks:
+     *
+     * <ul>
+     *   <li>{@link #FLIP_NAMESPACE}: a one-shot per-key event-time timer (registered at {@link
+     *       #FLIP_JOIN_TIMER_TS}) that drains the probe records buffered for that key during LOAD
+     *       and joins them once the operator flips to JOIN.
+     *   <li>{@link #TTL_NAMESPACE}: a recurring per-key processing-time timer that evicts inactive
+     *       keyed state during JOIN (see {@link #refreshStateTtl}).
+     * </ul>
+     */
+    @VisibleForTesting static final String FLIP_NAMESPACE = "flip";
+
+    @VisibleForTesting static final String TTL_NAMESPACE = "ttl";
 
     /**
      * Event-time timestamp at which the per-key {@code probeBuffer} flip join timer is registered.
@@ -145,35 +158,42 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final long FLIP_JOIN_TIMER_TS = 1L;
 
     /** Gauge: probe-side records currently buffered during LOAD. */
-    @VisibleForTesting static final String M_NUM_PROBE_BUFFERED = "numProbeSideRecordsBuffered";
+    @VisibleForTesting
+    static final String NUM_PROBE_BUFFERED_METRIC_NAME = "numProbeSideRecordsBuffered";
 
     /** Gauge: build-side changes currently buffered during JOIN. */
-    @VisibleForTesting static final String M_NUM_BUILD_BUFFERED = "numBuildSideRecordsBuffered";
+    @VisibleForTesting
+    static final String NUM_BUILD_BUFFERED_METRIC_NAME = "numBuildSideRecordsBuffered";
 
     /** Counter: keys evicted from state by TTL. */
-    @VisibleForTesting static final String M_NUM_STATE_TTL_EVICTIONS = "numStateTtlEvictions";
+    @VisibleForTesting
+    static final String NUM_STATE_TTL_EVICTIONS_METRIC_NAME = "numStateTtlEvictions";
 
     /** Gauge: latest build-side watermark observed. */
-    @VisibleForTesting static final String M_CURRENT_BUILD_WM = "currentBuildSideWatermark";
+    @VisibleForTesting
+    static final String CURRENT_BUILD_WM_METRIC_NAME = "currentBuildSideWatermark";
 
     /** Gauge: latest probe-side watermark observed. */
-    @VisibleForTesting static final String M_CURRENT_PROBE_WM = "currentProbeSideWatermark";
+    @VisibleForTesting
+    static final String CURRENT_PROBE_WM_METRIC_NAME = "currentProbeSideWatermark";
 
     /** Gauge: current phase ordinal, 0 = LOAD, 1 = JOIN. */
-    @VisibleForTesting static final String M_CURRENT_PHASE = "currentPhase";
+    @VisibleForTesting static final String CURRENT_PHASE_METRIC_NAME = "currentPhase";
 
     /** Gauge: max joined records emitted for a probe-side record. */
-    @VisibleForTesting static final String M_MAX_JOIN_FAN_OUT = "maxJoinFanOut";
+    @VisibleForTesting static final String MAX_JOIN_FAN_OUT_METRIC_NAME = "maxJoinFanOut";
 
     /** Gauge: average joined records emitted per probe-side record. */
-    @VisibleForTesting static final String M_AVG_JOIN_FAN_OUT = "avgJoinFanOut";
+    @VisibleForTesting static final String AVG_JOIN_FAN_OUT_METRIC_NAME = "avgJoinFanOut";
 
     /** Counter: probe-side records without a match. */
-    @VisibleForTesting static final String M_NUM_UNMATCHED_PROBE = "numUnmatchedProbeRecords";
+    @VisibleForTesting
+    static final String NUM_UNMATCHED_PROBE_METRIC_NAME = "numUnmatchedProbeRecords";
 
     /** Counter: build-side retractions for a row not present in state. */
     @VisibleForTesting
-    static final String M_NUM_UNMATCHED_BUILD_RETRACTIONS = "numUnmatchedBuildRetractions";
+    static final String NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME =
+            "numUnmatchedBuildRetractions";
 
     /** Two-phase state machine. */
     enum Phase {
@@ -428,9 +448,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
         // Register metrics
         final MetricGroup metricGroup = getRuntimeContext().getMetricGroup();
-        numStateTtlEvictions = metricGroup.counter(M_NUM_STATE_TTL_EVICTIONS);
-        numUnmatchedProbeRecords = metricGroup.counter(M_NUM_UNMATCHED_PROBE);
-        numUnmatchedBuildRetractions = metricGroup.counter(M_NUM_UNMATCHED_BUILD_RETRACTIONS);
+        numStateTtlEvictions = metricGroup.counter(NUM_STATE_TTL_EVICTIONS_METRIC_NAME);
+        numUnmatchedProbeRecords = metricGroup.counter(NUM_UNMATCHED_PROBE_METRIC_NAME);
+        numUnmatchedBuildRetractions =
+                metricGroup.counter(NUM_UNMATCHED_BUILD_RETRACTIONS_METRIC_NAME);
 
         // Rebuild the buffer counts from restored keyed state so the gauges reflect the
         // records buffered in this subtask after a restore/rescale.
@@ -442,14 +463,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         probeWmGauge = new SimpleGauge<>(currentProbeSideWm);
         maxFanOutGauge = new SimpleGauge<>(maxJoinFanOut);
         avgFanOutGauge = new SimpleGauge<>(0.0d);
-        metricGroup.gauge(M_NUM_PROBE_BUFFERED, probeBufferedGauge);
-        metricGroup.gauge(M_NUM_BUILD_BUFFERED, buildBufferedGauge);
-        metricGroup.gauge(M_CURRENT_BUILD_WM, buildWmGauge);
-        metricGroup.gauge(M_CURRENT_PROBE_WM, probeWmGauge);
-        metricGroup.gauge(M_MAX_JOIN_FAN_OUT, maxFanOutGauge);
-        metricGroup.gauge(M_AVG_JOIN_FAN_OUT, avgFanOutGauge);
+        metricGroup.gauge(NUM_PROBE_BUFFERED_METRIC_NAME, probeBufferedGauge);
+        metricGroup.gauge(NUM_BUILD_BUFFERED_METRIC_NAME, buildBufferedGauge);
+        metricGroup.gauge(CURRENT_BUILD_WM_METRIC_NAME, buildWmGauge);
+        metricGroup.gauge(CURRENT_PROBE_WM_METRIC_NAME, probeWmGauge);
+        metricGroup.gauge(MAX_JOIN_FAN_OUT_METRIC_NAME, maxFanOutGauge);
+        metricGroup.gauge(AVG_JOIN_FAN_OUT_METRIC_NAME, avgFanOutGauge);
         phaseGauge = () -> phase == null ? -1 : phase.ordinal();
-        metricGroup.gauge(M_CURRENT_PHASE, phaseGauge);
+        metricGroup.gauge(CURRENT_PHASE_METRIC_NAME, phaseGauge);
 
         // Mark the build-side input (index 1) as permanently idle in the inherited
         // combinedWatermark accounting. This operator never forwards build-side WMs nor
@@ -541,7 +562,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         applyBufferedChangesIfReady();
         if (phase == Phase.LOAD) {
             probeBuffer.add(probe);
-            timerService.registerEventTimeTimer(NS_FLIP, FLIP_JOIN_TIMER_TS);
+            timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
             probeBufferedGauge.update(++probeBufferedCount);
         } else {
             joinProbeRow(probe);
@@ -616,9 +637,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void onEventTime(InternalTimer<RowData, String> timer) throws Exception {
-        String ns = timer.getNamespace();
-        // the NS_FLIP timers are fired when the operator transitions from LOAD to JOIN phase.
-        if (NS_FLIP.equals(ns)) {
+        String namespace = timer.getNamespace();
+        // FLIP_NAMESPACE timers drain the probes buffered during LOAD when the operator flips to
+        // JOIN.
+        if (FLIP_NAMESPACE.equals(namespace)) {
             // If a recovery happened before, there might be buffered build-side changes.
             // Apply them before joining the buffered probe-side records.
             applyBufferedChanges();
@@ -636,7 +658,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @Override
     public void onProcessingTime(InternalTimer<RowData, String> timer) throws Exception {
         // TTL timers run on processing time so semantics match Flink's standard StateTtlConfig.
-        if (!NS_TTL.equals(timer.getNamespace())) {
+        if (!TTL_NAMESPACE.equals(timer.getNamespace())) {
             return;
         }
         if (minStateTtlMs == 0) {
@@ -655,7 +677,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             // set the new TTL timer maxStateTtlMs ahead
             long newDeadline =
                     phase == Phase.LOAD ? now + maxStateTtlMs : flipProcTime + maxStateTtlMs;
-            timerService.registerProcessingTimeTimer(NS_TTL, newDeadline);
+            timerService.registerProcessingTimeTimer(TTL_NAMESPACE, newDeadline);
             ttlExpiryState.update(newDeadline);
             return;
         }
@@ -920,10 +942,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return;
         }
         if (currentTtlTimer != null) {
-            timerService.deleteProcessingTimeTimer(NS_TTL, currentTtlTimer);
+            timerService.deleteProcessingTimeTimer(TTL_NAMESPACE, currentTtlTimer);
         }
         long newDeadline = now + maxStateTtlMs;
-        timerService.registerProcessingTimeTimer(NS_TTL, newDeadline);
+        timerService.registerProcessingTimeTimer(TTL_NAMESPACE, newDeadline);
         ttlExpiryState.update(newDeadline);
     }
 
