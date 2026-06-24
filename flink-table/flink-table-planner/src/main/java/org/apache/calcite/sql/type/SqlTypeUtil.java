@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql.type;
 
+import org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec;
 import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 
 import com.google.common.collect.ImmutableList;
@@ -31,7 +32,6 @@ import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlCollation;
-import org.apache.calcite.sql.SqlCollectionTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlMapTypeNameSpec;
@@ -75,8 +75,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1092-1096
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1116-1118
+ *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1104-1112
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1124-1128
+ *   <li>Should be removed after fixing CALCITE-7062: Lines 1148-1150
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -1099,11 +1100,16 @@ public abstract class SqlTypeUtil {
                     new SqlBasicTypeNameSpec(
                             typeName, precision, scale, charSetName, SqlParserPos.ZERO);
         } else if (isCollection(type)) {
+            // FLINK MODIFICATION BEGIN
+            final RelDataType componentType = getComponentTypeOrThrow(type);
             typeNameSpec =
-                    new SqlCollectionTypeNameSpec(
-                            convertTypeToSpec(getComponentTypeOrThrow(type)).getTypeNameSpec(),
+                    new ExtendedSqlCollectionTypeNameSpec(
+                            convertTypeToSpec(componentType).getTypeNameSpec(),
+                            componentType.isNullable(),
                             typeName,
+                            true,
                             SqlParserPos.ZERO);
+            // FLINK MODIFICATION END
         } else if (isRow(type)) {
             RelRecordType recordType = (RelRecordType) type;
             List<RelDataTypeField> fields = recordType.getFieldList();
