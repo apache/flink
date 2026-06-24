@@ -20,12 +20,11 @@ package org.apache.flink.streaming.test.socket;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.examples.socket.SocketWindowWordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.NetUtils;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,24 +34,15 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.Collection;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link SocketWindowWordCount}. */
-@RunWith(Parameterized.class)
-public class SocketWindowWordCountITCase extends AbstractTestBaseJUnit4 {
+class SocketWindowWordCountITCase extends AbstractTestBase {
 
-    @Parameterized.Parameter public boolean asyncState;
-
-    @Parameterized.Parameters
-    public static Collection<Boolean> setup() {
-        return Arrays.asList(false, true);
-    }
-
-    @Test
-    public void testJavaProgram() throws Exception {
+    @ParameterizedTest(name = "asyncState: {0}")
+    @ValueSource(booleans = {false, true})
+    void testJavaProgram(boolean asyncState) throws Exception {
         InetAddress localhost = InetAddress.getByName("localhost");
 
         // suppress sysout messages from this example
