@@ -101,6 +101,28 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
         table_result.print()
 
 
+    def test_geography_sql_wkb_bytes_round_trip(self):
+        point_wkb = bytes([
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+        ])
+        source = self.t_env.from_elements(
+            [(point_wkb, 'POINT (1 2)')],
+            ['wkb', 'wkt'])
+        self.t_env.create_temporary_view('geography_source', source)
+
+        result = self.t_env.sql_query(
+            'SELECT ST_ASTEXT(ST_GEOGFROMWKB(wkb)), '
+            'ST_ASWKB(ST_GEOGFROMTEXT(wkt)), '
+            'ST_ASWKB(ST_GEOGFROMWKB(wkb)) '
+            'FROM geography_source')
+        collected = list(result.execute().collect())
+
+        self.assertEqual(1, len(collected))
+        self.assertEqual('POINT (1 2)', collected[0][0])
+        self.assertEqual(point_wkb, collected[0][1])
+        self.assertEqual(point_wkb, collected[0][2])
+
+
 class JavaSqlTests(PyFlinkTestCase):
     """
     We need to start these Java tests from python process to make sure that Python environment is
