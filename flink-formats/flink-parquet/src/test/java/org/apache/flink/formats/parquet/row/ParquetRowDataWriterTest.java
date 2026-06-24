@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RowData;
@@ -87,6 +88,11 @@ class ParquetRowDataWriterTest {
     private static final byte[] POINT_WKB =
             new byte[] {
                 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
+
+    private static final byte[] SECOND_POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 8, 0x40
             };
 
     private static final RowType ROW_TYPE =
@@ -247,6 +253,54 @@ class ParquetRowDataWriterTest {
         assertThat(reader.reachedEnd()).isFalse();
         assertThat(reader.nextRecord().getGeography(0).toBytes()).isEqualTo(POINT_WKB);
         assertThat(reader.reachedEnd()).isTrue();
+    }
+
+    @Test
+    void testNestedGeographyType(@TempDir java.nio.file.Path folder) throws Exception {
+        RowType rowType = RowType.of(new BigIntType(), new ArrayType(true, new GeographyType()));
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        writer.addElement(
+                GenericRowData.of(
+                        1L,
+                        new GenericArrayData(
+                                new Object[] {
+                                    GeographyData.fromBytes(POINT_WKB),
+                                    GeographyData.fromBytes(SECOND_POINT_WKB),
+                                    null
+                                })));
+        writer.flush();
+        writer.finish();
+
+        try (ParquetColumnarRowSplitReader reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        true,
+                        true,
+                        conf,
+                        rowType.getFieldNames().toArray(new String[0]),
+                        rowType.getChildren().stream()
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .toArray(DataType[]::new),
+                        new HashMap<>(),
+                        IntStream.range(0, rowType.getFieldCount()).toArray(),
+                        50,
+                        path,
+                        0,
+                        Long.MAX_VALUE)) {
+            assertThat(reader.reachedEnd()).isFalse();
+            RowData row = reader.nextRecord();
+            assertThat(row.getLong(0)).isEqualTo(1L);
+            assertThat(row.getArray(1).size()).isEqualTo(3);
+            assertThat(row.getArray(1).getGeography(0).toBytes()).isEqualTo(POINT_WKB);
+            assertThat(row.getArray(1).getGeography(1).toBytes()).isEqualTo(SECOND_POINT_WKB);
+            assertThat(row.getArray(1).isNullAt(2)).isTrue();
+            assertThat(reader.reachedEnd()).isTrue();
+        }
     }
 
     private void innerTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
