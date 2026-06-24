@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
 
@@ -101,7 +101,9 @@ class BatchPhysicalHashAggRule
       // create BatchPhysicalLocalHashAggregate
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
-      val providedTraitSet = localRequiredTraitSet
+      // A hash aggregate does not preserve input ordering; reset the collation to EMPTY
+      // so the local agg does not advertise a stale collation from its input.
+      val providedTraitSet = localRequiredTraitSet.replace(RelCollations.EMPTY)
       val localHashAgg = createLocalAgg(
         agg.getCluster,
         providedTraitSet,
