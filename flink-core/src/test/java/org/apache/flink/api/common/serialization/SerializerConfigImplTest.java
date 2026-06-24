@@ -20,6 +20,8 @@ package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -42,6 +44,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SerializerConfigImplTest {
+
+    private static final ConfigOption<Boolean> STATE_SCHEMA_EVOLUTION_ENABLED =
+            ConfigOptions.key("table.exec.state.schema-evolution.enabled")
+                    .booleanType()
+                    .defaultValue(false);
+
+    @Test
+    void testStateSchemaEvolutionFlagSurvivesConstructionAndCopy() {
+        Configuration configuration = new Configuration();
+        configuration.set(STATE_SCHEMA_EVOLUTION_ENABLED, true);
+
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl(configuration);
+        assertThat(serializerConfig.isStateSchemaEvolutionEnabled()).isTrue();
+        assertThat(serializerConfig.copy().isStateSchemaEvolutionEnabled()).isTrue();
+    }
+
+    @Test
+    void testStateSchemaEvolutionFlagDefaultsFalseThroughCopy() {
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
+        assertThat(serializerConfig.isStateSchemaEvolutionEnabled()).isFalse();
+        assertThat(serializerConfig.copy().isStateSchemaEvolutionEnabled()).isFalse();
+    }
+
+    @Test
+    void testStateSchemaEvolutionFlagSurvivesConfigure() {
+        Configuration configuration = new Configuration();
+        configuration.set(STATE_SCHEMA_EVOLUTION_ENABLED, true);
+
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
+        serializerConfig.configure(configuration, SerializerConfigImplTest.class.getClassLoader());
+
+        assertThat(serializerConfig.isStateSchemaEvolutionEnabled()).isTrue();
+        assertThat(serializerConfig.copy().isStateSchemaEvolutionEnabled()).isTrue();
+    }
+
     @Test
     void testReadingDefaultConfig() {
         SerializerConfig config = new SerializerConfigImpl();

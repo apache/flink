@@ -23,6 +23,8 @@ import org.apache.flink.api.common.SerializableSerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.PipelineOptions;
@@ -46,6 +48,14 @@ import java.util.stream.Collectors;
 public final class SerializerConfigImpl implements SerializerConfig {
 
     private static final long serialVersionUID = 1L;
+
+    // Mirrors org.apache.flink.table.api.config.ExecutionConfigOptions
+    //   .TABLE_EXEC_STATE_SCHEMA_EVOLUTION_ENABLED by key string (flink-core cannot depend on
+    //   flink-table-api-java). The value travels in the shared job Configuration.
+    private static final ConfigOption<Boolean> STATE_SCHEMA_EVOLUTION_ENABLED =
+            ConfigOptions.key("table.exec.state.schema-evolution.enabled")
+                    .booleanType()
+                    .defaultValue(false);
 
     private final Configuration configuration;
 
@@ -259,6 +269,11 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration.set(PipelineOptions.FORCE_KRYO, forceKryo);
     }
 
+    @Override
+    public boolean isStateSchemaEvolutionEnabled() {
+        return configuration.get(STATE_SCHEMA_EVOLUTION_ENABLED);
+    }
+
     /** Returns whether the Apache Avro is the serializer for POJOs. */
     public boolean isForceAvroEnabled() {
         return configuration.get(PipelineOptions.FORCE_AVRO);
@@ -357,6 +372,10 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration
                 .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
                 .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
+        configuration
+                .getOptional(STATE_SCHEMA_EVOLUTION_ENABLED)
+                .ifPresent(
+                        enabled -> this.configuration.set(STATE_SCHEMA_EVOLUTION_ENABLED, enabled));
     }
 
     @SuppressWarnings("unchecked")

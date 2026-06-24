@@ -138,7 +138,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         for (int i = 0; i < fieldSerializers.length; i++) {
             duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
         }
-        return new RowDataSerializer(types, duplicateFieldSerializers);
+        // Field names must be carried through duplication: state backends duplicate the registered
+        // serializer, and name-based schema-evolution compatibility relies on them being present.
+        return new RowDataSerializer(types, duplicateFieldSerializers, fieldNames);
     }
 
     @Override
