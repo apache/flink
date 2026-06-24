@@ -454,13 +454,14 @@ class FetchedChannelStateDrainerTest {
         }
 
         @Override
-        public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
+        public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
                 throws IOException {
             if (inRecovery) {
                 recovered.add(
                         EventSerializer.toBuffer(
                                 new RecoveryCheckpointBarrier(checkpointId), false));
             }
+            return !inRecovery;
         }
 
         @Override

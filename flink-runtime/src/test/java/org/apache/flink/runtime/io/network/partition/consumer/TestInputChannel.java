@@ -276,11 +276,15 @@ public class TestInputChannel extends InputChannel implements RecoverableInputCh
     }
 
     @Override
-    public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException {
-        if (!finishRecoveredBufferDeliveryCalled || !recoveredBuffersSpy.isEmpty()) {
+    public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
+            throws IOException {
+        boolean stillInRecovery =
+                !finishRecoveredBufferDeliveryCalled || !recoveredBuffersSpy.isEmpty();
+        if (stillInRecovery) {
             recoveredBuffersSpy.add(
                     EventSerializer.toBuffer(new RecoveryCheckpointBarrier(checkpointId), false));
         }
+        return !stillInRecovery;
     }
 
     @Override

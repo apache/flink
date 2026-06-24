@@ -50,13 +50,30 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
 
     private final Object lock = new Object();
 
+    /** Monotonic recovery lifecycle, advanced only forward. Guarded by {@link #lock}. */
+    private enum RecoveryState {
+        /** {@link #drain()} is still feeding segments into the recovery queues. */
+        DRAINING,
+        /**
+         * {@link #drain()} has consumed every segment, so the {@link #rootReader} is closed by
+         * {@link #close()} and there is nothing left to snapshot. Consumers may still be replaying
+         * the queued recovery buffers, so some channels can remain in recovery.
+         */
+        DRAINED,
+        /**
+         * Every channel has left recovery, so no barrier ever needs inserting again and nothing is
+         * left to snapshot. Terminal: {@link #snapshotAndInsertBarriers} short-circuits without the
+         * lock once here.
+         */
+        FULLY_CONSUMED
+    }
+
     /**
-     * Set under {@link #lock} once {@link #drain()} has consumed every segment. After that the
-     * {@link #rootReader} is closed by {@link #close()}, so a later {@link
-     * #snapshotAndInsertBarriers} must not derive from it; it returns an empty reader instead.
-     * Guarded by the lock so the check is atomic with barrier insertion.
+     * Recovery lifecycle state. Guarded by {@link #lock} so the read in {@link
+     * #snapshotAndInsertBarriers} is atomic with barrier insertion, except in the terminal {@link
+     * RecoveryState#FULLY_CONSUMED} state which is monotonic and read without the lock.
      */
-    private boolean drainFinished;
+    private volatile RecoveryState recoveryState = RecoveryState.DRAINING;
 
     public FetchedChannelStateDrainer(
             FetchedChannelState channelState,
@@ -102,11 +119,11 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
             drainSegment(seg, ch);
         }
 
-        // Mark drain done before rootReader is closed, so a concurrent snapshot returns empty
+        // Advance to DRAINED before rootReader is closed, so a concurrent snapshot returns empty
         // rather than deriving from the soon-to-be-closed rootReader. Under the lock to stay atomic
         // with snapshotAndInsertBarriers' check.
         synchronized (lock) {
-            drainFinished = true;
+            recoveryState = RecoveryState.DRAINED;
         }
         for (RecoverableInputChannel ch : channels.allChannels) {
             ch.finishRecoveredBufferDelivery();
@@ -171,27 +188,43 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
      * the remaining segments for replay into the checkpoint stream; the caller owns and must close
      * it.
      *
-     * <p>If the drain has already finished, the root reader is closed and there is nothing left to
-     * snapshot; an empty reader is returned so the caller's normal flow handles it uniformly.
+     * <p>Once {@link RecoveryState#FULLY_CONSUMED} no channel is in recovery, so this short-circuits
+     * to an empty reader without taking the lock or inserting any barrier. While {@link
+     * RecoveryState#DRAINED}, the drain has finished and the root reader is closed, so an empty
+     * reader is returned but barriers are still inserted for channels that have not yet finished
+     * consuming; when every channel has left recovery this advances to {@link
+     * RecoveryState#FULLY_CONSUMED}.
      */
     @Override
     public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
             throws IOException {
+        if (recoveryState == RecoveryState.FULLY_CONSUMED) {
+            // Terminal state: no channel is in recovery, so no barrier is needed and nothing is
+            // left to snapshot. Skip the lock entirely.
+            return FetchedChannelStateReader.emptyReader();
+        }
+
         ResolvedChannels channels = resolvedChannelsFuture.join();
 
         // Barrier insertion and snapshot must occur within the same critical section so that the
         // snapshot's committed position reflects exactly the drain position at the moment barriers
         // were inserted, with no window for the drain thread to advance between.
         synchronized (lock) {
+            boolean allRecoveryFinished = true;
             for (RecoverableInputChannel ch : channels.allChannels) {
-                ch.insertRecoveryCheckpointBarrierIfInRecovery(checkpointId);
+                allRecoveryFinished &= ch.insertRecoveryCheckpointBarrierIfInRecovery(checkpointId);
             }
-            if (drainFinished) {
-                // Drain consumed everything and rootReader is (being) closed; nothing left to
-                // snapshot. Return an empty reader so the caller's normal flow handles it.
-                return FetchedChannelStateReader.emptyReader();
+            if (recoveryState == RecoveryState.DRAINING) {
+                // Drain is still in flight: some segments remain, so consumers cannot have finished
+                // recovery yet. Snapshot the undrained remainder for replay.
+                return rootReader.snapshot().reader();
             }
-            return rootReader.snapshot().reader();
+            // DRAINED: rootReader is (being) closed, nothing left to snapshot. If every channel has
+            // now finished recovery, advance to the terminal state so future calls short-circuit.
+            if (allRecoveryFinished) {
+                recoveryState = RecoveryState.FULLY_CONSUMED;
+            }
+            return FetchedChannelStateReader.emptyReader();
         }
     }
 

@@ -104,7 +104,7 @@ class ChannelIOExecutorDrainSubmissionTest {
                     public void finishRecoveredBufferDelivery() {}
 
                     @Override
-                    public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) {
+                    public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) {
                         throw new RuntimeException("boom");
                     }
 
@@ -190,7 +190,9 @@ class ChannelIOExecutorDrainSubmissionTest {
         }
 
         @Override
-        public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) {}
+        public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) {
+            return false;
+        }
 
         @Override
         public Buffer requestRecoveryBufferBlocking() {

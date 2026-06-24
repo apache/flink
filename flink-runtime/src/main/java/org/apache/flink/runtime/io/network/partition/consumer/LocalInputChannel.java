@@ -226,9 +226,14 @@ public class LocalInputChannel extends InputChannel
     }
 
     @Override
-    public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException {
+    public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
+            throws IOException {
         boolean wasEmpty = false;
+        boolean recoveryFinished;
         synchronized (recoveredBuffers) {
+            recoveryFinished = !inRecovery;
+            // The released guard keeps us from appending to a queue releaseAllResources() cleared;
+            // it is independent of whether recovery finished, which is what the return reflects.
             if (!isReleased && inRecovery) {
                 wasEmpty =
                         offerRecoveredBuffer(
@@ -239,6 +244,7 @@ public class LocalInputChannel extends InputChannel
         if (wasEmpty) {
             notifyChannelNonEmpty();
         }
+        return recoveryFinished;
     }
 
     /**

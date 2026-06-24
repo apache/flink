@@ -44,8 +44,10 @@ public interface RecoverableInputChannel {
     /**
      * Inserts a {@code RecoveryCheckpointBarrier} for {@code checkpointId} into this channel's
      * recovery queue if the channel is still in recovery.
+     *
+     * @return whether this channel has finished recovery at the time of this call.
      */
-    void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException;
+    boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException;
 
     /**
      * Blocks until a buffer is available from this channel's own buffer pool. Implementations must

@@ -161,10 +161,11 @@ class FetchedChannelStateDrainerConcurrencyTest {
         public synchronized void finishRecoveredBufferDelivery() {}
 
         @Override
-        public synchronized void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
+        public synchronized boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
                 throws IOException {
             barriers.add(
                     EventSerializer.toBuffer(new RecoveryCheckpointBarrier(checkpointId), false));
+            return false;
         }
 
         @Override

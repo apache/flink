@@ -303,9 +303,14 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
     }
 
     @Override
-    public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException {
+    public boolean insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId)
+            throws IOException {
         boolean wasEmpty = false;
+        boolean recoveryFinished;
         synchronized (receivedBuffers) {
+            recoveryFinished = !inRecovery;
+            // The released guard keeps us from appending to a queue releaseAllResources() cleared;
+            // it is independent of whether recovery finished, which is what the return reflects.
             if (!isReleased.get() && inRecovery) {
                 wasEmpty =
                         appendRecoveredBuffer(
@@ -316,6 +321,7 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         if (wasEmpty) {
             notifyChannelNonEmpty();
         }
+        return recoveryFinished;
     }
 
     /**
