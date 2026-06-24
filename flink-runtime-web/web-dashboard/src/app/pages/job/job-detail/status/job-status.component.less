@@ -31,7 +31,18 @@
   }
 
   .operate-action {
-    font-size: 24px;
+    font-size: @font-size-base;
+
+    button {
+      transition: all 0.3s ease;
+
+      &:hover {
+        border-color: @error-color;
+        background-color: @error-color;
+        color: #fff;
+        box-shadow: 0 2px 6px fade(@error-color, 30%);
+      }
+    }
   }
 
   .status-wrapper {
