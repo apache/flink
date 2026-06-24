@@ -197,9 +197,9 @@ object FlinkBatchRuleSets {
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
-    FlinkPruneEmptyRules.UNION_INSTANCE,
+    PruneEmptyRules.UNION_INSTANCE,
     PruneEmptyRules.INTERSECT_INSTANCE,
-    FlinkPruneEmptyRules.MINUS_INSTANCE,
+    PruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
