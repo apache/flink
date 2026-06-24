@@ -677,7 +677,14 @@ class DataTypeVerificationTests(PyFlinkTestCase):
             (decimal.Decimal("1.0"), DataTypes.DECIMAL(10, 0)),
 
             # Binary
+            (b"\x01", DataTypes.BINARY(1)),
             (bytearray([1]), DataTypes.BINARY(1)),
+            (b"\x01\x02", DataTypes.VARBINARY(2)),
+
+            # Geography
+            (bytes([
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F,
+                0, 0, 0, 0, 0, 0, 0, 0x40]), DataTypes.GEOGRAPHY()),
 
             # Date/Time/Timestamp
             (datetime.date(2000, 1, 2), DataTypes.DATE()),

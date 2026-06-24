@@ -228,6 +228,15 @@ class BinaryType(AtomicType):
     def __repr__(self):
         return "BinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
 
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, obj):
+        return bytearray(obj) if obj is not None else obj
+
+    def from_sql_type(self, obj):
+        return bytes(obj) if obj is not None else obj
+
 
 class VarBinaryType(AtomicType):
     """
@@ -246,6 +255,15 @@ class VarBinaryType(AtomicType):
 
     def __repr__(self):
         return "VarBinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, obj):
+        return bytearray(obj) if obj is not None else obj
+
+    def from_sql_type(self, obj):
+        return bytes(obj) if obj is not None else obj
 
 
 class GeographyType(AtomicType):
@@ -1407,6 +1425,7 @@ _type_mappings = {
     int: BigIntType(),
     float: DoubleType(),
     str: VarCharType(0x7fffffff),
+    bytes: VarBinaryType(0x7fffffff),
     bytearray: VarBinaryType(0x7fffffff),
     decimal.Decimal: DecimalType(38, 18),
     datetime.date: DateType(),
@@ -1979,8 +1998,8 @@ _acceptable_types = {
     DecimalType: (decimal.Decimal,),
     CharType: (str,),
     VarCharType: (str,),
-    BinaryType: (bytearray,),
-    VarBinaryType: (bytearray,),
+    BinaryType: (bytes, bytearray),
+    VarBinaryType: (bytes, bytearray),
     GeographyType: (bytes, bytearray),
     DateType: (datetime.date, datetime.datetime),
     TimeType: (datetime.time,),
