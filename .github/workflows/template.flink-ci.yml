@@ -233,7 +233,7 @@ jobs:
           restore-keys: ${{ matrix.module }}-docker-${{ runner.os }}
 
       - name: "Load Docker images if not present in cache, yet"
-        if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
+        if: ${{ !cancelled() && steps.docker-cache.outputs.cache-hit != 'true' }}
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: ./tools/azure-pipelines/cache_docker_images.sh load
 
@@ -273,7 +273,7 @@ jobs:
 
       - name: "Save Docker images to cache"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-        if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
+        if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
 
   e2e:
@@ -363,7 +363,7 @@ jobs:
           key: e2e-${{ matrix.group }}-docker-${{ runner.os }}-${{ hashFiles('**/cache_docker_images.sh', '**/flink-test-utils-parent/**/DockerImageVersions.java') }}
 
       - name: "Load Docker images if not present in Cache, yet"
-        if: ${{ !cancelled() && !steps.docker-cache.cache.hit }}
+        if: ${{ !cancelled() && steps.docker-cache.outputs.cache-hit != 'true' }}
         run: ./tools/azure-pipelines/cache_docker_images.sh load
 
       - name: "Build Flink"
@@ -391,5 +391,5 @@ jobs:
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}
 
       - name: "Save Docker images to Cache"
-        if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
+        if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
