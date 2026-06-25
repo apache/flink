@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.dml;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -42,7 +43,13 @@ public class SqlTruncateTable extends SqlCall {
     private final SqlIdentifier tableNameIdentifier;
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER);
+            new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlTruncateTable(pos, (SqlIdentifier) operands[0]);
+                }
+            };
 
     public SqlTruncateTable(SqlParserPos pos, SqlIdentifier tableNameIdentifier) {
         super(pos);

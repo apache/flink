@@ -20,8 +20,10 @@ package org.apache.flink.sql.parser.ddl.catalog;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterObject;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -34,7 +36,13 @@ import java.util.List;
 public class SqlAlterCatalog extends SqlAlterObject {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("ALTER CATALOG", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("ALTER CATALOG", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterCatalog(pos, (SqlIdentifier) operands[0]);
+                }
+            };
 
     public SqlAlterCatalog(SqlParserPos position, SqlIdentifier catalogName) {
         super(OPERATOR, position, "CATALOG", catalogName);

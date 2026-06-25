@@ -20,8 +20,13 @@ package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -33,6 +38,16 @@ import java.util.List;
  * statement.
  */
 public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable {
+
+    private static final SqlSpecialOperator AS_QUERY_OPERATOR =
+            new SqlSpecialOperator("ALTER MATERIALIZED TABLE AS", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterMaterializedTableAsQuery(
+                            pos, (SqlIdentifier) operands[0], operands[1], SqlParserPos.ZERO);
+                }
+            };
 
     private final SqlNode asQuery;
 
@@ -55,6 +70,11 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
     /** Returns the parser position of the {@code AS} keyword. */
     public SqlParserPos getAsQueryKeywordPos() {
         return asQueryKeywordPos;
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return AS_QUERY_OPERATOR;
     }
 
     @Override

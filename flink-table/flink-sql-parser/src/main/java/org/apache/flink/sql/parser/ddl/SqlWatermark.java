@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -39,7 +40,13 @@ import static java.util.Objects.requireNonNull;
 public class SqlWatermark extends SqlCall {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("WATERMARK", SqlKind.OTHER);
+            new SqlSpecialOperator("WATERMARK", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlWatermark(pos, (SqlIdentifier) operands[0], operands[1]);
+                }
+            };
 
     private final SqlIdentifier eventTimeColumnName;
     private final SqlNode watermarkStrategy;

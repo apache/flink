@@ -23,25 +23,67 @@ import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** CREATE [OR ALTER] MATERIALIZED TABLE DDL sql call. */
 public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTable {
 
     public static final SqlSpecialOperator CREATE_OR_ALTER_OPERATOR =
-            new SqlSpecialOperator("CREATE OR ALTER MATERIALIZED TABLE", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE OR ALTER MATERIALIZED TABLE", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlTableConstraint> constraints = new ArrayList<>();
+                    for (SqlNode c : (SqlNodeList) operands[2]) {
+                        constraints.add((SqlTableConstraint) c);
+                    }
+                    SqlRefreshMode refreshMode =
+                            operands[10] == null
+                                    ? null
+                                    : ((SqlLiteral) operands[10]).getValueAs(SqlRefreshMode.class);
+                    SqlStartMode startMode =
+                            operands[11] == null
+                                    ? null
+                                    : new SqlStartMode(
+                                            ((SqlLiteral) operands[11])
+                                                    .getValueAs(
+                                                            SqlStartMode.SqlStartModeKind.class),
+                                            (SqlIntervalLiteral) operands[12],
+                                            (SqlTimestampLiteral) operands[13]);
+                    return new SqlCreateOrAlterMaterializedTable(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            constraints,
+                            (SqlWatermark) operands[3],
+                            (SqlCharStringLiteral) operands[4],
+                            (SqlDistribution) operands[9],
+                            (SqlNodeList) operands[5],
+                            (SqlNodeList) operands[6],
+                            (SqlIntervalLiteral) operands[7],
+                            refreshMode,
+                            startMode,
+                            operands[8],
+                            true,
+                            SqlParserPos.ZERO);
+                }
+            };
 
     public SqlCreateOrAlterMaterializedTable(
             SqlParserPos pos,

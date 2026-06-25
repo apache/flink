@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl.catalog;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -36,12 +41,27 @@ import static java.util.Objects.requireNonNull;
 /** ALTER CATALOG catalog_name SET (key1=val1, ...). */
 public class SqlAlterCatalogOptions extends SqlAlterCatalog {
 
+    private static final SqlSpecialOperator OPTIONS_OPERATOR =
+            new SqlSpecialOperator("ALTER CATALOG OPTIONS", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterCatalogOptions(
+                            pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                }
+            };
+
     private final SqlNodeList propertyList;
 
     public SqlAlterCatalogOptions(
             SqlParserPos position, SqlIdentifier catalogName, SqlNodeList propertyList) {
         super(position, catalogName);
         this.propertyList = requireNonNull(propertyList, "propertyList cannot be null");
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return OPTIONS_OPERATOR;
     }
 
     @Override

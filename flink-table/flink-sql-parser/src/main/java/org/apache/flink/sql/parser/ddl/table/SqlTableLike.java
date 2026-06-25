@@ -22,9 +22,12 @@ import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -32,6 +35,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -160,7 +164,24 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
     private final List<SqlTableLikeOption> options;
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("LIKE TABLE", SqlKind.OTHER);
+            new SqlSpecialOperator("LIKE TABLE", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlTableLikeOption> options = new ArrayList<>();
+                    for (SqlNode optionNode : (SqlNodeList) operands[1]) {
+                        String[] parts =
+                                ((SqlCharStringLiteral) optionNode)
+                                        .getValueAs(String.class)
+                                        .split(" ");
+                        options.add(
+                                new SqlTableLikeOption(
+                                        MergingStrategy.valueOf(parts[0]),
+                                        FeatureOption.valueOf(parts[1])));
+                    }
+                    return new SqlTableLike(pos, (SqlIdentifier) operands[0], options);
+                }
+            };
 
     public SqlTableLike(
             SqlParserPos pos, SqlIdentifier sourceTable, List<SqlTableLikeOption> options) {
@@ -178,7 +199,16 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return singletonList(sourceTable);
+        SqlNodeList optionNodes = new SqlNodeList(SqlParserPos.ZERO);
+        for (SqlTableLikeOption option : options) {
+            optionNodes.add(
+                    SqlLiteral.createCharString(
+                            option.getMergingStrategy().name()
+                                    + " "
+                                    + option.getFeatureOption().name(),
+                            SqlParserPos.ZERO));
+        }
+        return List.of(sourceTable, optionNodes);
     }
 
     public SqlIdentifier getSourceTable() {

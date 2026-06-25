@@ -20,12 +20,17 @@ package org.apache.flink.sql.parser.ddl.connection;
 
 import org.apache.flink.sql.parser.ddl.SqlDropObject;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import java.util.List;
 
 /**
  * {@link org.apache.calcite.sql.SqlNode} to describe the DROP CONNECTION [IF EXISTS]
@@ -33,7 +38,18 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlDropConnection extends SqlDropObject {
     private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP CONNECTION", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("DROP CONNECTION", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDropConnection(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue(),
+                            ((SqlLiteral) operands[2]).booleanValue(),
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     private final boolean isTemporary;
     private final boolean isSystemConnection;
@@ -55,6 +71,15 @@ public class SqlDropConnection extends SqlDropObject {
 
     public boolean isSystemConnection() {
         return isSystemConnection;
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        return List.of(
+                name,
+                SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isTemporary, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isSystemConnection, SqlParserPos.ZERO));
     }
 
     @Override

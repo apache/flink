@@ -18,9 +18,11 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -35,7 +37,18 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateDatabase extends SqlCreateObject {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCreateDatabase(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            (SqlCharStringLiteral) operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     public SqlCreateDatabase(
             SqlParserPos pos,
@@ -49,7 +62,11 @@ public class SqlCreateDatabase extends SqlCreateObject {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, properties, comment);
+        return ImmutableNullableList.of(
+                name,
+                properties,
+                comment,
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
     }
 
     @Override
