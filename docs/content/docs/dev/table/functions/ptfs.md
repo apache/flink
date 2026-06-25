@@ -2115,7 +2115,7 @@ public class PassthroughPTF extends ProcessTableFunction<Integer> {
 
 @Test
 void testPassthrough() throws Exception {
-  try (ProcessTableFunctionTestHarness<Row> harness =
+  try (ProcessTableFunctionTestHarness<Integer> harness =
     ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
     .withTableArgument("input", DataTypes.of("ROW<value INT>"))
     .build()) {
@@ -2123,7 +2123,7 @@ void testPassthrough() throws Exception {
     harness.processElement(Row.of(42));
     harness.processElement(Row.of(100));
 
-    List<Row> output = harness.getOutput();
+    List<Integer> output = harness.getOutput();
     assertThat(output).containsExactly(42, 100);
   }
 }
@@ -2202,8 +2202,8 @@ void testMultiTable() throws Exception {
     harness.processElementForTable("right", Row.of(1, "Berlin"));
 
     List<Row> output = harness.getOutput();
-    assertThat(output.get(0)).isEqualTo(Row.of(1, null, "LEFT: +I[1, Alice]"));
-    assertThat(output.get(1)).isEqualTo(Row.of(null, 1, "RIGHT: +I[1, Berlin]"));
+    assertThat(output.get(0)).isEqualTo(Row.of(1, 1, "LEFT: +I[1, Alice]"));
+    assertThat(output.get(1)).isEqualTo(Row.of(1, 1, "RIGHT: +I[1, Berlin]"));
   }
 }
 ```
@@ -2221,7 +2221,7 @@ Use `.withScalarArgument()` to configure scalar parameter values:
 public class FilterPTF extends ProcessTableFunction<Row> {
   public void eval(
     @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input,
-    int threshold) {
+    Integer threshold) {
     int value = input.getFieldAs("value");
     if (value > threshold) {
       collect(Row.of(value));
@@ -2255,7 +2255,7 @@ void testFilter() throws Exception {
 ```java
 @DataTypeHint("ROW<sum INT>")
 public class AddPTF extends ProcessTableFunction<Row> {
-  public void eval(int a, int b) {
+  public void eval(Integer a, Integer b) {
     collect(Row.of(a + b));
   }
 }
@@ -2539,7 +2539,7 @@ void testBuilderType() throws Exception {
     .build()) {
 
     harness.processElement(Row.of(5));
-    assertThat(harness.getOutput()).containsExactly(Row.of(10));
+    assertThat(harness.getOutput()).containsExactly(Row.of(10, 5));
   }
 }
 ```
@@ -2567,10 +2567,10 @@ public class CustomerPTF extends ProcessTableFunction<Customer> {
 void testPOJO() throws Exception {
   try (ProcessTableFunctionTestHarness<Customer> harness =
       ProcessTableFunctionTestHarness.ofClass(CustomerPTF.class)
-          .withTableArgument("input", DataTypes.of(Customer.class))
+          .withTableArgument("c", DataTypes.of(Customer.class))
           .build()) {
 
-    harness.processElement(Row.of("Alice", 30));
+    harness.processElement(Row.of(30, "Alice"));
 
     List<Customer> output = harness.getOutput();
     assertThat(output.get(0).name).isEqualTo("Alice");
