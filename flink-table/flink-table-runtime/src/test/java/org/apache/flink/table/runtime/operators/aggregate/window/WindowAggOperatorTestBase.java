@@ -36,6 +36,7 @@ import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncSta
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -168,6 +169,30 @@ abstract class WindowAggOperatorTestBase {
         }
 
         return operator;
+    }
+
+    protected OneInputStreamOperator<RowData, RowData> buildGlobalWindowOperator(
+            WindowAssigner assigner,
+            AbstractRowDataSerializer<RowData> inputSerializer,
+            NamespaceAggsHandleFunction<Long> localAggsFunction,
+            NamespaceAggsHandleFunction<Long> globalAggsFunction,
+            NamespaceAggsHandleFunction<Long> stateAggsFunction,
+            @Nullable Integer countStarIndex) {
+        WindowAggOperatorBuilder builder =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(inputSerializer)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(KEY_SER)
+                        .assigner(assigner)
+                        .globalAggregate(
+                                createGeneratedAggsHandle(localAggsFunction),
+                                createGeneratedAggsHandle(globalAggsFunction),
+                                createGeneratedAggsHandle(stateAggsFunction),
+                                ACC_SER);
+        if (countStarIndex != null) {
+            builder.countStarIndex(countStarIndex);
+        }
+        return builder.build();
     }
 
     protected static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

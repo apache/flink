@@ -25,6 +25,10 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
@@ -41,10 +45,18 @@ import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for slicing window aggregate operators created by {@link WindowAggOperatorBuilder}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
+
+    private static final RowDataSerializer LOCAL_ACC_INPUT_ROW_SER =
+            new RowDataSerializer(
+                    new VarCharType(Integer.MAX_VALUE),
+                    new BigIntType(),
+                    new BigIntType(),
+                    new TimestampType());
 
     public SlicingWindowAggOperatorTest(ZoneId shiftTimeZone, boolean enableAsyncState) {
         super(shiftTimeZone, enableAsyncState);
@@ -495,6 +507,77 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
     }
 
     @TestTemplate
+    void testGlobalEventTimeCumulativeWindowsDoNotRefireExpiredWindowAfterRestore()
+            throws Exception {
+        final SliceAssigner assigner =
+                SliceAssigners.cumulative(
+                        3, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
+        final SlicingSumAndCountAggsFunction globalAggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        final SlicingSumAndCountAggsFunction stateAggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildGlobalWindowOperator(
+                        assigner,
+                        LOCAL_ACC_INPUT_ROW_SER,
+                        new LocalAccumulatorRowsAggsFunction(assigner),
+                        globalAggsFunction,
+                        stateAggsFunction,
+                        null);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.processElement(insertRecord("key1", 1L, 1L, fromEpochMillis(20L)));
+        testHarness.processElement(insertRecord("key1", 1L, 1L, fromEpochMillis(0L)));
+        testHarness.processElement(insertRecord("key1", 1L, 1L, fromEpochMillis(999L)));
+
+        testHarness.processElement(insertRecord("key2", 1L, 1L, fromEpochMillis(1998L)));
+        testHarness.processElement(insertRecord("key2", 1L, 1L, fromEpochMillis(1999L)));
+        testHarness.processElement(insertRecord("key2", 1L, 1L, fromEpochMillis(1000L)));
+
+        testHarness.processWatermark(new Watermark(999));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(1000L)));
+        expectedOutput.add(new Watermark(999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.processWatermark(new Watermark(1999));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(2000L)));
+        expectedOutput.add(insertRecord("key2", 3L, 3L, localMills(0L), localMills(2000L)));
+        expectedOutput.add(new Watermark(1999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.prepareSnapshotPreBarrier(0L);
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+        testHarness.close();
+
+        expectedOutput.clear();
+        testHarness = createTestHarness(operator);
+        testHarness.setup();
+        testHarness.initializeState(snapshot);
+        testHarness.open();
+
+        testHarness.processElement(insertRecord("key2", 1L, 1L, fromEpochMillis(1000L)));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.processWatermark(new Watermark(1999));
+
+        expectedOutput.add(new Watermark(1999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Expired cumulative windows should not be emitted again after recovery.",
+                expectedOutput,
+                testHarness.getOutput());
+
+        testHarness.close();
+    }
+
+    @TestTemplate
     void testProcessingTimeCumulativeWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
@@ -807,6 +890,32 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         assertThatThrownBy(() -> buildWindowOperator(assigner, aggsFunction, null))
                 .hasMessageContaining(
                         "Hopping window requires a COUNT(*) in the aggregate functions.");
+    }
+
+    /** A test agg function to merge local accumulator rows of global window aggregates. */
+    protected static final class LocalAccumulatorRowsAggsFunction
+            extends SlicingSumAndCountAggsFunction {
+
+        public LocalAccumulatorRowsAggsFunction(SliceAssigner assigner) {
+            super(assigner);
+        }
+
+        @Override
+        public void merge(Long window, RowData otherAcc) throws Exception {
+            if (!openCalled) {
+                fail("Open was not called");
+            }
+            boolean sumIsNull2 = otherAcc.isNullAt(1);
+            if (!sumIsNull2) {
+                sum += otherAcc.getLong(1);
+                sumIsNull = false;
+            }
+            boolean countIsNull2 = otherAcc.isNullAt(2);
+            if (!countIsNull2) {
+                count += otherAcc.getLong(2);
+                countIsNull = false;
+            }
+        }
     }
 
     /** A test agg function for {@link SlicingWindowAggOperatorTest}. */
