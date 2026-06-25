@@ -147,6 +147,28 @@ class SessionContextTest {
     }
 
     @Test
+    void testCreateContextWithDependencies(@TempDir Path dependencyDirectory) throws Exception {
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        new Configuration(),
+                        Collections.singletonList(dependencyDirectory.toUri()));
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        SessionContext context =
+                SessionContext.create(
+                        defaultContext, SessionHandle.create(), environment, EXECUTOR_SERVICE);
+        try {
+            assertThat(context.getUserClassloader().getURLs())
+                    .contains(dependencyDirectory.toUri().toURL());
+        } finally {
+            context.close();
+        }
+    }
+
+    @Test
     void testCreateContextWithListeners() {
         assertThat(
                         sessionContext
