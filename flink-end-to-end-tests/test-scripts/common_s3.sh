@@ -18,7 +18,7 @@
 ################################################################################
 
 if [[ $S3_SOURCED ]]; then
-  echo "Only source common_s3.sh or common_s3_minio.sh in the same test, previously sourced $S3_SOURCED" && exit 1
+  echo "Only source common_s3.sh or common_s3_seaweedfs.sh in the same test, previously sourced $S3_SOURCED" && exit 1
 fi
 export S3_SOURCED="common_s3.sh"
 

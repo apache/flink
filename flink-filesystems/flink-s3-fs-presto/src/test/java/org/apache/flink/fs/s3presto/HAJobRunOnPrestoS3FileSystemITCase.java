@@ -18,7 +18,7 @@
 
 package org.apache.flink.fs.s3presto;
 
-import org.apache.flink.fs.s3.common.HAJobRunOnMinioS3StoreITCase;
+import org.apache.flink.fs.s3.common.HAJobRunOnSeaweedFsS3StoreITCase;
 
-/** Runs the {@link HAJobRunOnMinioS3StoreITCase} on the Presto S3 file system. */
-class HAJobRunOnPrestoS3FileSystemITCase extends HAJobRunOnMinioS3StoreITCase {}
+/** Runs the {@link HAJobRunOnSeaweedFsS3StoreITCase} on the Presto S3 file system. */
+class HAJobRunOnPrestoS3FileSystemITCase extends HAJobRunOnSeaweedFsS3StoreITCase {}
