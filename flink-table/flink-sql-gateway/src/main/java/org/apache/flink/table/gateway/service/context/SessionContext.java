@@ -329,7 +329,7 @@ public class SessionContext {
     private static URL toURL(URI uri) {
         try {
             return uri.toURL();
-        } catch (MalformedURLException e) {
+        } catch (MalformedURLException | IllegalArgumentException e) {
             throw new SqlGatewayException(
                     String.format("Failed to convert dependency URI '%s' to URL.", uri), e);
         }
