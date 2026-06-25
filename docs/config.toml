@@ -27,14 +27,14 @@ pygmentsUseClasses = true
   IsStable = true
 
   # Flag to indicate whether an outdated warning should be shown.
-  ShowOutDatedWarning = false
+  ShowOutDatedWarning = true
 
   # This are the version referenced in the docs. Please only use these variables
   # to reference a specific Flink version, because this is the only place where
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "2.2.0"
+  Version = "2.2.1"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
