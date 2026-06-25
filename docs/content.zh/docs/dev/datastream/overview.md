@@ -241,7 +241,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 基于集合：
 
-- `fromData(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。
+- `fromData(Collection)` - 从 Java `java.util.Collection` 创建数据流。集合中的所有元素必须属于同一类型。
   
 - `fromData(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
   
