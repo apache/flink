@@ -201,6 +201,8 @@ public class TypeInfoDataTypeConverter {
                     return ExternalTypeInfo.of(dataType);
                 }
                 return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+            case GEOGRAPHY:
+                return ExternalTypeInfo.of(dataType);
             default:
                 return TypeConversions.fromDataTypeToLegacyInfo(dataType);
         }

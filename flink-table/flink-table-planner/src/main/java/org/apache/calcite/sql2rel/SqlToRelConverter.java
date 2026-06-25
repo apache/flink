@@ -4918,7 +4918,8 @@ public class SqlToRelConverter {
      *
      * <p>The field {@code r.order_id} is declared {@code NOT NULL} inside a {@code NOT NULL} ROW.
      * However, in a LEFT JOIN when there is no match on the right side, the entire {@code b} row is
-     * null-padded — so {@code b.r} is null, and {@code b.r.order_id} must produce {@code null}.
+     * null-padded ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so {@code b.r} is null, and {@code b.r.order_id} must produce
+     * {@code null}.
      *
      * <p>Without this adjustment, the {@link RexFieldAccess} built by {@code convertIdentifier}
      * still carries the pre-join {@link RexInputRef} type ({@code NOT NULL}), so the field access
@@ -6036,8 +6037,7 @@ public class SqlToRelConverter {
                     }
                     requireNonNull(subQuery, "subQuery");
                     rex = requireNonNull(subQuery.expr);
-                    return StandardConvertletTable.castToValidatedType(
-                            expr.getParserPosition(), expr, rex, validator(), rexBuilder, false);
+                    return castToValidatedTypeCompat(expr, rex, validator(), rexBuilder);
 
                 case SELECT:
                 case EXISTS:
@@ -7134,6 +7134,56 @@ public class SqlToRelConverter {
                 return measureScope.lookupMeasure(identifier.getSimple());
             }
             return super.lookupMeasure(identifier);
+        }
+    }
+
+    private static RexNode castToValidatedTypeCompat(
+            SqlNode expr, RexNode rex, SqlValidator validator, RexBuilder rexBuilder) {
+        try {
+            try {
+                final java.lang.reflect.Method method =
+                        StandardConvertletTable.class.getMethod(
+                                "castToValidatedType",
+                                org.apache.calcite.sql.parser.SqlParserPos.class,
+                                SqlNode.class,
+                                RexNode.class,
+                                SqlValidator.class,
+                                RexBuilder.class,
+                                boolean.class);
+                return (RexNode)
+                        method.invoke(
+                                null,
+                                expr.getParserPosition(),
+                                expr,
+                                rex,
+                                validator,
+                                rexBuilder,
+                                false);
+            } catch (NoSuchMethodException ignored) {
+                try {
+                    final java.lang.reflect.Method method =
+                            StandardConvertletTable.class.getMethod(
+                                    "castToValidatedType",
+                                    SqlNode.class,
+                                    RexNode.class,
+                                    SqlValidator.class,
+                                    RexBuilder.class,
+                                    boolean.class);
+                    return (RexNode) method.invoke(null, expr, rex, validator, rexBuilder, false);
+                } catch (NoSuchMethodException ignoredAgain) {
+                    final java.lang.reflect.Method method =
+                            StandardConvertletTable.class.getMethod(
+                                    "castToValidatedType",
+                                    SqlNode.class,
+                                    RexNode.class,
+                                    SqlValidator.class,
+                                    RexBuilder.class);
+                    return (RexNode) method.invoke(null, expr, rex, validator, rexBuilder);
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(
+                    "Unable to invoke StandardConvertletTable.castToValidatedType.", e);
         }
     }
 }
