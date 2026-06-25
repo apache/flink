@@ -351,26 +351,23 @@ Key classes:
 mvn clean package
 ```
 
-## Testing with MinIO
+## Testing with SeaweedFS
 
 ```bash
-# Start MinIO
-docker run -d -p 9000:9000 -p 9001:9001 \
-  -e "MINIO_ROOT_USER=minioadmin" \
-  -e "MINIO_ROOT_PASSWORD=minioadmin" \
-  quay.io/minio/minio server /data --console-address ":9001"
+# Start SeaweedFS
+docker run -d --name seaweedfs -p 8333:8333 chrislusf/seaweedfs server -s3 -dir=/data
 
 # Create bucket
-mc alias set local http://localhost:9000 minioadmin minioadmin
-mc mb local/test-bucket
+docker exec -i seaweedfs sh -c 'echo "s3.bucket.create -name test-bucket" | weed shell'
 
-# Run Flink with MinIO
+# Run Flink with SeaweedFS
 export FLINK_HOME=/path/to/flink
 cat > $FLINK_HOME/conf/config.yaml <<EOF
-s3.endpoint: http://localhost:9000
-s3.access-key: minioadmin
-s3.secret-key: minioadmin
+s3.endpoint: http://localhost:8333
+fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 s3.path-style-access: true
+s3.chunked-encoding.enabled: false
+s3.checksum-validation.enabled: false
 EOF
 
 $FLINK_HOME/bin/flink run YourJob.jar

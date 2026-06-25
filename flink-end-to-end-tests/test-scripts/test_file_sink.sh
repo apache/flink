@@ -53,7 +53,7 @@ function get_total_number_of_valid_lines {
 if [ "${OUT_TYPE}" == "local" ]; then
   echo "[INFO] Test run in local environment: No S3 environment is loaded."
 elif [ "${OUT_TYPE}" == "s3" ]; then
-  source "$(dirname "$0")"/common_s3_minio.sh
+  source "$(dirname "$0")"/common_s3_seaweedfs.sh
   s3_setup hadoop
 
   # overwrites implementation for local runs
@@ -63,11 +63,6 @@ elif [ "${OUT_TYPE}" == "s3" ]; then
 
     # and prints the sorted output
     find "${LOCAL_JOB_OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
-  }
-
-  # overwrites implementation for local runs
-  function get_total_number_of_valid_lines {
-    s3_get_number_of_lines_by_prefix "${S3_DATA_PREFIX}" "part-"
   }
 
   # make sure we delete the data of the current OpenSSL linkage iteration; also registered as a

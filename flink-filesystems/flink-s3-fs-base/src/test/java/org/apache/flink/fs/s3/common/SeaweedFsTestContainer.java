@@ -39,38 +39,39 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Locale;
 
-/** {@code MinioTestContainer} provides a {@code Minio} test instance. */
-class MinioTestContainer extends GenericContainer<MinioTestContainer> {
+/** {@code SeaweedFsTestContainer} provides a {@code SeaweedFs} test instance. */
+class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
 
-    private static final int DEFAULT_PORT = 9000;
+    private static final int DEFAULT_PORT = 8333;
 
-    private static final String MINIO_ACCESS_KEY = "MINIO_ROOT_USER";
-    private static final String MINIO_SECRET_KEY = "MINIO_ROOT_PASSWORD";
+    private static final String AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID";
+    private static final String AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY";
 
     private static final String DEFAULT_STORAGE_DIRECTORY = "/data";
-    private static final String HEALTH_ENDPOINT = "/minio/health/ready";
+    private static final String HEALTH_ENDPOINT = "/healthz";
 
     private final String accessKey;
     private final String secretKey;
     private final String defaultBucketName;
 
-    public MinioTestContainer() {
+    public SeaweedFsTestContainer() {
         this(randomString("bucket", 6));
     }
 
-    public MinioTestContainer(String defaultBucketName) {
-        super(DockerImageVersions.MINIO);
+    public SeaweedFsTestContainer(String defaultBucketName) {
+        super(DockerImageVersions.SEAWEEDFS);
 
         this.accessKey = randomString("accessKey", 10);
         // secrets must have at least 8 characters
         this.secretKey = randomString("secret", 10);
         this.defaultBucketName = Preconditions.checkNotNull(defaultBucketName);
 
-        withNetworkAliases(randomString("minio", 6));
+        withNetworkAliases(randomString("seaweedfs", 6));
         addExposedPort(DEFAULT_PORT);
-        withEnv(MINIO_ACCESS_KEY, this.accessKey);
-        withEnv(MINIO_SECRET_KEY, this.secretKey);
-        withCommand("server", DEFAULT_STORAGE_DIRECTORY);
+        withEnv(AWS_ACCESS_KEY_ID, this.accessKey);
+        withEnv(AWS_SECRET_ACCESS_KEY, this.secretKey);
+        withCommand(
+                "server", "-s3", "-s3.port=" + DEFAULT_PORT, "-dir=" + DEFAULT_STORAGE_DIRECTORY);
         setWaitStrategy(
                 new HttpWaitStrategy()
                         .forPort(DEFAULT_PORT)
@@ -91,7 +92,7 @@ class MinioTestContainer extends GenericContainer<MinioTestContainer> {
         return String.format("%s-%s", prefix, Base58.randomString(length).toLowerCase(Locale.ROOT));
     }
 
-    /** Creates {@link AmazonS3} client for accessing the {@code Minio} instance. */
+    /** Creates {@link AmazonS3} client for accessing the {@code SeaweedFs} instance. */
     public AmazonS3 getClient() {
         return AmazonS3Client.builder()
                 .withCredentials(
@@ -109,9 +110,9 @@ class MinioTestContainer extends GenericContainer<MinioTestContainer> {
     }
 
     /**
-     * Initializes the Minio instance (i.e. creating the default bucket and initializing Flink's
+     * Initializes the SeaweedFs instance (i.e. creating the default bucket and initializing Flink's
      * FileSystems). Additionally, the passed Flink {@link Configuration} is extended by all
-     * relevant parameter to access the {@code Minio} instance.
+     * relevant parameter to access the {@code SeaweedFs} instance.
      */
     public void setS3ConfigOptions(Configuration config) {
         config.set(AbstractS3FileSystemFactory.ENDPOINT, getHttpEndpoint());
