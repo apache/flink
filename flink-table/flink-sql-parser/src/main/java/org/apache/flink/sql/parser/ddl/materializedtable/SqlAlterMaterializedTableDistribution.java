@@ -20,8 +20,13 @@ package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -63,9 +68,25 @@ public abstract class SqlAlterMaterializedTableDistribution extends SqlAlterMate
     public static class SqlAlterMaterializedTableAddDistribution
             extends SqlAlterMaterializedTableDistribution {
 
+        private static final SqlSpecialOperator ADD_DISTRIBUTION_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE ADD DISTRIBUTION", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableAddDistribution(
+                                pos, (SqlIdentifier) operands[0], (SqlDistribution) operands[1]);
+                    }
+                };
+
         public SqlAlterMaterializedTableAddDistribution(
                 SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
             super(pos, tableName, distribution);
+        }
+
+        @Override
+        public SqlOperator getOperator() {
+            return ADD_DISTRIBUTION_OPERATOR;
         }
 
         @Override
@@ -77,9 +98,25 @@ public abstract class SqlAlterMaterializedTableDistribution extends SqlAlterMate
     public static class SqlAlterMaterializedTableModifyDistribution
             extends SqlAlterMaterializedTableDistribution {
 
+        private static final SqlSpecialOperator MODIFY_DISTRIBUTION_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE MODIFY DISTRIBUTION", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableModifyDistribution(
+                                pos, (SqlIdentifier) operands[0], (SqlDistribution) operands[1]);
+                    }
+                };
+
         public SqlAlterMaterializedTableModifyDistribution(
                 SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
             super(pos, tableName, distribution);
+        }
+
+        @Override
+        public SqlOperator getOperator() {
+            return MODIFY_DISTRIBUTION_OPERATOR;
         }
 
         @Override

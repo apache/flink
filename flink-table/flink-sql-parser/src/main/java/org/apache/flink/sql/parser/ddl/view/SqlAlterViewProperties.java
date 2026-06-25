@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl.view;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -36,12 +41,27 @@ import static java.util.Objects.requireNonNull;
 /** ALTER DDL to change properties of a view. */
 public class SqlAlterViewProperties extends SqlAlterView {
 
+    private static final SqlSpecialOperator PROPERTIES_OPERATOR =
+            new SqlSpecialOperator("ALTER VIEW SET", SqlKind.ALTER_VIEW) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterViewProperties(
+                            pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                }
+            };
+
     private final SqlNodeList propertyList;
 
     public SqlAlterViewProperties(
             SqlParserPos pos, SqlIdentifier viewName, SqlNodeList propertyList) {
         super(pos, viewName);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return PROPERTIES_OPERATOR;
     }
 
     @Override

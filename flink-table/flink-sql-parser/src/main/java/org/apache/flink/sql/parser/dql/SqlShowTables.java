@@ -18,9 +18,12 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -69,14 +72,53 @@ public class SqlShowTables extends SqlShowCall {
         return kind;
     }
 
+    private static SqlCall createCallForKind(
+            SqlOperator operator, SqlParserPos pos, SqlNode... operands) {
+        SqlTableKind tableKind = SqlTableKind.TABLE;
+        for (SqlTableKind candidate : SqlTableKind.values()) {
+            if (candidate.getOperator() == operator) {
+                tableKind = candidate;
+                break;
+            }
+        }
+        return new SqlShowTables(
+                pos,
+                tableKind,
+                operandToString(operands[1]),
+                (SqlIdentifier) operands[0],
+                operandToBoolean(operands[4]),
+                (SqlCharStringLiteral) operands[3]);
+    }
+
     /**
      * The kind of table. Keep in sync with {@link
      * org.apache.flink.table.catalog.CatalogBaseTable.TableKind}.
      */
     public enum SqlTableKind {
-        MATERIALIZED_TABLE(new SqlSpecialOperator("SHOW MATERIALIZED TABLES", SqlKind.OTHER)),
-        TABLE(new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER)),
-        VIEW(new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER));
+        MATERIALIZED_TABLE(
+                new SqlSpecialOperator("SHOW MATERIALIZED TABLES", SqlKind.OTHER) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return createCallForKind(this, pos, operands);
+                    }
+                }),
+        TABLE(
+                new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return createCallForKind(this, pos, operands);
+                    }
+                }),
+        VIEW(
+                new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return createCallForKind(this, pos, operands);
+                    }
+                });
 
         private final SqlSpecialOperator operator;
 

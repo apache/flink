@@ -23,9 +23,11 @@ import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlCreateObject;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -45,7 +47,20 @@ import java.util.List;
 public class SqlCreateConnection extends SqlCreateObject implements ExtendedSqlNode {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE CONNECTION", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE CONNECTION", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCreateConnection(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlCharStringLiteral) operands[1],
+                            (SqlNodeList) operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue(),
+                            ((SqlLiteral) operands[4]).booleanValue(),
+                            ((SqlLiteral) operands[5]).booleanValue());
+                }
+            };
 
     private final boolean isSystem;
 
@@ -71,7 +86,13 @@ public class SqlCreateConnection extends SqlCreateObject implements ExtendedSqlN
 
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, comment, properties);
+        return ImmutableNullableList.of(
+                name,
+                comment,
+                properties,
+                SqlLiteral.createBoolean(isTemporary(), SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isSystem, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
     }
 
     public boolean isSystem() {

@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.dml;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -41,7 +42,17 @@ import java.util.List;
 public class SqlStatementSet extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("Statement Set", SqlKind.OTHER);
+            new SqlSpecialOperator("Statement Set", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<RichSqlInsert> inserts = new ArrayList<>(operands.length);
+                    for (SqlNode operand : operands) {
+                        inserts.add((RichSqlInsert) operand);
+                    }
+                    return new SqlStatementSet(inserts, pos);
+                }
+            };
 
     private final ArrayList<RichSqlInsert> inserts = new ArrayList<>();
 

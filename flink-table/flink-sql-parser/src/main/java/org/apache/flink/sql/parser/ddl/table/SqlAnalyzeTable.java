@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.SqlPartitionSpecProperty;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -42,7 +43,18 @@ import static java.util.Objects.requireNonNull;
 /** ANALYZE TABLE to compute the statistics for a given table. */
 public class SqlAnalyzeTable extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("ANALYZE TABLE", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("ANALYZE TABLE", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAnalyzeTable(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            (SqlNodeList) operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     private final SqlIdentifier tableName;
     private final SqlNodeList partitions;
@@ -97,7 +109,11 @@ public class SqlAnalyzeTable extends SqlCall {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableName, partitions, columns);
+        return ImmutableNullableList.of(
+                tableName,
+                partitions,
+                columns,
+                SqlLiteral.createBoolean(allColumns, SqlParserPos.ZERO));
     }
 
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {

@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -30,14 +31,23 @@ import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collections;
 import java.util.List;
 
 /** The command to stop a flink job. */
 public class SqlStopJob extends SqlCall {
 
     public static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("STOP JOB", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("STOP JOB", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlStopJob(
+                            pos,
+                            (SqlCharStringLiteral) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue(),
+                            ((SqlLiteral) operands[2]).booleanValue());
+                }
+            };
 
     private final SqlCharStringLiteral jobId;
 
@@ -78,7 +88,10 @@ public class SqlStopJob extends SqlCall {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(jobId);
+        return List.of(
+                jobId,
+                SqlLiteral.createBoolean(isWithSavepoint, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isWithDrain, SqlParserPos.ZERO));
     }
 
     public String getId() {

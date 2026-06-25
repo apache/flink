@@ -21,20 +21,29 @@ package org.apache.flink.sql.parser.dql;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
 import java.util.List;
 
 /** DESCRIBE CATALOG sql call. */
 public class SqlDescribeCatalog extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("DESCRIBE CATALOG", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("DESCRIBE CATALOG", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDescribeCatalog(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue());
+                }
+            };
     private final SqlIdentifier catalogName;
     private final boolean isExtended;
 
@@ -51,7 +60,7 @@ public class SqlDescribeCatalog extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(catalogName);
+        return List.of(catalogName, SqlLiteral.createBoolean(isExtended, SqlParserPos.ZERO));
     }
 
     public String getCatalogName() {

@@ -20,9 +20,11 @@ package org.apache.flink.sql.parser.ddl.catalog;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateObject;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -39,7 +41,18 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateCatalog extends SqlCreateObject {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCreateCatalog(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            (SqlCharStringLiteral) operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     public SqlCreateCatalog(
             SqlParserPos position,
@@ -58,7 +71,11 @@ public class SqlCreateCatalog extends SqlCreateObject {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, properties, comment);
+        return ImmutableNullableList.of(
+                name,
+                properties,
+                comment,
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
     }
 
     public String catalogName() {

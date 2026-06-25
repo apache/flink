@@ -24,11 +24,14 @@ import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -37,6 +40,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -71,7 +75,29 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateTableAs extends SqlCreateTable {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE TABLE AS", SqlKind.CREATE_TABLE);
+            new SqlSpecialOperator("CREATE TABLE AS", SqlKind.CREATE_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlTableConstraint> constraints = new ArrayList<>();
+                    for (SqlNode c : (SqlNodeList) operands[2]) {
+                        constraints.add((SqlTableConstraint) c);
+                    }
+                    return new SqlCreateTableAs(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            constraints,
+                            (SqlNodeList) operands[3],
+                            (SqlDistribution) operands[8],
+                            (SqlNodeList) operands[4],
+                            (SqlWatermark) operands[5],
+                            (SqlCharStringLiteral) operands[6],
+                            operands[11],
+                            ((SqlLiteral) operands[9]).booleanValue(),
+                            ((SqlLiteral) operands[10]).booleanValue());
+                }
+            };
 
     private final SqlNode asQuery;
 
@@ -130,6 +156,11 @@ public class SqlCreateTableAs extends SqlCreateTable {
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
     }
 
     public boolean isSchemaWithColumnsIdentifiersOnly() {

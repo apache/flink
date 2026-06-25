@@ -18,8 +18,13 @@
 
 package org.apache.flink.sql.parser.ddl.materializedtable;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -30,8 +35,23 @@ import java.util.List;
  * SqlNode to describe ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SUSPEND clause.
  */
 public class SqlAlterMaterializedTableSuspend extends SqlAlterMaterializedTable {
+
+    private static final SqlSpecialOperator SUSPEND_OPERATOR =
+            new SqlSpecialOperator("ALTER MATERIALIZED TABLE SUSPEND", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterMaterializedTableSuspend(pos, (SqlIdentifier) operands[0]);
+                }
+            };
+
     public SqlAlterMaterializedTableSuspend(SqlParserPos pos, SqlIdentifier tableName) {
         super(pos, tableName);
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return SUSPEND_OPERATOR;
     }
 
     @Override
