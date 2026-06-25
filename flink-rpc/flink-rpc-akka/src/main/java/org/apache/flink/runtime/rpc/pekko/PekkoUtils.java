@@ -361,6 +361,22 @@ class PekkoUtils {
 
         final String sslEngineProviderName = CustomSSLEngineProvider.class.getCanonicalName();
 
+        LOG.debug(
+                "Creating RPC SSL configuration with enabled={}, protocol={}, "
+                        + "enabledAlgorithms={}, keyStoreConfigured={}, keyStoreType={}, "
+                        + "trustStoreConfigured={}, trustStoreType={}, certFingerprintsConfigured={}, "
+                        + "requireMutualAuthentication={}, sslEngineProvider={}",
+                enableSSLConfig,
+                sslProtocol,
+                sslAlgorithmsString,
+                sslKeyStore != null,
+                sslKeyStoreType,
+                sslTrustStore != null,
+                sslTrustStoreType,
+                sslCertFingerprintString != null && !sslCertFingerprintString.isEmpty(),
+                true,
+                sslEngineProviderName);
+
         configBuilder
                 .add("pekko {")
                 .add("  remote.classic {")

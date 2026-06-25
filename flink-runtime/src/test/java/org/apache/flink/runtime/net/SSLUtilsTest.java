@@ -33,11 +33,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
 
 import java.io.File;
 import java.io.InputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -173,6 +176,27 @@ public class SSLUtilsTest {
         List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
         assertThat(cipherSuites).hasSize(2);
         assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
+    }
+
+    @Test
+    void testRestServerAppliesConfiguredProtocolsAndCipherSuites() throws Exception {
+        final Configuration config = createRestSslConfigWithKeyStore("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2");
+        config.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+
+        final JdkSslContext nettySSLContext =
+                (JdkSslContext)
+                        SSLUtils.createRestNettySSLContext(config, false, ClientAuth.NONE, JDK);
+        final SSLEngine sslEngine =
+                checkNotNull(nettySSLContext).newEngine(UnpooledByteBufAllocator.DEFAULT);
+
+        assertThat(sslEngine.getEnabledProtocols()).containsExactly("TLSv1.2");
+        assertThat(sslEngine.getEnabledCipherSuites())
+                .containsExactlyInAnyOrder(
+                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
     }
 
     // ------------------------ server --------------------------
@@ -382,6 +406,29 @@ public class SSLUtilsTest {
             assertThat(algorithms).hasSize(2);
             assertThat(algorithms)
                     .contains(
+                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                            "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testSetSSLVersionAndCipherSuitesForSSLClientSocket(String sslProvider) throws Exception {
+        final Configuration clientConfig =
+                createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+
+        clientConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
+        clientConfig.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+
+        try (Socket socket = SSLUtils.createSSLClientSocketFactory(clientConfig).createSocket()) {
+            assertThat(socket).isInstanceOf(SSLSocket.class);
+            final SSLSocket sslSocket = (SSLSocket) socket;
+
+            assertThat(sslSocket.getEnabledProtocols()).containsExactly("TLSv1.1");
+            assertThat(sslSocket.getEnabledCipherSuites())
+                    .containsExactlyInAnyOrder(
                             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
                             "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         }

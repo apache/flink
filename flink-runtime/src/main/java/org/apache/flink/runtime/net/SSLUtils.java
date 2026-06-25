@@ -35,6 +35,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
@@ -42,6 +45,8 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import java.io.File;
@@ -49,6 +54,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -66,6 +72,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Common utilities to manage SSL transport settings. */
 public class SSLUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
     /**
      * Creates a factory for SSL Server Sockets from the given configuration. SSL Server Sockets are
@@ -96,7 +104,11 @@ public class SSLUtils {
             throw new IllegalConfigurationException("SSL is not enabled");
         }
 
-        return sslContext.getSocketFactory();
+        String[] protocols = getEnabledProtocols(config);
+        String[] cipherSuites = getEnabledCipherSuites(config);
+
+        SSLSocketFactory factory = sslContext.getSocketFactory();
+        return new ConfiguringSSLSocketFactory(factory, protocols, cipherSuites);
     }
 
     /** Creates a SSLEngineFactory to be used by internal communication server endpoints. */
@@ -357,6 +369,17 @@ public class SSLUtils {
         int sessionCacheSize = config.get(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
         int sessionTimeoutMs = config.get(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
 
+        LOG.debug(
+                "Creating internal SSL context with provider={}, clientMode={}, clientAuth={}, "
+                        + "protocols={}, cipherSuites={}, sessionCacheSize={}, sessionTimeoutMs={}",
+                provider,
+                clientMode,
+                ClientAuth.REQUIRE,
+                Arrays.toString(sslProtocols),
+                ciphers,
+                sessionCacheSize,
+                sessionTimeoutMs);
+
         KeyManagerFactory kmf = getKeyManagerFactory(config, true, provider);
         ClientAuth clientAuth = ClientAuth.REQUIRE;
 
@@ -421,6 +444,16 @@ public class SSLUtils {
         String[] sslProtocols = getEnabledProtocols(config);
         List<String> ciphers = Arrays.asList(getEnabledCipherSuites(config));
 
+        LOG.debug(
+                "Creating REST SSL context with provider={}, clientMode={}, clientAuth={}, "
+                        + "protocols={}, cipherSuites={}, verifyHostname={}",
+                provider,
+                clientMode,
+                clientAuth,
+                Arrays.toString(sslProtocols),
+                ciphers,
+                clientMode ? config.get(SecurityOptions.SSL_REST_VERIFY_HOSTNAME) : null);
+
         final SslContextBuilder sslContextBuilder;
         if (clientMode) {
             sslContextBuilder = SslContextBuilder.forClient();
@@ -433,22 +466,21 @@ public class SSLUtils {
         } else {
             KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
             sslContextBuilder = SslContextBuilder.forServer(kmf);
+            if (clientAuth != ClientAuth.NONE) {
+                sslContextBuilder.clientAuth(clientAuth);
+            }
         }
 
         if (clientMode || clientAuth != ClientAuth.NONE) {
             Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, false);
-            tmf.map(
-                    // Use specific ciphers and protocols if SSL is configured with self-signed
-                    // certificates (user-supplied truststore)
-                    tm ->
-                            sslContextBuilder
-                                    .trustManager(tm)
-                                    .protocols(sslProtocols)
-                                    .ciphers(ciphers)
-                                    .clientAuth(clientAuth));
+            tmf.ifPresent(sslContextBuilder::trustManager);
         }
 
-        return sslContextBuilder.sslProvider(provider).build();
+        return sslContextBuilder
+                .sslProvider(provider)
+                .protocols(sslProtocols)
+                .ciphers(ciphers)
+                .build();
     }
 
     // ------------------------------------------------------------------------
@@ -475,6 +507,72 @@ public class SSLUtils {
     // ------------------------------------------------------------------------
     //  Wrappers for socket factories that additionally configure the sockets
     // ------------------------------------------------------------------------
+
+    private static class ConfiguringSSLSocketFactory extends SSLSocketFactory {
+
+        private final SSLSocketFactory sslSocketFactory;
+        private final String[] protocols;
+        private final String[] cipherSuites;
+
+        ConfiguringSSLSocketFactory(
+                SSLSocketFactory sslSocketFactory, String[] protocols, String[] cipherSuites) {
+            this.sslSocketFactory = sslSocketFactory;
+            this.protocols = protocols;
+            this.cipherSuites = cipherSuites;
+        }
+
+        @Override
+        public String[] getDefaultCipherSuites() {
+            return sslSocketFactory.getDefaultCipherSuites();
+        }
+
+        @Override
+        public String[] getSupportedCipherSuites() {
+            return sslSocketFactory.getSupportedCipherSuites();
+        }
+
+        @Override
+        public Socket createSocket() throws IOException {
+            return configureSocket(sslSocketFactory.createSocket());
+        }
+
+        @Override
+        public Socket createSocket(Socket socket, String host, int port, boolean autoClose)
+                throws IOException {
+            return configureSocket(sslSocketFactory.createSocket(socket, host, port, autoClose));
+        }
+
+        @Override
+        public Socket createSocket(String host, int port) throws IOException {
+            return configureSocket(sslSocketFactory.createSocket(host, port));
+        }
+
+        @Override
+        public Socket createSocket(String host, int port, InetAddress localHost, int localPort)
+                throws IOException {
+            return configureSocket(sslSocketFactory.createSocket(host, port, localHost, localPort));
+        }
+
+        @Override
+        public Socket createSocket(InetAddress host, int port) throws IOException {
+            return configureSocket(sslSocketFactory.createSocket(host, port));
+        }
+
+        @Override
+        public Socket createSocket(
+                InetAddress address, int port, InetAddress localAddress, int localPort)
+                throws IOException {
+            return configureSocket(
+                    sslSocketFactory.createSocket(address, port, localAddress, localPort));
+        }
+
+        private Socket configureSocket(Socket socket) {
+            SSLSocket sslSocket = (SSLSocket) socket;
+            sslSocket.setEnabledProtocols(protocols);
+            sslSocket.setEnabledCipherSuites(cipherSuites);
+            return sslSocket;
+        }
+    }
 
     private static class ConfiguringSSLServerSocketFactory extends ServerSocketFactory {
 
