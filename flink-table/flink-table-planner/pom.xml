@@ -202,6 +202,20 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>4.7</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.airlift</groupId>
+			<artifactId>aircompressor</artifactId>
+			<version>0.27</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- ArchUnit test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -539,3 +553,6 @@ under the License.
 		</plugins>
 	</build>
 </project>
+
+
+

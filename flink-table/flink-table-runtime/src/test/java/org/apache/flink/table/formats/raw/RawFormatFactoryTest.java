@@ -200,6 +200,18 @@ class RawFormatFactoryTest {
     }
 
     @Test
+    void testGeographyTypeIsRejected() {
+        ResolvedSchema geographySchema =
+                ResolvedSchema.of(Column.physical("field1", DataTypes.GEOGRAPHY()));
+
+        assertThatThrownBy(() -> createDeserializationSchema(geographySchema, getBasicOptions()))
+                .hasMessage("The 'raw' format doesn't supports 'GEOGRAPHY' as column type.");
+
+        assertThatThrownBy(() -> createSerializationSchema(geographySchema, getBasicOptions()))
+                .hasMessage("The 'raw' format doesn't supports 'GEOGRAPHY' as column type.");
+    }
+
+    @Test
     void testLineDelimiterOption() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
