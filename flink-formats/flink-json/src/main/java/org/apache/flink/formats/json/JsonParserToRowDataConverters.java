@@ -62,6 +62,7 @@ import java.util.Map;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
@@ -278,6 +279,17 @@ public class JsonParserToRowDataConverters implements Serializable {
             case ISO_8601:
                 parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jp.getText());
                 break;
+            case ISO_8601_WITH_OFFSET:
+                parsedTimestamp = ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT.parse(jp.getText());
+                ZoneOffset offset = parsedTimestamp.query(TemporalQueries.offset());
+                if (offset != null) {
+                    return TimestampData.fromInstant(
+                            LocalDateTime.of(
+                                            parsedTimestamp.query(TemporalQueries.localDate()),
+                                            parsedTimestamp.query(TemporalQueries.localTime()))
+                                    .toInstant(offset));
+                }
+                break;
             default:
                 throw new TableException(
                         String.format(
@@ -301,6 +313,10 @@ public class JsonParserToRowDataConverters implements Serializable {
                 parsedTimestampWithLocalZone =
                         ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jp.getText());
                 break;
+            case ISO_8601_WITH_OFFSET:
+                parsedTimestampWithLocalZone =
+                        ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT.parse(jp.getText());
+                break;
             default:
                 throw new TableException(
                         String.format(
@@ -309,9 +325,11 @@ public class JsonParserToRowDataConverters implements Serializable {
         }
         LocalTime localTime = parsedTimestampWithLocalZone.query(TemporalQueries.localTime());
         LocalDate localDate = parsedTimestampWithLocalZone.query(TemporalQueries.localDate());
+        ZoneOffset offset = parsedTimestampWithLocalZone.query(TemporalQueries.offset());
 
         return TimestampData.fromInstant(
-                LocalDateTime.of(localDate, localTime).toInstant(ZoneOffset.UTC));
+                LocalDateTime.of(localDate, localTime)
+                        .toInstant(offset != null ? offset : ZoneOffset.UTC));
     }
 
     private StringData convertToString(JsonParser jp) throws IOException {

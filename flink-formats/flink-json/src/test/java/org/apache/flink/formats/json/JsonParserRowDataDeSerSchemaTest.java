@@ -49,6 +49,7 @@ import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -342,5 +343,52 @@ public class JsonParserRowDataDeSerSchemaTest {
 
         RowData rowData = deserializationSchema.deserialize(serializedJson);
         assertThat(rowData).isEqualTo(expected);
+    }
+
+    /** Tests parsing timestamps with explicit timezone offsets. */
+    @Test
+    public void testTimestampWithTimezoneOffset() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("timestamp3", "1990-10-14T12:12:43.123+02:00");
+        root.put("timestamp_with_local_timezone3", "1990-10-14T12:12:43.123-05:00");
+
+        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+        DataType dataType =
+                ROW(
+                        FIELD("timestamp3", TIMESTAMP(3)),
+                        FIELD("timestamp_with_local_timezone3", TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)));
+        RowType schema = (RowType) dataType.getLogicalType();
+        TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
+
+        DeserializationSchema<RowData> deserializationSchema =
+                new JsonParserRowDataDeserializationSchema(
+                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601_WITH_OFFSET);
+        open(deserializationSchema);
+
+        RowData rowData = deserializationSchema.deserialize(serializedJson);
+        Row actual = convertToExternal(rowData, dataType);
+
+        assertThat(actual.getField(0)).isNotNull();
+        assertThat(actual.getField(1)).isNotNull();
+
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        schema,
+                        TimestampFormat.ISO_8601_WITH_OFFSET,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true,
+                        false);
+        open(serializationSchema);
+
+        byte[] serialized = serializationSchema.serialize(rowData);
+        ObjectNode serializedNode = (ObjectNode) objectMapper.readTree(serialized);
+
+        assertThat(serializedNode.get("timestamp3").asText()).endsWith("+00:00");
+        assertThat(serializedNode.get("timestamp_with_local_timezone3").asText())
+                .endsWith("+00:00");
     }
 }
