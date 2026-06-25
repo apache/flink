@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -28,6 +32,7 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -42,6 +47,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -224,8 +231,15 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
 
     @TestTemplate
     void testAcceptingOfferedSlotsWithoutResourceManagerConnected() throws Exception {
+        final ManuallyTriggeredScheduledExecutorService scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                new ComponentMainThreadExecutorServiceAdapter(
+                        (ScheduledExecutor) scheduledExecutor, Thread.currentThread());
+
         try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
-                createDeclarativeSlotPoolBridge(new DefaultDeclarativeSlotPoolFactory())) {
+                createDeclarativeSlotPoolBridge(
+                        new DefaultDeclarativeSlotPoolFactory(), mainThreadExecutor)) {
 
             declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
@@ -234,6 +248,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                             PhysicalSlotRequestUtils.normalRequest(ResourceProfile.UNKNOWN),
                             RPC_TIMEOUT);
 
+            triggerDeferredSlotRequestDeclaration(scheduledExecutor);
             tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
 
             final LocalTaskManagerLocation localTaskManagerLocation =
@@ -248,6 +263,24 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
 
             assertThat(slotFuture.join().getAllocationId()).isSameAs(allocationId);
         }
+    }
+
+    private void triggerDeferredSlotRequestDeclaration(
+            ManuallyTriggeredScheduledExecutorService scheduledExecutor) {
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            return;
+        }
+
+        final List<ScheduledFuture<?>> slotRequestTasks =
+                scheduledExecutor.getActiveNonPeriodicScheduledTask().stream()
+                        .filter(
+                                scheduledTask ->
+                                        scheduledTask.getDelay(TimeUnit.MILLISECONDS)
+                                                == slotRequestMaxInterval.toMillis())
+                        .collect(Collectors.toList());
+
+        assertThat(slotRequestTasks).hasSize(1);
+        slotRequestTasks.forEach(scheduledTask -> ((ScheduledTask<?>) scheduledTask).execute());
     }
 
     @TestTemplate
