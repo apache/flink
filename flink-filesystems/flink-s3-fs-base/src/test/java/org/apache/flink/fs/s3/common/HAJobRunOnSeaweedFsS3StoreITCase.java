@@ -44,20 +44,21 @@ import static org.apache.flink.shaded.guava31.com.google.common.base.Predicates.
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code HAJobRunOnMinioS3StoreITCase} covers a job run where the HA data is stored in Minio. The
- * implementation verifies whether the {@code JobResult} was written into the FileSystem-backed
- * {@code JobResultStore}.
+ * {@code HAJobRunOnSeaweedFsS3StoreITCase} covers a job run where the HA data is stored in
+ * SeaweedFs. The implementation verifies whether the {@code JobResult} was written into the
+ * FileSystem-backed {@code JobResultStore}.
  */
-public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCase {
+public abstract class HAJobRunOnSeaweedFsS3StoreITCase extends AbstractHAJobRunITCase {
 
     private static final String CLUSTER_ID = "test-cluster";
     private static final String JOB_RESULT_STORE_FOLDER = "jrs";
 
     @RegisterExtension
     @Order(2)
-    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
-            MINIO_EXTENSION =
-                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+            SEAWEEDFS_EXTENSION =
+                    new AllCallbackWrapper<>(
+                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
 
     @RegisterExtension
     @Order(3)
@@ -71,19 +72,19 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
                                 .build();
                     });
 
-    private static MinioTestContainer getMinioContainer() {
-        return MINIO_EXTENSION.getCustomExtension().getTestContainer();
+    private static SeaweedFsTestContainer getSeaweedFsContainer() {
+        return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
     private static String createS3URIWithSubPath(String... subfolders) {
-        return getMinioContainer().getS3UriForDefaultBucket() + createSubPath(subfolders);
+        return getSeaweedFsContainer().getS3UriForDefaultBucket() + createSubPath(subfolders);
     }
 
     private static List<S3ObjectSummary> getObjectsFromJobResultStore() {
-        return getMinioContainer()
+        return getSeaweedFsContainer()
                 .getClient()
                 .listObjects(
-                        getMinioContainer().getDefaultBucketName(),
+                        getSeaweedFsContainer().getDefaultBucketName(),
                         createSubPath(CLUSTER_ID, JOB_RESULT_STORE_FOLDER))
                 .getObjectSummaries();
     }
@@ -96,7 +97,7 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
     private static Configuration createConfiguration() {
         final Configuration config = new Configuration();
 
-        getMinioContainer().setS3ConfigOptions(config);
+        getSeaweedFsContainer().setS3ConfigOptions(config);
 
         // JobResultStore configuration
         config.set(JobResultStoreOptions.DELETE_ON_COMMIT, Boolean.FALSE);
@@ -136,7 +137,7 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
                 .matches(not(FileSystemJobResultStore::hasValidDirtyJobResultStoreEntryExtension));
 
         final String objContent =
-                getMinioContainer()
+                getSeaweedFsContainer()
                         .getClient()
                         .getObjectAsString(objRef.getBucketName(), objRef.getKey());
         assertThat(objContent).contains(ApplicationStatus.SUCCEEDED.name());

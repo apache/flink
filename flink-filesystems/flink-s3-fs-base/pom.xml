@@ -241,7 +241,7 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnMinioS3StoreITCase -->
+		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnSeaweedFsS3StoreITCase -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
