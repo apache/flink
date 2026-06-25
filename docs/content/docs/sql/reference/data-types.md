@@ -121,6 +121,7 @@ For vectorized Python UDFs, the input types and output type are `pandas.Series`.
 | `DOUBLE` | `float` | `numpy.float64` |
 | `VARCHAR` | `str` | `str` |
 | `VARBINARY` | `bytes` | `bytes` |
+| `GEOGRAPHY` | `bytes` | `bytes` |
 | `DECIMAL` | `decimal.Decimal` | `decimal.Decimal` |
 | `DATE` | `datetime.date` | `datetime.date` |
 | `TIME` | `datetime.time` | `datetime.time` |
@@ -215,6 +216,7 @@ The default planner supports the following set of SQL types:
 | `MULTISET`       |                                                    |
 | `MAP`            |                                                    |
 | `ROW`            |                                                    |
+| `GEOGRAPHY`      | 2D CRS84 longitude/latitude geospatial type.      |
 | `RAW`            |                                                    |
 | Structured types | Only exposed in user-defined functions yet.        |
 | `VARIANT`        |                                                    |
@@ -2012,3 +2014,8 @@ Not supported.
 {{< /tabs >}}
 
 {{< top >}}
+
+
+
+
+
