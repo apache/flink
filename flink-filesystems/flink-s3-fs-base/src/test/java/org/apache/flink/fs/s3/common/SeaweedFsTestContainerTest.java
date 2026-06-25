@@ -35,22 +35,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * {@code MinioTestContainerTest} tests some basic functionality provided by {@link
- * MinioTestContainer}.
+ * {@code SeaweedFsTestContainerTest} tests some basic functionality provided by {@link
+ * SeaweedFsTestContainer}.
  */
-class MinioTestContainerTest {
+class SeaweedFsTestContainerTest {
 
     private static final String DEFAULT_BUCKET_NAME = "test-bucket";
 
     @RegisterExtension
-    private static final EachCallbackWrapper<TestContainerExtension<MinioTestContainer>>
-            MINIO_EXTENSION =
+    private static final EachCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+            SEAWEEDFS_EXTENSION =
                     new EachCallbackWrapper<>(
                             new TestContainerExtension<>(
-                                    () -> new MinioTestContainer(DEFAULT_BUCKET_NAME)));
+                                    () -> new SeaweedFsTestContainer(DEFAULT_BUCKET_NAME)));
 
-    private static MinioTestContainer getTestContainer() {
-        return MINIO_EXTENSION.getCustomExtension().getTestContainer();
+    private static SeaweedFsTestContainer getTestContainer() {
+        return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
     private static AmazonS3 getClient() {
