@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,9 +45,10 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
 
     private final FetchedChannelStateReader rootReader;
 
-    private final CompletableFuture<ResolvedChannels> resolvedChannelsFuture;
+    private final ResolvedChannels channels;
 
     private final Object lock = new Object();
+    private final FetchedChannelState channelState;
 
     /**
      * Set under {@link #lock} once {@link #drain()} has consumed every segment. After that the
@@ -59,10 +59,10 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
     private boolean drainFinished;
 
     public FetchedChannelStateDrainer(
-            FetchedChannelState channelState,
-            CompletableFuture<List<RecoverableInputChannel>> channelsFuture) {
+            FetchedChannelState channelState, List<RecoverableInputChannel> channels) {
+        this.channelState = channelState;
         this.rootReader = checkNotNull(channelState).reader();
-        this.resolvedChannelsFuture = checkNotNull(channelsFuture).thenApply(ResolvedChannels::new);
+        this.channels = new ResolvedChannels(channels);
     }
 
     private static final class ResolvedChannels {
@@ -90,7 +90,7 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
      * pair is locked to guarantee atomicity with snapshot.
      */
     public void drain() throws IOException, InterruptedException {
-        ResolvedChannels channels = resolvedChannelsFuture.join();
+        channelState.release();
         Optional<SpillSegment> next;
         while ((next = rootReader.nextSegment()).isPresent()) {
             SpillSegment seg = next.get();
@@ -177,7 +177,6 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
     @Override
     public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
             throws IOException {
-        ResolvedChannels channels = resolvedChannelsFuture.join();
 
         // Barrier insertion and snapshot must occur within the same critical section so that the
         // snapshot's committed position reflects exactly the drain position at the moment barriers

@@ -33,4 +33,13 @@ public interface RecoveryCheckpointTrigger {
 
     /** Returns an empty reader (no spill files, so no segments) and inserts no barriers. */
     RecoveryCheckpointTrigger NO_OP = checkpointId -> FetchedChannelStateReader.emptyReader();
+
+    RecoveryCheckpointTrigger NOT_READY =
+            ign -> {
+                throw new IllegalStateException("RecoveryCheckpointTrigger is not ready yet");
+            };
+    RecoveryCheckpointTrigger FAILING =
+            ign -> {
+                throw new IllegalStateException("Triggering checkpoints is not possible");
+            };
 }

@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * non-emptiness, similar to the {@link LocalInputChannel}.
  */
 class CreditBasedSequenceNumberingViewReader
+        // local input channel changes?
         implements BufferAvailabilityListener, NetworkSequenceViewReader {
 
     private final Object requestLock = new Object();

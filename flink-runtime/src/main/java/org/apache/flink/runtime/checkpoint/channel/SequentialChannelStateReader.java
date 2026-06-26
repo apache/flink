@@ -35,14 +35,12 @@ public interface SequentialChannelStateReader extends AutoCloseable {
      * @param inputGates The input gates to recover state for.
      * @param filterContext The filter context containing input configs and rescaling info.
      */
-    void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
+    Optional<FetchedChannelState> readInputData(
+            InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException;
 
     void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion)
             throws IOException, InterruptedException;
-
-    /** Returns the {@link FetchedChannelState} produced by {@link #readInputData}, if any. */
-    Optional<FetchedChannelState> getProducedChannelState();
 
     @Override
     void close() throws Exception;
@@ -51,17 +49,14 @@ public interface SequentialChannelStateReader extends AutoCloseable {
             new SequentialChannelStateReader() {
 
                 @Override
-                public void readInputData(
-                        InputGate[] inputGates, RecordFilterContext filterContext) {}
+                public Optional<FetchedChannelState> readInputData(
+                        InputGate[] inputGates, RecordFilterContext filterContext) {
+                    return Optional.empty();
+                }
 
                 @Override
                 public void readOutputData(
                         ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {}
-
-                @Override
-                public Optional<FetchedChannelState> getProducedChannelState() {
-                    return Optional.empty();
-                }
 
                 @Override
                 public void close() {}
