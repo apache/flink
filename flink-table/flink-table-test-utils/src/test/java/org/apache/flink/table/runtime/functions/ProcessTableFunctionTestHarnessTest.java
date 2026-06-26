@@ -299,6 +299,14 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** PTF with primitive scalar arguments. */
+    @DataTypeHint("ROW<sum INT>")
+    public static class PrimitiveScalarPTF extends ProcessTableFunction<Row> {
+        public void eval(int a, int b) {
+            collect(Row.of(a + b));
+        }
+    }
+
     /** PTF with Context parameter - should be rejected by test harness. */
     @DataTypeHint("ROW<value INT>")
     public static class PTFWithContext extends ProcessTableFunction<Row> {
@@ -523,6 +531,22 @@ class ProcessTableFunctionTestHarnessTest {
 
             List<Row> output = harness.getOutput();
 
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0).getField("sum")).isEqualTo(30);
+        }
+    }
+
+    @Test
+    void testPrimitiveScalarArguments() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PrimitiveScalarPTF.class)
+                        .withScalarArgument("a", 10)
+                        .withScalarArgument("b", 20)
+                        .build()) {
+
+            harness.process();
+
+            List<Row> output = harness.getOutput();
             assertThat(output).hasSize(1);
             assertThat(output.get(0).getField("sum")).isEqualTo(30);
         }
