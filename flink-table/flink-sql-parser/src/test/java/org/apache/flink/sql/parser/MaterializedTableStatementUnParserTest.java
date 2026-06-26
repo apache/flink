@@ -21,7 +21,6 @@ package org.apache.flink.sql.parser;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserFixture;
-import org.apache.calcite.sql.parser.SqlParserTest;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -40,7 +39,7 @@ class MaterializedTableStatementUnParserTest extends MaterializedTableStatementP
 
     public SqlParserFixture fixture() {
         return super.fixture()
-                .withTester(new SqlParserTest.UnparsingTesterImpl())
+                .withTester(new DeepCopyUnparsingTesterImpl())
                 .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 }
