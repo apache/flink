@@ -84,6 +84,7 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -401,6 +402,121 @@ class DefaultExecutionGraphDeploymentTest {
 
         assertIOMetricsEqual(execution2.getIOMetrics(), ioMetrics);
         assertThat(execution2.getUserAccumulators()).isEqualTo(accumulators);
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnMarkFinished() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) -> {
+                    // markFinished() only transitions from a running state.
+                    execution.transitionState(ExecutionState.RUNNING);
+                    execution.markFinished(accumulators, metrics);
+                });
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnMarkFailed() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) ->
+                        // fromSchedulerNg=true to reach the FAILED transition.
+                        execution.markFailed(
+                                new Exception("test failure"),
+                                false,
+                                accumulators,
+                                metrics,
+                                false,
+                                true));
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnCompleteCancelling() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) -> {
+                    // completeCancelling() transitions from CANCELING to CANCELED. The execution
+                    // starts in CREATED, from which cancel() would jump directly to CANCELED.
+                    execution.transitionState(ExecutionState.RUNNING);
+                    execution.cancel();
+                    execution.completeCancelling(accumulators, metrics, true);
+                });
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnRecoverExecution() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) ->
+                        // recoverExecution() transitions directly to FINISHED during JM failover
+                        // recovery.
+                        execution.recoverExecution(
+                                execution.getAttemptId(),
+                                new LocalTaskManagerLocation(),
+                                accumulators,
+                                metrics));
+    }
+
+    /**
+     * Verifies that IOMetrics and user accumulators are visible to {@link
+     * ExecutionStateUpdateListener}s at the time they are notified of a terminal state transition.
+     */
+    private void testMetricsVisibleToListenersDuringTerminalTransition(
+            TerminalStateTransition terminalStateTransition) throws Exception {
+        JobVertex v1 = new JobVertex("v1", new JobVertexID());
+        v1.setParallelism(1);
+        v1.setInvokableClass(BatchTask.class);
+
+        // The listener receives an ExecutionAttemptID, not the Execution object, and the terminal
+        // transition deregisters the execution. Capture the metrics and accumulators directly from
+        // within the listener callback so we observe exactly what is visible at notification time.
+        AtomicReference<IOMetrics> metricsSeenByListener = new AtomicReference<>();
+        AtomicReference<Map<String, Accumulator<?, ?>>> accumulatorsSeenByListener =
+                new AtomicReference<>();
+        AtomicReference<Execution> executionRef = new AtomicReference<>();
+
+        // On this branch the listener can only be wired at graph construction time (master
+        // additionally has DefaultExecutionGraph#registerExecutionStateUpdateListener), so the
+        // graph is built directly instead of through a scheduler.
+        DefaultExecutionGraph graph =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(JobGraphTestUtils.streamingJobGraph(v1))
+                        .setExecutionStateUpdateListener(
+                                (id, previousState, newState) -> {
+                                    Execution execution = executionRef.get();
+                                    if (newState.isTerminal()
+                                            && execution != null
+                                            && id.equals(execution.getAttemptId())) {
+                                        metricsSeenByListener.set(execution.getIOMetrics());
+                                        accumulatorsSeenByListener.set(
+                                                execution.getUserAccumulators());
+                                    }
+                                })
+                        .build(EXECUTOR_EXTENSION.getExecutor());
+        graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+        Execution execution = graph.getRegisteredExecutions().values().iterator().next();
+        executionRef.set(execution);
+
+        IOMetrics ioMetrics = new IOMetrics(10, 20, 30, 40, 100, 200, 300);
+        Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
+        IntCounter counter = new IntCounter();
+        counter.add(42);
+        accumulators.put("acc", counter);
+
+        terminalStateTransition.transition(execution, accumulators, ioMetrics);
+
+        assertThat(metricsSeenByListener.get())
+                .as("IOMetrics visible to listener during terminal transition")
+                .isNotNull();
+        assertIOMetricsEqual(metricsSeenByListener.get(), ioMetrics);
+        assertThat(accumulatorsSeenByListener.get())
+                .as("User accumulators visible to listener during terminal transition")
+                .isEqualTo(accumulators);
+    }
+
+    @FunctionalInterface
+    private interface TerminalStateTransition {
+        void transition(
+                Execution execution,
+                Map<String, Accumulator<?, ?>> accumulators,
+                IOMetrics metrics);
     }
 
     @Test
