@@ -73,6 +73,113 @@ jobs:
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
 
+  snapshot_binary:
+    name: "Snapshot Binary Release"
+    runs-on: ubuntu-24.04
+    container:
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
+      options: --init --privileged
+    env:
+      MOUNTED_WORKING_DIR: /__w/flink/flink
+      CONTAINER_LOCAL_WORKING_DIR: /root/flink
+      MAVEN_REPO_FOLDER: /root/.m2/repository
+      MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          jdk_version: 11
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
+          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+      - name: "Build snapshot binary release"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: |
+          source ./tools/ci/maven-utils.sh
+          run_mvn -version
+          export MVN="run_mvn"
+          export RELEASE_VERSION=$(MVN_RUN_VERBOSE=false run_mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Determined RELEASE_VERSION as '$RELEASE_VERSION'"
+          cd tools
+          MVN_RUN_VERBOSE=true SKIP_GPG=true ./releasing/create_binary_release.sh
+          echo "Created files:"
+          find ./releasing/release
+          cd ..
+      - name: "Upload artifacts to S3"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: |
+          source ./tools/ci/deploy_nightly_to_s3.sh
+          upload_to_s3 ./tools/releasing/release
+        env:
+          ARTIFACTS_S3_BUCKET: ${{ secrets.ARTIFACTS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
+
+  snapshot_maven:
+    name: "Snapshot Maven Deploy"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    container:
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
+      options: --init --privileged
+    env:
+      MOUNTED_WORKING_DIR: /__w/flink/flink
+      CONTAINER_LOCAL_WORKING_DIR: /root/flink
+      MAVEN_REPO_FOLDER: /root/.m2/repository
+      MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          jdk_version: 11
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
+          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+      - name: "Deploy Maven snapshot"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        run: |
+          source ./tools/ci/maven-utils.sh
+          run_mvn -version
+
+          cd tools
+          cat << EOF > deploy-settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                        https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>apache.snapshots.https</id>
+                <username>${MAVEN_DEPLOY_USER}</username>
+                <password>${MAVEN_DEPLOY_PASS}</password>
+              </server>
+            </servers>
+            <mirrors>
+              <mirror>
+                <id>google-maven-central</id>
+                <name>GCS Maven Central mirror</name>
+                <url>https://maven-central-eu.storage-download.googleapis.com/maven2/</url>
+                <mirrorOf>central</mirrorOf>
+              </mirror>
+            </mirrors>
+          </settings>
+          EOF
+
+          export CUSTOM_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} -Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
+          export MVN_RUN_VERBOSE=true
+          ./releasing/deploy_staging_jars.sh
+        env:
+          MAVEN_DEPLOY_USER: ${{ secrets.MAVEN_DEPLOY_USER }}
+          MAVEN_DEPLOY_PASS: ${{ secrets.MAVEN_DEPLOY_PASS }}
+
   build_python_wheels:
     name: "Build Python Wheels on ${{ matrix.os_name }}"
     runs-on: ${{ matrix.os }}
