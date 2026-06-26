@@ -39,8 +39,6 @@ class MaterializedTableStatementUnParserTest extends MaterializedTableStatementP
 
     public SqlParserFixture fixture() {
         return super.fixture()
-                // Replace back with UnparsingTesterImpl after upgrading Calcite to 1.42.0
-                // since after that the logic is embedded into Calcite
                 .withTester(new DeepCopyUnparsingTesterImpl())
                 .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }

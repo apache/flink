@@ -120,13 +120,13 @@ class DeepCopyUnparsingTesterImpl extends SqlParserTest.UnparsingTesterImpl {
         if (!containsFlinkNode(sqlNodeList)) {
             return;
         }
-        final String sql1 = toSqlString(sqlNodeList, simple());
+        final String sql = toSqlString(sqlNodeList, simple());
 
         // Make a deep copy of the SqlNodeList, unparse it.
-        final SqlNodeList sqlNodeList3 = (SqlNodeList) deepCopy(sqlNodeList);
-        final String sql4 = toSqlString(sqlNodeList3, simple());
+        final SqlNodeList deepCopiedSqlNodeList = (SqlNodeList) deepCopy(sqlNodeList);
+        final String sqlFromDeepCopy = toSqlString(deepCopiedSqlNodeList, simple());
         // Should be the same as we started with.
-        assertThat(sql4).isEqualTo(sql1);
+        assertThat(sqlFromDeepCopy).isEqualTo(sql);
     }
 
     @Override

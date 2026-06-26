@@ -95,30 +95,9 @@ public class SqlShowTables extends SqlShowCall {
      * org.apache.flink.table.catalog.CatalogBaseTable.TableKind}.
      */
     public enum SqlTableKind {
-        MATERIALIZED_TABLE(
-                new SqlSpecialOperator("SHOW MATERIALIZED TABLES", SqlKind.OTHER) {
-                    @Override
-                    public SqlCall createCall(
-                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-                        return createCallForKind(this, pos, operands);
-                    }
-                }),
-        TABLE(
-                new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER) {
-                    @Override
-                    public SqlCall createCall(
-                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-                        return createCallForKind(this, pos, operands);
-                    }
-                }),
-        VIEW(
-                new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER) {
-                    @Override
-                    public SqlCall createCall(
-                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-                        return createCallForKind(this, pos, operands);
-                    }
-                });
+        MATERIALIZED_TABLE(getSpecialOperator("SHOW MATERIALIZED TABLES")),
+        TABLE(getSpecialOperator("SHOW TABLES")),
+        VIEW(getSpecialOperator("SHOW VIEWS"));
 
         private final SqlSpecialOperator operator;
 
@@ -128,6 +107,16 @@ public class SqlShowTables extends SqlShowCall {
 
         public SqlSpecialOperator getOperator() {
             return operator;
+        }
+
+        private static SqlSpecialOperator getSpecialOperator(final String name) {
+            return new SqlSpecialOperator(name, SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return createCallForKind(this, pos, operands);
+                }
+            };
         }
     }
 }
