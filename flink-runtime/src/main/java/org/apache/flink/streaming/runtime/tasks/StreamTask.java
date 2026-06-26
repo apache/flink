@@ -309,14 +309,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
     private final ExecutorService channelIOExecutor;
 
-    /**
-     * Completed (on the {@code channelIOExecutor}) once recovery setup finishes, carrying the
-     * resolved checkpoint trigger: the spill drainer when recovery carries channel state, otherwise
-     * {@link RecoveryCheckpointTrigger#NO_OP}. Two consumers ride on this single completion: the
-     * barrier handler, built before the drainer exists, holds the future and reads the trigger
-     * lazily via {@code getNow} once a checkpoint fires; and gate conversion waits on its
-     * completion to run {@code requestPartitions()} (buffer filtering is done by then).
-     */
     private final CompletableFuture<RecoveryCheckpointTrigger> recoverySetupCompleteFuture =
             new CompletableFuture<>();
 
@@ -900,9 +892,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         boolean checkpointingDuringRecoveryEnabled =
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
 
-        // Must set the flag on input gates BEFORE starting the async read task, because
-        // finishReadRecoveredState() reads this flag to decide whether to enqueue the legacy
-        // end-of-state sentinel.
         for (IndexedInputGate inputGate : inputGates) {
             inputGate.setCheckpointingDuringRecoveryEnabled(checkpointingDuringRecoveryEnabled);
         }
@@ -918,25 +907,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                 checkpointingDuringRecoveryEnabled,
                                 physicalChannelsFuture));
 
-        // We wait for all input channel state to recover before we go into RUNNING state, and thus
-        // start checkpointing. If we implement incremental checkpointing of input channel state
-        // we must make sure it supports CheckpointType#FULL_CHECKPOINT.
         List<CompletableFuture<?>> recoveredFutures =
                 checkpointingDuringRecoveryEnabled
                         ? wireGateConversionWithCheckpointing(inputGates, physicalChannelsFuture)
                         : wireGateConversion(inputGates);
 
-        // Return allOf future instead of thenRun future. thenRun() returns a NEW future that
-        // completes only after the callback finishes. CompletableFuture executes thenRun callbacks
-        // synchronously on the thread that calls complete(). When recoveredFutures contains
-        // recoverySetupCompleteFuture (checkpointingDuringRecovery enabled), complete() is called
-        // on channelIOExecutor (in recoverChannelState), so thenRun(suspend) also runs on
-        // channelIOExecutor. suspend() sends a poison mail, and the mailbox thread can pick it up
-        // and exit runMailboxLoop() before the thenRun future completes — causing
-        // checkState(isDone) to fail. With stateConsumedFuture (the default), complete() runs on
-        // the mailbox thread itself, so thenRun(suspend) blocks the loop from processing the poison
-        // mail until the future completes — no race. Returning allOf future avoids the issue
-        // entirely.
         CompletableFuture<Void> allRecoveredFuture =
                 CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]));
         allRecoveredFuture.thenRun(mailboxProcessor::suspend);
