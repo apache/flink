@@ -77,7 +77,6 @@ class AggregateTest extends TableTestBase {
   @Test
   def testOrderByWithGlobalAggregate(): Unit = {
     val util = batchTestUtil()
-    util.tableEnv.getConfig.set("parallelism.default", "1")
 
     util.tableEnv.executeSql("""
                                |CREATE TABLE MyTableTest (
