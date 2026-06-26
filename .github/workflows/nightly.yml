@@ -77,6 +77,18 @@ jobs:
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
 
+  docs_check:
+    name: "Docs 404 check"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: "Build docs and check for broken links"
+        run: ./tools/ci/docs.sh
+
   build_python_wheels:
     name: "Build Python Wheels on ${{ matrix.os_name }}"
     runs-on: ${{ matrix.os }}
