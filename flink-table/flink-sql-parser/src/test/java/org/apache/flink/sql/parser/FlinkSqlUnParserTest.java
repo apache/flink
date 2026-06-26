@@ -39,7 +39,9 @@ class FlinkSqlUnParserTest extends FlinkSqlParserImplTest {
 
     public SqlParserFixture fixture() {
         return super.fixture()
-                .withTester(new UnparsingTesterImpl())
+                // Replace back with UnparsingTesterImpl after upgrading Calcite to 1.42.0
+                // since after that the logic is embedded into Calcite
+                .withTester(new DeepCopyUnparsingTesterImpl())
                 .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 }
