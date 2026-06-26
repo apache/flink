@@ -84,7 +84,9 @@ class RecordFilterContextTest {
     }
 
     @Test
-    void testNullOrEmptyTmpDirectoriesRejected() {
+    void testEnabledContextRejectsNullOrEmptyTmpDirectories() {
+        // When checkpointing-during-recovery is enabled, the spilling path needs spill
+        // directories, so null/empty tmpDirectories are rejected.
         assertThatThrownBy(
                         () ->
                                 new RecordFilterContext(
@@ -93,7 +95,7 @@ class RecordFilterContextTest {
                                         0,
                                         128,
                                         null,
-                                        false,
+                                        true,
                                         MemoryManager.DEFAULT_PAGE_SIZE))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
@@ -104,9 +106,36 @@ class RecordFilterContextTest {
                                         0,
                                         128,
                                         new String[0],
-                                        false,
+                                        true,
                                         MemoryManager.DEFAULT_PAGE_SIZE))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testDisabledContextToleratesNullOrEmptyTmpDirectories() {
+        // A disabled context never spills, so it needs no spill directories: null/empty are
+        // tolerated and normalized to an empty array.
+        RecordFilterContext fromNull =
+                new RecordFilterContext(
+                        new RecordFilterContext.InputFilterConfig[0],
+                        InflightDataRescalingDescriptor.NO_RESCALE,
+                        0,
+                        128,
+                        null,
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
+        assertThat(fromNull.getTmpDirectories()).isEmpty();
+
+        RecordFilterContext fromEmpty =
+                new RecordFilterContext(
+                        new RecordFilterContext.InputFilterConfig[0],
+                        InflightDataRescalingDescriptor.NO_RESCALE,
+                        0,
+                        128,
+                        new String[0],
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
+        assertThat(fromEmpty.getTmpDirectories()).isEmpty();
     }
 
     @Test
