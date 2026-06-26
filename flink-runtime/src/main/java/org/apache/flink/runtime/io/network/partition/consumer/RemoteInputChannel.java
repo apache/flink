@@ -928,7 +928,8 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
      *     protocol guarantees one must be present while the channel is in recovery).
      */
     @GuardedBy("receivedBuffers")
-    private List<Buffer> collectPreRecoveryBarrier(long checkpointId) throws IOException {
+    private List<Buffer> collectPreRecoveryBarrier(long checkpointId)
+            throws IOException, CheckpointException {
         assert Thread.holdsLock(receivedBuffers);
         List<Buffer> retained = new ArrayList<>();
         SequenceBuffer sentinel = null;
@@ -954,11 +955,19 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         }
         if (sentinel == null) {
             releaseRetainedBuffers(retained);
-            throw new IOException(
-                    "Missing RecoveryCheckpointBarrier for checkpoint "
+            // The during-recovery sentinel for this checkpoint was never inserted into this channel
+            // (the recovery checkpoint trigger had already transitioned away from the drainer while
+            // this channel was still in recovery). The channel is simply not ready to snapshot
+            // recovered state for this checkpoint yet, so decline as TASK_NOT_READY: that is not
+            // counted against the tolerable-failure threshold, so the checkpoint is deferred and
+            // retried instead of failing the job. The recovered buffers remain queued and are
+            // captured by a later checkpoint, so no in-flight data is lost.
+            throw new CheckpointException(
+                    "RecoveryCheckpointBarrier for checkpoint "
                             + checkpointId
-                            + " in receivedBuffers for channel "
-                            + getChannelInfo());
+                            + " not yet present in channel "
+                            + getChannelInfo(),
+                    CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
         }
         // receivedBuffers is a PrioritizedDeque whose iterator() is read-only; remove the matched
         // sentinel by identity through its mutable removal API.
