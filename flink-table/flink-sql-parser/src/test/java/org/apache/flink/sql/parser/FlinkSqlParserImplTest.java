@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import java.util.List;
 import java.util.Locale;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -2450,6 +2451,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "SELECT `COL3`, `COL4`\n"
                         + "FROM `TBL`";
         sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateViewWithFieldNamesWithToString() throws SqlParseException {
+        final String sql = "create view v(col1, col2) as select col3, col4 from tbl";
+        final String expected =
+                "CREATE VIEW `V` (`COL1`, `COL2`)\n"
+                        + "AS\n"
+                        + "SELECT `COL3`, `COL4`\n"
+                        + "FROM `TBL`";
+        final SqlNode node = sql(sql).parser().parseQuery();
+        assertThat(node).hasToString(expected);
     }
 
     @Test
