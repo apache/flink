@@ -95,6 +95,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -486,9 +487,12 @@ public class Execution
         taskManagerLocationFuture.complete(location);
 
         try {
-            transitionState(this.state, FINISHED);
+            transitionToTerminalState(
+                    this.state,
+                    FINISHED,
+                    null,
+                    () -> updateAccumulatorsAndMetrics(userAccumulators, metrics));
             finishPartitionsAndUpdateConsumers();
-            updateAccumulatorsAndMetrics(userAccumulators, metrics);
             releaseAssignedResource(null);
             vertex.getExecutionGraphAccessor().deregisterExecution(this);
         } finally {
@@ -1166,10 +1170,13 @@ public class Execution
 
             if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
 
-                if (transitionState(current, FINISHED)) {
+                if (transitionToTerminalState(
+                        current,
+                        FINISHED,
+                        null,
+                        () -> updateAccumulatorsAndMetrics(userAccumulators, metrics))) {
                     try {
                         finishPartitionsAndUpdateConsumers();
-                        updateAccumulatorsAndMetrics(userAccumulators, metrics);
                         releaseAssignedResource(null);
                         vertex.getExecutionGraphAccessor().deregisterExecution(this);
                     } finally {
@@ -1251,9 +1258,11 @@ public class Execution
                     || current == INITIALIZING
                     || current == DEPLOYING) {
 
-                updateAccumulatorsAndMetrics(userAccumulators, metrics);
-
-                if (transitionState(current, CANCELED)) {
+                if (transitionToTerminalState(
+                        current,
+                        CANCELED,
+                        null,
+                        () -> updateAccumulatorsAndMetrics(userAccumulators, metrics))) {
                     finishCancellation(releasePartitions);
                     return;
                 }
@@ -1363,14 +1372,18 @@ public class Execution
             return;
         }
 
-        checkState(transitionState(current, FAILED, t));
-
-        // success (in a manner of speaking)
-        this.failureCause =
-                Optional.of(
-                        ErrorInfo.createErrorInfoWithNullableCause(t, getStateTimestamp(FAILED)));
-
-        updateAccumulatorsAndMetrics(userAccumulators, metrics);
+        checkState(
+                transitionToTerminalState(
+                        current,
+                        FAILED,
+                        t,
+                        () -> {
+                            updateAccumulatorsAndMetrics(userAccumulators, metrics);
+                            this.failureCause =
+                                    Optional.of(
+                                            ErrorInfo.createErrorInfoWithNullableCause(
+                                                    t, getStateTimestamp(FAILED)));
+                        }));
 
         releaseAssignedResource(t);
         vertex.getExecutionGraphAccessor().deregisterExecution(this);
@@ -1636,11 +1649,29 @@ public class Execution
     }
 
     private boolean transitionState(ExecutionState currentState, ExecutionState targetState) {
-        return transitionState(currentState, targetState, null);
+        return transitionState(currentState, targetState, null, null);
+    }
+
+    /**
+     * Transitions to a terminal state, running {@code preCompletionAction} after the state is set
+     * but before {@link #terminalStateFuture} is completed and listeners are notified. Use this for
+     * storing metrics/accumulators so that both {@code terminalStateFuture} consumers and {@link
+     * ExecutionStateUpdateListener}s see them.
+     */
+    private boolean transitionToTerminalState(
+            ExecutionState currentState,
+            ExecutionState targetState,
+            @Nullable Throwable error,
+            Runnable preCompletionAction) {
+        checkArgument(targetState.isTerminal(), "targetState must be terminal");
+        return transitionState(currentState, targetState, error, preCompletionAction);
     }
 
     private boolean transitionState(
-            ExecutionState currentState, ExecutionState targetState, Throwable error) {
+            ExecutionState currentState,
+            ExecutionState targetState,
+            @Nullable Throwable error,
+            @Nullable Runnable preCompletionAction) {
         // sanity check
         if (currentState.isTerminal()) {
             throw new IllegalStateException(
@@ -1676,6 +1707,9 @@ public class Execution
             if (targetState == INITIALIZING || targetState == RUNNING) {
                 initializingOrRunningFuture.complete(null);
             } else if (targetState.isTerminal()) {
+                if (preCompletionAction != null) {
+                    preCompletionAction.run();
+                }
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
             }
