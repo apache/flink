@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>It also keeps track of available buffers and notifies the outbound handler about
  * non-emptiness, similar to the {@link LocalInputChannel}.
  */
-class CreditBasedSequenceNumberingViewReader
+class CreditBasedSequenceNumberingViewReader // review nit: can we split THIS commit into remote and
         // local input channel changes?
         implements BufferAvailabilityListener, NetworkSequenceViewReader {
 

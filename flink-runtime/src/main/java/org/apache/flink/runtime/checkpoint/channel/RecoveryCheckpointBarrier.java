@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.RuntimeEvent;
 
 /** Task-local event marking the recovery-state cut for a recovery checkpoint. */
+// review nit: checkpoint during recovery
 @Internal
 public final class RecoveryCheckpointBarrier extends RuntimeEvent {
 

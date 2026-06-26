@@ -781,14 +781,14 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
                     recycleBuffer = false;
                 } else {
-                    if (inRecovery) {
+                    if (inRecovery) { // review nit: merge if
                         // The upstream has no credit until recovery delivery finishes, so it can
                         // only
                         // send events here, never data buffers. Stash ordinary events so they are
                         // consumed after the recovered buffers; data buffers are a protocol
                         // violation.
                         checkState(
-                                !buffer.isBuffer(),
+                                !buffer.isBuffer(), // review todo: check what events can be sent
                                 "Received live data buffer during recovery on channel %s",
                                 getChannelInfo());
                         recoveryEventStash.add(sequenceBuffer);
@@ -878,6 +878,7 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
      * before the matching RecoveryCheckpointBarrier sentinel; after recovery, uses the normal
      * remote-channel barrier sequence tracking and persists overtaken live buffers.
      */
+    // review todo
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         try {
             List<Buffer> toPersist;

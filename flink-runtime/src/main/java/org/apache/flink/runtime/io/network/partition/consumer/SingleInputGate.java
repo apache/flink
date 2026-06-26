@@ -243,6 +243,9 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
+    // review: this should be a parameter to inputGate.finishReadRecoveredState() or a new method
+    // finishFetchState()
+    //    private volatile boolean checkpointingDuringRecoveryEnabled = false;
 
     public SingleInputGate(
             String owningTaskName,

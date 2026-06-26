@@ -24,6 +24,9 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import java.io.IOException;
 
 /** Physical input channel that can receive recovered buffers pushed by the spill drain. */
+// review: please rephrase: physical, spill, drain
+// review: should this be in the previous commit? according to THIS  commit message
+// review todo impl
 @Internal
 public interface RecoverableInputChannel {
 
@@ -59,5 +62,6 @@ public interface RecoverableInputChannel {
      * recovery, release any upstream events held back during recovery, and reopen the upstream so
      * live data may flow again.
      */
+    // review: is this guaranteed to be called after finishRecoveredBufferDelivery?
     void onRecoveredStateConsumed() throws IOException;
 }

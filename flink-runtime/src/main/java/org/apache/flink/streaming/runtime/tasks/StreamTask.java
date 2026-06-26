@@ -984,7 +984,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
             return reader.readInputData(inputGates, createRecordFilterContext());
-        } catch (Throwable t) {
+        } catch (Throwable t) { // review: don't catch errors
             asyncExceptionHandler.handleAsyncException(
                     "Unable to set up recovered channel state", t);
             return Optional.empty();

@@ -89,7 +89,7 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
      * <p>Disk reads and buffer allocations happen outside the lock; only the "deliver + commit"
      * pair is locked to guarantee atomicity with snapshot.
      */
-    public void drain() throws IOException, InterruptedException {
+    public void drain() throws IOException, InterruptedException { // review: enforce called once
         channelState.release();
         Optional<SpillSegment> next;
         while ((next = rootReader.nextSegment()).isPresent()) {
@@ -161,7 +161,7 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
         }
         // Do not use try-with-resources: ChannelStateByteBuffer.close() recycles the buffer,
         // but the buffer is still owned by the caller here.
-        ChannelStateByteBuffer view = ChannelStateByteBuffer.wrap(buf);
+        ChannelStateByteBuffer view = ChannelStateByteBuffer.wrap(buf); // review: try-without ?
         return view.writeBytes(in, remaining);
     }
 

@@ -162,6 +162,7 @@ public class LocalInputChannel extends InputChannel
         this.inRecovery = needsRecovery;
         this.bufferManager =
                 needsRecovery
+                        // review nit: false for consistency?
                         ? new BufferManager(inputGate.getMemorySegmentProvider(), this, 0, true)
                         : null;
         this.networkBuffersPerChannel = networkBuffersPerChannel;

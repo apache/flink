@@ -107,7 +107,7 @@ public final class FetchedChannelState implements Closeable {
         if (refCount.decrementAndGet() == 0) {
             if (cleanedUp.compareAndSet(false, true)) {
                 closed = true;
-                deleteAllFiles();
+                deleteAllFiles(); // review todo: threads / call-sites
             }
         }
     }
