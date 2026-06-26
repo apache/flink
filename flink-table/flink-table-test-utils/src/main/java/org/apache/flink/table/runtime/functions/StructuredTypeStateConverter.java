@@ -33,7 +33,7 @@ class StructuredTypeStateConverter implements StateConverter {
     private final Class<?> pojoClass;
 
     StructuredTypeStateConverter(
-            DataStructureConverter<Object, Object> converter, Class<?> pojoClass) {
+            Class<?> pojoClass, DataStructureConverter<Object, Object> converter) {
         this.converter = converter;
         this.pojoClass = pojoClass;
     }
