@@ -223,8 +223,8 @@ class MapStateImpl(KeyedStateImpl, InternalMapState):
         entries = self._state.entries()
         if entries:
             for entry in entries:
-                yield (self._k_converter.to_internal(entry.getKey()),
-                       self._v_converter.to_internal(entry.getValue()))
+                yield (self._k_converter.to_internal(entry[0]),
+                       self._v_converter.to_internal(entry[1]))
 
     def keys(self) -> Iterable[K]:
         keys = self._state.keys()
@@ -261,8 +261,8 @@ class ReadOnlyBroadcastStateImpl(StateImpl, InternalReadOnlyBroadcastState):
     def items(self) -> Iterable[Tuple[K, V]]:
         entries = self._state.entries()
         for entry in entries:
-            yield (self._k_converter.to_internal(entry.getKey()),
-                   self._v_converter.to_internal(entry.getValue()))
+            yield (self._k_converter.to_internal(entry[0]),
+                   self._v_converter.to_internal(entry[1]))
 
     def keys(self) -> Iterable[K]:
         for k in self._state.keys():
