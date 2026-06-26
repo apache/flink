@@ -30,8 +30,7 @@ class LocalRecoveredInputChannelTest {
 
     @Test
     void testToInputChannelRequiresEmptyRecoveredBuffers() throws Exception {
-        SingleInputGate inputGate =
-                new SingleInputGateBuilder().setCheckpointingDuringRecoveryEnabled(true).build();
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
         LocalRecoveredInputChannel recoveredChannel =
                 InputChannelBuilder.newBuilder()
                         .setStateWriter(ChannelStateWriter.NO_OP)

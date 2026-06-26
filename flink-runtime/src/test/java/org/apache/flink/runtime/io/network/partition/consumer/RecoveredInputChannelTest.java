@@ -60,31 +60,19 @@ class RecoveredInputChannelTest {
     }
 
     @Test
-    void testToInputChannelAllowedWhenBufferFilteringCompleteAndConfigEnabled() throws IOException {
-        // When config is enabled, conversion is allowed after finishReadRecoveredState()
-        // without requiring stateConsumedFuture to be done.
-        TestableRecoveredInputChannel channel = buildTestableChannel(true);
-
-        channel.finishReadRecoveredState();
-        assertThat(channel.getStateConsumedFuture()).isNotDone();
-
-        // Conversion should now succeed (no exception)
-        InputChannel converted = channel.toInputChannel(true);
-        assertThat(converted).isNotNull();
-    }
-
-    @Test
-    void testToInputChannelAllowedWhenStateConsumedAndConfigDisabled() throws IOException {
-        // When config is disabled, conversion requires stateConsumedFuture to be done.
+    void testToInputChannelRejectedWhileRecoveredStateUnconsumed() throws IOException {
+        // Conversion is rejected while recovered state is still queued: finishReadRecoveredState()
+        // enqueues the EndOfInputChannelStateEvent sentinel, so receivedBuffers is non-empty until
+        // it is consumed. The empty-queue check thus also guarantees stateConsumedFuture is done.
         TestableRecoveredInputChannel channel = buildTestableChannel(false);
 
         channel.finishReadRecoveredState();
         assertThat(channel.getStateConsumedFuture()).isNotDone();
 
-        // Conversion should fail because stateConsumedFuture is not done
+        // Conversion fails because the sentinel is still queued.
         assertThatThrownBy(() -> channel.toInputChannel(true))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("recovered state is not fully consumed");
+                .hasMessageContaining("Received buffer should be empty");
 
         // Consuming the EndOfInputChannelStateEvent should complete the future.
         // getNextBuffer() returns empty when it encounters the event internally.
@@ -121,23 +109,9 @@ class RecoveredInputChannelTest {
         assertThat(channel.getStateConsumedFuture()).isDone();
     }
 
-    @Test
-    void testStateConsumedFutureDoesNotCompleteWithoutLegacySentinel() throws IOException {
-        RecoveredInputChannel channel = buildChannel(true);
-
-        channel.finishReadRecoveredState();
-
-        assertThat(channel.getNextBuffer()).isNotPresent();
-        assertThat(channel.getStateConsumedFuture()).isNotDone();
-    }
-
     private RecoveredInputChannel buildChannel(boolean checkpointingDuringRecoveryEnabled) {
         try {
-            SingleInputGate inputGate =
-                    new SingleInputGateBuilder()
-                            .setCheckpointingDuringRecoveryEnabled(
-                                    checkpointingDuringRecoveryEnabled)
-                            .build();
+            SingleInputGate inputGate = new SingleInputGateBuilder().build();
             return new RecoveredInputChannel(
                     inputGate,
                     0,
@@ -161,11 +135,7 @@ class RecoveredInputChannelTest {
     private TestableRecoveredInputChannel buildTestableChannel(
             boolean checkpointingDuringRecoveryEnabled) {
         try {
-            SingleInputGate inputGate =
-                    new SingleInputGateBuilder()
-                            .setCheckpointingDuringRecoveryEnabled(
-                                    checkpointingDuringRecoveryEnabled)
-                            .build();
+            SingleInputGate inputGate = new SingleInputGateBuilder().build();
             return new TestableRecoveredInputChannel(inputGate);
         } catch (Exception e) {
             throw new AssertionError("channel creation failed", e);

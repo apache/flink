@@ -243,9 +243,6 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
-    private volatile boolean checkpointingDuringRecoveryEnabled = false;
-
-    private volatile boolean needsRecovery = false;
 
     public SingleInputGate(
             String owningTaskName,
@@ -334,27 +331,12 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
-    public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {
-        this.checkpointingDuringRecoveryEnabled = enabled;
-    }
-
-    @Override
-    public boolean isCheckpointingDuringRecoveryEnabled() {
-        return checkpointingDuringRecoveryEnabled;
-    }
-
-    @Override
-    public void setNeedsRecovery(boolean enabled) {
-        this.needsRecovery = enabled;
-    }
-
-    @Override
-    public boolean needsRecovery() {
-        return needsRecovery;
-    }
-
-    @Override
     public void requestPartitions() {
+        requestPartitions(false);
+    }
+
+    @Override
+    public void requestPartitions(boolean needsRecovery) {
         synchronized (requestLock) {
             if (!requestedPartitionsFlag) {
                 if (closeFuture.isDone()) {
@@ -373,7 +355,7 @@ public class SingleInputGate extends IndexedInputGate {
                                     numInputChannels, numberOfInputChannels));
                 }
 
-                convertRecoveredInputChannels();
+                convertRecoveredInputChannels(needsRecovery);
                 internalRequestPartitions();
             }
 
@@ -387,12 +369,18 @@ public class SingleInputGate extends IndexedInputGate {
         }
     }
 
-    /**
-     * Converts all {@link RecoveredInputChannel}s to their real channel types ({@link
-     * LocalInputChannel} or {@link RemoteInputChannel}).
-     */
     @VisibleForTesting
     public void convertRecoveredInputChannels() {
+        convertRecoveredInputChannels(false);
+    }
+
+    /**
+     * Converts all {@link RecoveredInputChannel}s to their real channel types ({@link
+     * LocalInputChannel} or {@link RemoteInputChannel}). {@code needsRecovery} controls whether the
+     * converted physical channels start in recovery.
+     */
+    @VisibleForTesting
+    public void convertRecoveredInputChannels(boolean needsRecovery) {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
         for (Map<InputChannelInfo, InputChannel> inputChannelsForCurrentPartition :
                 inputChannels.values()) {

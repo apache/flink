@@ -2345,7 +2345,6 @@ class RemoteInputChannelTest {
                     new SingleInputGateBuilder()
                             .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
                             .setSegmentProvider(networkBufferPool)
-                            .setNeedsRecovery(true)
                             .setChannelFactory(
                                     (builder, gate) ->
                                             builder.setNeedsRecovery(true).buildRemoteChannel(gate))

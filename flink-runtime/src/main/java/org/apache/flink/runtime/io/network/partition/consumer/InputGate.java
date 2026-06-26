@@ -198,6 +198,15 @@ public abstract class InputGate
 
     public abstract void requestPartitions() throws IOException;
 
+    /**
+     * Requests the partitions. {@code needsRecovery} controls whether converted physical channels
+     * start in recovery (i.e. with no credit / no floating buffers until the recovered channel
+     * state has been drained). The default implementation ignores the flag.
+     */
+    public void requestPartitions(boolean needsRecovery) throws IOException {
+        requestPartitions();
+    }
+
     public abstract CompletableFuture<Void> getStateConsumedFuture();
 
     public abstract void finishReadRecoveredState() throws IOException;
