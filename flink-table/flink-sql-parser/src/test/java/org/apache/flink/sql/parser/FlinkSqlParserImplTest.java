@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.ddl.view.SqlCreateView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
@@ -2462,7 +2463,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "SELECT `COL3`, `COL4`\n"
                         + "FROM `TBL`";
         final SqlNode node = sql(sql).parser().parseQuery();
-        assertThat(node).hasToString(expected);
+        assertThat(node).isInstanceOf(SqlCreateView.class).hasToString(expected);
     }
 
     @Test
