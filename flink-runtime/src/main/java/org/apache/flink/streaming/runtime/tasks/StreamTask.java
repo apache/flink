@@ -2106,8 +2106,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         boolean checkpointingDuringRecoveryEnabled =
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
         if (!checkpointingDuringRecoveryEnabled) {
-            return RecordFilterContext.disabled(
-                    getEnvironment().getIOManager().getSpillingDirectoriesPaths());
+            // A disabled context never spills, so it needs no spill directories. Don't touch the
+            // IOManager here -- recovery then works even in minimal environments that don't provide
+            // one (e.g. DummyEnvironment-based tests), instead of NPEing and routing the failure to
+            // failExternally.
+            return RecordFilterContext.disabled(new String[0]);
         }
 
         ClassLoader cl = getUserCodeClassLoader();
