@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -1196,7 +1197,7 @@ class LocalInputChannelTest {
     }
 
     @Test
-    void testCheckpointStartedFailsWhenRecoveryBarrierIsMissing() throws Exception {
+    void testCheckpointStartedDeclinesAsNotReadyWhenRecoveryBarrierIsMissing() throws Exception {
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
         LocalInputChannel channel = newPushOnlyLocalChannel(inputGate, stateWriter);
@@ -1210,12 +1211,19 @@ class LocalInputChannelTest {
                 CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
         stateWriter.start(1L, options);
 
+        // A missing RecoveryCheckpointBarrier means the channel is not yet ready to snapshot
+        // recovered state for this checkpoint, so it declines as TASK_NOT_READY (not a fatal
+        // CHECKPOINT_DECLINED): the checkpoint is deferred/retried and the recovered buffer is
+        // neither dropped nor persisted.
         assertThatThrownBy(() -> channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options)))
-                .isInstanceOf(CheckpointException.class)
-                .hasMessageContaining("Failed to extract recovered buffers for checkpoint 1")
-                .hasRootCauseMessage(
-                        "Missing RecoveryCheckpointBarrier for checkpoint 1 in recoveredBuffers for channel "
-                                + channel.getChannelInfo());
+                .isInstanceOfSatisfying(
+                        CheckpointException.class,
+                        e ->
+                                assertThat(e.getCheckpointFailureReason())
+                                        .isEqualTo(
+                                                CheckpointFailureReason
+                                                        .CHECKPOINT_DECLINED_TASK_NOT_READY))
+                .hasMessageContaining("not yet present in channel");
         assertThat(b1.refCnt()).isEqualTo(refCntBefore);
         assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).isEmpty();
     }
