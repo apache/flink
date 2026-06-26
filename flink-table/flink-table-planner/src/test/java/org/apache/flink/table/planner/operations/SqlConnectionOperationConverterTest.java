@@ -20,21 +20,13 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.SqlParserException;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
-import org.apache.flink.table.resource.ResourceManager;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,11 +94,8 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         Operation operation =
                 parse("CREATE CONNECTION my_conn WITH ('k1' = 'v1', 'k2' = 'v2', 'k3' = 'v3')");
         CreateConnectionOperation op = (CreateConnectionOperation) operation;
-        Map<String, String> expected = new LinkedHashMap<>();
-        expected.put("k1", "v1");
-        expected.put("k2", "v2");
-        expected.put("k3", "v3");
-        assertThat(op.getSensitiveConnection().getOptions()).containsAllEntriesOf(expected);
+        assertThat(op.getSensitiveConnection().getOptions())
+                .isEqualTo(Map.of("k1", "v1", "k2", "v2", "k3", "v3"));
     }
 
     @Test
@@ -131,93 +120,5 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
-    }
-
-    @Test
-    void testExecuteCreateTemporaryConnection() {
-        CreateConnectionOperation operation =
-                (CreateConnectionOperation)
-                        parse(
-                                "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
-                                        + "WITH ('k' = 'v')");
-
-        operation.execute(operationContext());
-
-        assertThat(catalogManager.getTemporaryConnection(operation.getConnectionIdentifier()))
-                .hasValueSatisfying(
-                        connection -> {
-                            assertThat(connection.getOptions()).containsEntry("k", "v");
-                            assertThat(connection.getComment()).isEqualTo("hi there");
-                        });
-    }
-
-    @Test
-    void testExecuteCreateTemporaryConnectionRejectsDuplicate() {
-        CreateConnectionOperation first =
-                (CreateConnectionOperation)
-                        parse("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v1')");
-        first.execute(operationContext());
-
-        CreateConnectionOperation duplicate =
-                (CreateConnectionOperation)
-                        parse("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v2')");
-        assertThatThrownBy(() -> duplicate.execute(operationContext()))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Temporary connection");
-
-        CreateConnectionOperation ignoredDuplicate =
-                (CreateConnectionOperation)
-                        parse(
-                                "CREATE TEMPORARY CONNECTION IF NOT EXISTS my_conn "
-                                        + "WITH ('k' = 'v2')");
-        ignoredDuplicate.execute(operationContext());
-
-        assertThat(catalogManager.getTemporaryConnection(first.getConnectionIdentifier()))
-                .hasValueSatisfying(
-                        connection -> assertThat(connection.getOptions()).containsEntry("k", "v1"));
-    }
-
-    @Test
-    void testExecuteCreatePermanentConnectionRejectedUntilSecretStoreIntegration() {
-        CreateConnectionOperation operation =
-                (CreateConnectionOperation) parse("CREATE CONNECTION my_conn WITH ('k' = 'v')");
-
-        assertThatThrownBy(() -> operation.execute(operationContext()))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("secret store integration");
-    }
-
-    private ExecutableOperation.Context operationContext() {
-        return new ExecutableOperation.Context() {
-            @Override
-            public CatalogManager getCatalogManager() {
-                return catalogManager;
-            }
-
-            @Override
-            public FunctionCatalog getFunctionCatalog() {
-                return functionCatalog;
-            }
-
-            @Override
-            public ModuleManager getModuleManager() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public ResourceManager getResourceManager() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public TableConfig getTableConfig() {
-                return TableConfig.getDefault();
-            }
-
-            @Override
-            public boolean isStreamingMode() {
-                return false;
-            }
-        };
     }
 }

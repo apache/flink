@@ -1736,68 +1736,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Creates a connection in a given fully qualified path.
-     *
-     * <p>Permanent connections require secret-store integration before writing to the catalog, so
-     * this method rejects them instead of persisting raw sensitive values.
-     *
-     * @param connection The resolved connection to put in the given path.
-     * @param objectIdentifier The fully qualified path where to put the connection.
-     * @param ignoreIfExists If false exception will be thrown if a connection exists in the given
-     *     path.
-     */
-    public void createConnection(
-            SensitiveConnection connection,
-            ObjectIdentifier objectIdentifier,
-            boolean ignoreIfExists) {
-        checkNotNull(connection, "Connection must not be null.");
-        checkNotNull(objectIdentifier, "Object identifier must not be null.");
-        throw new ValidationException(
-                "Permanent CREATE CONNECTION is not supported until secret store integration is "
-                        + "available for catalog connections.");
-    }
-
-    /**
-     * Creates a temporary connection in a given fully qualified path.
-     *
-     * @param connection The resolved connection to put in the given path.
-     * @param objectIdentifier The fully qualified path where to put the connection.
-     * @param ignoreIfExists If false exception will be thrown if a connection exists in the given
-     *     path.
-     */
-    public void createTemporaryConnection(
-            SensitiveConnection connection,
-            ObjectIdentifier objectIdentifier,
-            boolean ignoreIfExists) {
-        checkNotNull(connection, "Connection must not be null.");
-        checkNotNull(objectIdentifier, "Object identifier must not be null.");
-        temporaryConnections.compute(
-                objectIdentifier,
-                (k, v) -> {
-                    if (v != null) {
-                        if (!ignoreIfExists) {
-                            throw new ValidationException(
-                                    String.format(
-                                            "Temporary connection '%s' already exists",
-                                            objectIdentifier));
-                        }
-                        return v;
-                    }
-                    return copySensitiveConnection(connection);
-                });
-    }
-
-    public Optional<SensitiveConnection> getTemporaryConnection(ObjectIdentifier objectIdentifier) {
-        return Optional.ofNullable(temporaryConnections.get(objectIdentifier));
-    }
-
-    private static SensitiveConnection copySensitiveConnection(SensitiveConnection connection) {
-        return SensitiveConnection.of(
-                Collections.unmodifiableMap(new LinkedHashMap<>(connection.getOptions())),
-                connection.getComment());
-    }
-
-    /**
      * Alters a model in a given fully qualified path.
      *
      * @param newModel The new model containing changes.

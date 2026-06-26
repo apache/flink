@@ -26,8 +26,8 @@ import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -86,7 +86,7 @@ public class CreateConnectionOperation implements CreateOperation {
         params.put("isTemporary", isTemporary);
 
         return OperationUtils.formatWithChildren(
-                "CREATE CONNECTION", params, Collections.emptyList(), Operation::asSummaryString);
+                "CREATE CONNECTION", params, List.of(), Operation::asSummaryString);
     }
 
     @Override
