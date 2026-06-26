@@ -949,10 +949,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CompletableFuture<Void> recoverChannelsWithoutCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
+        // Feed recovered channel state on the IO thread. This is intentionally NOT part of the
+        // completion gate below: a gate's stateConsumedFuture only completes once the consumer (the
+        // default action, running in the restore mailbox loop) has drained the end-of-state
+        // sentinel that readInputChannelState pushes, so gating on stateConsumedFuture already
+        // implies the read has finished. Including the read future in the gate would defer
+        // suspend() past the restore loop's first default action, letting input be processed before
+        // recovery completes -- causing record loss and "Mailbox loop interrupted before recovery
+        // was finished". Read failures are surfaced via asyncExceptionHandler inside
+        // readInputChannelState.
+        channelIOExecutor.execute(() -> readInputChannelState(reader, inputGates));
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(
-                CompletableFuture.runAsync(
-                        () -> readInputChannelState(reader, inputGates), channelIOExecutor));
         for (InputGate inputGate : inputGates) {
             futures.add(inputGate.getStateConsumedFuture());
         }
