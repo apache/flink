@@ -84,6 +84,7 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -404,6 +405,106 @@ class DefaultExecutionGraphDeploymentTest {
     }
 
     @Test
+    void testMetricsVisibleToListenersOnMarkFinished() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) -> {
+                    // markFinished() only transitions from a running state.
+                    execution.transitionState(ExecutionState.RUNNING);
+                    execution.markFinished(accumulators, metrics);
+                });
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnMarkFailed() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) ->
+                        // fromSchedulerNg=true to reach the FAILED transition.
+                        execution.markFailed(
+                                new Exception("test failure"),
+                                false,
+                                accumulators,
+                                metrics,
+                                false,
+                                true));
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnCompleteCancelling() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) -> {
+                    // completeCancelling() transitions from CANCELING to CANCELED.
+                    execution.cancel();
+                    execution.completeCancelling(accumulators, metrics, true);
+                });
+    }
+
+    @Test
+    void testMetricsVisibleToListenersOnRecoverExecution() throws Exception {
+        testMetricsVisibleToListenersDuringTerminalTransition(
+                (execution, accumulators, metrics) ->
+                        // recoverExecution() transitions directly to FINISHED during JM failover
+                        // recovery.
+                        execution.recoverExecution(
+                                execution.getAttemptId(),
+                                new LocalTaskManagerLocation(),
+                                accumulators,
+                                metrics));
+    }
+
+    /**
+     * Verifies that IOMetrics and user accumulators are visible to {@link
+     * ExecutionStateUpdateListener}s at the time they are notified of a terminal state transition.
+     */
+    private void testMetricsVisibleToListenersDuringTerminalTransition(
+            TerminalStateTransition terminalStateTransition) throws Exception {
+        JobVertex v1 = new JobVertex("v1", new JobVertexID());
+
+        SchedulerBase scheduler = setupScheduler(v1, 1);
+        DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
+
+        Execution execution = graph.getRegisteredExecutions().values().iterator().next();
+        ExecutionAttemptID attemptId = execution.getAttemptId();
+
+        // The listener receives an ExecutionAttemptID, not the Execution object, and the terminal
+        // transition deregisters the execution. Capture the metrics and accumulators directly from
+        // within the listener callback so we observe exactly what is visible at notification time.
+        AtomicReference<IOMetrics> metricsSeenByListener = new AtomicReference<>();
+        AtomicReference<Map<String, Accumulator<?, ?>>> accumulatorsSeenByListener =
+                new AtomicReference<>();
+        graph.registerExecutionStateUpdateListener(
+                (id, previousState, newState) -> {
+                    if (newState.isTerminal() && id.equals(attemptId)) {
+                        metricsSeenByListener.set(execution.getIOMetrics());
+                        accumulatorsSeenByListener.set(execution.getUserAccumulators());
+                    }
+                });
+
+        IOMetrics ioMetrics = new IOMetrics(10, 20, 30, 40, 100, 200, 300);
+        Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
+        IntCounter counter = new IntCounter();
+        counter.add(42);
+        accumulators.put("acc", counter);
+
+        terminalStateTransition.transition(execution, accumulators, ioMetrics);
+
+        assertThat(metricsSeenByListener.get())
+                .as("IOMetrics visible to listener during terminal transition")
+                .isNotNull();
+        assertIOMetricsEqual(metricsSeenByListener.get(), ioMetrics);
+        assertThat(accumulatorsSeenByListener.get())
+                .as("User accumulators visible to listener during terminal transition")
+                .isEqualTo(accumulators);
+    }
+
+    @FunctionalInterface
+    private interface TerminalStateTransition {
+        void transition(
+                Execution execution,
+                Map<String, Accumulator<?, ?>> accumulators,
+                IOMetrics metrics);
+    }
+
+    @Test
     void testRegistrationOfExecutionsCanceled() throws Exception {
 
         final JobVertexID jid1 = new JobVertexID();
@@ -501,20 +602,30 @@ class DefaultExecutionGraphDeploymentTest {
                 .isEqualTo(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue());
     }
 
+    private SchedulerBase setupScheduler(JobVertex v1, int dop1) throws Exception {
+        return setupScheduler(new JobVertex[] {v1}, new int[] {dop1});
+    }
+
     private SchedulerBase setupScheduler(JobVertex v1, int dop1, JobVertex v2, int dop2)
             throws Exception {
-        v1.setParallelism(dop1);
-        v2.setParallelism(dop2);
+        return setupScheduler(new JobVertex[] {v1, v2}, new int[] {dop1, dop2});
+    }
 
-        v1.setInvokableClass(BatchTask.class);
-        v2.setInvokableClass(BatchTask.class);
+    private SchedulerBase setupScheduler(JobVertex[] vertices, int[] parallelisms)
+            throws Exception {
+        int totalDop = 0;
+        for (int i = 0; i < vertices.length; i++) {
+            vertices[i].setParallelism(parallelisms[i]);
+            vertices[i].setInvokableClass(BatchTask.class);
+            totalDop += parallelisms[i];
+        }
 
         DirectScheduledExecutorService executorService = new DirectScheduledExecutorService();
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
-                                JobGraphTestUtils.streamingJobGraph(v1, v2),
+                                JobGraphTestUtils.streamingJobGraph(vertices),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_EXTENSION.getExecutor())
                         .setExecutionSlotAllocatorFactory(
@@ -530,7 +641,7 @@ class DefaultExecutionGraphDeploymentTest {
         scheduler.startScheduling();
 
         Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
-        assertThat(executions).hasSize(dop1 + dop2);
+        assertThat(executions).hasSize(totalDop);
 
         return scheduler;
     }
