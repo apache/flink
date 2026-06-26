@@ -104,11 +104,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public final InputChannel toInputChannel(boolean needsRecovery) throws IOException {
-        if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
-            Preconditions.checkState(
-                    stateConsumedFuture.isDone(), "recovered state is not fully consumed");
-        }
-
         // With checkpointing-during-recovery, data is spilled instead of queued here.
         synchronized (receivedBuffers) {
             Preconditions.checkState(receivedBuffers.isEmpty(), "Received buffer should be empty.");
@@ -165,14 +160,9 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        // In legacy recovery, adding the sentinel must be atomic under receivedBuffers lock to
-        // ensure the sentinel is enqueued before any concurrent reader can observe an empty queue
-        // and miss the EndOfInputChannelStateEvent that completes stateConsumedFuture.
         synchronized (receivedBuffers) {
-            if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
-                onRecoveredStateBuffer(
-                        EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
-            }
+            onRecoveredStateBuffer(
+                    EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
         }
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);

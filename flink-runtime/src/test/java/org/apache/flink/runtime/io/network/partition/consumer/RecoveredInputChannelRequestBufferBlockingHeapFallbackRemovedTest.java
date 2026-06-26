@@ -85,9 +85,8 @@ class RecoveredInputChannelRequestBufferBlockingHeapFallbackRemovedTest {
         int totalSegments = 4;
         pool = new NetworkBufferPool(totalSegments, MemoryManager.DEFAULT_PAGE_SIZE);
 
-        Buffer filterOnBuf = buildChannel(pool, exclusivePerChannel, true).requestBufferBlocking();
-        Buffer filterOffBuf =
-                buildChannel(pool, exclusivePerChannel, false).requestBufferBlocking();
+        Buffer filterOnBuf = buildChannel(pool, exclusivePerChannel).requestBufferBlocking();
+        Buffer filterOffBuf = buildChannel(pool, exclusivePerChannel).requestBufferBlocking();
 
         // Both must come from the pool — the BufferManager-owned recycler, not the
         // FreeingBufferRecycler the heap-fallback used.
@@ -104,20 +103,9 @@ class RecoveredInputChannelRequestBufferBlockingHeapFallbackRemovedTest {
 
     private RecoveredInputChannel buildChannel(
             NetworkBufferPool segmentProvider, int exclusivePerChannel) {
-        return buildChannel(segmentProvider, exclusivePerChannel, true);
-    }
-
-    private RecoveredInputChannel buildChannel(
-            NetworkBufferPool segmentProvider,
-            int exclusivePerChannel,
-            boolean checkpointingDuringRecoveryEnabled) {
         try {
             SingleInputGate inputGate =
-                    new SingleInputGateBuilder()
-                            .setSegmentProvider(segmentProvider)
-                            .setCheckpointingDuringRecoveryEnabled(
-                                    checkpointingDuringRecoveryEnabled)
-                            .build();
+                    new SingleInputGateBuilder().setSegmentProvider(segmentProvider).build();
             return new RecoveredInputChannel(
                     inputGate,
                     0,

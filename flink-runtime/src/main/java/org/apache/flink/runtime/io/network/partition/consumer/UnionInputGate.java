@@ -359,8 +359,13 @@ public class UnionInputGate extends InputGate {
 
     @Override
     public void requestPartitions() throws IOException {
+        requestPartitions(false);
+    }
+
+    @Override
+    public void requestPartitions(boolean needsRecovery) throws IOException {
         for (InputGate inputGate : inputGatesByGateIndex.values()) {
-            inputGate.requestPartitions();
+            inputGate.requestPartitions(needsRecovery);
         }
     }
 
