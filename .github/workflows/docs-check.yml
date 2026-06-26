@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Runs the Hugo docs build and checks for broken links. Triggered only when
+# docs/** files are changed, acting as a PR gate for documentation changes.
+#
+# This is the GHA equivalent of the docs_404_check job in the Azure Pipelines
+# ci stage (tools/azure-pipelines/build-apache-repo.yml). Azure gates the check
+# on pr_contains_docs_changes; here the workflow-level paths filter achieves the
+# same effect without needing a per-step skip condition.
+
+name: "Docs 404 check (beta)"
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  docs-check:
+    name: "Docs 404 check"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: "Build docs and check for broken links"
+        run: ./tools/ci/docs.sh
