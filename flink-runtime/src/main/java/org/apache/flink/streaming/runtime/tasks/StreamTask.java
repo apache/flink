@@ -961,9 +961,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         channelIOExecutor.execute(() -> readInputChannelState(reader, inputGates));
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (InputGate inputGate : inputGates) {
-            futures.add(inputGate.getStateConsumedFuture());
+            CompletableFuture<Void> stateConsumed = inputGate.getStateConsumedFuture();
+            futures.add(stateConsumed);
+            // Convert and request partitions for each gate as soon as ITS OWN recovered state is
+            // drained, independent of the other gates. Deferring conversion until every gate has
+            // drained deadlocks selective-reading multi-input operators: such an operator only
+            // drains the selected input's end-of-state sentinel, so an unselected gate would never
+            // drain (it is read only after conversion) while conversion would wait for it to drain
+            // first. suspend() is still gated on completeAll(futures) below.
+            stateConsumed.thenRun(
+                    () ->
+                            mainMailboxExecutor.execute(
+                                    () -> inputGate.requestPartitions(false),
+                                    "Input gate request partitions"));
         }
-        return completeAll(futures).thenRun(() -> requestPartitions(inputGates, false));
+        return completeAll(futures);
     }
 
     private void readInputChannelState(
