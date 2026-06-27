@@ -664,7 +664,7 @@ public class CheckpointingOptions {
             ConfigOptions.key(
                             "execution.checkpointing.unaligned.recover-output-on-downstream.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Whether recovering output buffers of upstream task on downstream task directly "
                                     + "when job restores from the unaligned checkpoint.");
