@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blocklist.BlockedNode;
@@ -116,8 +117,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  *
  * <ul>
- *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Duration)} registers a
- *       {@link JobMaster} at the resource manager
+ *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Configuration, Duration)}
+ *       registers a {@link JobMaster} at the resource manager
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
@@ -367,12 +368,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             final ResourceID jobManagerResourceId,
             final String jobManagerAddress,
             final JobID jobId,
+            final Configuration jobConfiguration,
             final Duration timeout) {
 
         checkNotNull(jobMasterId);
         checkNotNull(jobManagerResourceId);
         checkNotNull(jobManagerAddress);
         checkNotNull(jobId);
+        checkNotNull(jobConfiguration);
 
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             if (!jobLeaderIdService.containsJob(jobId)) {
@@ -428,6 +431,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             jobMasterIdFuture,
                             (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
                                 if (Objects.equals(leadingJobMasterId, jobMasterId)) {
+                                    // Register with the delegation token manager first; a
+                                    // provider failure rejects this registration so the job
+                                    // never starts without the tokens it requires.
+                                    try {
+                                        delegationTokenManager.registerJob(jobId, jobConfiguration);
+                                    } catch (Exception e) {
+                                        return new RegistrationResponse.Failure(e);
+                                    }
                                     return registerJobMasterInternal(
                                             jobMasterGateway,
                                             jobId,
@@ -1223,6 +1234,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         if (jobManagerRegistrations.containsKey(jobId)) {
             closeJobManagerConnection(jobId, ResourceRequirementHandling.CLEAR, cause);
+        }
+
+        try {
+            delegationTokenManager.unregisterJob(jobId);
+        } catch (Exception e) {
+            log.warn(
+                    "Could not properly remove the job {} from the delegation token manager.",
+                    jobId,
+                    e);
         }
     }
 

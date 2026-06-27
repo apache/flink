@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.security.token.DelegationTokenManagerCallback;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * An example implementation of {@link DelegationTokenProvider} which throws exception when enabled.
@@ -36,13 +40,30 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> constructed =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> shouldReobtainOnRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInUnregister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> stopped =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Set<JobID>> registeredJobs =
+            ThreadLocal.withInitial(HashSet::new);
 
     public static void reset() {
         throwInInit.set(false);
         throwInUsage.set(false);
         addToken.set(false);
         constructed.set(false);
+        shouldReobtainOnRegister.set(false);
+        throwInRegister.set(false);
+        throwInUnregister.set(false);
+        stopped.set(false);
+        registeredJobs.get().clear();
     }
+
+    private DelegationTokenManagerCallback callback;
 
     public ExceptionThrowingDelegationTokenProvider() {
         constructed.set(true);
@@ -58,6 +79,12 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         if (throwInInit.get()) {
             throw new IllegalArgumentException();
         }
+    }
+
+    @Override
+    public void init(Configuration configuration, DelegationTokenManagerCallback callback) {
+        this.callback = callback;
+        init(configuration);
     }
 
     @Override
@@ -78,5 +105,29 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         } else {
             return null;
         }
+    }
+
+    @Override
+    public void registerJob(JobID jobId, Configuration jobConfiguration) {
+        if (throwInRegister.get()) {
+            throw new IllegalArgumentException();
+        }
+        registeredJobs.get().add(jobId);
+        if (shouldReobtainOnRegister.get()) {
+            callback.reobtainDelegationTokens();
+        }
+    }
+
+    @Override
+    public void unregisterJob(JobID jobId) {
+        if (throwInUnregister.get()) {
+            throw new IllegalArgumentException();
+        }
+        registeredJobs.get().remove(jobId);
+    }
+
+    @Override
+    public void stop() {
+        stopped.set(true);
     }
 }

@@ -20,9 +20,11 @@ package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.security.token.DelegationTokenManagerCallback;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -45,6 +47,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +57,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_REOBTAIN_COOLDOWN;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -78,6 +82,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDelegationTokenManager.class);
 
+    private static final long NO_PREVIOUS_REOBTAIN = Long.MIN_VALUE;
+
     private final Configuration configuration;
 
     @Nullable private final PluginManager pluginManager;
@@ -92,6 +98,18 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting long lastKnownNextRenewal = Long.MAX_VALUE;
 
+    private final long reobtainCooldownMillis;
+
+    /** Clock used for cooldown bookkeeping; overridable in tests. */
+    private volatile Clock clock = Clock.systemDefaultZone();
+
+    /**
+     * Serializes the obtain-and-broadcast cycle so that, even though {@code cancel(true)} does not
+     * wait for an in-flight cycle and the IO executor is multi-threaded, two cycles can never run
+     * concurrently and broadcast tokens out of order.
+     */
+    private final Object obtainLock = new Object();
+
     @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
 
     private final DelegationTokenReceiverRepository delegationTokenReceiverRepository;
@@ -105,6 +123,34 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @GuardedBy("tokensUpdateFutureLock")
     @Nullable
     private ScheduledFuture<?> tokensUpdateFuture;
+
+    /**
+     * Clock time (millis) at which {@link #tokensUpdateFuture} is scheduled to fire, or {@link
+     * Long#MAX_VALUE} when no cycle is pending. Lets an on-demand re-obtain only ever bring the
+     * next obtain cycle <em>forward</em> and never push an already-scheduled (e.g. periodic)
+     * renewal later, which could otherwise let a short-lived token expire before it is renewed.
+     */
+    @GuardedBy("tokensUpdateFutureLock")
+    private long nextScheduledAtMillis = Long.MAX_VALUE;
+
+    /** Whether an on-demand re-obtain is scheduled but has not started executing yet (dedupe). */
+    @GuardedBy("tokensUpdateFutureLock")
+    private boolean reobtainScheduled;
+
+    /**
+     * Clock time (millis) of the last on-demand re-obtain request, used to enforce the cooldown;
+     * {@link #NO_PREVIOUS_REOBTAIN} until the first request. Only on-demand re-obtains update this
+     * (not the periodic renewal), so the cooldown spaces requests, not obtain executions.
+     */
+    @GuardedBy("tokensUpdateFutureLock")
+    private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
+
+    /**
+     * Whether {@link #stop()} has been called. Reset by {@link #start(Listener)}. Prevents a late
+     * provider callback or an in-flight obtain cycle from scheduling new work after shutdown.
+     */
+    @GuardedBy("tokensUpdateFutureLock")
+    private boolean stopped;
 
     @Nullable private Listener listener;
 
@@ -121,6 +167,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         this.renewalRetryMaxBackoff =
                 configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF).toMillis();
         this.currentRetryBackoff = renewalRetryInitialBackoff;
+        this.reobtainCooldownMillis =
+                configuration.get(DELEGATION_TOKENS_REOBTAIN_COOLDOWN).toMillis();
         this.delegationTokenProviders = loadProviders();
         this.delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, pluginManager);
@@ -139,12 +187,15 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private Map<String, DelegationTokenProvider> loadProviders() {
         LOG.info("Loading delegation token providers");
 
+        // Handed to every provider so it can request an immediate re-obtain later, from any
+        // thread, decoupled from the registerJob call stack.
+        final DelegationTokenManagerCallback callback = this::reobtainDelegationTokens;
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         Consumer<DelegationTokenProvider> loadProvider =
                 (provider) -> {
                     try {
                         if (isProviderEnabled(configuration, provider.serviceName())) {
-                            provider.init(configuration);
+                            provider.init(configuration, callback);
                             LOG.info(
                                     "Delegation token provider {} loaded and initialized",
                                     provider.serviceName());
@@ -310,6 +361,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         this.listener = checkNotNull(listener, "Listener must not be null");
         synchronized (tokensUpdateFutureLock) {
             checkState(tokensUpdateFuture == null, "Manager is already started");
+            stopped = false;
         }
 
         startTokensUpdate();
@@ -317,57 +369,119 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting
     void startTokensUpdate() {
-        try {
-            LOG.info("Starting tokens update task");
-            DelegationTokenContainer container = new DelegationTokenContainer();
-            Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
-
-            if (container.hasTokens()) {
-                delegationTokenReceiverRepository.onNewTokensObtained(container);
-
-                LOG.info("Notifying listener about new tokens");
-                checkNotNull(listener, "Listener must not be null");
-                listener.onNewTokensObtained(InstantiationUtil.serializeObject(container));
-                LOG.info("Listener notified successfully");
-            } else {
-                LOG.warn("No tokens obtained so skipping notifications");
+        synchronized (tokensUpdateFutureLock) {
+            // The obtain cycle is starting: clear the dedupe flag so later on-demand requests can
+            // schedule a fresh cycle.
+            reobtainScheduled = false;
+            // If stop() ran before this cycle (already handed to the IO executor) began, skip the
+            // obtain/broadcast: the providers may already be stopped. Safe via this lock's
+            // happens-before with stop(). The dedupe flag is cleared above, so it is never stuck.
+            if (stopped) {
+                return;
             }
+        }
+        // Serialize the obtain-and-broadcast so a re-obtain racing the periodic renewal cannot run
+        // two cycles concurrently on the (multi-threaded) IO executor and broadcast out of order.
+        synchronized (obtainLock) {
+            try {
+                LOG.info("Starting tokens update task");
+                DelegationTokenContainer container = new DelegationTokenContainer();
+                Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
 
-            if (nextRenewal.isPresent()) {
-                lastKnownNextRenewal = nextRenewal.get();
-                currentRetryBackoff = renewalRetryInitialBackoff;
-                long renewalDelay =
-                        calculateRenewalDelay(Clock.systemDefaultZone(), nextRenewal.get());
-                synchronized (tokensUpdateFutureLock) {
-                    tokensUpdateFuture =
-                            scheduledExecutor.schedule(
-                                    () -> ioExecutor.execute(this::startTokensUpdate),
-                                    renewalDelay,
-                                    TimeUnit.MILLISECONDS);
+                if (container.hasTokens()) {
+                    delegationTokenReceiverRepository.onNewTokensObtained(container);
+
+                    LOG.info("Notifying listener about new tokens");
+                    checkNotNull(listener, "Listener must not be null");
+                    listener.onNewTokensObtained(InstantiationUtil.serializeObject(container));
+                    LOG.info("Listener notified successfully");
+                } else {
+                    LOG.warn("No tokens obtained so skipping notifications");
                 }
-                LOG.info(
-                        "Tokens update task started with {} delay",
-                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
-            } else {
+
+                if (nextRenewal.isPresent()) {
+                    lastKnownNextRenewal = nextRenewal.get();
+                    currentRetryBackoff = renewalRetryInitialBackoff;
+                    long renewalDelay = calculateRenewalDelay(clock, nextRenewal.get());
+                    maybeScheduleRenewal(renewalDelay);
+                    LOG.info(
+                            "Tokens update task started with {} delay",
+                            TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
+                } else {
+                    LOG.warn(
+                            "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
+                }
+            } catch (InterruptedException e) {
+                // Ignore, may happen if shutting down.
+                LOG.debug("Interrupted", e);
+            } catch (Exception e) {
+                long delay = calculateRetryDelay(clock);
+                maybeScheduleRenewal(delay);
                 LOG.warn(
-                        "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
+                        "Failed to update tokens, will try again in {}",
+                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
+                        e);
             }
-        } catch (InterruptedException e) {
-            // Ignore, may happen if shutting down.
-            LOG.debug("Interrupted", e);
-        } catch (Exception e) {
-            long delay = calculateRetryDelay(Clock.systemDefaultZone());
-            synchronized (tokensUpdateFutureLock) {
-                tokensUpdateFuture =
-                        scheduledExecutor.schedule(
-                                () -> ioExecutor.execute(this::startTokensUpdate),
-                                delay,
-                                TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Schedules a one-shot token-obtain-and-broadcast cycle after {@code delayMs}, replacing any
+     * pending renewal; a delay of {@code 0} brings the next cycle forward to now. Must only be
+     * called after {@link #start(Listener)} (the scheduled and IO executors are non-null then) and
+     * while holding {@link #tokensUpdateFutureLock}.
+     */
+    @GuardedBy("tokensUpdateFutureLock")
+    private void scheduleRenewalLocked(long delayMs) {
+        stopTokensUpdate();
+        nextScheduledAtMillis = clock.millis() + delayMs;
+        try {
+            tokensUpdateFuture =
+                    scheduledExecutor.schedule(
+                            () -> {
+                                try {
+                                    ioExecutor.execute(this::startTokensUpdate);
+                                } catch (RejectedExecutionException e) {
+                                    // IO executor is shutting down: drop the cycle but release the
+                                    // dedupe flag so it cannot get stuck if the manager is reused.
+                                    synchronized (tokensUpdateFutureLock) {
+                                        reobtainScheduled = false;
+                                    }
+                                    LOG.debug("Tokens update task rejected by IO executor", e);
+                                }
+                            },
+                            delayMs,
+                            TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            // Scheduled executor is shutting down: no cycle will run, so undo the bookkeeping this
+            // method set. Clearing reobtainScheduled keeps a coalesced re-obtain from getting stuck;
+            // nextScheduledAtMillis returns to the no-cycle-pending marker (stopTokensUpdate() above
+            // already nulled tokensUpdateFuture).
+            reobtainScheduled = false;
+            nextScheduledAtMillis = Long.MAX_VALUE;
+            LOG.debug("Tokens update task rejected by scheduled executor", e);
+        }
+    }
+
+    /**
+     * Schedules the next periodic renewal at the end of a completed obtain cycle, unless the
+     * manager was stopped or an on-demand re-obtain was scheduled while this cycle ran. A pending
+     * on-demand cycle already re-establishes the renewal schedule, so it is left in place rather
+     * than cancelled: the periodic renewal is folded into it, never dropped.
+     */
+    @VisibleForTesting
+    void maybeScheduleRenewal(long delayMs) {
+        synchronized (tokensUpdateFutureLock) {
+            if (stopped) {
+                return;
             }
-            LOG.warn(
-                    "Failed to update tokens, will try again in {}",
-                    TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
-                    e);
+            if (reobtainScheduled) {
+                LOG.debug(
+                        "An on-demand re-obtain is already scheduled; leaving it in place instead "
+                                + "of overwriting it with the periodic renewal.");
+                return;
+            }
+            scheduleRenewalLocked(delayMs);
         }
     }
 
@@ -377,6 +491,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             if (tokensUpdateFuture != null) {
                 tokensUpdateFuture.cancel(true);
                 tokensUpdateFuture = null;
+                nextScheduledAtMillis = Long.MAX_VALUE;
             }
         }
     }
@@ -416,13 +531,114 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         return renewalDelay;
     }
 
+    @VisibleForTesting
+    void setClock(Clock clock) {
+        this.clock = clock;
+    }
+
     /** Stops re-occurring token obtain task. */
     @Override
     public void stop() {
         LOG.info("Stopping credential renewal");
 
-        stopTokensUpdate();
+        synchronized (tokensUpdateFutureLock) {
+            // Mark stopped, cancel the pending cycle, and reset on-demand re-obtain bookkeeping
+            // atomically, so a concurrent reobtainDelegationTokens() cannot leave a live future
+            // orphaned after stop and a later start() does not inherit stale state.
+            stopped = true;
+            stopTokensUpdate();
+            reobtainScheduled = false;
+            lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
+        }
+
+        for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
+            try {
+                provider.stop();
+            } catch (Throwable t) {
+                LOG.error("Failed to stop delegation token provider {}", provider.serviceName(), t);
+            }
+        }
 
         LOG.info("Stopped credential renewal");
+    }
+
+    @Override
+    public void reobtainDelegationTokens() {
+        synchronized (tokensUpdateFutureLock) {
+            if (scheduledExecutor == null || ioExecutor == null) {
+                LOG.debug(
+                        "A re-obtain of delegation tokens was requested but the manager was "
+                                + "constructed without executors (one-shot obtain path); the "
+                                + "request is ignored.");
+                return;
+            }
+            if (stopped) {
+                LOG.debug(
+                        "A re-obtain of delegation tokens was requested after the manager was "
+                                + "stopped; the request is ignored.");
+                return;
+            }
+            // Dedupe: if an on-demand re-obtain is already scheduled and has not started yet, the
+            // newly registered job(s) will be covered by it, so coalesce this request into it.
+            if (reobtainScheduled) {
+                LOG.debug("A re-obtain of delegation tokens is already scheduled; coalescing.");
+                return;
+            }
+            // Cooldown: bound how often on-demand re-obtains can run by deferring this cycle until
+            // at least reobtainCooldownMillis have passed since the previous on-demand re-obtain.
+            long now = clock.millis();
+            long delayMillis =
+                    lastReobtainAtMillis == NO_PREVIOUS_REOBTAIN
+                            ? 0L
+                            : Math.max(0L, lastReobtainAtMillis + reobtainCooldownMillis - now);
+            // Only bring the next cycle forward: if a cycle (e.g. the periodic renewal) is still
+            // pending and scheduled to fire sooner than the cooldown-deferred time, fire at that
+            // earlier time instead of pushing it later — otherwise a short-lived token could expire
+            // before it is renewed. The nextScheduledAtMillis > now guard skips an already-fired
+            // future that has not yet been re-armed, so this never bypasses the cooldown.
+            if (tokensUpdateFuture != null
+                    && nextScheduledAtMillis > now
+                    && nextScheduledAtMillis - now < delayMillis) {
+                delayMillis = nextScheduledAtMillis - now;
+            }
+            lastReobtainAtMillis = now;
+            reobtainScheduled = true;
+            LOG.debug(
+                    "Re-obtain of delegation tokens requested; scheduling an obtain cycle in {}",
+                    TimeUtils.formatWithHighestUnit(Duration.ofMillis(delayMillis)));
+            scheduleRenewalLocked(delayMillis);
+        }
+    }
+
+    @Override
+    public void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {
+        try {
+            for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
+                provider.registerJob(jobId, jobConfiguration);
+            }
+        } catch (Exception e) {
+            // If any of the providers fail to register, then unregister the job from them all.
+            // unregisterJob is idempotent, so it is safe to call it for providers that were never
+            // (or only partially) registered for this job before the failure. The rollback must
+            // never mask the original failure, so swallow any rollback exception.
+            try {
+                unregisterJob(jobId);
+            } catch (Exception rollbackException) {
+                LOG.error("Failed to roll back registration of job {}", jobId, rollbackException);
+            }
+            LOG.error("Failed to register job {}", jobId, e);
+            throw e;
+        }
+    }
+
+    @Override
+    public void unregisterJob(JobID jobId) throws Exception {
+        for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
+            try {
+                provider.unregisterJob(jobId);
+            } catch (Exception e) {
+                LOG.error("Failed to unregister job for provider {}", provider.serviceName(), e);
+            }
+        }
     }
 }
