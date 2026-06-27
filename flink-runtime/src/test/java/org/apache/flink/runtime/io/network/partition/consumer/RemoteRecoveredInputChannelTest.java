@@ -30,8 +30,7 @@ class RemoteRecoveredInputChannelTest {
 
     @Test
     void testToInputChannelRequiresEmptyRecoveredBuffers() throws Exception {
-        SingleInputGate inputGate =
-                new SingleInputGateBuilder().build();
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
         RemoteRecoveredInputChannel recoveredChannel =
                 InputChannelBuilder.newBuilder()
                         .setStateWriter(ChannelStateWriter.NO_OP)

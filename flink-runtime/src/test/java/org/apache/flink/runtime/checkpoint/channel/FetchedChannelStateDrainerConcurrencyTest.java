@@ -78,8 +78,7 @@ class FetchedChannelStateDrainerConcurrencyTest {
         all.add(chan0);
         all.add(chan1);
 
-        FetchedChannelStateDrainer drainer =
-                new FetchedChannelStateDrainer(state, all);
+        FetchedChannelStateDrainer drainer = new FetchedChannelStateDrainer(state, all);
 
         ExecutorService io = Executors.newSingleThreadExecutor();
         AtomicReference<Throwable> drainError = new AtomicReference<>();
