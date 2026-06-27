@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Manager for delegation tokens in a Flink cluster.
@@ -61,4 +63,37 @@ public interface DelegationTokenManager {
 
     /** Stops re-occurring token obtain task. */
     void stop();
+
+    /**
+     * Requests an immediate, asynchronous token-obtain-and-distribute cycle, bringing the next
+     * cycle forward instead of waiting for the periodic renewal. May be called from any thread;
+     * it is a no-op on a manager constructed without executors (the one-shot obtain path).
+     * Concurrent requests are coalesced and a configurable cooldown may apply, so a call does
+     * not necessarily map to exactly one obtain.
+     *
+     * <p>Backs {@link
+     * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
+     */
+    default void reobtainDelegationTokens() {}
+
+    /**
+     * Called when a job has started. Fans the event out to all loaded {@link
+     * org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure the job is
+     * unregistered from all providers and the exception is rethrown so the caller can reject the
+     * job's registration. A provider that needs the new job's tokens distributed immediately
+     * requests it via {@link
+     * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
+     *
+     * @param jobId The job id which just started.
+     * @param jobConfiguration The job's configuration.
+     */
+    default void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {}
+
+    /**
+     * Called when a job is being removed. Fans the event out to all loaded providers. Must be
+     * idempotent.
+     *
+     * @param jobId The job id of the job.
+     */
+    default void unregisterJob(JobID jobId) throws Exception {}
 }

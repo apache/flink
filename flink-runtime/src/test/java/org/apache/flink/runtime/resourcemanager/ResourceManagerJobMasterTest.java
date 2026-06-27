@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -93,10 +96,16 @@ class ResourceManagerJobMasterTest {
     }
 
     private void createAndStartResourceManagerService() throws Exception {
+        createAndStartResourceManagerService(new NoOpDelegationTokenManager());
+    }
+
+    private void createAndStartResourceManagerService(DelegationTokenManager delegationTokenManager)
+            throws Exception {
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
         resourceManagerService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
+                        .setDelegationTokenManager(delegationTokenManager)
                         .setJmLeaderRetrieverFunction(
                                 requestedJobId -> {
                                     if (requestedJobId.equals(jobId)) {
@@ -150,6 +159,37 @@ class ResourceManagerJobMasterTest {
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .isInstanceOf(JobMasterRegistrationSuccess.class);
+    }
+
+    /**
+     * FLIP-588: if the delegation token manager rejects the job (its {@code registerJob} throws),
+     * the ResourceManager must reject the JobMaster registration so the job does not start without
+     * the tokens it requires. This also exercises the widened (6-arg) {@code registerJobMaster} RPC
+     * that carries the job {@link Configuration}.
+     */
+    @Test
+    void testRegisterJobMasterRejectedWhenDelegationTokenRegistrationFails() throws Exception {
+        // Rebuild the RM service with a delegation token manager that rejects registerJob.
+        resourceManagerService.rethrowFatalErrorIfAny();
+        resourceManagerService.cleanUp();
+        final FlinkRuntimeException failure =
+                new FlinkRuntimeException("registerJob rejected by provider");
+        createAndStartResourceManagerService(new RejectingDelegationTokenManager(failure));
+
+        final CompletableFuture<RegistrationResponse> registrationFuture =
+                resourceManagerGateway.registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        jobMasterResourceId,
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        new Configuration(),
+                        TIMEOUT);
+
+        final RegistrationResponse response =
+                registrationFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        assertThat(response).isInstanceOf(RegistrationResponse.Failure.class);
+        assertThat(((RegistrationResponse.Failure) response).getReason().getMessage())
+                .contains("registerJob rejected by provider");
     }
 
     @Test
@@ -294,5 +334,20 @@ class ResourceManagerJobMasterTest {
 
         // ignore the reported error
         resourceManagerService.ignoreFatalErrors();
+    }
+
+    /** A {@link DelegationTokenManager} whose {@code registerJob} always throws. */
+    private static final class RejectingDelegationTokenManager extends NoOpDelegationTokenManager {
+
+        private final Exception failure;
+
+        private RejectingDelegationTokenManager(Exception failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {
+            throw failure;
+        }
     }
 }

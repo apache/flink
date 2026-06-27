@@ -180,8 +180,19 @@ public class SecurityOptions {
                     .withDescription(
                             "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
 
-    @Documentation.SuffixOption(DELEGATION_TOKEN_PROVIDER_PREFIX)
     @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 5)
+    public static final ConfigOption<Duration> DELEGATION_TOKENS_REOBTAIN_COOLDOWN =
+            key("security.delegation.tokens.reobtain.cooldown")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDescription(
+                            "Minimum time between two consecutive on-demand token re-obtain "
+                                    + "cycles, such as those triggered when a job is registered. "
+                                    + "Requests arriving within the cooldown are coalesced and "
+                                    + "deferred until it elapses. Does not affect the periodic renewal.");
+
+    @Documentation.SuffixOption(DELEGATION_TOKEN_PROVIDER_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 6)
     public static final ConfigOption<Boolean> DELEGATION_TOKEN_PROVIDER_ENABLED =
             key("enabled")
                     .booleanType()

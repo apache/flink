@@ -33,6 +33,12 @@
             <td>Ratio of the tokens's expiration time when new credentials should be re-obtained.</td>
         </tr>
         <tr>
+            <td><h5>security.delegation.tokens.reobtain.cooldown</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>Minimum time between two consecutive on-demand token re-obtain cycles, such as those triggered when a job is registered. Requests arriving within the cooldown are coalesced and deferred until it elapses. Does not affect the periodic renewal.</td>
+        </tr>
+        <tr>
             <td><h5>security.delegation.token.provider.&lt;serviceName&gt;.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

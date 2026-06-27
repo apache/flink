@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -149,6 +150,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
         private boolean needStopRpcService = true;
         private TestingLeaderElection rmLeaderElection = null;
         private Function<JobID, LeaderRetrievalService> jmLeaderRetrieverFunction = null;
+        private DelegationTokenManager delegationTokenManager = new NoOpDelegationTokenManager();
 
         public Builder setRpcService(RpcService rpcService) {
             this.rpcService = checkNotNull(rpcService);
@@ -164,6 +166,11 @@ public class TestingResourceManagerService implements ResourceManagerService {
         public Builder setJmLeaderRetrieverFunction(
                 Function<JobID, LeaderRetrievalService> jmLeaderRetrieverFunction) {
             this.jmLeaderRetrieverFunction = checkNotNull(jmLeaderRetrieverFunction);
+            return this;
+        }
+
+        public Builder setDelegationTokenManager(DelegationTokenManager delegationTokenManager) {
+            this.delegationTokenManager = checkNotNull(delegationTokenManager);
             return this;
         }
 
@@ -189,7 +196,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
                             rpcService,
                             haServices,
                             new TestingHeartbeatServices(),
-                            new NoOpDelegationTokenManager(),
+                            delegationTokenManager,
                             fatalErrorHandler,
                             new ClusterInformation("localhost", 1234),
                             null,
