@@ -908,12 +908,43 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private CompletableFuture<Void> recoverChannelsWithCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        if (inputGates.length == 0) {
+            // No input channels to recover (e.g. a source task). Complete synchronously, exactly
+            // like recoverChannelsWithoutCheckpointing, so that the recovery-completion suspend()
+            // in restoreStateAndGates is enqueued before the restore mailbox loop runs the default
+            // action. The asynchronous chain below relies on mailbox mails that only run while the
+            // restore loop is pumping; with no channel work to do it would merely defer completion,
+            // letting a fast source finish and suspend the restore loop before recovery completes
+            // -- tripping "Mailbox loop interrupted before recovery was finished" in
+            // restoreInternal. There is nothing to checkpoint during recovery here either, so the
+            // trigger goes straight to NO_OP.
+            recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
+            return FutureUtils.completedVoidFuture();
+        }
         return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NOT_READY)
                 .thenApplyAsync(ign -> fetchChannelState(reader, inputGates), channelIOExecutor)
-                .thenCompose(
-                        state ->
-                                requestPartitions(inputGates, state.isPresent())
-                                        .thenApply(channels -> buildDrainer(state, channels)))
+                .thenCompose(state -> recoverChannels(inputGates, state));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType") // intentional: simplify call-site
+    private CompletableFuture<Void> recoverChannels(
+            IndexedInputGate[] inputGates, Optional<FetchedChannelState> state) {
+        if (!state.isPresent()) {
+            // No recovered channel state (e.g. initial deployment, savepoint or aligned-checkpoint
+            // restore): there is nothing to interleave checkpoints with during recovery. Defer
+            // requesting partitions -- i.e. enabling input -- until AFTER recovery completes,
+            // mirroring the checkpointing-disabled path. The recovery-completion suspend() in
+            // restoreStateAndGates is an urgent poison mail, so it runs before the (non-urgent)
+            // requestPartitions mail enqueued here and ends the restore loop first; partitions are
+            // then requested in the main mailbox loop. Otherwise the restore loop would process
+            // real input and could reach END_OF_INPUT -- e.g. a bounded/batch operator whose input
+            // is already fully available -- before recovery completes, exiting the loop early and
+            // tripping "Mailbox loop interrupted before recovery was finished" in restoreInternal.
+            return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP)
+                    .thenRun(() -> requestPartitions(inputGates, false));
+        }
+        return requestPartitions(inputGates, true)
+                .thenApply(channels -> buildDrainer(state, channels))
                 .thenCompose(this::drainThroughCheckpointTrigger)
                 .thenRun(() -> setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP));
     }
