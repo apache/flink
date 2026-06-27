@@ -908,6 +908,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private CompletableFuture<Void> recoverChannelsWithCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        if (inputGates.length == 0) {
+            // No input channels to recover (e.g. a source task). Complete synchronously, exactly
+            // like recoverChannelsWithoutCheckpointing, so that the recovery-completion suspend()
+            // in restoreStateAndGates is enqueued before the restore mailbox loop runs the default
+            // action. The asynchronous chain below relies on mailbox mails that only run while the
+            // restore loop is pumping; with no channel work to do it would merely defer completion,
+            // letting a fast source finish and suspend the restore loop before recovery completes
+            // -- tripping "Mailbox loop interrupted before recovery was finished" in
+            // restoreInternal. There is nothing to checkpoint during recovery here either, so the
+            // trigger goes straight to NO_OP.
+            recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
+            return FutureUtils.completedVoidFuture();
+        }
         return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NOT_READY)
                 .thenApplyAsync(ign -> fetchChannelState(reader, inputGates), channelIOExecutor)
                 .thenCompose(
