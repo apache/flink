@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,6 +40,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -230,5 +233,71 @@ public class DefaultDelegationTokenManagerTest {
 
         Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
         assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
+    }
+
+    @Test
+    public void calculateRetryDelayShouldDoubleOnConsecutiveFailures() {
+        long initialMs = Duration.ofSeconds(10).toMillis();
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(10));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF, Duration.ofMinutes(5));
+        DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(configuration, null, null, null);
+
+        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        long delay1 = manager.calculateRetryDelay(clock);
+        long delay2 = manager.calculateRetryDelay(clock);
+        long delay3 = manager.calculateRetryDelay(clock);
+
+        // Each delay should be within [0, 2 * initial * 2^(n-1)] accounting for ±50% jitter.
+        assertTrue(delay1 >= 0 && delay1 <= initialMs * 2);
+        assertTrue(delay2 >= 0 && delay2 <= initialMs * 4);
+        assertTrue(delay3 >= 0 && delay3 <= initialMs * 8);
+        // The base must have doubled: currentRetryBackoff after 3 calls is min(80s, 5min) = 80s.
+        assertEquals(Duration.ofSeconds(80).toMillis(), manager.currentRetryBackoff);
+    }
+
+    @Test
+    public void calculateRetryDelayShouldResetAfterSuccess() {
+        long initialMs = Duration.ofSeconds(10).toMillis();
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(10));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF, Duration.ofMinutes(5));
+        DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(configuration, null, null, null);
+
+        // Ramp up the backoff via two failures.
+        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        manager.calculateRetryDelay(clock);
+        manager.calculateRetryDelay(clock);
+        // Simulate success: reset currentRetryBackoff (as startTokensUpdate() would).
+        manager.currentRetryBackoff = initialMs;
+
+        long delayAfterReset = manager.calculateRetryDelay(clock);
+        assertTrue(delayAfterReset >= 0 && delayAfterReset <= initialMs * 2);
+        assertEquals(initialMs * 2, manager.currentRetryBackoff);
+    }
+
+    @Test
+    public void calculateRetryDelayShouldCapToTtlBound() {
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(10));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF, Duration.ofMinutes(5));
+        DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(configuration, null, null, null);
+
+        // Simulate a failure close to token expiry (30 s remaining). The delay must be capped
+        // so that the retry happens while the token is still valid (at most 30 s / 3 = 10 s).
+        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        manager.lastKnownNextRenewal = Duration.ofSeconds(30).toMillis();
+
+        long delay = manager.calculateRetryDelay(clock);
+
+        // Delay must not exceed the TTL cap (30 s / 3 = 10 s), with jitter the max is 10 s.
+        assertTrue(delay <= Duration.ofSeconds(10).toMillis());
+        assertTrue(delay >= 0);
     }
 }
