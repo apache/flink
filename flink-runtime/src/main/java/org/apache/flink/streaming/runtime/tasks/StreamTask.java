@@ -923,10 +923,28 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
         return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NOT_READY)
                 .thenApplyAsync(ign -> fetchChannelState(reader, inputGates), channelIOExecutor)
-                .thenCompose(
-                        state ->
-                                requestPartitions(inputGates, state.isPresent())
-                                        .thenApply(channels -> buildDrainer(state, channels)))
+                .thenCompose(state -> recoverChannels(inputGates, state));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType") // intentional: simplify call-site
+    private CompletableFuture<Void> recoverChannels(
+            IndexedInputGate[] inputGates, Optional<FetchedChannelState> state) {
+        if (!state.isPresent()) {
+            // No recovered channel state (e.g. initial deployment, savepoint or aligned-checkpoint
+            // restore): there is nothing to interleave checkpoints with during recovery. Defer
+            // requesting partitions -- i.e. enabling input -- until AFTER recovery completes,
+            // mirroring the checkpointing-disabled path. The recovery-completion suspend() in
+            // restoreStateAndGates is an urgent poison mail, so it runs before the (non-urgent)
+            // requestPartitions mail enqueued here and ends the restore loop first; partitions are
+            // then requested in the main mailbox loop. Otherwise the restore loop would process
+            // real input and could reach END_OF_INPUT -- e.g. a bounded/batch operator whose input
+            // is already fully available -- before recovery completes, exiting the loop early and
+            // tripping "Mailbox loop interrupted before recovery was finished" in restoreInternal.
+            return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP)
+                    .thenRun(() -> requestPartitions(inputGates, false));
+        }
+        return requestPartitions(inputGates, true)
+                .thenApply(channels -> buildDrainer(state, channels))
                 .thenCompose(this::drainThroughCheckpointTrigger)
                 .thenRun(() -> setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP));
     }
