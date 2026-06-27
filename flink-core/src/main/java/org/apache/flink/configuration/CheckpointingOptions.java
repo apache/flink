@@ -674,7 +674,7 @@ public class CheckpointingOptions {
     public static final ConfigOption<Boolean> CHECKPOINTING_DURING_RECOVERY_ENABLED =
             ConfigOptions.key("execution.checkpointing.during-recovery.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             Description.builder()
                                     .text(
