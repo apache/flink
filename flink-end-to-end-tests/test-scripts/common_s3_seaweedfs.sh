@@ -48,10 +48,10 @@ function s3_start {
     -P \
     -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
     chrislusf/seaweedfs:4.34 \
-    server \
-    -s3 \
+    mini \
     -s3.port=8333 \
-    -dir=/data)
+    -dir=/data \
+    -bucket="$IT_CASE_S3_BUCKET")
   while [[ "$(docker inspect -f {{.State.Running}} "$SEAWEEDFS_CONTAINER_ID")" -ne "true" ]]; do
     sleep 0.1
   done
@@ -59,7 +59,8 @@ function s3_start {
   echo "Started seaweedfs @ $S3_ENDPOINT"
   on_exit s3_stop
 
-  while [[ "$(curl -s -o /dev/null -w '%{http_code}' "$S3_ENDPOINT/healthz")" != "200" ]]; do
+  # mini pre-creates the bucket and reports readiness only once all components are up.
+  while ! docker logs "$SEAWEEDFS_CONTAINER_ID" 2>&1 | grep -q "All enabled components are running and ready to use"; do
     sleep 0.1
   done
   echo "Seaweedfs S3 gateway is up @ $S3_ENDPOINT"
@@ -123,7 +124,4 @@ function s3_setup_with_provider {
 
 source "$(dirname "$0")"/common_s3_operations.sh
 
-# SeaweedFS does not expose on-disk directories as S3 buckets,
-# so the bucket must be created explicitly
-aws_cli s3 mb "s3://$IT_CASE_S3_BUCKET"
 aws_cli s3 cp "/hostdir/test-data/words" "$S3_TEST_DATA_WORDS_URI"
