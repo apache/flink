@@ -18,7 +18,6 @@
 ################################################################################
 
 OUT_TYPE="${1:-local}" # other type: s3
-SINK_TO_TEST="${2:-"StreamingFileSink"}"
 
 source "$(dirname "$0")"/common.sh
 
@@ -153,8 +152,7 @@ function run_file_sink_test {
   "${FLINK_DIR}/bin/taskmanager.sh" start
 
   echo "Submitting job."
-  CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}" \
-    --sinkToTest "${SINK_TO_TEST}")
+  CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}")
   JOB_ID=$(echo "${CLIENT_OUTPUT}" | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
   if [[ -z $JOB_ID ]]; then
@@ -194,7 +192,7 @@ function run_file_sink_test {
 
   get_complete_result > "${TEST_DATA_DIR}/complete_result"
 
-  check_result_hash "File Streaming Sink" "$TEST_DATA_DIR/complete_result" "6727342fdd3aae2129e61fc8f433fb6f"
+  check_result_hash "File Sink" "$TEST_DATA_DIR/complete_result" "6727342fdd3aae2129e61fc8f433fb6f"
 }
 
 # usual runtime is ~6 minutes
