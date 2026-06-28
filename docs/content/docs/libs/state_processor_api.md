@@ -229,11 +229,11 @@ Along with reading registered state values, each key has access to a `Context` w
 ##### Filtering Keys
 
 When you are only interested in state for a subset of keys, you can push a `SavepointKeyFilter` into the read instead of reading the whole keyed state and filtering afterward.
-Depending on `SavepointKeyFilter` type, one of these optimizations will apply: 
 
-**Split pruning**  — for `SavepointKeyFilter.exact(...)` filter, Flink computes exactly which key groups own the requested keys and skips all other input splits entirely, never opening them.
+Keyed state is laid out as follows (see [Mapping Application State to DataSets]({{< ref "#mapping-application-state-to-datasets" >}})): every key is hashed into one of the operator's *key groups*, and key groups are bundled into *input splits*. A filter can prune work at two levels:
 
-**Key-level filtering** — for all supported predicates, within each opened split only matching keys are iterated rather than every key in the split.
+* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink hashes those keys up front to find the few key groups that own them, and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys: hashing does not preserve order, so a range filter cannot know in advance which key groups its keys fall into.
+* **Key-level filtering** — within each *opened* split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
 
 ```java
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
