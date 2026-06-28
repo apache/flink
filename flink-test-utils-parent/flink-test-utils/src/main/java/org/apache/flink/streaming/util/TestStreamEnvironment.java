@@ -146,10 +146,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         // randomize ITTests for enabling unaligned checkpoint
         if (RANDOMIZE_CHECKPOINTING_CONFIG) {
             randomize(conf, CheckpointingOptions.ENABLE_UNALIGNED, true, false);
-            randomize(
-                    conf, CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
-            randomize(
-                    conf, CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+            randomize(conf, CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
+            randomize(conf, CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
             randomize(
                     conf,
                     CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
