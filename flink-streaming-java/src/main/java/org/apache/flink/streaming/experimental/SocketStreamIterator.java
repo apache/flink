@@ -114,13 +114,13 @@ public class SocketStreamIterator<T> implements Iterator<T> {
         if (connectedSocket != null) {
             try {
                 connectedSocket.close();
-            } catch (Throwable ignored) {
+            } catch (IOException ignored) {
             }
         }
 
         try {
             socket.close();
-        } catch (Throwable ignored) {
+        } catch (IOException ignored) {
         }
     }
 
@@ -211,12 +211,12 @@ public class SocketStreamIterator<T> implements Iterator<T> {
             if (connectedSocket != null) {
                 try {
                     connectedSocket.close();
-                } catch (Throwable ignored) {
+                } catch (IOException ignored) {
                 }
             }
             try {
                 socket.close();
-            } catch (Throwable ignored) {
+            } catch (IOException ignored) {
             }
         }
     }
