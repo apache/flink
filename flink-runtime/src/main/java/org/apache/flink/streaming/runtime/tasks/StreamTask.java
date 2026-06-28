@@ -309,6 +309,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
     private final ExecutorService channelIOExecutor;
 
+    /**
+     * Completes when channel recovery has finished; set by {@link #restoreStateAndGates}. Used to
+     * defer the lifecycle finish of a task that reaches {@code END_OF_INPUT} during recovery (e.g.
+     * a bounded operator whose input is already fully available) so that it does not suspend the
+     * restore mailbox loop before recovery completes. Accessed only on the mailbox/task thread.
+     */
+    @Nullable private CompletableFuture<Void> recoveryCompletionFuture;
+
     // ========================================================
     //  Final  checkpoint / savepoint
     // ========================================================
@@ -677,6 +685,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 notifyEndOfData();
                 return;
             case END_OF_INPUT:
+                if (recoveryCompletionFuture != null && !recoveryCompletionFuture.isDone()) {
+                    // The task consumed all of its input during recovery (e.g. a bounded operator
+                    // whose input is already fully available, as with a blocking batch exchange).
+                    // Do NOT suspend the mailbox processor yet: recovery is still in progress and
+                    // relies on this restore loop to run its remaining mails. Suspending here would
+                    // end the restore loop early and trip "Mailbox loop interrupted before recovery
+                    // was finished" in restoreInternal. Instead suspend only the default action (to
+                    // avoid busy-spinning on repeated END_OF_INPUT) and resume it once recovery
+                    // completes; processInput then re-fires END_OF_INPUT from the main mailbox loop
+                    // and finishes through the normal path below.
+                    MailboxDefaultAction.Suspension suspension = controller.suspendDefaultAction();
+                    recoveryCompletionFuture.whenComplete(
+                            (ign, t) ->
+                                    mainMailboxExecutor.execute(
+                                            suspension::resume,
+                                            "resume default action after recovery"));
+                    return;
+                }
                 // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
                 // after all records processed by the downstream tasks. We also suspend the default
                 // actions to avoid repeat executing the empty default operation (namely process
@@ -892,7 +918,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
 
-        CompletableFuture<Void> recoveryCompletionFuture =
+        recoveryCompletionFuture =
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration())
                         ? recoverChannelsWithCheckpointing(reader, inputGates)
                         : recoverChannelsWithoutCheckpointing(reader, inputGates);
