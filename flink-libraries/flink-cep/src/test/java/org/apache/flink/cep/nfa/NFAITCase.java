@@ -32,14 +32,12 @@ import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.cep.utils.TestTimerService;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Duration;
@@ -56,9 +54,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 
 /**
@@ -66,24 +62,24 @@ import static org.mockito.ArgumentMatchers.anyLong;
  * NotPatternITCase}, {@link SameElementITCase} for more specific tests.
  */
 @SuppressWarnings("unchecked")
-public class NFAITCase extends TestLogger {
+class NFAITCase {
 
     private SharedBuffer<Event> sharedBuffer;
     private SharedBufferAccessor<Event> sharedBufferAccessor;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
         sharedBufferAccessor = sharedBuffer.getAccessor();
     }
 
-    @After
-    public void clear() throws Exception {
+    @AfterEach
+    void clear() throws Exception {
         sharedBufferAccessor.close();
     }
 
     @Test
-    public void testNoConditionNFA() throws Exception {
+    void testNoConditionNFA() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a = new Event(40, "a", 1.0);
@@ -114,7 +110,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testNoConditionLoopingNFA() throws Exception {
+    void testNoConditionLoopingNFA() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a = new Event(40, "a", 1.0);
@@ -151,7 +147,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testAnyWithNoConditionNFA() throws Exception {
+    void testAnyWithNoConditionNFA() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a = new Event(40, "a", 1.0);
@@ -188,7 +184,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testSimplePatternNFA() throws Exception {
+    void testSimplePatternNFA() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(41, "start", 1.0);
@@ -222,7 +218,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictContinuityWithResults() throws Exception {
+    void testStrictContinuityWithResults() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event middleEvent1 = new Event(41, "a", 2.0);
@@ -247,7 +243,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictContinuityNoResults() throws Exception {
+    void testStrictContinuityNoResults() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event middleEvent1 = new Event(41, "a", 2.0);
@@ -276,7 +272,7 @@ public class NFAITCase extends TestLogger {
      * length between the first and last event.
      */
     @Test
-    public void testSimplePatternWithTimeWindowNFAWithinFirstAndLast() throws Exception {
+    void testSimplePatternWithTimeWindowNFAWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
 
         final Event startEvent;
@@ -314,7 +310,7 @@ public class NFAITCase extends TestLogger {
      * length between the previous and current event.
      */
     @Test
-    public void testSimplePatternWithTimeWindowNFAWithinPreviousAndCurrent() throws Exception {
+    void testSimplePatternWithTimeWindowNFAWithinPreviousAndCurrent() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
 
         final Event startEvent1;
@@ -354,7 +350,7 @@ public class NFAITCase extends TestLogger {
      * out within the first and last event.
      */
     @Test
-    public void testSimplePatternWithTimeoutHandlingWithinFirstAndLast() throws Exception {
+    void testSimplePatternWithTimeoutHandlingWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
         List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
         Set<Tuple2<Map<String, List<Event>>, Long>> resultingTimeoutPatterns = new HashSet<>();
@@ -421,10 +417,10 @@ public class NFAITCase extends TestLogger {
             resultingTimeoutPatterns.addAll(timeoutPatterns);
         }
 
-        assertEquals(1, resultingPatterns.size());
-        assertEquals(expectedTimeoutPatterns.size(), resultingTimeoutPatterns.size());
+        assertThat(resultingPatterns).hasSize(1);
+        assertThat(resultingTimeoutPatterns).hasSize(expectedTimeoutPatterns.size());
 
-        assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
+        assertThat(resultingTimeoutPatterns).isEqualTo(expectedTimeoutPatterns);
     }
 
     /**
@@ -432,7 +428,7 @@ public class NFAITCase extends TestLogger {
      * out within the previous and current event.
      */
     @Test
-    public void testSimplePatternWithTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
+    void testSimplePatternWithTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
         List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
         Set<Tuple2<Map<String, List<Event>>, Long>> resultingTimeoutPatterns = new HashSet<>();
@@ -491,19 +487,19 @@ public class NFAITCase extends TestLogger {
             resultingTimeoutPatterns.addAll(timeoutPatterns);
         }
 
-        assertEquals(2, resultingPatterns.size());
-        assertEquals(expectedTimeoutPatterns.size(), resultingTimeoutPatterns.size());
+        assertThat(resultingPatterns).hasSize(2);
+        assertThat(resultingTimeoutPatterns).hasSize(expectedTimeoutPatterns.size());
 
-        assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
+        assertThat(resultingTimeoutPatterns).isEqualTo(expectedTimeoutPatterns);
     }
 
     @Test
-    public void testPendingStateMatchesWithinFirstAndLast() throws Exception {
+    void testPendingStateMatchesWithinFirstAndLast() throws Exception {
         testPendingStateMatches(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testPendingStateMatchesWithinPreviousAndCurrent() throws Exception {
+    void testPendingStateMatchesWithinPreviousAndCurrent() throws Exception {
         testPendingStateMatches(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -556,13 +552,13 @@ public class NFAITCase extends TestLogger {
                     new TestTimerService());
         }
 
-        assertEquals(2, resultingPendingMatches.size());
-        assertEquals(expectedPendingMatches.size(), resultingPendingMatches.size());
-        assertEquals(expectedPendingMatches, resultingPendingMatches);
+        assertThat(resultingPendingMatches).hasSize(2);
+        assertThat(resultingPendingMatches).hasSize(expectedPendingMatches.size());
+        assertThat(resultingPendingMatches).isEqualTo(expectedPendingMatches);
     }
 
     @Test
-    public void testBranchingPattern() throws Exception {
+    void testBranchingPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "start", 1.0);
@@ -609,7 +605,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testComplexBranchingAfterZeroOrMore() throws Exception {
+    void testComplexBranchingAfterZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -691,7 +687,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testZeroOrMore() throws Exception {
+    void testZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -729,7 +725,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testEagerZeroOrMore() throws Exception {
+    void testEagerZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -770,7 +766,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testBeginWithZeroOrMore() throws Exception {
+    void testBeginWithZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event middleEvent1 = new Event(40, "a", 2.0);
@@ -808,7 +804,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testZeroOrMoreAfterZeroOrMore() throws Exception {
+    void testZeroOrMoreAfterZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -856,7 +852,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testZeroOrMoreAfterBranching() throws Exception {
+    void testZeroOrMoreAfterBranching() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -910,7 +906,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictContinuityNoResultsAfterZeroOrMore() throws Exception {
+    void testStrictContinuityNoResultsAfterZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event start = new Event(40, "d", 2.0);
@@ -943,7 +939,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictContinuityResultsAfterZeroOrMore() throws Exception {
+    void testStrictContinuityResultsAfterZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event start = new Event(40, "d", 2.0);
@@ -979,7 +975,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testAtLeastOne() throws Exception {
+    void testAtLeastOne() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1015,7 +1011,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testBeginWithAtLeastOne() throws Exception {
+    void testBeginWithAtLeastOne() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent1 = new Event(41, "a", 2.0);
@@ -1053,7 +1049,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testNextZeroOrMore() throws Exception {
+    void testNextZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "start", 1.0);
@@ -1090,7 +1086,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testAtLeastOneEager() throws Exception {
+    void testAtLeastOneEager() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1131,7 +1127,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testOptional() throws Exception {
+    void testOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1163,7 +1159,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimes() throws Exception {
+    void testTimes() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1200,7 +1196,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStartWithTimes() throws Exception {
+    void testStartWithTimes() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event middleEvent1 = new Event(41, "a", 2.0);
@@ -1233,7 +1229,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNonStrictWithNext() throws Exception {
+    void testTimesNonStrictWithNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1274,7 +1270,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNotStrictWithFollowedByEager() throws Exception {
+    void testTimesNotStrictWithFollowedByEager() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1307,7 +1303,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNotStrictWithFollowedByNotEager() throws Exception {
+    void testTimesNotStrictWithFollowedByNotEager() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1351,7 +1347,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesStrictWithNextAndConsecutive() throws Exception {
+    void testTimesStrictWithNextAndConsecutive() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1379,7 +1375,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStartWithOptional() throws Exception {
+    void testStartWithOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1406,7 +1402,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithZeroOrMore() throws Exception {
+    void testEndWithZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1441,7 +1437,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStartAndEndWithZeroOrMore() throws Exception {
+    void testStartAndEndWithZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1482,7 +1478,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithOptional() throws Exception {
+    void testEndWithOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1510,7 +1506,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWithOneOrMore() throws Exception {
+    void testEndWithOneOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -1546,7 +1542,7 @@ public class NFAITCase extends TestLogger {
     // ////////////////////////////////////////
 
     @Test
-    public void testTimesNonStrictOptional1() throws Exception {
+    void testTimesNonStrictOptional1() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1574,7 +1570,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNonStrictOptional2() throws Exception {
+    void testTimesNonStrictOptional2() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1622,7 +1618,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNonStrictOptional3() throws Exception {
+    void testTimesNonStrictOptional3() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1664,7 +1660,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesStrictOptional() throws Exception {
+    void testTimesStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1702,7 +1698,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testOneOrMoreStrictOptional() throws Exception {
+    void testOneOrMoreStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1752,7 +1748,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesStrictOptional1() throws Exception {
+    void testTimesStrictOptional1() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1788,7 +1784,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testOptionalTimesNonStrictWithNext() throws Exception {
+    void testOptionalTimesNonStrictWithNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -1845,7 +1841,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictOneOrMore() throws Exception {
+    void testStrictOneOrMore() throws Exception {
         List<List<Event>> resultingPatterns = testOneOrMore(Quantifier.ConsumingStrategy.STRICT);
 
         comparePatterns(
@@ -1869,7 +1865,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testSkipTillNextOneOrMore() throws Exception {
+    void testSkipTillNextOneOrMore() throws Exception {
         List<List<Event>> resultingPatterns =
                 testOneOrMore(Quantifier.ConsumingStrategy.SKIP_TILL_NEXT);
 
@@ -1901,7 +1897,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testSkipTillAnyOneOrMore() throws Exception {
+    void testSkipTillAnyOneOrMore() throws Exception {
         List<List<Event>> resultingPatterns =
                 testOneOrMore(Quantifier.ConsumingStrategy.SKIP_TILL_ANY);
 
@@ -1995,7 +1991,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStrictEagerZeroOrMore() throws Exception {
+    void testStrictEagerZeroOrMore() throws Exception {
         List<List<Event>> resultingPatterns = testZeroOrMore(Quantifier.ConsumingStrategy.STRICT);
 
         comparePatterns(
@@ -2020,7 +2016,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testSkipTillAnyZeroOrMore() throws Exception {
+    void testSkipTillAnyZeroOrMore() throws Exception {
         List<List<Event>> resultingPatterns =
                 testZeroOrMore(Quantifier.ConsumingStrategy.SKIP_TILL_ANY);
 
@@ -2075,7 +2071,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testSkipTillNextZeroOrMore() throws Exception {
+    void testSkipTillNextZeroOrMore() throws Exception {
         List<List<Event>> resultingPatterns =
                 testZeroOrMore(Quantifier.ConsumingStrategy.SKIP_TILL_NEXT);
 
@@ -2149,7 +2145,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesStrict() throws Exception {
+    void testTimesStrict() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -2185,7 +2181,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesNonStrict() throws Exception {
+    void testTimesNonStrict() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -2231,7 +2227,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStartWithZeroOrMoreStrict() throws Exception {
+    void testStartWithZeroOrMoreStrict() throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .where(SimpleCondition.of(value -> value.getName().equals("a")))
@@ -2243,7 +2239,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testStartWithOneOrMoreStrict() throws Exception {
+    void testStartWithOneOrMoreStrict() throws Exception {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
@@ -2281,12 +2277,12 @@ public class NFAITCase extends TestLogger {
     // ////////////////////////////////////////
 
     @Test
-    public void testTimesClearingBufferWithinFirstAndLast() throws Exception {
+    void testTimesClearingBufferWithinFirstAndLast() throws Exception {
         testTimesClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testTimesClearingBufferWithinPreviousAndCurrent() throws Exception {
+    void testTimesClearingBufferWithinPreviousAndCurrent() throws Exception {
         testTimesClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -2322,17 +2318,17 @@ public class NFAITCase extends TestLogger {
         // pruning element
         nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("start");
     }
 
     @Test
-    public void testOptionalClearingBufferWithinFirstAndLast() throws Exception {
+    void testOptionalClearingBufferWithinFirstAndLast() throws Exception {
         testOptionalClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testOptionalClearingBufferWithinPreviousAndCurrent() throws Exception {
+    void testOptionalClearingBufferWithinPreviousAndCurrent() throws Exception {
         testOptionalClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -2363,17 +2359,17 @@ public class NFAITCase extends TestLogger {
         // pruning element
         nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("start");
     }
 
     @Test
-    public void testAtLeastOneClearingBufferWithinFirstAndLast() throws Exception {
+    void testAtLeastOneClearingBufferWithinFirstAndLast() throws Exception {
         testAtLeastOneClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testAtLeastOneClearingBufferWithPreviousAndCurrent() throws Exception {
+    void testAtLeastOneClearingBufferWithPreviousAndCurrent() throws Exception {
         testAtLeastOneClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -2407,12 +2403,12 @@ public class NFAITCase extends TestLogger {
         // pruning element
         nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("start");
     }
 
     @Test
-    public void testZeroOrMoreClearingBufferWithinFirstAndLast() throws Exception {
+    void testZeroOrMoreClearingBufferWithinFirstAndLast() throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -2443,12 +2439,12 @@ public class NFAITCase extends TestLogger {
         // pruning element
         nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("start");
     }
 
     @Test
-    public void testZeroOrMoreClearingBufferWithinPreviousAndCurrent() throws Exception {
+    void testZeroOrMoreClearingBufferWithinPreviousAndCurrent() throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -2479,18 +2475,18 @@ public class NFAITCase extends TestLogger {
         // pruning element
         nfa.advanceTime(sharedBufferAccessor, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
-        assertEquals(3, nfaState.getPartialMatches().size());
-        assertEquals(
-                "middle:0middle:0start",
-                nfaState.getPartialMatches().stream()
-                        .map(c -> c.getCurrentStateName())
-                        .collect(Collectors.joining()));
+        assertThat(nfaState.getPartialMatches()).hasSize(3);
+        assertThat(
+                        nfaState.getPartialMatches().stream()
+                                .map(c -> c.getCurrentStateName())
+                                .collect(Collectors.joining()))
+                .isEqualTo("middle:0middle:0start");
     }
 
     ///////////////////////////////////////   Skip till next     /////////////////////////////
 
     @Test
-    public void testBranchingPatternSkipTillNext() throws Exception {
+    void testBranchingPatternSkipTillNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "start", 1.0);
@@ -2532,7 +2528,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testBranchingPatternMixedFollowedBy() throws Exception {
+    void testBranchingPatternMixedFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "start", 1.0);
@@ -2576,7 +2572,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testMultipleTakesVersionCollision() throws Exception {
+    void testMultipleTakesVersionCollision() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -2727,7 +2723,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testNFAResultOrdering() throws Exception {
+    void testNFAResultOrdering() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent1 = new Event(41, "a-1", 2.0);
@@ -2760,20 +2756,17 @@ public class NFAITCase extends TestLogger {
         Collection<Map<String, List<Event>>> resultingPatterns =
                 nfaTestHarness.consumeRecords(inputEvents);
 
-        Assert.assertEquals(1L, resultingPatterns.size());
+        assertThat(resultingPatterns).hasSize(1);
 
         Map<String, List<Event>> match = resultingPatterns.iterator().next();
-        Assert.assertArrayEquals(
-                match.get("start").toArray(),
-                Lists.newArrayList(startEvent1, startEvent2, startEvent3, startEvent4).toArray());
+        assertThat(match.get("start"))
+                .containsExactly(startEvent1, startEvent2, startEvent3, startEvent4);
 
-        Assert.assertArrayEquals(
-                match.get("middle").toArray(),
-                Lists.newArrayList(endEvent1, endEvent2, endEvent3).toArray());
+        assertThat(match.get("middle")).containsExactly(endEvent1, endEvent2, endEvent3);
     }
 
     @Test
-    public void testNFAResultKeyOrdering() throws Exception {
+    void testNFAResultKeyOrdering() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(41, "a", 2.0);
@@ -2804,7 +2797,7 @@ public class NFAITCase extends TestLogger {
         Collection<Map<String, List<Event>>> resultingPatterns =
                 nfaTestHarness.consumeRecords(inputEvents);
 
-        Assert.assertEquals(1L, resultingPatterns.size());
+        assertThat(resultingPatterns).hasSize(1);
 
         Map<String, List<Event>> match = resultingPatterns.iterator().next();
 
@@ -2814,11 +2807,11 @@ public class NFAITCase extends TestLogger {
             resultOrder.add(key);
         }
 
-        Assert.assertEquals(expectedOrder, resultOrder);
+        assertThat(resultOrder).isEqualTo(expectedOrder);
     }
 
     @Test
-    public void testSharedBufferClearing() throws Exception {
+    void testSharedBufferClearing() throws Exception {
         Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("end");
 
         Event a = new Event(40, "a", 1.0);
@@ -2849,12 +2842,12 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testLoopClearingWithinFirstAndLast() throws Exception {
+    void testLoopClearingWithinFirstAndLast() throws Exception {
         testLoopClearing(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testLoopClearingWithinPreviousAndCurrent() throws Exception {
+    void testLoopClearingWithinPreviousAndCurrent() throws Exception {
         testLoopClearing(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -2877,8 +2870,7 @@ public class NFAITCase extends TestLogger {
             nfa.advanceTime(accessor, nfaState, 4, AfterMatchSkipStrategy.noSkip());
         }
 
-        assertThat(
-                sharedBuffer.getEventsBufferSize(),
-                equalTo(withinType.equals(WithinType.FIRST_AND_LAST) ? 1 : 2));
+        assertThat(sharedBuffer.getEventsBufferSize())
+                .isEqualTo(withinType.equals(WithinType.FIRST_AND_LAST) ? 1 : 2);
     }
 }

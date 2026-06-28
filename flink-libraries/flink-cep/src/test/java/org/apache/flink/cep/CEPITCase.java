@@ -43,14 +43,16 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -60,16 +62,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests of both CEP operators and {@link NFA}. */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class CEPITCase extends AbstractTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+class CEPITCase extends AbstractTestBase {
 
-    @Parameterized.Parameter public Configuration envConfiguration;
+    @Parameter public Configuration envConfiguration;
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Configuration> prepareSharedBufferCacheConfig() {
         Configuration miniCacheConfig = new Configuration();
         miniCacheConfig.set(CEPCacheOptions.CEP_CACHE_STATISTICS_INTERVAL, Duration.ofSeconds(1));
@@ -87,8 +89,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
      *
      * @throws Exception
      */
-    @Test
-    public void testSimplePatternCEP() throws Exception {
+    @TestTemplate
+    void testSimplePatternCEP() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -134,11 +136,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
-        assertEquals(Arrays.asList("2,6,8"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("2,6,8"));
     }
 
-    @Test
-    public void testSimpleKeyedPatternCEP() throws Exception {
+    @TestTemplate
+    void testSimpleKeyedPatternCEP() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
@@ -200,11 +202,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("2,2,2", "3,3,3", "42,42,42"));
     }
 
-    @Test
-    public void testSimplePatternEventTime() throws Exception {
+    @TestTemplate
+    void testSimplePatternEventTime() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -277,11 +279,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(Arrays.asList("1,5,4"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("1,5,4"));
     }
 
-    @Test
-    public void testSimpleKeyedPatternEventTime() throws Exception {
+    @TestTemplate
+    void testSimpleKeyedPatternEventTime() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
@@ -367,11 +369,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(Arrays.asList("1,1,1", "2,2,2"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("1,1,1", "2,2,2"));
     }
 
-    @Test
-    public void testSimplePatternWithSingleState() throws Exception {
+    @TestTemplate
+    void testSimplePatternWithSingleState() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -401,16 +403,16 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
-        assertEquals(Arrays.asList(new Tuple2<>(0, 1)), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList(new Tuple2<>(0, 1)));
     }
 
-    @Test
-    public void testProcessingTimeWithinBetweenFirstAndLast() throws Exception {
+    @TestTemplate
+    void testProcessingTimeWithinBetweenFirstAndLast() throws Exception {
         testProcessingTimeWithWindow(WithinType.FIRST_AND_LAST);
     }
 
-    @Test
-    public void testProcessingTimeWithinPreviousAndCurrent() throws Exception {
+    @TestTemplate
+    void testProcessingTimeWithinPreviousAndCurrent() throws Exception {
         testProcessingTimeWithWindow(WithinType.PREVIOUS_AND_CURRENT);
     }
 
@@ -443,11 +445,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
-        assertEquals(Arrays.asList(3), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList(3));
     }
 
-    @Test
-    public void testTimeoutHandlingWithinFirstAndLast() throws Exception {
+    @TestTemplate
+    void testTimeoutHandlingWithinFirstAndLast() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
@@ -536,12 +538,12 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         List<String> timeoutExpected = Arrays.asList("1.0", "2.0", "2.0");
         List<String> resultExpected = Arrays.asList("2.0,2.0,2.0");
 
-        assertEquals(timeoutExpected, timeoutList);
-        assertEquals(resultExpected, resultList);
+        assertThat(timeoutList).isEqualTo(timeoutExpected);
+        assertThat(resultList).isEqualTo(resultExpected);
     }
 
-    @Test
-    public void testTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
+    @TestTemplate
+    void testTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
@@ -631,8 +633,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         List<String> timeoutExpected = Arrays.asList("1.0", "2.0");
         List<String> resultExpected = Arrays.asList("1.0,2.0,2.0", "2.0,2.0,2.0");
 
-        assertEquals(timeoutExpected, timeoutList);
-        assertEquals(resultExpected, resultList);
+        assertThat(timeoutList).isEqualTo(timeoutExpected);
+        assertThat(resultList).isEqualTo(resultExpected);
     }
 
     /**
@@ -640,8 +642,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
      *
      * @throws Exception
      */
-    @Test
-    public void testSimpleOrFilterPatternCEP() throws Exception {
+    @TestTemplate
+    void testSimpleOrFilterPatternCEP() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -693,7 +695,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(expected, resultList);
+        assertThat(resultList).isEqualTo(expected);
     }
 
     /**
@@ -701,8 +703,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
      *
      * @throws Exception
      */
-    @Test
-    public void testSimplePatternEventTimeWithComparator() throws Exception {
+    @TestTemplate
+    void testSimplePatternEventTimeWithComparator() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -782,7 +784,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(expected, resultList);
+        assertThat(resultList).isEqualTo(expected);
     }
 
     private static class CustomEventComparator implements EventComparator<Event> {
@@ -792,8 +794,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         }
     }
 
-    @Test
-    public void testSimpleAfterMatchSkip() throws Exception {
+    @TestTemplate
+    void testSimpleAfterMatchSkip() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -834,11 +836,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         List<Tuple2<Integer, String>> expected =
                 Arrays.asList(Tuple2.of(1, "a"), Tuple2.of(3, "a"));
 
-        assertEquals(expected, resultList);
+        assertThat(resultList).isEqualTo(expected);
     }
 
-    @Test
-    public void testRichPatternFlatSelectFunction() throws Exception {
+    @TestTemplate
+    void testRichPatternFlatSelectFunction() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -916,11 +918,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
-        assertEquals(Arrays.asList("2,6,8"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("2,6,8"));
     }
 
-    @Test
-    public void testRichPatternSelectFunction() throws Exception {
+    @TestTemplate
+    void testRichPatternSelectFunction() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
@@ -1012,11 +1014,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         resultList.sort(String::compareTo);
 
-        assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("2,2,2", "3,3,3", "42,42,42"));
     }
 
-    @Test
-    public void testFlatSelectSerializationWithAnonymousClass() throws Exception {
+    @TestTemplate
+    void testFlatSelectSerializationWithAnonymousClass() throws Exception {
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
@@ -1045,8 +1047,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         env.execute();
     }
 
-    @Test
-    public void testPartialMatchTimeoutOutputCompletedMatch() throws Exception {
+    @TestTemplate
+    void testPartialMatchTimeoutOutputCompletedMatch() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
@@ -1108,6 +1110,6 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
             iterator.forEachRemaining(resultList::add);
         }
         resultList.sort(String::compareTo);
-        assertEquals(Arrays.asList("3,5"), resultList);
+        assertThat(resultList).isEqualTo(Arrays.asList("3,5"));
     }
 }

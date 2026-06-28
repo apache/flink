@@ -22,11 +22,12 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.cep.utils.TestSharedBuffer;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -38,25 +39,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SharedBuffer}. */
-@RunWith(Parameterized.class)
-public class SharedBufferTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class SharedBufferTest {
 
-    @Parameterized.Parameter public SharedBufferCacheConfig cacheConfig;
+    @Parameter public SharedBufferCacheConfig cacheConfig;
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<SharedBufferCacheConfig> prepareSharedBufferCacheConfig() {
         return Arrays.asList(
                 new SharedBufferCacheConfig(1, 1, Duration.ofSeconds(1L)),
                 new SharedBufferCacheConfig(10240, 10240, Duration.ofSeconds(1L)));
     }
 
-    @Test
-    public void testSharedBuffer() throws Exception {
+    @TestTemplate
+    void testSharedBuffer() throws Exception {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 8;
@@ -145,25 +144,27 @@ public class SharedBufferTest extends TestLogger {
 
             List<Map<String, List<EventId>>> patterns3 =
                     sharedBufferAccessor.extractPatterns(b3, b3Version);
-            assertEquals(1L, patterns3.size());
-            assertEquals(expectedPattern3, sharedBufferAccessor.materializeMatch(patterns3.get(0)));
+            assertThat(patterns3).hasSize(1);
+            assertThat(sharedBufferAccessor.materializeMatch(patterns3.get(0)))
+                    .isEqualTo(expectedPattern3);
             sharedBufferAccessor.releaseNode(b3, b3Version);
 
             List<Map<String, List<EventId>>> patterns4 =
                     sharedBufferAccessor.extractPatterns(b3, b3Version);
-            assertEquals(0L, patterns4.size());
-            assertTrue(patterns4.isEmpty());
+            assertThat(patterns4).isEmpty();
 
             List<Map<String, List<EventId>>> patterns1 =
                     sharedBufferAccessor.extractPatterns(b1, b1Version);
-            assertEquals(1L, patterns1.size());
-            assertEquals(expectedPattern1, sharedBufferAccessor.materializeMatch(patterns1.get(0)));
+            assertThat(patterns1).hasSize(1);
+            assertThat(sharedBufferAccessor.materializeMatch(patterns1.get(0)))
+                    .isEqualTo(expectedPattern1);
             sharedBufferAccessor.releaseNode(b1, b1Version);
 
             List<Map<String, List<EventId>>> patterns2 =
                     sharedBufferAccessor.extractPatterns(b0, b0Version);
-            assertEquals(1L, patterns2.size());
-            assertEquals(expectedPattern2, sharedBufferAccessor.materializeMatch(patterns2.get(0)));
+            assertThat(patterns2).hasSize(1);
+            assertThat(sharedBufferAccessor.materializeMatch(patterns2.get(0)))
+                    .isEqualTo(expectedPattern2);
             sharedBufferAccessor.releaseNode(b0, b0Version);
 
             for (EventId eventId : eventIds) {
@@ -171,11 +172,11 @@ public class SharedBufferTest extends TestLogger {
             }
         }
 
-        assertTrue(sharedBuffer.isEmpty());
+        assertThat(sharedBuffer.isEmpty()).isTrue();
     }
 
-    @Test
-    public void testClearingSharedBufferWithMultipleEdgesBetweenEntries() throws Exception {
+    @TestTemplate
+    void testClearingSharedBufferWithMultipleEdgesBetweenEntries() throws Exception {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 8;
@@ -218,11 +219,11 @@ public class SharedBufferTest extends TestLogger {
         }
 
         // There should be still events[1] and events[2] in the buffer
-        assertFalse(sharedBuffer.isEmpty());
+        assertThat(sharedBuffer.isEmpty()).isFalse();
     }
 
-    @Test
-    public void testSharedBufferExtractOrder() throws Exception {
+    @TestTemplate
+    void testSharedBufferExtractOrder() throws Exception {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 5;
@@ -277,12 +278,12 @@ public class SharedBufferTest extends TestLogger {
                 sharedBufferAccessor.releaseEvent(eventId);
             }
             List<String> resultOrder = new ArrayList<>(patternsResult.keySet());
-            assertEquals(expectedOrder, resultOrder);
+            assertThat(resultOrder).isEqualTo(expectedOrder);
         }
     }
 
-    @Test
-    public void testSharedBufferCountersClearing() throws Exception {
+    @TestTemplate
+    void testSharedBufferCountersClearing() throws Exception {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 4;
@@ -297,13 +298,13 @@ public class SharedBufferTest extends TestLogger {
 
         Iterator<Map.Entry<Long, Integer>> counters = sharedBuffer.getEventCounters();
         Map.Entry<Long, Integer> entry = counters.next();
-        assertEquals(3, entry.getKey().longValue());
-        assertEquals(1, entry.getValue().intValue());
-        assertFalse(counters.hasNext());
+        assertThat(entry.getKey().longValue()).isEqualTo(3);
+        assertThat(entry.getValue().intValue()).isOne();
+        assertThat(counters).isExhausted();
     }
 
-    @Test
-    public void testSharedBufferAccessor() throws Exception {
+    @TestTemplate
+    void testSharedBufferAccessor() throws Exception {
         TestSharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
         int numberEvents = 8;
@@ -317,8 +318,8 @@ public class SharedBufferTest extends TestLogger {
                 eventIds[i] = sharedBufferAccessor.registerEvent(events[i], timestamp);
             }
             int expectedEvents = Math.min(cacheConfig.getEventsBufferCacheSlots(), numberEvents);
-            assertEquals(expectedEvents, sharedBuffer.getEventsBufferCacheSize());
-            assertEquals(0, sharedBuffer.getSharedBufferNodeCacheSize());
+            assertThat(sharedBuffer.getEventsBufferCacheSize()).isEqualTo(expectedEvents);
+            assertThat(sharedBuffer.getSharedBufferNodeCacheSize()).isZero();
 
             NodeId start =
                     sharedBufferAccessor.put(
@@ -336,9 +337,9 @@ public class SharedBufferTest extends TestLogger {
                     "branching", eventIds[4], b00, DeweyNumber.fromString("1.0.0.0"));
 
             int expectedEntries = Math.min(cacheConfig.getEntryCacheSlots(), 4);
-            assertEquals(expectedEntries, sharedBuffer.getSharedBufferNodeCacheSize());
+            assertThat(sharedBuffer.getSharedBufferNodeCacheSize()).isEqualTo(expectedEntries);
             System.out.println(expectedEntries);
-            assertEquals(4 - expectedEntries, sharedBuffer.getSharedBufferNodeSize());
+            assertThat(sharedBuffer.getSharedBufferNodeSize()).isEqualTo(4 - expectedEntries);
 
             sharedBufferAccessor.lockNode(b0, DeweyNumber.fromString("1.0.0"));
 
@@ -346,10 +347,10 @@ public class SharedBufferTest extends TestLogger {
                 sharedBufferAccessor.releaseEvent(eventId);
             }
         }
-        assertEquals(0, sharedBuffer.getEventsBufferCacheSize());
-        assertEquals(4, sharedBuffer.getEventsBufferSize());
-        assertEquals(0, sharedBuffer.getSharedBufferNodeCacheSize());
-        assertEquals(4, sharedBuffer.getSharedBufferNodeSize());
+        assertThat(sharedBuffer.getEventsBufferCacheSize()).isZero();
+        assertThat(sharedBuffer.getEventsBufferSize()).isEqualTo(4);
+        assertThat(sharedBuffer.getSharedBufferNodeCacheSize()).isZero();
+        assertThat(sharedBuffer.getSharedBufferNodeSize()).isEqualTo(4);
     }
 
     /**
@@ -358,8 +359,8 @@ public class SharedBufferTest extends TestLogger {
      *
      * @throws Exception if creating the shared buffer accessor fails.
      */
-    @Test
-    public void testReleaseNodesWithLongPath() throws Exception {
+    @TestTemplate
+    void testReleaseNodesWithLongPath() throws Exception {
         SharedBuffer<Event> sharedBuffer =
                 TestSharedBuffer.createTestBuffer(Event.createTypeSerializer(), cacheConfig);
 
@@ -392,6 +393,6 @@ public class SharedBufferTest extends TestLogger {
             }
         }
 
-        assertTrue(sharedBuffer.isEmpty());
+        assertThat(sharedBuffer.isEmpty()).isTrue();
     }
 }

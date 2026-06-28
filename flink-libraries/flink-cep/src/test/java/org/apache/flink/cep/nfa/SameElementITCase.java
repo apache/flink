@@ -24,12 +24,11 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,17 +36,17 @@ import java.util.List;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for handling Events that are equal in case of {@link Object#equals(Object)} and have same
  * timestamps.
  */
 @SuppressWarnings("unchecked")
-public class SameElementITCase extends TestLogger {
+class SameElementITCase {
 
     @Test
-    public void testEagerZeroOrMoreSameElement() throws Exception {
+    void testEagerZeroOrMoreSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -115,7 +114,7 @@ public class SameElementITCase extends TestLogger {
     }
 
     @Test
-    public void testClearingBuffer() throws Exception {
+    void testClearingBuffer() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -147,12 +146,12 @@ public class SameElementITCase extends TestLogger {
         comparePatterns(
                 resultingPatterns,
                 Lists.<List<Event>>newArrayList(Lists.newArrayList(a1, b1, c1, d)));
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("a");
     }
 
     @Test
-    public void testClearingBufferWithUntilAtTheEnd() throws Exception {
+    void testClearingBufferWithUntilAtTheEnd() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -196,12 +195,12 @@ public class SameElementITCase extends TestLogger {
                         Lists.newArrayList(a1, d1, d2, d3),
                         Lists.newArrayList(a1, d1, d2),
                         Lists.newArrayList(a1, d1)));
-        assertEquals(1, nfaState.getPartialMatches().size());
-        assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
+        assertThat(nfaState.getPartialMatches()).hasSize(1);
+        assertThat(nfaState.getPartialMatches().peek().getCurrentStateName()).isEqualTo("a");
     }
 
     @Test
-    public void testZeroOrMoreSameElement() throws Exception {
+    void testZeroOrMoreSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -321,7 +320,7 @@ public class SameElementITCase extends TestLogger {
     }
 
     @Test
-    public void testSimplePatternWSameElement() throws Exception {
+    void testSimplePatternWSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -353,7 +352,7 @@ public class SameElementITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeConditionWSameElement() throws Exception {
+    void testIterativeConditionWSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -407,7 +406,7 @@ public class SameElementITCase extends TestLogger {
     }
 
     @Test
-    public void testEndWLoopingWSameElement() throws Exception {
+    void testEndWLoopingWSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -448,7 +447,7 @@ public class SameElementITCase extends TestLogger {
     }
 
     @Test
-    public void testRepeatingPatternWSameElement() throws Exception {
+    void testRepeatingPatternWSameElement() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
