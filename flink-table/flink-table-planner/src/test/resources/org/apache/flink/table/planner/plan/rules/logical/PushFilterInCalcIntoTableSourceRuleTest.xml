@@ -252,6 +252,25 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MTable, f
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMixedPhysicalAndMetadataFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id FROM MixedPhysMetaTable WHERE id > 5 AND m0 > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[AND(>($0, 5), >($1, 10))])
+   +- LogicalProject(id=[$0], m0=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MixedPhysMetaTable, metadata=[m0]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[id])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MixedPhysMetaTable, metadata=[m0], filter=[>(id, 5)], metadataFilter=[>(m0, 10)]]], fields=[id, m0])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMetadataFilterPushdown">
     <Resource name="sql">
       <![CDATA[SELECT id FROM MetaTable WHERE m0 > 10]]>
