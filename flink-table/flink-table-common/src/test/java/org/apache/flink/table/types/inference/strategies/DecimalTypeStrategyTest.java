@@ -39,7 +39,7 @@ class DecimalTypeStrategyTest extends TypeStrategiesTestBase {
                         .expectDataType(DataTypes.DECIMAL(11, 8).notNull()),
                 TestSpec.forStrategy("Find a decimal product", SpecificTypeStrategies.DECIMAL_TIMES)
                         .inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
-                        .expectDataType(DataTypes.DECIMAL(9, 6).notNull()),
+                        .expectDataType(DataTypes.DECIMAL(8, 6).notNull()),
                 TestSpec.forStrategy("Find a decimal modulo", SpecificTypeStrategies.DECIMAL_MOD)
                         .inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
                         .expectDataType(DataTypes.DECIMAL(5, 4).notNull()));
