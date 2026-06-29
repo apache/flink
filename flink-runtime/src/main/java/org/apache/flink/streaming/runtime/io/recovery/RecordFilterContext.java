@@ -131,9 +131,17 @@ public class RecordFilterContext {
         this.rescalingDescriptor = checkNotNull(rescalingDescriptor);
         this.subtaskIndex = subtaskIndex;
         this.maxParallelism = maxParallelism;
-        checkArgument(checkNotNull(tmpDirectories).length > 0, "tmpDirectories must not be empty");
-        this.tmpDirectories = tmpDirectories.clone();
         this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
+        if (checkpointingDuringRecoveryEnabled) {
+            // tmpDirectories are only used by the spilling (checkpointing-during-recovery) path.
+            checkArgument(
+                    checkNotNull(tmpDirectories).length > 0, "tmpDirectories must not be empty");
+            this.tmpDirectories = tmpDirectories.clone();
+        } else {
+            // A disabled context never spills, so it needs no spill directories; tolerate a
+            // null/empty value (e.g. an environment without IOManager spilling directories).
+            this.tmpDirectories = tmpDirectories == null ? new String[0] : tmpDirectories.clone();
+        }
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
         this.memorySegmentSize = memorySegmentSize;
