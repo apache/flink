@@ -328,6 +328,21 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /**
+     * Scalar-only PTF whose eval() takes a {@link ProcessTableFunction.Context}. With no table
+     * arguments, we expect there to be no time/watermark, so both resolve to null.
+     */
+    @DataTypeHint("ROW<ts INT, watermark INT, value INT>")
+    public static class ScalarOnlyContextPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint(ArgumentTrait.SCALAR) Integer a,
+                @ArgumentHint(ArgumentTrait.SCALAR) Integer b) {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            collect(Row.of(timeCtx.time(), timeCtx.currentWatermark(), a + b));
+        }
+    }
+
     /** PTF with simple value state - counts rows per partition. */
     @DataTypeHint("ROW<count BIGINT>")
     public static class PTFWithValueState extends ProcessTableFunction<Row> {
@@ -562,6 +577,24 @@ class ProcessTableFunctionTestHarnessTest {
             List<Row> output = harness.getOutput();
             assertThat(output).hasSize(1);
             assertThat(output.get(0).getField("sum")).isEqualTo(30);
+        }
+    }
+
+    @Test
+    void testScalarOnlyPTFInjectsContext() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ScalarOnlyContextPTF.class)
+                        .withScalarArgument("a", 10)
+                        .withScalarArgument("b", 20)
+                        .build()) {
+
+            harness.process();
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0).getField("ts")).isNull();
+            assertThat(output.get(0).getField("watermark")).isNull();
+            assertThat(output.get(0).getField("value")).isEqualTo(30);
         }
     }
 

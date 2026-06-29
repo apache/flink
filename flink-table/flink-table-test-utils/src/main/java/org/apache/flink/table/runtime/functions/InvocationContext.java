@@ -51,6 +51,10 @@ class InvocationContext {
         return new InvocationContext(timer.partitionKey, null, null, timer);
     }
 
+    static InvocationContext forScalarOnlyEval() {
+        return new InvocationContext(Row.of(), null, null, null);
+    }
+
     boolean isTimerInvocation() {
         return firingTimer != null;
     }
