@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserFixture;
+import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -30,7 +31,12 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
-/** Base class providing shared parser test utilities for Flink SQL parser tests. */
+/**
+ * Base class providing shared parser test utilities for Flink SQL parser tests.
+ *
+ * <p>Intentionally does not extend {@link SqlParserTest} to avoid duplicating all upstream Calcite
+ * tests in each subclass; those are centrally covered by {@link FlinkSqlParserCalciteTest}.
+ */
 @Execution(CONCURRENT)
 abstract class FlinkSqlParserTestBase {
 

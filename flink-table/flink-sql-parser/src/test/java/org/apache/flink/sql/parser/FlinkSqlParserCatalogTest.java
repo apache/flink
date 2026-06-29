@@ -72,8 +72,6 @@ class FlinkSqlParserCatalogTest extends FlinkSqlParserTestBase {
         sql("alter catalog a comment 'comment1'").ok("ALTER CATALOG `A` COMMENT 'comment1'");
     }
 
-    // END
-
     @Test
     void testUseCatalog() {
         sql("use catalog a").ok("USE CATALOG `A`");
