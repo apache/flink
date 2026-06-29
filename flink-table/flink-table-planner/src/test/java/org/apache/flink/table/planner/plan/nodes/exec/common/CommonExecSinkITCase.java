@@ -626,7 +626,8 @@ class CommonExecSinkITCase {
 
                                 @Override
                                 public void notifyNoMoreSplits() {
-                                    // Called for readers that never get a split → they can finish
+                                    // Gates completion for every reader, including the split
+                                    // holder, so pollNext only finishes once this signal arrives.
                                     noMoreSplits = true;
                                 }
 
@@ -638,9 +639,13 @@ class CommonExecSinkITCase {
                                                         out.collect(
                                                                 (RowData) converter.toInternal(r)));
                                         emitted = true;
-                                        return InputStatus.END_OF_INPUT;
                                     }
-                                    if (!hasSplit && noMoreSplits) {
+                                    // Finish only after the NoMoreSplitsEvent has arrived.
+                                    // Returning END_OF_INPUT earlier lets the task reach FINISHED
+                                    // before the coordinator delivers that event, which surfaces as
+                                    // a lost OperatorEvent and fails the job under
+                                    // NoRestartBackoffTimeStrategy.
+                                    if (noMoreSplits) {
                                         return InputStatus.END_OF_INPUT;
                                     }
                                     return InputStatus.NOTHING_AVAILABLE;
