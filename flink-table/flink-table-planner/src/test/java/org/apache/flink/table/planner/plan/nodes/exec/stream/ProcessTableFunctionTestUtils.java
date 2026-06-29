@@ -1006,6 +1006,15 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Row-semantic counterpart of {@link NonDeterministicUpdatingRetractFunction}. */
+    public static class NonDeterministicUpdatingRetractRowSemanticFunction
+            extends UpdatingRetractRowSemanticFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
+
     /** Testing function. */
     public static class InvalidRowKindFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) Row r) {

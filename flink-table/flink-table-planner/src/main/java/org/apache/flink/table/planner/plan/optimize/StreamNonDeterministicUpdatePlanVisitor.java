@@ -972,8 +972,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         final RexCall call = ptf.getCall();
 
         // Concern 1: PTF function itself is non-deterministic and downstream nodes
-        // require determinism. PTFs can have pass-through input columns, but they
-        // are not considered specially for now.
+        // require determinism.
         if (!requireDeterminism.isEmpty()) {
             final Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(call);
             if (ndCall.isPresent()) {
@@ -992,6 +991,21 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         // The PTF is a black box: there is no way to project downstream column requirements
         // (requireDeterminism) back through the PTF's internal computation to determine which
         // input columns need to be deterministic. requireDeterminism is therefore ignored here.
+        //
+        // A stricter alternative would be to require all input columns to be deterministic
+        // whenever any output column downstream requires it. That avoids the gap described
+        // below but rejects legitimate queries where the PTF does not actually consume the
+        // non-deterministic column, so we keep the lenient behavior.
+        //
+        // Known gap: cases like the one below are not covered today and may produce wrong
+        // results on failover, since the requirement on {@code nb} at the retract sink never
+        // reaches {@code ndFunc(b)} upstream of the PTF.
+        //
+        // <pre>{@code
+        // CREATE VIEW v AS SELECT a, ndFunc(b) AS nb FROM upsert_src;
+        // INSERT INTO retract_sink SELECT * FROM rowPtf(TABLE v);            -- row-semantic
+        // INSERT INTO retract_sink SELECT * FROM setPtf(TABLE v PARTITION BY a); -- set-semantic
+        // }</pre>
         //
         // Note: the physical changelog the PTF receives is not solely determined by the
         // REQUIRE_UPDATE_BEFORE trait. Per the SUPPORT_UPDATES contract, the function receives
@@ -1025,11 +1039,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             } else {
                 // The PTF does not consume UB; retract handling is keyed by partition key, so
                 // only partition key columns must be deterministic.
-                inputReq =
-                        ImmutableBitSet.of(
-                                Arrays.stream(tableArgCall.getPartitionKeys())
-                                        .boxed()
-                                        .collect(Collectors.toList()));
+                inputReq = ImmutableBitSet.of(tableArgCall.getPartitionKeys());
             }
             newInputs.add(visit(input, requireDeterminismExcludeUpsertKey(input, inputReq)));
         }
