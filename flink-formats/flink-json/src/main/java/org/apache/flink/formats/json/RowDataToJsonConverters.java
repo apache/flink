@@ -49,7 +49,6 @@ import java.util.Arrays;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
-import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
@@ -202,7 +201,7 @@ public class RowDataToJsonConverters implements Serializable {
                     TimestampData timestamp = (TimestampData) value;
                     return mapper.getNodeFactory()
                             .textNode(
-                                    ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT.format(
+                                    ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(
                                             timestamp.toInstant().atOffset(ZoneOffset.UTC)));
                 };
             default:
@@ -238,7 +237,7 @@ public class RowDataToJsonConverters implements Serializable {
                     TimestampData timestampWithLocalZone = (TimestampData) value;
                     return mapper.getNodeFactory()
                             .textNode(
-                                    ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT.format(
+                                    ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(
                                             timestampWithLocalZone
                                                     .toInstant()
                                                     .atOffset(ZoneOffset.UTC)));

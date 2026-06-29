@@ -50,6 +50,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -353,13 +354,17 @@ public class JsonParserRowDataDeSerSchemaTest {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("timestamp3", "1990-10-14T12:12:43.123+02:00");
         root.put("timestamp_with_local_timezone3", "1990-10-14T12:12:43.123-05:00");
+        root.put("timestamp_india", "1990-10-14T12:12:43.123+05:30");
+        root.put("timestamp_nepal", "1990-10-14T12:12:43.123+05:45");
 
         byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
         DataType dataType =
                 ROW(
                         FIELD("timestamp3", TIMESTAMP(3)),
-                        FIELD("timestamp_with_local_timezone3", TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)));
+                        FIELD("timestamp_with_local_timezone3", TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+                        FIELD("timestamp_india", TIMESTAMP(3)),
+                        FIELD("timestamp_nepal", TIMESTAMP(3)));
         RowType schema = (RowType) dataType.getLogicalType();
         TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
 
@@ -373,6 +378,8 @@ public class JsonParserRowDataDeSerSchemaTest {
 
         assertThat(actual.getField(0)).isNotNull();
         assertThat(actual.getField(1)).isNotNull();
+        assertThat(actual.getField(2)).isNotNull();
+        assertThat(actual.getField(3)).isNotNull();
 
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
@@ -387,8 +394,12 @@ public class JsonParserRowDataDeSerSchemaTest {
         byte[] serialized = serializationSchema.serialize(rowData);
         ObjectNode serializedNode = (ObjectNode) objectMapper.readTree(serialized);
 
-        assertThat(serializedNode.get("timestamp3").asText()).endsWith("+00:00");
+        assertThat(serializedNode.get("timestamp3").asText()).isEqualTo("1990-10-14T10:12:43.123Z");
         assertThat(serializedNode.get("timestamp_with_local_timezone3").asText())
-                .endsWith("+00:00");
+                .isEqualTo("1990-10-14T17:12:43.123Z");
+        assertThat(serializedNode.get("timestamp_india").asText())
+                .isEqualTo("1990-10-14T06:42:43.123Z");
+        assertThat(serializedNode.get("timestamp_nepal").asText())
+                .isEqualTo("1990-10-14T06:27:43.123Z");
     }
 }
