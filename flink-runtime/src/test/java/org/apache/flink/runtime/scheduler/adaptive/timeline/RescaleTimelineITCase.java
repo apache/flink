@@ -57,9 +57,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -77,6 +75,8 @@ class RescaleTimelineITCase {
     private static final int NUMBER_TASK_MANAGERS = 2;
     private static final int PARALLELISM = NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS;
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    // Matches the default poll interval of the CommonTestUtils#waitUntilCondition it replaced.
+    private static final long RETRY_INTERVAL_MILLIS = 100L;
 
     @Parameter private Configuration configuration;
     private MiniClusterResource miniClusterResource;
@@ -700,15 +700,21 @@ class RescaleTimelineITCase {
     private void waitUntilConditionWithTimeout(
             SupplierWithException<Boolean, Exception> condition, long timeoutMillis)
             throws Exception {
-        CompletableFuture.runAsync(
-                        () -> {
-                            try {
-                                CommonTestUtils.waitUntilCondition(condition);
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
-                .get(timeoutMillis, TimeUnit.MILLISECONDS);
+        // Poll synchronously via waitUtil. The previous CompletableFuture#runAsync + get(timeout)
+        // wrapper hangs on JDK 11: on a ForkJoinPool worker (JUnit's executor) timedGet
+        // help-executes the unbounded poll loop inline on the waiting thread, so the timeout
+        // never fires.
+        org.apache.flink.core.testutils.CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        return condition.get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                Duration.ofMillis(timeoutMillis),
+                Duration.ofMillis(RETRY_INTERVAL_MILLIS),
+                "Condition was not met within " + timeoutMillis + " ms.");
     }
 
     private void waitForVertexParallelismReachedAndJobRunning(
