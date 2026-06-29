@@ -45,7 +45,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -384,7 +383,6 @@ class MetadataFilterResultShapesITCase {
             implements SupportsReadingMetadata, SupportsFilterPushDown {
 
         private DataType producedDataType;
-        private List<ResolvedExpression> acceptedPhysicalFilters = new ArrayList<>();
 
         MixedFilterTrackingSource() {
             super(true);
@@ -415,7 +413,6 @@ class MetadataFilterResultShapesITCase {
 
         @Override
         public Result applyFilters(List<ResolvedExpression> filters) {
-            acceptedPhysicalFilters.addAll(filters);
             return Result.of(Collections.emptyList(), filters);
         }
 
