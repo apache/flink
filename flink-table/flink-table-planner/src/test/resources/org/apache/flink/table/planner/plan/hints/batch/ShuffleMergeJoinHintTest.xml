@@ -154,6 +154,77 @@ Calc(select=[b1, CAST(a1 AS INTEGER) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinHintWithDifferentHintsInSiblingSubQueries">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3) OR a1 IN (select /*+ BrOaDcAsT(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[OR(IN($0, {
+LogicalProject(a2=[$0])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+}), IN($0, {
+LogicalProject(a2=[$0])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1], where=[OR(AND(<>(c, 0), IS NOT NULL(i)), AND(<>(c0, 0), IS NOT NULL(i0)))])
++- HashJoin(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, c, i, c0, a2, i0], build=[right])
+   :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, c, i, c0], build=[right], singleRowJoin=[true])
+   :  :- Calc(select=[a1, b1, c, i])
+   :  :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, c, a2, i], build=[right])
+   :  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, c], build=[right], singleRowJoin=[true])
+   :  :     :  :- Exchange(distribution=[hash[a1]])
+   :  :     :  :  +- Calc(select=[a1, b1], where=[IS NOT NULL(a1)])
+   :  :     :  :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[]]], fields=[a1, b1])
+   :  :     :  +- Exchange(distribution=[broadcast])
+   :  :     :     +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c])
+   :  :     :        +- Exchange(distribution=[single])
+   :  :     :           +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+   :  :     :              +- Calc(select=[a2])
+   :  :     :                 +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+   :  :     :                    :- Exchange(distribution=[hash[a2]])
+   :  :     :                    :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   :  :     :                    +- Exchange(distribution=[hash[a3]])
+   :  :     :                       +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+   :  :     +- Calc(select=[a2, true AS i])
+   :  :        +- SortAggregate(isMerge=[false], groupBy=[a2], select=[a2])
+   :  :           +- Calc(select=[a2])
+   :  :              +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+   :  :                 :- Exchange(distribution=[hash[a2]])
+   :  :                 :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   :  :                 +- Exchange(distribution=[hash[a3]])
+   :  :                    +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+   :  +- Exchange(distribution=[broadcast])
+   :     +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c])
+   :        +- Exchange(distribution=[single])
+   :           +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+   :              +- Calc(select=[a2])
+   :                 +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+   :                    :- Exchange(distribution=[hash[a2]])
+   :                    :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   :                    +- Exchange(distribution=[hash[a3]])
+   :                       +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+   +- Calc(select=[a2, true AS i])
+      +- SortAggregate(isMerge=[false], groupBy=[a2], select=[a2])
+         +- Calc(select=[a2])
+            +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+               :- Exchange(distribution=[hash[a2]])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+               +- Exchange(distribution=[hash[a3]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinHintWithDisabledOperator">
     <Resource name="sql">
       <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 join T2 on T1.a1 = T2.a2]]>
@@ -326,7 +397,7 @@ LogicalProject(a1=[$0], b1=[$1])
 LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
     LogicalProject(a1=[$2], a2=[$0])
-      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0, 0, 0] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
 })])
@@ -360,7 +431,7 @@ LogicalProject(a1=[$0], b1=[$1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalFilter(condition=[=($cor0.a1, $0)])
-    LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0, 0] options:[T2]]]])
       LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
       LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })], variablesSet=[[$cor0]])
@@ -390,7 +461,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
 LogicalProject(a1=[$0], b1=[$1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
-  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })], variablesSet=[[$cor0]])
@@ -436,7 +507,7 @@ LogicalProject(a1=[$0], b1=[$1])
 LogicalProject(a2=[$0])
   LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
     LogicalProject(a2=[$0], a1=[$2])
-      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0, 0, 0] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
 })])
@@ -469,7 +540,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], isBroadcas
 LogicalProject(a1=[$0], b1=[$1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
-  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
     LogicalProject(a3=[$2], b3=[$3])
       LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -520,7 +591,7 @@ Calc(select=[a1, b1])
 LogicalProject(a1=[$0], b1=[$1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
-  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })])
