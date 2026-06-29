@@ -29,7 +29,6 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util.function.Function
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -95,8 +94,8 @@ abstract class RemoteCalcSplitRuleBase[T](
     val bottomCalcProjects =
       accessedFields.map(RexInputRef.of(_, input.getRowType)) ++ extractedRexNodes
     val bottomCalcFieldNames = SqlValidatorUtil.uniquify(
-      accessedFields.map(i => input.getRowType.getFieldNames.get(i)).toSeq ++
-        extractedRexNodes.indices.map("f" + _),
+      (accessedFields.map(i => input.getRowType.getFieldNames.get(i)).toSeq ++
+        extractedRexNodes.indices.map("f" + _)).asJava,
       rexBuilder.getTypeFactory.getTypeSystem.isSchemaCaseSensitive
     )
 
@@ -106,7 +105,7 @@ abstract class RemoteCalcSplitRuleBase[T](
       input,
       RexProgram.create(
         input.getRowType,
-        bottomCalcProjects.toList,
+        bottomCalcProjects.toList.asJava,
         splitComponents.bottomCalcCondition.orNull,
         bottomCalcFieldNames,
         rexBuilder))
@@ -121,7 +120,7 @@ abstract class RemoteCalcSplitRuleBase[T](
       bottomCalc,
       RexProgram.create(
         bottomCalc.getRowType,
-        topCalcProjects.map(_.accept(inputRewriter)),
+        topCalcProjects.map(_.accept(inputRewriter)).asJava,
         splitComponents.topCalcCondition.map(_.accept(inputRewriter)).orNull,
         calc.getRowType,
         rexBuilder
@@ -205,7 +204,7 @@ class RemoteCalcSplitConditionRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       None,
       Option(program.getCondition).map(program.expandLocalRef(_).accept(splitter)),
-      program.getProjectList.map(program.expandLocalRef))
+      program.getProjectList.asScala.toSeq.map(program.expandLocalRef))
   }
 }
 
@@ -218,7 +217,7 @@ abstract class RemoteCalcSplitProjectionRuleBase[T](
     new SplitComponents(
       Option(program.getCondition).map(program.expandLocalRef),
       None,
-      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+      program.getProjectList.asScala.toSeq.map(program.expandLocalRef(_).accept(splitter)))
   }
 }
 
@@ -241,7 +240,7 @@ abstract class RemoteCalcSplitRexFieldRuleBase(description: String, callFinder: 
 
   protected def containsFieldAccessAfterRemoteCall(node: RexNode): Boolean = {
     node match {
-      case call: RexCall => call.getOperands.exists(containsFieldAccessAfterRemoteCall)
+      case call: RexCall => call.getOperands.asScala.exists(containsFieldAccessAfterRemoteCall)
       case x: RexFieldAccess => callFinder.containsRemoteCall(x.getReferenceExpr)
       case _ => false
     }
@@ -258,7 +257,7 @@ class RemoteCalcSplitProjectionRexFieldRule(callFinder: RemoteCallFinder)
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
 
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.asScala.toSeq.map(calc.getProgram.expandLocalRef)
     projects.exists(containsFieldAccessAfterRemoteCall)
   }
 
@@ -266,7 +265,7 @@ class RemoteCalcSplitProjectionRexFieldRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       Option(program.getCondition).map(program.expandLocalRef),
       None,
-      program.getProjectList.map(_.accept(splitter)))
+      program.getProjectList.asScala.toSeq.map(_.accept(splitter)))
   }
 }
 
@@ -289,7 +288,7 @@ class RemoteCalcSplitConditionRexFieldRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       None,
       Option(program.getCondition).map(_.accept(splitter)),
-      program.getProjectList.map(_.accept(splitter)))
+      program.getProjectList.asScala.toSeq.map(_.accept(splitter)))
   }
 }
 
@@ -303,7 +302,7 @@ class RemoteCalcSplitProjectionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.asScala.toSeq.map(calc.getProgram.expandLocalRef)
 
     // matches if it contains both Remote functions and Java functions in the projection
     projects.exists(callFinder.containsRemoteCall) && projects.exists(
@@ -314,7 +313,7 @@ class RemoteCalcSplitProjectionRule(callFinder: RemoteCallFinder)
       program: RexProgram,
       node: RexNode,
       matchState: Option[Nothing]): Boolean = {
-    program.getProjectList
+    program.getProjectList.asScala.toSeq
       .map(program.expandLocalRef)
       .exists(callFinder.isNonRemoteCall) == callFinder.isRemoteCall(node)
   }
@@ -329,7 +328,7 @@ class RemoteCalcExpandProjectRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.asScala.toSeq.map(calc.getProgram.expandLocalRef)
 
     projects.exists(callFinder.containsRemoteCall) && projects.exists(containsFieldAccessInputs)
   }
@@ -344,12 +343,12 @@ class RemoteCalcExpandProjectRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       Option(program.getCondition).map(program.expandLocalRef),
       None,
-      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+      program.getProjectList.asScala.toSeq.map(program.expandLocalRef(_).accept(splitter)))
   }
 
   private def containsFieldAccessInputs(node: RexNode): Boolean = {
     node match {
-      case call: RexCall => call.getOperands.exists(containsFieldAccessInputs)
+      case call: RexCall => call.getOperands.asScala.exists(containsFieldAccessInputs)
       case _: RexFieldAccess => true
       case _ => false
     }
@@ -365,7 +364,7 @@ class RemoteCalcPushConditionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.asScala.toSeq.map(calc.getProgram.expandLocalRef)
 
     // matches if all the following conditions hold true:
     // 1) the condition is not null
@@ -383,7 +382,7 @@ class RemoteCalcPushConditionRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       Option(program.getCondition).map(program.expandLocalRef),
       None,
-      program.getProjectList.map(program.expandLocalRef))
+      program.getProjectList.asScala.toSeq.map(program.expandLocalRef))
   }
 }
 
@@ -398,7 +397,7 @@ class RemoteCalcRewriteProjectionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.asScala.toSeq.map(calc.getProgram.expandLocalRef)
 
     // matches if all the following conditions hold true:
     // 1) it contains Remote functions in the projection
@@ -420,7 +419,7 @@ class RemoteCalcRewriteProjectionRule(callFinder: RemoteCallFinder)
     new SplitComponents(
       None,
       None,
-      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+      program.getProjectList.asScala.toSeq.map(program.expandLocalRef(_).accept(splitter)))
   }
 }
 
@@ -441,7 +440,7 @@ class ScalarFunctionSplitter(
     if (needConvert(call)) {
       getExtractedRexNode(call)
     } else {
-      call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
+      call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)).asJava)
     }
   }
 
@@ -541,7 +540,7 @@ private class ExtractedFunctionInputRewriter(
   }
 
   override def visitCall(call: RexCall): RexNode = {
-    call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)))
+    call.clone(call.getType, call.getOperands.asScala.map(_.accept(this)).asJava)
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {

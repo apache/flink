@@ -49,7 +49,6 @@ import java.time.{ZoneId, ZoneOffset}
 import java.util
 import java.util.{Collections, List => JList}
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -68,7 +67,7 @@ object RexNodeExtractor extends Logging {
   def extractRefInputFields(exprs: JList[RexNode]): Array[Int] = {
     val visitor = new InputRefVisitor
     // extract referenced input fields from expressions
-    exprs.foreach(_.accept(visitor))
+    exprs.asScala.foreach(_.accept(visitor))
     visitor.getFields
   }
 
@@ -87,7 +86,7 @@ object RexNodeExtractor extends Logging {
       exprs: JList[RexNode],
       usedFields: Array[Int]): Array[Array[JList[String]]] = {
     val visitor = new RefFieldAccessorVisitor(usedFields)
-    exprs.foreach(_.accept(visitor))
+    exprs.asScala.foreach(_.accept(visitor))
     visitor.getProjectedFields
   }
 
@@ -169,8 +168,9 @@ object RexNodeExtractor extends Logging {
       partitionFieldNames: Array[String]): (RexNode, RexNode) = {
     val (partitionPredicates, nonPartitionPredicates) =
       extractPartitionPredicateList(expr, inputFieldNames, rexBuilder, partitionFieldNames)
-    val partitionPredicate = RexUtil.composeConjunction(rexBuilder, partitionPredicates)
-    val nonPartitionPredicate = RexUtil.composeConjunction(rexBuilder, nonPartitionPredicates)
+    val partitionPredicate = RexUtil.composeConjunction(rexBuilder, partitionPredicates.asJava)
+    val nonPartitionPredicate =
+      RexUtil.composeConjunction(rexBuilder, nonPartitionPredicates.asJava)
     (partitionPredicate, nonPartitionPredicate)
   }
 
@@ -200,7 +200,8 @@ object RexNodeExtractor extends Logging {
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
     val (partitionPredicates, nonPartitionPredicates) =
-      conjunctions.partition(isSupportedPartitionPredicate(_, partitionFieldNames, inputFieldNames))
+      conjunctions.asScala.toSeq.partition(
+        isSupportedPartitionPredicate(_, partitionFieldNames, inputFieldNames))
     (partitionPredicates, nonPartitionPredicates)
   }
 
@@ -283,7 +284,7 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
     fields += inputRef.getIndex
 
   override def visitCall(call: RexCall): Unit =
-    call.operands.foreach(operand => operand.accept(this))
+    call.operands.asScala.foreach(operand => operand.accept(this))
 }
 
 /** A RexVisitor to extract used nested input fields */
@@ -295,10 +296,10 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   private val order: Map[Int, Int] = usedFields.zipWithIndex.toMap
 
   private def isPrefix(left: JList[String], right: JList[String]): Boolean = {
-    if (right.length < left.length) {
+    if (right.size < left.size) {
       false
     } else {
-      right.take(left.length).zip(left).foldLeft(true) {
+      right.asScala.take(left.size).zip(left.asScala).foldLeft(true) {
         case (ans, (lName, rName)) => {
           if (ans) {
             lName.equals(rName)
@@ -320,20 +321,21 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
         // get prefix field accesses
         val prefixAccesses = sorted.foldLeft(Nil: List[JList[String]]) {
           (prefixAccesses, nestedAccess) =>
+            val nestedAccessJava: JList[String] = nestedAccess.asJava
             prefixAccesses match {
               // first access => add access
-              case Nil => List[JList[String]](nestedAccess)
+              case Nil => List[JList[String]](nestedAccessJava)
               // top-level access already found => return top-level access
               case head :: Nil if head.get(0).equals("*") => prefixAccesses
               // access is top-level access => return top-level access
-              case _ :: _ if nestedAccess.get(0).equals("*") => List(util.Arrays.asList("*"))
+              case _ :: _ if nestedAccessJava.get(0).equals("*") => List(util.Arrays.asList("*"))
               case _ =>
-                if (isPrefix(prefixAccesses.head, nestedAccess)) {
+                if (isPrefix(prefixAccesses.head, nestedAccessJava)) {
                   // previous access is a prefix of this access => do not add access
                   prefixAccesses
                 } else {
                   // previous access is not prefix of this access => add access
-                  nestedAccess :: prefixAccesses
+                  nestedAccessJava :: prefixAccesses
                 }
             }
         }
@@ -371,7 +373,7 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   }
 
   override def visitCall(call: RexCall): Unit =
-    call.operands.foreach(operand => operand.accept(this))
+    call.operands.asScala.foreach(operand => operand.accept(this))
 }
 
 /**
@@ -506,7 +508,7 @@ class RexNodeToExpressionConverter(
 
   override def visitCall(oriRexCall: RexCall): Option[ResolvedExpression] = {
     val rexCall = FlinkRexUtil.expandSearch(rexBuilder, oriRexCall).asInstanceOf[RexCall]
-    val operands = rexCall.getOperands.map(operand => operand.accept(this).orNull)
+    val operands = rexCall.getOperands.asScala.toSeq.map(operand => operand.accept(this).orNull)
 
     val outputType = fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(rexCall.getType))
 
@@ -516,17 +518,21 @@ class RexNodeToExpressionConverter(
     } else {
       rexCall.getOperator match {
         case SqlStdOperatorTable.OR =>
-          Option(operands.reduceLeft((l, r) => CallExpression.permanent(OR, Seq(l, r), outputType)))
+          Option(
+            operands.reduceLeft(
+              (l, r) => CallExpression.permanent(OR, Seq(l, r).asJava, outputType)))
         case SqlStdOperatorTable.AND =>
           Option(
-            operands.reduceLeft((l, r) => CallExpression.permanent(AND, Seq(l, r), outputType)))
+            operands.reduceLeft(
+              (l, r) => CallExpression.permanent(AND, Seq(l, r).asJava, outputType)))
         case SqlStdOperatorTable.CAST =>
           Option(
-            CallExpression.permanent(CAST, Seq(operands.head, typeLiteral(outputType)), outputType))
+            CallExpression
+              .permanent(CAST, Seq(operands.head, typeLiteral(outputType)).asJava, outputType))
         case FlinkSqlOperatorTable.TRY_CAST =>
           Option(
             CallExpression
-              .permanent(TRY_CAST, Seq(operands.head, typeLiteral(outputType)), outputType))
+              .permanent(TRY_CAST, Seq(operands.head, typeLiteral(outputType)).asJava, outputType))
         case _: SqlFunction | _: SqlPostfixOperator =>
           val names = new util.ArrayList[String](rexCall.getOperator.getNameAsId.names)
           names.set(names.size() - 1, replace(names.get(names.size() - 1)))
@@ -552,15 +558,15 @@ class RexNodeToExpressionConverter(
       case Some(dataType) =>
         val schema = NestedProjectionUtil.build(Collections.singletonList(fieldAccess), dataType)
         val fieldIndices = NestedProjectionUtil.convertToIndexArray(schema)
-        var (topLevelColumnName, nestedColumn) = schema.columns.head
+        var (topLevelColumnName, nestedColumn) = schema.columns.asScala.head
         val fieldNames = new ArrayBuffer[String]()
 
         while (!nestedColumn.isLeaf) {
-          fieldNames.add(topLevelColumnName)
-          topLevelColumnName = nestedColumn.children.head._1
-          nestedColumn = nestedColumn.children.head._2
+          fieldNames += topLevelColumnName
+          topLevelColumnName = nestedColumn.children.asScala.head._1
+          nestedColumn = nestedColumn.children.asScala.head._2
         }
-        fieldNames.add(topLevelColumnName)
+        fieldNames += topLevelColumnName
 
         Some(
           new NestedFieldReferenceExpression(
@@ -608,7 +614,7 @@ class RexNodeToExpressionConverter(
               resolvedFunction.isTemporary,
               identifier,
               resolvedFunction.getDefinition,
-              operands,
+              operands.asJava,
               outputType)
           )
         } else {
