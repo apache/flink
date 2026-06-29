@@ -396,7 +396,7 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                         "LineOrd#6",
                         "RAILWAY"),
                 rowOfKind(
-                        RowKind.UPDATE_AFTER,
+                        RowKind.INSERT,
                         "Ord#2",
                         "LineOrd#1",
                         "4 Bellevue Drive, Pottstown, PB 19464",
@@ -564,6 +564,73 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                         "TRUCK"));
     }
 
+    @Tag("miniBatchSize=4")
+    @Test
+    void testInnerJoinWithJoinKeyContainsUniqueKeyInsertThenUpdateAfterFoldEmitsInsert()
+            throws Exception {
+        // joinKey is LineOrd (same as uniqueKey for JoinKeyContainsUniqueKey)
+        // Batch: right +I, left +I, left -U, left +U  (4 records trigger the batch)
+        // Left fold: +I + -U folds to nothing; remaining +U has no prior state → must emit INSERT
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464")); // left -U (+I -U folds away)
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464")); // left +U (triggers batch)
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
+    @Tag("miniBatchSize=4")
+    @Test
+    void testInnerJoinWithHasUniqueKeyInsertThenUpdateAfterFoldEmitsInsert() throws Exception {
+        // joinKey is LineOrd, uniqueKey is Ord
+        // Batch: right +I(Ord#X), left +I(Ord#1), left -U(Ord#1), left +U(Ord#1) (4 triggers)
+        // Left fold for unique key Ord#1: +I + -U folds to nothing; +U follows → must emit INSERT
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464")); // left -U (+I -U folds away)
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#1",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464")); // left +U (triggers batch)
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
     @Tag("miniBatchSize=13")
     @Test
     void testInnerJoinWithHasUniqueKeyWithinBatch() throws Exception {
@@ -678,7 +745,7 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
         assertor.shouldEmit(
                 testHarness,
                 rowOfKind(
-                        RowKind.UPDATE_AFTER,
+                        RowKind.INSERT,
                         "Ord#4",
                         "LineOrd#4",
                         "xxx Bellevue Drive, Pottstown, PJ 19464",
