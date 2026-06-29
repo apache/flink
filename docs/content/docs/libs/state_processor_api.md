@@ -134,7 +134,7 @@ DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastSta
 
 ##### Using Custom Serializers
 
-Each of the operator state readers support using custom `TypeSerializers` if one was used to define the `StateDescriptor` that wrote out the state. 
+Each of the operator state readers supports using custom `TypeSerializers` if one was used to define the `StateDescriptor` that wrote out the state. 
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
@@ -418,7 +418,7 @@ SavepointReader savepoint = SavepointReader.read(env, "hdfs://checkpoint-dir", n
 
 savepoint
     .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
-    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
+    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.STRING, Types.INT, Types.INT)
     .print();
 ```
 
@@ -591,7 +591,7 @@ SavepointWriter
 
 #### Changing UID (hashes)
 
-`SavepointWriter#changeOperatorIdenfifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
+`SavepointWriter#changeOperatorIdentifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
 
 If a `UID` was not explicitly set (and was thus auto-generated and is effectively unknown), you can assign a `UID` provided that you know the `UID hash` (e.g., by parsing the logs):
 ```java
@@ -659,7 +659,7 @@ public class Account {
     private Integer id;
     public Double amount;
 
-    public Integer geId() {
+    public Integer getId() {
         return id;
     }
 
