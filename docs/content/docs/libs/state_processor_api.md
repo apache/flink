@@ -702,7 +702,7 @@ SELECT * FROM state_table WHERE k BETWEEN 10 AND 100;
 The following predicates on the key column can be pushed down:
 
 * `=` and `IN` — resolve to an exact set of keys and enable key-group pruning.
-* `<`, `<=`, `>`, `>=`, and `BETWEEN` — resolve to a key range.
+* `<`, `<=`, `>`, `>=`, and `BETWEEN` — resolve to a key range and enable key-level filtering within each split.
 * `AND` — pushed down when **all** of its operands are range predicates; the ranges are intersected into a single, tighter range.
 * `OR` — pushed down when **every** branch resolves to exact keys (the branches are unioned into one key set, which is equivalent to an `IN`).
 
