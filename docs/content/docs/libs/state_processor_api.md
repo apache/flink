@@ -230,10 +230,10 @@ Along with reading registered state values, each key has access to a `Context` w
 
 When you are only interested in state for a subset of keys, you can push a `SavepointKeyFilter` into the read instead of reading the whole keyed state and filtering afterward.
 
-Keyed state is laid out as follows (see [Mapping Application State to DataSets]({{< ref "#mapping-application-state-to-datasets" >}})): every key is hashed into one of the operator's *key groups*, and key groups are bundled into *input splits*. A filter can prune work at two levels:
+Depending on its type, a filter skips unnecessary reads at two levels:
 
-* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink hashes those keys up front to find the few key groups that own them, and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys: hashing does not preserve order, so a range filter cannot know in advance which key groups its keys fall into.
-* **Key-level filtering** — within each *opened* split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
+* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink hashes those keys up front to find the few key groups that own them, and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys.
+* **Key-level filtering** — within each split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
 
 ```java
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
@@ -266,11 +266,11 @@ DataStream<KeyedState> keyRange = savepoint.readKeyedState(
 `SavepointKeyFilter` provides the following factory methods:
 
 * `SavepointKeyFilter.exact(Object key)` / `SavepointKeyFilter.exact(Set<Object> keys)` — match a single key or a finite set of keys.
-* `SavepointKeyFilter.range(Comparable<?> lower, boolean lowerInclusive, Comparable<?> upper, boolean upperInclusive)` — match a comparable range. Either bound may be `null` to leave that side unbounded.
+* `SavepointKeyFilter.range(Comparable<?> lower, boolean lowerInclusive, Comparable<?> upper, boolean upperInclusive)` — match a range. Either bound may be `null` to leave that side unbounded.
 * `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
 
 When the built-in filters are not enough, you can implement the `SavepointKeyFilter` interface yourself.
-For use with the DataStream API, only `test(Object key)` has to be implemented; it is called for every key in the opened splits and decides whether that key will be read.
+For use with the DataStream API, only `test(Object key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
 
 ```java
 // Reads the state only for even keys
@@ -294,13 +294,41 @@ By default, a custom filter only enables key-level filtering — every split is 
 If your filter resolves to a finite set of keys, additionally override `getExactKeys()` to return them; Flink then prunes the splits whose key groups cannot contain any of those keys, just like the built-in `exact(...)` filter.
 
 ```java
-@Override
-public Set<Object> getExactKeys() {
-    return Set.of(1, 2, 3);
+// Reads the state only for keys 0..max
+public class UpToKeyFilter implements SavepointKeyFilter {
+
+    private final int max;
+
+    public UpToKeyFilter(int max) {
+        this.max = max;
+    }
+
+    @Override
+    public boolean test(Object key) {
+        int k = (Integer) key;
+        return k >= 0 && k <= max;
+    }
+
+    @Override
+    public Set<Object> getExactKeys() {
+        // Enumerate the finite key set so Flink can prune splits up front
+        Set<Object> keys = new HashSet<>();
+        for (int k = 0; k <= max; k++) {
+            keys.add(k);
+        }
+        return keys;
+    }
 }
+
+DataStream<KeyedState> firstKeys = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    new UpToKeyFilter(100));
 ```
 
-The remaining interface methods can be left at their defaults for DataStream API usage, as they are only used internally in Table API during push-down handling.
+The remaining interface methods can be left at their defaults for DataStream API usage, as they are only used internally in the Table API during push-down handling.
 
 #### Window State
 
@@ -587,7 +615,7 @@ savepointWriter
 
 ### Getting started
 
-Before you interrogate state using the table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
+Before you interrogate state using the Table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
 
 IMPORTANT NOTE: State Table API only supports keyed state.
 
