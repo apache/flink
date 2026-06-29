@@ -2172,6 +2172,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // For source tasks, this will be 0. For tasks with network inputs, each physical gate
         // must have a corresponding config entry.
         int numGates = getEnvironment().getAllInputGates().length;
+
+        if (numGates > 0 && inEdges.isEmpty()) {
+            // The task has input gates but the StreamConfig carries no physical edges. This happens
+            // for dynamically connected inputs -- e.g. reading a cached intermediate result under
+            // the AdaptiveBatchScheduler -- where the physical connection (and thus the partitioner
+            // needed to build per-gate filter configs) is determined by the scheduler at runtime.
+            // Such jobs are batch and have no unaligned-checkpoint channel state to filter, so
+            // disable record filtering rather than failing the precondition below.
+            return RecordFilterContext.disabled(new String[0]);
+        }
+
         RecordFilterContext.InputFilterConfig[] inputConfigs =
                 new RecordFilterContext.InputFilterConfig[numGates];
 
