@@ -184,6 +184,27 @@ class LateralSnapshotJoinOperatorTest {
                 stateTtlMs);
     }
 
+    /** Variant with an explicit probe-drain chunk size (test-only constructor). */
+    private static LateralSnapshotJoinOperator newOperator(
+            boolean isLeftOuterJoin,
+            Long loadCompletedTime,
+            Long loadCompletedIdleTimeoutMs,
+            Long stateTtlMs,
+            int probeDrainChunkSize) {
+
+        return new LateralSnapshotJoinOperator(
+                isLeftOuterJoin,
+                PROBE_TYPE,
+                BUILD_TYPE,
+                BUILD_RT_IDX,
+                newTrueCondition(),
+                new boolean[] {true},
+                loadCompletedTime,
+                loadCompletedIdleTimeoutMs,
+                stateTtlMs,
+                probeDrainChunkSize);
+    }
+
     private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             newHarness(LateralSnapshotJoinOperator op) throws Exception {
         return new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -354,6 +375,89 @@ class LateralSnapshotJoinOperatorTest {
                             Map.of("build-k1-v1", 2L, "build-k1-v2", 1L));
             assertThat(buildTableForKey(h, op, "k2"))
                     .containsExactlyInAnyOrderEntriesOf(Map.of("build-k2", 1L));
+        }
+    }
+
+    @Test
+    void flipDrainsLargeProbeBufferInChunksPreservingOrder() throws Exception {
+        // probeDrainChunkSize = 2 forces the per-key flip drain to span several re-registered timer
+        // firings: ids 1..5 drain as [1,2], [3,4], [5]. The buffered probes must still be joined in
+        // insertion order across the chunk boundaries, and the buffer fully cleared afterwards.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null, 2);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addBuildChange(h, insertRecord("k2", "v2", 1L));
+            for (long id = 1; id <= 5; id++) {
+                addProbeRecord(h, id, "k1", "p" + id);
+            }
+            addProbeRecord(h, 6L, "k2", "p6");
+            addProbeWm(h, 80L); // advances the probe wm so the flip fires the drain
+            assertPhase(op, Phase.LOAD);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(5);
+
+            addBuildWm(h, 100L); // flip -> chunked drain of all 5 buffered probes
+            assertPhase(op, Phase.JOIN);
+
+            assertWatermarkForwardedAfterRecords(h.getOutput(), 80L);
+            stripWatermarksAndStatusesFromOutput(h);
+            // Buffered probes emitted in insertion order across the chunk boundaries.
+            List<Long> emittedProbeIds =
+                    h.getOutput().stream()
+                            .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
+                            .toList();
+            // id=6L is emitted by first k2 chunk (after first k1 chunk)
+            assertThat(emittedProbeIds).containsExactly(1L, 2L, 6L, 3L, 4L, 5L);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p1", "k1", "v1", 1L),
+                    row(2L, "k1", "p2", "k1", "v1", 1L),
+                    row(3L, "k1", "p3", "k1", "v1", 1L),
+                    row(4L, "k1", "p4", "k1", "v1", 1L),
+                    row(5L, "k1", "p5", "k1", "v1", 1L),
+                    row(6L, "k2", "p6", "k2", "v2", 1L));
+            // Buffer fully drained, including the size and drain-offset bookkeeping.
+            assertThat(probeBufferKeys(h)).isEmpty();
+            h.getOperator().setCurrentKey(stringKey("k1"));
+            assertThat(op.getProbeBufferSize().value()).isNull();
+            assertThat(op.getProbeBufferDrainOffset().value()).isNull();
+        }
+    }
+
+    @Test
+    void chunkedDrainResumesFromPersistedOffset() throws Exception {
+        // Simulates resuming a partially-drained probe buffer (e.g. a checkpoint taken mid-drain):
+        // probeBufferDrainOffset marks ids 1-2 as already emitted, so only ids 3-5 remain. A new
+        // probe must drain the remaining rows in order ahead of itself; the deferred clear must
+        // reclaim the whole buffer (including the not-yet-cleared drained rows below the offset).
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null, 2);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addBuildWm(h, 100L); // flip to JOIN
+            assertPhase(op, Phase.JOIN);
+
+            // Inject a 5-row buffer with the first 2 rows already drained (offset = 2).
+            h.getOperator().setCurrentKey(stringKey("k1"));
+            for (long i = 0; i < 5; i++) {
+                op.getProbeBuffer().put(i, insertRecord(i + 1, "k1", "p" + (i + 1)).getValue());
+            }
+            op.getProbeBufferSize().update(5L);
+            op.getProbeBufferDrainOffset().update(2L);
+
+            // A new probe (id 6) drains the remaining buffered rows (ids 3-5) ahead of itself.
+            addProbeRecord(h, 6L, "k1", "p-new");
+
+            stripWatermarksAndStatusesFromOutput(h);
+            List<Long> emittedProbeIds =
+                    h.getOutput().stream()
+                            .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
+                            .toList();
+            assertThat(emittedProbeIds).containsExactly(3L, 4L, 5L, 6L);
+            assertThat(probeBufferForKey(h, op, "k1")).isEmpty();
+            assertThat(op.getProbeBufferDrainOffset().value()).isNull();
         }
     }
 

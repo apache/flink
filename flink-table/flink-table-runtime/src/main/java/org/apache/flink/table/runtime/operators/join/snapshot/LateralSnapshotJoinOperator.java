@@ -135,6 +135,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
     private static final String PROBE_BUFFER_SIZE_STATE_NAME = "probe-buffer-size";
+    private static final String PROBE_BUFFER_DRAIN_OFFSET_STATE_NAME = "probe-buffer-drain-offset";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
     /**
@@ -153,6 +154,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * Any non-{@code MIN_VALUE} watermark advance fires it.
      */
     @VisibleForTesting static final long FLIP_JOIN_TIMER_TS = 1L;
+
+    /** Default number of buffered probe rows drained per flip-timer firing. */
+    @VisibleForTesting static final int DEFAULT_PROBE_DRAIN_CHUNK_SIZE = 128;
 
     /** Gauge: probe-side records currently buffered during LOAD. */
     @VisibleForTesting
@@ -240,6 +244,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     private final long maxStateTtlMs;
 
+    /** Number of buffered probe rows drained per flip-timer firing (chunked, interruptible). */
+    private final int probeDrainChunkSize;
+
     // -------------------------- transient runtime fields --------------------------
 
     private transient JoinConditionWithNullFilters joinCondition;
@@ -286,12 +293,18 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     /**
      * Buffer for probe-side records during LOAD, as an ordered sequence (index -> row) so the
-     * backend can stream entries on drain instead of materializing the whole per-key list.
+     * backend can stream entries on drain instead of materializing the whole per-key list. The
+     * drain joins rows in insertion order in chunks of {@code probeDrainChunkSize} rows.
      */
     private transient MapState<Long, RowData> probeBuffer;
 
-    /** Number of rows in {@link #probeBuffer} for the current key; also the next append index. */
+    /** Number of rows appended to {@link #probeBuffer} for the current key; the drain end bound. */
     private transient ValueState<Long> probeBufferSize;
+
+    /**
+     * Index of the next buffered probe row to drain for the current key (the drain start bound).
+     */
+    private transient ValueState<Long> probeBufferDrainOffset;
 
     /** Most recently registered TTL timer deadline; used to advance TTL timer. */
     private transient ValueState<Long> ttlExpiryState;
@@ -330,6 +343,31 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
+        this(
+                isLeftOuterJoin,
+                leftType,
+                rightType,
+                buildRowtimeIndex,
+                generatedJoinCondition,
+                filterNullKeys,
+                loadCompletedTime,
+                loadCompletedIdleTimeoutMs,
+                stateTtlMs,
+                DEFAULT_PROBE_DRAIN_CHUNK_SIZE);
+    }
+
+    @VisibleForTesting
+    LateralSnapshotJoinOperator(
+            boolean isLeftOuterJoin,
+            InternalTypeInfo<RowData> leftType,
+            InternalTypeInfo<RowData> rightType,
+            int buildRowtimeIndex,
+            GeneratedJoinCondition generatedJoinCondition,
+            boolean[] filterNullKeys,
+            Long loadCompletedTime,
+            @Nullable Long loadCompletedIdleTimeoutMs,
+            @Nullable Long stateTtlMs,
+            int probeDrainChunkSize) {
         this.isLeftOuterJoin = isLeftOuterJoin;
         this.leftType = Preconditions.checkNotNull(leftType);
         this.rightType = Preconditions.checkNotNull(rightType);
@@ -356,6 +394,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         // maxStateTtlMs is 1.5x of minStateTtlMs
         this.maxStateTtlMs = this.minStateTtlMs + this.minStateTtlMs / 2;
+        if (probeDrainChunkSize < 1) {
+            throw new IllegalArgumentException("probeDrainChunkSize must be positive");
+        }
+        this.probeDrainChunkSize = probeDrainChunkSize;
     }
 
     // -------------------------- lifecycle --------------------------
@@ -434,6 +476,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                         .getState(
                                 new ValueStateDescriptor<>(
                                         PROBE_BUFFER_SIZE_STATE_NAME, Types.LONG));
+        probeBufferDrainOffset =
+                getRuntimeContext()
+                        .getState(
+                                new ValueStateDescriptor<>(
+                                        PROBE_BUFFER_DRAIN_OFFSET_STATE_NAME, Types.LONG));
         ttlExpiryState =
                 getRuntimeContext()
                         .getState(new ValueStateDescriptor<>(TTL_EXPIRY_STATE_NAME, Types.LONG));
@@ -604,29 +651,71 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     public void onEventTime(InternalTimer<RowData, String> timer) throws Exception {
         String namespace = timer.getNamespace();
         // FLIP_NAMESPACE timers drain the probes buffered during LOAD when the operator flips to
-        // JOIN.
+        // JOIN. The drain runs in interruptible chunks: each firing joins up to probeDrainChunkSize
+        // rows and re-registers itself until the buffer is exhausted.
         if (FLIP_NAMESPACE.equals(namespace)) {
-            drainBufferedProbes();
+            drainBufferedProbesChunk();
         }
     }
 
     /**
-     * Applies the current key's buffered build-side changes, then joins and clears its probe-side
-     * buffered records.
+     * Drains one chunk of the current key's buffered probes. Joins up to {@code
+     * probeDrainChunkSize} rows in insertion order; if more remain, advances the drain offset and
+     * re-registers the flip timer so the next chunk fires within the same watermark sweep (yielding
+     * to checkpoints between chunks via interruptible timers). Otherwise, clears the probe buffer.
+     */
+    private void drainBufferedProbesChunk() throws Exception {
+        long size = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
+        long offset = probeBufferDrainOffset.value() == null ? 0L : probeBufferDrainOffset.value();
+        long end = Math.min(offset + probeDrainChunkSize, size);
+        drainProbeRange(offset, end);
+        if (end < size) {
+            probeBufferDrainOffset.update(end);
+            timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
+        } else {
+            clearProbeBuffer();
+        }
+    }
+
+    /**
+     * Joins and clears all remaining buffered probes for the current key in one shot. Used by the
+     * JOIN-phase fast path when a new probe arrives for a key whose chunked flip drain has not
+     * finished, so the buffered probes are emitted (in order) ahead of the new probe.
      */
     private void drainBufferedProbes() throws Exception {
-        // If a recovery happened before, there might be buffered build-side changes.
-        // Apply them before joining the buffered probe-side records.
-        applyBufferedChanges();
         long size = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
-        for (long i = 0; i < size; i++) {
+        long offset = probeBufferDrainOffset.value() == null ? 0L : probeBufferDrainOffset.value();
+        drainProbeRange(offset, size);
+        clearProbeBuffer();
+    }
+
+    /**
+     * Joins the current key's buffered probes over the index range {@code [from, to)} in insertion
+     * order. On the first chunk ({@code from == 0}) any recovered build-side changes are applied
+     * first, so probes join against the materialized build snapshot.
+     */
+    private void drainProbeRange(long from, long to) throws Exception {
+        // Apply once, before processing the first chunk of buffered probe records.
+        if (from == 0) {
+            applyBufferedChanges();
+        }
+        for (long i = from; i < to; i++) {
             joinProbeRow(probeBuffer.get(i));
         }
+        // Best-effort count (not restored), so floor at 0.
+        probeBufferedCount = Math.max(0, probeBufferedCount - (to - from));
+        probeBufferedGauge.update(probeBufferedCount);
+    }
+
+    /**
+     * Removes all probe-buffer state for the current key. Drained rows below the offset were left
+     * in place during the chunked drain; they are reclaimed here in a single batched {@code
+     * clear()}.
+     */
+    private void clearProbeBuffer() {
         probeBuffer.clear();
         probeBufferSize.clear();
-        // Best-effort count (not restored), so floor at 0.
-        probeBufferedCount = Math.max(0, probeBufferedCount - size);
-        probeBufferedGauge.update(probeBufferedCount);
+        probeBufferDrainOffset.clear();
     }
 
     @Override
@@ -827,9 +916,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private void clearAllPerKeyState() {
         buildTableState.clear();
         clearBuildChangeBuffer();
+        clearProbeBuffer();
         ttlExpiryState.clear();
-        probeBuffer.clear();
-        probeBufferSize.clear();
     }
 
     /**
@@ -950,6 +1038,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting
     ValueState<Long> getProbeBufferSize() {
         return probeBufferSize;
+    }
+
+    @VisibleForTesting
+    ValueState<Long> getProbeBufferDrainOffset() {
+        return probeBufferDrainOffset;
     }
 
     @VisibleForTesting
