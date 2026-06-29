@@ -47,7 +47,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>It also keeps track of available buffers and notifies the outbound handler about
  * non-emptiness, similar to the {@link LocalInputChannel}.
  */
-class CreditBasedSequenceNumberingViewReader
+class CreditBasedSequenceNumberingViewReader // review nit: can we split THIS commit into remote and
+        // local input channel changes?
         implements BufferAvailabilityListener, NetworkSequenceViewReader {
 
     private final Object requestLock = new Object();
@@ -81,12 +82,17 @@ class CreditBasedSequenceNumberingViewReader
     private int numCreditsAvailable;
 
     CreditBasedSequenceNumberingViewReader(
-            InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+            InputChannelID receiverId,
+            int initialCredit,
+            boolean needsRecovery,
+            PartitionRequestQueue requestQueue) {
         checkArgument(initialCredit >= 0, "Must be non-negative.");
 
         this.receiverId = receiverId;
         this.initialCredit = initialCredit;
-        this.numCreditsAvailable = initialCredit;
+        // During spill recovery, exclusive buffers are on loan to the recovery drain; real credit
+        // is announced only after recovery completes.
+        this.numCreditsAvailable = needsRecovery ? 0 : initialCredit;
         this.requestQueue = requestQueue;
         this.subpartitionId = -1;
     }
