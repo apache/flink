@@ -29,13 +29,14 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -83,11 +84,12 @@ import java.util.concurrent.ScheduledFuture;
  *       ({@code buildRowtimeIndex}), and for equal row-times retractions ({@code -U}/{@code -D})
  *       are applied before accumulations ({@code +U}/{@code +I}). Buffering until the watermark
  *       passes preserves atomic update visibility across {@code -U}/{@code +U} pairs in JOIN phase.
- *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD they are
- *       buffered in {@code probeBuffer} until the configured flip point is reached on the
- *       build-side watermark, at which point a per-key event-time timer drains the buffered probes
- *       and joins them with the materialized build-side state. During JOIN they are joined
- *       immediately with the current build-side state.
+ *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD each is
+ *       buffered in {@code probeBuffer} under a synthetic, increasing timestamp with one event-time
+ *       timer registered per record. At the flip these timers fire (one record each, interruptibly)
+ *       and join the buffered probes against the materialized build-side state in insertion order.
+ *       During JOIN records are joined immediately, unless the key's flip drain has not finished
+ *       yet, in which case the record is buffered behind the pending ones to preserve order.
  * </ul>
  *
  * <p>Watermark forwarding rules:
@@ -117,7 +119,8 @@ import java.util.concurrent.ScheduledFuture;
  */
 @Internal
 public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
-        implements TwoInputStreamOperator<RowData, RowData, RowData>, Triggerable<RowData, String> {
+        implements TwoInputStreamOperator<RowData, RowData, RowData>,
+                Triggerable<RowData, VoidNamespace> {
 
     // -------------------------- static final definitions --------------------------
 
@@ -134,29 +137,16 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @VisibleForTesting static final String BUILD_CHANGE_BUFFER_STATE_NAME = "build-change-buffer";
     @VisibleForTesting static final String BUFFERED_AT_WM_STATE_NAME = "buffered-at-wm";
     @VisibleForTesting static final String PROBE_BUFFER_STATE_NAME = "probe-buffer";
-    private static final String PROBE_BUFFER_SIZE_STATE_NAME = "probe-buffer-size";
-    private static final String PROBE_BUFFER_DRAIN_OFFSET_STATE_NAME = "probe-buffer-drain-offset";
+    private static final String PROBE_BUFFER_SEQ_STATE_NAME = "probe-buffer-seq";
     private static final String TTL_EXPIRY_STATE_NAME = "ttl-expiry";
 
     /**
-     * Single timer service for two kinds of per-key timers, distinguished by namespace: {@link
-     * #FLIP_NAMESPACE} (one-shot event-time timer draining a key's LOAD-buffered probes at the
-     * flip) and {@link #TTL_NAMESPACE} (recurring processing-time timer for state eviction).
+     * Single timer service for two kinds of per-key timers, distinguished by timer type (not by
+     * namespace): event-time timers drain a key's LOAD-buffered probes at the flip ({@link
+     * #onEventTime}), processing-time timers evict keyed state ({@link #onProcessingTime}). Both
+     * use {@link VoidNamespace} so no namespace is serialized per timer.
      */
     private static final String TIMER_SERVICE_NAME = "lateral-snapshot-timers";
-
-    @VisibleForTesting static final String FLIP_NAMESPACE = "flip";
-
-    @VisibleForTesting static final String TTL_NAMESPACE = "ttl";
-
-    /**
-     * Event-time timestamp at which the per-key {@code probeBuffer} flip join timer is registered.
-     * Any non-{@code MIN_VALUE} watermark advance fires it.
-     */
-    @VisibleForTesting static final long FLIP_JOIN_TIMER_TS = 1L;
-
-    /** Default number of buffered probe rows drained per flip-timer firing. */
-    @VisibleForTesting static final int DEFAULT_PROBE_DRAIN_CHUNK_SIZE = 128;
 
     /** Gauge: probe-side records currently buffered during LOAD. */
     @VisibleForTesting
@@ -244,16 +234,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     private final long maxStateTtlMs;
 
-    /** Number of buffered probe rows drained per flip-timer firing (chunked, interruptible). */
-    private final int probeDrainChunkSize;
-
     // -------------------------- transient runtime fields --------------------------
 
     private transient JoinConditionWithNullFilters joinCondition;
     private transient GenericRowData nullPaddedBuild;
     private transient TimestampedCollector<RowData> collector;
 
-    private transient InternalTimerService<String> timerService;
+    private transient InternalTimerService<VoidNamespace> timerService;
 
     private transient Phase phase;
 
@@ -292,19 +279,19 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private transient ValueState<Long> bufferedAtWmState;
 
     /**
-     * Buffer for probe-side records during LOAD, as an ordered sequence (index -> row) so the
-     * backend can stream entries on drain instead of materializing the whole per-key list. The
-     * drain joins rows in insertion order in chunks of {@code probeDrainChunkSize} rows.
+     * Buffer for probe-side records during LOAD (and for the rare JOIN-phase record that arrives
+     * while a key's buffer is still draining). Keyed by a synthetic, monotonically increasing
+     * timestamp so the per-record flip timers fire in insertion order. Each buffered row has one
+     * event-time timer registered on its key; the timer drains exactly that row.
      */
     private transient MapState<Long, RowData> probeBuffer;
 
-    /** Number of rows appended to {@link #probeBuffer} for the current key; the drain end bound. */
-    private transient ValueState<Long> probeBufferSize;
-
     /**
-     * Index of the next buffered probe row to drain for the current key (the drain start bound).
+     * Next sequence number for the current key, used to derive distinct, ordered synthetic
+     * timestamps for {@link #probeBuffer}. {@code null} iff the buffer is empty, so it doubles as a
+     * cheap "buffer non-empty" flag on the JOIN-phase fast path.
      */
-    private transient ValueState<Long> probeBufferDrainOffset;
+    private transient ValueState<Long> probeBufferSeq;
 
     /** Most recently registered TTL timer deadline; used to advance TTL timer. */
     private transient ValueState<Long> ttlExpiryState;
@@ -343,31 +330,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
-        this(
-                isLeftOuterJoin,
-                leftType,
-                rightType,
-                buildRowtimeIndex,
-                generatedJoinCondition,
-                filterNullKeys,
-                loadCompletedTime,
-                loadCompletedIdleTimeoutMs,
-                stateTtlMs,
-                DEFAULT_PROBE_DRAIN_CHUNK_SIZE);
-    }
-
-    @VisibleForTesting
-    LateralSnapshotJoinOperator(
-            boolean isLeftOuterJoin,
-            InternalTypeInfo<RowData> leftType,
-            InternalTypeInfo<RowData> rightType,
-            int buildRowtimeIndex,
-            GeneratedJoinCondition generatedJoinCondition,
-            boolean[] filterNullKeys,
-            Long loadCompletedTime,
-            @Nullable Long loadCompletedIdleTimeoutMs,
-            @Nullable Long stateTtlMs,
-            int probeDrainChunkSize) {
         this.isLeftOuterJoin = isLeftOuterJoin;
         this.leftType = Preconditions.checkNotNull(leftType);
         this.rightType = Preconditions.checkNotNull(rightType);
@@ -394,10 +356,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         // maxStateTtlMs is 1.5x of minStateTtlMs
         this.maxStateTtlMs = this.minStateTtlMs + this.minStateTtlMs / 2;
-        if (probeDrainChunkSize < 1) {
-            throw new IllegalArgumentException("probeDrainChunkSize must be positive");
-        }
-        this.probeDrainChunkSize = probeDrainChunkSize;
     }
 
     // -------------------------- lifecycle --------------------------
@@ -471,22 +429,19 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                         .getMapState(
                                 new MapStateDescriptor<>(
                                         PROBE_BUFFER_STATE_NAME, Types.LONG, leftType));
-        probeBufferSize =
+        probeBufferSeq =
                 getRuntimeContext()
                         .getState(
                                 new ValueStateDescriptor<>(
-                                        PROBE_BUFFER_SIZE_STATE_NAME, Types.LONG));
-        probeBufferDrainOffset =
-                getRuntimeContext()
-                        .getState(
-                                new ValueStateDescriptor<>(
-                                        PROBE_BUFFER_DRAIN_OFFSET_STATE_NAME, Types.LONG));
+                                        PROBE_BUFFER_SEQ_STATE_NAME, Types.LONG));
         ttlExpiryState =
                 getRuntimeContext()
                         .getState(new ValueStateDescriptor<>(TTL_EXPIRY_STATE_NAME, Types.LONG));
 
-        // Setup timerservice
-        timerService = getInternalTimerService(TIMER_SERVICE_NAME, StringSerializer.INSTANCE, this);
+        // Setup timerservice. Both timer kinds use VoidNamespace; they are told apart by timer type
+        // (event-time -> flip drain, processing-time -> TTL eviction), not by namespace.
+        timerService =
+                getInternalTimerService(TIMER_SERVICE_NAME, VoidNamespaceSerializer.INSTANCE, this);
 
         // Wrap the codegen'd condition with a null-key filter so SQL semantics are honored for
         // equi-keys whose values may be NULL.
@@ -568,21 +523,30 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         RowData probe = element.getValue();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         applyBufferedChangesIfReady();
-        if (phase == Phase.LOAD) {
-            long next = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
-            probeBuffer.put(next, probe);
-            probeBufferSize.update(next + 1L);
-            timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
-            probeBufferedGauge.update(++probeBufferedCount);
+        // Buffer during LOAD; in JOIN, buffer too if this key's flip drain has not finished yet
+        // (probeBufferSeq != null), so the new probe is joined in order after the buffered ones by
+        // its own timer instead of draining the whole buffer inline. Otherwise join immediately.
+        if (phase == Phase.LOAD || probeBufferSeq.value() != null) {
+            bufferProbe(probe);
         } else {
-            // Drain any probes still buffered for this key (flip drain not yet reached it) before
-            // the new one.
-            if (probeBufferSize.value() != null) {
-                drainBufferedProbes();
-            }
             joinProbeRow(probe);
         }
         refreshStateTtl();
+    }
+
+    /**
+     * Buffers a probe row for the current key and registers a per-record event-time flip timer. The
+     * synthetic timestamp {@code (seq + 1) - Long.MAX_VALUE} is negative (so any non-negative
+     * watermark fires it) and increases with the sequence number (so timers drain in insertion
+     * order on every state backend).
+     */
+    private void bufferProbe(RowData probe) throws Exception {
+        long seq = probeBufferSeq.value() == null ? 0L : probeBufferSeq.value();
+        long ts = (seq + 1) - Long.MAX_VALUE;
+        probeBuffer.put(ts, probe);
+        probeBufferSeq.update(seq + 1);
+        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, ts);
+        probeBufferedGauge.update(++probeBufferedCount);
     }
 
     @Override
@@ -648,82 +612,41 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     // -------------------------- timers processing --------------------------
 
     @Override
-    public void onEventTime(InternalTimer<RowData, String> timer) throws Exception {
-        String namespace = timer.getNamespace();
-        // FLIP_NAMESPACE timers drain the probes buffered during LOAD when the operator flips to
-        // JOIN. The drain runs in interruptible chunks: each firing joins up to probeDrainChunkSize
-        // rows and re-registers itself until the buffer is exhausted.
-        if (FLIP_NAMESPACE.equals(namespace)) {
-            drainBufferedProbesChunk();
+    public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        // Only event-time (flip) timers are registered: each drains exactly one buffered probe for
+        // its key. All of a key's timers become due at the flip; interruptible timers fire them one
+        // at a time, yielding to checkpoints between firings.
+        long ts = timer.getTimestamp();
+        // Apply this key's due build-side changes before joining, so probes see the materialized
+        // build snapshot. Idempotent across the key's firings within one watermark sweep.
+        applyDueBufferedChanges();
+        RowData probe = probeBuffer.get(ts);
+        if (probe == null) {
+            // Already drained or evicted (e.g. by TTL) before this timer fired.
+            return;
         }
-    }
-
-    /**
-     * Drains one chunk of the current key's buffered probes. Joins up to {@code
-     * probeDrainChunkSize} rows in insertion order; if more remain, advances the drain offset and
-     * re-registers the flip timer so the next chunk fires within the same watermark sweep (yielding
-     * to checkpoints between chunks via interruptible timers). Otherwise, clears the probe buffer.
-     */
-    private void drainBufferedProbesChunk() throws Exception {
-        long size = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
-        long offset = probeBufferDrainOffset.value() == null ? 0L : probeBufferDrainOffset.value();
-        long end = Math.min(offset + probeDrainChunkSize, size);
-        drainProbeRange(offset, end);
-        if (end < size) {
-            probeBufferDrainOffset.update(end);
-            timerService.registerEventTimeTimer(FLIP_NAMESPACE, FLIP_JOIN_TIMER_TS);
-        } else {
-            clearProbeBuffer();
-        }
-    }
-
-    /**
-     * Joins and clears all remaining buffered probes for the current key in one shot. Used by the
-     * JOIN-phase fast path when a new probe arrives for a key whose chunked flip drain has not
-     * finished, so the buffered probes are emitted (in order) ahead of the new probe.
-     */
-    private void drainBufferedProbes() throws Exception {
-        long size = probeBufferSize.value() == null ? 0L : probeBufferSize.value();
-        long offset = probeBufferDrainOffset.value() == null ? 0L : probeBufferDrainOffset.value();
-        drainProbeRange(offset, size);
-        clearProbeBuffer();
-    }
-
-    /**
-     * Joins the current key's buffered probes over the index range {@code [from, to)} in insertion
-     * order. On the first chunk ({@code from == 0}) the due build-side changes are applied first,
-     * so probes join against the materialized build snapshot.
-     */
-    private void drainProbeRange(long from, long to) throws Exception {
-        // Apply due build-side changes once, before processing the first chunk of buffered probes.
-        if (from == 0) {
-            applyDueBufferedChanges();
-        }
-        for (long i = from; i < to; i++) {
-            joinProbeRow(probeBuffer.get(i));
-        }
-        // Best-effort count (not restored), so floor at 0.
-        probeBufferedCount = Math.max(0, probeBufferedCount - (to - from));
+        joinProbeRow(probe);
+        probeBuffer.remove(ts);
+        probeBufferedCount = Math.max(0, probeBufferedCount - 1);
         probeBufferedGauge.update(probeBufferedCount);
+        // This is the last buffered row iff it carries the highest sequence number; clearing the
+        // sequence here marks the buffer empty (cheap point lookup, no isEmpty() scan).
+        Long seq = probeBufferSeq.value();
+        if (seq != null && ts + Long.MAX_VALUE == seq) {
+            probeBufferSeq.clear();
+        }
     }
 
-    /**
-     * Removes all probe-buffer state for the current key. Drained rows below the offset were left
-     * in place during the chunked drain; they are reclaimed here in a single batched {@code
-     * clear()}.
-     */
+    /** Removes all probe-buffer state for the current key. */
     private void clearProbeBuffer() {
         probeBuffer.clear();
-        probeBufferSize.clear();
-        probeBufferDrainOffset.clear();
+        probeBufferSeq.clear();
     }
 
     @Override
-    public void onProcessingTime(InternalTimer<RowData, String> timer) throws Exception {
-        // TTL timers run on processing time so semantics match Flink's standard StateTtlConfig.
-        if (!TTL_NAMESPACE.equals(timer.getNamespace())) {
-            return;
-        }
+    public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        // Only processing-time (TTL) timers are registered. Semantics match Flink's standard
+        // StateTtlConfig.
         if (minStateTtlMs == 0) {
             // TTL wasn't configured and shouldn't have registered any timers.
             return;
@@ -738,7 +661,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             // set the new TTL timer maxStateTtlMs ahead
             long newDeadline =
                     phase == Phase.LOAD ? now + maxStateTtlMs : flipProcTime + maxStateTtlMs;
-            timerService.registerProcessingTimeTimer(TTL_NAMESPACE, newDeadline);
+            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, newDeadline);
             ttlExpiryState.update(newDeadline);
             return;
         }
@@ -780,7 +703,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /**
      * Transition from LOAD to JOIN. Runs in a NON-KEYED context (callers {@link #processWatermark2}
      * and {@link #idleFlipTimer}), so it must not touch keyed state directly; the per-key probe
-     * drain happens in the {@link #FLIP_NAMESPACE} timers fired below.
+     * drain happens in the per-record event-time timers fired below.
      */
     private void transitionToJoinPhase(FlipTrigger trigger) throws Exception {
         if (phase == Phase.JOIN) {
@@ -797,18 +720,17 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         flipProcTime = getProcessingTimeService().getCurrentProcessingTime();
         cancelIdleFlipTimer();
 
-        // If we have seen a probe-side WM, fire the FLIP timers to drain the buffered probes. Call
-        // processWatermark1 with the WM, so firing is interruptible and the watermark is forwarded
-        // after all buffered probe-side records were joined and the buffers cleared.
-        // If we haven't seen a probe-side WM yet, the joining is triggered by the next probe-side
-        // WM.
-        if (currentProbeSideWm >= FLIP_JOIN_TIMER_TS) {
+        // If we have seen a (non-negative) probe-side WM, forward it so the per-record flip timers
+        // fire (their synthetic timestamps are negative) and drain the buffered probes. Firing is
+        // interruptible and the watermark is forwarded after the buffered probes are joined.
+        // If we haven't seen a probe-side WM yet, draining is triggered by the next probe-side WM.
+        if (currentProbeSideWm >= 0) {
             super.processWatermark1(new Watermark(currentProbeSideWm));
         }
         LOG.info(
                 "Completed flip to JOIN phase (trigger={}): emittedProbeWm={}",
                 trigger,
-                currentProbeSideWm >= FLIP_JOIN_TIMER_TS ? currentProbeSideWm : "none");
+                currentProbeSideWm >= 0 ? currentProbeSideWm : "none");
     }
 
     /**
@@ -1017,10 +939,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return;
         }
         if (currentTtlTimer != null) {
-            timerService.deleteProcessingTimeTimer(TTL_NAMESPACE, currentTtlTimer);
+            timerService.deleteProcessingTimeTimer(VoidNamespace.INSTANCE, currentTtlTimer);
         }
         long newDeadline = now + maxStateTtlMs;
-        timerService.registerProcessingTimeTimer(TTL_NAMESPACE, newDeadline);
+        timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, newDeadline);
         ttlExpiryState.update(newDeadline);
     }
 
@@ -1073,13 +995,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     @VisibleForTesting
-    ValueState<Long> getProbeBufferSize() {
-        return probeBufferSize;
-    }
-
-    @VisibleForTesting
-    ValueState<Long> getProbeBufferDrainOffset() {
-        return probeBufferDrainOffset;
+    ValueState<Long> getProbeBufferSeq() {
+        return probeBufferSeq;
     }
 
     @VisibleForTesting
