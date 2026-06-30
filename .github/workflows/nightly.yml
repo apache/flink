@@ -51,11 +51,11 @@ jobs:
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
   hadoop313:
-    name: "Hadoop 3.1.3"
+    name: "Hadoop 3.4.3"
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: hadoop313
-      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"'
+      environment: 'PROFILE="-Dflink.hadoop.version=3.4.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"'
       jdk_version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
