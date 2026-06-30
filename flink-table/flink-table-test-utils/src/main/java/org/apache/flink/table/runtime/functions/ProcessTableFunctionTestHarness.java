@@ -287,10 +287,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         Object[] args = arguments.stream().map(arg -> ((ScalarArgumentInfo) arg).value).toArray();
 
         try {
-            eval.method.invoke(function, args);
+            currentInvocation = InvocationContext.forScalarOnlyEval();
+            eval.invoke(function, new TestContext(new HashMap<>()), args);
         } catch (InvocationTargetException e) {
             handleEvalInvocationException(
                     "Exception occurred during scalar-only PTF eval() invocation.\n", args, e);
+        } finally {
+            currentInvocation = null;
         }
     }
 
