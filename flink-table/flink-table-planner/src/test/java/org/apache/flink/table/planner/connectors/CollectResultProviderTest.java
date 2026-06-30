@@ -33,18 +33,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
- * ITCase for collecting SELECT results via the Table API (backed by {@code
+ * Tests for collecting SELECT results via the Table API (backed by {@code
  * CollectDynamicSink.CollectResultProvider}).
  */
-class CollectResultProviderITCase {
+class CollectResultProviderTest {
+
+    private static final String EMPTY_RESULT_QUERY =
+            "SELECT * FROM (VALUES (1)) AS t(x) WHERE x < 0";
 
     @Test
     void awaitAndCollectCompleteForEmptyBatchResult() throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.newInstance().inBatchMode().build());
 
-        final TableResult result =
-                tEnv.executeSql("SELECT * FROM (VALUES (1)) AS t(x) WHERE x < 0");
+        final TableResult result = tEnv.executeSql(EMPTY_RESULT_QUERY);
 
         assertThatCode(() -> result.await(15, TimeUnit.SECONDS)).doesNotThrowAnyException();
         try (CloseableIterator<Row> rows = result.collect()) {
@@ -64,6 +66,20 @@ class CollectResultProviderITCase {
         try (CloseableIterator<Row> rows = result.collect()) {
             assertThat(CollectionUtil.iteratorToList(rows))
                     .containsExactlyInAnyOrder(Row.of(2), Row.of(3));
+        }
+    }
+
+    @Test
+    void awaitAndCollectCompleteForEmptyStreamingResult() throws Exception {
+        final TableEnvironment tEnv =
+                TableEnvironment.create(
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+
+        final TableResult result = tEnv.executeSql(EMPTY_RESULT_QUERY);
+
+        assertThatCode(() -> result.await(15, TimeUnit.SECONDS)).doesNotThrowAnyException();
+        try (CloseableIterator<Row> rows = result.collect()) {
+            assertThat(rows.hasNext()).isFalse();
         }
     }
 }
