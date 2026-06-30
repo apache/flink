@@ -691,13 +691,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     /**
      * Joins the current key's buffered probes over the index range {@code [from, to)} in insertion
-     * order. On the first chunk ({@code from == 0}) any recovered build-side changes are applied
-     * first, so probes join against the materialized build snapshot.
+     * order. On the first chunk ({@code from == 0}) the due build-side changes are applied first,
+     * so probes join against the materialized build snapshot.
      */
     private void drainProbeRange(long from, long to) throws Exception {
-        // Apply once, before processing the first chunk of buffered probe records.
+        // Apply due build-side changes once, before processing the first chunk of buffered probes.
         if (from == 0) {
-            applyBufferedChanges();
+            applyDueBufferedChanges();
         }
         for (long i = from; i < to; i++) {
             joinProbeRow(probeBuffer.get(i));
@@ -873,12 +873,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return null;
         }
         if (currentBuildSideWm > bufferedAt) {
-            // the build-side wm advanced. Buffered changes can be applied atomically now.
-            applyBufferedChanges();
-            return null;
+            // The build-side wm advanced: apply the changes that are now due (their row-time has
+            // been reached by the build-side watermark) and keep any not-yet-due changes buffered.
+            applyDueBufferedChanges();
+            return bufferedAtWmState.value();
         } else if (phase == Phase.JOIN && currentBuildSideWm == Long.MIN_VALUE) {
-            // JOIN-phase fallback: no build watermark seen by this subtask (recovery/rescale, or
-            // idle-timeout flip). Apply now, since the next build watermark may never arrive.
+            // JOIN-phase fallback: no build-side watermark seen by this subtask (recovery/rescale,
+            // or idle-timeout flip). Force-apply everything now, since there is no watermark to
+            // gate on and the next build watermark may not arrive for a long time.
             applyBufferedChanges();
             return null;
         }
@@ -886,8 +888,43 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     /**
-     * Apply all buffered build-side changes for the current key to {@code buildTableState} in
-     * event-time order, then clear the buffer state.
+     * Applies the buffered build-side changes that are due — i.e. whose row-time attribute has been
+     * reached by the build-side watermark — in event-time order, keeping any not-yet-due changes
+     * buffered (re-tagged at the current watermark). This preserves atomic visibility of a
+     * retraction/insertion pair.
+     */
+    private void applyDueBufferedChanges() throws Exception {
+        if (currentBuildSideWm == Long.MIN_VALUE) {
+            applyBufferedChanges();
+            return;
+        }
+        List<RowData> due = new ArrayList<>();
+        List<RowData> kept = new ArrayList<>();
+        for (RowData c : buildChangeBuffer.get()) {
+            if (c.getLong(buildRowtimeIndex) <= currentBuildSideWm) {
+                due.add(c);
+            } else {
+                kept.add(c);
+            }
+        }
+        // Apply in event-time order; the sort reads the row-time/kind before applyBuildChange
+        // mutates the kind.
+        due.sort(this::compareBuildChanges);
+        for (RowData c : due) {
+            applyBuildChange(c);
+        }
+        if (kept.isEmpty()) {
+            clearBuildChangeBuffer();
+        } else {
+            buildChangeBuffer.update(kept);
+            bufferedAtWmState.update(currentBuildSideWm);
+        }
+    }
+
+    /**
+     * Force-applies all buffered build-side changes for the current key to {@code buildTableState}
+     * in event-time order, regardless of row-time, then clears the buffer. Used only when there is
+     * no build watermark to gate on (none seen yet).
      */
     private void applyBufferedChanges() throws Exception {
         List<RowData> changes = new ArrayList<>();

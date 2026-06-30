@@ -275,6 +275,104 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
+    // --------------------------------------------- row-time gated build-change application
+
+    @Test
+    void buildChangeDeferredUntilWatermarkReachesItsRowtime() throws Exception {
+        // Atomicity guarantee: a -U/+U pair sharing a row-time above the watermark must not be
+        // split when the build watermark advances between the two records (e.g. another build input
+        // channel raising the combined watermark). With row-time gating the retraction stays
+        // buffered until the watermark reaches the pair's row-time, so it is never applied alone.
+        LateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildWm(h, 50L); // flip to JOIN; build wm = 50
+            assertPhase(op, Phase.JOIN);
+
+            // -U buffered at tag 50, then the watermark advances to 150 (past the tag, below the
+            // pair's row-time 200), then +U arrives. The retraction must NOT be flushed alone.
+            addBuildChange(h, updateBeforeRecord("k1", "x", 200L));
+            addBuildWm(h, 150L);
+            addBuildChange(h, updateAfterRecord("k1", "y", 200L));
+            // additional insert to be kept in the buffer and applied later
+            addBuildChange(h, insertRecord("k1", "z", 300L));
+
+            // Both halves still buffered together; the retraction was not applied (it would have
+            // counted as an unmatched retraction against the empty build table).
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(3);
+            assertThat(buildTableForKey(h, op, "k1")).isEmpty();
+
+            // Once the watermark reaches the pair's row-time, both halves apply together.
+            addBuildWm(h, 200L);
+            addProbeRecord(h, 1L, "k1", "p");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("y", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1);
+            assertThat(bufferedAtWmFor(h, op, "k1")).isEqualTo(200L);
+
+            // apply the final insert.
+            addBuildWm(h, 400L);
+            addProbeRecord(h, 1L, "k1", "p2");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("y", 1L, "z", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
+            assertThat(bufferedAtWmFor(h, op, "k1")).isNull();
+        }
+    }
+
+    @Test
+    void wmFlipAppliesOnlyDueBuildChanges() throws Exception {
+        // A watermark flip materializes build changes only up to loadCompletedTime; changes with a
+        // row-time above it stay buffered and are applied later as the watermark advances.
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "due", 50L)); // row-time <= loadCompletedTime
+            addBuildChange(h, insertRecord("k1", "future", 200L)); // row-time > loadCompletedTime
+            addProbeRecord(h, 1L, "k1", "p"); // buffered during LOAD
+            addProbeWm(h, 80L); // lets the flip fire the per-key drain
+
+            addBuildWm(h, 100L); // flip to JOIN at loadCompletedTime
+            assertPhase(op, Phase.JOIN);
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("due", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1); // future still buffered
+
+            // The future change is applied once the watermark reaches its row-time.
+            addBuildWm(h, 200L);
+            addProbeRecord(h, 2L, "k1", "p2");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("due", 1L, "future", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
+        }
+    }
+
+    @Test
+    void idleFlipWithoutWatermarkForceAppliesBufferedChanges() throws Exception {
+        // When the flip is triggered by the idle timeout and no build watermark was ever seen
+        // (currentBuildSideWm == MIN_VALUE), there is nothing to gate on, so buffered changes are
+        // force-applied regardless of row-time. Otherwise the build table would stay empty forever.
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(0);
+            h.open();
+            addBuildChange(h, insertRecord("k1", "r", 200L)); // buffered during LOAD, no build wm
+
+            h.setProcessingTime(100); // idle timeout fires the flip
+            assertPhase(op, Phase.JOIN);
+
+            // No watermark to gate on: the change is force-applied on the next access despite its
+            // row-time being ahead of the (absent) watermark.
+            addProbeRecord(h, 1L, "k1", "p");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("r", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
+        }
+    }
+
     @Test
     void loadPhaseProbeSideInputProcessing() throws Exception {
         LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
