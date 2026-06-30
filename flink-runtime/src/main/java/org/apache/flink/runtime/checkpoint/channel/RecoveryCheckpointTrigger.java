@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 
 import java.io.IOException;
 
@@ -29,13 +31,24 @@ public interface RecoveryCheckpointTrigger {
      * RecoveryCheckpointBarrier}s into in-recovery channels. Returns an independent reader over the
      * remaining segments; the caller owns and must close it.
      */
-    FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId) throws IOException;
+    FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
+            throws IOException, CheckpointException;
 
     /** Returns an empty reader (no spill files, so no segments) and inserts no barriers. */
     RecoveryCheckpointTrigger NO_OP = checkpointId -> FetchedChannelStateReader.emptyReader();
 
     RecoveryCheckpointTrigger NOT_READY =
             ign -> {
-                throw new IllegalStateException("RecoveryCheckpointTrigger is not ready yet");
+                // A checkpoint barrier reached the barrier handler before channel-state recovery
+                // finished wiring up the real trigger: the input gates were already requested (so
+                // barriers can arrive) but the trigger is still being installed on the mailbox
+                // thread. With checkpointing-during-recovery this is an expected, transient
+                // condition, not a fatal invariant violation. Decline the checkpoint as
+                // TASK_NOT_READY so the coordinator aborts and retries it once recovery completes.
+                // Throwing a CheckpointException (rather than a RuntimeException) lets
+                // SingleCheckpointBarrierHandler#markCheckpointAlignedAndTransformState route it to
+                // abortInternal instead of failing the task.
+                throw new CheckpointException(
+                        CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
             };
 }
