@@ -199,6 +199,14 @@ Format 参数
       <td>Boolean</td>
       <td>可选标志，用于将空字符串值视为 null（默认禁用）。仅影响反序列化。</td>
     </tr>
+    <tr>
+      <td><h5>csv.ignore-first-line</h5></td>
+      <td>可选</td>
+      <td>否</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，用于在反序列化时跳过每个 CSV 文件的第一条记录（默认禁用）。仅 filesystem 连接器支持。表 schema 不会从被跳过的记录中推断。仅影响反序列化。</td>
+    </tr>
     </tbody>
 </table>
 
