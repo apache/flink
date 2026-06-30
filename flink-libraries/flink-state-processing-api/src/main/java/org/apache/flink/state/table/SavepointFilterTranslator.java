@@ -43,6 +43,7 @@ import java.util.function.BiFunction;
  * Converts {@link ResolvedExpression} key filter predicates into {@link SavepointKeyFilter}
  * instances that can be used to prune key groups and key iterations during savepoint reads.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 class SavepointFilterTranslator {
 
     private static final Logger LOG = LoggerFactory.getLogger(SavepointFilterTranslator.class);
@@ -200,8 +201,8 @@ class SavepointFilterTranslator {
             return null;
         }
         return SavepointKeyFilter.range(
-                (Comparable<?>) lower, true,
-                (Comparable<?>) upper, true);
+                (Comparable) lower, true,
+                (Comparable) upper, true);
     }
 
     @Nullable
@@ -247,7 +248,7 @@ class SavepointFilterTranslator {
                     bound.getClass().getName());
             return null;
         }
-        Comparable<?> b = (Comparable<?>) bound;
+        Comparable b = (Comparable) bound;
         Comparison keyLeftCmp = keyOnLeft ? cmp : cmp.flip();
         switch (keyLeftCmp) {
             case GT:

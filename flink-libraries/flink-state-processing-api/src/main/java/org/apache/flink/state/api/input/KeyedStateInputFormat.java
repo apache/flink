@@ -86,7 +86,7 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-    @Nullable private final SavepointKeyFilter keyFilter;
+    @Nullable private final SavepointKeyFilter<K> keyFilter;
 
     private transient CloseableRegistry registry;
 
@@ -127,7 +127,7 @@ public class KeyedStateInputFormat<K, N, OUT>
             Configuration configuration,
             StateReaderOperator<?, K, N, OUT> operator,
             ExecutionConfig executionConfig,
-            @Nullable SavepointKeyFilter keyFilter)
+            @Nullable SavepointKeyFilter<K> keyFilter)
             throws IOException {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
         Preconditions.checkNotNull(configuration, "The configuration cannot be null");
@@ -164,7 +164,7 @@ public class KeyedStateInputFormat<K, N, OUT>
         final List<KeyGroupRange> keyGroups = sortedKeyGroupRanges(minNumSplits, maxParallelism);
 
         if (keyFilter != null) {
-            Set<Object> exactKeys = keyFilter.getExactKeys();
+            Set<K> exactKeys = keyFilter.getExactKeys();
             if (exactKeys != null) {
                 return pruneByExactKeys(keyGroups, exactKeys, maxParallelism);
             }
@@ -179,13 +179,13 @@ public class KeyedStateInputFormat<K, N, OUT>
     }
 
     private KeyGroupRangeInputSplit[] pruneByExactKeys(
-            List<KeyGroupRange> keyGroups, Set<Object> exactKeys, int maxParallelism) {
+            List<KeyGroupRange> keyGroups, Set<K> exactKeys, int maxParallelism) {
         if (exactKeys.isEmpty()) {
             return new KeyGroupRangeInputSplit[0];
         }
 
         final Set<Integer> targetKeyGroups = new HashSet<>();
-        for (Object key : exactKeys) {
+        for (K key : exactKeys) {
             targetKeyGroups.add(KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism));
         }
 

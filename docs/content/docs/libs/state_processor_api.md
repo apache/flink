@@ -265,20 +265,20 @@ DataStream<KeyedState> keyRange = savepoint.readKeyedState(
 
 `SavepointKeyFilter` provides the following factory methods:
 
-* `SavepointKeyFilter.exact(Object key)` / `SavepointKeyFilter.exact(Set<Object> keys)` — match a single key or a finite set of keys.
-* `SavepointKeyFilter.range(Comparable<?> lower, boolean lowerInclusive, Comparable<?> upper, boolean upperInclusive)` — match a range. Either bound may be `null` to leave that side unbounded.
+* `SavepointKeyFilter.exact(K key)` / `SavepointKeyFilter.exact(Set<K> keys)` — match a single key or a finite set of keys.
+* `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive)` — match a range (`K` must implement `Comparable<K>`). Either bound may be `null` to leave that side unbounded.
 * `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
 
-When the built-in filters are not enough, you can implement the `SavepointKeyFilter` interface yourself.
-For use with the DataStream API, only `test(Object key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
+When the built-in filters are not enough, you can implement the `SavepointKeyFilter<K>` interface yourself.
+For use with the DataStream API, only `test(K key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
 
 ```java
 // Reads the state only for even keys
-public class EvenKeyFilter implements SavepointKeyFilter {
+public class EvenKeyFilter implements SavepointKeyFilter<Integer> {
 
     @Override
-    public boolean test(Object key) {
-        return ((Integer) key) % 2 == 0;
+    public boolean test(Integer key) {
+        return key % 2 == 0;
     }
 }
 
@@ -295,7 +295,7 @@ If your filter resolves to a finite set of keys, additionally override `getExact
 
 ```java
 // Reads the state only for keys 0..max
-public class UpToKeyFilter implements SavepointKeyFilter {
+public class UpToKeyFilter implements SavepointKeyFilter<Integer> {
 
     private final int max;
 
@@ -304,15 +304,14 @@ public class UpToKeyFilter implements SavepointKeyFilter {
     }
 
     @Override
-    public boolean test(Object key) {
-        int k = (Integer) key;
-        return k >= 0 && k <= max;
+    public boolean test(Integer key) {
+        return key >= 0 && key <= max;
     }
 
     @Override
-    public Set<Object> getExactKeys() {
+    public Set<Integer> getExactKeys() {
         // Enumerate the finite key set so Flink can prune splits up front
-        Set<Object> keys = new HashSet<>();
+        Set<Integer> keys = new HashSet<>();
         for (int k = 0; k <= max; k++) {
             keys.add(k);
         }

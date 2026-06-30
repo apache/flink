@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 import java.util.Set;
 
 /** A filter based on a comparable range. */
-final class RangeKeyFilter implements SavepointKeyFilter {
+final class RangeKeyFilter<K extends Comparable<K>> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 3L;
 
@@ -36,7 +36,7 @@ final class RangeKeyFilter implements SavepointKeyFilter {
     }
 
     @Override
-    public boolean test(Object key) {
+    public boolean test(K key) {
         if (lower != null) {
             int cmp = compare(lower.getValue(), key);
             if (cmp > 0 || (cmp == 0 && !lower.isInclusive())) {
@@ -68,18 +68,18 @@ final class RangeKeyFilter implements SavepointKeyFilter {
     }
 
     @Override
-    public SavepointKeyFilter intersect(SavepointKeyFilter other) {
+    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
         if (other.isEmpty()) {
             return other;
         }
-        final Set<Object> otherExactKeys = other.getExactKeys();
+        final Set<K> otherExactKeys = other.getExactKeys();
         if (otherExactKeys != null) {
             return SavepointKeyFilter.filterKeys(otherExactKeys, this);
         }
         return intersectRange(other.getLowerBound(), other.getUpperBound());
     }
 
-    private SavepointKeyFilter intersectRange(
+    private SavepointKeyFilter<K> intersectRange(
             @Nullable BoundInfo otherLower, @Nullable BoundInfo otherUpper) {
         BoundInfo newLower = tighter(lower, otherLower, true);
         BoundInfo newUpper = tighter(upper, otherUpper, false);
@@ -93,7 +93,7 @@ final class RangeKeyFilter implements SavepointKeyFilter {
                 return SavepointKeyFilter.empty();
             }
         }
-        return new RangeKeyFilter(newLower, newUpper);
+        return new RangeKeyFilter<>(newLower, newUpper);
     }
 
     @Nullable

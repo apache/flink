@@ -26,12 +26,16 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Represents a key filter that can be pushed down into a savepoint scan. */
+/**
+ * Represents a key filter that can be pushed down into a savepoint scan.
+ *
+ * @param <K> The type of the key.
+ */
 @Experimental
-public interface SavepointKeyFilter extends Serializable {
+public interface SavepointKeyFilter<K> extends Serializable {
 
     /** Returns {@code true} if the given key passes this filter. */
-    boolean test(Object key);
+    boolean test(K key);
 
     /**
      * Returns {@code true} if this filter rejects every key.
@@ -47,7 +51,7 @@ public interface SavepointKeyFilter extends Serializable {
      * resolve to a finite key set.
      */
     @Nullable
-    default Set<Object> getExactKeys() {
+    default Set<K> getExactKeys() {
         return null;
     }
 
@@ -79,14 +83,14 @@ public interface SavepointKeyFilter extends Serializable {
      *
      * <p>Used only while combining filters during push-down translation, not during the scan.
      */
-    default SavepointKeyFilter intersect(SavepointKeyFilter other) {
+    default SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
         throw new UnsupportedOperationException(
                 getClass().getSimpleName() + " does not support intersect()");
     }
 
-    static SavepointKeyFilter filterKeys(Set<Object> keys, SavepointKeyFilter predicate) {
-        final Set<Object> retained = new HashSet<>();
-        for (Object key : keys) {
+    static <K> SavepointKeyFilter<K> filterKeys(Set<K> keys, SavepointKeyFilter<K> predicate) {
+        final Set<K> retained = new HashSet<>();
+        for (K key : keys) {
             if (predicate.test(key)) {
                 retained.add(key);
             }
@@ -94,28 +98,25 @@ public interface SavepointKeyFilter extends Serializable {
         return exact(retained);
     }
 
-    static SavepointKeyFilter exact(Set<Object> keys) {
+    static <K> SavepointKeyFilter<K> exact(Set<K> keys) {
         if (keys.isEmpty()) {
-            return EmptyKeyFilter.INSTANCE;
+            return EmptyKeyFilter.instance();
         }
-        return new ExactKeyFilter(keys);
+        return new ExactKeyFilter<>(keys);
     }
 
-    static SavepointKeyFilter exact(Object value) {
-        return new ExactKeyFilter(Set.of(value));
+    static <K> SavepointKeyFilter<K> exact(K value) {
+        return new ExactKeyFilter<>(Set.of(value));
     }
 
-    static SavepointKeyFilter range(
-            @Nullable Comparable<?> lower,
-            boolean lowerInclusive,
-            @Nullable Comparable<?> upper,
-            boolean upperInclusive) {
+    static <K extends Comparable<K>> SavepointKeyFilter<K> range(
+            @Nullable K lower, boolean lowerInclusive, @Nullable K upper, boolean upperInclusive) {
         BoundInfo lowerBoundInfo = lower != null ? new BoundInfo(lower, lowerInclusive) : null;
         BoundInfo upperBoundInfo = upper != null ? new BoundInfo(upper, upperInclusive) : null;
-        return new RangeKeyFilter(lowerBoundInfo, upperBoundInfo);
+        return new RangeKeyFilter<>(lowerBoundInfo, upperBoundInfo);
     }
 
-    static SavepointKeyFilter empty() {
-        return EmptyKeyFilter.INSTANCE;
+    static <K> SavepointKeyFilter<K> empty() {
+        return EmptyKeyFilter.instance();
     }
 }

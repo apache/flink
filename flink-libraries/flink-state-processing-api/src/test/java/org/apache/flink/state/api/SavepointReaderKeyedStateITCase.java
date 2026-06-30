@@ -237,7 +237,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     private CountingReadResult readKeyedStateWithCountingReader(
-            SavepointReader savepoint, SavepointKeyFilter keyFilter) throws Exception {
+            SavepointReader savepoint, SavepointKeyFilter<Integer> keyFilter) throws Exception {
         DataStream<Integer> stateValues =
                 savepoint.readKeyedState(
                         OperatorIdentifier.forUid(uid),
