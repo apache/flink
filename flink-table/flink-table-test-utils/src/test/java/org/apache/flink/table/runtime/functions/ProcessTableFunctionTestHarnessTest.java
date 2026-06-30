@@ -1918,9 +1918,6 @@ class ProcessTableFunctionTestHarnessTest {
                         Row input) {
             String action = input.getFieldAs("action");
             if ("increment".equals(action)) {
-                if (state == null) {
-                    state = new CounterState();
-                }
                 state.count++;
                 collect(Row.of("count=" + state.count));
             } else if ("clear-state".equals(action)) {
