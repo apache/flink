@@ -1075,24 +1075,17 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-      val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
-      // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
+      // upsert keys within the sink pk, modulo equi-join equivalence; null => fall back to beforeAndAfter
+      val changeLogUpsertKeys =
+        UpsertKeyEquivalenceUtil.upsertKeysWithin(sink.getInput, sinkPks, fmq)
       if (changeLogUpsertKeys == null) {
         return false
       }
       val immutableCols =
         Option.apply(fmq.getImmutableColumns(sink.getInput)).getOrElse(ImmutableBitSet.of())
 
-      // when input immutableCols is empty, this degrades to uk.equals(sinkPks)
-      changeLogUpsertKeys.exists(
-        uk => {
-          // 1. uk ⊆ sinkPks
-          val isSinkPkContainsUk = sinkPks.contains(uk)
-          // 2. (sinkPks \ uk) ⊆ immutableCols
-          val extraSinkPkCols = sinkPks.except(uk)
-          val areExtraSinkPkColsImmutable = immutableCols.contains(extraSinkPkCols)
-          isSinkPkContainsUk && areExtraSinkPkColsImmutable
-        })
+      // each key is already within the sink pk; the remaining pk columns must be immutable
+      changeLogUpsertKeys.exists(uk => immutableCols.contains(sinkPks.except(uk)))
     }
 
     /**
