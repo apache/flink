@@ -232,7 +232,7 @@ When you are only interested in state for a subset of keys, you can push a `Save
 
 Depending on its type, a filter skips unnecessary reads at two levels:
 
-* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink hashes those keys up front to find the few key groups that own them, and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys.
+* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink can determine up front which key groups own those keys and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys.
 * **Key-level filtering** — within each split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
 
 ```java
@@ -731,8 +731,8 @@ The following predicates on the key column can be pushed down:
 
 * `=` and `IN` — resolve to an exact set of keys and enable key-group pruning.
 * `<`, `<=`, `>`, `>=`, and `BETWEEN` — resolve to a key range and enable key-level filtering within each split.
-* `AND` — pushed down when **all** of its operands are range predicates; the ranges are intersected into a single, tighter range.
-* `OR` — pushed down when **every** branch resolves to exact keys (the branches are unioned into one key set, which is equivalent to an `IN`).
+* `AND` — pushed down when **all** of its operands are range predicates; the ranges are intersected into a single, tighter range. If any operand is an equality/IN predicate, the entire AND expression is not pushed down — neither split pruning nor key-level filtering applies.
+* `OR` — pushed down when **every** branch resolves to exact keys (the branches are unioned into one key set, which is equivalent to an `IN`). If any branch is a range predicate, the entire OR expression is not pushed down.
 
 ### Connector options
 
