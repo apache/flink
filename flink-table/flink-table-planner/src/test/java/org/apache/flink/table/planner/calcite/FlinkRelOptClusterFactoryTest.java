@@ -26,7 +26,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.metadata.RelMetadataQueryBase;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,12 +47,7 @@ class FlinkRelOptClusterFactoryTest {
                                 RelMetadataQueryBase.THREAD_PROVIDERS.remove();
 
                                 RelMetadataQuery mq = cluster.getMetadataQuerySupplier().get();
-
-                                Field providerField =
-                                        RelMetadataQueryBase.class.getDeclaredField(
-                                                "metadataHandlerProvider");
-                                providerField.setAccessible(true);
-                                assertThat(providerField.get(mq)).isNotNull();
+                                assertThat(mq.metadataProvider).isNotNull();
                             } catch (Throwable t) {
                                 failure.set(t);
                             }
