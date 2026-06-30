@@ -19,22 +19,15 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,18 +42,6 @@ import static org.mockito.Mockito.verify;
  */
 class FinalizeOnMasterTest {
 
-    /**
-     * Dedicated single-threaded main-thread executor; using forMainThread() here would run the
-     * deployment callbacks on the I/O thread and race the test (FLINK-38536).
-     */
-    @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> JM_MAIN_THREAD_EXECUTOR_RESOURCE =
-            TestingUtils.jmMainThreadExecutorExtension();
-
-    @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
-
     @Test
     void testFinalizeIsCalledUponSuccess() throws Exception {
         final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
@@ -71,35 +52,28 @@ class FinalizeOnMasterTest {
         vertex2.setInvokableClass(NoOpInvokable.class);
         vertex2.setParallelism(2);
 
-        final ComponentMainThreadExecutor mainThreadExecutor =
-                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                        JM_MAIN_THREAD_EXECUTOR_RESOURCE.getExecutor());
-
+        // Use a direct future executor so the asynchronous deployment callbacks complete inline
+        // before the manual state transitions below, avoiding the FLINK-38536 race.
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex1, vertex2),
-                        mainThreadExecutor,
-                        EXECUTOR_RESOURCE.getExecutor());
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new DirectScheduledExecutorService());
+        scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
-        runInMainThread(mainThreadExecutor, scheduler::startScheduling);
-        assertThat(supplyInMainThread(mainThreadExecutor, eg::getState))
-                .isEqualTo(JobStatus.RUNNING);
-
-        runInMainThread(
-                mainThreadExecutor, () -> ExecutionGraphTestUtils.switchAllVerticesToRunning(eg));
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
         // move all vertices to finished state
-        runInMainThread(mainThreadExecutor, () -> ExecutionGraphTestUtils.finishAllVertices(eg));
+        ExecutionGraphTestUtils.finishAllVertices(eg);
         assertThat(eg.waitUntilTerminal()).isEqualTo(JobStatus.FINISHED);
 
-        // waitUntilTerminal acts as the barrier, so the assertions below are safe off the main
-        // thread.
         verify(vertex1, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
         verify(vertex2, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
-        assertThat(supplyInMainThread(mainThreadExecutor, eg::getRegisteredExecutions)).isEmpty();
+        assertThat(eg.getRegisteredExecutions()).isEmpty();
     }
 
     @Test
@@ -108,54 +82,30 @@ class FinalizeOnMasterTest {
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(1);
 
-        final ComponentMainThreadExecutor mainThreadExecutor =
-                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                        JM_MAIN_THREAD_EXECUTOR_RESOURCE.getExecutor());
-
+        // Use a direct future executor so the asynchronous deployment callbacks complete inline
+        // before the manual state transitions below, avoiding the FLINK-38536 race.
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex),
-                        mainThreadExecutor,
-                        EXECUTOR_RESOURCE.getExecutor());
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new DirectScheduledExecutorService());
+        scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-        runInMainThread(mainThreadExecutor, scheduler::startScheduling);
-        assertThat(supplyInMainThread(mainThreadExecutor, eg::getState))
-                .isEqualTo(JobStatus.RUNNING);
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
-        runInMainThread(
-                mainThreadExecutor, () -> ExecutionGraphTestUtils.switchAllVerticesToRunning(eg));
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
         // fail the execution
-        runInMainThread(
-                mainThreadExecutor,
-                () -> {
-                    final Execution exec =
-                            eg.getJobVertex(vertex.getID())
-                                    .getTaskVertices()[0]
-                                    .getCurrentExecutionAttempt();
-                    exec.fail(new Exception("test"));
-                });
+        final Execution exec =
+                eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
+        exec.fail(new Exception("test"));
 
         assertThat(eg.waitUntilTerminal()).isEqualTo(JobStatus.FAILED);
 
         verify(vertex, times(0)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
-        assertThat(supplyInMainThread(mainThreadExecutor, eg::getRegisteredExecutions)).isEmpty();
-    }
-
-    /** Runs the action on the JobManager main thread and blocks until it completes. */
-    private static void runInMainThread(
-            final ComponentMainThreadExecutor mainThreadExecutor, final Runnable action)
-            throws Exception {
-        CompletableFuture.runAsync(action, mainThreadExecutor).get();
-    }
-
-    /** Reads the value on the JobManager main thread and blocks until it is available. */
-    private static <T> T supplyInMainThread(
-            final ComponentMainThreadExecutor mainThreadExecutor, final Supplier<T> supplier)
-            throws Exception {
-        return CompletableFuture.supplyAsync(supplier, mainThreadExecutor).get();
+        assertThat(eg.getRegisteredExecutions()).isEmpty();
     }
 }
