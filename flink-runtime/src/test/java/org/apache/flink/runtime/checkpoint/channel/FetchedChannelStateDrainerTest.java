@@ -37,7 +37,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -353,7 +352,7 @@ class FetchedChannelStateDrainerTest {
         for (int i = 0; i < infoChannelPairs.length; i += 2) {
             all.add((RecoverableInputChannel) infoChannelPairs[i + 1]);
         }
-        return new FetchedChannelStateDrainer(state, CompletableFuture.completedFuture(all));
+        return new FetchedChannelStateDrainer(state, all);
     }
 
     private static long extractRecoveryBarrierCheckpointId(Buffer buffer) throws IOException {

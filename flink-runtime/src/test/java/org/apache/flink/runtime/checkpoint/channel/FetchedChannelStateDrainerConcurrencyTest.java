@@ -35,7 +35,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -79,8 +78,7 @@ class FetchedChannelStateDrainerConcurrencyTest {
         all.add(chan0);
         all.add(chan1);
 
-        FetchedChannelStateDrainer drainer =
-                new FetchedChannelStateDrainer(state, CompletableFuture.completedFuture(all));
+        FetchedChannelStateDrainer drainer = new FetchedChannelStateDrainer(state, all);
 
         ExecutorService io = Executors.newSingleThreadExecutor();
         AtomicReference<Throwable> drainError = new AtomicReference<>();

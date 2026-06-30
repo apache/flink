@@ -65,7 +65,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     }
 
     @Override
-    public void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
+    public Optional<FetchedChannelState> readInputData(
+            InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException {
 
         // Create filtering handler if filtering is needed
@@ -85,7 +86,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         filterContext.getMemorySegmentSize(),
                         filterContext.getTmpDirectories());
         try (ChannelStateFilteringHandler ignored = filteringHandler) {
-            try {
+            try (stateHandler) {
                 read(
                         stateHandler,
                         groupByDelegate(
@@ -102,16 +103,11 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                             !filteringHandler.hasPartialData(),
                             "Not all data has been fully consumed during filtering");
                 }
-            } finally {
-                stateHandler.close();
             }
-            this.producedChannelState = stateHandler.getProducedChannelState();
+            // stateHandler.close() (above) has flushed the filter writer and published the
+            // produced spill file, so read getProducedChannelState() after the close completes.
+            return Optional.ofNullable(stateHandler.getProducedChannelState());
         }
-    }
-
-    @Override
-    public Optional<FetchedChannelState> getProducedChannelState() {
-        return Optional.ofNullable(producedChannelState);
     }
 
     @Override

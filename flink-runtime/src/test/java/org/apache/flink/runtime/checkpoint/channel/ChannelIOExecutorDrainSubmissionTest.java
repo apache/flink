@@ -53,8 +53,7 @@ class ChannelIOExecutorDrainSubmissionTest {
         CapturingChannel chan = new CapturingChannel(cInfo);
         List<RecoverableInputChannel> all = new ArrayList<>();
         all.add(chan);
-        FetchedChannelStateDrainer drainer =
-                new FetchedChannelStateDrainer(state, CompletableFuture.completedFuture(all));
+        FetchedChannelStateDrainer drainer = new FetchedChannelStateDrainer(state, all);
 
         ExecutorService channelIOExecutor = Executors.newSingleThreadExecutor();
         try {
@@ -120,8 +119,7 @@ class ChannelIOExecutorDrainSubmissionTest {
 
         List<RecoverableInputChannel> all = new ArrayList<>();
         all.add(chan);
-        FetchedChannelStateDrainer drainer =
-                new FetchedChannelStateDrainer(state, CompletableFuture.completedFuture(all));
+        FetchedChannelStateDrainer drainer = new FetchedChannelStateDrainer(state, all);
 
         CountDownLatch handlerCalled = new CountDownLatch(1);
         AtomicReference<Throwable> captured = new AtomicReference<>();
