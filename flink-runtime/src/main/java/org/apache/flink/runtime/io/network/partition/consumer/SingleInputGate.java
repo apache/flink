@@ -245,6 +245,8 @@ public class SingleInputGate extends IndexedInputGate {
 
     private volatile boolean checkpointingDuringRecoveryEnabled = false;
 
+    private volatile boolean needsRecovery = false;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -342,18 +344,13 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
-    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        synchronized (requestLock) {
-            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
-            for (InputChannel inputChannel : inputChannels()) {
-                if (inputChannel instanceof RecoveredInputChannel) {
-                    futures.add(
-                            ((RecoveredInputChannel) inputChannel)
-                                    .getBufferFilteringCompleteFuture());
-                }
-            }
-            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-        }
+    public void setNeedsRecovery(boolean enabled) {
+        this.needsRecovery = enabled;
+    }
+
+    @Override
+    public boolean needsRecovery() {
+        return needsRecovery;
     }
 
     @Override
@@ -413,7 +410,7 @@ public class SingleInputGate extends IndexedInputGate {
                     // order with onRecoveredStateBuffer() which acquires receivedBuffers
                     // first and then inputChannelsWithData.
                     InputChannel realInputChannel =
-                            ((RecoveredInputChannel) inputChannel).toInputChannel();
+                            ((RecoveredInputChannel) inputChannel).toInputChannel(needsRecovery);
                     inputChannel.releaseAllResources();
                     int buffersInUseCount = realInputChannel.getBuffersInUseCount();
 
@@ -593,6 +590,11 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public InputChannel getChannel(int channelIndex) {
         return channels[channelIndex];
+    }
+
+    @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        return channels[channelInfo.getInputChannelIdx()];
     }
 
     // ------------------------------------------------------------------------

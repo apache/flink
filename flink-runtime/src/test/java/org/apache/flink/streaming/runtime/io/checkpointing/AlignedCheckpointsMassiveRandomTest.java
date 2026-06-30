@@ -179,6 +179,11 @@ class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
+        public InputChannel getChannel(InputChannelInfo channelInfo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public List<InputChannelInfo> getChannelInfos() {
             return IntStream.range(0, numberOfChannels)
                     .mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))
@@ -264,11 +269,6 @@ class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
-        public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
         public void finishReadRecoveredState() {}
 
         @Override
@@ -292,6 +292,14 @@ class AlignedCheckpointsMassiveRandomTest {
 
         @Override
         public boolean isCheckpointingDuringRecoveryEnabled() {
+            return false;
+        }
+
+        @Override
+        public void setNeedsRecovery(boolean enabled) {}
+
+        @Override
+        public boolean needsRecovery() {
             return false;
         }
     }
