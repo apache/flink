@@ -212,6 +212,110 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 
 **注意：** 当使用 `KeyedStateReaderFunction` 时，所有状态描述符必须在 `open` 函数中注册。 否则任何尝试调用 `RuntimeContext#get*State` 将导致 `RuntimeException`。
 
+#### Filtering Keys
+
+When you are only interested in state for a subset of keys, you can push a `SavepointKeyFilter` into the read instead of reading the whole keyed state and filtering afterward.
+
+Depending on its type, a filter skips unnecessary reads at two levels:
+
+* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink can determine up front which key groups own those keys and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys.
+* **Key-level filtering** — within each split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
+
+```java
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
+
+// Read the state for a single key
+DataStream<KeyedState> singleKey = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.exact(42));
+
+// Read the state for a finite set of keys
+DataStream<KeyedState> someKeys = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.exact(Set.of(1, 2, 3)));
+
+// Read the state for a key range: 10 <= key < 100
+DataStream<KeyedState> keyRange = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.range(10, true, 100, false));
+```
+
+`SavepointKeyFilter` provides the following factory methods:
+
+* `SavepointKeyFilter.exact(Object key)` / `SavepointKeyFilter.exact(Set<Object> keys)` — match a single key or a finite set of keys.
+* `SavepointKeyFilter.range(Comparable<?> lower, boolean lowerInclusive, Comparable<?> upper, boolean upperInclusive)` — match a range. Either bound may be `null` to leave that side unbounded.
+* `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
+
+When the built-in filters are not enough, you can implement the `SavepointKeyFilter` interface yourself.
+For use with the DataStream API, only `test(Object key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
+
+```java
+// Reads the state only for even keys
+public class EvenKeyFilter implements SavepointKeyFilter {
+
+    @Override
+    public boolean test(Object key) {
+        return ((Integer) key) % 2 == 0;
+    }
+}
+
+DataStream<KeyedState> evenState = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    new EvenKeyFilter());
+```
+
+By default, a custom filter only enables key-level filtering — every split is still opened.
+If your filter resolves to a finite set of keys, additionally override `getExactKeys()` to return them; Flink then prunes the splits whose key groups cannot contain any of those keys, just like the built-in `exact(...)` filter.
+
+```java
+// Reads the state only for keys 0..max
+public class UpToKeyFilter implements SavepointKeyFilter {
+
+    private final int max;
+
+    public UpToKeyFilter(int max) {
+        this.max = max;
+    }
+
+    @Override
+    public boolean test(Object key) {
+        int k = (Integer) key;
+        return k >= 0 && k <= max;
+    }
+
+    @Override
+    public Set<Object> getExactKeys() {
+        // Enumerate the finite key set so Flink can prune splits up front
+        Set<Object> keys = new HashSet<>();
+        for (int k = 0; k <= max; k++) {
+            keys.add(k);
+        }
+        return keys;
+    }
+}
+
+DataStream<KeyedState> firstKeys = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    new UpToKeyFilter(100));
+```
+
+The remaining interface methods can be left at their defaults for DataStream API usage, as they are only used internally in the Table API during push-down handling.
+
 ### 窗口状态 Window State
 
 State Processor API 支持读取[窗口算子]({{< ref "docs/dev/datastream/operators/windows" >}})的状态，当读取窗口状态时，需要指定算子 id，窗口分配器和聚合类型。
@@ -298,7 +402,7 @@ SavepointReader savepoint = SavepointReader.read(env, "hdfs://checkpoint-dir", n
 
 savepoint
     .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
-    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
+    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.STRING, Types.INT, Types.INT)
     .print();
 
 ```
@@ -472,7 +576,7 @@ SavepointWriter
 
 ### 更改 UID (hashes)
 
-`SavepointWriter#changeOperatorIdenfifier` 可以用来修改一个算子的 [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) 或 [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash)。
+`SavepointWriter#changeOperatorIdentifier` 可以用来修改一个算子的 [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) 或 [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash)。
 
 如果一个 `UID` 没有被显式地设置(自动生成的并且是未知的)，那么你可以通过提供 `UID hash` (通过解析 logs 获得 `UID hash`) 来为算子赋予一个 `UID`:
 ```java
@@ -491,3 +595,175 @@ savepointWriter
         OperatorIdentifier.forUid("new-uid"))
     ...
 ```
+
+## Table API
+
+### Getting started
+
+Before you interrogate state using the Table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
+
+IMPORTANT NOTE: State Table API only supports keyed state.
+
+### Metadata
+
+The following SQL table function allows users to read the metadata of savepoints and checkpoints in the following way:
+```SQL
+LOAD MODULE state;
+SELECT * FROM savepoint_metadata('/root/dir/of/checkpoint-data/chk-1');
+```
+
+The new table function creates a table with the following fixed schema:
+
+| Key                                      | Data type       | Description                                                                                                                                                                                     |
+|------------------------------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| checkpoint-id                            | BIGINT NOT NULL | Checkpoint ID.                                                                                                                                                                                  |
+| operator-name                            | STRING          | Operator Name.                                                                                                                                                                                  |
+| operator-uid                             | STRING          | Operator UID.                                                                                                                                                                                   |
+| operator-uid-hash                        | STRING NOT NULL | Operator UID hash.                                                                                                                                                                              |
+| operator-parallelism                     | INT NOT NULL    | Parallelism of the operator.                                                                                                                                                                    |
+| operator-max-parallelism                 | INT NOT NULL    | Maximum parallelism of the operator.                                                                                                                                                            |
+| operator-subtask-state-count             | INT NOT NULL    | Number of operator subtask states. It represents the state partition count divided by the operator's parallelism and might be 0 if the state is not partitioned (for example broadcast source). |
+| operator-coordinator-state-size-in-bytes | BIGINT NOT NULL | The operator’s coordinator state size in bytes, or zero if no coordinator state.                                                                                                                |
+| operator-total-size-in-bytes             | BIGINT NOT NULL | Total operator state size in bytes.                                                                                                                                                             |
+
+### Keyed State
+
+[Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state), also known as partitioned state, is any state that is partitioned relative to a key.
+
+The SQL connector allows users to read arbitrary columns as ValueState and complex state types such as ListState, MapState.
+This means if an operator contains a stateful process function such as:
+```java
+eventStream
+  .keyBy(e -> (Integer)e.key)
+  .process(new StatefulFunction())
+  .uid("my-uid");
+
+...
+
+public class Account {
+    private Integer id;
+    public Double amount;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+}
+
+@org.apache.avro.specific.AvroGenerated
+public class AvroRecord ... {
+    // Generated record which contains at least the following field: long longData
+}
+
+public class StatefulFunction extends KeyedProcessFunction<Integer, Integer, Void> {
+  private ValueState<Integer> myValueState;
+  private ValueState<Account> myAccountValueState;
+  private ListState<Integer> myListState;
+  private MapState<Integer, Integer> myMapState;
+  private ValueState<AvroRecord> myAvroState;
+
+  @Override
+  public void open(OpenContext openContext) {
+    myValueState = getRuntimeContext().getState(new ValueStateDescriptor<>("MyValueState", Integer.class));
+    myAccountValueState = getRuntimeContext().getState(new ValueStateDescriptor<>("MyAccountValueState", Account.class));
+    myValueState = getRuntimeContext().getListState(new ListStateDescriptor<>("MyListState", Integer.class));
+    myMapState = getRuntimeContext().getMapState(new MapStateDescriptor<>("MyMapState", Integer.class, Integer.class));
+    myAvroState = getRuntimeContext().getMapState(new ValueStateDescriptor<>("MyAvroState", new AvroTypeInfo<>(AvroRecord.class)));
+  }
+  ...
+}
+```
+
+Then it can read by querying a table created using the following SQL statement:
+```SQL
+CREATE TABLE state_table (
+  k INTEGER,
+  MyValueState INTEGER,
+  MyAccountValueState ROW<id INTEGER, amount DOUBLE>,
+  MyListState ARRAY<INTEGER>,
+  MyMapState MAP<INTEGER, INTEGER>,
+  MyAvroState ROW<longData bigint>,
+  PRIMARY KEY (k) NOT ENFORCED
+) WITH (
+  'connector' = 'savepoint',
+  'state.backend.type' = 'rocksdb',
+  'state.path' = '/root/dir/of/checkpoint-data/chk-1',
+  'operator.uid' = 'my-uid'
+);
+```
+
+#### Filter Pushdown on the Key Column
+
+When a query filters on the key column (the column declared as `PRIMARY KEY`), the savepoint connector automatically pushes the predicate down into the savepoint scan.
+As with the DataStream `SavepointKeyFilter`, point and `IN` lookups prune whole key groups, while range predicates narrow the per-split key iteration, so only the relevant state is read.
+
+```SQL
+-- Point lookup: reads only the key group that contains key 42
+SELECT * FROM state_table WHERE k = 42;
+
+-- Point lookups on a finite set of keys, only key groups that contain 1, 2, or 3 are read
+SELECT * FROM state_table WHERE k IN (1, 2, 3);
+
+-- Range scan, reads all key groups but filters out irrelevant keys before state is read
+SELECT * FROM state_table WHERE k >= 10 AND k < 100;
+SELECT * FROM state_table WHERE k BETWEEN 10 AND 100;
+```
+
+The following predicates on the key column can be pushed down:
+
+* `=` and `IN` — resolve to an exact set of keys and enable key-group pruning.
+* `<`, `<=`, `>`, `>=`, and `BETWEEN` — resolve to a key range and enable key-level filtering within each split.
+* `AND` — pushed down when **all** of its operands are range predicates; the ranges are intersected into a single, tighter range. If any operand is an equality/IN predicate, the entire AND expression is not pushed down — neither split pruning nor key-level filtering applies.
+* `OR` — pushed down when **every** branch resolves to exact keys (the branches are unioned into one key set, which is equivalent to an `IN`). If any branch is a range predicate, the entire OR expression is not pushed down.
+
+### Connector options
+
+#### General options
+| Option             | Required | Default | Type                                   | Description                                                                                                                                                                                                                          |
+|--------------------|----------|---------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| connector          | required | (none)  | String                                 | Specify what connector to use, here should be 'savepoint'.                                                                                                                                                                           |
+| state.backend.type | optional | (none)  | Enum Possible values: hashmap, rocksdb | Defines the state backend which must be used for state reading. This must match with the value which was defined in Flink job which created the savepoint or checkpoint. If not provided then it falls back to `state.backend.type` in flink configuration. |
+| state.path         | required | (none)  | String                                 | Defines the state path which must be used for state reading. All file system that are supported by Flink can be used here.                                                                                                           |
+| operator.uid       | optional | (none)  | String                                 | Defines the operator UID which must be used for state reading (can't be used together with `operator.uid.hash`). Either `operator.uid` or `operator.uid.hash` must be specified.                                                     |
+| operator.uid.hash  | optional | (none)  | String                                 | Defines the operator UID hash which must be used for state reading (can't be used together with `operator.uid`). Either `operator.uid` or `operator.uid.hash` must be specified.                                                     |
+
+#### Connector options for column ‘#’
+| Option                           | Required | Default | Type                                   | Description                                                                                                                                                                                                                                                                      |
+|----------------------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| fields.#.state-name              | optional | (none)  | String                                 | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                                                                                                         |
+| fields.#.state-type              | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value).                                                                             |
+| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).        |
+| fields.#.key-type-factory        | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                            |
+| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).      |
+| fields.#.value-type-factory      | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                          |
+
+### Default Data Type Mapping
+
+The state SQL connector infers the data type for primitive types when `fields.#.value-class` and `fields.#.key-class`
+are not defined. The following table shows the `Flink SQL type` -> `Java type` default mapping. If the mapping is not calculated properly
+then it can be overridden with the two mentioned config parameters on a per-column basis.
+
+| Flink SQL type          | Java type                                                               |
+|-------------------------|-------------------------------------------------------------------------|
+| CHAR / VARCHAR / STRING | java.lang.String                                                        |
+| BOOLEAN                 | boolean                                                                 |
+| BINARY / VARBINARY      | byte[]                                                                  |
+| DECIMAL                 | org.apache.flink.table.data.DecimalData                                 |
+| TINYINT                 | byte                                                                    |
+| SMALLINT                | short                                                                   |
+| INTEGER                 | int                                                                     |
+| BIGINT                  | long                                                                    |
+| FLOAT                   | float                                                                   |
+| DOUBLE                  | double                                                                  |
+| DATE                    | int                                                                     |
+| INTERVAL_YEAR_MONTH     | long                                                                    |
+| INTERVAL_DAY_TIME       | long                                                                    |
+| ARRAY                   | java.util.List                                                          |
+| MAP                     | java.util.Map                                                           |
+| ROW                     | java.util.List\<org.apache.flink.table.types.logical.RowType.RowField\> |
+
+SHORTCUT: When a complex java class is defined in a column with STRING SQL type then the class instance
+`toString` method result will be the column value. This can be useful when a quick explanatory query is required.

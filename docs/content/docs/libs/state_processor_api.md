@@ -134,7 +134,7 @@ DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastSta
 
 ##### Using Custom Serializers
 
-Each of the operator state readers support using custom `TypeSerializers` if one was used to define the `StateDescriptor` that wrote out the state. 
+Each of the operator state readers supports using custom `TypeSerializers` if one was used to define the `StateDescriptor` that wrote out the state. 
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
@@ -226,9 +226,113 @@ Along with reading registered state values, each key has access to a `Context` w
 
 **Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`.
 
+##### Filtering Keys
+
+When you are only interested in state for a subset of keys, you can push a `SavepointKeyFilter` into the read instead of reading the whole keyed state and filtering afterward.
+
+Depending on its type, a filter skips unnecessary reads at two levels:
+
+* **Split pruning** — when the filter resolves to an exact set of keys (`SavepointKeyFilter.exact(...)`), Flink can determine up front which key groups own those keys and skips every other input split without ever opening it. This is the largest saving, but it only works for exact keys.
+* **Key-level filtering** — within each split, every key is tested and non-matching keys are skipped before their state is read. This applies to all filters; a range filter relies on this level alone, since it cannot prune splits.
+
+```java
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
+
+// Read the state for a single key
+DataStream<KeyedState> singleKey = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.exact(42));
+
+// Read the state for a finite set of keys
+DataStream<KeyedState> someKeys = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.exact(Set.of(1, 2, 3)));
+
+// Read the state for a key range: 10 <= key < 100
+DataStream<KeyedState> keyRange = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    SavepointKeyFilter.range(10, true, 100, false));
+```
+
+`SavepointKeyFilter` provides the following factory methods:
+
+* `SavepointKeyFilter.exact(Object key)` / `SavepointKeyFilter.exact(Set<Object> keys)` — match a single key or a finite set of keys.
+* `SavepointKeyFilter.range(Comparable<?> lower, boolean lowerInclusive, Comparable<?> upper, boolean upperInclusive)` — match a range. Either bound may be `null` to leave that side unbounded.
+* `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
+
+When the built-in filters are not enough, you can implement the `SavepointKeyFilter` interface yourself.
+For use with the DataStream API, only `test(Object key)` has to be implemented; it is called for every key in each opened split and decides whether that key will be read.
+
+```java
+// Reads the state only for even keys
+public class EvenKeyFilter implements SavepointKeyFilter {
+
+    @Override
+    public boolean test(Object key) {
+        return ((Integer) key) % 2 == 0;
+    }
+}
+
+DataStream<KeyedState> evenState = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    new EvenKeyFilter());
+```
+
+By default, a custom filter only enables key-level filtering — every split is still opened.
+If your filter resolves to a finite set of keys, additionally override `getExactKeys()` to return them; Flink then prunes the splits whose key groups cannot contain any of those keys, just like the built-in `exact(...)` filter.
+
+```java
+// Reads the state only for keys 0..max
+public class UpToKeyFilter implements SavepointKeyFilter {
+
+    private final int max;
+
+    public UpToKeyFilter(int max) {
+        this.max = max;
+    }
+
+    @Override
+    public boolean test(Object key) {
+        int k = (Integer) key;
+        return k >= 0 && k <= max;
+    }
+
+    @Override
+    public Set<Object> getExactKeys() {
+        // Enumerate the finite key set so Flink can prune splits up front
+        Set<Object> keys = new HashSet<>();
+        for (int k = 0; k <= max; k++) {
+            keys.add(k);
+        }
+        return keys;
+    }
+}
+
+DataStream<KeyedState> firstKeys = savepoint.readKeyedState(
+    OperatorIdentifier.forUid("my-uid"),
+    new ReaderFunction(),
+    Types.INT,
+    TypeInformation.of(KeyedState.class),
+    new UpToKeyFilter(100));
+```
+
+The remaining interface methods can be left at their defaults for DataStream API usage, as they are only used internally in the Table API during push-down handling.
+
 #### Window State
 
-The state processor api supports reading state from a [window operator]({{< ref "docs/dev/datastream/operators/windows" >}}).
+The state processor API supports reading state from a [window operator]({{< ref "docs/dev/datastream/operators/windows" >}}).
 When reading a window state, users specify the operator id, window assigner, and aggregation type.
 
 Additionally, a `WindowReaderFunction` can be specified to enrich each read with additional information similar
@@ -314,7 +418,7 @@ SavepointReader savepoint = SavepointReader.read(env, "hdfs://checkpoint-dir", n
 
 savepoint
     .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
-    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
+    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.STRING, Types.INT, Types.INT)
     .print();
 ```
 
@@ -487,7 +591,7 @@ SavepointWriter
 
 #### Changing UID (hashes)
 
-`SavepointWriter#changeOperatorIdenfifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
+`SavepointWriter#changeOperatorIdentifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
 
 If a `UID` was not explicitly set (and was thus auto-generated and is effectively unknown), you can assign a `UID` provided that you know the `UID hash` (e.g., by parsing the logs):
 ```java
@@ -511,7 +615,7 @@ savepointWriter
 
 ### Getting started
 
-Before you interrogate state using the table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
+Before you interrogate state using the Table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
 
 IMPORTANT NOTE: State Table API only supports keyed state.
 
@@ -555,7 +659,7 @@ public class Account {
     private Integer id;
     public Double amount;
 
-    public Integer geId() {
+    public Integer getId() {
         return id;
     }
 
@@ -605,6 +709,30 @@ CREATE TABLE state_table (
   'operator.uid' = 'my-uid'
 );
 ```
+
+#### Filter Pushdown on the Key Column
+
+When a query filters on the key column (the column declared as `PRIMARY KEY`), the savepoint connector automatically pushes the predicate down into the savepoint scan.
+As with the DataStream `SavepointKeyFilter`, point and `IN` lookups prune whole key groups, while range predicates narrow the per-split key iteration, so only the relevant state is read.
+
+```SQL
+-- Point lookup: reads only the key group that contains key 42
+SELECT * FROM state_table WHERE k = 42;
+
+-- Point lookups on a finite set of keys, only key groups that contain 1, 2, or 3 are read
+SELECT * FROM state_table WHERE k IN (1, 2, 3);
+
+-- Range scan, reads all key groups but filters out irrelevant keys before state is read
+SELECT * FROM state_table WHERE k >= 10 AND k < 100;
+SELECT * FROM state_table WHERE k BETWEEN 10 AND 100;
+```
+
+The following predicates on the key column can be pushed down:
+
+* `=` and `IN` — resolve to an exact set of keys and enable key-group pruning.
+* `<`, `<=`, `>`, `>=`, and `BETWEEN` — resolve to a key range and enable key-level filtering within each split.
+* `AND` — pushed down when **all** of its operands are range predicates; the ranges are intersected into a single, tighter range. If any operand is an equality/IN predicate, the entire AND expression is not pushed down — neither split pruning nor key-level filtering applies.
+* `OR` — pushed down when **every** branch resolves to exact keys (the branches are unioned into one key set, which is equivalent to an `IN`). If any branch is a range predicate, the entire OR expression is not pushed down.
 
 ### Connector options
 
