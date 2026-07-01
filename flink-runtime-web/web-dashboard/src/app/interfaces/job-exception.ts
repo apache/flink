@@ -46,7 +46,7 @@ export interface ExceptionInfo {
   failureLabels: Map<string, string>;
   taskName: string;
   endpoint: string;
-  taskManagerId: string;
+  taskManagerId?: string;
 }
 
 export interface RootExceptionInfo extends ExceptionInfo {
