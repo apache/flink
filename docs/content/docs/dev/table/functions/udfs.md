@@ -1358,6 +1358,56 @@ env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))"
 
 ```
 
+#### Custom Timeout Handling
+
+By default, when an `eval` invocation fails to complete the `CompletableFuture` within [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) (after exhausting any configured retries), the framework surfaces a `java.util.concurrent.TimeoutException` and fails the job. To override this behavior, you can declare a matching `timeout(...)` method in your `AsyncTableFunction` subclass, which returns a fallback row or implements custom timeout handling logic. This is particularly useful when using `AsyncTableFunction` to send requests to a remote LLM cluster. As is well known, requests to remote LLM clusters are relatively more prone to timeouts, and many users prefer that a timeout does not directly cause the job to fail, but instead triggers custom fallback behavior. The timeout method is designed precisely for this purpose.
+
+The `timeout` method must satisfy **all** of the following:
+
+- **Declaration.** Public, non-static, named `timeout`.
+- **Signature parity with `eval`.** The parameter list mirrors the matching `eval`: the first parameter is a `CompletableFuture` with the **same** generic type as in `eval`; the remaining parameters are the lookup keys with the **same** types and order. Overloads are supported — declare one `timeout` per `eval` overload that needs a fallback.
+- **Synchronous completion (enforced).** The handler runs on the operator's mailbox thread and **must** complete the future before it returns. The framework checks `future.isDone()` immediately after the call and, if not, forces completion with `IllegalStateException`. Concretely:
+  - Do **not** issue another async call (e.g. a retry, a secondary lookup) and rely on its callback to complete the future — by the time the callback fires, the framework has already short-circuited this record.
+  - Do **not** spawn a thread that completes the future asynchronously, for the same reason.
+  - The body should be a pure, cheap fallback: a constant row, a NULL row, an empty collection, or `completeExceptionally(...)` with a user-defined exception.
+- **Exception transparency.** Throwing synchronously from the body is safe: the throw is forwarded to the downstream `ResultFuture`, equivalent to calling `future.completeExceptionally(thrown)`.
+
+Additional behavior the framework guarantees on top of the convention:
+
+- **No `timeout` method** → the default `TimeoutException` fires; no codegen failure.
+- **Incompatible signature** → if a `timeout` method exists with valid visibility but its parameter list is not assignable from the call site's lookup-key types, the framework fails fast during planning with a `ValidationException` whose message includes the function's fully qualified class name and the expected / actual signatures.
+- **Empty-collection fallback** → `future.complete(Collections.emptyList())` drops the row for an INNER lookup join and pads the right side with NULL for a LEFT OUTER lookup join.
+
+The following example extends `BackgroundFunction` with a `timeout` handler that completes the future synchronously with a fallback row:
+
+```java
+import org.apache.flink.table.functions.AsyncTableFunction;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+
+public static class BackgroundFunctionWithTimeout extends AsyncTableFunction<Long> {
+
+    public void eval(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        // ...same as BackgroundFunction above — kicks off async work and
+        // completes `future` from the callback thread.
+    }
+
+    // The parameter list MUST mirror eval(): same CompletableFuture generic
+    // type, and the same trailing argument list (Integer waitMax).
+    // The body MUST complete `future` synchronously — do NOT issue another
+    // async call or spawn a thread to complete it later, because the operator
+    // has already abandoned this record by the time this handler runs.
+    public void timeout(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        future.complete(Collections.singletonList(-1L));
+        // Alternatively, surface a domain-specific error instead of the default
+        // TimeoutException:
+        // future.completeExceptionally(new MyLookupTimeoutException(waitMax));
+    }
+}
+```
+
 {{< top >}}
 
 Aggregate Functions

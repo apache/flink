@@ -1316,6 +1316,55 @@ env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))"
 
 ```
 
+#### 自定义超时处理
+
+默认情况下，如果某次 `eval` 调用在 [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) 之内仍未完成 `CompletableFuture`，且配置的重试也已用尽，框架会抛出 `java.util.concurrent.TimeoutException` 并让作业失败。如果希望覆盖这一行为，可以在 `AsyncTableFunction` 子类中声明一个与之匹配的 `timeout(...)` 方法，由它返回一行兜底数据，或由用户自定义超时处理。这通常在使用`AsyncTableFunction`发送请求调用远程LLM集群时很有用，众所周知，请求远程LLM集群出现超时的概率相对而言更高，相当多的用户希望超时不要直接导致作业失败，而是有自定义的兜底行为，`timeout`方法为此而生。
+
+`timeout` 方法需要**同时**满足以下条件：
+
+- **方法声明。** 必须是 `public` 实例方法（不能是 `static`），方法名固定为 `timeout`。
+- **签名要与 `eval` 对齐。** 参数列表需要与对应的 `eval` 严格一致：第一个参数是 `CompletableFuture`，其泛型类型必须与 `eval` **完全相同**；其余参数的类型和顺序也必须与 `eval` **完全相同**。`timeout` 支持重载——每一个需要兜底逻辑的 `eval` 重载都可以单独声明一个对应的 `timeout`。
+- **同步完成（强制要求）。** 该回调会在算子的 mailbox 线程上运行，**必须**在方法返回前完成 future。方法返回后，框架会立即检查 `future.isDone()`；如果尚未完成，会强制以 `IllegalStateException` 把 future 完成。也就是说：
+  - **不要**在方法体内再发起一次异步调用（例如又一次重试或二次查询），并指望它的回调最终把 future 完成——等回调真正触发时，框架已经放弃了这条记录。
+  - **不要**启动新线程异步去完成 future，理由同上。
+  - 方法体只该做一件事：给出一个轻量的兜底结果，比如返回一个常量行、一个 NULL 行、空集合，或者用业务自定义的异常调用 `completeExceptionally(...)`。
+- **抛异常是安全的。** 直接在方法体内同步抛出异常没有问题：框架会把异常转交给下游的 `ResultFuture`，效果等价于显式调用 `future.completeExceptionally(thrown)`。
+
+在以上约束之外，框架还会在以下场景保证稳定的行为：
+
+- **未声明 `timeout` 方法。** 沿用框架默认的 `TimeoutException`，不会引发代码生成阶段的失败。
+- **签名不兼容。** 如果 `timeout` 方法可见性合法，但参数列表无法和当前调用点的实参类型对应，框架会在规划期（代码生成阶段）以 `ValidationException` 直接失败；错误信息中会包含函数的全限定类名，并同时给出期望签名与实际签名。
+- **空集合兜底。** 调用 `future.complete(Collections.emptyList())` 时：对 INNER lookup join 而言该行会被丢弃；对 LEFT OUTER lookup join 而言，右表字段会被填充为 NULL。
+
+下面这段示例在 `BackgroundFunction` 的基础上加了一个 `timeout` 回调，展示如何同步地完成 future 并返回一行兜底数据：
+
+```java
+import org.apache.flink.table.functions.AsyncTableFunction;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+
+public static class BackgroundFunctionWithTimeout extends AsyncTableFunction<Long> {
+
+    public void eval(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        // ...逻辑与上面的 BackgroundFunction 一致：把异步任务派发出去，
+        // 然后在回调线程中完成 `future`。
+    }
+
+    // 参数列表必须与 eval() 对齐：CompletableFuture 的泛型相同，
+    // 后续参数（Integer waitMax）的类型和顺序也相同。
+    // 方法体必须同步完成 `future`——不要再发起异步调用，
+    // 也不要启动新线程异步去完成它；这个回调被触发时，
+    // 算子已经放弃了这条记录。
+    public void timeout(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        future.complete(Collections.singletonList(-1L));
+        // 也可以选择用业务自定义异常代替默认的 TimeoutException：
+        // future.completeExceptionally(new MyLookupTimeoutException(waitMax));
+    }
+}
+```
+
 {{< top >}}
 
 聚合函数
