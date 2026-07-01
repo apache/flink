@@ -26,3 +26,8 @@ div div.bodywrapper {
 div div.body {
     max-width: none;
 }
+
+dl.confval .sig-name.descname span.pre {
+    white-space: normal !important;
+    word-break: break-all !important;
+}

@@ -194,13 +194,13 @@ Operator chaining could be disabled in one of the following ways:
 - Disable chaining of two operators by setting different parallelisms or different
   :flinkdoc:`slot sharing group <docs/dev/datastream/operators/overview/#set-slot-sharing-group>` for them.
 - You could also disable all the operator chaining via configuration
-  ``python.operator-chaining.enabled`` (see :doc:`../configuration`).
+  :confval:`python.operator-chaining.enabled`.
 
 Bundling Python Functions
 ==========================
 
 To run Python functions in any non-local mode, it is strongly recommended
-bundling your Python functions definitions using the config option ``python-files`` (see :doc:`../configuration`),
+bundling your Python functions definitions using the config option :confval:`python.files`,
 if your Python functions live outside the file where the ``main()`` function is defined.
 Otherwise, you may run into ``ModuleNotFoundError: No module named 'my_function'``
 if you define Python functions in a file called ``my_function.py``.

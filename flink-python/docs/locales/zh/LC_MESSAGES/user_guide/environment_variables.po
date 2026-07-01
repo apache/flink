@@ -73,11 +73,13 @@ msgid ""
 "The path of the Python interpreter used to launch the Python process when"
 " submitting the Python jobs via \"flink run\" or compiling the Java/Scala"
 " jobs containing Python UDFs. Equivalent to the configuration option "
-"``python.client.executable``. The priority is as following:"
+":confval:`python.client.executable`. The priority is as following:"
 msgstr ""
 
 #: ../../user_guide/environment_variables.rst:40
-msgid "The configuration ``python.client.executable`` defined in the source code;"
+msgid ""
+"The configuration :confval:`python.client.executable` defined in the "
+"source code;"
 msgstr ""
 
 #: ../../user_guide/environment_variables.rst:41
@@ -86,7 +88,7 @@ msgstr ""
 
 #: ../../user_guide/environment_variables.rst:42
 msgid ""
-"The configuration ``python.client.executable`` defined in the "
+"The configuration :confval:`python.client.executable` defined in the "
 ":flinkdoc:`Flink configuration file <docs/deployment/config/#flink-"
 "configuration-file>`."
 msgstr ""

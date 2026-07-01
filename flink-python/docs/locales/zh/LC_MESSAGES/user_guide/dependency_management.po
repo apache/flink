@@ -125,9 +125,9 @@ msgstr ""
 #: ../../user_guide/dependency_management.rst:103
 msgid ""
 "You could also specify the Python libraries using configuration "
-"``python.files`` (see :doc:`configuration`) or via :flinkdoc:`command "
-"line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyfs`` "
-"or ``--pyFiles`` when submitting the job."
+":confval:`python.files` or via :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyfs`` or "
+"``--pyFiles`` when submitting the job."
 msgstr ""
 
 #: ../../user_guide/dependency_management.rst:109
@@ -192,10 +192,9 @@ msgstr ""
 #: ../../user_guide/dependency_management.rst:173
 msgid ""
 "You could also specify the ``requirements.txt`` file using configuration "
-"``python.requirements`` (see :doc:`configuration`) or via "
-":flinkdoc:`command line arguments <docs/deployment/cli/#submitting-"
-"pyflink-jobs>` ``-pyreq`` or ``--pyRequirements`` when submitting the "
-"job."
+":confval:`python.requirements` or via :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyreq`` or "
+"``--pyRequirements`` when submitting the job."
 msgstr ""
 
 #: ../../user_guide/dependency_management.rst:179
@@ -259,9 +258,9 @@ msgstr ""
 #: ../../user_guide/dependency_management.rst:239
 msgid ""
 "You could also specify the archive files using configuration "
-"``python.archives`` (see :doc:`configuration`) or via :flinkdoc:`command "
-"line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` "
-"``-pyarch`` or ``--pyArchives`` when submitting the job."
+":confval:`python.archives` or via :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyarch`` or "
+"``--pyArchives`` when submitting the job."
 msgstr ""
 
 #: ../../user_guide/dependency_management.rst:245
@@ -300,9 +299,9 @@ msgstr ""
 #: ../../user_guide/dependency_management.rst:281
 msgid ""
 "You could also specify the Python interpreter using configuration "
-"``python.executable`` (see :doc:`configuration`) or via "
-":flinkdoc:`command line arguments <docs/deployment/cli/#submitting-"
-"pyflink-jobs>` ``-pyexec`` or ``--pyExecutable`` when submitting the job."
+":confval:`python.executable` or via :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyexec`` or "
+"``--pyExecutable`` when submitting the job."
 msgstr ""
 
 #: ../../user_guide/dependency_management.rst:287
@@ -329,11 +328,11 @@ msgstr ""
 
 #: ../../user_guide/dependency_management.rst:303
 msgid ""
-"or specify it using configuration ``python.client.executable`` (see "
-":doc:`configuration`), :flinkdoc:`command line arguments "
-"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyclientexec`` or "
-"``--pyClientExecutable``, environment variable "
-"``PYFLINK_CLIENT_EXECUTABLE`` (see :doc:`environment_variables`)."
+"or specify it using configuration :confval:`python.client.executable`, "
+":flinkdoc:`command line arguments <docs/deployment/cli/#submitting-"
+"pyflink-jobs>` ``-pyclientexec`` or ``--pyClientExecutable``, environment"
+" variable ``PYFLINK_CLIENT_EXECUTABLE`` (see "
+":doc:`environment_variables`)."
 msgstr ""
 
 #: ../../user_guide/dependency_management.rst:309
@@ -358,9 +357,9 @@ msgstr ""
 #: ../../user_guide/dependency_management.rst:336
 msgid ""
 "The Python dependencies could then be specified via the Python config "
-"options (see :doc:`configuration`), such as **python.archives**, "
-"**python.files**, **python.requirements**, **python.client.executable**, "
-"**python.executable**, etc or through :flinkdoc:`command line arguments "
-"<docs/deployment/cli/#usage>` when submitting the job."
+"options, such as :confval:`python.archives`, :confval:`python.files`, "
+":confval:`python.requirements`, :confval:`python.client.executable`, "
+":confval:`python.executable`, etc or through :flinkdoc:`command line "
+"arguments <docs/deployment/cli/#usage>` when submitting the job."
 msgstr ""
 

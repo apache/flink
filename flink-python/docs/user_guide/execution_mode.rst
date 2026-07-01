@@ -43,7 +43,7 @@ So if performance is not your concern, or the computing logic of your Python use
 Configuring Python execution mode
 ==================================
 
-The execution mode can be configured via the ``python.execution-mode`` setting.
+The execution mode can be configured via the :confval:`python.execution-mode` setting.
 There are two possible values:
 
 - ``PROCESS``: The Python user-defined functions will be executed in separate Python process. (default)
