@@ -332,7 +332,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             return Optional.of(getBufferAndAvailability(toBeConsumedBuffers.removeFirst()));
         }
 
-        return Optional.of(getBufferAndAvailability(next));
+        BufferAndAvailability bufferAndAvailability = getBufferAndAvailability(next);
+        channelStatePersister.checkForBarrier(bufferAndAvailability.buffer());
+        channelStatePersister.maybePersist(bufferAndAvailability.buffer());
+        return Optional.of(bufferAndAvailability);
     }
 
     /**
@@ -411,8 +414,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
         numBytesIn.inc(buffer.readableBytes());
         numBuffersIn.inc();
-        channelStatePersister.checkForBarrier(buffer);
-        channelStatePersister.maybePersist(buffer);
         NetworkActionsLogger.traceInput(
                 "LocalInputChannel#getNextBuffer",
                 buffer,
