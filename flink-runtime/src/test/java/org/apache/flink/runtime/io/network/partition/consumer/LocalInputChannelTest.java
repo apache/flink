@@ -794,6 +794,54 @@ class LocalInputChannelTest {
     }
 
     @Test
+    void testRecoveredBuffersNotPersistedAgainWhenConsumedDuringCheckpoint() throws Exception {
+        // given: Channel with 2 recovered buffers
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+
+        // when: Checkpoint starts — checkpointStarted spills recovered buffers as inflight data
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, options));
+
+        // then: exactly 2 buffers persisted so far
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).hasSize(2);
+
+        // when: Consume the recovered buffers while checkpoint is still in BARRIER_PENDING state
+        channel.getNextBuffer();
+        channel.getNextBuffer();
+
+        // then: total persisted count must still be 2 — recovered buffers must not be
+        // re-persisted via maybePersist() when consumed (that would make it 4 without the fix)
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo()))
+                .as("recovered buffers must not be persisted again when consumed")
+                .hasSize(2);
+    }
+
+    @Test
     void testPriorityEventConsumedBeforeRecoveredBuffers() throws Exception {
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
         ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10, 20);
