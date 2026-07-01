@@ -952,6 +952,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Testing function that is itself non-deterministic (isDeterministic() = false). Used to verify
+     * that Concern 1 (PTF own non-determinism) is caught by the NDU visitor when downstream
+     * requires deterministic output columns.
+     */
+    public static class NonDeterministicUpdatingRetractFunction extends UpdatingRetractFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
+
     /** Testing function. */
     public static class UpdatingUpsertFullDeletesFunction
             extends ChangelogProcessTableFunctionBase {
@@ -991,6 +1003,15 @@ public class ProcessTableFunctionTestUtils {
         @Override
         public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
             return ChangelogMode.all();
+        }
+    }
+
+    /** Row-semantic counterpart of {@link NonDeterministicUpdatingRetractFunction}. */
+    public static class NonDeterministicUpdatingRetractRowSemanticFunction
+            extends UpdatingRetractRowSemanticFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
         }
     }
 
