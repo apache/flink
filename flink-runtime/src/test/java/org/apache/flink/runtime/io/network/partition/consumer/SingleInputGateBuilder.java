@@ -85,6 +85,8 @@ public class SingleInputGateBuilder {
 
     private boolean isCheckpointingDuringRecoveryEnabled = false;
 
+    private boolean isNeedsRecovery = false;
+
     public SingleInputGateBuilder setPartitionProducerStateProvider(
             PartitionProducerStateProvider partitionProducerStateProvider) {
 
@@ -174,6 +176,11 @@ public class SingleInputGateBuilder {
         return this;
     }
 
+    public SingleInputGateBuilder setNeedsRecovery(boolean enabled) {
+        this.isNeedsRecovery = enabled;
+        return this;
+    }
+
     public SingleInputGate build() {
         SingleInputGate gate =
                 new SingleInputGate(
@@ -189,6 +196,9 @@ public class SingleInputGateBuilder {
                         bufferSize,
                         createThroughputCalculator.apply(bufferDebloatConfiguration),
                         maybeCreateBufferDebloater(gateIndex));
+        // Propagate before channel construction so RecoverableInputChannel implementations read
+        // the intended flag in their constructor and initialise their recovery state correctly.
+        gate.setNeedsRecovery(isNeedsRecovery);
         if (channelFactory != null) {
             gate.setInputChannels(
                     IntStream.range(0, numberOfChannels)

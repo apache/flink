@@ -80,4 +80,12 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
 
     /** Returns whether unaligned checkpointing during recovery is enabled. */
     public abstract boolean isCheckpointingDuringRecoveryEnabled();
+
+    /**
+     * Sets whether converted physical channels start in recovery. Must be published before the
+     * buffer-filtering completion future is completed.
+     */
+    public abstract void setNeedsRecovery(boolean enabled);
+
+    public abstract boolean needsRecovery();
 }
