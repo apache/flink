@@ -397,7 +397,7 @@ Please refer to the `documentation of the corresponding classes <https://nightli
 
 **NOTE:** For reducing the data transmission cost between Python UDF worker and Java process caused by accessing the data in Flink states (e.g. accumulators and data views),
 there is a cached layer between the raw state handler and the Python state backend. You can adjust the values of these configuration options to change the behavior of the cache layer for best performance:
-``python.state.cache-size``, ``python.map-state.read-cache-size``, ``python.map-state.write-cache-size``, ``python.map-state.iterate-response-batch-size``.
+:confval:`python.state.cache-size`, :confval:`python.map-state.read-cache-size`, :confval:`python.map-state.write-cache-size`, :confval:`python.map-state.iterate-response-batch-size`.
 For more details please refer to :doc:`../configuration`.
 
 Table Aggregate Functions
@@ -542,7 +542,7 @@ Vectorized Scalar Functions
 Vectorized Python scalar functions take ``pandas.Series`` as the inputs and return a ``pandas.Series`` of the same length as the output.
 Internally, Flink will split the input elements into batches, convert a batch of input elements into ``Pandas.Series``
 and then call user-defined vectorized Python scalar functions for each batch of input elements. Please refer to the config option
-``python.fn-execution.arrow.batch.size`` (see :doc:`../configuration`) for more details
+:confval:`python.fn-execution.arrow.batch.size` for more details
 on how to configure the batch size.
 
 Vectorized Python scalar function could be used in any places where non-vectorized Python scalar functions could be used.
