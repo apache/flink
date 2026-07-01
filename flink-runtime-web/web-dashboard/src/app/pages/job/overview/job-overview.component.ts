@@ -61,7 +61,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   public timeoutId: number;
   private isTopManuallyResized = false;
 
-  @HostListener('window:resize', ['$event'])
+  @HostListener('window:resize')
   onResize(): void {
     if (!this.isTopManuallyResized) {
       this.top = Math.max(280, Math.min(Math.round(window.innerHeight * 0.4), 500));
