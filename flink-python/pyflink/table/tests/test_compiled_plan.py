@@ -17,6 +17,7 @@
 ################################################################################
 import os.path
 import re
+import uuid
 from pathlib import Path
 
 from pyflink.table import Schema, DataTypes, TableDescriptor, PlanReference
@@ -24,6 +25,10 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkT
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_PLAN_DIR = os.path.join(THIS_DIR, "jsonplan")
+
+
+def generate_random_table_name():
+    return f"Table_{uuid.uuid4().hex}"
 
 
 def _replace_flink_version(plan: str) -> str:
@@ -82,7 +87,7 @@ class CompiledPlanTest(PyFlinkStreamTableTestCase, PyFlinkTestCase):
         table_pipeline = table.insert_into("RegisteredSink")
         compiled_plan = table_pipeline.compile_plan()
 
-        plan_path = Path(self.tempdir + "/plan.out")
+        plan_path = Path(self.tempdir) / "plan.out"
         compiled_plan.write_to_file(plan_path)
 
         plan_reference_from_file = PlanReference.from_file(plan_path)
@@ -96,6 +101,47 @@ class CompiledPlanTest(PyFlinkStreamTableTestCase, PyFlinkTestCase):
             self.assertEqual(
                 compiled_plan.as_json_string(), compiled_plan_from_string.as_json_string()
             )
+
+    def test_load_plan_execute(self):
+        schema = Schema.new_builder().column("f0", DataTypes.STRING()).build()
+        table = self.t_env.from_descriptor(
+            TableDescriptor.for_connector("datagen")
+            .option("number-of-rows", "5")
+            .schema(schema)
+            .build()
+        )
+        self.t_env.create_temporary_table(
+            "Sink",
+            TableDescriptor.for_connector("blackhole").schema(schema).build(),
+        )
+
+        compiled_plan = table.insert_into("Sink").compile_plan()
+        plan_path = Path(self.tempdir) / "plan.json"
+        compiled_plan.write_to_file(plan_path)
+
+        loaded_plan = self.t_env.load_plan(PlanReference.from_file(plan_path))
+        loaded_plan.execute().wait()
+
+    def test_compile_plan_sql_execute(self):
+        source_table = generate_random_table_name()
+        sink_table = generate_random_table_name()
+
+        src = f"""
+        CREATE TABLE {source_table} (a BIGINT, b INT, c VARCHAR)
+        WITH ('connector' = 'datagen', 'number-of-rows' = '5')
+        """
+        self.t_env.execute_sql(src)
+
+        sink = f"""
+        CREATE TABLE {sink_table} (a BIGINT, b INT, c VARCHAR)
+        WITH ('connector' = 'blackhole')
+        """
+        self.t_env.execute_sql(sink)
+
+        compiled_plan = self.t_env.compile_plan_sql(
+            f"INSERT INTO {sink_table} SELECT * FROM {source_table}"
+        )
+        compiled_plan.execute().wait()
 
 
 if __name__ == "__main__":
