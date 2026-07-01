@@ -1234,28 +1234,28 @@ env.sqlQuery(
 
 {{< top >}}
 
-Asynchronous Table Functions
+异步表值函数
 ----------------
 
-Similar to `AsyncScalarFunction`, there also exists a `AsyncTableFunction` for returning multiple row results rather than a single scalar value. Similarly, this is most useful when interacting with external systems (for example when enriching stream events with data stored in a database).
+`AsyncTableFunction` 与 `AsyncScalarFunction` 类似，区别在于它返回的是多行结果而不是单个标量值。它最适合的场景同样是与外部系统打交道——例如访问数据库，做流上的维表打宽或者访问远程LLM集群获取推理结果。
 
-Asynchronous interaction with an external system means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher streaming throughput.
+异步访问外部系统意味着同一个函数实例可以并发地发出多个请求、并发地接收响应；等待时间因此可以与其他请求的发送、响应的接收相互重叠。可以让等待开销分摊到多次请求上。在大多数场景下，这都会显著提高流处理的吞吐量。
 
-#### Defining an AsyncTableFunction
+#### 定义 AsyncTableFunction
 
-A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
+用户自定义的异步表值函数接受零个、一个或多个参数，每次输入会输出零行、一行或多行结果。[数据类型部分]({{< ref "docs/sql/reference/data-types" >}}) 中列出的任何数据类型都可以作为求值方法的参数或返回类型。
 
-In order to define an asynchronous table function, extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
+要定义一个异步表值函数，需要继承 `org.apache.flink.table.functions` 中的基类 `AsyncTableFunction`，并实现一个或多个名为 `eval(...)` 的求值方法。`eval` 的第一个参数必须是 `CompletableFuture<...>`，用于把结果回写给框架；之后的参数即对外暴露的函数实参。
 
-The number of outstanding calls to `eval` may be configured by [`table.exec.async-table.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-table-max-concurrent-operations" >}}).
+`eval` 的并发调用数量上限可以通过 [`table.exec.async-table.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-table-max-concurrent-operations" >}}) 进行配置。
 
-#### Asynchronous Semantics
-While calls to an `AsyncTableFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
+#### 异步语义
+对 `AsyncTableFunction` 的并发调用，其完成顺序可能与输入顺序不一致；但为了保证语义正确，框架仍会按输入顺序把函数输出交给查询下游的算子。即便如此，数据本身仍可能反映实际的完成顺序（例如携带获取时间戳）；这一点是否会影响业务，需要使用方自行判断。
 
-#### Error Handling
-The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-table.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-table-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) expires (including all retry attempts), the job will fail.
+#### 错误处理
+上报错误的主要方式是调用 `CompletableFuture.completeExceptionally(Throwable)`；此外，如果框架在调用 `eval` 时本身就抛出了异常，同样会被视为出错。出错后系统会按照重试策略处理，该策略由 [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}) 控制：若设为 `NO_RETRY`，作业直接失败；若设为 `FIXED_DELAY`，则会在等待 [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) 之后再次发起调用。当失败次数达到 [`table.exec.async-table.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-table-max-attempts" >}}) 上限，或总耗时（含全部重试）超过 [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}})，作业仍会失败。
 
-The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+下面的示例演示了如何借助一个后台线程池完成异步任务；当然，任何暴露异步接口的库都可以直接拿来在回调中完成 `CompletableFuture`。更多细节请参阅[实现指南](#implementation-guide)。
 
 ```java
 import org.apache.flink.table.api.*;
@@ -1298,20 +1298,20 @@ TableEnvironment env = TableEnvironment.create(...);
 env.getConfig().set("table.exec.async-table.max-concurrent-operations", "5");
 env.getConfig().set("table.exec.async-table.timeout", "1m");
 
-// call function "inline" without registration in Table API
+// 在 Table API 中"内联"调用函数，无需注册
 env.from("MyTable")
         .joinLateral(call(BackgroundFunction.class, $("myField")))
         .select($("*"))
 
-// register function
+// 注册函数
 env.createTemporarySystemFunction("BackgroundFunction", BackgroundFunction.class);
 
-// call registered function in Table API
+// 在 Table API 中调用已注册的函数
 env.from("MyTable")
         .joinLateral(call("BackgroundFunction", $("myField")))
         .select($("*"))
 
-// call registered function in SQL
+// 在 SQL 中调用已注册的函数
 env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))");
 
 ```
