@@ -20,7 +20,10 @@ package org.apache.flink.table.runtime.operators.join.snapshot;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -40,9 +43,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
 
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
@@ -51,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_CHANGE_BUFFER_STATE_NAME;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_TABLE_STATE_NAME;
@@ -866,40 +872,94 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     /**
-     * For buffered build-side changes sharing the same row-time, retractions are applied before
-     * accumulations.
+     * Build-side changes sharing a row-time are applied in insertion order, which mirrors the
+     * upstream emit order (retraction before its accumulation).
      */
     @Test
-    void joinPhaseAppliesRetractionsBeforeAccumulationsAtEqualRowTime() throws Exception {
+    void joinPhaseAppliesEqualRowTimeChangesInInsertionOrder() throws Exception {
         LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op)) {
             h.open();
-            // Drive into JOIN with empty build state for k1/k2.
+            // Establish {vOld:1} for k1 at row-time 10.
+            addBuildChange(h, insertRecord("k1", "vOld", 10L));
             addBuildWm(h, 100L);
             assertPhase(op, Phase.JOIN);
+            addProbeRecord(h, 0L, "k1", "warmup"); // applies +I(vOld)
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("vOld", 1L));
 
-            // Buffer accumulation-first at row-time 105 on absent rows:
-            //   k1: +I then -D ; k2: +U then -U ; k3: +U then -U
-            addBuildChange(h, insertRecord("k1", "v1", 105L));
-            addBuildChange(h, deleteRecord("k1", "v1", 105L));
-            addBuildChange(h, updateAfterRecord("k2", "v1", 105L));
-            addBuildChange(h, updateBeforeRecord("k2", "v1", 105L));
-
-            // Advance build WM, then access each key to drain its buffer in event-time order.
+            // Add two update change pairs. The second pair updates the result of the first update
+            addBuildChange(h, updateBeforeRecord("k1", "vOld", 10L));
+            addBuildChange(h, updateAfterRecord("k1", "vNew1", 10L));
+            addBuildChange(h, updateBeforeRecord("k1", "vNew1", 10L));
+            addBuildChange(h, updateAfterRecord("k1", "vNew2", 10L));
             addBuildWm(h, 200L);
             addProbeRecord(h, 1L, "k1", "p1");
-            addProbeRecord(h, 2L, "k2", "p2");
 
             assertThat(buildTableForKey(h, op, "k1"))
-                    .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 1L));
-            assertThat(buildTableForKey(h, op, "k2"))
-                    .containsExactlyInAnyOrderEntriesOf(Map.of("v1", 1L));
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("vNew2", 1L));
             stripWatermarksAndStatusesFromOutput(h);
             JOINED_ASSERTOR.shouldEmitAll(
                     h,
-                    row(1L, "k1", "p1", "k1", "v1", 105L),
-                    row(2L, "k2", "p2", "k2", "v1", 105L));
+                    row(0L, "k1", "warmup", "k1", "vOld", 10L),
+                    row(1L, "k1", "p1", "k1", "vNew2", 10L));
+        }
+    }
+
+    private static Stream<Named<StateBackend>> stateBackends() {
+        return Stream.of(
+                Named.of("heap", new HashMapStateBackend()),
+                Named.of("rocksdb", new EmbeddedRocksDBStateBackend()));
+    }
+
+    /**
+     * Exercises the state-backend-dependent build-change drain on both an unordered (heap) and a
+     * sorted (RocksDB) backend. Build changes are buffered out of row-time order; when the
+     * watermark advances only partway, the due changes must be applied and the not-yet-due ones
+     * left buffered. On heap this uses the collect-and-sort path; on RocksDB the sorted-iteration +
+     * early-break path — neither may skip a due row-time nor apply a not-yet-due one.
+     */
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void drainsDueBuildChangesByRowTimeOrder(StateBackend backend) throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 1L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setStateBackend(backend);
+            h.open();
+            // Only RocksDB is a sorted backend, which selects the skip-sort + early-break path.
+            assertThat(op.isSortedStateBackend())
+                    .isEqualTo(backend instanceof EmbeddedRocksDBStateBackend);
+
+            addBuildWm(h, 5L); // flip to JOIN (loadCompletedTime = 1); build wm = 5
+            assertPhase(op, Phase.JOIN);
+
+            // Buffer inserts for k1 out of row-time order (all above the current wm of 5).
+            addBuildChange(h, insertRecord("k1", "v50", 50L));
+            addBuildChange(h, insertRecord("k1", "v10", 10L));
+            addBuildChange(h, insertRecord("k1", "v40", 40L));
+            addBuildChange(h, insertRecord("k1", "v20", 20L));
+            addBuildChange(h, insertRecord("k1", "v30", 30L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(5);
+            assertThat(buildTableForKey(h, op, "k1")).isEmpty();
+
+            // Advance the build wm to 30 and touch k1: row-times 10/20/30 are due, 40/50 are not.
+            addBuildWm(h, 30L);
+            addProbeRecord(h, 1L, "k1", "p1");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("v10", 1L, "v20", 1L, "v30", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(2); // v40@40, v50@50
+            assertThat(bufferedAtWmFor(h, op, "k1")).isEqualTo(30);
+
+            // Advancing past their row-times applies the remaining changes.
+            addBuildWm(h, 100L);
+            addProbeRecord(h, 2L, "k1", "p2");
+            assertThat(buildTableForKey(h, op, "k1"))
+                    .containsExactlyInAnyOrderEntriesOf(
+                            Map.of("v10", 1L, "v20", 1L, "v30", 1L, "v40", 1L, "v50", 1L));
+            assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
+            assertThat(bufferedAtWmFor(h, op, "k1")).isNull();
         }
     }
 
@@ -1146,7 +1206,7 @@ class LateralSnapshotJoinOperatorTest {
 
             // Buffer a change in JOIN that does NOT drain (no further WM advance / access). This
             // populates the change buffer and the buffered-at tag while the build table keeps {v1}.
-            addBuildChange(h, insertRecord("k1", "v2"));
+            addBuildChange(h, insertRecord("k1", "v2", 2L));
             assertThat(buildTableForKey(h, op, "k1")).isEqualTo(Map.of("v1", 1L));
             assertThat(bufferedChangesForKey(h, op, "k1")).hasSize(1);
             assertThat(bufferedAtWmFor(h, op, "k1")).isEqualTo(50L);
@@ -1839,10 +1899,13 @@ class LateralSnapshotJoinOperatorTest {
             String key)
             throws Exception {
         h.getOperator().setCurrentKey(stringKey(key));
-        List<RowData> result = new ArrayList<>();
-        for (RowData r : op.getBuildChangeBuffer().get()) {
-            result.add(r);
+        // Buffer is keyed by row-time; flatten the per-row-time lists in ascending row-time order.
+        TreeMap<Long, List<RowData>> ordered = new TreeMap<>();
+        for (Map.Entry<Long, List<RowData>> e : op.getBuildChangeBuffer().entries()) {
+            ordered.put(e.getKey(), e.getValue());
         }
+        List<RowData> result = new ArrayList<>();
+        ordered.values().forEach(result::addAll);
         return result;
     }
 

@@ -33,6 +33,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -79,11 +80,12 @@ import java.util.concurrent.ScheduledFuture;
  *   <li>Build-side (input2 / right) changes are handled the same way in both phases: they are
  *       buffered in {@code buildChangeBuffer} and applied lazily to a per-key multi-set in {@code
  *       buildTableState} on the next per-key access (build- or probe-side) once the build-side
- *       watermark has advanced past the buffer's tag, or at the flip. The buffered changelog is
- *       applied in event-time order: changes are sorted by the build-side row-time attribute
- *       ({@code buildRowtimeIndex}), and for equal row-times retractions ({@code -U}/{@code -D})
- *       are applied before accumulations ({@code +U}/{@code +I}). Buffering until the watermark
- *       passes preserves atomic update visibility across {@code -U}/{@code +U} pairs in JOIN phase.
+ *       watermark has advanced past the buffer's tag, or at the flip. The buffer is keyed by the
+ *       build-side row-time attribute ({@code buildRowtimeIndex}) and applied in row-time order
+ *       once the build watermark reaches it; changes sharing a row-time are applied in arrival
+ *       order, which mirrors the upstream emit order (a retraction directly precedes its
+ *       accumulation). Gating application on the row-time preserves atomic update visibility across
+ *       {@code -U}/{@code +U} pairs in JOIN phase.
  *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD each is
  *       buffered in {@code probeBuffer} under a synthetic, increasing timestamp with one event-time
  *       timer registered per record. At the flip these timers fire (one record each, interruptibly)
@@ -260,6 +262,12 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     /** Non-keyed processing-time idle-flip timer. */
     @Nullable private transient ScheduledFuture<?> idleFlipTimer;
 
+    /**
+     * True if the keyed state backend iterates map entries in serialized-key order (RocksDB/ForSt),
+     * so the row-time-keyed {@link #buildChangeBuffer} is already scanned in event-time order.
+     */
+    private transient boolean sortedStateBackend;
+
     // -------------------------- keyed state --------------------------
 
     /**
@@ -269,11 +277,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     private transient MapState<RowData, Long> buildTableState;
 
     /**
-     * Build-side changes not yet visible in {@link #buildTableState}; applied (atomically per
-     * watermark) once the build watermark passes their tag, so {@code -U}/{@code +U} pairs never
-     * split.
+     * Build-side changes not yet visible in {@link #buildTableState}, keyed by their build row-time
+     * (multiple changes with the same row-time share a list value). Changes are applied to {@code
+     * buildTableState} once the build watermark reaches their row-time.
      */
-    private transient ListState<RowData> buildChangeBuffer;
+    private transient MapState<Long, List<RowData>> buildChangeBuffer;
 
     /** Build-side watermark to ensure atomic application of build changes. */
     private transient ValueState<Long> bufferedAtWmState;
@@ -417,9 +425,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                                         BUILD_TABLE_STATE_NAME, rightType, Types.LONG));
         buildChangeBuffer =
                 getRuntimeContext()
-                        .getListState(
-                                new ListStateDescriptor<>(
-                                        BUILD_CHANGE_BUFFER_STATE_NAME, rightType));
+                        .getMapState(
+                                new MapStateDescriptor<>(
+                                        BUILD_CHANGE_BUFFER_STATE_NAME,
+                                        Types.LONG,
+                                        Types.LIST(rightType)));
         bufferedAtWmState =
                 getRuntimeContext()
                         .getState(
@@ -442,6 +452,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // (event-time -> flip drain, processing-time -> TTL eviction), not by namespace.
         timerService =
                 getInternalTimerService(TIMER_SERVICE_NAME, VoidNamespaceSerializer.INSTANCE, this);
+
+        // RocksDB/ForSt iterate map entries in serialized-key order, so the row-time-keyed build
+        // change buffer is scanned in event-time order; unordered backends (heap) need a sort.
+        final String backendId = getKeyedStateBackend().getBackendTypeIdentifier();
+        sortedStateBackend =
+                StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME.equals(backendId)
+                        || StateBackendLoader.FORST_STATE_BACKEND_NAME.equals(backendId);
 
         // Wrap the codegen'd condition with a null-key filter so SQL semantics are honored for
         // equi-keys whose values may be NULL.
@@ -554,7 +571,14 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         RowData build = element.getValue();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesIfReady();
-        buildChangeBuffer.add(build);
+        // Buffer the change under its build row-time (grouping changes that share a row-time).
+        long rowtime = build.getLong(buildRowtimeIndex);
+        List<RowData> atRowtime = buildChangeBuffer.get(rowtime);
+        if (atRowtime == null) {
+            atRowtime = new ArrayList<>();
+        }
+        atRowtime.add(build);
+        buildChangeBuffer.put(rowtime, atRowtime);
         // Tag the buffer with the current build watermark so it drains once the watermark passes.
         // The tag may move backwards on restore (currentBuildSideWm resets to MIN_VALUE), which
         // re-anchors a recovered buffer to this subtask's watermark.
@@ -810,36 +834,39 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     /**
-     * Applies the buffered build-side changes that are due — i.e. whose row-time attribute has been
-     * reached by the build-side watermark — in event-time order, keeping any not-yet-due changes
-     * buffered (re-tagged at the current watermark). This preserves atomic visibility of a
-     * retraction/insertion pair.
+     * Applies the buffered build-side changes that are due — i.e. whose row-time has been reached
+     * by the build-side watermark — in event-time order, leaving any not-yet-due changes untouched
+     * in state.
      */
     private void applyDueBufferedChanges() throws Exception {
         if (currentBuildSideWm == Long.MIN_VALUE) {
             applyBufferedChanges();
             return;
         }
-        List<RowData> due = new ArrayList<>();
-        List<RowData> kept = new ArrayList<>();
-        for (RowData c : buildChangeBuffer.get()) {
-            if (c.getLong(buildRowtimeIndex) <= currentBuildSideWm) {
-                due.add(c);
+        // Scan keys (row-times) only; the values (rows) of not-yet-due buckets stay serialized.
+        List<Long> due = new ArrayList<>();
+        boolean hasKept = false;
+        for (Long rowtime : buildChangeBuffer.keys()) {
+            if (rowtime <= currentBuildSideWm) {
+                due.add(rowtime);
             } else {
-                kept.add(c);
+                hasKept = true;
+                if (sortedStateBackend) {
+                    break;
+                }
             }
         }
-        // Apply in event-time order; the sort reads the row-time/kind before applyBuildChange
-        // mutates the kind.
-        due.sort(this::compareBuildChanges);
-        for (RowData c : due) {
-            applyBuildChange(c);
+        // Ordered backends already yield due row-times ascending; otherwise sort them.
+        if (!sortedStateBackend) {
+            due.sort(Long::compareTo);
         }
-        if (kept.isEmpty()) {
-            clearBuildChangeBuffer();
-        } else {
-            buildChangeBuffer.update(kept);
+        for (long rowtime : due) {
+            applyBufferedChangesAt(rowtime);
+        }
+        if (hasKept) {
             bufferedAtWmState.update(currentBuildSideWm);
+        } else {
+            clearBuildChangeBuffer();
         }
     }
 
@@ -849,16 +876,28 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      * no build watermark to gate on (none seen yet).
      */
     private void applyBufferedChanges() throws Exception {
-        List<RowData> changes = new ArrayList<>();
-        for (RowData c : buildChangeBuffer.get()) {
-            changes.add(c);
+        List<Long> rowtimes = new ArrayList<>();
+        for (Long rowtime : buildChangeBuffer.keys()) {
+            rowtimes.add(rowtime);
         }
-        // Apply in event-time order; read the row-time before applyBuildChange mutates the kind.
-        changes.sort(this::compareBuildChanges);
-        for (RowData c : changes) {
-            applyBuildChange(c);
+        if (!sortedStateBackend) {
+            rowtimes.sort(Long::compareTo);
+        }
+        for (long rowtime : rowtimes) {
+            applyBufferedChangesAt(rowtime);
         }
         clearBuildChangeBuffer();
+    }
+
+    /**
+     * Applies all buffered build-side changes at a single row-time to {@code buildTableState}, then
+     * removes the row-time bucket.
+     */
+    private void applyBufferedChangesAt(long rowtime) throws Exception {
+        for (RowData c : buildChangeBuffer.get(rowtime)) {
+            applyBuildChange(c);
+        }
+        buildChangeBuffer.remove(rowtime);
     }
 
     /** Clears the per-key build-side change buffer and its watermark tag. */
@@ -877,25 +916,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         clearBuildChangeBuffer();
         clearProbeBuffer();
         ttlExpiryState.clear();
-    }
-
-    /**
-     * Orders build-side changelog entries for deterministic, event-time-ordered application:
-     * ascending by the build-side row-time attribute, then retractions ({@code -U}/{@code -D})
-     * before accumulations ({@code +U}/{@code +I}) for entries sharing a row-time.
-     */
-    private int compareBuildChanges(RowData a, RowData b) {
-        int byTime = Long.compare(a.getLong(buildRowtimeIndex), b.getLong(buildRowtimeIndex));
-        if (byTime != 0) {
-            return byTime;
-        }
-        return Integer.compare(retractionRank(a), retractionRank(b));
-    }
-
-    /** Returns {@code 0} for retracting changes ({@code -U}/{@code -D}), {@code 1} otherwise. */
-    private static int retractionRank(RowData change) {
-        RowKind kind = change.getRowKind();
-        return (kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE) ? 0 : 1;
     }
 
     /**
@@ -980,8 +1000,13 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     @VisibleForTesting
-    ListState<RowData> getBuildChangeBuffer() {
+    MapState<Long, List<RowData>> getBuildChangeBuffer() {
         return buildChangeBuffer;
+    }
+
+    @VisibleForTesting
+    boolean isSortedStateBackend() {
+        return sortedStateBackend;
     }
 
     @VisibleForTesting
