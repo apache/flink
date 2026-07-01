@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -62,7 +63,7 @@ public interface SavepointKeyFilter<K> extends Serializable {
      * <p>Used only while combining filters during push-down translation, not during the scan.
      */
     @Nullable
-    default BoundInfo getLowerBound() {
+    default BoundInfo<K> getLowerBound() {
         return null;
     }
 
@@ -73,7 +74,7 @@ public interface SavepointKeyFilter<K> extends Serializable {
      * <p>Used only while combining filters during push-down translation, not during the scan.
      */
     @Nullable
-    default BoundInfo getUpperBound() {
+    default BoundInfo<K> getUpperBound() {
         return null;
     }
 
@@ -111,9 +112,18 @@ public interface SavepointKeyFilter<K> extends Serializable {
 
     static <K extends Comparable<K>> SavepointKeyFilter<K> range(
             @Nullable K lower, boolean lowerInclusive, @Nullable K upper, boolean upperInclusive) {
-        BoundInfo lowerBoundInfo = lower != null ? new BoundInfo(lower, lowerInclusive) : null;
-        BoundInfo upperBoundInfo = upper != null ? new BoundInfo(upper, upperInclusive) : null;
-        return new RangeKeyFilter<>(lowerBoundInfo, upperBoundInfo);
+        return range(lower, lowerInclusive, upper, upperInclusive, Comparator.naturalOrder());
+    }
+
+    static <K> SavepointKeyFilter<K> range(
+            @Nullable K lower,
+            boolean lowerInclusive,
+            @Nullable K upper,
+            boolean upperInclusive,
+            Comparator<K> comparator) {
+        BoundInfo<K> lowerBoundInfo = lower != null ? new BoundInfo<>(lower, lowerInclusive) : null;
+        BoundInfo<K> upperBoundInfo = upper != null ? new BoundInfo<>(upper, upperInclusive) : null;
+        return new RangeKeyFilter<>(comparator, lowerBoundInfo, upperBoundInfo);
     }
 
     static <K> SavepointKeyFilter<K> empty() {

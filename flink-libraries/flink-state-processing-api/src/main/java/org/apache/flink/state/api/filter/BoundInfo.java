@@ -24,18 +24,18 @@ import java.io.Serializable;
 
 /** Information about a bound in a range filter. */
 @Experimental
-public final class BoundInfo implements Serializable {
+public final class BoundInfo<K> implements Serializable {
     private static final long serialVersionUID = 4L;
 
-    private final Comparable<?> value;
+    private final K value;
     private final boolean inclusive;
 
-    public BoundInfo(Comparable<?> value, boolean inclusive) {
+    public BoundInfo(K value, boolean inclusive) {
         this.value = value;
         this.inclusive = inclusive;
     }
 
-    public Comparable<?> getValue() {
+    public K getValue() {
         return value;
     }
 
