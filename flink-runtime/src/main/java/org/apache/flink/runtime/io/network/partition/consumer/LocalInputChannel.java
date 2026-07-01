@@ -329,10 +329,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                                 seq++));
             }
 
-            return getBufferAndAvailability(toBeConsumedBuffers.removeFirst());
+            return Optional.of(getBufferAndAvailability(toBeConsumedBuffers.removeFirst()));
         }
 
-        return getBufferAndAvailability(next);
+        return Optional.of(getBufferAndAvailability(next));
     }
 
     /**
@@ -366,12 +366,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 }
             }
 
-            return getBufferAndAvailability(
-                    new BufferAndBacklog(
-                            next.buffer(),
-                            next.buffersInBacklog(),
-                            expectedNextDataType,
-                            next.getSequenceNumber()));
+            return Optional.of(
+                    getBufferAndAvailability(
+                            new BufferAndBacklog(
+                                    next.buffer(),
+                                    next.buffersInBacklog(),
+                                    expectedNextDataType,
+                                    next.getSequenceNumber())));
         }
 
         BufferAndBacklog next = toBeConsumedBuffers.removeFirst();
@@ -394,10 +395,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                                 next.getSequenceNumber());
             }
         }
-        return getBufferAndAvailability(next);
+        return Optional.of(getBufferAndAvailability(next));
     }
 
-    private Optional<BufferAndAvailability> getBufferAndAvailability(BufferAndBacklog next)
+    private BufferAndAvailability getBufferAndAvailability(BufferAndBacklog next)
             throws IOException {
         Buffer buffer = next.buffer();
         if (buffer instanceof FileRegionBuffer) {
@@ -419,12 +420,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 channelInfo,
                 channelStatePersister,
                 next.getSequenceNumber());
-        return Optional.of(
-                new BufferAndAvailability(
-                        buffer,
-                        next.getNextDataType(),
-                        next.buffersInBacklog(),
-                        next.getSequenceNumber()));
+        return new BufferAndAvailability(
+                buffer, next.getNextDataType(), next.buffersInBacklog(), next.getSequenceNumber());
     }
 
     @Override
