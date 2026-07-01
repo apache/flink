@@ -136,7 +136,11 @@ module.exports = {
     {
       files: ['*.html'],
       extends: ['plugin:@angular-eslint/template/recommended'],
-      rules: {}
+      rules: {
+        // The @if/@for control-flow migration is deferred to a dedicated follow-up (needs prettier 3
+        // to format it); keep *ngIf/*ngFor in this dependency-upgrade PR.
+        '@angular-eslint/template/prefer-control-flow': 'off'
+      }
     },
     {
       files: ['*.html'],
