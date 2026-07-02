@@ -86,6 +86,11 @@ public class Mail {
         return mailOptions.isDeferrable() ? TaskMailbox.MIN_PRIORITY : priority;
     }
 
+    /** The priority the mail was created with, ignoring the deferrable demotion. */
+    public int getPriorityIgnoringDeferrable() {
+        return priority;
+    }
+
     public void tryCancel(boolean mayInterruptIfRunning) {
         if (runnable instanceof Future) {
             ((Future<?>) runnable).cancel(mayInterruptIfRunning);

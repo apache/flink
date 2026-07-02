@@ -136,6 +136,16 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         return false;
     }
 
+    /**
+     * Runs the production mailbox loop until it is suspended or all actions are completed. Unlike
+     * {@link #processAll()}, this preserves the production interleaving of mails and the default
+     * action: the default action can process input at a mail-batch boundary while mails enqueued
+     * during the batch are still pending.
+     */
+    public void runMailboxLoop() throws Exception {
+        streamTask.mailboxProcessor.runMailboxLoop();
+    }
+
     public MailboxExecutor getExecutor(int priority) {
         return streamTask.getMailboxExecutorFactory().createExecutor(priority);
     }
