@@ -98,7 +98,18 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
     @Override
     public boolean tryYield() {
-        Optional<Mail> optionalMail = mailbox.tryTake(priority);
+        return runIfPresent(mailbox.tryTake(priority));
+    }
+
+    /**
+     * Same as {@link #tryYield()}, but also executes deferrable mails (see {@link
+     * MailboxExecutor.MailOptions#deferrable()}).
+     */
+    public boolean tryYieldIgnoringDeferrable() {
+        return runIfPresent(mailbox.tryTakeIgnoringDeferrable(priority));
+    }
+
+    private static boolean runIfPresent(Optional<Mail> optionalMail) {
         if (optionalMail.isPresent()) {
             try {
                 optionalMail.get().run();
