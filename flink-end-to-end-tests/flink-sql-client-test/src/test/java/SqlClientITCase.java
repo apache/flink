@@ -16,74 +16,45 @@
  * limitations under the License.
  */
 
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.util.DockerImageVersions;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.BytesSerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.kafka.ConfluentKafkaContainer;
-import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.io.File;
-import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** E2E Test for SqlClient. */
-@Testcontainers
 class SqlClientITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientITCase.class);
 
-    private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
-
-    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
-    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*/SqlToolbox\\.jar");
-
-    private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.*\\.jar");
-
     private final Path sqlConnectorUpsertTestJar =
             ResourceTestUtils.getResource(".*flink-test-utils.*\\.jar");
-
-    private static final Network NETWORK = Network.newNetwork();
-
-    @Container
-    private static final ConfluentKafkaContainer KAFKA =
-            new ConfluentKafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
-                    .withNetwork(NETWORK)
-                    .withListener(INTER_CONTAINER_KAFKA_ALIAS + ":19092")
-                    .withLogConsumer(LOG_CONSUMER);
 
     private final FlinkContainers flink =
             FlinkContainers.builder()
@@ -96,11 +67,7 @@ class SqlClientITCase {
                                             Duration.ofMillis(500))
                                     .build())
                     .withTestcontainersSettings(
-                            TestcontainersSettings.builder()
-                                    .network(NETWORK)
-                                    .logger(LOG)
-                                    .dependsOn(KAFKA)
-                                    .build())
+                            TestcontainersSettings.builder().logger(LOG).build())
                     .build();
 
     @TempDir private File tempDir;
@@ -189,9 +156,9 @@ class SqlClientITCase {
     }
 
     @Test
-    @Disabled("Disable due to Kafka connector need to release a new version 2.0.")
     void testMatchRecognize() throws Exception {
         String outputFilepath = "/flink/records-matchrecognize.out";
+        String inputFilepath = "/tmp/test-json.jsonl";
 
         String[] messages =
                 new String[] {
@@ -204,11 +171,19 @@ class SqlClientITCase {
                     "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": null, \"event\": { \"type\": \"WARNING\", \"message\": \"This is a bad message because the user is missing.\"}}",
                     "{\"timestamp\": \"2018-03-12T10:40:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"ERROR\", \"message\": \"This is an error.\"}}"
                 };
-        sendMessages("test-json", messages);
+        File inputFile = new File(tempDir, "test-json.jsonl");
+        Files.write(inputFile.toPath(), Arrays.asList(messages));
+        MountableFile mountableFile = MountableFile.forHostPath(inputFile.toPath());
+        flink.getJobManager().copyFileToContainer(mountableFile, inputFilepath);
+        for (GenericContainer<?> taskManager : flink.getTaskManagers()) {
+            taskManager.copyFileToContainer(mountableFile, inputFilepath);
+        }
 
         List<String> sqlLines =
                 Arrays.asList(
-                        "CREATE FUNCTION RegReplace AS 'org.apache.flink.table.toolbox.StringRegexReplaceFunction';",
+                        // MATCH_RECOGNIZE requires streaming mode; the bounded filesystem source
+                        // emits MAX_WATERMARK at end of input which flushes the pending match
+                        "SET 'execution.runtime-mode' = 'streaming';",
                         "",
                         "CREATE TABLE JsonSourceTable (",
                         "    `timestamp` TIMESTAMP_LTZ(3),",
@@ -217,12 +192,8 @@ class SqlClientITCase {
                         "    `rowtime` AS `timestamp`,",
                         "    WATERMARK FOR `rowtime` AS `rowtime` - INTERVAL '2' SECOND",
                         ") WITH (",
-                        "    'connector' = 'kafka',",
-                        "    'topic' = 'test-json',",
-                        "    'properties.bootstrap.servers' = '"
-                                + INTER_CONTAINER_KAFKA_ALIAS
-                                + ":19092',",
-                        "    'scan.startup.mode' = 'earliest-offset',",
+                        "    'connector' = 'filesystem',",
+                        "    'path' = 'file://" + inputFilepath + "',",
                         "    'format' = 'json',",
                         "    'json.timestamp-format.standard' = 'ISO-8601'",
                         ");",
@@ -257,60 +228,42 @@ class SqlClientITCase {
         verifyNumberOfResultRecords(outputFilepath, 1);
     }
 
-    // duplicated from KafkaContainerClient@flink-end-to-end-tests-common
-    private void sendMessages(String topic, String... messages) {
-        Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-
-        final int numPartitions = 1;
-        final short replicationFactor = 1;
-        try (AdminClient admin = AdminClient.create(props)) {
-            admin.createTopics(
-                            Collections.singletonList(
-                                    new NewTopic(topic, numPartitions, replicationFactor)))
-                    .all()
-                    .get();
-        } catch (Exception e) {
-            throw new IllegalStateException(
-                    String.format(
-                            "Fail to create topic [%s partitions: %d replicas: %d].",
-                            topic, numPartitions, replicationFactor),
-                    e);
-        }
-
-        try (Producer<Bytes, String> producer =
-                new KafkaProducer<>(props, new BytesSerializer(), new StringSerializer())) {
-            for (String message : messages) {
-                producer.send(new ProducerRecord<>(topic, message));
-            }
-        }
-    }
-
     private void verifyNumberOfResultRecords(String resultFilePath, int expectedNumberOfRecords)
-            throws IOException, InterruptedException {
+            throws Exception {
+        RestClusterClient<StandaloneClusterId> clusterClient = flink.getRestClusterClient();
+        // the sink flushes all records at the latest when the bounded job finishes, so the
+        // result file is complete once the job reaches a terminal state
+        CommonTestUtils.waitUntilIgnoringExceptions(
+                () -> {
+                    try {
+                        Collection<JobStatusMessage> jobs = clusterClient.listJobs().get();
+                        return !jobs.isEmpty()
+                                && jobs.stream()
+                                        .allMatch(
+                                                job -> job.getJobState().isGloballyTerminalState());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                Duration.ofMinutes(2),
+                Duration.ofMillis(100),
+                "Job did not terminate within 2 minutes");
+        Collection<JobStatusMessage> jobs = clusterClient.listJobs().get();
+        assertThat(jobs).hasSize(1);
+        assertThat(jobs.iterator().next().getJobState()).isEqualTo(JobStatus.FINISHED);
+
         File tempOutputFile = new File(tempDir, "records.out");
-        String tempOutputFilepath = tempOutputFile.toString();
-        GenericContainer<?> taskManager = flink.getTaskManagers().get(0);
-        int numberOfResultRecords;
-        while (true) {
-            Thread.sleep(50); // prevent NotFoundException: Status 404
-            try {
-                taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
-                numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
-                if (numberOfResultRecords == expectedNumberOfRecords) {
-                    break;
-                }
-            } catch (Exception ignored) {
-            }
-        }
-        assertThat(numberOfResultRecords).isEqualTo(expectedNumberOfRecords);
+        flink.getTaskManagers()
+                .get(0)
+                .copyFileFromContainer(resultFilePath, tempOutputFile.toString());
+        assertThat(UpsertTestFileUtil.getNumberOfRecords(tempOutputFile))
+                .isEqualTo(expectedNumberOfRecords);
     }
 
     private void executeSql(List<String> sqlLines) throws Exception {
         flink.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-                        .addJars(sqlConnectorUpsertTestJar, sqlConnectorKafkaJar, sqlToolBoxJar)
+                        .addJars(sqlConnectorUpsertTestJar)
                         .build());
     }
 }
