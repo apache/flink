@@ -46,6 +46,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<!-- Bundled into SqlToolbox.jar; not part of flink-dist -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-end-to-end-tests-common</artifactId>
 			<version>${project.version}</version>

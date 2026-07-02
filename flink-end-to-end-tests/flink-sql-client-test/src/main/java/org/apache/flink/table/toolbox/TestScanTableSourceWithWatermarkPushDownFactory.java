@@ -32,7 +32,7 @@ public class TestScanTableSourceWithWatermarkPushDownFactory implements DynamicT
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
-        return new TestScanTableSourceWithWatermarkPushDown();
+        return new TestScanTableSourceWithWatermarkPushDown(context.getPhysicalRowDataType());
     }
 
     @Override
