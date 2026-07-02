@@ -33,11 +33,14 @@
       },
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser-esbuild",
+          "builder": "@angular/build:application",
           "options": {
-            "outputPath": "web",
+            "outputPath": {
+              "base": "web",
+              "browser": ""
+            },
             "index": "src/index.html",
-            "main": "src/main.ts",
+            "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "src/tsconfig.app.json",
             "assets": [
@@ -57,12 +60,9 @@
               ]
             },
             "scripts": [],
-            "vendorChunk": true,
             "extractLicenses": false,
-            "buildOptimizer": false,
             "sourceMap": true,
-            "optimization": false,
-            "namedChunks": true
+            "optimization": false
           },
           "configurations": {
             "production": {
@@ -75,10 +75,7 @@
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
-              "namedChunks": false,
               "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
               "budgets": [
                 {
                   "type": "initial",
@@ -95,7 +92,7 @@
           "defaultConfiguration": ""
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "options": {
             "buildTarget": "flink:build"
           },
@@ -103,6 +100,15 @@
             "production": {
               "buildTarget": "flink:build:production"
             }
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "flink:build",
+            "runner": "vitest",
+            "tsConfig": "tsconfig.spec.json",
+            "setupFiles": ["src/test-setup.ts"]
           }
         }
       }

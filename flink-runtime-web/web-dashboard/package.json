@@ -6,7 +6,9 @@
     "build": "ng build --configuration production --base-href ./",
     "lint": "eslint --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\"",
     "lint:fix": "eslint --fix --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\" --fix",
-    "ci-check": "npm run lint && npm run build",
+    "test": "ng test",
+    "test:ci": "ng test --no-watch",
+    "ci-check": "npm run lint && npm run test:ci && npm run build",
     "proxy": "ng serve --proxy-config proxy.conf.json"
   },
   "private": true,
@@ -31,18 +33,16 @@
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^21.2.17",
     "@angular-devkit/core": "^21.2.17",
     "@angular-eslint/builder": "21.4.0",
     "@angular-eslint/eslint-plugin": "21.4.0",
     "@angular-eslint/eslint-plugin-template": "21.4.0",
     "@angular-eslint/schematics": "^21.4.0",
     "@angular-eslint/template-parser": "21.4.0",
+    "@angular/build": "^21.2.17",
     "@angular/cli": "^21.2.17",
     "@angular/compiler-cli": "^21.2.17",
     "@types/d3": "^7.4.3",
-    "@types/jasmine": "~3.10.19",
-    "@types/jasminewd2": "~2.0.13",
     "@types/node": "^22.16.0",
     "angular-eslint": "21.4.0",
     "eslint": "^9.39.4",
@@ -52,6 +52,7 @@
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "eslint-plugin-prettier": "^4.2.5",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "jsdom": "^29.1.1",
     "postcss-less": "^6.0.0",
     "prettier": "^2.4.1",
     "stylelint": "^14.16.1",
@@ -62,6 +63,7 @@
     "stylelint-prettier": "^2.0.0",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.62.1"
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^4.1.9"
   }
 }
