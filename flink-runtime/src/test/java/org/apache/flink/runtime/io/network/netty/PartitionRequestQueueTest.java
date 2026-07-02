@@ -90,7 +90,8 @@ class PartitionRequestQueueTest {
         ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
         ResultPartitionID resultPartitionId = new ResultPartitionID();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(new InputChannelID(0, 0), 10, queue);
+                new CreditBasedSequenceNumberingViewReader(
+                        new InputChannelID(0, 0), 10, false, queue);
         reader.requestSubpartitionViewOrRegisterListener(
                 resultPartitionManager, resultPartitionId, new ResultSubpartitionIndexSet(0));
 
@@ -132,9 +133,11 @@ class PartitionRequestQueueTest {
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         CreditBasedSequenceNumberingViewReader reader1 =
-                new CreditBasedSequenceNumberingViewReader(new InputChannelID(0, 0), 10, queue);
+                new CreditBasedSequenceNumberingViewReader(
+                        new InputChannelID(0, 0), 10, false, queue);
         CreditBasedSequenceNumberingViewReader reader2 =
-                new CreditBasedSequenceNumberingViewReader(new InputChannelID(1, 1), 10, queue);
+                new CreditBasedSequenceNumberingViewReader(
+                        new InputChannelID(1, 1), 10, false, queue);
 
         ResultSubpartitionView view1 = new EmptyAlwaysAvailableResultSubpartitionView();
         reader1.notifySubpartitionsCreated(
@@ -192,7 +195,8 @@ class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, Integer.MAX_VALUE, queue);
+                new CreditBasedSequenceNumberingViewReader(
+                        receiverId, Integer.MAX_VALUE, false, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
@@ -287,7 +291,7 @@ class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 0, false, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
@@ -340,7 +344,7 @@ class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, false, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
         reader.addCredit(-2);
 
@@ -421,7 +425,7 @@ class PartitionRequestQueueTest {
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, false, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
@@ -461,7 +465,7 @@ class PartitionRequestQueueTest {
         PartitionRequestQueue queue = new PartitionRequestQueue();
         InputChannelID receiverId = new InputChannelID();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 0, false, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
@@ -498,7 +502,7 @@ class PartitionRequestQueueTest {
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
         final CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, false, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
@@ -546,7 +550,7 @@ class PartitionRequestQueueTest {
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, false, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));

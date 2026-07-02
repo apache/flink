@@ -36,9 +36,10 @@ class RecordFilterContextTest {
 
     @Test
     void testDisabledContextHasNoGates() {
-        RecordFilterContext disabled = RecordFilterContext.disabled();
+        RecordFilterContext disabled = RecordFilterContext.disabled(new String[] {"/tmp"});
         assertThat(disabled.getNumberOfGates()).isEqualTo(0);
         assertThat(disabled.isCheckpointingDuringRecoveryEnabled()).isFalse();
+        assertThat(disabled.getTmpDirectories()).containsExactly("/tmp");
     }
 
     @Test
@@ -72,7 +73,7 @@ class RecordFilterContextTest {
                         InflightDataRescalingDescriptor.NO_RESCALE,
                         0,
                         128,
-                        null,
+                        new String[] {"/tmp"},
                         false,
                         MemoryManager.DEFAULT_PAGE_SIZE);
 
@@ -83,8 +84,38 @@ class RecordFilterContextTest {
     }
 
     @Test
-    void testNullTmpDirectoriesConvertedToEmptyArray() {
-        RecordFilterContext context =
+    void testEnabledContextRejectsNullOrEmptyTmpDirectories() {
+        // When checkpointing-during-recovery is enabled, the spilling path needs spill
+        // directories, so null/empty tmpDirectories are rejected.
+        assertThatThrownBy(
+                        () ->
+                                new RecordFilterContext(
+                                        new RecordFilterContext.InputFilterConfig[0],
+                                        InflightDataRescalingDescriptor.NO_RESCALE,
+                                        0,
+                                        128,
+                                        null,
+                                        true,
+                                        MemoryManager.DEFAULT_PAGE_SIZE))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                        () ->
+                                new RecordFilterContext(
+                                        new RecordFilterContext.InputFilterConfig[0],
+                                        InflightDataRescalingDescriptor.NO_RESCALE,
+                                        0,
+                                        128,
+                                        new String[0],
+                                        true,
+                                        MemoryManager.DEFAULT_PAGE_SIZE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testDisabledContextToleratesNullOrEmptyTmpDirectories() {
+        // A disabled context never spills, so it needs no spill directories: null/empty are
+        // tolerated and normalized to an empty array.
+        RecordFilterContext fromNull =
                 new RecordFilterContext(
                         new RecordFilterContext.InputFilterConfig[0],
                         InflightDataRescalingDescriptor.NO_RESCALE,
@@ -93,8 +124,18 @@ class RecordFilterContextTest {
                         null,
                         false,
                         MemoryManager.DEFAULT_PAGE_SIZE);
+        assertThat(fromNull.getTmpDirectories()).isEmpty();
 
-        assertThat(context.getTmpDirectories()).isNotNull().isEmpty();
+        RecordFilterContext fromEmpty =
+                new RecordFilterContext(
+                        new RecordFilterContext.InputFilterConfig[0],
+                        InflightDataRescalingDescriptor.NO_RESCALE,
+                        0,
+                        128,
+                        new String[0],
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
+        assertThat(fromEmpty.getTmpDirectories()).isEmpty();
     }
 
     @Test
@@ -111,7 +152,7 @@ class RecordFilterContextTest {
                         descriptor,
                         0,
                         128,
-                        null,
+                        new String[] {"/tmp"},
                         false,
                         MemoryManager.DEFAULT_PAGE_SIZE);
 
@@ -132,7 +173,7 @@ class RecordFilterContextTest {
                         descriptor,
                         0,
                         128,
-                        null,
+                        new String[] {"/tmp"},
                         true,
                         MemoryManager.DEFAULT_PAGE_SIZE);
 
@@ -152,7 +193,7 @@ class RecordFilterContextTest {
                         descriptor,
                         0,
                         128,
-                        null,
+                        new String[] {"/tmp"},
                         true,
                         MemoryManager.DEFAULT_PAGE_SIZE);
 
@@ -170,7 +211,7 @@ class RecordFilterContextTest {
                         InflightDataRescalingDescriptor.NO_RESCALE,
                         0,
                         128,
-                        null,
+                        new String[] {"/tmp"},
                         false,
                         MemoryManager.DEFAULT_PAGE_SIZE * 2);
 
@@ -184,7 +225,7 @@ class RecordFilterContextTest {
                                         InflightDataRescalingDescriptor.NO_RESCALE,
                                         0,
                                         128,
-                                        null,
+                                        new String[] {"/tmp"},
                                         false,
                                         0))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -195,7 +236,7 @@ class RecordFilterContextTest {
                                         InflightDataRescalingDescriptor.NO_RESCALE,
                                         0,
                                         128,
-                                        null,
+                                        new String[] {"/tmp"},
                                         false,
                                         -1))
                 .isInstanceOf(IllegalArgumentException.class);

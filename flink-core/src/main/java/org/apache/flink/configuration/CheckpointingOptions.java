@@ -664,7 +664,7 @@ public class CheckpointingOptions {
             ConfigOptions.key(
                             "execution.checkpointing.unaligned.recover-output-on-downstream.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Whether recovering output buffers of upstream task on downstream task directly "
                                     + "when job restores from the unaligned checkpoint.");
@@ -674,7 +674,7 @@ public class CheckpointingOptions {
     public static final ConfigOption<Boolean> CHECKPOINTING_DURING_RECOVERY_ENABLED =
             ConfigOptions.key("execution.checkpointing.during-recovery.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             Description.builder()
                                     .text(
