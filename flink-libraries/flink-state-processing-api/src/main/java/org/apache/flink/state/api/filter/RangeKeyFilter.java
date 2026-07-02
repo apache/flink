@@ -20,7 +20,6 @@ package org.apache.flink.state.api.filter;
 
 import javax.annotation.Nullable;
 
-import java.util.Comparator;
 import java.util.Set;
 
 /** A filter based on a range with an injected comparator. */
@@ -28,12 +27,14 @@ final class RangeKeyFilter<K> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 3L;
 
-    private final Comparator<K> comparator;
+    private final SerializableComparator<K> comparator;
     @Nullable private final BoundInfo<K> lower;
     @Nullable private final BoundInfo<K> upper;
 
     RangeKeyFilter(
-            Comparator<K> comparator, @Nullable BoundInfo<K> lower, @Nullable BoundInfo<K> upper) {
+            SerializableComparator<K> comparator,
+            @Nullable BoundInfo<K> lower,
+            @Nullable BoundInfo<K> upper) {
         this.comparator = comparator;
         this.lower = lower;
         this.upper = upper;

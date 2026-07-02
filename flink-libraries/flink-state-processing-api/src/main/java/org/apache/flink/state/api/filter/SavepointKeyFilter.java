@@ -23,7 +23,6 @@ import org.apache.flink.annotation.Experimental;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -112,7 +111,7 @@ public interface SavepointKeyFilter<K> extends Serializable {
 
     static <K extends Comparable<K>> SavepointKeyFilter<K> range(
             @Nullable K lower, boolean lowerInclusive, @Nullable K upper, boolean upperInclusive) {
-        return range(lower, lowerInclusive, upper, upperInclusive, Comparator.naturalOrder());
+        return range(lower, lowerInclusive, upper, upperInclusive, new NaturalOrderComparator<>());
     }
 
     static <K> SavepointKeyFilter<K> range(
@@ -120,7 +119,7 @@ public interface SavepointKeyFilter<K> extends Serializable {
             boolean lowerInclusive,
             @Nullable K upper,
             boolean upperInclusive,
-            Comparator<K> comparator) {
+            SerializableComparator<K> comparator) {
         BoundInfo<K> lowerBoundInfo = lower != null ? new BoundInfo<>(lower, lowerInclusive) : null;
         BoundInfo<K> upperBoundInfo = upper != null ? new BoundInfo<>(upper, upperInclusive) : null;
         return new RangeKeyFilter<>(comparator, lowerBoundInfo, upperBoundInfo);
@@ -128,5 +127,25 @@ public interface SavepointKeyFilter<K> extends Serializable {
 
     static <K> SavepointKeyFilter<K> empty() {
         return EmptyKeyFilter.instance();
+    }
+
+    final class NaturalOrderComparator<K extends Comparable<K>>
+            implements SerializableComparator<K> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public int compare(K a, K b) {
+            return a.compareTo(b);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof NaturalOrderComparator;
+        }
+
+        @Override
+        public int hashCode() {
+            return NaturalOrderComparator.class.hashCode();
+        }
     }
 }

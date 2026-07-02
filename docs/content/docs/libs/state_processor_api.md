@@ -267,7 +267,7 @@ DataStream<KeyedState> keyRange = savepoint.readKeyedState(
 
 * `SavepointKeyFilter.exact(K key)` / `SavepointKeyFilter.exact(Set<K> keys)` — match a single key or a finite set of keys.
 * `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive)` — match a range; `K` must implement `Comparable<K>`. Either bound may be `null` to leave that side unbounded.
-* `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive, Comparator<K> comparator)` — same, but with an explicit comparator for key types that do not implement `Comparable<K>`.
+* `SavepointKeyFilter.range(K lower, boolean lowerInclusive, K upper, boolean upperInclusive, SerializableComparator<K> comparator)` — same, but with an explicit comparator for key types that do not implement `Comparable<K>`. The comparator must be serializable because the filter is shipped with the job; lambdas and method references assigned to `SerializableComparator` satisfy this automatically.
 * `SavepointKeyFilter.empty()` — match no keys. Not intended for direct use — it only serves as an internal building block for the Table API filter pushdown.
 
 When the built-in filters are not enough, you can implement the `SavepointKeyFilter<K>` interface yourself.
