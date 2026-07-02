@@ -22,16 +22,22 @@ import java.util.Collections;
 import java.util.Set;
 
 /** A filter that rejects every key. */
-final class EmptyKeyFilter implements SavepointKeyFilter {
+final class EmptyKeyFilter<K> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 1L;
 
-    static final EmptyKeyFilter INSTANCE = new EmptyKeyFilter();
+    @SuppressWarnings("rawtypes")
+    private static final EmptyKeyFilter INSTANCE = new EmptyKeyFilter<>();
 
     private EmptyKeyFilter() {}
 
+    @SuppressWarnings("unchecked")
+    static <K> EmptyKeyFilter<K> instance() {
+        return (EmptyKeyFilter<K>) INSTANCE;
+    }
+
     @Override
-    public boolean test(Object key) {
+    public boolean test(K key) {
         return false;
     }
 
@@ -41,12 +47,12 @@ final class EmptyKeyFilter implements SavepointKeyFilter {
     }
 
     @Override
-    public Set<Object> getExactKeys() {
+    public Set<K> getExactKeys() {
         return Collections.emptySet();
     }
 
     @Override
-    public SavepointKeyFilter intersect(SavepointKeyFilter other) {
+    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
         return this;
     }
 

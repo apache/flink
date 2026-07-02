@@ -22,34 +22,34 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** A filter that accepts a finite set of keys. */
-final class ExactKeyFilter implements SavepointKeyFilter {
+final class ExactKeyFilter<K> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 2L;
 
-    private final Set<Object> keys;
+    private final Set<K> keys;
 
-    ExactKeyFilter(Set<Object> keys) {
+    ExactKeyFilter(Set<K> keys) {
         this.keys = Set.copyOf(keys);
     }
 
     @Override
-    public boolean test(Object key) {
+    public boolean test(K key) {
         return keys.contains(key);
     }
 
     @Override
-    public Set<Object> getExactKeys() {
+    public Set<K> getExactKeys() {
         return keys;
     }
 
     @Override
-    public SavepointKeyFilter intersect(SavepointKeyFilter other) {
+    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
         if (other.isEmpty()) {
             return other;
         }
-        final Set<Object> otherKeys = other.getExactKeys();
+        final Set<K> otherKeys = other.getExactKeys();
         if (otherKeys != null) {
-            final Set<Object> intersection = new HashSet<>(keys);
+            final Set<K> intersection = new HashSet<>(keys);
             intersection.retainAll(otherKeys);
             return SavepointKeyFilter.exact(intersection);
         }

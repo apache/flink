@@ -21,25 +21,19 @@ package org.apache.flink.state.api.filter;
 import org.apache.flink.annotation.Experimental;
 
 import java.io.Serializable;
+import java.util.Comparator;
 
-/** Information about a bound in a range filter. */
+/**
+ * A {@link Comparator} that is also {@link Serializable}.
+ *
+ * <p>Required when passing a custom comparator to {@link SavepointKeyFilter#range} because the
+ * filter is serialized and shipped with the job. Lambdas and method references assigned to this
+ * type are automatically serializable.
+ *
+ * @param <K> The type of keys being compared.
+ */
 @Experimental
-public final class BoundInfo<K> implements Serializable {
-    private static final long serialVersionUID = 4L;
-
-    private final K value;
-    private final boolean inclusive;
-
-    public BoundInfo(K value, boolean inclusive) {
-        this.value = value;
-        this.inclusive = inclusive;
-    }
-
-    public K getValue() {
-        return value;
-    }
-
-    public boolean isInclusive() {
-        return inclusive;
-    }
+@FunctionalInterface
+public interface SerializableComparator<K> extends Comparator<K>, Serializable {
+    long serialVersionUID = 1L;
 }

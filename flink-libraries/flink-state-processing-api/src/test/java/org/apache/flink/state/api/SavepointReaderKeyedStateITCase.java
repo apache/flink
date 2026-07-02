@@ -226,6 +226,29 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         assertThat(result.counter).isZero();
     }
 
+    @Test
+    public void testReadKeyedStateWithCustomComparatorRangeFilter() throws Exception {
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
+        env.setParallelism(4);
+
+        applyStatefulPipeline(env);
+
+        String savepointPath = takeSavepoint(env);
+
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
+        // Descending order: bounds [6, 3] are valid and cover keys 3, 4, 5, 6.
+        // Under natural order the same bounds would produce an empty range (6 > 3).
+        CountingReadResult result =
+                readKeyedStateWithCountingReader(
+                        savepoint,
+                        SavepointKeyFilter.range(
+                                6, true, 3, true, (a, b) -> Integer.compare(b, a)));
+        assertThat(result.values).containsExactlyInAnyOrder(3, 4, 5, 6);
+        assertThat(result.counter).isEqualTo(4);
+    }
+
     private void applyStatefulPipeline(StreamExecutionEnvironment env) {
         env.addSource(createSource(elements))
                 .returns(Pojo.class)
@@ -237,7 +260,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     private CountingReadResult readKeyedStateWithCountingReader(
-            SavepointReader savepoint, SavepointKeyFilter keyFilter) throws Exception {
+            SavepointReader savepoint, SavepointKeyFilter<Integer> keyFilter) throws Exception {
         DataStream<Integer> stateValues =
                 savepoint.readKeyedState(
                         OperatorIdentifier.forUid(uid),

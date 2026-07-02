@@ -428,7 +428,7 @@ public class SavepointReader {
             KeyedStateReaderFunction<K, OUT> function,
             TypeInformation<K> keyTypeInfo,
             TypeInformation<OUT> outTypeInfo,
-            @Nullable SavepointKeyFilter keyFilter)
+            @Nullable SavepointKeyFilter<K> keyFilter)
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);

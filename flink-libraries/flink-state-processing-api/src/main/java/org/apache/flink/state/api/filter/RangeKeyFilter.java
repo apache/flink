@@ -22,29 +22,34 @@ import javax.annotation.Nullable;
 
 import java.util.Set;
 
-/** A filter based on a comparable range. */
-final class RangeKeyFilter implements SavepointKeyFilter {
+/** A filter based on a range with an injected comparator. */
+final class RangeKeyFilter<K> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 3L;
 
-    @Nullable private final BoundInfo lower;
-    @Nullable private final BoundInfo upper;
+    private final SerializableComparator<K> comparator;
+    @Nullable private final BoundInfo<K> lower;
+    @Nullable private final BoundInfo<K> upper;
 
-    RangeKeyFilter(@Nullable BoundInfo lower, @Nullable BoundInfo upper) {
+    RangeKeyFilter(
+            SerializableComparator<K> comparator,
+            @Nullable BoundInfo<K> lower,
+            @Nullable BoundInfo<K> upper) {
+        this.comparator = comparator;
         this.lower = lower;
         this.upper = upper;
     }
 
     @Override
-    public boolean test(Object key) {
+    public boolean test(K key) {
         if (lower != null) {
-            int cmp = compare(lower.getValue(), key);
+            int cmp = comparator.compare(lower.getValue(), key);
             if (cmp > 0 || (cmp == 0 && !lower.isInclusive())) {
                 return false;
             }
         }
         if (upper != null) {
-            int cmp = compare(upper.getValue(), key);
+            int cmp = comparator.compare(upper.getValue(), key);
             if (cmp < 0 || (cmp == 0 && !upper.isInclusive())) {
                 return false;
             }
@@ -52,40 +57,35 @@ final class RangeKeyFilter implements SavepointKeyFilter {
         return true;
     }
 
-    @SuppressWarnings("unchecked")
-    private static int compare(Comparable<?> a, Object b) {
-        return ((Comparable<Object>) a).compareTo(b);
-    }
-
     @Override
-    public BoundInfo getLowerBound() {
+    public BoundInfo<K> getLowerBound() {
         return lower;
     }
 
     @Override
-    public BoundInfo getUpperBound() {
+    public BoundInfo<K> getUpperBound() {
         return upper;
     }
 
     @Override
-    public SavepointKeyFilter intersect(SavepointKeyFilter other) {
+    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
         if (other.isEmpty()) {
             return other;
         }
-        final Set<Object> otherExactKeys = other.getExactKeys();
+        final Set<K> otherExactKeys = other.getExactKeys();
         if (otherExactKeys != null) {
             return SavepointKeyFilter.filterKeys(otherExactKeys, this);
         }
         return intersectRange(other.getLowerBound(), other.getUpperBound());
     }
 
-    private SavepointKeyFilter intersectRange(
-            @Nullable BoundInfo otherLower, @Nullable BoundInfo otherUpper) {
-        BoundInfo newLower = tighter(lower, otherLower, true);
-        BoundInfo newUpper = tighter(upper, otherUpper, false);
+    private SavepointKeyFilter<K> intersectRange(
+            @Nullable BoundInfo<K> otherLower, @Nullable BoundInfo<K> otherUpper) {
+        BoundInfo<K> newLower = tighter(lower, otherLower, true);
+        BoundInfo<K> newUpper = tighter(upper, otherUpper, false);
 
         if (newLower != null && newUpper != null) {
-            int cmp = compare(newLower.getValue(), newUpper.getValue());
+            int cmp = comparator.compare(newLower.getValue(), newUpper.getValue());
             if (cmp > 0) {
                 return SavepointKeyFilter.empty();
             }
@@ -93,21 +93,21 @@ final class RangeKeyFilter implements SavepointKeyFilter {
                 return SavepointKeyFilter.empty();
             }
         }
-        return new RangeKeyFilter(newLower, newUpper);
+        return new RangeKeyFilter<>(comparator, newLower, newUpper);
     }
 
     @Nullable
-    private static BoundInfo tighter(
-            @Nullable BoundInfo a, @Nullable BoundInfo b, boolean preferHigher) {
+    private BoundInfo<K> tighter(
+            @Nullable BoundInfo<K> a, @Nullable BoundInfo<K> b, boolean preferHigher) {
         if (a == null) {
             return b;
         }
         if (b == null) {
             return a;
         }
-        int c = compare(a.getValue(), b.getValue());
+        int c = comparator.compare(a.getValue(), b.getValue());
         if (c == 0) {
-            return new BoundInfo(a.getValue(), a.isInclusive() && b.isInclusive());
+            return new BoundInfo<>(a.getValue(), a.isInclusive() && b.isInclusive());
         }
         boolean aWins = preferHigher ? c > 0 : c < 0;
         return aWins ? a : b;

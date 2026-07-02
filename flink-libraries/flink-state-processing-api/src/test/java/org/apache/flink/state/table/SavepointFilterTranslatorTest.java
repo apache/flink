@@ -53,7 +53,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void equalsKeyOnLeft() {
-        SavepointKeyFilter filter = keyFilterOf(eq(longKeyRef(), longLit(42L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), longLit(42L)));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactly(42L);
         assertThat(filter.test(42L)).isTrue();
@@ -62,7 +62,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void equalsKeyOnRight() {
-        SavepointKeyFilter filter = keyFilterOf(eq(longLit(42L), longKeyRef()));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longLit(42L), longKeyRef()));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactly(42L);
         assertThat(filter.test(42L)).isTrue();
@@ -71,13 +71,13 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void equalsNeitherSideIsKeyColumn_returnsNull() {
-        SavepointKeyFilter filter = keyFilterOf(eq(otherRef(), longLit(42L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(otherRef(), longLit(42L)));
         assertThat(filter).isNull();
     }
 
     @Test
     void equalsNeitherSideIsLiteral_returnsNull() {
-        SavepointKeyFilter filter = keyFilterOf(eq(longKeyRef(), otherRef()));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), otherRef()));
         assertThat(filter).isNull();
     }
 
@@ -93,7 +93,7 @@ class SavepointFilterTranslatorTest {
                         eq(longKeyRef(), longLit(2L)),
                         eq(longLit(3L), longKeyRef()));
 
-        SavepointKeyFilter filter = keyFilterOf(expr);
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactlyInAnyOrder(1L, 2L, 3L);
         assertThat(filter.test(4L)).isFalse();
@@ -112,7 +112,8 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void betweenProducesInclusiveRange() {
-        SavepointKeyFilter filter = keyFilterOf(between(longKeyRef(), longLit(10L), longLit(20L)));
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(between(longKeyRef(), longLit(10L), longLit(20L)));
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
@@ -125,7 +126,8 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void betweenWithNonKeyField_returnsNull() {
-        SavepointKeyFilter filter = keyFilterOf(between(otherRef(), longLit(1L), longLit(10L)));
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(between(otherRef(), longLit(1L), longLit(10L)));
         assertThat(filter).isNull();
     }
 
@@ -135,7 +137,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void greaterThanProducesExclusiveLowerBound() {
-        SavepointKeyFilter filter = keyFilterOf(gt(longKeyRef(), longLit(5L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(gt(longKeyRef(), longLit(5L)));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(5L)).isFalse();
@@ -144,7 +146,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void greaterThanOrEqualProducesInclusiveLowerBound() {
-        SavepointKeyFilter filter = keyFilterOf(gte(longKeyRef(), longLit(5L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(gte(longKeyRef(), longLit(5L)));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(4L)).isFalse();
@@ -154,7 +156,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void lessThanProducesExclusiveUpperBound() {
-        SavepointKeyFilter filter = keyFilterOf(lt(longKeyRef(), longLit(10L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(lt(longKeyRef(), longLit(10L)));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(9L)).isTrue();
@@ -163,7 +165,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void lessThanOrEqualProducesInclusiveUpperBound() {
-        SavepointKeyFilter filter = keyFilterOf(lte(longKeyRef(), longLit(10L)));
+        SavepointKeyFilter<Object> filter = keyFilterOf(lte(longKeyRef(), longLit(10L)));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(10L)).isTrue();
@@ -173,7 +175,7 @@ class SavepointFilterTranslatorTest {
     @Test
     void comparisonWithLiteralOnLeft_flipsDirection() {
         // literal > key  →  key < literal  →  upper bound (exclusive)
-        SavepointKeyFilter filter = keyFilterOf(gt(longLit(10L), longKeyRef()));
+        SavepointKeyFilter<Object> filter = keyFilterOf(gt(longLit(10L), longKeyRef()));
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(9L)).isTrue();
@@ -183,7 +185,7 @@ class SavepointFilterTranslatorTest {
     @Test
     void comparisonWithLiteralOnLeft_lte_flipsDirection() {
         // literal <= key  →  key >= literal  →  lower bound (inclusive)
-        SavepointKeyFilter filter = keyFilterOf(lte(longLit(5L), longKeyRef()));
+        SavepointKeyFilter<Object> filter = keyFilterOf(lte(longLit(5L), longKeyRef()));
         assertThat(filter.getExactKeys()).isNull();
         assertThat(filter.test(4L)).isFalse();
         assertThat(filter.test(5L)).isTrue();
@@ -197,7 +199,7 @@ class SavepointFilterTranslatorTest {
     void andOfTwoRangesProducesIntersection() {
         // key >= 5 AND key <= 10
         CallExpression expr = and(gte(longKeyRef(), longLit(5L)), lte(longKeyRef(), longLit(10L)));
-        SavepointKeyFilter filter = keyFilterOf(expr);
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
@@ -211,7 +213,7 @@ class SavepointFilterTranslatorTest {
     void andWithProvablyEmptyIntersection_matchesNothing() {
         // key > 10 AND key < 5 — disjoint
         CallExpression expr = and(gt(longKeyRef(), longLit(10L)), lt(longKeyRef(), longLit(5L)));
-        SavepointKeyFilter filter = keyFilterOf(expr);
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
 
         assertNotNull(filter);
         assertThat(filter.isEmpty()).isTrue();
@@ -249,7 +251,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void rangeFilterOnStringKey() {
-        SavepointKeyFilter filter =
+        SavepointKeyFilter<Object> filter =
                 keyFilterOf(between(stringKeyRef(), stringLit("beta"), stringLit("delta")));
 
         assertNotNull(filter);
@@ -269,7 +271,7 @@ class SavepointFilterTranslatorTest {
         FieldReferenceExpression floatKey =
                 new FieldReferenceExpression("key", DataTypes.FLOAT().notNull(), 0, KEY_COL);
 
-        SavepointKeyFilter filter = keyFilterOf(between(floatKey, floatLower, floatUpper));
+        SavepointKeyFilter<Object> filter = keyFilterOf(between(floatKey, floatLower, floatUpper));
 
         assertNotNull(filter);
         assertThat(filter.test(1.5f)).isTrue();
@@ -286,9 +288,9 @@ class SavepointFilterTranslatorTest {
     @Test
     void intersectNarrowsBounds() {
         // [5, ∞) ∩ (-∞, 10] = [5, 10]
-        SavepointKeyFilter lower = SavepointKeyFilter.range(5L, true, null, true);
-        SavepointKeyFilter upper = SavepointKeyFilter.range(null, true, 10L, true);
-        SavepointKeyFilter result = lower.intersect(upper);
+        SavepointKeyFilter<Long> lower = SavepointKeyFilter.range(5L, true, null, true);
+        SavepointKeyFilter<Long> upper = SavepointKeyFilter.range(null, true, 10L, true);
+        SavepointKeyFilter<Long> result = lower.intersect(upper);
 
         assertThat(result.isEmpty()).isFalse();
         assertThat(result.getExactKeys()).isNull();
@@ -301,17 +303,17 @@ class SavepointFilterTranslatorTest {
     @Test
     void intersectDisjointRangesReturnsEmpty() {
         // [10, ∞) ∩ (-∞, 5] — disjoint
-        SavepointKeyFilter a = SavepointKeyFilter.range(10L, true, null, true);
-        SavepointKeyFilter b = SavepointKeyFilter.range(null, true, 5L, true);
+        SavepointKeyFilter<Long> a = SavepointKeyFilter.range(10L, true, null, true);
+        SavepointKeyFilter<Long> b = SavepointKeyFilter.range(null, true, 5L, true);
         assertThat(a.intersect(b).isEmpty()).isTrue();
     }
 
     @Test
     void intersectEqualBoundsInclusiveIsNonEmpty() {
         // [7, ∞) ∩ (-∞, 7] = [7, 7]
-        SavepointKeyFilter a = SavepointKeyFilter.range(7L, true, null, true);
-        SavepointKeyFilter b = SavepointKeyFilter.range(null, true, 7L, true);
-        SavepointKeyFilter result = a.intersect(b);
+        SavepointKeyFilter<Long> a = SavepointKeyFilter.range(7L, true, null, true);
+        SavepointKeyFilter<Long> b = SavepointKeyFilter.range(null, true, 7L, true);
+        SavepointKeyFilter<Long> result = a.intersect(b);
         assertThat(result.isEmpty()).isFalse();
         assertThat(result.test(7L)).isTrue();
         assertThat(result.test(6L)).isFalse();
@@ -321,9 +323,30 @@ class SavepointFilterTranslatorTest {
     @Test
     void intersectEqualBoundsOneExclusiveIsEmpty() {
         // (7, ∞) ∩ (-∞, 7] — empty because lower is exclusive
-        SavepointKeyFilter a = SavepointKeyFilter.range(7L, false, null, true);
-        SavepointKeyFilter b = SavepointKeyFilter.range(null, true, 7L, true);
+        SavepointKeyFilter<Long> a = SavepointKeyFilter.range(7L, false, null, true);
+        SavepointKeyFilter<Long> b = SavepointKeyFilter.range(null, true, 7L, true);
         assertThat(a.intersect(b).isEmpty()).isTrue();
+    }
+
+    // -------------------------------------------------------------------------
+    //  Custom comparator
+    // -------------------------------------------------------------------------
+
+    @Test
+    void rangeWithCustomComparatorIsUsed() {
+        // Orders strings by length — clearly not the natural String order.
+        SavepointKeyFilter<String> filter =
+                SavepointKeyFilter.range(
+                        "aa",
+                        true,
+                        "cccc",
+                        true,
+                        (a, b) -> Integer.compare(a.length(), b.length()));
+
+        // Length in [2, 4]: "abc" (3), passes; "a" (1) and "ccccc" (5), fail.
+        assertThat(filter.test("abc")).isTrue();
+        assertThat(filter.test("a")).isFalse();
+        assertThat(filter.test("ccccc")).isFalse();
     }
 
     // -------------------------------------------------------------------------
@@ -336,7 +359,7 @@ class SavepointFilterTranslatorTest {
                 apply(
                         List.of(gte(longKeyRef(), longLit(3L)), lte(longKeyRef(), longLit(8L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
         assertNotNull(result);
 
         assertThat(applied.accepted()).hasSize(2);
@@ -361,7 +384,7 @@ class SavepointFilterTranslatorTest {
                                         eq(longKeyRef(), longLit(3L)),
                                         eq(longKeyRef(), longLit(4L)))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -375,7 +398,7 @@ class SavepointFilterTranslatorTest {
                 apply(
                         List.of(eq(longKeyRef(), longLit(1L)), eq(longKeyRef(), longLit(2L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -395,7 +418,7 @@ class SavepointFilterTranslatorTest {
                                         eq(longKeyRef(), longLit(15L))),
                                 between(longKeyRef(), longLit(4L), longLit(12L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -415,7 +438,7 @@ class SavepointFilterTranslatorTest {
                                         eq(longKeyRef(), longLit(10L)),
                                         eq(longKeyRef(), longLit(15L)))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -429,7 +452,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void emptyKeyFilter_rejectsEverything() {
-        SavepointKeyFilter empty = SavepointKeyFilter.empty();
+        SavepointKeyFilter<Object> empty = SavepointKeyFilter.empty();
         assertThat(empty.isEmpty()).isTrue();
         assertThat(empty.getExactKeys()).isEmpty();
         assertThat(empty.test(42L)).isFalse();
@@ -438,13 +461,13 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void exactWithEmptySetReturnsEmptyKeyFilter() {
-        SavepointKeyFilter filter = SavepointKeyFilter.exact(Collections.emptySet());
+        SavepointKeyFilter<Object> filter = SavepointKeyFilter.exact(Collections.emptySet());
         assertThat(filter.isEmpty()).isTrue();
     }
 
     @Test
     void emptyKeyFilterSingletonPreservedAcrossSerialization() throws Exception {
-        SavepointKeyFilter original = SavepointKeyFilter.empty();
+        SavepointKeyFilter<Object> original = SavepointKeyFilter.empty();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(original);
@@ -463,7 +486,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void exactSingleValueFactory() {
-        SavepointKeyFilter filter = SavepointKeyFilter.exact(42L);
+        SavepointKeyFilter<Long> filter = SavepointKeyFilter.exact(42L);
         assertThat(filter.getExactKeys()).containsExactly(42L);
         assertThat(filter.test(42L)).isTrue();
         assertThat(filter.test(43L)).isFalse();
@@ -481,7 +504,7 @@ class SavepointFilterTranslatorTest {
                         gte(longKeyRef(), longLit(3L)),
                         lte(longKeyRef(), longLit(20L)),
                         lt(longKeyRef(), longLit(10L)));
-        SavepointKeyFilter filter = keyFilterOf(expr);
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
@@ -499,7 +522,7 @@ class SavepointFilterTranslatorTest {
     @Test
     void orWithSingleChild_returnsExactFilter() {
         CallExpression expr = or(eq(longKeyRef(), longLit(7L)));
-        SavepointKeyFilter filter = keyFilterOf(expr);
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactly(7L);
@@ -527,7 +550,7 @@ class SavepointFilterTranslatorTest {
                                 and(gt(longKeyRef(), longLit(10L)), lt(longKeyRef(), longLit(5L))),
                                 lte(longKeyRef(), longLit(10L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -543,7 +566,7 @@ class SavepointFilterTranslatorTest {
                                 lte(longKeyRef(), longLit(10L)),
                                 and(gt(longKeyRef(), longLit(10L)), lt(longKeyRef(), longLit(5L)))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -559,7 +582,7 @@ class SavepointFilterTranslatorTest {
                                 and(gt(longKeyRef(), longLit(10L)), lt(longKeyRef(), longLit(5L))),
                                 eq(longKeyRef(), longLit(1L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -573,7 +596,7 @@ class SavepointFilterTranslatorTest {
                 apply(
                         List.of(eq(longKeyRef(), longLit(1L)), eq(longKeyRef(), longLit(2L))),
                         LONG_KEY_TYPE);
-        SavepointKeyFilter result = applied.keyFilter();
+        SavepointKeyFilter<Object> result = applied.keyFilter();
 
         assertNotNull(result);
         assertThat(applied.accepted()).hasSize(2);
@@ -639,7 +662,7 @@ class SavepointFilterTranslatorTest {
     @Test
     void equalsWithIntLiteralIsWidenedToBigintKeyAndPushed() {
         ValueLiteralExpression intLit = new ValueLiteralExpression(5, DataTypes.INT().notNull());
-        SavepointKeyFilter filter = keyFilterOf(eq(longKeyRef(), intLit));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), intLit));
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactly(5L);
@@ -651,7 +674,7 @@ class SavepointFilterTranslatorTest {
     void betweenWithIntLiteralBoundsIsWidenedToBigintKeyAndPushed() {
         ValueLiteralExpression lower = new ValueLiteralExpression(1, DataTypes.INT().notNull());
         ValueLiteralExpression upper = new ValueLiteralExpression(10, DataTypes.INT().notNull());
-        SavepointKeyFilter filter = keyFilterOf(between(longKeyRef(), lower, upper));
+        SavepointKeyFilter<Object> filter = keyFilterOf(between(longKeyRef(), lower, upper));
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).isNull();
@@ -667,7 +690,7 @@ class SavepointFilterTranslatorTest {
                 new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
         ValueLiteralExpression intLit = new ValueLiteralExpression(5, DataTypes.INT().notNull());
 
-        SavepointKeyFilter filter = keyFilterOf(eq(doubleKey, intLit));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(doubleKey, intLit));
 
         assertNotNull(filter);
         assertThat(filter.getExactKeys()).containsExactly(5.0d);
@@ -695,7 +718,7 @@ class SavepointFilterTranslatorTest {
                 new ValueLiteralExpression(
                         new BigDecimal("5.00"), DataTypes.DECIMAL(10, 2).notNull());
 
-        SavepointKeyFilter filter = keyFilterOf(eq(decKey, lit));
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(decKey, lit));
 
         assertNotNull(filter);
         // Literal scale is preserved, so exact matching is scale sensitive: 5.00 matches, 5.0 not.
@@ -708,7 +731,7 @@ class SavepointFilterTranslatorTest {
     //  Expression helpers
     // -------------------------------------------------------------------------
 
-    private static SavepointKeyFilter keyFilterOf(ResolvedExpression expr) {
+    private static SavepointKeyFilter<Object> keyFilterOf(ResolvedExpression expr) {
         DataType keyType = findKeyType(expr);
         return apply(Collections.singletonList(expr), keyType).keyFilter();
     }
