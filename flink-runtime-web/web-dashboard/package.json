@@ -4,8 +4,8 @@
   "scripts": {
     "start": "ng serve",
     "build": "ng build --configuration production --base-href ./",
-    "lint": "eslint --cache src --ext .ts,.html && stylelint \"**/*.less\"",
-    "lint:fix": "eslint --fix --cache src --ext .ts,.html && stylelint \"**/*.less\" --fix",
+    "lint": "eslint --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\"",
+    "lint:fix": "eslint --fix --cache \"src/**/*.{ts,html}\" && stylelint \"**/*.less\" --fix",
     "ci-check": "npm run lint && npm run build",
     "proxy": "ng serve --proxy-config proxy.conf.json"
   },
@@ -45,10 +45,9 @@
     "@types/jasmine": "~3.10.19",
     "@types/jasminewd2": "~2.0.13",
     "@types/node": "^22.16.0",
-    "@typescript-eslint/eslint-plugin": "^8.62.1",
-    "@typescript-eslint/parser": "^8.62.1",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^8.10.2",
+    "angular-eslint": "21.4.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsdoc": "^50.8.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
@@ -63,6 +62,7 @@
     "stylelint-order": "^5.0.0",
     "stylelint-prettier": "^2.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.62.1"
   }
 }
