@@ -35,6 +35,13 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "allowedCommonJsDependencies": [
+              "@antv/coord",
+              "color-string",
+              "html2canvas",
+              "pdfast",
+              "svg-path-parser"
+            ],
             "outputPath": {
               "base": "web",
               "browser": ""
