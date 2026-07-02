@@ -21,7 +21,11 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -147,6 +151,58 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         }
     }
 
+    /**
+     * FLINK-39481: an interrupted timer-firing chain defers its continuation (and the downstream
+     * watermark emission) to a deferrable mail. When EndOfData arrives at that point, finishing the
+     * operator must still complete the deferred work, otherwise downstream operators never receive
+     * the watermark and lose the state of windows that only fire on it.
+     */
+    @Test
+    void testDeferredWatermarkIsEmittedBeforeEndOfData() throws Exception {
+        final Instant windowEnd = Instant.ofEpochMilli(1000L);
+        final int numKeys = 2;
+
+        try (final StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
+                        .addJobConfig(
+                                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)
+                        .setCollectNetworkEvents()
+                        .setKeyType(Types.STRING)
+                        .addInput(Types.STRING, 1, (KeySelector<String, String>) value -> value)
+                        .setupOperatorChain(
+                                SimpleOperatorFactory.of(new TimerPerElement(windowEnd)))
+                        .name("first")
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+            harness.setAutoProcess(false);
+            for (int keyIdx = 0; keyIdx < numKeys; keyIdx++) {
+                harness.processElement(new StreamRecord<>(String.format("key-%d", keyIdx)));
+            }
+            harness.processAll();
+
+            harness.processElement(asWatermark(windowEnd));
+            harness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
+            harness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+
+            // the mailbox loop lets the default action process EndOfData at a batch boundary,
+            // while the re-deferred watermark continuation is still pending; the single-step
+            // processing of processAll() cannot reach that interleaving
+            harness.runMailboxLoop();
+
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            asFiredRecord("key-0"),
+                            asMailRecord("key-0"),
+                            asFiredRecord("key-1"),
+                            asMailRecord("key-1"),
+                            asWatermark(windowEnd),
+                            new EndOfData(StopMode.DRAIN));
+        }
+    }
+
     private static Watermark asWatermark(Instant timestamp) {
         return new Watermark(timestamp.toEpochMilli());
     }
@@ -236,5 +292,50 @@ class UnalignedCheckpointsInterruptibleTimersTest {
             copy.put(timestamp, count);
             return new MultipleTimersAtTheSameTimestamp(copy);
         }
+    }
+
+    /**
+     * Registers a timer for the current key on every element; every fired timer enqueues a mail, so
+     * that firing is interrupted after each timer.
+     */
+    private static class TimerPerElement extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String>,
+                    Triggerable<String, String>,
+                    YieldingOperator<String> {
+
+        private final Instant timerTimestamp;
+        private transient @Nullable MailboxExecutor mailboxExecutor;
+
+        TimerPerElement(Instant timerTimestamp) {
+            this.timerTimestamp = timerTimestamp;
+        }
+
+        @Override
+        public boolean useInterruptibleTimers() {
+            return true;
+        }
+
+        @Override
+        public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+            super.setMailboxExecutor(mailboxExecutor);
+            this.mailboxExecutor = mailboxExecutor;
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) {
+            final InternalTimerService<String> timers =
+                    getInternalTimerService("timers", StringSerializer.INSTANCE, this);
+            timers.registerEventTimeTimer("window", timerTimestamp.toEpochMilli());
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<String, String> timer) throws Exception {
+            mailboxExecutor.execute(
+                    () -> output.collect(asMailRecord(timer.getKey())), "mail-" + timer.getKey());
+            output.collect(asFiredRecord(timer.getKey()));
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<String, String> timer) throws Exception {}
     }
 }
