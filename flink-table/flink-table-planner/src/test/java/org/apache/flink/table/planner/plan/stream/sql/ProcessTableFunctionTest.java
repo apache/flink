@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableRetractArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractRowSemanticFunction;
@@ -95,6 +96,11 @@ class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql("CREATE VIEW t_type_diff AS SELECT 'Bob' AS name, TRUE AS isValid");
         util.tableEnv()
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
+
+        util.addTemporarySystemFunction("upsertPtf", UpdatingUpsertFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_upsert AS SELECT * FROM upsertPtf(r => TABLE t_updating PARTITION BY name)");
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t_watermarked (name STRING, score INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
@@ -538,6 +544,13 @@ class ProcessTableFunctionTest extends TableTestBase {
                         UpdatingUpsertFunction.class,
                         "SELECT name, SUM(`count`) OVER (PARTITION BY name ORDER BY name) "
                                 + "FROM f(r => TABLE t_updating PARTITION BY name)",
+                        "Can't generate a valid execution plan for the given query:\n"),
+                ErrorSpec.ofSelect(
+                        // t_upsert produces an upsert changelog.
+                        // the table argument for f requires a retract changelog
+                        "retract requirement on an upsert table arg",
+                        SetSemanticTableRetractArgFunction.class,
+                        "SELECT * FROM f(r => TABLE t_upsert PARTITION BY name)",
                         "Can't generate a valid execution plan for the given query:\n"),
                 ErrorSpec.ofInsertInto(
                         "upsert conflict buried below a calc",

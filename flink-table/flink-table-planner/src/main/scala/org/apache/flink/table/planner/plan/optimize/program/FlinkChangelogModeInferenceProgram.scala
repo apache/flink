@@ -857,7 +857,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // input traits, partition keys, and upsert keys
           val inputArgs = StreamPhysicalProcessTableFunction
             .getProvidedInputArgs(process.getCall)
-          val children = process.getInputs
+          val childOpts = process.getInputs
             .map(_.asInstanceOf[StreamPhysicalRel])
             .zipWithIndex
             .map {
@@ -888,15 +888,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                 }
             }
             .toList
-            .flatten
-          // Query PTF for upsert vs. retract
-          val providedUpdateTrait = queryPtfChangelogMode(
-            process,
-            children,
-            toChangelogMode(process, Some(requiredUpdateTrait), None),
-            UpdateKindTrait.fromChangelogMode,
-            UpdateKindTrait.NONE)
-          createNewNode(rel, Some(children), providedUpdateTrait)
+
+          if (childOpts.exists(_.isEmpty)) {
+            None
+          } else {
+            val children = childOpts.flatten
+            // Query PTF for upsert vs. retract
+            val providedUpdateTrait = queryPtfChangelogMode(
+              process,
+              children,
+              toChangelogMode(process, Some(requiredUpdateTrait), None),
+              UpdateKindTrait.fromChangelogMode,
+              UpdateKindTrait.NONE)
+            createNewNode(rel, Some(children), providedUpdateTrait)
+          }
 
         case multiJoin: StreamPhysicalMultiJoin =>
           val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
