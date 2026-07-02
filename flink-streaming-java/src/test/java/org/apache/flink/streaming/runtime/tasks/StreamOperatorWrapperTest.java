@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -145,6 +146,23 @@ class StreamOperatorWrapperTest {
         assertThat(output)
                 .as("Output was not correct.")
                 .containsExactlyElementsOf(expected.subList(2, expected.size()));
+    }
+
+    @Test
+    void testFinishExecutesDeferrableMails() throws Exception {
+        // FLINK-39481: a deferrable mail (e.g. a deferred watermark continuation) must be
+        // executed while finishing the operator, before EndOfData is sent downstream
+        MailboxExecutor localExecutor =
+                containingTask.getMailboxExecutorFactory().createExecutor(0);
+        AtomicBoolean deferrableMailExecuted = new AtomicBoolean();
+        localExecutor.execute(
+                MailboxExecutor.MailOptions.deferrable(),
+                () -> deferrableMailExecuted.set(true),
+                "deferrable mail");
+
+        operatorWrappers.get(0).finish(containingTask.getActionExecutor(), StopMode.DRAIN);
+
+        assertThat(deferrableMailExecuted.get()).isTrue();
     }
 
     @Test

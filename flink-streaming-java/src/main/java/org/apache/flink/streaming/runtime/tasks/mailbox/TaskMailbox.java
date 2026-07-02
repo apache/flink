@@ -108,6 +108,17 @@ public interface TaskMailbox {
     Optional<Mail> tryTake(int priority);
 
     /**
+     * Same as {@link #tryTake(int)}, but deferrable mails are matched against the priority they
+     * were created with instead of {@link #MIN_PRIORITY} (see {@link
+     * MailboxExecutor.MailOptions#deferrable()}).
+     *
+     * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
+     *
+     * @throws IllegalStateException if mailbox is already closed.
+     */
+    Optional<Mail> tryTakeIgnoringDeferrable(int priority);
+
+    /**
      * This method returns the oldest mail from the mailbox (head of queue) or blocks until a mail
      * is available.
      *
