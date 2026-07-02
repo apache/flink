@@ -299,10 +299,6 @@ abstract class PlannerBase(
 
       case alterMtOperation: AlterMaterializedTableChangeOperation
           if alterMtOperation.getSinkModifyQuery != null =>
-        // Mirror the schema-evolution rules enforced when the statement executes, so EXPLAIN
-        // rejects reordering, dropping, renaming or retyping existing columns instead of
-        // presenting a plan that could never run.
-        alterMtOperation.validateChanges()
         val newTable =
           catalogManager.resolveCatalogMaterializedTable(alterMtOperation.getNewTable)
         // The alter reuses the existing storage, so keep the old table's resolved connector
