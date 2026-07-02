@@ -42,7 +42,6 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -87,7 +86,7 @@ class SqlClientITCase {
         String outputFilepath = "/flink/records-upsert.out";
 
         List<String> sqlLines =
-                Arrays.asList(
+                List.of(
                         "SET 'execution.runtime-mode' = 'batch';",
                         "",
                         "CREATE TABLE UpsertSinkTable (",
@@ -125,7 +124,7 @@ class SqlClientITCase {
         String outputFilepath = "/flink/records-append.out";
 
         List<String> sqlLines =
-                Arrays.asList(
+                List.of(
                         "SET 'execution.runtime-mode' = 'batch';",
                         "",
                         "CREATE TABLE AppendSinkTable (",
@@ -160,19 +159,18 @@ class SqlClientITCase {
         String outputFilepath = "/flink/records-matchrecognize.out";
         String inputFilepath = "/tmp/test-json.jsonl";
 
-        String[] messages =
-                new String[] {
-                    "{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
-                    "{\"timestamp\": \"2018-03-12T08:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
-                    "{\"timestamp\": \"2018-03-12T09:00:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is another warning.\"}}",
-                    "{\"timestamp\": \"2018-03-12T09:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"INFO\", \"message\": \"This is a info.\"}}",
-                    "{\"timestamp\": \"2018-03-12T09:20:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
-                    "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
-                    "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": null, \"event\": { \"type\": \"WARNING\", \"message\": \"This is a bad message because the user is missing.\"}}",
-                    "{\"timestamp\": \"2018-03-12T10:40:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"ERROR\", \"message\": \"This is an error.\"}}"
-                };
+        List<String> messages =
+                List.of(
+                        "{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
+                        "{\"timestamp\": \"2018-03-12T08:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
+                        "{\"timestamp\": \"2018-03-12T09:00:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is another warning.\"}}",
+                        "{\"timestamp\": \"2018-03-12T09:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"INFO\", \"message\": \"This is a info.\"}}",
+                        "{\"timestamp\": \"2018-03-12T09:20:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
+                        "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
+                        "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": null, \"event\": { \"type\": \"WARNING\", \"message\": \"This is a bad message because the user is missing.\"}}",
+                        "{\"timestamp\": \"2018-03-12T10:40:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"ERROR\", \"message\": \"This is an error.\"}}");
         File inputFile = new File(tempDir, "test-json.jsonl");
-        Files.write(inputFile.toPath(), Arrays.asList(messages));
+        Files.write(inputFile.toPath(), messages);
         MountableFile mountableFile = MountableFile.forHostPath(inputFile.toPath());
         flink.getJobManager().copyFileToContainer(mountableFile, inputFilepath);
         for (GenericContainer<?> taskManager : flink.getTaskManagers()) {
@@ -180,7 +178,7 @@ class SqlClientITCase {
         }
 
         List<String> sqlLines =
-                Arrays.asList(
+                List.of(
                         // MATCH_RECOGNIZE requires streaming mode; the bounded filesystem source
                         // emits MAX_WATERMARK at end of input which flushes the pending match
                         "SET 'execution.runtime-mode' = 'streaming';",
