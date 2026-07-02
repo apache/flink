@@ -130,7 +130,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     }
 
     @Override
-    public void dispose() {}
+    public void dispose() {
+        if (keyedStateBackend != null) {
+            keyedStateBackend.dispose();
+        }
+    }
 
     @Override
     public String getBackendTypeIdentifier() {
@@ -138,7 +142,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+        if (keyedStateBackend != null) {
+            keyedStateBackend.close();
+        }
+    }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
