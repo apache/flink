@@ -242,6 +242,7 @@ public final class FlinkRelBuilder extends RelBuilder {
     }
 
     public RelBuilder queryOperation(QueryOperation queryOperation) {
+        toRelNodeConverter.setRootOperation(queryOperation);
         final RelNode relNode = queryOperation.accept(toRelNodeConverter);
         return push(relNode);
     }

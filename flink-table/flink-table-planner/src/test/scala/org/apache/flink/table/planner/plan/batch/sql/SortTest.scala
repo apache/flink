@@ -27,6 +27,8 @@ class SortTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  // 2-column table so the plans below match the Table API AggregateTest exactly.
+  util.addTableSource[(Int, String)]("MyTable2", 'a, 'b)
 
   @Test
   def testNonRangeSortOnSingleFieldWithoutForceLimit(): Unit = {
@@ -63,5 +65,20 @@ class SortTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(200))
     // exec node does not support range sort yet, so we verify rel plan here
     util.verifyRelPlan("SELECT * FROM MyTable ORDER BY a DESC")
+  }
+
+  @Test
+  def testOrderByThenGlobalAggregate(): Unit = {
+    util.verifyRelPlan("SELECT MAX(a) FROM (SELECT a, b FROM MyTable2 ORDER BY b)")
+  }
+
+  @Test
+  def testOrderByWithFetchThenGlobalAggregate(): Unit = {
+    util.verifyRelPlan("SELECT MAX(a) FROM (SELECT a, b FROM MyTable2 ORDER BY b LIMIT 10)")
+  }
+
+  @Test
+  def testOrderByExprWithFetchThenGlobalAggregate(): Unit = {
+    util.verifyRelPlan("SELECT MAX(a) FROM (SELECT a, b FROM MyTable2 ORDER BY a + 1 LIMIT 10)")
   }
 }
