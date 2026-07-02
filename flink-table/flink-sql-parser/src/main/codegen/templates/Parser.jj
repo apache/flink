@@ -2284,6 +2284,16 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
             tableRef = unnestOp.createCall(s.end(this), (List<SqlNode>) args);
         }
     |
+        // LATERAL with implicit table function call syntax,
+        // e.g. "FROM t, LATERAL fn(...)" instead of "FROM t, LATERAL TABLE(fn(...))".
+        // The non-LATERAL implicit form is handled by the CompoundTableIdentifier
+        // branch above.
+        LOOKAHEAD(2)
+        <LATERAL> { lateral = true; }
+        tableName = CompoundTableIdentifier()
+        tableRef = ImplicitTableFunctionCallArgs(tableName)
+        tableRef = addLateral(tableRef, lateral)
+    |
         [ <LATERAL> { lateral = true; } ]
         tableRef = TableFunctionCall()
         tableRef = addLateral(tableRef, lateral)

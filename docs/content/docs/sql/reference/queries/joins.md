@@ -264,7 +264,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -290,7 +290,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -435,7 +435,7 @@ The row of the left (outer) table is dropped, if its table function call returns
 ```sql
 SELECT order_id, res
 FROM Orders,
-LATERAL TABLE(table_func(order_id)) t(res)
+LATERAL table_func(order_id) t(res)
 ```
 
 ### LEFT OUTER JOIN
@@ -445,7 +445,7 @@ If a table function call returns an empty result, the corresponding outer row is
 ```sql
 SELECT order_id, res
 FROM Orders
-LEFT OUTER JOIN LATERAL TABLE(table_func(order_id)) t(res)
+LEFT OUTER JOIN LATERAL table_func(order_id) t(res)
   ON TRUE
 ```
 
