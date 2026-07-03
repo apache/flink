@@ -121,7 +121,7 @@ stages:
           jdk: 17
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_hadoop313
+          stage_name: cron_hadoop343
           test_pool_definition:
             name: Default
           e2e_pool_definition:
