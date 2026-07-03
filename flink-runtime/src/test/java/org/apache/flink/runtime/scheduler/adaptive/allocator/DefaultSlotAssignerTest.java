@@ -25,6 +25,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -98,6 +99,27 @@ class DefaultSlotAssignerTest {
                         .collect(
                                 Collectors.toMap(Map.Entry::getKey, e -> e.getValue().longValue()));
         assertThat(actualPerTaskManager).isEqualTo(expectedPerTaskManager);
+    }
+
+    @Test
+    void testPickSlotsIfNeededReturnsFullFreeSlotsWhenMinimizationBypassed() {
+        // When the free-slot pool is not larger than the requested groups, the if condition
+        // (freeSlots.size() > requestedGroups) is false, so pickSlotsInMinimalTaskExecutors
+        // is bypassed entirely and the full free-slot pool must be returned unchanged.
+        final DefaultSlotAssigner slotAssigner =
+                new DefaultSlotAssigner(
+                        APPLICATION_MODE_EXECUTION_TARGET,
+                        true,
+                        DefaultSlotSharingResolver.INSTANCE,
+                        SimpleSlotMatchingResolver.INSTANCE);
+
+        final Collection<PhysicalSlot> allFreeSlots =
+                Arrays.asList(slot1OfTml1, slot2OfTml1, slot1OfTml2);
+
+        // freeSlots.size() == requestedGroups -> the minimization path is skipped.
+        final Collection<PhysicalSlot> picked = slotAssigner.pickSlotsIfNeeded(3, allFreeSlots);
+
+        assertThat(picked).isSameAs(allFreeSlots);
     }
 
     @Parameters(name = "parallelism={0}, freeSlots={1}, expectedSlotsPerTaskManager={2}")
