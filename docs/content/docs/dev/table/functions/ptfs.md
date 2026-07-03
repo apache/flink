@@ -2123,7 +2123,7 @@ void testPassthrough() throws Exception {
     harness.processElement(Row.of(42));
     harness.processElement(Row.of(100));
 
-    List<Integer> output = harness.getOutput();
+    List<Integer> output = harness.getFunctionOutput();
     assertThat(output).containsExactly(42, 100);
   }
 }
@@ -2692,9 +2692,57 @@ void testPOJO() throws Exception {
 
     harness.processElement(Row.of(30, "Alice"));
 
-    List<Customer> output = harness.getOutput();
+    List<Customer> output = harness.getFunctionOutput();
     assertThat(output.get(0).name).isEqualTo("Alice");
     assertThat(output.get(0).age).isEqualTo(30);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+### Testing Pure Function Output with getFunctionOutput()
+
+`getOutput()` returns the full row the Flink runtime emits: partition keys and pass-through
+columns are prepended, the `rowtime` column is appended when `on_time` is configured, and
+non-`Row` output — an atomic value or a POJO — is wrapped or flattened into a `Row`. Use
+`getFunctionOutput()` to inspect exactly what the PTF itself collected, without those additional
+columns.
+
+{{< tabs "function-output" >}}
+{{< tab "Java" >}}
+```java
+// A non-row output PTF with set-semantic partitioning and an on-time column.
+public class PartitionedAtomicPTF extends ProcessTableFunction<Integer> {
+  public void eval(
+      @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+          Row input) {
+    int value = input.getFieldAs("value");
+    collect(value * 2);
+  }
+}
+
+@Test
+void testAtomicOutputFunctionOutput() throws Exception {
+  try (ProcessTableFunctionTestHarness<Integer> harness =
+      ProcessTableFunctionTestHarness.ofClass(PartitionedAtomicPTF.class)
+          .withTableArgument("input",
+              DataTypes.of("ROW<key STRING, value INT, ts TIMESTAMP(3)>"))
+          .withPartitionBy("input", "key")
+          .withOnTimeColumn("ts")
+          .build()) {
+
+    harness.processElement(Row.of("A", 21, LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+    // getFunctionOutput() returns the atomic value, unwrapped
+    assertThat(harness.getFunctionOutput()).containsExactly(42);
+
+    // getOutput() wraps the value into a single EXPR$0 column, prepends the
+    // partition key, and appends the rowtime column
+    assertThat(harness.getOutput())
+        .containsExactly(Row.of("A", 42, LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
   }
 }
 ```

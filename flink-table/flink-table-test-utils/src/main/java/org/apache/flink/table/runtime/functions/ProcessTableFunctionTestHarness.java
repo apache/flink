@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
@@ -100,6 +101,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * harness.processElement(Row.of(2, "Bob"));
  *
  * List<Row> output = harness.getOutput();
+ * List<Row> functionOutput = harness.getFunctionOutput();
  * }</pre>
  */
 @PublicEvolving
@@ -120,7 +122,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     private final ProcessTableFunction<OUT> function;
     private final FunctionContext functionContext;
-    private final List<OUT> output;
+    private final List<OUT> functionOutput;
+    private final List<Row> output;
     private boolean isOpen;
     private final HarnessCollector collector;
     private final TestHarnessStateManager stateManager;
@@ -137,6 +140,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final Map<String, TableArgumentConverters> argumentConverters;
     private final DataStructureConverter<Object, Object> harnessOutputConverter;
 
+    private final OutputKind outputKind;
+    @Nullable private final DataStructureConverter<Object, Object> compositeOutputToInternal;
+    @Nullable private final DataStructureConverter<Object, Object> compositeOutputToRow;
+
     private final TestHarnessTimerManager timerManager;
     @Nullable private final String onTimeColumnName;
 
@@ -152,6 +159,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             List<ArgumentInfo> arguments,
             Map<String, TableArgumentConverters> argumentConverters,
             DataStructureConverter<Object, Object> harnessOutputConverter,
+            DataType ptfOutputType,
             TestHarnessStateManager stateManager,
             TestHarnessTimerManager timerManager,
             @Nullable String onTimeColumnName)
@@ -163,9 +171,32 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.arguments = arguments;
         this.argumentConverters = argumentConverters;
         this.harnessOutputConverter = harnessOutputConverter;
+        if (!LogicalTypeChecks.isCompositeType(ptfOutputType.getLogicalType())) {
+            this.outputKind = OutputKind.ATOMIC;
+        } else if (ptfOutputType.getLogicalType() instanceof RowType) {
+            this.outputKind = OutputKind.ROW;
+        } else {
+            this.outputKind = OutputKind.STRUCTURED;
+        }
+        if (this.outputKind != OutputKind.ATOMIC) {
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            DataType rowOutputType =
+                    ptfOutputType.getLogicalType() instanceof StructuredType
+                            ? toRowDataType((StructuredType) ptfOutputType.getLogicalType())
+                            : ptfOutputType;
+            this.compositeOutputToInternal = DataStructureConverters.getConverter(ptfOutputType);
+            this.compositeOutputToRow = DataStructureConverters.getConverter(rowOutputType);
+
+            this.compositeOutputToInternal.open(classLoader);
+            this.compositeOutputToRow.open(classLoader);
+        } else {
+            this.compositeOutputToInternal = null;
+            this.compositeOutputToRow = null;
+        }
         this.stateManager = stateManager;
         this.timerManager = timerManager;
         this.onTimeColumnName = onTimeColumnName;
+        this.functionOutput = new ArrayList<>();
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
@@ -297,13 +328,27 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
-    /** Returns all collected output rows. */
-    public List<OUT> getOutput() {
+    /**
+     * Returns the collected output as full rows: atomic output wrapped into an {@code EXPR$0}
+     * column or structured output flattened into its attributes, with additional columns (partition
+     * keys, rowtime, etc.) prepended or appended as configured.
+     */
+    public List<Row> getOutput() {
         return List.copyOf(output);
+    }
+
+    /**
+     * Returns the collected output as values collected by the PTF, typed as its declared output.
+     * See {@link #getOutput()} for the full row the runtime would emit, including those additional
+     * columns.
+     */
+    public List<OUT> getFunctionOutput() {
+        return List.copyOf(functionOutput);
     }
 
     /** Clears all collected output. */
     public void clearOutput() {
+        functionOutput.clear();
         output.clear();
     }
 
@@ -815,19 +860,23 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private class HarnessCollector implements Collector<OUT> {
 
         @Override
+        @SuppressWarnings("unchecked")
         public void collect(OUT record) {
-            OUT finalRecord;
+            Row ptfRow = toPtfOutputRow(record);
 
+            functionOutput.add(outputKind == OutputKind.ROW ? (OUT) ptfRow : record);
+
+            Row finalRecord;
             OutputPrependStrategy strategy = resolvePrependStrategy();
             switch (strategy) {
                 case ALL_COLUMNS:
-                    finalRecord = prependAllColumns(record);
+                    finalRecord = prependAllColumns(ptfRow);
                     break;
                 case PARTITION_KEYS:
-                    finalRecord = prependPartitionKeys(record);
+                    finalRecord = prependPartitionKeys(ptfRow);
                     break;
                 case NONE:
-                    finalRecord = record;
+                    finalRecord = ptfRow;
                     break;
                 default:
                     throw new IllegalStateException("Unknown prepend strategy: " + strategy);
@@ -837,10 +886,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 finalRecord = appendRowtime(finalRecord);
             }
 
-            // After prepending, round-trip through converter to ensure output has proper
-            // field structure from derived output schema
-            OUT structuredRecord = applyOutputConverter(finalRecord);
-            output.add(structuredRecord);
+            // Round-trip through the converter so output carries the field structure of the
+            // derived output schema.
+            output.add(applyOutputConverter(finalRecord));
+        }
+
+        private Row toPtfOutputRow(Object record) {
+            if (outputKind == OutputKind.ATOMIC) {
+                return Row.of(record);
+            }
+            Object internal = compositeOutputToInternal.toInternalOrNull(record);
+            return (Row) compositeOutputToRow.toExternalOrNull(internal);
         }
 
         private OutputPrependStrategy resolvePrependStrategy() {
@@ -860,23 +916,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return OutputPrependStrategy.NONE;
         }
 
-        @SuppressWarnings("unchecked")
-        private OUT applyOutputConverter(OUT record) {
-            if (record instanceof Row) {
-                Object internal = harnessOutputConverter.toInternalOrNull(record);
-                Object external = harnessOutputConverter.toExternalOrNull(internal);
-                return (OUT) external;
-            }
-            return record;
+        private Row applyOutputConverter(Row record) {
+            Object internal = harnessOutputConverter.toInternalOrNull(record);
+            return (Row) harnessOutputConverter.toExternalOrNull(internal);
         }
 
-        @SuppressWarnings("unchecked")
-        private OUT appendRowtime(OUT ptfOutput) {
-            if (!(ptfOutput instanceof Row)) {
-                throw new IllegalStateException(
-                        "Cannot append rowtime to non-Row output type: " + ptfOutput.getClass());
-            }
-            return (OUT) appendField((Row) ptfOutput, resolveRowtimeValue());
+        private Row appendRowtime(Row ptfOutput) {
+            return appendField(ptfOutput, resolveRowtimeValue());
         }
 
         private Object resolveRowtimeValue() {
@@ -887,15 +933,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return ctx.row.getField(onTimeColumnName);
         }
 
-        @SuppressWarnings("unchecked")
-        private OUT prependPartitionKeys(OUT ptfOutput) {
-            if (!(ptfOutput instanceof Row)) {
-                throw new IllegalStateException(
-                        "Cannot prepend partition keys to non-Row output type: "
-                                + ptfOutput.getClass());
-            }
-
-            Row ptfRow = (Row) ptfOutput;
+        private Row prependPartitionKeys(Row ptfRow) {
             Row partitionKey = currentInvocation.partitionKey;
 
             int totalPartitionKeyCount = 0;
@@ -929,17 +967,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 result.setField(resultIndex++, ptfRow.getField(i));
             }
 
-            return (OUT) result;
+            return result;
         }
 
-        @SuppressWarnings("unchecked")
-        private OUT prependAllColumns(OUT ptfOutput) {
-            if (!(ptfOutput instanceof Row)) {
-                throw new IllegalStateException(
-                        "Cannot prepend columns to non-Row output type: " + ptfOutput.getClass());
-            }
-
-            Row ptfRow = (Row) ptfOutput;
+        private Row prependAllColumns(Row ptfRow) {
             Row inputRow = currentInvocation.row;
             int inputArity = inputRow.getArity();
             int ptfOutputArity = ptfRow.getArity();
@@ -955,7 +986,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 result.setField(inputArity + i, ptfRow.getField(i));
             }
 
-            return (OUT) result;
+            return result;
         }
 
         @Override
@@ -963,7 +994,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     private static Row appendField(Row row, Object value) {
-        Row result = new Row(row.getArity() + 1);
+        Row result = new Row(row.getKind(), row.getArity() + 1);
         for (int i = 0; i < row.getArity(); i++) {
             result.setField(i, row.getField(i));
         }
@@ -990,6 +1021,18 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         "Unsupported data type: %s. "
                                 + "Only Row and structured types are supported.",
                         dataType));
+    }
+
+    /**
+     * Builds a {@link RowType} {@link DataType} whose fields mirror a structured type's attributes.
+     */
+    private static DataType toRowDataType(StructuredType structuredType) {
+        List<RowType.RowField> rowFields =
+                structuredType.getAttributes().stream()
+                        .map(attr -> new RowType.RowField(attr.getName(), attr.getType()))
+                        .collect(Collectors.toList());
+        return TypeConversions.fromLogicalToDataType(
+                new RowType(structuredType.isNullable(), rowFields));
     }
 
     /**
@@ -1199,18 +1242,24 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             // SystemTypeInference needs table semantics for pass-through column deduplication
             List<TableArgumentInfo> tableArgInfos = ArgumentInfo.filterTableArguments(arguments);
 
-            // Derive output schema using SystemTypeInference
+            // The system inference yields the full operator output row (partition keys,
+            // pass-through columns, and rowtime); harnessOutputConverter stamps those field names.
             DataType derivedOutputType =
-                    deriveOutputTypeFromSystemInference(
+                    deriveOutputType(
                             function,
                             dataTypeFactory,
                             systemTypeInference,
                             arguments,
                             tableArgInfos);
 
-            // Create output converter for PTF emissions
             DataStructureConverter<Object, Object> harnessOutputConverter =
                     createPTFOutputConverter(derivedOutputType);
+
+            // The base inference yields the PTF's own emit type, which decides how a collected
+            // value is materialized into a Row: atomic is wrapped, composite is flattened.
+            DataType ptfOutputType =
+                    deriveOutputType(
+                            function, dataTypeFactory, baseTypeInference, arguments, tableArgInfos);
 
             // Validate onTimeColumn configuration
             if (onTimeColumnName != null) {
@@ -1239,6 +1288,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     arguments,
                     argumentConverters,
                     harnessOutputConverter,
+                    ptfOutputType,
                     stateManager,
                     timerManager,
                     onTimeColumnName);
@@ -1286,13 +1336,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                         .isPresent();
 
                 if (isStructuredType) {
-                    StructuredType structuredType = (StructuredType) logicalType;
-                    List<RowType.RowField> rowFields = new ArrayList<>();
-                    for (StructuredType.StructuredAttribute attr : structuredType.getAttributes()) {
-                        rowFields.add(new RowType.RowField(attr.getName(), attr.getType()));
-                    }
-                    RowType rowType = new RowType(logicalType.isNullable(), rowFields);
-                    DataType rowDataType = TypeConversions.fromLogicalToDataType(rowType);
+                    DataType rowDataType = toRowDataType((StructuredType) logicalType);
 
                     DataStructureConverter<Object, Object> toNamedRow =
                             DataStructureConverters.getConverter(rowDataType);
@@ -1932,29 +1976,34 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /**
-         * Derives the output schema using SystemTypeInference, including field name deduplication.
+         * Derives an output schema by invoking the given {@link TypeInference}'s output strategy.
          *
-         * <p>SystemTypeInference's staticArgs list includes both user-declared arguments and
-         * system-injected arguments (on_time, uid). The CallContext we build must mirror this full
-         * list positionally — each index maps to a staticArg. User args get their resolved
-         * DataType; system args get placeholder types (DESCRIPTOR for on_time, STRING for uid).
-         * Table semantics are attached at the positions of table arguments so SystemTypeInference
-         * can perform pass-through column deduplication.
+         * <p>Passing the {@link SystemTypeInference} yields the full operator output (prepended
+         * partition/pass-through columns, the wrapped or flattened function output, and the rowtime
+         * column). Passing the base inference yields the PTF's own declared output type.
+         *
+         * <p>The staticArgs list may include both user-declared arguments and system-injected
+         * arguments (on_time, uid). The CallContext we build mirrors this list positionally — each
+         * index maps to a staticArg. User args get their resolved DataType; system args get
+         * placeholder types (DESCRIPTOR for on_time, STRING for uid). Table semantics are attached
+         * at the positions of table arguments so SystemTypeInference can perform pass-through
+         * column deduplication. The base inference has no system args, so those branches are simply
+         * unused.
          */
-        private DataType deriveOutputTypeFromSystemInference(
+        private DataType deriveOutputType(
                 ProcessTableFunction<OUT> function,
                 DataTypeFactory dataTypeFactory,
-                TypeInference systemTypeInference,
+                TypeInference typeInference,
                 List<ArgumentInfo> allArguments,
                 List<TableArgumentInfo> tableArguments) {
 
             List<StaticArgument> staticArgs =
-                    systemTypeInference
+                    typeInference
                             .getStaticArguments()
                             .orElseThrow(
                                     () ->
                                             new IllegalStateException(
-                                                    "SystemTypeInference has no static arguments"));
+                                                    "TypeInference has no static arguments"));
 
             Map<String, TableArgumentInfo> tableArgsByName = new HashMap<>();
             for (TableArgumentInfo tableArg : tableArguments) {
@@ -2020,13 +2069,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 Collections.singletonList(onTimeColumnName)));
             }
 
-            TypeStrategy outputStrategy = systemTypeInference.getOutputTypeStrategy();
+            TypeStrategy outputStrategy = typeInference.getOutputTypeStrategy();
             Optional<DataType> outputTypeOpt = outputStrategy.inferType(callContext);
 
             if (outputTypeOpt.isEmpty()) {
                 throw new IllegalStateException(
-                        "Failed to derive output type from SystemTypeInference for "
-                                + function.getClass().getSimpleName());
+                        "Failed to derive output type for " + function.getClass().getSimpleName());
             }
 
             return outputTypeOpt.get();
@@ -2037,6 +2085,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         NONE,
         PARTITION_KEYS,
         ALL_COLUMNS
+    }
+
+    private enum OutputKind {
+        ATOMIC,
+        ROW,
+        STRUCTURED
     }
 
     private void handleEvalInvocationException(
