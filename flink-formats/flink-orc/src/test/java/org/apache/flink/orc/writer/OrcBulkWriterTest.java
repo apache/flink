@@ -18,8 +18,6 @@
 
 package org.apache.flink.orc.writer;
 
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RecordVectorizer;
@@ -54,16 +52,9 @@ class OrcBulkWriterTest {
         // Mimic a single bucket directory so the shared OrcBulkWriterTestUtil.validate applies.
         final File bucketDir = new File(outDir, "test");
         assertThat(bucketDir.mkdirs()).isTrue();
-        final File partFile = new File(bucketDir, "part-0-0");
 
-        // finish() writes the ORC footer and closes the underlying stream.
-        try (LocalDataOutputStream out = new LocalDataOutputStream(partFile)) {
-            final BulkWriter<Record> writer = writerFactory.create(out);
-            for (final Record record : input) {
-                writer.addElement(record);
-            }
-            writer.finish();
-        }
+        OrcBulkWriterTestUtil.writeRecordsToFile(
+                new File(bucketDir, "part-0-0"), writerFactory, input);
 
         OrcBulkWriterTestUtil.validate(outDir, input);
     }

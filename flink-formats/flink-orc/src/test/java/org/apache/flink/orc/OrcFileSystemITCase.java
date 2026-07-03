@@ -18,8 +18,7 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.core.fs.local.LocalDataOutputStream;
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.api.TableResult;
@@ -330,15 +329,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                         writerProps,
                         new Configuration());
 
-        // finish() writes the ORC footer and closes the underlying stream.
-        final File partFile = new File(outDir, "part-0-0");
-        try (LocalDataOutputStream out = new LocalDataOutputStream(partFile)) {
-            final BulkWriter<RowData> writer = writerFactory.create(out);
-            for (final RowData record : data) {
-                writer.addElement(record);
-            }
-            writer.finish();
-        }
+        OrcBulkWriterTestUtil.writeRecordsToFile(new File(outDir, "part-0-0"), writerFactory, data);
         return outDir.getAbsolutePath();
     }
 

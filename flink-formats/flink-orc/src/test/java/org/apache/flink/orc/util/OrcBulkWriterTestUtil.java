@@ -18,6 +18,8 @@
 
 package org.apache.flink.orc.util;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.orc.data.Record;
 
 import org.apache.hadoop.conf.Configuration;
@@ -42,6 +44,21 @@ public class OrcBulkWriterTestUtil {
 
     public static final String USER_METADATA_KEY = "userKey";
     public static final ByteBuffer USER_METADATA_VALUE = ByteBuffer.wrap("hello".getBytes());
+
+    /**
+     * Writes the records to the given file through a {@link BulkWriter} created from the factory.
+     * finish() writes the ORC footer and closes the underlying stream.
+     */
+    public static <T> void writeRecordsToFile(
+            File file, BulkWriter.Factory<T> writerFactory, List<T> records) throws IOException {
+        try (LocalDataOutputStream out = new LocalDataOutputStream(file)) {
+            final BulkWriter<T> writer = writerFactory.create(out);
+            for (final T record : records) {
+                writer.addElement(record);
+            }
+            writer.finish();
+        }
+    }
 
     public static void validate(File files, List<Record> expected) throws IOException {
         final File[] buckets = files.listFiles();
