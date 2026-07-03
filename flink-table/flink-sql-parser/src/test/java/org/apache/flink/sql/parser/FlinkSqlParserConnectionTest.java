@@ -27,8 +27,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 class FlinkSqlParserConnectionTest extends FlinkSqlParserTestBase {
 
-    // =====================================================================================
-
     @Test
     void testCreateConnection() {
         sql("create connection conn1\n"
