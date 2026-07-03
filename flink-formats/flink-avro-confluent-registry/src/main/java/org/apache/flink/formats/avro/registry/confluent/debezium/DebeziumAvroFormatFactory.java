@@ -51,6 +51,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.AUTO_REGISTER_SCHEMAS;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
@@ -178,6 +179,7 @@ public class DebeziumAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(AUTO_REGISTER_SCHEMAS);
         return options;
     }
 
