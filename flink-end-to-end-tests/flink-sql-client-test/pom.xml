@@ -51,32 +51,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- The following dependencies are for connector/format sql-jars that
-			we copy using the maven-dependency-plugin. When extending the test
- 			to cover more connectors/formats, add a dependency here and an entry
-			to the dependency-plugin configuration below.
-			This ensures that all modules we actually need (as defined by the
- 			dependency-plugin configuration) are built before this module. -->
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>3.0.0-1.17</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>3.9.2</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>testcontainers-kafka</artifactId>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
@@ -84,18 +58,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<!-- Pick an arbitrary version here to satisfy the enforcer-plugin,
-					as we neither access nor package the kafka dependencies -->
-				<groupId>org.apache.kafka</groupId>
-				<artifactId>kafka-clients</artifactId>
-				<version>2.2.2</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -135,12 +97,6 @@ under the License.
 								When extending this list please also add a dependency
 								for the respective module. -->
 							<artifactItems>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-kafka</artifactId>
-									<version>3.0.0-1.17</version>
-									<type>jar</type>
-								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-test-utils</artifactId>
