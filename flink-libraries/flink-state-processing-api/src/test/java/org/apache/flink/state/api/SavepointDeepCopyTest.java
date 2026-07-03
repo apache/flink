@@ -168,7 +168,7 @@ class SavepointDeepCopyTest extends AbstractTestBase {
                 .write(savepointPath2);
         env.execute("create savepoint2");
 
-        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
+        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath2));
 
         assertThat(stateFiles2)
                 .as("Failed to create savepoint2 from savepoint1 with additional state files")
