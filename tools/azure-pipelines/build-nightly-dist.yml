@@ -24,6 +24,11 @@ jobs:
     workspace:
       clean: all
     steps:
+      # free up disk space on the hosted agent; the full dist build plus the
+      # Maven cache does not fit in the ~16 GB the image leaves free
+      - script: ./tools/azure-pipelines/free_disk_space.sh
+        target: host
+        displayName: Free up disk space
       - task: Cache@2
         displayName: Cache Maven local repo
         inputs:
@@ -77,6 +82,11 @@ jobs:
     workspace:
       clean: all
     steps:
+      # free up disk space on the hosted agent; the snapshot deploy build plus
+      # the Maven cache does not fit in the ~16 GB the image leaves free
+      - script: ./tools/azure-pipelines/free_disk_space.sh
+        target: host
+        displayName: Free up disk space
       - task: Cache@2
         displayName: Cache Maven local repo
         inputs:
