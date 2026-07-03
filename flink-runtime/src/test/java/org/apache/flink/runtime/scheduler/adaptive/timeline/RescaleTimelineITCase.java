@@ -269,14 +269,23 @@ class RescaleTimelineITCase {
 
     @TestTemplate
     void testRescaleTerminatedByJobFinished() throws Exception {
+        // This case only asserts on the recorded rescale history; skip the disabled-history
+        // parameter before the cluster rebuild below so it does not pay for an unused cluster.
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
+        // With the short shared cooldown the DefaultStateTransitionManager re-enters Idling on a
+        // wall-clock timer and terminates the in-progress rescale with
+        // NO_RESOURCES_OR_PARALLELISMS_CHANGE before the job finishes; goToFinished then finds it
+        // already terminated and its JOB_FINISHED stamp is ignored, so waiting cannot win.
+        // Widen the cooldown to keep the rescale in-progress until the job finishes.
+        rebuildClusterWithExecutingTimeouts(Duration.ofSeconds(60), Duration.ofSeconds(60));
+
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
 
         miniCluster.submitJob(jobGraph).join();
 
         waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
-
-        assumeThat(enabledRescaleHistory(configuration)).isTrue();
 
         updateJobResourceRequirements(miniCluster, jobGraph, 1, PARALLELISM * 2);
 
@@ -289,13 +298,14 @@ class RescaleTimelineITCase {
 
         OnceBlockingNoOpInvokable.unblock();
 
+        // Generous budget: on a loaded CI leg the unblock-to-finish window can itself exceed 10s.
         waitUntilConditionWithTimeout(
                 () -> {
                     List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
                     return hasRescaleHistoryMetCondition(
                             rescaleHistory, 2, TerminatedReason.JOB_FINISHED);
                 },
-                10000);
+                60000);
     }
 
     @TestTemplate
