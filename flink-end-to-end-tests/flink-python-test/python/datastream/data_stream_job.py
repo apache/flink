@@ -20,7 +20,7 @@ import json
 import sys
 from typing import Any
 
-from pyflink.common import Duration, Encoder, Row
+from pyflink.common import Encoder, Row
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
@@ -36,9 +36,6 @@ def python_data_stream_example(input_path: str, output_path: str):
     # Process everything on one worker so the timer behavior is deterministic and the output
     # lands in a single part file.
     env.set_parallelism(1)
-    # No periodic watermarks: current_watermark() stays at Long.MIN_VALUE until the bounded
-    # source emits MAX_WATERMARK at end of input, making the fired-timer output deterministic.
-    env.get_config().set_auto_watermark_interval(0)
 
     type_info = Types.ROW_NAMED(['createTime', 'orderId', 'payAmount', 'payPlatform', 'provinceId'],
                                 [Types.LONG(), Types.LONG(), Types.DOUBLE(), Types.INT(),
@@ -47,7 +44,9 @@ def python_data_stream_example(input_path: str, output_path: str):
     source = FileSource.for_record_stream_format(StreamFormat.text_line_format(), input_path) \
         .process_static_file_set().build()
 
-    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5)) \
+    # No watermarks are generated: current_watermark() stays at Long.MIN_VALUE until the bounded
+    # source emits MAX_WATERMARK at end of input, making the fired-timer output deterministic.
+    watermark_strategy = WatermarkStrategy.no_watermarks() \
         .with_timestamp_assigner(PaymentTimestampAssigner())
 
     sink = FileSink.for_row_format(output_path, Encoder.simple_string_encoder()) \
