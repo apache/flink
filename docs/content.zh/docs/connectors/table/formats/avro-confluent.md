@@ -197,6 +197,13 @@ Format 参数
             <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
         </tr>
         <tr>
+            <td><h5>avro-confluent.auto.register.schemas</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to automatically register the schema in the Confluent Schema Registry during serialization. When set to <code>false</code>, an identical schema must have been registered under the subject outside of Flink before it can be used; only its id is looked up and the job fails if it cannot be found. Schema registration only happens when writing data; reading always looks up the schema by the id embedded in each record.</td>
+        </tr>
+        <tr>
             <td><h5>avro-confluent.basic-auth.credentials-source</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">(none)</td>
