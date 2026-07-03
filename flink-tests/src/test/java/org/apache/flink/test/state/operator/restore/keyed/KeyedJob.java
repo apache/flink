@@ -214,7 +214,11 @@ public class KeyedJob {
 
         @Override
         public void close() {
-            assertThat(applyCalled).as("Apply was never called.").isTrue();
+            // GENERATE/MIGRATE stop via non-draining cancel-with-savepoint, so a subtask may
+            // close before apply() ran; only RESTORE runs to completion.
+            if (mode == ExecutionMode.RESTORE) {
+                assertThat(applyCalled).as("Apply was never called.").isTrue();
+            }
         }
     }
 
