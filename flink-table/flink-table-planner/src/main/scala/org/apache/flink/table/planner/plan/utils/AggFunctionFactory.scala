@@ -142,10 +142,6 @@ class AggFunctionFactory(
       case _: SqlListAggFunction if call.getArgList.size() == 2 =>
         createListAggWsFunction(argTypes, index)
 
-      case a: SqlBasicAggFunction
-          if a.getName == BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2.getName =>
-        createWelfordM2AggFunction(argTypes)
-
       // TODO supports SqlCardinalityCountAggFunction
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
@@ -172,6 +168,8 @@ class AggFunctionFactory(
       case bridge: BridgingSqlAggFunction =>
         bridge.getDefinition match {
           // built-in imperativeFunction
+          case BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2 =>
+            createWelfordM2AggFunction(argTypes)
           case BuiltInFunctionDefinitions.PERCENTILE =>
             createPercentileAggFunction(argTypes)
           case BuiltInFunctionDefinitions.BITMAP_BUILD_AGG =>
