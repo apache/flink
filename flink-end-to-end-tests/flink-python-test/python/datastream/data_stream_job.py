@@ -16,45 +16,60 @@
 # limitations under the License.
 ################################################################################
 
+import json
+import sys
 from typing import Any
 
-from pyflink.common import Duration
-from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common import Duration, Encoder, Row
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
-from pyflink.datastream.formats.json import JsonRowDeserializationSchema
+from pyflink.datastream.connectors.file_system import (FileSink, FileSource, RollingPolicy,
+                                                       StreamFormat)
 from pyflink.datastream.functions import KeyedProcessFunction
 
 from functions import MyKeySelector
 
 
-def python_data_stream_example():
+def python_data_stream_example(input_path: str, output_path: str):
     env = StreamExecutionEnvironment.get_execution_environment()
-    # Set the parallelism to be one to make sure that all data including fired timer and normal data
-    # are processed by the same worker and the collected result would be in order which is good for
-    # assertion.
+    # Process everything on one worker so the timer behavior is deterministic and the output
+    # lands in a single part file.
     env.set_parallelism(1)
+    # No periodic watermarks: current_watermark() stays at Long.MIN_VALUE until the bounded
+    # source emits MAX_WATERMARK at end of input, making the fired-timer output deterministic.
+    env.get_config().set_auto_watermark_interval(0)
 
     type_info = Types.ROW_NAMED(['createTime', 'orderId', 'payAmount', 'payPlatform', 'provinceId'],
                                 [Types.LONG(), Types.LONG(), Types.DOUBLE(), Types.INT(),
                                  Types.INT()])
-    json_row_schema = JsonRowDeserializationSchema.builder().type_info(type_info).build()
-    kafka_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
 
-    kafka_consumer = FlinkKafkaConsumer("timer-stream-source", json_row_schema, kafka_props)
-    kafka_producer = FlinkKafkaProducer("timer-stream-sink", SimpleStringSchema(), kafka_props)
+    source = FileSource.for_record_stream_format(StreamFormat.text_line_format(), input_path) \
+        .process_static_file_set().build()
 
-    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5))\
-        .with_timestamp_assigner(KafkaRowTimestampAssigner())
+    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5)) \
+        .with_timestamp_assigner(PaymentTimestampAssigner())
 
-    kafka_consumer.set_start_from_earliest()
-    ds = env.add_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
-    ds.key_by(MyKeySelector(), key_type=Types.LONG()) \
+    sink = FileSink.for_row_format(output_path, Encoder.simple_string_encoder()) \
+        .with_rolling_policy(RollingPolicy.default_rolling_policy()).build()
+
+    # Watermarks are assigned after parsing because the timestamp field is not available on the
+    # raw text lines emitted by the source.
+    ds = env.from_source(source, WatermarkStrategy.no_watermarks(), 'payment_msg_source')
+    ds.map(parse_payment_msg, output_type=type_info) \
+        .assign_timestamps_and_watermarks(watermark_strategy) \
+        .key_by(MyKeySelector(), key_type=Types.LONG()) \
         .process(MyProcessFunction(), output_type=Types.STRING()) \
-        .add_sink(kafka_producer)
-    env.execute_async("test data stream timer")
+        .sink_to(sink)
+    # The committer commits all pending files at end of input when checkpointing is disabled,
+    # so no checkpoint config is needed for the output to materialize.
+    env.execute('test data stream timer')
+
+
+def parse_payment_msg(line: str) -> Row:
+    msg = json.loads(line)
+    return Row(msg['createTime'], msg['orderId'], msg['payAmount'], msg['payPlatform'],
+               msg['provinceId'])
 
 
 class MyProcessFunction(KeyedProcessFunction):
@@ -70,11 +85,11 @@ class MyProcessFunction(KeyedProcessFunction):
         yield "On timer timestamp: " + str(timestamp)
 
 
-class KafkaRowTimestampAssigner(TimestampAssigner):
+class PaymentTimestampAssigner(TimestampAssigner):
 
     def extract_timestamp(self, value: Any, record_timestamp: int) -> int:
         return int(value[0])
 
 
 if __name__ == '__main__':
-    python_data_stream_example()
+    python_data_stream_example(sys.argv[1], sys.argv[2])
