@@ -173,7 +173,7 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
                 .write(savepointPath2);
         env.execute("create savepoint2");
 
-        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
+        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath2));
 
         Assert.assertTrue(
                 "Failed to create savepoint2 from savepoint1 with additional state files",
