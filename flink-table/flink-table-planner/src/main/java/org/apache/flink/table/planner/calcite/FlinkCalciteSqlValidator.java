@@ -67,6 +67,7 @@ import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
@@ -273,6 +274,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             sqlSnapshot.setOperand(
                     1,
                     SqlLiteral.createTimestamp(
+                            SqlTypeName.TIMESTAMP,
                             timestampString,
                             rexLiteral.getType().getPrecision(),
                             sqlSnapshot.getPeriod().getParserPosition()));
