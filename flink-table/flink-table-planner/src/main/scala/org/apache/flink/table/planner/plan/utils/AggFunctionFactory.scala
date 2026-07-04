@@ -37,7 +37,7 @@ import org.apache.calcite.sql.fun._
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Factory for creating runtime implementation for internal aggregate functions that are declared as
@@ -62,7 +62,7 @@ class AggFunctionFactory(
   /** The entry point to create an aggregate function from the given [[AggregateCall]]. */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
-    val argTypes: Array[LogicalType] = call.getArgList
+    val argTypes: Array[LogicalType] = call.getArgList.asScala
       .map(inputRowType.getChildren.get(_))
       .toArray
 
