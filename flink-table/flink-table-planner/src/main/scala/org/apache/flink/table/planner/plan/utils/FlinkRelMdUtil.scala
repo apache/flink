@@ -326,7 +326,7 @@ object FlinkRelMdUtil {
           childKeyBuilder.set(fullGroupSet(bit))
         } else if (!containsAllAggGroupKeys) {
           // getIndicatorCount return 0 if auxGroupSet is not empty
-          val agg = otherAggCalls.asJava.get(bit - (fullGroupSet.length + aggRel.getIndicatorCount))
+          val agg = otherAggCalls.asJava.get(bit - fullGroupSet.length)
           aggCalls += agg
         })
     (childKeyBuilder.build(), aggCalls.toArray)
