@@ -438,7 +438,10 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("a bigint")
-                                    .consumedValues(Row.of(3L))
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2L))
                                     .build())
                     .runTableApi(
                             t -> t.from("s").orderBy($("b")).fetch(2).select($("a").max()), "sink")
@@ -468,7 +471,12 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("a bigint")
-                                    .consumedValues(Row.of(3L))
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3L))
                                     .build())
                     .runTableApi(t -> t.from("s").orderBy($("b")).select($("a").max()), "sink")
                     .runSql(
@@ -494,7 +502,7 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("b string", "s bigint")
-                                    .consumedValues(Row.of("b", 5L))
+                                    .consumedValues(Row.ofKind(RowKind.UPDATE_AFTER, "b", 5L))
                                     .build())
                     .runTableApi(
                             t ->

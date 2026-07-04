@@ -133,4 +133,17 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyExecPlan(result)
 
   }
+
+  @Test
+  def testInSubQueryKeepsOuterOrderBy(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]("A", 'a, 'b, 'c)
+
+    // The IN subquery re-enters QueryOperationConverter, so the outer ORDER BY (the actual
+    // root) must not be dropped as if it were a fetch-less subquery sort. See FLINK-39715.
+    val elements = t.where('b > 10L).select('a)
+    val result = t.where('a.in(elements)).orderBy('b)
+
+    util.verifyExecPlan(result)
+  }
 }

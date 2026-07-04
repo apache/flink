@@ -166,6 +166,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         this.rootOperation = rootOperation;
     }
 
+    public QueryOperation getRootOperation() {
+        return rootOperation;
+    }
+
     @Override
     public RelNode defaultMethod(QueryOperation other) {
         other.getChildren().forEach(child -> relBuilder.push(child.accept(this)));
@@ -188,9 +192,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             // Project the input off a sort (as SqlToRelConverter does) so the sort's collation is
             // not required on the aggregate output, avoiding an IOOBE in rules like e.g.
             // FlinkExpandConversionRule.
-            if (relBuilder.peek() instanceof Sort) {
-                relBuilder.project(
-                        relBuilder.fields(), relBuilder.peek().getRowType().getFieldNames(), true);
+            final RelNode input = relBuilder.peek();
+            if (input instanceof Sort) {
+                relBuilder.project(relBuilder.fields(), input.getRowType().getFieldNames(), true);
             }
 
             List<AggCall> aggregations =
@@ -310,11 +314,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         public RelNode visit(SortQueryOperation sort) {
             // A non-root sort with neither FETCH nor a non-zero OFFSET has no observable effect,
             // so drop it (mirrors SqlToRelConverter#removeSortInSubQuery; -1 means "unset").
-            boolean isRoot = sort == rootOperation;
+            final boolean isRoot = sort == rootOperation;
             if (!isRoot && sort.getFetch() < 0 && sort.getOffset() <= 0) {
                 return relBuilder.build();
             }
-            List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
+            final List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
             return relBuilder.sortLimit(sort.getOffset(), sort.getFetch(), rexNodes).build();
         }
 
