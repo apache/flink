@@ -37,12 +37,11 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName.{TIME, TIMESTAMP}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
-import org.apache.calcite.util.NumberUtil.multiply
 
 import java.math.BigDecimal
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /** FlinkRelMdUtil provides utility methods used by the metadata provider methods. */
@@ -176,7 +175,11 @@ object FlinkRelMdUtil {
    */
   def makeNamePropertiesSelectivityRexNode(winAgg: WindowAggregate, predicate: RexNode): RexNode = {
     val fullGroupSet = AggregateUtil.checkAndGetFullGroupSet(winAgg)
-    makeNamePropertiesSelectivityRexNode(winAgg, fullGroupSet, winAgg.getNamedProperties, predicate)
+    makeNamePropertiesSelectivityRexNode(
+      winAgg,
+      fullGroupSet,
+      winAgg.getNamedProperties.asScala,
+      predicate)
   }
 
   /**
@@ -237,7 +240,7 @@ object FlinkRelMdUtil {
       predicate,
       pushable,
       notPushable)
-    if (notPushable.nonEmpty) {
+    if (notPushable.asScala.nonEmpty) {
       val pred = RexUtil.composeConjunction(rexBuilder, notPushable, true)
       val selectivity = RelMdUtil.guessSelectivity(pred)
       val fun = rexBuilder.makeCall(
@@ -317,13 +320,13 @@ object FlinkRelMdUtil {
     // does not need to take keys in aggregate call into consideration if groupKey contains all
     // groupSet element in aggregate
     val containsAllAggGroupKeys = fullGroupSet.indices.forall(groupKey.get)
-    groupKey.foreach(
+    groupKey.asScala.foreach(
       bit =>
         if (bit < fullGroupSet.length) {
           childKeyBuilder.set(fullGroupSet(bit))
         } else if (!containsAllAggGroupKeys) {
           // getIndicatorCount return 0 if auxGroupSet is not empty
-          val agg = otherAggCalls.get(bit - (fullGroupSet.length + aggRel.getIndicatorCount))
+          val agg = otherAggCalls.asJava.get(bit - (fullGroupSet.length + aggRel.getIndicatorCount))
           aggCalls += agg
         })
     (childKeyBuilder.build(), aggCalls.toArray)
@@ -382,15 +385,16 @@ object FlinkRelMdUtil {
     val containsAllAggGroupKeys = fullGroupSet.indices.forall(groupKey.get)
     val childKeyBuilder = ImmutableBitSet.builder
     val aggs = new mutable.ArrayBuffer[AggregateCall]()
-    groupKey.foreach {
-      bit =>
-        if (bit < fullGroupSet.length) {
-          childKeyBuilder.set(fullGroupSet(bit))
-        } else if (!containsAllAggGroupKeys) {
-          val agg = aggCalls.get(bit - fullGroupSet.length)
-          aggs += agg
-        }
-    }
+    groupKey
+      .stream()
+      .forEach(
+        bit =>
+          if (bit < fullGroupSet.length) {
+            childKeyBuilder.set(fullGroupSet(bit))
+          } else if (!containsAllAggGroupKeys) {
+            val agg = aggCalls.asJava.get(bit - fullGroupSet.length)
+            aggs += agg
+          })
     (childKeyBuilder.build(), aggs.toArray)
   }
 
@@ -571,7 +575,7 @@ object FlinkRelMdUtil {
       val aggInputFields = agg.getInput.getRowType.getFieldList
       val adjustments = new Array[Int](aggOutputFields.size)
       grouping.zipWithIndex.foreach { case (bit, index) => adjustments(index) = bit - index }
-      val pushableConditions = pushable.map {
+      val pushableConditions = pushable.asScala.map {
         pushCondition =>
           pushCondition.accept(
             new RelOptUtil.RexInputConverter(
@@ -580,7 +584,7 @@ object FlinkRelMdUtil {
               aggInputFields,
               adjustments))
       }
-      Option(RexUtil.composeConjunction(rexBuilder, pushableConditions, true))
+      Option(RexUtil.composeConjunction(rexBuilder, pushableConditions.asJava, true))
     }
     val restPred = if (notPushable.isEmpty) {
       None
@@ -596,7 +600,7 @@ object FlinkRelMdUtil {
     val mq = rel.getCluster.getMetadataQuery
     val columnSizes = mq.getAverageColumnSizes(rel)
     var length = 0d
-    columnSizes.zip(binaryType.getChildren).foreach {
+    columnSizes.asScala.zip(binaryType.getChildren.asScala).foreach {
       case (columnSize, internalType) =>
         if (BinaryRowData.isInFixedLengthPart(internalType)) {
           length += 8
@@ -664,7 +668,7 @@ object FlinkRelMdUtil {
    */
   def getInputRefIndices(index: Int, expand: Expand): util.Set[Int] = {
     val inputRefs = new util.HashSet[Int]()
-    for (project <- expand.projects) {
+    for (project <- expand.projects.asScala) {
       project.get(index) match {
         case inputRef: RexInputRef => inputRefs.add(inputRef.getIndex)
         case _ => inputRefs.add(-1)
@@ -679,7 +683,7 @@ object FlinkRelMdUtil {
       columns: ImmutableBitSet): (ImmutableBitSet, ImmutableBitSet) = {
     val leftBuilder = ImmutableBitSet.builder
     val rightBuilder = ImmutableBitSet.builder
-    columns.foreach {
+    columns.asScala.foreach {
       bit => if (bit < leftCount) leftBuilder.set(bit) else rightBuilder.set(bit - leftCount)
     }
     (leftBuilder.build, rightBuilder.build)
