@@ -9,6 +9,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-annotations:2.21
 - com.fasterxml.jackson.core:jackson-core:2.21.3
 - com.fasterxml.jackson.core:jackson-databind:2.21.3
+- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.3
 - com.google.guava:guava:32.0.1-jre
 - commons-io:commons-io:2.15.1
 - io.confluent:common-utils:7.9.8
@@ -23,4 +24,4 @@ This project bundles the following dependencies under the Apache Software Licens
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
-- com.github.luben:zstd-jni:1.5.5-1
+- com.github.luben:zstd-jni:1.5.6-4
