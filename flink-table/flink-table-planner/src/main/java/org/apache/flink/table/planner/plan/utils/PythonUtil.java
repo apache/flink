@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.python.PythonFunction;
@@ -276,7 +275,7 @@ public class PythonUtil {
 
         @Override
         public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
-            throw new ValidationException("not supported yet");
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override
@@ -313,7 +312,7 @@ public class PythonUtil {
 
         @Override
         public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
-            throw new ValidationException("not supported yet");
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override

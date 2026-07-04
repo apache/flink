@@ -172,7 +172,7 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
 
         @Override
         public Object visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
-            throw new ValidationException("not supported yet");
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override

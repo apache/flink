@@ -34,7 +34,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -372,7 +371,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         @Override
         public Pattern<RowData, RowData> visitNodeAndFieldIndex(
                 RexNodeAndFieldIndex nodeAndFieldIndex) {
-            throw new ValidationException("not supported yet");
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override

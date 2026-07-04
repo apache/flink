@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
@@ -135,7 +134,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
 
                     @Override
                     public RexNode visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
-                        throw new ValidationException("not supported yet");
+                        throw new UnsupportedOperationException("not supported yet");
                     }
 
                     @Override
