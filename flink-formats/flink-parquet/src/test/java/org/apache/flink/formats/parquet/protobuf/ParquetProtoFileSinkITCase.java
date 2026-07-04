@@ -21,11 +21,11 @@ package org.apache.flink.formats.parquet.protobuf;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.datagen.source.TestDataGenerators;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import com.google.protobuf.Message;
@@ -47,11 +47,11 @@ import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.SimpleProto
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
- * with Parquet.
+ * Simple integration test case for writing bulk encoded files with the {@link FileSink} with
+ * Parquet.
  */
 @ExtendWith(MiniClusterExtension.class)
-class ParquetProtoStreamingFileSinkITCase {
+class ParquetProtoFileSinkITCase {
 
     @Test
     void testParquetProtoWriters(@TempDir File folder) throws Exception {
@@ -73,8 +73,8 @@ class ParquetProtoStreamingFileSinkITCase {
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 
-        stream.addSink(
-                StreamingFileSink.forBulkFormat(
+        stream.sinkTo(
+                FileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetProtoWriters.forType(SimpleProtoRecord.class))
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))

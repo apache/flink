@@ -21,13 +21,13 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.datagen.source.TestDataGenerators;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.avro.Schema;
@@ -56,11 +56,10 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
- * with Avro.
+ * Simple integration test case for writing bulk encoded files with the {@link FileSink} with Avro.
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
-class AvroStreamingFileSinkITCase extends AbstractTestBase {
+class AvroFileSinkITCase extends AbstractTestBase {
 
     @Test
     void testWriteAvroSpecific(@TempDir File folder) throws Exception {
@@ -82,8 +81,8 @@ class AvroStreamingFileSinkITCase extends AbstractTestBase {
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 
-        stream.addSink(
-                StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+        stream.sinkTo(
+                FileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
@@ -108,8 +107,8 @@ class AvroStreamingFileSinkITCase extends AbstractTestBase {
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 
-        stream.addSink(
-                StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+        stream.sinkTo(
+                FileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
@@ -134,8 +133,8 @@ class AvroStreamingFileSinkITCase extends AbstractTestBase {
                         WatermarkStrategy.noWatermarks(),
                         "Test Source");
 
-        stream.addSink(
-                StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+        stream.sinkTo(
+                FileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
         env.execute();
