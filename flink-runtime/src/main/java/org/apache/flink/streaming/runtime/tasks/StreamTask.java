@@ -43,7 +43,9 @@ import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InMemoryRecoveryCheckpointTrigger;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -308,6 +310,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
     private final ExecutorService channelIOExecutor;
+
+    private RecoveryCheckpointTrigger recoveryCheckpointTrigger =
+            RecoveryCheckpointTrigger.NOT_READY;
 
     /**
      * Completes when channel recovery has finished; set by {@link #restoreStateAndGates}. Used to
@@ -937,7 +942,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // restore loop is pumping; with no channel work to do it would merely defer completion,
             // letting a fast source finish and suspend the restore loop before recovery completes
             // -- tripping "Mailbox loop interrupted before recovery was finished" in
-            // restoreInternal.
+            // restoreInternal. There is nothing to checkpoint during recovery here either, so the
+            // trigger goes straight to NO_OP.
+            recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
             return FutureUtils.completedVoidFuture();
         }
         // FLINK-38544 transitional: removed when the spilling backend lands. In-memory backend:
@@ -945,19 +952,64 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // accumulates in the recovered channels' in-memory queues), then conversion pushes it into
         // the physical channels through the push interface (requestPartitions(true)). The final
         // form instead fetches the filter output to disk and drains it incrementally from here.
-        return CompletableFuture.runAsync(
-                        () -> readInputChannelState(reader, inputGates), channelIOExecutor)
+        // Trigger lifecycle: NOT_READY while filtering (checkpoints declined as task-not-ready),
+        // the barrier-inserting in-memory trigger once conversion handed the recovered buffers to
+        // the physical channels, NO_OP once all gates report their state consumed. The gap between
+        // completeAll and the NO_OP mail is safe: a barrier-inserting trigger with no in-recovery
+        // channels behaves as NO_OP.
+        return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NOT_READY)
+                .thenRunAsync(() -> readInputChannelState(reader, inputGates), channelIOExecutor)
                 .thenCompose(ign -> requestPartitions(inputGates, true))
+                .thenCompose(
+                        channels ->
+                                setRecoveryCheckpointTrigger(
+                                                new InMemoryRecoveryCheckpointTrigger(channels))
+                                        .thenRunAsync(
+                                                () -> finishRecoveredBufferDelivery(channels),
+                                                channelIOExecutor))
                 .thenCompose(
                         ign ->
                                 completeAll(
                                         Arrays.stream(inputGates)
                                                 .map(InputGate::getStateConsumedFuture)
-                                                .collect(Collectors.toList())));
+                                                .collect(Collectors.toList())))
+                .thenRun(() -> setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP));
+    }
+
+    /**
+     * FLINK-38544 transitional: removed when the spilling backend lands (the disk drainer then
+     * appends the sentinels at the end of its drain). Appends the end-of-recovered-state sentinel
+     * to every converted channel; each channel first waits for its upstream to be ready, so this
+     * must run on the channelIOExecutor rather than block the mailbox thread. Only once the
+     * sentinel is in place can the consume path flip the channel out of recovery, which guarantees
+     * live data is never polled before the upstream connection exists.
+     */
+    private void finishRecoveredBufferDelivery(List<RecoverableInputChannel> channels) {
+        try {
+            for (RecoverableInputChannel channel : channels) {
+                channel.finishRecoveredBufferDelivery();
+            }
+        } catch (Exception e) {
+            asyncExceptionHandler.handleAsyncException(
+                    "Unable to finish recovered channel state delivery", e);
+        }
+    }
+
+    private CompletableFuture<Void> setRecoveryCheckpointTrigger(
+            RecoveryCheckpointTrigger trigger) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        mainMailboxExecutor.execute(
+                () -> {
+                    recoveryCheckpointTrigger = trigger;
+                    future.complete(null);
+                },
+                "update recoveryCheckpointTrigger to " + trigger);
+        return future;
     }
 
     private CompletableFuture<Void> recoverChannelsWithoutCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
         // Feed recovered channel state on the IO thread. This is intentionally NOT part of the
         // completion gate below: a gate's stateConsumedFuture only completes once the consumer (the
         // default action, running in the restore mailbox loop) has drained the end-of-state
@@ -1032,6 +1084,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
         }
         return channels;
+    }
+
+    public RecoveryCheckpointTrigger getRecoveryCheckpointTrigger() {
+        return cpId -> {
+            checkState(mailboxProcessor.isMailboxThread());
+            recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
+        };
     }
 
     private void ensureNotCanceled() {

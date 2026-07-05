@@ -124,13 +124,16 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     /**
      * FLINK-38544 transitional: removed when the spilling backend lands. Creates the physical
-     * channel in recovery state and synchronously hands every queued recovered buffer over through
-     * the push interface. The legacy {@link EndOfInputChannelStateEvent} in the queue is dropped in
-     * translation; the {@link EndOfFetchedChannelStateEvent} sentinel takes its place. The sentinel
-     * is appended directly instead of via {@link
-     * RecoverableInputChannel#finishRecoveredBufferDelivery()} because that method waits for
-     * upstream readiness, which cannot happen while the mailbox thread is still converting channels
-     * (partitions are requested only after conversion).
+     * channel in recovery state and synchronously hands every queued recovered data buffer over
+     * through the push interface. The legacy {@link EndOfInputChannelStateEvent} in the queue is
+     * dropped in translation; the {@link EndOfFetchedChannelStateEvent} sentinel takes its place
+     * but is deliberately NOT appended here: the StreamTask recovery chain appends it via {@link
+     * RecoverableInputChannel#finishRecoveredBufferDelivery()} on the channel IO executor after
+     * partitions have been requested. That call waits for upstream readiness, which (a) cannot
+     * happen on the mailbox thread that is still converting channels (partitions are requested only
+     * after conversion) and (b) must happen before the sentinel becomes consumable -- otherwise the
+     * consume path could flip the channel out of recovery and poll it before its upstream
+     * connection exists.
      */
     private InputChannel toInputChannelInRecovery() throws IOException {
         final ArrayDeque<Buffer> remainingBuffers;
@@ -149,8 +152,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 recoverableChannel.onRecoveredStateBuffer(buffer);
             }
         }
-        recoverableChannel.onRecoveredStateBuffer(
-                EventSerializer.toBuffer(EndOfFetchedChannelStateEvent.INSTANCE, false));
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
     }

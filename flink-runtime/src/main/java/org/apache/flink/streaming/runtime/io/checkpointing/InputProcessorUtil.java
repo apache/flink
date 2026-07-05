@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -88,6 +89,30 @@ public class InputProcessorUtil {
             List<StreamTaskSourceInput<?>> sourceInputs,
             MailboxExecutor mailboxExecutor,
             TimerService timerService) {
+        return createCheckpointBarrierHandler(
+                toNotifyOnCheckpoint,
+                jobConf,
+                config,
+                checkpointCoordinator,
+                taskName,
+                inputGates,
+                sourceInputs,
+                mailboxExecutor,
+                timerService,
+                RecoveryCheckpointTrigger.NO_OP);
+    }
+
+    public static CheckpointBarrierHandler createCheckpointBarrierHandler(
+            CheckpointableTask toNotifyOnCheckpoint,
+            Configuration jobConf,
+            StreamConfig config,
+            SubtaskCheckpointCoordinator checkpointCoordinator,
+            String taskName,
+            List<IndexedInputGate>[] inputGates,
+            List<StreamTaskSourceInput<?>> sourceInputs,
+            MailboxExecutor mailboxExecutor,
+            TimerService timerService,
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
 
         CheckpointableInput[] inputs =
                 Stream.<CheckpointableInput>concat(
@@ -115,7 +140,8 @@ public class InputProcessorUtil {
                         timerService,
                         inputs,
                         clock,
-                        numberOfChannels);
+                        numberOfChannels,
+                        recoveryCheckpointTrigger);
             case AT_LEAST_ONCE:
                 if (CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf)) {
                     throw new IllegalStateException(
@@ -148,7 +174,8 @@ public class InputProcessorUtil {
             TimerService timerService,
             CheckpointableInput[] inputs,
             Clock clock,
-            int numberOfChannels) {
+            int numberOfChannels,
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
         boolean enableCheckpointAfterTasksFinished =
                 config.getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
@@ -161,6 +188,7 @@ public class InputProcessorUtil {
                     numberOfChannels,
                     BarrierAlignmentUtil.createRegisterTimerCallback(mailboxExecutor, timerService),
                     enableCheckpointAfterTasksFinished,
+                    recoveryCheckpointTrigger,
                     inputs);
         } else {
             return SingleCheckpointBarrierHandler.aligned(
