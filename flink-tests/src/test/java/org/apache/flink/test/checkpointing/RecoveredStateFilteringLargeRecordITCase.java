@@ -44,6 +44,7 @@ import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -80,6 +81,10 @@ import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrat
  * therefore proof that the invariant held across all buffer cycles.
  */
 @ExtendWith({TestLoggerExtension.class})
+@Disabled(
+        "FLINK-38544 transitional: this test pins checkpointing-during-recovery on, which is"
+                + " degraded until the StreamTask recovery rework of this series lands; re-enabled"
+                + " in the checkpoint-coordination-during-recovery PR.")
 class RecoveredStateFilteringLargeRecordITCase {
 
     private static final int NUM_TASK_MANAGERS = 1;

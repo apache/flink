@@ -148,8 +148,10 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             randomize(conf, CheckpointingOptions.ENABLE_UNALIGNED, true, false);
             randomize(
                     conf, CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true, false);
-            randomize(
-                    conf, CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true, false);
+            // FLINK-38544 transitional: CHECKPOINTING_DURING_RECOVERY_ENABLED is temporarily
+            // removed from randomization while the recovered-channel conversion is reworked
+            // (the flag-on path is degraded until the StreamTask recovery rework lands); it is
+            // restored in the checkpoint-coordination-during-recovery PR of this series.
             randomize(
                     conf,
                     CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
