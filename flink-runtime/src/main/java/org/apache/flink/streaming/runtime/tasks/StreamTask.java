@@ -1106,7 +1106,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     public RecoveryCheckpointTrigger getRecoveryCheckpointTrigger() {
         return cpId -> {
             checkState(mailboxProcessor.isMailboxThread());
-            recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
+            return recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
         };
     }
 
