@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -163,6 +165,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             }
         }
         channelStatePersister.startPersisting(barrier.getId(), inflightBuffers);
+    }
+
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return FutureUtils.completedVoidFuture();
     }
 
     public void checkpointStopped(long checkpointId) {
