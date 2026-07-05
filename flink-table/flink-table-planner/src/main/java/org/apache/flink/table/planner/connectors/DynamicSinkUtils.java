@@ -168,9 +168,9 @@ public final class DynamicSinkUtils {
         return convertSinkToRel(
                 relBuilder,
                 input,
-                Collections.emptyMap(), // dynamicOptions
+                Map.of(), // dynamicOptions
                 contextResolvedTable,
-                Collections.emptyMap(), // staticPartitions
+                Map.of(), // staticPartitions
                 null, // targetColumns
                 false,
                 tableSink,
@@ -192,9 +192,9 @@ public final class DynamicSinkUtils {
         return convertSinkToRel(
                 relBuilder,
                 input,
-                Collections.emptyMap(),
+                Map.of(),
                 externalModifyOperation.getContextResolvedTable(),
-                Collections.emptyMap(),
+                Map.of(),
                 null, // targetColumns
                 false,
                 tableSink,
@@ -249,13 +249,43 @@ public final class DynamicSinkUtils {
         return convertSinkToRel(
                 relBuilder,
                 input,
-                Collections.emptyMap(),
+                Map.of(),
                 contextResolvedTable,
                 staticPartitions,
                 null,
                 isOverwrite,
                 sink,
                 null); // conflictStrategy
+    }
+
+    /**
+     * Converts the {@code AS} query of a materialized table (CREATE / CREATE OR ALTER / ALTER ...
+     * AS) into a {@link RelNode} that writes into the table, adding helper projections if
+     * necessary. The caller resolves the target table to its {@link ResolvedCatalogTable} form (the
+     * new definition for an alter, the created definition for a create).
+     */
+    public static RelNode convertMaterializedTableAsToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            Catalog catalog,
+            ObjectIdentifier identifier,
+            ResolvedCatalogTable resolvedTable,
+            Map<String, String> staticPartitions,
+            boolean isOverwrite,
+            DynamicTableSink sink) {
+        final ContextResolvedTable contextResolvedTable =
+                ContextResolvedTable.permanent(identifier, catalog, resolvedTable);
+
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                Map.of(),
+                contextResolvedTable,
+                staticPartitions,
+                null,
+                isOverwrite,
+                sink,
+                null);
     }
 
     private static RelNode convertSinkToRel(
@@ -1235,7 +1265,7 @@ public final class DynamicSinkUtils {
         if (sink instanceof SupportsWritingMetadata) {
             return ((SupportsWritingMetadata) sink).listWritableMetadata();
         }
-        return Collections.emptyMap();
+        return Map.of();
     }
 
     private static void validateAndApplyMetadata(

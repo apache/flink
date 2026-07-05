@@ -23,26 +23,33 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyOperationVisitor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Operation to describe a CREATE MATERIALIZED TABLE statement. */
 @Internal
 public class CreateMaterializedTableOperation
-        implements CreateOperation, MaterializedTableOperation {
+        implements CreateOperation, MaterializedTableOperation, ModifyOperation {
 
     private final ObjectIdentifier tableIdentifier;
     private final ResolvedCatalogMaterializedTable materializedTable;
+    private final QueryOperation sinkModifyingQuery;
 
     public CreateMaterializedTableOperation(
-            ObjectIdentifier tableIdentifier, ResolvedCatalogMaterializedTable materializedTable) {
+            ObjectIdentifier tableIdentifier,
+            ResolvedCatalogMaterializedTable materializedTable,
+            QueryOperation sinkModifyQuery) {
         this.tableIdentifier = tableIdentifier;
         this.materializedTable = materializedTable;
+        this.sinkModifyingQuery = sinkModifyQuery;
     }
 
     @Override
@@ -60,6 +67,10 @@ public class CreateMaterializedTableOperation
         return materializedTable;
     }
 
+    public QueryOperation getSinkModifyingQuery() {
+        return sinkModifyingQuery;
+    }
+
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
@@ -67,9 +78,16 @@ public class CreateMaterializedTableOperation
         params.put("identifier", tableIdentifier);
 
         return OperationUtils.formatWithChildren(
-                "CREATE MATERIALIZED TABLE",
-                params,
-                Collections.emptyList(),
-                Operation::asSummaryString);
+                "CREATE MATERIALIZED TABLE", params, List.of(), Operation::asSummaryString);
+    }
+
+    @Override
+    public QueryOperation getChild() {
+        return this.sinkModifyingQuery;
+    }
+
+    @Override
+    public <T> T accept(final ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

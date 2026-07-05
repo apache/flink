@@ -45,6 +45,8 @@ import org.apache.flink.table.operations.materializedtable.ConvertTableToMateria
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.MergeTableAsUtil;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
@@ -58,6 +60,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+
+import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.toQueryOperation;
 
 /** A converter for {@link SqlCreateOrAlterMaterializedTable}. */
 public class SqlCreateOrAlterMaterializedTableConverter
@@ -121,11 +125,17 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ObjectIdentifier identifier) {
         final SchemaResolver schemaResolver = context.getCatalogManager().getSchemaResolver();
         final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
+        final SqlNode asQuerySqlNode = sqlCreateOrAlterTable.getAsQuery();
+        final FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+        final SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
+        final PlannerQueryOperation asQuery = toQueryOperation(validatedAsQuery, context);
+
         return new FullAlterMaterializedTableOperation(
                 identifier,
                 currentTable -> buildTableChanges(currentTable, mergeContext, schemaResolver),
                 oldTable,
-                currentTable -> buildNewTable(currentTable, mergeContext, schemaResolver));
+                currentTable -> buildNewTable(currentTable, mergeContext, schemaResolver),
+                asQuery);
     }
 
     private Operation handleConvert(
@@ -162,6 +172,19 @@ public class SqlCreateOrAlterMaterializedTableConverter
         final ResolvedCatalogMaterializedTable resolvedNewMaterializedTable =
                 context.getCatalogManager().resolveCatalogMaterializedTable(newMaterializedTable);
 
+        final SqlNode asQuerySqlNode = sqlCreateOrAlterMaterializedTable.getAsQuery();
+        final FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+        final SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
+        final PlannerQueryOperation asQuery = toQueryOperation(validatedAsQuery, context);
+        final PlannerQueryOperation sinkQuery =
+                new MergeTableAsUtil(context)
+                        .maybeRewriteQuery(
+                                context.getCatalogManager(),
+                                flinkPlanner,
+                                asQuery,
+                                validatedAsQuery,
+                                resolvedNewMaterializedTable);
+
         return new ConvertTableToMaterializedTableOperation(
                 identifier,
                 oldBaseTable,
@@ -171,7 +194,8 @@ public class SqlCreateOrAlterMaterializedTableConverter
                                 oldBaseTable,
                                 resolvedCatalogMaterializedTable,
                                 baseMergeContext.hasSchemaDefinition(),
-                                baseMergeContext.hasConstraintDefinition()));
+                                baseMergeContext.hasConstraintDefinition()),
+                sinkQuery);
     }
 
     private List<TableChange> buildConversionTableChanges(
@@ -237,8 +261,20 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ObjectIdentifier identifier) {
         final ResolvedCatalogMaterializedTable resolvedTable =
                 getResolvedCatalogMaterializedTable(sqlCreateOrAlterTable, context);
+        final SqlNode asQuerySqlNode = sqlCreateOrAlterTable.getAsQuery();
+        final FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+        final SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
+        final PlannerQueryOperation asQuery = toQueryOperation(validatedAsQuery, context);
+        final PlannerQueryOperation sinkQuery =
+                new MergeTableAsUtil(context)
+                        .maybeRewriteQuery(
+                                context.getCatalogManager(),
+                                flinkPlanner,
+                                asQuery,
+                                validatedAsQuery,
+                                resolvedTable);
 
-        return new CreateMaterializedTableOperation(identifier, resolvedTable);
+        return new CreateMaterializedTableOperation(identifier, resolvedTable, sinkQuery);
     }
 
     private List<TableChange> buildTableChanges(

@@ -35,6 +35,7 @@ import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations.ddl.CreateTableOperation
+import org.apache.flink.table.operations.materializedtable.{AlterMaterializedTableChangeOperation, ConvertTableToMaterializedTableOperation, CreateMaterializedTableOperation}
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
@@ -51,9 +52,9 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, TableConfigUtils}
 import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_CURRENT_DATABASE, TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
-import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
@@ -285,8 +286,45 @@ abstract class PlannerBase(
         convertCreateTableAsToRel(
           rtasOperation.getCreateTableOperation,
           rtasOperation.getChild,
-          Collections.emptyMap(),
-          false)
+          Map.empty[String, String].asJava,
+          isOverwrite = false)
+
+      case createMtOperation: CreateMaterializedTableOperation =>
+        convertMaterializedTableToRel(
+          createMtOperation.getTableIdentifier,
+          createMtOperation.getCatalogMaterializedTable.toResolvedCatalogTable,
+          createMtOperation.getChild,
+          Map.empty[String, String].asJava
+        )
+
+      case alterMtOperation: AlterMaterializedTableChangeOperation
+          if alterMtOperation.getSinkModifyQuery != null =>
+        val newTable =
+          catalogManager.resolveCatalogMaterializedTable(alterMtOperation.getNewTable)
+        // The alter reuses the existing storage, so keep the old table's resolved connector
+        // options (e.g. managed `path`); new options override.
+        val sinkOptions =
+          new util.HashMap[String, String](alterMtOperation.getOldTable.getOptions)
+        sinkOptions.putAll(newTable.getOptions)
+        convertMaterializedTableToRel(
+          alterMtOperation.getTableIdentifier,
+          newTable.toResolvedCatalogTable.copy(sinkOptions),
+          alterMtOperation.getChild,
+          Map.empty[String, String].asJava
+        )
+
+      case convertMtOperation: ConvertTableToMaterializedTableOperation
+          if convertMtOperation.getSinkModifyQuery != null =>
+        // The conversion reuses the original table's storage, so keep its connector options.
+        val sinkOptions =
+          new util.HashMap[String, String](convertMtOperation.getOriginalTable.getOptions)
+        sinkOptions.putAll(convertMtOperation.getMaterializedTable.getOptions)
+        convertMaterializedTableToRel(
+          convertMtOperation.getTableIdentifier,
+          convertMtOperation.getMaterializedTable.toResolvedCatalogTable.copy(sinkOptions),
+          convertMtOperation.getChild,
+          Map.empty[String, String].asJava
+        )
 
       case stagedSink: StagedSinkModifyOperation =>
         val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
@@ -528,7 +566,7 @@ abstract class PlannerBase(
       factory,
       tableIdentifier,
       resolvedCatalogTable,
-      Collections.emptyMap(),
+      Map.empty[String, String].asJava,
       getTableConfig,
       getFlinkContext.getClassLoader,
       isTemporary)
@@ -556,6 +594,28 @@ abstract class PlannerBase(
       staticPartitions,
       isOverwrite,
       tableSink);
+  }
+
+  private def convertMaterializedTableToRel(
+      identifier: ObjectIdentifier,
+      resolvedTable: ResolvedCatalogTable,
+      queryOperation: QueryOperation,
+      staticPartitions: JMap[String, String]): RelNode = {
+    val input = createRelBuilder.queryOperation(queryOperation).build()
+    val catalog = toScala(catalogManager.getCatalog(identifier.getCatalogName))
+
+    val tableSink =
+      createDynamicTableSink(identifier, catalog, resolvedTable, isTemporary = false)
+
+    DynamicSinkUtils.convertMaterializedTableAsToRel(
+      createRelBuilder,
+      input,
+      catalog.orNull,
+      identifier,
+      resolvedTable,
+      staticPartitions,
+      false,
+      tableSink)
   }
 
   protected def createSerdeContext: SerdeContext = {

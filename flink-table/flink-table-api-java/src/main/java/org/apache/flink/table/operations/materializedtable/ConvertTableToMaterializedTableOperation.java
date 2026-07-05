@@ -26,8 +26,11 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.ExecutableOperation;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyOperationVisitor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,24 +44,27 @@ import java.util.stream.Collectors;
  */
 @Internal
 public class ConvertTableToMaterializedTableOperation
-        implements MaterializedTableOperation, ExecutableOperation {
+        implements MaterializedTableOperation, ExecutableOperation, ModifyOperation {
 
     private final ObjectIdentifier tableIdentifier;
     private final ResolvedCatalogTable originalTable;
     private final ResolvedCatalogMaterializedTable materializedTable;
     private final Function<ResolvedCatalogMaterializedTable, List<TableChange>>
             tableChangesForTable;
+    private final QueryOperation sinkModifyQuery;
     private List<TableChange> tableChanges;
 
     public ConvertTableToMaterializedTableOperation(
             ObjectIdentifier tableIdentifier,
             ResolvedCatalogTable originalTable,
             ResolvedCatalogMaterializedTable materializedTable,
-            Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangesBuilder) {
+            Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangesBuilder,
+            QueryOperation sinkModifyQuery) {
         this.tableIdentifier = tableIdentifier;
         this.originalTable = originalTable;
         this.materializedTable = materializedTable;
         this.tableChangesForTable = tableChangesBuilder;
+        this.sinkModifyQuery = sinkModifyQuery;
     }
 
     @Override
@@ -79,6 +85,20 @@ public class ConvertTableToMaterializedTableOperation
 
     public ResolvedCatalogMaterializedTable getMaterializedTable() {
         return materializedTable;
+    }
+
+    public QueryOperation getSinkModifyQuery() {
+        return sinkModifyQuery;
+    }
+
+    @Override
+    public QueryOperation getChild() {
+        return sinkModifyQuery;
+    }
+
+    @Override
+    public <T> T accept(ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 
     public List<TableChange> getTableChanges() {

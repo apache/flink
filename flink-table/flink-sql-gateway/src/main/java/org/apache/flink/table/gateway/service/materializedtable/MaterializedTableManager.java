@@ -954,7 +954,8 @@ public class MaterializedTableManager {
                     new AlterMaterializedTableChangeOperation(
                             op.getTableIdentifier(),
                             oldTable -> op.getTableChanges(),
-                            suspendMaterializedTable);
+                            suspendMaterializedTable,
+                            op.getSinkModifyQuery());
             operationExecutor.callExecutableOperation(
                     handle, alterMaterializedTableChangeOperation);
 
@@ -1010,7 +1011,10 @@ public class MaterializedTableManager {
 
             AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                     new AlterMaterializedTableChangeOperation(
-                            tableIdentifier, oldTable -> tableChanges, oldMaterializedTable);
+                            tableIdentifier,
+                            oldTable -> tableChanges,
+                            oldMaterializedTable,
+                            op.getSinkModifyQuery());
 
             operationExecutor.callExecutableOperation(
                     handle, alterMaterializedTableChangeOperation);
@@ -1029,7 +1033,10 @@ public class MaterializedTableManager {
             AlterMaterializedTableChangeOperation op) {
 
         return new AlterMaterializedTableChangeOperation(
-                op.getTableIdentifier(), oldTable -> List.of(), oldMaterializedTable);
+                op.getTableIdentifier(),
+                oldTable -> List.of(),
+                oldMaterializedTable,
+                op.getSinkModifyQuery());
     }
 
     private TableChange.ModifyRefreshHandler generateResetSavepointTableChange(
