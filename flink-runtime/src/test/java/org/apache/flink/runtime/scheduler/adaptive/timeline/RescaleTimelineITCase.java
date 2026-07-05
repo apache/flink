@@ -567,7 +567,11 @@ class RescaleTimelineITCase {
 
         miniCluster.terminateTaskManager(0);
 
-        waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
+        // Wait for the failover to complete before snapshotting: the merge that re-stamps the
+        // trigger cause to RECOVERABLE_FAILOVER runs before the job is RUNNING again at the
+        // reduced parallelism (one TaskManager left).
+        waitForVertexParallelismReachedAndJobRunning(
+                jobGraph, JOB_VERTEX_ID, NUMBER_SLOTS_PER_TASK_MANAGER);
 
         final ExecutionGraphInfo executionGraphInfo =
                 miniCluster.getExecutionGraphInfo(jobGraph.getJobID()).join();
