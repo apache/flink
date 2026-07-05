@@ -209,12 +209,5 @@ public abstract class InputGate
 
     public abstract CompletableFuture<Void> getStateConsumedFuture();
 
-    /**
-     * Returns a future that completes when buffer filtering is complete for all channels. This
-     * future completes before {@link #getStateConsumedFuture()}, enabling earlier RUNNING state
-     * transition when unaligned checkpoint during recovery is enabled.
-     */
-    public abstract CompletableFuture<Void> getBufferFilteringCompleteFuture();
-
     public abstract void finishReadRecoveredState() throws IOException;
 }

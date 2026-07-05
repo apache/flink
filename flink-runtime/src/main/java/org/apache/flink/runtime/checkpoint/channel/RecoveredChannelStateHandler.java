@@ -90,10 +90,20 @@ abstract class AbstractInputChannelRecoveredStateHandler
     final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
+    /**
+     * FLINK-38544 transitional: removed when the spilling backend lands. Gates the unbounded
+     * heap-buffer fallback in {@link RecoveredInputChannel#requestBufferBlocking(boolean)}; read
+     * from the job configuration at the call site now that the gate-level recovery flags are gone.
+     */
+    final boolean checkpointingDuringRecoveryEnabled;
+
     AbstractInputChannelRecoveredStateHandler(
-            InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            boolean checkpointingDuringRecoveryEnabled) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
     }
 
     /**
@@ -113,12 +123,12 @@ abstract class AbstractInputChannelRecoveredStateHandler
             @Nullable ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize) {
         if (!checkpointingDuringRecoveryEnabled) {
-            return new NoSpillingHandler(inputGates, channelMapping);
+            return new NoSpillingHandler(inputGates, channelMapping, false);
         }
         // FLINK-38544 transitional: the flag-on path still uses the in-memory handlers until the
         // spilling backend lands.
         if (filteringHandler == null) {
-            return new NoSpillingHandler(inputGates, channelMapping);
+            return new NoSpillingHandler(inputGates, channelMapping, true);
         }
         return new FilteringHandler(
                 inputGates, channelMapping, filteringHandler, memorySegmentSize);
@@ -129,7 +139,7 @@ abstract class AbstractInputChannelRecoveredStateHandler
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
-        Buffer buffer = channel.requestBufferBlocking();
+        Buffer buffer = channel.requestBufferBlocking(checkpointingDuringRecoveryEnabled);
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
 
@@ -174,8 +184,11 @@ abstract class AbstractInputChannelRecoveredStateHandler
  */
 class NoSpillingHandler extends AbstractInputChannelRecoveredStateHandler {
 
-    NoSpillingHandler(InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
-        super(inputGates, channelMapping);
+    NoSpillingHandler(
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            boolean checkpointingDuringRecoveryEnabled) {
+        super(inputGates, channelMapping, checkpointingDuringRecoveryEnabled);
     }
 
     @Override
@@ -237,7 +250,7 @@ class FilteringHandler extends AbstractInputChannelRecoveredStateHandler {
             InflightDataRescalingDescriptor channelMapping,
             ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize) {
-        super(inputGates, channelMapping);
+        super(inputGates, channelMapping, true);
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
@@ -307,7 +320,7 @@ class FilteringHandler extends AbstractInputChannelRecoveredStateHandler {
                         oldSubtaskIndex,
                         channelInfo.getInputChannelIdx(),
                         retainedBuffer,
-                        channel::requestBufferBlocking);
+                        () -> channel.requestBufferBlocking(checkpointingDuringRecoveryEnabled));
 
         int i = 0;
         try {
