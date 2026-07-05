@@ -304,7 +304,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    void releaseAllResources() throws IOException {
+    public void releaseAllResources() throws IOException {
         ArrayDeque<Buffer> releasedBuffers = new ArrayDeque<>();
         boolean shouldRelease = false;
 
