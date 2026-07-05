@@ -141,6 +141,14 @@ public abstract class InputGate
     /** Returns the channel of this gate. */
     public abstract InputChannel getChannel(int channelIndex);
 
+    /**
+     * Returns the channel identified by {@code channelInfo}. Unlike {@link #getChannel(int)}, whose
+     * index is gate-global, this resolves through the full {@code (gateIdx, inputChannelIdx)} pair,
+     * so it stays correct for {@link UnionInputGate} where the global index differs from a member
+     * gate's local channel index.
+     */
+    public abstract InputChannel getChannel(InputChannelInfo channelInfo);
+
     /** Returns the channel infos of this gate. */
     public List<InputChannelInfo> getChannelInfos() {
         return IntStream.range(0, getNumberOfInputChannels())
