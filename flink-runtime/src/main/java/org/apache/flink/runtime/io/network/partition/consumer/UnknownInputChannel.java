@@ -208,7 +208,8 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
-                new ArrayDeque<>());
+                networkBuffersPerChannel,
+                false);
     }
 
     @Override

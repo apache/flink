@@ -130,7 +130,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     metrics.getNumBytesInLocalCounter(),
                     metrics.getNumBuffersInLocalCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    0,
+                    false);
         }
 
         @Override

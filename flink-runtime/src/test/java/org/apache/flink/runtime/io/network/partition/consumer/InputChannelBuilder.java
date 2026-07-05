@@ -56,6 +56,7 @@ public class InputChannelBuilder {
     private int maxBackoff = 0;
     private int partitionRequestListenerTimeout = 0;
     private int networkBuffersPerChannel = 2;
+    private boolean needsRecovery = false;
     private InputChannelMetrics metrics =
             InputChannelTestUtils.newUnregisteredInputChannelMetrics();
 
@@ -115,6 +116,11 @@ public class InputChannelBuilder {
         return this;
     }
 
+    public InputChannelBuilder setNeedsRecovery(boolean needsRecovery) {
+        this.needsRecovery = needsRecovery;
+        return this;
+    }
+
     public InputChannelBuilder setMetrics(InputChannelMetrics metrics) {
         this.metrics = metrics;
         return this;
@@ -166,7 +172,8 @@ public class InputChannelBuilder {
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
                 stateWriter,
-                new ArrayDeque<>());
+                networkBuffersPerChannel,
+                needsRecovery);
     }
 
     public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {

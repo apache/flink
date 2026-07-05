@@ -65,6 +65,8 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 
     @Override
     protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers) {
+        // remainingBuffers is unused: with the flag off the queue is always empty at conversion,
+        // and constructor migration is retired by the conversion rework later in this PR.
         return new LocalInputChannel(
                 inputGate,
                 getChannelIndex(),
@@ -77,6 +79,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 numBytesIn,
                 numBuffersIn,
                 channelStateWriter,
-                remainingBuffers);
+                networkBuffersPerChannel,
+                false);
     }
 }
