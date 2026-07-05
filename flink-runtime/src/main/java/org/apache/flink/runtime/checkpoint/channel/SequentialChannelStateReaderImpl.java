@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -60,7 +61,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     }
 
     @Override
-    public void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
+    public Optional<FetchedChannelState> readInputData(
+            InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException {
 
         // Create filtering handler if filtering is needed
@@ -77,22 +79,39 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                                 filterContext.isCheckpointingDuringRecoveryEnabled(),
                                 filteringHandler,
                                 filterContext.getMemorySegmentSize())) {
-            read(
-                    stateHandler,
-                    groupByDelegate(
-                            streamSubtaskStates(),
-                            ChannelStateHelper::extractUnmergedInputHandles));
-            read(
-                    stateHandler,
-                    groupByDelegate(
-                            streamSubtaskStates(),
-                            OperatorSubtaskState::getUpstreamOutputBufferState));
+            boolean readAny =
+                    read(
+                            stateHandler,
+                            groupByDelegate(
+                                    streamSubtaskStates(),
+                                    ChannelStateHelper::extractUnmergedInputHandles));
+            readAny |=
+                    read(
+                            stateHandler,
+                            groupByDelegate(
+                                    streamSubtaskStates(),
+                                    OperatorSubtaskState::getUpstreamOutputBufferState));
 
             if (filteringHandler != null) {
                 checkState(
                         !filteringHandler.hasPartialData(),
                         "Not all data has been fully consumed during filtering");
             }
+            // A recovered-state container is produced whenever the checkpointing-during-recovery
+            // path recovered any state, regardless of whether filtering was needed: on this path
+            // conversion must hand the recovered buffers to the physical channels in recovery mode
+            // (needsRecovery = state.isPresent()), so the signal must reflect "any recovered data
+            // was pushed", not "a filter ran". The no-checkpointing path pushes recovered buffers
+            // directly and produces nothing here, matching the caller's
+            // checkState(readInputData(...).isEmpty()).
+            //
+            // FLINK-38544 transitional in-memory backend: recovered buffers already live in the
+            // physical channels' queues, so the returned container is an empty placeholder that
+            // only signals "there is state to recover". The spilling backend returns a real,
+            // file-backed container here.
+            return filterContext.isCheckpointingDuringRecoveryEnabled() && readAny
+                    ? Optional.of(new FetchedChannelState())
+                    : Optional.empty();
         }
     }
 
@@ -112,15 +131,19 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
         }
     }
 
-    private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> void read(
+    /** Returns {@code true} if any channel state handle was read. */
+    private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> boolean read(
             RecoveredChannelStateHandler<Info, Context> stateHandler,
             Map<StreamStateHandle, List<Handle>> streamStateHandleListMap)
             throws IOException, InterruptedException {
+        boolean readAny = false;
         for (Map.Entry<StreamStateHandle, List<Handle>> delegateAndHandles :
                 streamStateHandleListMap.entrySet()) {
             readSequentially(
                     delegateAndHandles.getKey(), delegateAndHandles.getValue(), stateHandler);
+            readAny = true;
         }
+        return readAny;
     }
 
     private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> void readSequentially(

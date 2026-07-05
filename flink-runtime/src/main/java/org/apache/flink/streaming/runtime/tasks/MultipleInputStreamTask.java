@@ -149,7 +149,8 @@ public class MultipleInputStreamTask<OUT>
                         inputGates,
                         operatorChain.getSourceTaskInputs(),
                         mainMailboxExecutor,
-                        timerService);
+                        timerService,
+                        getRecoveryCheckpointTrigger());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(

@@ -174,7 +174,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         new List[] {Arrays.asList(inputGates)},
                         Collections.emptyList(),
                         mainMailboxExecutor,
-                        systemTimerService);
+                        systemTimerService,
+                        getRecoveryCheckpointTrigger());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
