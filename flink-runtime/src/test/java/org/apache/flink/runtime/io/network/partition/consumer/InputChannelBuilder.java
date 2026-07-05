@@ -198,7 +198,8 @@ public class InputChannelBuilder {
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
                 stateWriter,
-                new ArrayDeque<>());
+                needsRecovery,
+                upstreamReady);
     }
 
     public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {

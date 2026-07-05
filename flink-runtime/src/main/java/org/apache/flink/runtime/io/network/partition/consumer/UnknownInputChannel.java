@@ -36,7 +36,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -178,21 +177,23 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
 
     public RemoteInputChannel toRemoteInputChannel(
             ConnectionID producerAddress, ResultPartitionID resultPartitionID) {
-        return new RemoteInputChannel(
-                inputGate,
-                getChannelIndex(),
-                resultPartitionID,
-                consumedSubpartitionIndexSet,
-                checkNotNull(producerAddress),
-                connectionManager,
-                initialBackoff,
-                maxBackoff,
-                partitionRequestListenerTimeout,
-                networkBuffersPerChannel,
-                metrics.getNumBytesInRemoteCounter(),
-                metrics.getNumBuffersInRemoteCounter(),
-                channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
-                new ArrayDeque<>());
+        RemoteInputChannel channel =
+                new RemoteInputChannel(
+                        inputGate,
+                        getChannelIndex(),
+                        resultPartitionID,
+                        consumedSubpartitionIndexSet,
+                        checkNotNull(producerAddress),
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        partitionRequestListenerTimeout,
+                        networkBuffersPerChannel,
+                        metrics.getNumBytesInRemoteCounter(),
+                        metrics.getNumBuffersInRemoteCounter(),
+                        channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
+                        false);
+        return channel;
     }
 
     public LocalInputChannel toLocalInputChannel(ResultPartitionID resultPartitionID) {

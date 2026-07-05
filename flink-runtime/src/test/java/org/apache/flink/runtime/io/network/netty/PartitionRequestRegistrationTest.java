@@ -44,7 +44,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -250,7 +249,7 @@ class PartitionRequestRegistrationTest {
                     new SimpleCounter(),
                     new SimpleCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    false);
             this.latch = latch;
         }
 
