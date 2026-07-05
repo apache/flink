@@ -145,6 +145,12 @@ public class SequentialChannelStateReaderImplTest {
         withInputGates(
                 gates -> {
                     reader.readInputData(gates, RecordFilterContext.disabled());
+                    // Mirror the production legacy path (StreamTask#readInputChannelState): the
+                    // EndOfInputChannelStateEvent sentinel that completes stateConsumedFuture is
+                    // enqueued by finishReadRecoveredState(), not by readInputData() itself.
+                    for (InputGate gate : gates) {
+                        gate.finishReadRecoveredState();
+                    }
                     assertBuffersEquals(inputChannelsData, collectBuffers(gates));
                     assertConsumed(gates);
                 });
