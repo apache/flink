@@ -33,7 +33,9 @@ import org.apache.flink.runtime.memory.MemoryManager;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +48,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test of different implementation of {@link AbstractInputChannelRecoveredStateHandler}. */
 class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
+    @TempDir private Path tmpDir;
+
     private static final int preAllocatedSegments = 3;
     private NetworkBufferPool networkBufferPool;
     private SingleInputGate inputGate;
@@ -89,7 +93,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                         }),
                 false,
                 null,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                null);
     }
 
     private AbstractInputChannelRecoveredStateHandler buildMultiChannelHandler() {
@@ -118,19 +123,43 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                         }),
                 false,
                 null,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                null);
     }
 
     /** Builds a handler in filtering mode (non-null filtering handler, no-op stub). */
-    private FilteringHandler buildFilteringInputChannelStateHandler() {
+    private SpillingWithFilteringHandler buildFilteringInputChannelStateHandler() {
         // Empty GateFilterHandler array: filtering is "enabled" structurally, but no gate-level
         // filter logic runs. Suitable for exercising getBuffer() routing only.
-        return buildFilteringInputChannelStateHandler(
-                inputGate,
+        ChannelStateFilteringHandler stubFilteringHandler =
                 new ChannelStateFilteringHandler(
-                        new ChannelStateFilteringHandler.GateFilterHandler[0]));
+                        new ChannelStateFilteringHandler.GateFilterHandler[0]);
+        // FLINK-38544 transitional: constructed directly because the factory still routes the
+        // flag-on filtering case to the in-memory FilteringHandler; goes back through
+        // AbstractInputChannelRecoveredStateHandler.create(...) when the spilling backend lands.
+        return new SpillingWithFilteringHandler(
+                new InputGate[] {inputGate},
+                new InflightDataRescalingDescriptor(
+                        new InflightDataRescalingDescriptor
+                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
+                            new InflightDataRescalingDescriptor
+                                    .InflightDataGateOrPartitionRescalingDescriptor(
+                                    new int[] {1},
+                                    RescaleMappings.identity(1, 1),
+                                    new HashSet<>(),
+                                    InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor
+                                            .MappingType.IDENTITY)
+                        }),
+                stubFilteringHandler,
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                new String[] {tmpDir.toAbsolutePath().toString()});
     }
 
+    /**
+     * Builds the in-memory filtering handler through the factory: the flag-on filtering case still
+     * routes there until the spilling backend lands.
+     */
     private FilteringHandler buildFilteringInputChannelStateHandler(
             SingleInputGate inputGate, ChannelStateFilteringHandler stubFilteringHandler) {
         return (FilteringHandler)
@@ -150,7 +179,30 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                 }),
                         true,
                         stubFilteringHandler,
-                        MemoryManager.DEFAULT_PAGE_SIZE);
+                        MemoryManager.DEFAULT_PAGE_SIZE,
+                        null);
+    }
+
+    private AbstractInputChannelRecoveredStateHandler buildSpillingNoFilteringHandler(
+            String[] spillTmpDirectories) {
+        // FLINK-38544 transitional: constructed directly because the factory still routes the
+        // flag-on no-filtering case to the in-memory NoSpillingHandler; goes back through
+        // AbstractInputChannelRecoveredStateHandler.create(...) when the spilling backend lands.
+        return new SpillingNoFilteringHandler(
+                new InputGate[] {inputGate},
+                new InflightDataRescalingDescriptor(
+                        new InflightDataRescalingDescriptor
+                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
+                            new InflightDataRescalingDescriptor
+                                    .InflightDataGateOrPartitionRescalingDescriptor(
+                                    new int[] {1},
+                                    RescaleMappings.identity(1, 1),
+                                    new HashSet<>(),
+                                    InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor
+                                            .MappingType.IDENTITY)
+                        }),
+                spillTmpDirectories);
     }
 
     @Test
@@ -201,7 +253,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterBufferIsolationFromNetworkBufferPool() throws Exception {
-        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
+        try (SpillingWithFilteringHandler filteringHandler =
+                buildFilteringInputChannelStateHandler()) {
             int availableBefore = networkBufferPool.getNumberOfAvailableMemorySegments();
 
             RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
@@ -242,7 +295,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterSegmentReusedAcrossCalls() throws Exception {
-        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
+        try (SpillingWithFilteringHandler filteringHandler =
+                buildFilteringInputChannelStateHandler()) {
             // First getBuffer() lazily allocates the segment.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
                     filteringHandler.getBuffer(channelInfo);
@@ -271,7 +325,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testGetBufferThrowsWhenPriorBufferNotRecycled() throws Exception {
-        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
+        try (SpillingWithFilteringHandler filteringHandler =
+                buildFilteringInputChannelStateHandler()) {
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
                     filteringHandler.getBuffer(channelInfo);
             try {
@@ -337,7 +392,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterSegmentFreedOnClose() throws Exception {
-        FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler();
+        SpillingWithFilteringHandler filteringHandler = buildFilteringInputChannelStateHandler();
         RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
                 filteringHandler.getBuffer(channelInfo);
         bufferWithContext.context.recycleBuffer();
@@ -350,5 +405,14 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
         assertThat(segment.isFreed()).isTrue();
         assertThat(filteringHandler.getPreFilterSegmentForTesting()).isNull();
+    }
+
+    @Test
+    void testSpillingHandlerRequiresSpillDirectories() {
+        assertThatThrownBy(() -> buildSpillingNoFilteringHandler(null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> buildSpillingNoFilteringHandler(new String[0]))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("spillTmpDirectories must not be empty");
     }
 }
