@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +111,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
             // only signals "there is state to recover". The spilling backend returns a real,
             // file-backed container here.
             return filterContext.isCheckpointingDuringRecoveryEnabled() && readAny
-                    ? Optional.of(new FetchedChannelState())
+                    ? Optional.of(new FetchedChannelState(Collections.emptyList()))
                     : Optional.empty();
         }
     }
