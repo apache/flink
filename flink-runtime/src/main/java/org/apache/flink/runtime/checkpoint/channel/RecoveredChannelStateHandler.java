@@ -135,10 +135,6 @@ abstract class AbstractInputChannelRecoveredStateHandler
 
     @Override
     public void close() throws IOException {
-        // note that we need to finish all RecoveredInputChannels, not just those with state
-        for (final InputGate inputGate : inputGates) {
-            inputGate.finishReadRecoveredState();
-        }
         closeInternal();
     }
 
