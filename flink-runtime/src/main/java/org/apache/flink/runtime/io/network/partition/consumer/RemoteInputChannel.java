@@ -156,7 +156,8 @@ public class RemoteInputChannel extends InputChannel {
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
-        this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+        this.bufferManager =
+                new BufferManager(inputGate.getMemorySegmentProvider(), this, 0, true);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
         // Migrate recovered buffers from RecoveredInputChannel if provided.
