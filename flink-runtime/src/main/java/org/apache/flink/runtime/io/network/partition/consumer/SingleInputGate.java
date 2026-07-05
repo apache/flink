@@ -595,6 +595,11 @@ public class SingleInputGate extends IndexedInputGate {
         return channels[channelIndex];
     }
 
+    @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        return channels[channelInfo.getInputChannelIdx()];
+    }
+
     // ------------------------------------------------------------------------
     // Setup/Life-cycle
     // ------------------------------------------------------------------------

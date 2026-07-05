@@ -179,6 +179,11 @@ class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
+        public InputChannel getChannel(InputChannelInfo channelInfo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public List<InputChannelInfo> getChannelInfos() {
             return IntStream.range(0, numberOfChannels)
                     .mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))

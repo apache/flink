@@ -296,6 +296,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return inputGate.getChannel(channelIndex);
     }
 
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        return inputGate.getChannel(channelInfo);
+    }
+
     public List<InputChannelInfo> getChannelInfos() {
         return inputGate.getChannelInfos();
     }

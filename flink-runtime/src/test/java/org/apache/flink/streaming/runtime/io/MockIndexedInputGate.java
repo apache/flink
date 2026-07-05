@@ -87,6 +87,11 @@ public class MockIndexedInputGate extends IndexedInputGate {
     }
 
     @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {}
 
     @Override

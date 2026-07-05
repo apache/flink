@@ -81,6 +81,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public InputChannel getChannel(InputChannelInfo channelInfo) {
+        return inputGate.getChannel(channelInfo);
+    }
+
+    @Override
     public int getGateIndex() {
         return inputGate.getGateIndex();
     }
