@@ -131,12 +131,13 @@ abstract class AbstractInputChannelRecoveredStateHandler
             InflightDataRescalingDescriptor channelMapping,
             boolean checkpointingDuringRecoveryEnabled,
             @Nullable ChannelStateFilteringHandler filteringHandler,
-            int memorySegmentSize) {
+            int memorySegmentSize,
+            String[] spillTmpDirectories) {
         if (!checkpointingDuringRecoveryEnabled) {
             return new NoSpillingHandler(inputGates, channelMapping, false);
         }
         // FLINK-38544 transitional: the flag-on path still uses the in-memory handlers until the
-        // spilling backend lands.
+        // spilling backend lands; spillTmpDirectories is unused until then.
         if (filteringHandler == null) {
             return new NoSpillingHandler(inputGates, channelMapping, true);
         }
@@ -469,6 +470,131 @@ class SpillingNoFilteringHandler extends AbstractSpillingHandler {
 
 /**
  * Recovery handler for the case where checkpointing during recovery is enabled and a filtering
+ * handler is present. Uses a reusable heap-backed pre-filter buffer (isolated from the Network
+ * Buffer Pool) and writes filtered/rewritten output to the spill file via {@link
+ * ChannelStateFilteringHandler#filterAndRewrite}.
+ */
+class SpillingWithFilteringHandler extends AbstractSpillingHandler {
+
+    private final ChannelStateFilteringHandler filteringHandler;
+
+    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
+    private final int memorySegmentSize;
+
+    /**
+     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
+     * allocated on the first {@link #getBuffer} call, reused for every subsequent call, and freed
+     * in {@link #closeInternal()}.
+     *
+     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
+     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
+     */
+    @Nullable private MemorySegment preFilterSegment;
+
+    /**
+     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
+     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
+     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
+     */
+    private boolean preFilterBufferInUse;
+
+    SpillingWithFilteringHandler(
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            ChannelStateFilteringHandler filteringHandler,
+            int memorySegmentSize,
+            String[] spillTmpDirectories) {
+        super(inputGates, channelMapping, spillTmpDirectories, DEFAULT_SPILL_FILE_SIZE_BYTES);
+        this.filteringHandler = filteringHandler;
+        checkArgument(
+                memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
+        this.memorySegmentSize = memorySegmentSize;
+    }
+
+    /**
+     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
+     * Pool) in filtering mode.
+     *
+     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
+     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
+     * not free the segment; it only flips {@link #preFilterBufferInUse} back to {@code false} so
+     * the next call can reuse it. The segment itself is freed in {@link #closeInternal()}.
+     *
+     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
+     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
+     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
+     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
+     * instead of silently corrupting memory.
+     */
+    @Override
+    public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo) {
+        checkState(
+                !preFilterBufferInUse,
+                "Previous pre-filter buffer has not been recycled. This violates the "
+                        + "one-buffer-at-a-time invariant of pre-filter buffers.");
+
+        if (preFilterSegment == null) {
+            preFilterSegment = MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize);
+        }
+        preFilterBufferInUse = true;
+
+        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
+        BufferRecycler recycler = segment -> preFilterBufferInUse = false;
+        Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
+        return new BufferWithContext<>(wrap(buffer), buffer);
+    }
+
+    @Override
+    public void recover(
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            BufferWithContext<Buffer> bufferWithContext)
+            throws IOException, InterruptedException {
+        Buffer buffer = bufferWithContext.context;
+        try {
+            if (buffer.readableBytes() > 0) {
+                filteringHandler.filterAndRewrite(
+                        channelInfo.getGateIdx(),
+                        oldSubtaskIndex,
+                        channelInfo.getInputChannelIdx(),
+                        buffer.retainBuffer(),
+                        segmentSerializerFor(getMappedChannels(channelInfo).getChannelInfo()));
+            }
+        } finally {
+            buffer.recycleBuffer();
+        }
+    }
+
+    @VisibleForTesting
+    boolean isPreFilterBufferInUse() {
+        return preFilterBufferInUse;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    MemorySegment getPreFilterSegmentForTesting() {
+        return preFilterSegment;
+    }
+
+    @Override
+    void closeInternal() throws IOException {
+        try {
+            super.closeInternal();
+        } finally {
+            if (preFilterSegment != null) {
+                preFilterSegment.free();
+                preFilterSegment = null;
+                preFilterBufferInUse = false;
+            }
+        }
+    }
+}
+
+/**
+ * FLINK-38544 transitional: removed when the spilling backend lands (the factory then selects
+ * {@link SpillingWithFilteringHandler} instead).
+ *
+ * <p>Recovery handler for the case where checkpointing during recovery is enabled and a filtering
  * handler is present. Uses a reusable heap-backed pre-filter buffer (isolated from the Network
  * Buffer Pool), filters recovered buffers through {@link
  * ChannelStateFilteringHandler#filterAndRewrite}, and delivers the filtered buffers directly into
