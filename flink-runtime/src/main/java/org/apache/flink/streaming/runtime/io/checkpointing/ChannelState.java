@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -28,6 +31,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -35,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * and {@link AbstractAlternatingAlignedBarrierHandlerState}.
  */
 final class ChannelState {
+
     private final Map<InputChannelInfo, Integer> sequenceNumberInAnnouncedChannels =
             new HashMap<>();
 
@@ -47,8 +52,16 @@ final class ChannelState {
 
     private final CheckpointableInput[] inputs;
 
+    private final RecoveryCheckpointTrigger recoveryCheckpointTrigger;
+
     public ChannelState(CheckpointableInput[] inputs) {
+        this(inputs, RecoveryCheckpointTrigger.NO_OP);
+    }
+
+    public ChannelState(
+            CheckpointableInput[] inputs, RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
         this.inputs = inputs;
+        this.recoveryCheckpointTrigger = checkNotNull(recoveryCheckpointTrigger);
     }
 
     public void blockChannel(InputChannelInfo channelInfo) {
@@ -97,5 +110,27 @@ final class ChannelState {
                 blockedChannels);
         sequenceNumberInAnnouncedChannels.clear();
         return this;
+    }
+
+    /**
+     * Dispatches checkpoint start: inserts recovery-checkpoint barriers into in-recovery channels
+     * through the trigger, then notifies every input. (FLINK-38544 transitional: the spilling
+     * backend adds a third step handing the trigger's snapshot reader to the channel-state writer.)
+     */
+    public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
+            throws CheckpointException, IOException {
+        long cpId = barrier.getId();
+        try {
+            recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
+
+            for (CheckpointableInput input : inputs) {
+                input.checkpointStarted(barrier);
+            }
+        } catch (Throwable t) {
+            if (t instanceof CheckpointException) {
+                throw (CheckpointException) t;
+            }
+            ExceptionUtils.rethrowIOException(t);
+        }
     }
 }
