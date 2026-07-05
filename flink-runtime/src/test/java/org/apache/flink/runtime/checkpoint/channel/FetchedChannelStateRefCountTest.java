@@ -114,6 +114,22 @@ class FetchedChannelStateRefCountTest {
         assertFilesExist(files, false);
     }
 
+    @Test
+    void testReaderAcquiresAndReleasesOnClose() throws IOException {
+        FetchedChannelState state = newStateWithData();
+        List<Path> files = state.files();
+
+        // Opening a reader acquires one grant; the produced state already holds the handoff grant.
+        FetchedChannelStateReader reader = state.reader();
+        // Drop the handoff grant so the reader's grant is the only one outstanding.
+        state.release();
+        assertFilesExist(files, true);
+
+        // Closing releases that grant, which reaches zero and deletes files.
+        reader.close();
+        assertFilesExist(files, false);
+    }
+
     // -------------------------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------------------------
