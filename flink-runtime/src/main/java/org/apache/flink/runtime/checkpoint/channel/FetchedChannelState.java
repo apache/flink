@@ -40,15 +40,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * table is maintained. The reader scans files sequentially, reading each 12-byte header to obtain
  * the channel info and body length.
  *
- * <p>The file list grows as the writer rotates to new files (one rotation per 64 MB soft limit),
- * and is sealed on writer close.
+ * <p>The file list is fixed at construction: rotation to new files (one per 64 MB soft limit)
+ * happens earlier, in the writer, which builds this container from the final list on close.
  *
  * <p>File lifecycle is managed by {@link #acquire()} / {@link #release()} reference counting. Files
  * are deleted only when the last lifecycle grant is released (i.e. when both the main reader and
  * all snapshot readers have finished).
- *
- * <p>Mutations (file list appends) are single-writer and intentionally unsynchronized; callers must
- * serialize them via the channel IO executor.
  */
 @Internal
 public final class FetchedChannelState implements Closeable {
@@ -73,6 +70,24 @@ public final class FetchedChannelState implements Closeable {
     // -------------------------------------------------------------------------------------------
     // Read-phase API (called by the reader after the writer is sealed)
     // -------------------------------------------------------------------------------------------
+
+    /**
+     * Opens the main reader covering all segments from the beginning. The returned reader holds one
+     * lifecycle grant and must be closed when done.
+     */
+    public FetchedChannelStateReader reader() {
+        return snapshotAtStart().reader();
+    }
+
+    /** A snapshot covering all segments from the beginning. */
+    public FetchedChannelStateSnapshot snapshotAtStart() {
+        return new FetchedChannelStateSnapshot(this, 0, 0L, null, 0);
+    }
+
+    /** A snapshot over no spill files: its reader yields no segments. */
+    public static FetchedChannelStateSnapshot emptySnapshot() {
+        return new FetchedChannelState(Collections.emptyList()).snapshotAtStart();
+    }
 
     /** Returns the ordered list of spill file paths. Read-only view. */
     public List<Path> files() {
