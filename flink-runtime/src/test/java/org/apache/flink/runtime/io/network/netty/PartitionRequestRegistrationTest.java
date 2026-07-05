@@ -95,7 +95,8 @@ class PartitionRequestRegistrationTest {
                                     resultPartition.getPartitionId(),
                                     new ResultSubpartitionIndexSet(0),
                                     new InputChannelID(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification
@@ -143,7 +144,8 @@ class PartitionRequestRegistrationTest {
                                     resultPartition.getPartitionId(),
                                     new ResultSubpartitionIndexSet(0),
                                     new InputChannelID(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Register result partition after partition request
@@ -212,7 +214,8 @@ class PartitionRequestRegistrationTest {
                                     pid,
                                     new ResultSubpartitionIndexSet(0),
                                     remoteInputChannel.getInputChannelId(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification
