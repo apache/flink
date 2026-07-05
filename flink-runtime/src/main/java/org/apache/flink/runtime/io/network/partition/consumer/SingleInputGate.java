@@ -243,8 +243,6 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
-    private volatile boolean checkpointingDuringRecoveryEnabled = false;
-
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -324,31 +322,6 @@ public class SingleInputGate extends IndexedInputGate {
             List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
             for (InputChannel inputChannel : inputChannels()) {
                 futures.add(inputChannel.getStateConsumedFuture());
-            }
-            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-        }
-    }
-
-    @Override
-    public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {
-        this.checkpointingDuringRecoveryEnabled = enabled;
-    }
-
-    @Override
-    public boolean isCheckpointingDuringRecoveryEnabled() {
-        return checkpointingDuringRecoveryEnabled;
-    }
-
-    @Override
-    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        synchronized (requestLock) {
-            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
-            for (InputChannel inputChannel : inputChannels()) {
-                if (inputChannel instanceof RecoveredInputChannel) {
-                    futures.add(
-                            ((RecoveredInputChannel) inputChannel)
-                                    .getBufferFilteringCompleteFuture());
-                }
             }
             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         }
