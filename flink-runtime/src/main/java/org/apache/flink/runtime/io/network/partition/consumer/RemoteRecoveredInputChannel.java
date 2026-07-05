@@ -70,6 +70,8 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
     @Override
     protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
             throws IOException {
+        // remainingBuffers is unused: with the flag off the queue is always empty at conversion,
+        // and constructor migration is retired by the conversion rework later in this PR.
         RemoteInputChannel remoteInputChannel =
                 new RemoteInputChannel(
                         inputGate,
@@ -85,7 +87,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
                         numBytesIn,
                         numBuffersIn,
                         channelStateWriter,
-                        remainingBuffers);
+                        false);
         remoteInputChannel.setup();
         return remoteInputChannel;
     }
