@@ -74,6 +74,16 @@ public final class FetchedChannelState implements Closeable {
     // Read-phase API (called by the reader after the writer is sealed)
     // -------------------------------------------------------------------------------------------
 
+    /**
+     * Opens a root reader covering all segments from the beginning. The returned reader holds one
+     * lifecycle grant and must be closed when done.
+     */
+    public FetchedChannelStateReader reader() {
+        return new FetchedChannelStateSnapshot(
+                        this, FetchedChannelStateReaderImpl.Position.atStart())
+                .reader();
+    }
+
     /** Returns the ordered list of spill file paths. Read-only view. */
     public List<Path> files() {
         return Collections.unmodifiableList(files);
