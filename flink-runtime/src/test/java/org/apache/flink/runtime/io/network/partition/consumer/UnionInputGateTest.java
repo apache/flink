@@ -325,9 +325,7 @@ class UnionInputGateTest extends InputGateTestBase {
                 new SimpleCounter(),
                 10) {
             @Override
-            protected InputChannel toInputChannelInternal(
-                    java.util.ArrayDeque<org.apache.flink.runtime.io.network.buffer.Buffer>
-                            remainingBuffers) {
+            protected InputChannel toInputChannelInternal(boolean needsRecovery) {
                 throw new UnsupportedOperationException();
             }
         };
