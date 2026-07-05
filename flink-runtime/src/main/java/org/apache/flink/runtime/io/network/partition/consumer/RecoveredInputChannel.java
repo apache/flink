@@ -166,10 +166,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     public void onRecoveredStateBuffer(Buffer buffer) {
         boolean recycleBuffer = true;
         NetworkActionsLogger.traceRecover(
-                "InputChannelRecoveredStateHandler#recover",
-                buffer,
-                inputGate.getOwningTaskName(),
-                channelInfo);
+                "NoSpillingHandler#recover", buffer, inputGate.getOwningTaskName(), channelInfo);
         try {
             final boolean wasEmpty;
             synchronized (receivedBuffers) {

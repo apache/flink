@@ -40,12 +40,13 @@ import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescripto
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test of different implementation of {@link InputChannelRecoveredStateHandler}. */
+/** Test of different implementation of {@link AbstractInputChannelRecoveredStateHandler}. */
 class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
     private static final int preAllocatedSegments = 3;
     private NetworkBufferPool networkBufferPool;
     private SingleInputGate inputGate;
-    private InputChannelRecoveredStateHandler icsHandler;
+    // NoSpillingHandler: checkpointingDuringRecoveryEnabled=false, filteringHandler=null
+    private AbstractInputChannelRecoveredStateHandler icsHandler;
     private InputChannelInfo channelInfo;
 
     @BeforeEach
@@ -61,14 +62,14 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                         .setSegmentProvider(networkBufferPool)
                         .build();
 
-        icsHandler = buildInputChannelStateHandler(inputGate);
+        icsHandler = buildNoSpillingHandler(inputGate);
 
         channelInfo = new InputChannelInfo(0, 0);
     }
 
-    private InputChannelRecoveredStateHandler buildInputChannelStateHandler(
+    private AbstractInputChannelRecoveredStateHandler buildNoSpillingHandler(
             SingleInputGate inputGate) {
-        return new InputChannelRecoveredStateHandler(
+        return AbstractInputChannelRecoveredStateHandler.create(
                 new InputGate[] {inputGate},
                 new InflightDataRescalingDescriptor(
                         new InflightDataRescalingDescriptor
@@ -82,11 +83,12 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
                         }),
+                false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE);
     }
 
-    private InputChannelRecoveredStateHandler buildMultiChannelHandler() {
+    private AbstractInputChannelRecoveredStateHandler buildMultiChannelHandler() {
         // Setup multi-channel scenario to trigger distribution constraint validation
         SingleInputGate multiChannelGate =
                 new SingleInputGateBuilder()
@@ -95,7 +97,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                         .setSegmentProvider(networkBufferPool)
                         .build();
 
-        return new InputChannelRecoveredStateHandler(
+        return AbstractInputChannelRecoveredStateHandler.create(
                 new InputGate[] {multiChannelGate},
                 new InflightDataRescalingDescriptor(
                         new InflightDataRescalingDescriptor
@@ -110,39 +112,42 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.RESCALING)
                         }),
+                false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE);
     }
 
     /** Builds a handler in filtering mode (non-null filtering handler, no-op stub). */
-    private InputChannelRecoveredStateHandler buildFilteringInputChannelStateHandler() {
+    private FilteringHandler buildFilteringInputChannelStateHandler() {
         // Empty GateFilterHandler array: filtering is "enabled" structurally, but no gate-level
         // filter logic runs. Suitable for exercising getBuffer() routing only.
         ChannelStateFilteringHandler stubFilteringHandler =
                 new ChannelStateFilteringHandler(
                         new ChannelStateFilteringHandler.GateFilterHandler[0]);
-        return new InputChannelRecoveredStateHandler(
-                new InputGate[] {inputGate},
-                new InflightDataRescalingDescriptor(
-                        new InflightDataRescalingDescriptor
-                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
-                            new InflightDataRescalingDescriptor
-                                    .InflightDataGateOrPartitionRescalingDescriptor(
-                                    new int[] {1},
-                                    RescaleMappings.identity(1, 1),
-                                    new HashSet<>(),
-                                    InflightDataRescalingDescriptor
-                                            .InflightDataGateOrPartitionRescalingDescriptor
-                                            .MappingType.IDENTITY)
-                        }),
-                stubFilteringHandler,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+        return (FilteringHandler)
+                AbstractInputChannelRecoveredStateHandler.create(
+                        new InputGate[] {inputGate},
+                        new InflightDataRescalingDescriptor(
+                                new InflightDataRescalingDescriptor
+                                                .InflightDataGateOrPartitionRescalingDescriptor[] {
+                                    new InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor(
+                                            new int[] {1},
+                                            RescaleMappings.identity(1, 1),
+                                            new HashSet<>(),
+                                            InflightDataRescalingDescriptor
+                                                    .InflightDataGateOrPartitionRescalingDescriptor
+                                                    .MappingType.IDENTITY)
+                                }),
+                        true,
+                        stubFilteringHandler,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
     }
 
     @Test
     void testBufferDistributedToMultipleInputChannelsThrowsException() throws Exception {
         // Test constraint that prevents buffer distribution to multiple channels
-        try (InputChannelRecoveredStateHandler handler = buildMultiChannelHandler()) {
+        try (AbstractInputChannelRecoveredStateHandler handler = buildMultiChannelHandler()) {
             assertThatThrownBy(() -> handler.getBuffer(channelInfo))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining(
@@ -187,8 +192,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterBufferIsolationFromNetworkBufferPool() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
             int availableBefore = networkBufferPool.getNumberOfAvailableMemorySegments();
 
             RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
@@ -229,8 +233,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterSegmentReusedAcrossCalls() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
             // First getBuffer() lazily allocates the segment.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
                     filteringHandler.getBuffer(channelInfo);
@@ -259,8 +262,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testGetBufferThrowsWhenPriorBufferNotRecycled() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler()) {
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
                     filteringHandler.getBuffer(channelInfo);
             try {
@@ -283,8 +285,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterSegmentFreedOnClose() throws Exception {
-        InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler();
+        FilteringHandler filteringHandler = buildFilteringInputChannelStateHandler();
         RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
                 filteringHandler.getBuffer(channelInfo);
         bufferWithContext.context.recycleBuffer();

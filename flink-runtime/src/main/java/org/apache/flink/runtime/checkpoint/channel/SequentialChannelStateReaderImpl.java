@@ -70,10 +70,11 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         : null;
 
         try (ChannelStateFilteringHandler ignored = filteringHandler;
-                InputChannelRecoveredStateHandler stateHandler =
-                        new InputChannelRecoveredStateHandler(
+                AbstractInputChannelRecoveredStateHandler stateHandler =
+                        AbstractInputChannelRecoveredStateHandler.create(
                                 inputGates,
                                 taskStateSnapshot.getInputRescalingDescriptor(),
+                                filterContext.isCheckpointingDuringRecoveryEnabled(),
                                 filteringHandler,
                                 filterContext.getMemorySegmentSize())) {
             read(
