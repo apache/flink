@@ -136,6 +136,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public void requestPartitions(boolean needsRecovery) throws IOException {
+        inputGate.requestPartitions(needsRecovery);
+    }
+
+    @Override
     public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
         inputGate.setChannelStateWriter(channelStateWriter);
     }
