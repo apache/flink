@@ -78,7 +78,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                                 taskStateSnapshot.getInputRescalingDescriptor(),
                                 filterContext.isCheckpointingDuringRecoveryEnabled(),
                                 filteringHandler,
-                                filterContext.getMemorySegmentSize())) {
+                                filterContext.getMemorySegmentSize(),
+                                filterContext.getTmpDirectories())) {
             boolean readAny =
                     read(
                             stateHandler,

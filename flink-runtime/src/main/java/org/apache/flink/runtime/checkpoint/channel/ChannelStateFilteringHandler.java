@@ -101,7 +101,43 @@ public class ChannelStateFilteringHandler implements Closeable {
     }
 
     /**
-     * Filters a recovered buffer from the specified virtual channel, returning new buffers
+     * Filters {@code sourceBuffer} through the virtual channel identified by {@code gateIndex} /
+     * {@code oldChannelIndex}, appending each surviving record (length-prefixed) into {@code
+     * outputSerializer}. One call may emit 0..N records depending on the filter result and whether
+     * records spanning previous buffers complete here. The caller owns the segment boundary.
+     */
+    public void filterAndRewrite(
+            int gateIndex,
+            int oldSubtaskIndex,
+            int oldChannelIndex,
+            Buffer sourceBuffer,
+            DataOutputSerializer outputSerializer)
+            throws IOException {
+
+        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
+            throw new IllegalStateException(
+                    "Invalid gateIndex: "
+                            + gateIndex
+                            + ", number of gates: "
+                            + gateHandlers.length);
+        }
+
+        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
+        if (gateHandler == null) {
+            throw new IllegalStateException(
+                    "No handler for gateIndex "
+                            + gateIndex
+                            + ". This gate is not a network input and should not have recovered buffers.");
+        }
+        gateHandler.filterAndRewrite(
+                oldSubtaskIndex, oldChannelIndex, sourceBuffer, outputSerializer);
+    }
+
+    /**
+     * FLINK-38544 transitional: removed when the spilling backend lands (dies together with the
+     * in-memory {@code FilteringHandler}, its only caller).
+     *
+     * <p>Filters a recovered buffer from the specified virtual channel, returning new buffers
      * containing only the records that belong to the current subtask.
      *
      * <p>One source buffer may produce 0 to N result buffers: 0 if all records are filtered out,
@@ -215,7 +251,8 @@ public class ChannelStateFilteringHandler implements Closeable {
                                 : VirtualChannelRecordFilterFactory.createPassThroughFilter();
 
                 RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
-                        createDeserializer(filterContext.getTmpDirectories());
+                        new SpillingAdaptiveSpanningRecordDeserializer<>(
+                                filterContext.getTmpDirectories());
 
                 VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
                 gateVirtualChannels.put(key, vc);
@@ -246,21 +283,14 @@ public class ChannelStateFilteringHandler implements Closeable {
         return oldIndexes.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static RecordDeserializer<DeserializationDelegate<StreamElement>> createDeserializer(
-            String[] tmpDirectories) {
-        if (tmpDirectories != null && tmpDirectories.length > 0) {
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(tmpDirectories);
-        } else {
-            String[] defaultDirs = new String[] {System.getProperty("java.io.tmpdir")};
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(defaultDirs);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------
     // Inner classes
     // -------------------------------------------------------------------------------------------
 
-    /** Provides buffers for re-serializing filtered records. Implementations may block. */
+    /**
+     * FLINK-38544 transitional: removed when the spilling backend lands. Provides buffers for
+     * re-serializing filtered records on the in-memory delivery path. Implementations may block.
+     */
     @FunctionalInterface
     public interface BufferSupplier {
         Buffer requestBufferBlocking() throws IOException, InterruptedException;
@@ -275,6 +305,9 @@ public class ChannelStateFilteringHandler implements Closeable {
         private final Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels;
         private final StreamElementSerializer<T> serializer;
         private final DeserializationDelegate<StreamElement> deserializationDelegate;
+
+        // FLINK-38544 transitional: removed when the spilling backend lands (used only by the
+        // in-memory buffer-delivering filterAndRewrite overload below).
         private final DataOutputSerializer outputSerializer;
         private final byte[] lengthBuffer = new byte[4];
 
@@ -286,6 +319,72 @@ public class ChannelStateFilteringHandler implements Closeable {
             this.deserializationDelegate = new NonReusingDeserializationDelegate<>(serializer);
             this.outputSerializer = new DataOutputSerializer(128);
         }
+
+        /**
+         * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
+         * filter, and re-serializes each surviving record into {@code outputSerializer}. No
+         * intermediate network buffer is used; the caller owns the segment boundary.
+         */
+        void filterAndRewrite(
+                int oldSubtaskIndex,
+                int oldChannelIndex,
+                Buffer sourceBuffer,
+                DataOutputSerializer outputSerializer)
+                throws IOException {
+
+            boolean sourceBufferOwnershipTransferred = false;
+            try {
+                SubtaskConnectionDescriptor key =
+                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
+                VirtualChannel<T> vc = virtualChannels.get(key);
+                if (vc == null) {
+                    throw new IllegalStateException(
+                            "No VirtualChannel found for key: "
+                                    + key
+                                    + "; known channels are "
+                                    + virtualChannels.keySet());
+                }
+
+                vc.setNextBuffer(sourceBuffer);
+                sourceBufferOwnershipTransferred = true;
+
+                while (true) {
+                    DeserializationResult result = vc.getNextRecord(deserializationDelegate);
+                    if (result.isFullRecord()) {
+                        serializeElement(deserializationDelegate.getInstance(), outputSerializer);
+                    }
+                    if (result.isBufferConsumed()) {
+                        break;
+                    }
+                }
+            } catch (Throwable t) {
+                if (!sourceBufferOwnershipTransferred) {
+                    sourceBuffer.recycleBuffer();
+                }
+                throw t;
+            }
+        }
+
+        /**
+         * Appends one stream element as a length-prefixed record. Reserves the 4B prefix,
+         * serializes the element, then backfills the length, because {@code outputSerializer}
+         * already holds the segment header and earlier records, so the prefix cannot be written
+         * from a fixed offset.
+         */
+        private void serializeElement(StreamElement element, DataOutputSerializer outputSerializer)
+                throws IOException {
+            int startPos = outputSerializer.length();
+            outputSerializer.writeInt(0); // length placeholder
+            serializer.serialize(element, outputSerializer);
+            int recordLength = outputSerializer.length() - startPos - Integer.BYTES;
+            outputSerializer.writeIntUnsafe(recordLength, startPos);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // FLINK-38544 transitional: everything below until hasPartialData() is the in-memory
+        // buffer-delivering filter path, kept alive for the v1 FilteringHandler; removed when
+        // the spilling backend lands.
+        // -----------------------------------------------------------------------------------
 
         /**
          * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
@@ -446,6 +545,8 @@ public class ChannelStateFilteringHandler implements Closeable {
             }
             return currentBuffer;
         }
+
+        // ------------------------ end of FLINK-38544 transitional block -----------------------
 
         boolean hasPartialData() {
             return virtualChannels.values().stream().anyMatch(VirtualChannel::hasPartialData);
