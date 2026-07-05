@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
@@ -72,6 +73,7 @@ public class TestBarrierHandlerFactory {
                 inputGate.getNumberOfInputChannels(),
                 actionRegistration,
                 enableCheckpointsAfterTasksFinish,
+                RecoveryCheckpointTrigger.NO_OP,
                 inputGate);
     }
 }
