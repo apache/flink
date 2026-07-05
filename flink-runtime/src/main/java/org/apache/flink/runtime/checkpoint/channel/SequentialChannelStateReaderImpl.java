@@ -110,7 +110,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
             // only signals "there is state to recover". The spilling backend returns a real,
             // file-backed container here.
             return filterContext.isCheckpointingDuringRecoveryEnabled() && readAny
-                    ? Optional.of(new FetchedChannelState())
+                    ? Optional.of(new FetchedChannelState(java.util.Collections.emptyList()))
                     : Optional.empty();
         }
     }
