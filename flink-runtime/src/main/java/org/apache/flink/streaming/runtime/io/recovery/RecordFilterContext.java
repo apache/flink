@@ -91,7 +91,7 @@ public class RecordFilterContext {
     /** Maximum parallelism for configuring partitioners. */
     private final int maxParallelism;
 
-    /** Temporary directories for spilling spanning records. Can be empty but never null. */
+    /** Temporary directories for spilling spanning records. Never null or empty. */
     private final String[] tmpDirectories;
 
     /** Whether unaligned checkpointing during recovery is enabled. */
@@ -99,8 +99,8 @@ public class RecordFilterContext {
 
     /**
      * Network buffer memory segment size in bytes (from taskmanager.memory.segment-size). Used to
-     * size the reusable heap source buffer in {@code InputChannelRecoveredStateHandler} so it
-     * matches the network buffer size.
+     * size the reusable heap source buffer in {@code SpillingWithFilteringHandler} so it matches
+     * the network buffer size.
      */
     private final int memorySegmentSize;
 
@@ -112,8 +112,9 @@ public class RecordFilterContext {
      * @param rescalingDescriptor Descriptor containing rescaling information. Not null.
      * @param subtaskIndex Current subtask index.
      * @param maxParallelism Maximum parallelism.
-     * @param tmpDirectories Temporary directories for spilling spanning records. Can be null
-     *     (converted to empty array).
+     * @param tmpDirectories Temporary directories for spilling spanning records. Not null or empty;
+     *     sourced from {@code IOManager.getSpillingDirectoriesPaths()}, which is guaranteed
+     *     non-empty by the task manager I/O configuration.
      * @param checkpointingDuringRecoveryEnabled Whether unaligned checkpointing during recovery is
      *     enabled.
      * @param memorySegmentSize Network buffer memory segment size in bytes. Must be positive.
@@ -130,8 +131,17 @@ public class RecordFilterContext {
         this.rescalingDescriptor = checkNotNull(rescalingDescriptor);
         this.subtaskIndex = subtaskIndex;
         this.maxParallelism = maxParallelism;
-        this.tmpDirectories = tmpDirectories != null ? tmpDirectories : new String[0];
         this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
+        if (checkpointingDuringRecoveryEnabled) {
+            // tmpDirectories are only used by the spilling (checkpointing-during-recovery) path.
+            checkArgument(
+                    checkNotNull(tmpDirectories).length > 0, "tmpDirectories must not be empty");
+            this.tmpDirectories = tmpDirectories.clone();
+        } else {
+            // A disabled context never spills, so it needs no spill directories; tolerate a
+            // null/empty value (e.g. an environment without IOManager spilling directories).
+            this.tmpDirectories = tmpDirectories == null ? new String[0] : tmpDirectories.clone();
+        }
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
         this.memorySegmentSize = memorySegmentSize;
@@ -202,7 +212,7 @@ public class RecordFilterContext {
     /**
      * Gets the temporary directories for spilling spanning records.
      *
-     * @return The temporary directories, never null (may be empty array).
+     * @return The temporary directories, never null or empty.
      */
     public String[] getTmpDirectories() {
         return tmpDirectories;
@@ -235,15 +245,19 @@ public class RecordFilterContext {
      * <p>The returned context has empty inputConfigs and enabled=false, so {@link
      * #isCheckpointingDuringRecoveryEnabled()} will always return false.
      *
+     * @param tmpDirectories Temporary directories for spilling spanning records. Not null or empty;
+     *     callers pass the real I/O manager spilling directories so the resulting context satisfies
+     *     the same invariant as an enabled context, regardless of which downstream path consumes
+     *     it.
      * @return A disabled RecordFilterContext.
      */
-    public static RecordFilterContext disabled() {
+    public static RecordFilterContext disabled(String[] tmpDirectories) {
         return new RecordFilterContext(
                 new InputFilterConfig[0],
                 InflightDataRescalingDescriptor.NO_RESCALE,
                 0,
                 0,
-                new String[0],
+                tmpDirectories,
                 false,
                 MemoryManager.DEFAULT_PAGE_SIZE);
     }
