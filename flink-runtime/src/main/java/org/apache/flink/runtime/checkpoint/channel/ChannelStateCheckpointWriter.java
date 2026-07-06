@@ -19,6 +19,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateReader.SpillSegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHANNEL_STATE_SHARED_STREAM_EXCEPTION;
@@ -159,6 +161,48 @@ class ChannelStateCheckpointWriter {
         } finally {
             buffer.recycleBuffer();
         }
+    }
+
+    void writeInputFromSpill(
+            JobVertexID jobVertexID, int subtaskIndex, FetchedChannelStateReader reader) {
+        if (isDone()) {
+            try {
+                reader.close();
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+        ChannelStatePendingResult pendingResult =
+                getChannelStatePendingResult(jobVertexID, subtaskIndex);
+        runWithChecks(
+                () -> {
+                    checkState(!pendingResult.isAllInputsReceived());
+                    try {
+                        String action = "ChannelStateCheckpointWriter#writeInputFromSpill";
+                        Optional<SpillSegment> next;
+                        while ((next = reader.nextSegment()).isPresent()) {
+                            SpillSegment seg = next.get();
+                            long offset = checkpointStream.getPos();
+                            try (AutoCloseable ignored =
+                                    NetworkActionsLogger.measureIO(action, seg.channelInfo())) {
+                                serializer.writeData(dataStream, seg.bodyStream(), seg.length());
+                            }
+                            long size = checkpointStream.getPos() - offset;
+                            pendingResult
+                                    .getInputChannelOffsets()
+                                    .computeIfAbsent(
+                                            seg.channelInfo(), unused -> new StateContentMetaInfo())
+                                    .withDataAdded(offset, size);
+                            NetworkActionsLogger.tracePersist(
+                                    action,
+                                    seg.length() + " bytes",
+                                    seg.channelInfo(),
+                                    checkpointId);
+                        }
+                    } finally {
+                        reader.close();
+                    }
+                });
     }
 
     void writeOutput(
