@@ -109,49 +109,13 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public final InputChannel toInputChannel(boolean needsRecovery) throws IOException {
-        if (needsRecovery) {
-            return toInputChannelInRecovery();
-        }
+        // With checkpointing-during-recovery, data is spilled instead of queued here.
         synchronized (receivedBuffers) {
             Preconditions.checkState(receivedBuffers.isEmpty(), "Received buffer should be empty.");
         }
 
         final InputChannel inputChannel = toInputChannelInternal(needsRecovery);
         inputChannel.setup();
-        inputChannel.checkpointStopped(lastStoppedCheckpointId);
-        return inputChannel;
-    }
-
-    /**
-     * FLINK-38544 transitional: removed when the spilling backend lands. Creates the physical
-     * channel in recovery state and synchronously hands every queued recovered data buffer over
-     * through the push interface. The legacy {@link EndOfInputChannelStateEvent} in the queue is
-     * dropped in translation; the {@link EndOfFetchedChannelStateEvent} sentinel takes its place
-     * but is deliberately NOT appended here: the StreamTask recovery chain appends it via {@link
-     * RecoverableInputChannel#finishRecoveredBufferDelivery()} on the channel IO executor after
-     * partitions have been requested. That call waits for upstream readiness, which (a) cannot
-     * happen on the mailbox thread that is still converting channels (partitions are requested only
-     * after conversion) and (b) must happen before the sentinel becomes consumable -- otherwise the
-     * consume path could flip the channel out of recovery and poll it before its upstream
-     * connection exists.
-     */
-    private InputChannel toInputChannelInRecovery() throws IOException {
-        final ArrayDeque<Buffer> remainingBuffers;
-        synchronized (receivedBuffers) {
-            remainingBuffers = new ArrayDeque<>(receivedBuffers);
-            receivedBuffers.clear();
-        }
-
-        final InputChannel inputChannel = toInputChannelInternal(true);
-        inputChannel.setup();
-        final RecoverableInputChannel recoverableChannel = (RecoverableInputChannel) inputChannel;
-        for (Buffer buffer : remainingBuffers) {
-            if (isEndOfInputChannelStateEvent(buffer)) {
-                buffer.recycleBuffer();
-            } else {
-                recoverableChannel.onRecoveredStateBuffer(buffer);
-            }
-        }
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
     }

@@ -43,7 +43,8 @@ import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.checkpoint.channel.InMemoryRecoveryCheckpointTrigger;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelState;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateDrainer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -947,26 +948,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
             return FutureUtils.completedVoidFuture();
         }
-        // FLINK-38544 transitional: removed when the spilling backend lands. In-memory backend:
-        // readInputChannelState first filters the recovered state completely (the filter output
-        // accumulates in the recovered channels' in-memory queues), then conversion pushes it into
-        // the physical channels through the push interface (requestPartitions(true)). The final
-        // form instead fetches the filter output to disk and drains it incrementally from here.
-        // Trigger lifecycle: NOT_READY while filtering (checkpoints declined as task-not-ready),
-        // the barrier-inserting in-memory trigger once conversion handed the recovered buffers to
-        // the physical channels, NO_OP once all gates report their state consumed. The gap between
-        // completeAll and the NO_OP mail is safe: a barrier-inserting trigger with no in-recovery
-        // channels behaves as NO_OP.
         return setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NOT_READY)
-                .thenRunAsync(() -> readInputChannelState(reader, inputGates), channelIOExecutor)
-                .thenCompose(ign -> requestPartitions(inputGates, true))
+                .thenApplyAsync(ign -> fetchChannelState(reader, inputGates), channelIOExecutor)
                 .thenCompose(
-                        channels ->
-                                setRecoveryCheckpointTrigger(
-                                                new InMemoryRecoveryCheckpointTrigger(channels))
-                                        .thenRunAsync(
-                                                () -> finishRecoveredBufferDelivery(channels),
-                                                channelIOExecutor))
+                        state ->
+                                requestPartitions(inputGates, state.isPresent())
+                                        .thenApply(channels -> buildDrainer(state, channels)))
+                .thenCompose(this::drainThroughCheckpointTrigger)
                 .thenCompose(
                         ign ->
                                 completeAll(
@@ -976,23 +964,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 .thenRun(() -> setRecoveryCheckpointTrigger(RecoveryCheckpointTrigger.NO_OP));
     }
 
-    /**
-     * FLINK-38544 transitional: removed when the spilling backend lands (the disk drainer then
-     * appends the sentinels at the end of its drain). Appends the end-of-recovered-state sentinel
-     * to every converted channel; each channel first waits for its upstream to be ready, so this
-     * must run on the channelIOExecutor rather than block the mailbox thread. Only once the
-     * sentinel is in place can the consume path flip the channel out of recovery, which guarantees
-     * live data is never polled before the upstream connection exists.
-     */
-    private void finishRecoveredBufferDelivery(List<RecoverableInputChannel> channels) {
-        try {
-            for (RecoverableInputChannel channel : channels) {
-                channel.finishRecoveredBufferDelivery();
-            }
-        } catch (Exception e) {
-            asyncExceptionHandler.handleAsyncException(
-                    "Unable to finish recovered channel state delivery", e);
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType") // intentional: simplify call-site
+    private Optional<FetchedChannelStateDrainer> buildDrainer(
+            Optional<FetchedChannelState> state, List<RecoverableInputChannel> channels) {
+        return state.map(s -> new FetchedChannelStateDrainer(s, channels));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType") // intentional: simplify call-site
+    private CompletableFuture<Void> drainThroughCheckpointTrigger(
+            Optional<FetchedChannelStateDrainer> drainer) {
+        if (drainer.isEmpty()) {
+            return FutureUtils.completedVoidFuture();
         }
+        FetchedChannelStateDrainer d = drainer.get();
+        return setRecoveryCheckpointTrigger(d).thenRunAsync(() -> drain(d), channelIOExecutor);
     }
 
     private CompletableFuture<Void> setRecoveryCheckpointTrigger(
@@ -1050,6 +1035,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } catch (Exception e) {
             asyncExceptionHandler.handleAsyncException(
                     "Unable to set up recovered channel state", e);
+        }
+    }
+
+    private Optional<FetchedChannelState> fetchChannelState(
+            SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        try {
+            return reader.readInputData(inputGates, createRecordFilterContext());
+        } catch (Throwable t) {
+            asyncExceptionHandler.handleAsyncException(
+                    "Unable to set up recovered channel state", t);
+            return Optional.empty();
+        }
+    }
+
+    private void drain(FetchedChannelStateDrainer drainer) {
+        try (FetchedChannelStateDrainer ignored = drainer) {
+            try {
+                drainer.drain();
+            } catch (Throwable t) {
+                asyncExceptionHandler.handleAsyncException(
+                        "Unable to drain recovered channel state", t);
+            }
+        } catch (Throwable closeError) {
+            asyncExceptionHandler.handleAsyncException(
+                    "Unable to close FetchedChannelStateDrainer after drain", closeError);
         }
     }
 

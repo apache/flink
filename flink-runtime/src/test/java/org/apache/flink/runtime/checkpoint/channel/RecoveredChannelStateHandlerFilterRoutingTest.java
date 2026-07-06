@@ -171,15 +171,14 @@ class RecoveredChannelStateHandlerFilterRoutingTest {
 
     private SpillingWithFilteringHandler newFilterOnHandler(
             ChannelStateFilteringHandler filteringHandler) {
-        // FLINK-38544 transitional: constructed directly because the factory still routes the
-        // flag-on filtering case to the in-memory FilteringHandler; goes back through
-        // AbstractInputChannelRecoveredStateHandler.create(...) when the spilling backend lands.
-        return new SpillingWithFilteringHandler(
-                new InputGate[] {inputGate},
-                identityRescalingForOneGate(),
-                filteringHandler,
-                MemoryManager.DEFAULT_PAGE_SIZE,
-                new String[] {tempDir.toString()});
+        return (SpillingWithFilteringHandler)
+                AbstractInputChannelRecoveredStateHandler.create(
+                        new InputGate[] {inputGate},
+                        identityRescalingForOneGate(),
+                        true,
+                        filteringHandler,
+                        MemoryManager.DEFAULT_PAGE_SIZE,
+                        new String[] {tempDir.toString()});
     }
 
     private NoSpillingHandler newFilterOffHandler() {

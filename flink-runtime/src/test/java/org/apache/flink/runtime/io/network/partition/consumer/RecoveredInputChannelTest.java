@@ -22,7 +22,6 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
@@ -71,7 +70,7 @@ class RecoveredInputChannelTest {
         assertThat(channel.getStateConsumedFuture()).isNotDone();
 
         // Conversion fails because the sentinel is still queued.
-        assertThatThrownBy(() -> channel.toInputChannel(false))
+        assertThatThrownBy(() -> channel.toInputChannel(true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Received buffer should be empty");
 
@@ -92,32 +91,9 @@ class RecoveredInputChannelTest {
         channel.onRecoveredStateBuffer(BufferBuilderTestUtils.buildSomeBuffer());
         channel.finishReadRecoveredState();
 
-        assertThatThrownBy(() -> channel.toInputChannel(false))
+        assertThatThrownBy(() -> channel.toInputChannel(true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Received buffer should be empty");
-    }
-
-    @Test
-    void testToInputChannelPushesQueuedBuffersWhenNeedsRecovery() throws IOException {
-        // FLINK-38544 transitional: removed when the spilling backend lands (recovered state then
-        // goes to disk, the queue is always empty at conversion, and toInputChannel(true) asserts
-        // emptiness instead of pushing).
-        TestableRecoveredInputChannel channel = buildTestableChannel(true);
-
-        channel.onRecoveredStateBuffer(BufferBuilderTestUtils.buildSomeBuffer(42));
-        channel.finishReadRecoveredState();
-
-        TestInputChannel converted = (TestInputChannel) channel.toInputChannel(true);
-
-        // The queued data buffer is handed over through the push interface and the legacy
-        // EndOfInputChannelStateEvent is dropped in translation. The EndOfFetchedChannelStateEvent
-        // sentinel is deliberately NOT appended here: the StreamTask recovery chain appends it via
-        // finishRecoveredBufferDelivery() on the channel IO executor after partitions have been
-        // requested (the sentinel must not become consumable before upstream readiness).
-        assertThat(converted.getRecoveredBuffersSpy()).hasSize(1);
-        Buffer data = converted.getRecoveredBuffersSpy().pollFirst();
-        assertThat(data.isBuffer()).isTrue();
-        assertThat(data.getSize()).isEqualTo(42);
     }
 
     @Test

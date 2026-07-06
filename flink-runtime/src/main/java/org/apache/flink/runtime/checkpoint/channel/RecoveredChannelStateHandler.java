@@ -100,20 +100,10 @@ abstract class AbstractInputChannelRecoveredStateHandler
     final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
-    /**
-     * FLINK-38544 transitional: removed when the spilling backend lands. Gates the unbounded
-     * heap-buffer fallback in {@link RecoveredInputChannel#requestBufferBlocking(boolean)}; read
-     * from the job configuration at the call site now that the gate-level recovery flags are gone.
-     */
-    final boolean checkpointingDuringRecoveryEnabled;
-
     AbstractInputChannelRecoveredStateHandler(
-            InputGate[] inputGates,
-            InflightDataRescalingDescriptor channelMapping,
-            boolean checkpointingDuringRecoveryEnabled) {
+            InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
-        this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
     }
 
     /**
@@ -122,8 +112,9 @@ abstract class AbstractInputChannelRecoveredStateHandler
      *
      * <ul>
      *   <li>{@code false} → {@link NoSpillingHandler}
-     *   <li>{@code true} and {@code filteringHandler == null} → {@link NoSpillingHandler}
-     *   <li>{@code true} and {@code filteringHandler != null} → {@link FilteringHandler}
+     *   <li>{@code true} and {@code filteringHandler == null} → {@link SpillingNoFilteringHandler}
+     *   <li>{@code true} and {@code filteringHandler != null} → {@link
+     *       SpillingWithFilteringHandler}
      * </ul>
      */
     static AbstractInputChannelRecoveredStateHandler create(
@@ -134,15 +125,17 @@ abstract class AbstractInputChannelRecoveredStateHandler
             int memorySegmentSize,
             String[] spillTmpDirectories) {
         if (!checkpointingDuringRecoveryEnabled) {
-            return new NoSpillingHandler(inputGates, channelMapping, false);
+            return new NoSpillingHandler(inputGates, channelMapping);
         }
-        // FLINK-38544 transitional: the flag-on path still uses the in-memory handlers until the
-        // spilling backend lands; spillTmpDirectories is unused until then.
         if (filteringHandler == null) {
-            return new NoSpillingHandler(inputGates, channelMapping, true);
+            return new SpillingNoFilteringHandler(inputGates, channelMapping, spillTmpDirectories);
         }
-        return new FilteringHandler(
-                inputGates, channelMapping, filteringHandler, memorySegmentSize);
+        return new SpillingWithFilteringHandler(
+                inputGates,
+                channelMapping,
+                filteringHandler,
+                memorySegmentSize,
+                spillTmpDirectories);
     }
 
     /** Default buffer allocation from the network buffer pool, used by non-filtering modes. */
@@ -150,7 +143,9 @@ abstract class AbstractInputChannelRecoveredStateHandler
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
-        Buffer buffer = channel.requestBufferBlocking(checkpointingDuringRecoveryEnabled);
+        // FLINK-38544 transitional: 'false' bypasses the unbounded heap fallback; the parameter
+        // goes away together with the fallback, which disk spilling supersedes.
+        Buffer buffer = channel.requestBufferBlocking(false);
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
 
@@ -204,11 +199,8 @@ abstract class AbstractInputChannelRecoveredStateHandler
  */
 class NoSpillingHandler extends AbstractInputChannelRecoveredStateHandler {
 
-    NoSpillingHandler(
-            InputGate[] inputGates,
-            InflightDataRescalingDescriptor channelMapping,
-            boolean checkpointingDuringRecoveryEnabled) {
-        super(inputGates, channelMapping, checkpointingDuringRecoveryEnabled);
+    NoSpillingHandler(InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+        super(inputGates, channelMapping);
     }
 
     @Override
@@ -309,9 +301,7 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
             InflightDataRescalingDescriptor channelMapping,
             String[] spillTmpDirectories,
             long maxFileSizeBytes) {
-        // FLINK-38544 transitional: the base's third ctor arg is removed when the spilling backend
-        // lands (spilling always implies checkpointing-during-recovery enabled).
-        super(inputGates, channelMapping, true);
+        super(inputGates, channelMapping);
         checkArgument(
                 checkNotNull(spillTmpDirectories).length > 0,
                 "spillTmpDirectories must not be empty");
@@ -586,151 +576,6 @@ class SpillingWithFilteringHandler extends AbstractSpillingHandler {
                 preFilterSegment = null;
                 preFilterBufferInUse = false;
             }
-        }
-    }
-}
-
-/**
- * FLINK-38544 transitional: removed when the spilling backend lands (the factory then selects
- * {@link SpillingWithFilteringHandler} instead).
- *
- * <p>Recovery handler for the case where checkpointing during recovery is enabled and a filtering
- * handler is present. Uses a reusable heap-backed pre-filter buffer (isolated from the Network
- * Buffer Pool), filters recovered buffers through {@link
- * ChannelStateFilteringHandler#filterAndRewrite}, and delivers the filtered buffers directly into
- * the input channel via {@code onRecoveredStateBuffer}.
- */
-class FilteringHandler extends AbstractInputChannelRecoveredStateHandler {
-
-    private final ChannelStateFilteringHandler filteringHandler;
-
-    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
-    private final int memorySegmentSize;
-
-    /**
-     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
-     * allocated on the first {@link #getBuffer} call, reused for every subsequent call, and freed
-     * in {@link #closeInternal()}.
-     *
-     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
-     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
-     */
-    @Nullable private MemorySegment preFilterSegment;
-
-    /**
-     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
-     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
-     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
-     */
-    private boolean preFilterBufferInUse;
-
-    FilteringHandler(
-            InputGate[] inputGates,
-            InflightDataRescalingDescriptor channelMapping,
-            ChannelStateFilteringHandler filteringHandler,
-            int memorySegmentSize) {
-        super(inputGates, channelMapping, true);
-        this.filteringHandler = filteringHandler;
-        checkArgument(
-                memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
-        this.memorySegmentSize = memorySegmentSize;
-    }
-
-    /**
-     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
-     * Pool) in filtering mode.
-     *
-     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
-     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
-     * not free the segment; it only flips {@link #preFilterBufferInUse} back to {@code false} so
-     * the next call can reuse it. The segment itself is freed in {@link #closeInternal()}.
-     *
-     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
-     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
-     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
-     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
-     * instead of silently corrupting memory.
-     */
-    @Override
-    public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo) {
-        checkState(
-                !preFilterBufferInUse,
-                "Previous pre-filter buffer has not been recycled. This violates the "
-                        + "one-buffer-at-a-time invariant of pre-filter buffers.");
-
-        if (preFilterSegment == null) {
-            preFilterSegment = MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize);
-        }
-        preFilterBufferInUse = true;
-
-        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
-        BufferRecycler recycler = segment -> preFilterBufferInUse = false;
-        Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
-        return new BufferWithContext<>(wrap(buffer), buffer);
-    }
-
-    @Override
-    public void recover(
-            InputChannelInfo channelInfo,
-            int oldSubtaskIndex,
-            BufferWithContext<Buffer> bufferWithContext)
-            throws IOException, InterruptedException {
-        Buffer buffer = bufferWithContext.context;
-        try {
-            if (buffer.readableBytes() > 0) {
-                RecoveredInputChannel channel = getMappedChannels(channelInfo);
-                recoverWithFiltering(channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
-            }
-        } finally {
-            buffer.recycleBuffer();
-        }
-    }
-
-    private void recoverWithFiltering(
-            RecoveredInputChannel channel,
-            InputChannelInfo channelInfo,
-            int oldSubtaskIndex,
-            Buffer retainedBuffer)
-            throws IOException, InterruptedException {
-        checkState(filteringHandler != null, "filtering handler not set.");
-        List<Buffer> filteredBuffers =
-                filteringHandler.filterAndRewrite(
-                        channelInfo.getGateIdx(),
-                        oldSubtaskIndex,
-                        channelInfo.getInputChannelIdx(),
-                        retainedBuffer,
-                        () -> channel.requestBufferBlocking(checkpointingDuringRecoveryEnabled));
-
-        int i = 0;
-        try {
-            for (; i < filteredBuffers.size(); i++) {
-                channel.onRecoveredStateBuffer(filteredBuffers.get(i));
-            }
-        } catch (Throwable t) {
-            for (int j = i; j < filteredBuffers.size(); j++) {
-                filteredBuffers.get(j).recycleBuffer();
-            }
-            throw t;
-        }
-    }
-
-    @VisibleForTesting
-    boolean isPreFilterBufferInUse() {
-        return preFilterBufferInUse;
-    }
-
-    @VisibleForTesting
-    @Nullable
-    MemorySegment getPreFilterSegmentForTesting() {
-        return preFilterSegment;
-    }
-
-    @Override
-    void closeInternal() throws IOException {
-        if (preFilterSegment != null) {
-            preFilterSegment.free();
-            preFilterSegment = null;
-            preFilterBufferInUse = false;
         }
     }
 }

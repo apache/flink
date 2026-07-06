@@ -130,34 +130,30 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
         ChannelStateFilteringHandler stubFilteringHandler =
                 new ChannelStateFilteringHandler(
                         new ChannelStateFilteringHandler.GateFilterHandler[0]);
-        // FLINK-38544 transitional: constructed directly because the factory still routes the
-        // flag-on filtering case to the in-memory FilteringHandler; goes back through
-        // AbstractInputChannelRecoveredStateHandler.create(...) when the spilling backend lands.
-        return new SpillingWithFilteringHandler(
-                new InputGate[] {inputGate},
-                new InflightDataRescalingDescriptor(
-                        new InflightDataRescalingDescriptor
-                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
-                            new InflightDataRescalingDescriptor
-                                    .InflightDataGateOrPartitionRescalingDescriptor(
-                                    new int[] {1},
-                                    RescaleMappings.identity(1, 1),
-                                    new HashSet<>(),
-                                    InflightDataRescalingDescriptor
-                                            .InflightDataGateOrPartitionRescalingDescriptor
-                                            .MappingType.IDENTITY)
-                        }),
-                stubFilteringHandler,
-                MemoryManager.DEFAULT_PAGE_SIZE,
-                new String[] {tmpDir.toAbsolutePath().toString()});
+        return (SpillingWithFilteringHandler)
+                AbstractInputChannelRecoveredStateHandler.create(
+                        new InputGate[] {inputGate},
+                        new InflightDataRescalingDescriptor(
+                                new InflightDataRescalingDescriptor
+                                                .InflightDataGateOrPartitionRescalingDescriptor[] {
+                                    new InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor(
+                                            new int[] {1},
+                                            RescaleMappings.identity(1, 1),
+                                            new HashSet<>(),
+                                            InflightDataRescalingDescriptor
+                                                    .InflightDataGateOrPartitionRescalingDescriptor
+                                                    .MappingType.IDENTITY)
+                                }),
+                        true,
+                        stubFilteringHandler,
+                        MemoryManager.DEFAULT_PAGE_SIZE,
+                        new String[] {tmpDir.toAbsolutePath().toString()});
     }
 
     private AbstractInputChannelRecoveredStateHandler buildSpillingNoFilteringHandler(
             String[] spillTmpDirectories) {
-        // FLINK-38544 transitional: constructed directly because the factory still routes the
-        // flag-on no-filtering case to the in-memory NoSpillingHandler; goes back through
-        // AbstractInputChannelRecoveredStateHandler.create(...) when the spilling backend lands.
-        return new SpillingNoFilteringHandler(
+        return AbstractInputChannelRecoveredStateHandler.create(
                 new InputGate[] {inputGate},
                 new InflightDataRescalingDescriptor(
                         new InflightDataRescalingDescriptor
@@ -171,6 +167,9 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
                         }),
+                true,
+                null,
+                MemoryManager.DEFAULT_PAGE_SIZE,
                 spillTmpDirectories);
     }
 
