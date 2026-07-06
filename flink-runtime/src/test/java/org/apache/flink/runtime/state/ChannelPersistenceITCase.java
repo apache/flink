@@ -53,10 +53,12 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +80,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChannelPersistenceITCase. */
 class ChannelPersistenceITCase {
+    @TempDir static Path tmpDir;
+
     private static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
@@ -120,7 +124,10 @@ class ChannelPersistenceITCase {
         try {
             int numChannels = 1;
             InputGate gate = buildGate(networkBufferPool, numChannels);
-            reader.readInputData(new InputGate[] {gate}, RecordFilterContext.disabled());
+            reader.readInputData(
+                    new InputGate[] {gate},
+                    RecordFilterContext.disabled(
+                            new String[] {tmpDir.toAbsolutePath().toString()}));
             assertThat(collectBytes(gate::pollNext, BufferOrEvent::getBuffer))
                     .isEqualTo(inputChannelInfoData);
 
