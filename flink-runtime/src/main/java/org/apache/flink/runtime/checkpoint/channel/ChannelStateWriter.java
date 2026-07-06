@@ -25,6 +25,9 @@ import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.util.CloseableIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
@@ -190,10 +193,15 @@ public interface ChannelStateWriter extends Closeable {
     ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId)
             throws IllegalArgumentException;
 
+    /** Records input-channel state from a spill file and takes ownership of {@code reader}. */
+    void addInputDataFromSpill(long checkpointId, FetchedChannelStateReader reader);
+
     ChannelStateWriter NO_OP = new NoOpChannelStateWriter();
 
     /** No-op implementation of {@link ChannelStateWriter}. */
     class NoOpChannelStateWriter implements ChannelStateWriter {
+        private static final Logger LOG = LoggerFactory.getLogger(NoOpChannelStateWriter.class);
+
         @Override
         public void start(long checkpointId, CheckpointOptions checkpointOptions) {}
 
@@ -229,6 +237,18 @@ public interface ChannelStateWriter extends Closeable {
             return new ChannelStateWriteResult(
                     CompletableFuture.completedFuture(Collections.emptyList()),
                     CompletableFuture.completedFuture(Collections.emptyList()));
+        }
+
+        @Override
+        public void addInputDataFromSpill(long checkpointId, FetchedChannelStateReader reader) {
+            try {
+                reader.close();
+            } catch (Exception e) {
+                LOG.info(
+                        "Failed to close the fetched channel state reader of checkpoint {}",
+                        checkpointId,
+                        e);
+            }
         }
 
         @Override
