@@ -33,7 +33,6 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,45 +71,38 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         ? ChannelStateFilteringHandler.createFromContext(filterContext, inputGates)
                         : null;
 
-        try (ChannelStateFilteringHandler ignored = filteringHandler;
-                AbstractInputChannelRecoveredStateHandler stateHandler =
-                        AbstractInputChannelRecoveredStateHandler.create(
-                                inputGates,
-                                taskStateSnapshot.getInputRescalingDescriptor(),
-                                filterContext.isCheckpointingDuringRecoveryEnabled(),
-                                filteringHandler,
-                                filterContext.getMemorySegmentSize(),
-                                filterContext.getTmpDirectories())) {
-            boolean readAny =
-                    read(
-                            stateHandler,
-                            groupByDelegate(
-                                    streamSubtaskStates(),
-                                    ChannelStateHelper::extractUnmergedInputHandles));
-            readAny |=
-                    read(
-                            stateHandler,
-                            groupByDelegate(
-                                    streamSubtaskStates(),
-                                    OperatorSubtaskState::getUpstreamOutputBufferState));
+        // Manual close ordering so the produced spill file can be published after
+        // stateHandler.close() flushes the filter writer.
+        AbstractInputChannelRecoveredStateHandler stateHandler =
+                AbstractInputChannelRecoveredStateHandler.create(
+                        inputGates,
+                        taskStateSnapshot.getInputRescalingDescriptor(),
+                        filterContext.isCheckpointingDuringRecoveryEnabled(),
+                        filteringHandler,
+                        filterContext.getMemorySegmentSize(),
+                        filterContext.getTmpDirectories());
+        try (ChannelStateFilteringHandler ignored = filteringHandler) {
+            try (stateHandler) {
+                read(
+                        stateHandler,
+                        groupByDelegate(
+                                streamSubtaskStates(),
+                                ChannelStateHelper::extractUnmergedInputHandles));
+                read(
+                        stateHandler,
+                        groupByDelegate(
+                                streamSubtaskStates(),
+                                OperatorSubtaskState::getUpstreamOutputBufferState));
 
-            if (filteringHandler != null) {
-                checkState(
-                        !filteringHandler.hasPartialData(),
-                        "Not all data has been fully consumed during filtering");
+                if (filteringHandler != null) {
+                    checkState(
+                            !filteringHandler.hasPartialData(),
+                            "Not all data has been fully consumed during filtering");
+                }
             }
-            // The container signals "any recovered data was pushed", not "a filter ran": the
-            // no-checkpointing path pushes recovered buffers directly and must produce nothing
-            // here, matching the caller's checkState(readInputData(...).isEmpty()).
-            //
-            // FLINK-38544 transitional in-memory backend: recovered buffers already live in the
-            // physical channels' queues, so the returned container is an empty placeholder.
-            // TODO: FLINK-38544 — return stateHandler.getProducedChannelState() once the handler
-            // factory selects the Spilling* handlers; as-is their file-backed state would be
-            // silently dropped here.
-            return filterContext.isCheckpointingDuringRecoveryEnabled() && readAny
-                    ? Optional.of(new FetchedChannelState(Collections.emptyList()))
-                    : Optional.empty();
+            // stateHandler.close() (above) has flushed the filter writer and published the
+            // produced spill file, so read getProducedChannelState() after the close completes.
+            return Optional.ofNullable(stateHandler.getProducedChannelState());
         }
     }
 
@@ -130,19 +122,15 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
         }
     }
 
-    /** Returns {@code true} if any channel state handle was read. */
-    private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> boolean read(
+    private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> void read(
             RecoveredChannelStateHandler<Info, Context> stateHandler,
             Map<StreamStateHandle, List<Handle>> streamStateHandleListMap)
             throws IOException, InterruptedException {
-        boolean readAny = false;
         for (Map.Entry<StreamStateHandle, List<Handle>> delegateAndHandles :
                 streamStateHandleListMap.entrySet()) {
             readSequentially(
                     delegateAndHandles.getKey(), delegateAndHandles.getValue(), stateHandler);
-            readAny = true;
         }
-        return readAny;
     }
 
     private <Info, Context, Handle extends AbstractChannelStateHandle<Info>> void readSequentially(
