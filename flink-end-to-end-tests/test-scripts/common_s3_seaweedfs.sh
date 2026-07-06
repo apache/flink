@@ -47,7 +47,7 @@ function s3_start {
   export SEAWEEDFS_CONTAINER_ID=$(docker run -d \
     -P \
     -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
-    chrislusf/seaweedfs:4.34 \
+    chrislusf/seaweedfs:4.38 \
     mini \
     -s3.port=8333 \
     -dir=/data \
