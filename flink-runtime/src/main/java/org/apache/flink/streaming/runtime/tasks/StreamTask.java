@@ -1042,7 +1042,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private void readInputChannelState(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
-            reader.readInputData(inputGates, createRecordFilterContext());
+            checkState(reader.readInputData(inputGates, createRecordFilterContext()).isEmpty());
 
             for (IndexedInputGate gate : inputGates) {
                 gate.finishReadRecoveredState(); // this is called from IO thread - is that fine?
