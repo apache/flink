@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
@@ -55,14 +56,19 @@ final class ChannelState {
 
     private final RecoveryCheckpointTrigger recoveryCheckpointTrigger;
 
+    private final ChannelStateWriter channelStateWriter;
+
     public ChannelState(CheckpointableInput[] inputs) {
-        this(inputs, RecoveryCheckpointTrigger.NO_OP);
+        this(inputs, RecoveryCheckpointTrigger.NO_OP, ChannelStateWriter.NO_OP);
     }
 
     public ChannelState(
-            CheckpointableInput[] inputs, RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
+            CheckpointableInput[] inputs,
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter) {
         this.inputs = inputs;
         this.recoveryCheckpointTrigger = checkNotNull(recoveryCheckpointTrigger);
+        this.channelStateWriter = checkNotNull(channelStateWriter);
     }
 
     public void blockChannel(InputChannelInfo channelInfo) {
@@ -114,10 +120,7 @@ final class ChannelState {
     }
 
     /**
-     * Dispatches checkpoint start: snapshots undrained recovered state and inserts
-     * recovery-checkpoint barriers into in-recovery channels through the trigger, then notifies
-     * every input. (FLINK-38544 transitional: the spilling backend adds a third step handing the
-     * trigger's snapshot reader to the channel-state writer; until then it is closed unused.)
+     * Transfers spill-snapshot ownership to the writer after all inputs observe checkpoint start.
      */
     public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
             throws CheckpointException, IOException {
@@ -130,9 +133,7 @@ final class ChannelState {
                 input.checkpointStarted(barrier);
             }
 
-            // FLINK-38544 transitional: the spilling backend hands the reader to the
-            // channel-state writer here; until then the (inherently empty) reader is closed.
-            snap.close();
+            channelStateWriter.addInputDataFromSpill(cpId, snap);
         } catch (Throwable t) {
             if (snap != null) {
                 try {
