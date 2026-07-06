@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.4",
+  "flinkVersion" : "2.3",
   "nodes" : [ {
     "id" : 1,
     "type" : "batch-exec-table-source-scan_1",
