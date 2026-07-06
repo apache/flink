@@ -30,13 +30,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * RecoveryCheckpointBarrier} into every channel that is still in recovery, so that {@code
  * checkpointStarted}'s in-recovery branch can persist exactly the pre-barrier recovered data.
  *
- * <p>There is deliberately no snapshot side: the in-memory backend pushes all recovered buffers
+ * <p>The snapshot side is inherently empty: the in-memory backend pushes all recovered buffers
  * into the physical channels in one shot at conversion time, so once this trigger is installed
  * there is never an undrained residue outside the channels' own queues — everything a checkpoint
- * must persist is already inside the channels, and the snapshot is inherently empty. The disk-based
- * drainer of the spilling backend replaces this class: draining incrementally, it does have an
- * undrained residue to snapshot, which is why the trigger interface is then widened to return a
- * reader over that slice.
+ * must persist is already inside the channels, hence {@link
+ * FetchedChannelStateReader#emptyReader()} is returned. The disk-based drainer of the spilling
+ * backend replaces this class: draining incrementally, it does have an undrained residue to
+ * snapshot and returns a reader over that slice.
  *
  * <p>FLINK-38544 transitional: removed when the spilling backend lands.
  */
@@ -50,9 +50,11 @@ public final class InMemoryRecoveryCheckpointTrigger implements RecoveryCheckpoi
     }
 
     @Override
-    public void snapshotAndInsertBarriers(long checkpointId) throws IOException {
+    public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
+            throws IOException {
         for (RecoverableInputChannel channel : channels) {
             channel.insertRecoveryCheckpointBarrierIfInRecovery(checkpointId);
         }
+        return FetchedChannelStateReader.emptyReader();
     }
 }

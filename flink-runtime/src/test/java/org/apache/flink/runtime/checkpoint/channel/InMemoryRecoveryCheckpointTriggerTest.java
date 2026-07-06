@@ -46,12 +46,11 @@ class InMemoryRecoveryCheckpointTriggerTest {
     private static final long CHECKPOINT_ID = 42L;
 
     @Test
-    void testNoOpDoesNothing() {
-        assertThatCode(
-                        () ->
-                                RecoveryCheckpointTrigger.NO_OP.snapshotAndInsertBarriers(
-                                        CHECKPOINT_ID))
-                .doesNotThrowAnyException();
+    void testNoOpReturnsEmptyReader() throws Exception {
+        try (FetchedChannelStateReader reader =
+                RecoveryCheckpointTrigger.NO_OP.snapshotAndInsertBarriers(CHECKPOINT_ID)) {
+            assertThat(reader.nextSegment()).isEmpty();
+        }
     }
 
     @Test
@@ -74,8 +73,13 @@ class InMemoryRecoveryCheckpointTriggerTest {
         RecordingChannel channel1 = new RecordingChannel();
         RecordingChannel channel2 = new RecordingChannel();
 
-        new InMemoryRecoveryCheckpointTrigger(Arrays.asList(channel1, channel2))
-                .snapshotAndInsertBarriers(CHECKPOINT_ID);
+        try (FetchedChannelStateReader reader =
+                new InMemoryRecoveryCheckpointTrigger(Arrays.asList(channel1, channel2))
+                        .snapshotAndInsertBarriers(CHECKPOINT_ID)) {
+            // The in-memory backend's snapshot is inherently empty: all recovered buffers were
+            // pushed into the channels in one shot, so there is no undrained residue.
+            assertThat(reader.nextSegment()).isEmpty();
+        }
 
         assertThat(channel1.insertedBarriers).containsExactly(CHECKPOINT_ID);
         assertThat(channel2.insertedBarriers).containsExactly(CHECKPOINT_ID);
@@ -86,7 +90,8 @@ class InMemoryRecoveryCheckpointTriggerTest {
         assertThatCode(
                         () ->
                                 new InMemoryRecoveryCheckpointTrigger(Collections.emptyList())
-                                        .snapshotAndInsertBarriers(CHECKPOINT_ID))
+                                        .snapshotAndInsertBarriers(CHECKPOINT_ID)
+                                        .close())
                 .doesNotThrowAnyException();
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -113,20 +114,33 @@ final class ChannelState {
     }
 
     /**
-     * Dispatches checkpoint start: inserts recovery-checkpoint barriers into in-recovery channels
-     * through the trigger, then notifies every input. (FLINK-38544 transitional: the spilling
-     * backend adds a third step handing the trigger's snapshot reader to the channel-state writer.)
+     * Dispatches checkpoint start: snapshots undrained recovered state and inserts
+     * recovery-checkpoint barriers into in-recovery channels through the trigger, then notifies
+     * every input. (FLINK-38544 transitional: the spilling backend adds a third step handing the
+     * trigger's snapshot reader to the channel-state writer; until then it is closed unused.)
      */
     public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
             throws CheckpointException, IOException {
         long cpId = barrier.getId();
+        FetchedChannelStateReader snap = null;
         try {
-            recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
+            snap = recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
 
             for (CheckpointableInput input : inputs) {
                 input.checkpointStarted(barrier);
             }
+
+            // FLINK-38544 transitional: the spilling backend hands the reader to the
+            // channel-state writer here; until then the (inherently empty) reader is closed.
+            snap.close();
         } catch (Throwable t) {
+            if (snap != null) {
+                try {
+                    snap.close();
+                } catch (Exception suppressed) {
+                    t.addSuppressed(suppressed);
+                }
+            }
             if (t instanceof CheckpointException) {
                 throw (CheckpointException) t;
             }
