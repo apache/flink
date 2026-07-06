@@ -29,7 +29,7 @@ declare module 'd3-flame-graph' {
   };
 
   export interface FlamegraphNode {
-    data: { name: string; value: string };
+    data: { name: string; value: number };
     x0: number;
     x1: number;
   }
