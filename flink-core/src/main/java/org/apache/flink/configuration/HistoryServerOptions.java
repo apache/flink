@@ -257,6 +257,33 @@ public class HistoryServerOptions {
                                             .text("The type of archive storage.")
                                             .build());
 
+    /**
+     * The mode that HistoryServer loads archives.
+     *
+     * <ul>
+     *   <li>EAGER: Loads all archives by scheduled executor.
+     *   <li>LAZY: Loads archives asynchronously only when requested.
+     * </ul>
+     */
+    public static final ConfigOption<HistoryServerArchiveLoadMode>
+            HISTORY_SERVER_ARCHIVE_LOAD_MODE =
+                    key("historyserver.archive.load.mode")
+                            .enumType(HistoryServerArchiveLoadMode.class)
+                            .defaultValue(HistoryServerArchiveLoadMode.EAGER)
+                            .withDescription(
+                                    Description.builder()
+                                            .text("The mode that HistoryServer loads archives.")
+                                            .build());
+
+    public static final ConfigOption<Integer> HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE =
+            key("historyserver.lazy.fetch.executor.common.pool-size")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            Description.builder()
+                                    .text("The size of the common pool for archive fetching.")
+                                    .build());
+
     /** The type of archive storage. */
     public enum HistoryServerArchiveStorageType {
         /** Local file system. */
@@ -264,6 +291,19 @@ public class HistoryServerOptions {
 
         /** RocksDB. */
         ROCKSDB
+    }
+
+    /** The mode that HistoryServer loads archives. */
+    public enum HistoryServerArchiveLoadMode {
+
+        /**
+         * Eager mode (default). Archive files will be downloaded and persisted with the default
+         * retention behavior.
+         */
+        EAGER,
+
+        /** Lazy mode. Archive files will be downloaded and persisted if necessary. */
+        LAZY
     }
 
     private HistoryServerOptions() {}
