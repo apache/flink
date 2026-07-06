@@ -21,28 +21,32 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies the {@link ChannelState#onCheckpointStartedForAllInputs} dispatcher: call ordering and
  * feature-off no-op routing through the {@link RecoveryCheckpointTrigger#NO_OP} singleton.
- *
- * <p>FLINK-38544 transitional: this covers the 2-step dispatch (trigger, then per-input
- * notification); the spilling backend adds a third step handing the trigger's snapshot reader to
- * the channel-state writer and completes this test to cover all three steps.
  */
 class ChannelStateTest {
 
@@ -51,11 +55,15 @@ class ChannelStateTest {
     @Test
     void testStepOrderingFeatureOn() throws Exception {
         List<String> trace = new ArrayList<>();
-        RecordingTrigger trigger = new RecordingTrigger(trace);
+        // An empty reader is sufficient to verify ordering.
+        FetchedChannelStateReader snap = FetchedChannelStateReader.emptyReader();
+        RecordingTrigger trigger = new RecordingTrigger(trace, snap);
+        RecordingWriter writer = new RecordingWriter(trace);
         CheckpointableInput input1 = new RecordingInput(trace, "in1");
         CheckpointableInput input2 = new RecordingInput(trace, "in2");
 
-        ChannelState state = new ChannelState(new CheckpointableInput[] {input1, input2}, trigger);
+        ChannelState state =
+                new ChannelState(new CheckpointableInput[] {input1, input2}, trigger, writer);
 
         CheckpointBarrier barrier = newUnalignedBarrier();
         state.onCheckpointStartedForAllInputs(barrier);
@@ -64,21 +72,49 @@ class ChannelStateTest {
                 .containsExactly(
                         "trigger.snapshotAndInsertBarriers:" + CHECKPOINT_ID,
                         "in1.checkpointStarted:" + CHECKPOINT_ID,
-                        "in2.checkpointStarted:" + CHECKPOINT_ID);
+                        "in2.checkpointStarted:" + CHECKPOINT_ID,
+                        "writer.addInputDataFromSpill:" + CHECKPOINT_ID);
     }
 
     @Test
     void testStepOrderingFeatureOff() throws Exception {
         List<String> trace = new ArrayList<>();
+        RecordingWriter writer = new RecordingWriter(trace);
         CheckpointableInput input = new RecordingInput(trace, "in1");
 
         ChannelState state =
                 new ChannelState(
-                        new CheckpointableInput[] {input}, RecoveryCheckpointTrigger.NO_OP);
+                        new CheckpointableInput[] {input}, RecoveryCheckpointTrigger.NO_OP, writer);
 
         state.onCheckpointStartedForAllInputs(newUnalignedBarrier());
 
-        assertThat(trace).containsExactly("in1.checkpointStarted:" + CHECKPOINT_ID);
+        assertThat(trace)
+                .containsExactly(
+                        "in1.checkpointStarted:" + CHECKPOINT_ID,
+                        "writer.addInputDataFromSpill:" + CHECKPOINT_ID);
+        assertThat(writer.lastSnapshotWasEmpty.get()).isTrue();
+    }
+
+    @Test
+    void testEmptySnapshotStillSubmitted() throws Exception {
+        // Empty readers (no spill files) are no longer short-circuited; they still reach
+        // addInputDataFromSpill on the writer thread.
+        List<String> trace = new ArrayList<>();
+        FetchedChannelStateReader emptySnap = FetchedChannelStateReader.emptyReader();
+        RecordingTrigger trigger = new RecordingTrigger(trace, emptySnap);
+        RecordingWriter writer = new RecordingWriter(trace);
+
+        ChannelState state =
+                new ChannelState(
+                        new CheckpointableInput[] {new RecordingInput(trace, "in1")},
+                        trigger,
+                        writer);
+
+        state.onCheckpointStartedForAllInputs(newUnalignedBarrier());
+
+        // Empty reader must still reach the writer (no inline short-circuit).
+        assertThat(writer.addInputDataFromSpillCalls.get()).isEqualTo(1);
+        assertThat(writer.lastSnapshotWasEmpty.get()).isTrue();
     }
 
     private static CheckpointBarrier newUnalignedBarrier() {
@@ -92,16 +128,81 @@ class ChannelStateTest {
 
     private static final class RecordingTrigger implements RecoveryCheckpointTrigger {
         private final List<String> trace;
+        private final FetchedChannelStateReader snapshot;
 
-        RecordingTrigger(List<String> trace) {
+        RecordingTrigger(List<String> trace, FetchedChannelStateReader snapshot) {
             this.trace = trace;
+            this.snapshot = snapshot;
         }
 
         @Override
         public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId) {
             trace.add("trigger.snapshotAndInsertBarriers:" + checkpointId);
-            return FetchedChannelStateReader.emptyReader();
+            return snapshot;
         }
+    }
+
+    private static final class RecordingWriter implements ChannelStateWriter {
+        private final List<String> trace;
+        final AtomicBoolean lastSnapshotWasEmpty = new AtomicBoolean(false);
+        final AtomicLong lastCpId = new AtomicLong(-1L);
+        final AtomicInteger addInputDataFromSpillCalls = new AtomicInteger(0);
+
+        RecordingWriter(List<String> trace) {
+            this.trace = trace;
+        }
+
+        @Override
+        public void start(long checkpointId, CheckpointOptions checkpointOptions) {}
+
+        @Override
+        public void addInputData(
+                long checkpointId,
+                InputChannelInfo info,
+                int startSeqNum,
+                CloseableIterator<Buffer> data) {}
+
+        @Override
+        public void addOutputData(
+                long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {}
+
+        @Override
+        public void addOutputDataFuture(
+                long checkpointId,
+                ResultSubpartitionInfo info,
+                int startSeqNum,
+                CompletableFuture<List<Buffer>> data) {}
+
+        @Override
+        public void finishInput(long checkpointId) {}
+
+        @Override
+        public void finishOutput(long checkpointId) {}
+
+        @Override
+        public void abort(long checkpointId, Throwable cause, boolean cleanup) {}
+
+        @Override
+        public ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) {
+            return ChannelStateWriteResult.EMPTY;
+        }
+
+        @Override
+        public void addInputDataFromSpill(long checkpointId, FetchedChannelStateReader reader) {
+            trace.add("writer.addInputDataFromSpill:" + checkpointId);
+            lastCpId.set(checkpointId);
+            addInputDataFromSpillCalls.incrementAndGet();
+            try {
+                // Peek whether the reader has any segments by attempting the first advance.
+                // The first nextSegment() call is exempt from the "previous body consumed" rule.
+                lastSnapshotWasEmpty.set(reader.nextSegment().isEmpty());
+                reader.close();
+            } catch (Exception ignored) {
+            }
+        }
+
+        @Override
+        public void close() {}
     }
 
     private static final class RecordingInput implements CheckpointableInput {
