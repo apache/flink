@@ -84,6 +84,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         final List<TestSetSpec> testCases = new ArrayList<>();
         testCases.add(jsonExistsSpec());
         testCases.add(jsonValueSpec());
+        testCases.add(jsonLengthSpec());
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonStringSpec());
@@ -96,6 +97,58 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(jsonLocalRefReuseSpec());
         return testCases.stream();
     }
+
+    private static TestSetSpec jsonLengthSpec() {
+        final String jsonValue = getJsonFromResource("/json/json-exists.json");
+
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_LENGTH)
+                .onFieldsWithData(
+                        jsonValue,              // f0: existing resource JSON
+                        "{\"a\":1,\"b\":2}",    // f1: object
+                        "[1,2,3]",              // f2: array
+                        "\"abc\"",              // f3: scalar string
+                        "null",                 // f4: JSON null
+                        "{",                    // f5: invalid JSON
+                        (String) null)          // f6: SQL NULL
+                .andDataTypes(
+                        STRING(),
+                        STRING(),
+                        STRING(),
+                        STRING(),
+                        STRING(),
+                        STRING(),
+                        STRING())
+
+                // SQL NULL input
+                .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
+
+                // whole-document length from the existing resource:
+                // top-level keys are type, author, metadata
+                .testSqlResult("JSON_LENGTH(f0)", 3, INT().nullable())
+
+                // basic shapes
+                .testSqlResult("JSON_LENGTH(f1)", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f2)", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f3)", 1, INT().nullable())
+
+                // keep this line aligned with your intended semantics
+                // current implementation returns NULL for JSON literal null
+                .testSqlResult("JSON_LENGTH(f4)", null, INT().nullable())
+                // if you later treat JSON null as a scalar, change expected result to 1
+
+                // invalid JSON -> NULL
+                .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0]')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable());
+    }
+
 
     private static TestSetSpec jsonExistsSpec() {
         final String jsonValue = getJsonFromResource("/json/json-exists.json");

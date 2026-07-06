@@ -374,6 +374,27 @@ public class SqlJsonUtils {
         }
     }
 
+    public static Integer jsonLength(String input, String pathSpec) {
+        return jsonLength(jsonApiCommonSyntax(input, pathSpec));
+    }
+
+    private static Integer jsonLength(JsonPathContext context) {
+        if (context.hasException()) {
+            return null;
+        }
+        final Object value = context.obj;
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map) {
+            return ((Map<?, ?>) value).size();
+        }
+        if (value instanceof Collection) {
+            return ((Collection<?>) value).size();
+        }
+        return 1;
+    }
+
     public static Object json(String input) {
         try {
             String trimmed = input.trim();

@@ -140,6 +140,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
@@ -2522,6 +2523,27 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
         return jsonQuery(
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+    /**
+     * Returns the number of elements contained in a JSON value, optionally at a given path.
+     *
+     * <p>Counting works differently depending on the JSON type: objects report how many
+     * key-value pairs they contain, arrays report how many entries they hold, and any scalar
+     * value (such as a number, string, or boolean) is treated as a single element and reports 1.
+     * Only the top level is measured — elements that are themselves arrays or objects contribute
+     * 1 to the count regardless of what they contain.
+     *
+     * <p>When a path is provided, the count applies to the value found at that path rather than
+     * the document as a whole. Returns NULL if any argument is NULL{@code} or the path does not
+     * match a value.
+     */
+
+    public OutType jsonLength() {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
+    }
+
+    public OutType jsonLength(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr(), valueLiteral(path)));
     }
 
     /**

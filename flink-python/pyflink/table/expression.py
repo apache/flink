@@ -2257,6 +2257,23 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonUnquote")(self)
 
+    def json_length(self, path = None) -> 'Expression':
+        """
+            Return the length of a JSON value, or of the value at `path` if given.
+
+            - Scalars have length 1.
+            - Arrays have length equal to their number of elements.
+            - Objects have length equal to their number of keys.
+            - Nested arrays/objects are not counted recursively.
+            - Returns None if the value is None.
+        """
+
+
+        return _unary_op("jsonLength")(self) if path is None else _binary_op("jsonLength")(self, path)
+
+
+
+
     # ---------------------------- value modification functions -----------------------------
 
     def object_update(self, *kv) -> "Expression":

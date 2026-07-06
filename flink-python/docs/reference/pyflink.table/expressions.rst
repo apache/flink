@@ -319,13 +319,13 @@ JSON functions
 
 .. autosummary::
     :toctree: api/
-
     Expression.is_json
     Expression.json_exists
     Expression.json_value
     Expression.json_query
     Expression.json_quote
     Expression.json_unquote
+    Expression.json_length
 
 value modification functions
 ----------------------------
