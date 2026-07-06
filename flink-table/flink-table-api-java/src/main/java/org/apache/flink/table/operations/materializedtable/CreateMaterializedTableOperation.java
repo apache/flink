@@ -41,15 +41,15 @@ public class CreateMaterializedTableOperation
 
     private final ObjectIdentifier tableIdentifier;
     private final ResolvedCatalogMaterializedTable materializedTable;
-    private final QueryOperation sinkModifyingQuery;
+    private final QueryOperation asQueryOperation;
 
     public CreateMaterializedTableOperation(
             ObjectIdentifier tableIdentifier,
             ResolvedCatalogMaterializedTable materializedTable,
-            QueryOperation sinkModifyQuery) {
+            QueryOperation asQueryOperation) {
         this.tableIdentifier = tableIdentifier;
         this.materializedTable = materializedTable;
-        this.sinkModifyingQuery = sinkModifyQuery;
+        this.asQueryOperation = asQueryOperation;
     }
 
     @Override
@@ -67,8 +67,8 @@ public class CreateMaterializedTableOperation
         return materializedTable;
     }
 
-    public QueryOperation getSinkModifyingQuery() {
-        return sinkModifyingQuery;
+    public QueryOperation getAsQueryOperation() {
+        return asQueryOperation;
     }
 
     @Override
@@ -83,7 +83,7 @@ public class CreateMaterializedTableOperation
 
     @Override
     public QueryOperation getChild() {
-        return this.sinkModifyingQuery;
+        return this.asQueryOperation;
     }
 
     @Override

@@ -298,7 +298,7 @@ abstract class PlannerBase(
         )
 
       case alterMtOperation: AlterMaterializedTableChangeOperation
-          if alterMtOperation.getSinkModifyQuery != null =>
+          if alterMtOperation.getAsQueryOperation != null =>
         val newTable =
           catalogManager.resolveCatalogMaterializedTable(alterMtOperation.getNewTable)
         // The alter reuses the existing storage, so keep the old table's resolved connector
