@@ -143,9 +143,7 @@ abstract class AbstractInputChannelRecoveredStateHandler
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
-        // FLINK-38544 transitional: 'false' bypasses the unbounded heap fallback; the parameter
-        // goes away together with the fallback, which disk spilling supersedes.
-        Buffer buffer = channel.requestBufferBlocking(false);
+        Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
 

@@ -166,7 +166,7 @@ class RecoveredInputChannelTest {
         RecoveredInputChannel channel = buildPooledChannel(pool, totalSegments);
 
         for (int i = 0; i < totalSegments; i++) {
-            channel.requestBufferBlocking(false);
+            channel.requestBufferBlocking();
         }
 
         CountDownLatch entered = new CountDownLatch(1);
@@ -176,7 +176,7 @@ class RecoveredInputChannelTest {
                         () -> {
                             try {
                                 entered.countDown();
-                                result.set(channel.requestBufferBlocking(false));
+                                result.set(channel.requestBufferBlocking());
                             } catch (Exception ignored) {
                                 // Thread will be interrupted at teardown.
                             }
@@ -198,10 +198,8 @@ class RecoveredInputChannelTest {
         int totalSegments = 4;
         pool = new NetworkBufferPool(totalSegments, MemoryManager.DEFAULT_PAGE_SIZE);
 
-        Buffer filterOnBuf =
-                buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking(true);
-        Buffer filterOffBuf =
-                buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking(false);
+        Buffer filterOnBuf = buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking();
+        Buffer filterOffBuf = buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking();
 
         // Both must come from the pool — the BufferManager-owned recycler, not the
         // FreeingBufferRecycler the heap-fallback used.
