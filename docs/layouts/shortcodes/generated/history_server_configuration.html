@@ -33,6 +33,12 @@
             <td>Interval for refreshing the archived job directories.</td>
         </tr>
         <tr>
+            <td><h5>historyserver.archive.load.mode</h5></td>
+            <td style="word-wrap: break-word;">EAGER</td>
+            <td><p>Enum</p></td>
+            <td>The mode that HistoryServer loads archives.<br /><br />Possible values:<ul><li>"EAGER"</li><li>"LAZY"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.retained-applications</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
@@ -55,6 +61,12 @@
             <td style="word-wrap: break-word;">FILE</td>
             <td><p>Enum</p></td>
             <td>The type of archive storage.<br /><br />Possible values:<ul><li>"FILE"</li><li>"ROCKSDB"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.lazy.fetch.executor.common.pool-size</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>Integer</td>
+            <td>The size of the common pool for archive fetching.</td>
         </tr>
         <tr>
             <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
