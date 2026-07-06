@@ -21,11 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Arrays;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecWatermarkAssigner}. */
-public class WatermarkAssignerRestoreTest extends RestoreTestBase {
+class WatermarkAssignerRestoreTest extends RestoreTestBase {
 
     public WatermarkAssignerRestoreTest() {
         super(StreamExecWatermarkAssigner.class);
@@ -33,7 +32,7 @@ public class WatermarkAssignerRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(
+        return List.of(
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_BASIC_FILTER,
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_METADATA,
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_COMPUTED);

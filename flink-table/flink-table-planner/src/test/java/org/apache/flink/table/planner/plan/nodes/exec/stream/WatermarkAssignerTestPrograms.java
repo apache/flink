@@ -24,6 +24,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 
+import java.nio.charset.StandardCharsets;
+
 /** {@link TableTestProgram} definitions for testing {@link StreamExecWindowRank}. */
 public class WatermarkAssignerTestPrograms {
 
@@ -177,5 +179,35 @@ public class WatermarkAssignerTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT i, s, ts, CURRENT_WATERMARK(ts) as w FROM source_t")
+                    .build();
+
+    static final TableTestProgram WATERMARK_ASSIGNER_PUSHDOWN_DECODE =
+            TableTestProgram.of(
+                            "watermark-assigner-pushdown-decode",
+                            "validates watermark assigner with a DECODE computed column (FLINK-40082)")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(
+                                            "a INT",
+                                            "b BYTES",
+                                            "ts AS TO_TIMESTAMP(DECODE(b, 'UTF-8'))",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    1,
+                                                    "2020-04-15 08:00:00"
+                                                            .getBytes(StandardCharsets.UTF_8)),
+                                            Row.of(
+                                                    2,
+                                                    "2020-04-15 08:00:01"
+                                                            .getBytes(StandardCharsets.UTF_8)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "ts TIMESTAMP(3)")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15T08:00]", "+I[2, 2020-04-15T08:00:01]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a, ts FROM source_t")
                     .build();
 }
