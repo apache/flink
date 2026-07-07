@@ -284,6 +284,30 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testOnTimeArgRejectedForDisabledPtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM f(r => TABLE t_watermarked, i => 1, "
+                                                + "on_time => DESCRIPTOR(ts));"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported for function 'f' "
+                                        + "because it disables system arguments."));
+    }
+
+    @Test
+    void testUidArgRejectedForDisabledPtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsScalarFunction.class);
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1, uid => 'my-uid');"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'uid' argument is not supported for function 'f' "
+                                        + "because it disables system arguments."));
+    }
+
+    @Test
     void testUidPipelineSplitIntoTwoFunctions() {
         util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyExecPlan(

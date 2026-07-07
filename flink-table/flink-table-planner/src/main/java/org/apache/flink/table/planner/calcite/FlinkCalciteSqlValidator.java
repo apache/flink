@@ -30,9 +30,12 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -383,6 +386,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
 
         final SqlBasicCall call = (SqlBasicCall) node;
         checkNoNamedAndPositionalMixedArgs(call);
+        checkDisabledSystemArgs(call);
 
         // Special case for MODEL
         if (node instanceof SqlExplicitModelCall) {
@@ -453,6 +457,39 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                             + call.getOperator().getName()
                             + "'. Use either all positional arguments or all named arguments "
                             + "(e.g. arg => value).");
+        }
+    }
+
+    /**
+     * Rejects the implicit PTF system arguments (on_time, uid) for functions that disable them.
+     *
+     * <p>When a PTF sets {@code disableSystemArguments(true)}, the system arguments are not part of
+     * its signature. Enforcing this here covers all translation paths uniformly.
+     */
+    private static void checkDisabledSystemArgs(SqlBasicCall call) {
+        if (!ShortcutUtils.isFunctionKind(call.getOperator(), FunctionKind.PROCESS_TABLE)) {
+            return;
+        }
+        if (!(call.getOperator() instanceof BridgingSqlFunction)) {
+            return;
+        }
+        final BridgingSqlFunction function = (BridgingSqlFunction) call.getOperator();
+        if (!function.getTypeInference().disableSystemArguments()) {
+            return;
+        }
+        final List<String> sysArgNames =
+                SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.stream()
+                        .map(StaticArgument::getName)
+                        .toList();
+
+        for (String argName : sysArgNames) {
+            if (extractOperandByArgName(call, argName) != null) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid function call. The '%s' argument is not supported for "
+                                        + "function '%s' because it disables system arguments.",
+                                argName, function.getName()));
+            }
         }
     }
 
