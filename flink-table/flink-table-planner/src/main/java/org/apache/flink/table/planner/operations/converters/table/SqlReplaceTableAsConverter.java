@@ -69,11 +69,7 @@ public class SqlReplaceTableAsConverter extends AbstractCreateTableConverter<Sql
         query =
                 new MergeTableAsUtil(context)
                         .maybeRewriteQuery(
-                                context.getCatalogManager(),
-                                flinkPlanner,
-                                query,
-                                sqlReplaceTableAs.getAsQuery(),
-                                tableWithResolvedSchema);
+                                query, sqlReplaceTableAs.getAsQuery(), tableWithResolvedSchema);
 
         ObjectIdentifier identifier = getIdentifier(sqlReplaceTableAs, context);
         CreateTableOperation createTableOperation =

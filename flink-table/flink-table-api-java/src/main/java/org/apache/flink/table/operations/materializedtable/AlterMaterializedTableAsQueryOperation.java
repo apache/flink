@@ -42,8 +42,8 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
             ObjectIdentifier tableIdentifier,
             Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangesForTable,
             ResolvedCatalogMaterializedTable oldTable,
-            QueryOperation sinkModifyQuery) {
-        super(tableIdentifier, tableChangesForTable, oldTable, sinkModifyQuery);
+            QueryOperation asQueryOperation) {
+        super(tableIdentifier, tableChangesForTable, oldTable, asQueryOperation);
     }
 
     @Override

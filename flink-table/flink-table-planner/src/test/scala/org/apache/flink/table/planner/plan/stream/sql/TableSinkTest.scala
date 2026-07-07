@@ -889,17 +889,25 @@ class TableSinkTest extends TableTestBase {
   @Test
   def testExplainCreateTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
     val actual =
-      util.tableEnv.explainSql("""
-                                 |CREATE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
-                                 | WITH (
-                                 |   'connector' = 'values'
-                                 |) AS
-                                 |  SELECT
-                                 |    `a`,
-                                 |    `b`
-                                 |  FROM
-                                 |    MyTable
-                                 |""".stripMargin)
+      util.tableEnv.explainSql(
+        """
+          |CREATE TABLE MyCtasTable(
+          |  `votes` INT,
+          |  `votes_2x` AS `b` * 2,
+          |  `metadata_col` BIGINT METADATA,
+          |  `virtual_col` STRING METADATA VIRTUAL
+          |)
+          | WITH (
+          |   'connector' = 'values',
+          |   'readable-metadata' = 'metadata_col:BIGINT, virtual_col:STRING',
+          |   'writable-metadata' = 'metadata_col:BIGINT'
+          |) AS
+          |  SELECT
+          |    `a`,
+          |    `b`
+          |  FROM
+          |    MyTable
+          |""".stripMargin)
 
     val expected =
       TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
@@ -910,17 +918,25 @@ class TableSinkTest extends TableTestBase {
   @Test
   def testExplainReplaceTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
     val actual =
-      util.tableEnv.explainSql("""
-                                 |REPLACE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
-                                 | WITH (
-                                 |   'connector' = 'values'
-                                 |) AS
-                                 |  SELECT
-                                 |    `a`,
-                                 |    `b`
-                                 |  FROM
-                                 |    MyTable
-                                 |""".stripMargin)
+      util.tableEnv.explainSql(
+        """
+          |REPLACE TABLE MyCtasTable(
+          |  `votes` INT,
+          |  `votes_2x` AS `b` * 2,
+          |  `metadata_col` BIGINT METADATA,
+          |  `virtual_col` STRING METADATA VIRTUAL
+          |)
+          | WITH (
+          |   'connector' = 'values',
+          |   'readable-metadata' = 'metadata_col:BIGINT, virtual_col:STRING',
+          |   'writable-metadata' = 'metadata_col:BIGINT'
+          |) AS
+          |  SELECT
+          |    `a`,
+          |    `b`
+          |  FROM
+          |    MyTable
+          |""".stripMargin)
 
     // Same as CTAS
     val expected =
