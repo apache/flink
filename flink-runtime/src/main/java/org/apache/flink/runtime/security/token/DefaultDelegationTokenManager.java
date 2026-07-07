@@ -138,9 +138,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private boolean reobtainScheduled;
 
     /**
-     * Clock time (millis) of the last on-demand re-obtain request, used to enforce the cooldown;
-     * {@link #NO_PREVIOUS_REOBTAIN} until the first request. Only on-demand re-obtains update this
-     * (not the periodic renewal), so the cooldown spaces requests, not obtain executions.
+     * Clock time (millis) of the last on-demand re-obtain request, used to enforce the cooldown.
+     * Holds {@link #NO_PREVIOUS_REOBTAIN} until the first request. Only on-demand re-obtains update
+     * this (not the periodic renewal), so the cooldown spaces requests, not obtain executions.
      */
     @GuardedBy("tokensUpdateFutureLock")
     private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
@@ -427,7 +427,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     /**
      * Schedules a one-shot token-obtain-and-broadcast cycle after {@code delayMs}, replacing any
-     * pending renewal; a delay of {@code 0} brings the next cycle forward to now. Must only be
+     * pending renewal. A delay of {@code 0} brings the next cycle forward to now. Must only be
      * called after {@link #start(Listener)} (the scheduled and IO executors are non-null then) and
      * while holding {@link #tokensUpdateFutureLock}.
      */
@@ -453,10 +453,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                             delayMs,
                             TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            // Scheduled executor is shutting down: no cycle will run, so undo the bookkeeping this
-            // method set. Clearing reobtainScheduled keeps a coalesced re-obtain from getting stuck;
-            // nextScheduledAtMillis returns to the no-cycle-pending marker (stopTokensUpdate() above
-            // already nulled tokensUpdateFuture).
+            // Scheduled executor is shutting down: no cycle will run, so undo the bookkeeping
+            // this method set. Clearing reobtainScheduled keeps a coalesced re-obtain from
+            // getting stuck. nextScheduledAtMillis returns to the no-cycle-pending marker
+            // (stopTokensUpdate() above already nulled tokensUpdateFuture).
             reobtainScheduled = false;
             nextScheduledAtMillis = Long.MAX_VALUE;
             LOG.debug("Tokens update task rejected by scheduled executor", e);
@@ -595,7 +595,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             // pending and scheduled to fire sooner than the cooldown-deferred time, fire at that
             // earlier time instead of pushing it later — otherwise a short-lived token could expire
             // before it is renewed. The nextScheduledAtMillis > now guard skips an already-fired
-            // future that has not yet been re-armed, so this never bypasses the cooldown.
+            // future that has not yet been rescheduled, so this never bypasses the cooldown.
             if (tokensUpdateFuture != null
                     && nextScheduledAtMillis > now
                     && nextScheduledAtMillis - now < delayMillis) {

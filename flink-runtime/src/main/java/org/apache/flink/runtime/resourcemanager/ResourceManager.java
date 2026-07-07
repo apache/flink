@@ -430,7 +430,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             jobMasterIdFuture,
                             (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
                                 if (Objects.equals(leadingJobMasterId, jobMasterId)) {
-                                    // Register with the delegation token manager first; a
+                                    // Register with the delegation token manager first. A
                                     // provider failure rejects this registration so the job
                                     // never starts without the tokens it requires.
                                     try {

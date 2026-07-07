@@ -66,10 +66,10 @@ public interface DelegationTokenManager {
 
     /**
      * Requests an immediate, asynchronous token-obtain-and-distribute cycle, bringing the next
-     * cycle forward instead of waiting for the periodic renewal. May be called from any thread;
-     * it is a no-op on a manager constructed without executors (the one-shot obtain path).
-     * Concurrent requests are coalesced and a configurable cooldown may apply, so a call does
-     * not necessarily map to exactly one obtain.
+     * cycle forward instead of waiting for the periodic renewal. May be called from any thread. It
+     * is a no-op on a manager constructed without executors (the one-shot obtain path). Concurrent
+     * requests are coalesced and a configurable cooldown may apply, so a call does not necessarily
+     * map to exactly one obtain.
      *
      * <p>Backs {@link
      * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.

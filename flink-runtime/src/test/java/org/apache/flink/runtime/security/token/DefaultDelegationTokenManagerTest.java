@@ -550,7 +550,8 @@ public class DefaultDelegationTokenManagerTest {
 
     @Test
     public void reobtainShouldBeIgnoredWhenNotStarted() {
-        // Constructed with null executors -> not started; a re-obtain request must be a safe no-op.
+        // Constructed with null executors, so never started. A re-obtain request must be a safe
+        // no-op.
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
 
@@ -624,7 +625,7 @@ public class DefaultDelegationTokenManagerTest {
 
     /**
      * Configuration for cooldown-scheduling tests: sets the cooldown and disables all providers
-     * that could fail the obtain cycle (hadoopfs/hbase need a real Hadoop setup; the throw
+     * that could fail the obtain cycle (hadoopfs/hbase need a real Hadoop setup, and the throw
      * provider fails on demand). A failed cycle schedules a jittered retry, and the bring-forward
      * clamp would coalesce the on-demand request into that retry instead of deferring by the
      * cooldown, making delay assertions nondeterministic.

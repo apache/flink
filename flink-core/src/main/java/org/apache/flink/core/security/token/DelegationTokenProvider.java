@@ -30,16 +30,15 @@ import java.util.Optional;
  * responsible to produce the serialized form of tokens which will be handled by {@link
  * DelegationTokenReceiver} instances both on JobManager and TaskManager side.
  *
- * <p><b>Threading contract.</b> A single instance per provider implementation is created and
- * {@link #init(Configuration, DelegationTokenManagerCallback) initialized} once and then shared
- * for the lifetime of the manager. {@link #obtainDelegationTokens()} runs on the manager's IO
- * executor, while {@link
- * #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)} are invoked from the
- * ResourceManager main thread; these can therefore run concurrently. {@link
+ * <p><b>Threading contract.</b> A single instance per provider implementation is created and {@link
+ * #init(Configuration, DelegationTokenManagerCallback) initialized} once and then shared for the
+ * lifetime of the manager. {@link #obtainDelegationTokens()} runs on the manager's IO executor,
+ * while {@link #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)} are invoked
+ * from the ResourceManager main thread. These can therefore run concurrently. {@link
  * DelegationTokenManagerCallback#reobtainDelegationTokens()} may be invoked from any thread.
  * Implementations must keep any per-job state thread-safe, and {@code registerJob}/{@code
- * unregisterJob} must be non-blocking so they do not stall the ResourceManager — defer real work
- * to {@link #obtainDelegationTokens()}.
+ * unregisterJob} must be non-blocking so they do not stall the ResourceManager — defer real work to
+ * {@link #obtainDelegationTokens()}.
  */
 @Experimental
 public interface DelegationTokenProvider {
@@ -98,7 +97,7 @@ public interface DelegationTokenProvider {
      * DelegationTokenManagerCallback#reobtainDelegationTokens()} when needed.
      *
      * @param configuration Configuration to initialize the provider.
-     * @param callback Used to ask the manager to re-obtain tokens; may be retained and called
+     * @param callback Used to ask the manager to re-obtain tokens. May be retained and called
      *     later.
      */
     default void init(Configuration configuration, DelegationTokenManagerCallback callback)
@@ -129,7 +128,7 @@ public interface DelegationTokenProvider {
      *
      * <p>A provider that requests a re-obtain must record this job's per-job state <em>before</em>
      * invoking {@link DelegationTokenManagerCallback#reobtainDelegationTokens()}. That call merely
-     * schedules (or coalesces into) an obtain cycle that runs later on another thread; recording
+     * schedules (or coalesces into) an obtain cycle that runs later on another thread. Recording
      * first establishes the happens-before that lets the serving cycle observe this job's state.
      * Recording afterwards races with the cycle and the job's tokens may be skipped until the next
      * periodic renewal.
