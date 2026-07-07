@@ -670,8 +670,13 @@ public class StreamingJobGraphGenerator {
 
     private static JobVertexID getStartNodeJobVertexId(
             OperatorChainInfo chainInfo, JobVertexBuildContext jobVertexBuildContext) {
-        return new JobVertexID(
-                checkNotNull(jobVertexBuildContext.getHash(chainInfo.getStartNodeId())));
+        final String transformationUid =
+                checkNotNull(
+                        jobVertexBuildContext
+                                .getStreamGraph()
+                                .getStreamNode(chainInfo.getStartNodeId())
+                                .getTransformationUID());
+        return new JobVertexID(StreamGraphHasherV2.generateUserSpecifiedHash(transformationUid));
     }
 
     public static List<StreamEdge> createChain(

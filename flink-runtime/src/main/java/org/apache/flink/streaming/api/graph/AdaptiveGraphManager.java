@@ -452,12 +452,7 @@ public class AdaptiveGraphManager
 
     private List<StreamEdge> getTransitiveInEdgesInOrder(
             List<StreamEdge> transitiveInEdges, JobVertexBuildContext jobVertexBuildContext) {
-        final List<StreamEdge> transitiveInEdgesInOrder =
-                transitiveInEdges.stream()
-                        .sorted(
-                                Comparator.comparing(
-                                        inEdge -> getStartNodeId(inEdge.getSourceId())))
-                        .collect(Collectors.toList());
+        final List<StreamEdge> transitiveInEdgesInOrder = new ArrayList<>(transitiveInEdges);
         final List<StreamEdge> uidTransitiveInEdges =
                 transitiveInEdgesInOrder.stream()
                         .filter(this::hasUidBackedUpstream)
@@ -525,14 +520,6 @@ public class AdaptiveGraphManager
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildAndGetChainEntryPoints(streamNodes, jobVertexBuildContext);
 
-        chainEntryPoints.values().stream()
-                .filter(
-                        chainInfo ->
-                                streamGraph
-                                                .getStreamNode(chainInfo.getStartNodeId())
-                                                .getTransformationUID()
-                                        != null)
-                .forEach(chainInfo -> generateHashesByStreamNodeId(chainInfo.getStartNodeId()));
         final Collection<OperatorChainInfo> initialEntryPoints =
                 StreamingJobGraphGenerator.getInitialEntryPoints(
                         chainEntryPoints.values(), jobVertexBuildContext);
