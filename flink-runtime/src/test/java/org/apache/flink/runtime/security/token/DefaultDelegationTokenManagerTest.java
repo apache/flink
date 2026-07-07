@@ -391,6 +391,25 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
+    public void registerJobFailureWithLinkageErrorMustRollBackProviders() {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        // A LinkageError from provider plugin code must get the same treatment as an exception:
+        // roll back on all providers and rethrow.
+        ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(true);
+        JobID jobId = JobID.generate();
+
+        assertThrows(
+                NoClassDefFoundError.class,
+                () -> delegationTokenManager.registerJob(jobId, new Configuration()));
+        assertTrue(
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().isEmpty(),
+                "A registration that failed with a LinkageError must be rolled back on all"
+                        + " providers");
+    }
+
+    @Test
     public void unregisterJobShouldSwallowProviderFailure() throws Exception {
         Configuration configuration = new Configuration();
         DefaultDelegationTokenManager delegationTokenManager =
@@ -401,6 +420,20 @@ public class DefaultDelegationTokenManagerTest {
 
         // A provider that throws during unregistration must not prevent cleanup from completing.
         ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(true);
+        assertDoesNotThrow(() -> delegationTokenManager.unregisterJob(jobId));
+    }
+
+    @Test
+    public void unregisterJobShouldSwallowProviderLinkageError() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        JobID jobId = JobID.generate();
+        delegationTokenManager.registerJob(jobId, new Configuration());
+
+        // A LinkageError during unregistration must be swallowed like an exception, so it does
+        // not abort the cleanup of the remaining providers.
+        ExceptionThrowingDelegationTokenProvider.throwErrorInUnregister.set(true);
         assertDoesNotThrow(() -> delegationTokenManager.unregisterJob(jobId));
     }
 

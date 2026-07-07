@@ -188,8 +188,10 @@ class ResourceManagerJobMasterTest {
         final RegistrationResponse response =
                 registrationFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         assertThat(response).isInstanceOf(RegistrationResponse.Failure.class);
-        assertThat(((RegistrationResponse.Failure) response).getReason().getMessage())
-                .contains("registerJob rejected by provider");
+        final Throwable reason = ((RegistrationResponse.Failure) response).getReason();
+        assertThat(reason.getMessage()).contains(jobId.toString());
+        assertThat(reason.getMessage()).contains("delegation token manager");
+        assertThat(reason.getCause().getMessage()).contains("registerJob rejected by provider");
     }
 
     @Test
