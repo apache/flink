@@ -24,6 +24,7 @@ import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -205,7 +207,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void startTokensUpdateShouldScheduleRenewal() {
+    public void startTokensUpdateShouldScheduleRenewal() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -214,6 +216,8 @@ public class DefaultDelegationTokenManagerTest {
         ExceptionThrowingDelegationTokenProvider.addToken.set(true);
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), true);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hadoopfs.enabled"), false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hbase.enabled"), false);
         AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
@@ -225,8 +229,9 @@ public class DefaultDelegationTokenManagerTest {
                     }
                 };
 
-        delegationTokenManager.startTokensUpdate();
+        // The first two cycles fail and schedule a retry each. The third succeeds.
         ExceptionThrowingDelegationTokenProvider.throwInUsage.set(true);
+        delegationTokenManager.start(tokens -> {});
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
         ExceptionThrowingDelegationTokenProvider.throwInUsage.set(false);
@@ -324,6 +329,8 @@ public class DefaultDelegationTokenManagerTest {
 
         Configuration configuration = new Configuration();
         configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), true);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hadoopfs.enabled"), false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hbase.enabled"), false);
         AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
@@ -336,6 +343,10 @@ public class DefaultDelegationTokenManagerTest {
                 };
         // Ask the provider to request an immediate refresh when the job is registered.
         ExceptionThrowingDelegationTokenProvider.shouldReobtainOnRegister.set(true);
+
+        delegationTokenManager.start(tokens -> {});
+        // Only count the cycle triggered by the registration below, not start()'s inline cycle.
+        startTokensUpdateCallCount.set(0);
 
         JobID jobId = JobID.generate();
         delegationTokenManager.registerJob(jobId, new Configuration());
@@ -394,7 +405,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void reobtainShouldCoalesceConcurrentRequests() {
+    public void reobtainShouldCoalesceConcurrentRequests() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -403,13 +414,19 @@ public class DefaultDelegationTokenManagerTest {
         AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        new Configuration(), null, scheduledExecutor, scheduler) {
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler) {
                     @Override
                     void startTokensUpdate() {
                         startTokensUpdateCallCount.incrementAndGet();
                         super.startTokensUpdate();
                     }
                 };
+        delegationTokenManager.start(tokens -> {});
+        // Only count the cycle serving the coalesced requests, not start()'s inline cycle.
+        startTokensUpdateCallCount.set(0);
 
         // Two requests before the cycle runs must be coalesced into a single scheduled obtain.
         delegationTokenManager.reobtainDelegationTokens();
@@ -426,7 +443,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void periodicRenewalMustNotCancelPendingOnDemandReobtain() {
+    public void periodicRenewalMustNotCancelPendingOnDemandReobtain() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -434,7 +451,11 @@ public class DefaultDelegationTokenManagerTest {
 
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        new Configuration(), null, scheduledExecutor, scheduler);
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler);
+        delegationTokenManager.start(tokens -> {});
 
         // An on-demand re-obtain is scheduled (e.g. a freshly registered job).
         delegationTokenManager.reobtainDelegationTokens();
@@ -460,7 +481,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void reobtainShouldRunImmediatelyAfterCooldownWindowElapses() {
+    public void reobtainShouldRunImmediatelyAfterCooldownWindowElapses() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -473,6 +494,7 @@ public class DefaultDelegationTokenManagerTest {
 
         long t0 = 1_000_000L;
         delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+        delegationTokenManager.start(tokens -> {});
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
         scheduledExecutor.triggerScheduledTasks();
@@ -499,6 +521,7 @@ public class DefaultDelegationTokenManagerTest {
 
         long t0 = 1_000_000L;
         delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+        delegationTokenManager.start(tokens -> {});
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
         scheduledExecutor.triggerScheduledTasks();
@@ -521,7 +544,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void reobtainShouldRespectCooldown() {
+    public void reobtainShouldRespectCooldown() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -534,6 +557,8 @@ public class DefaultDelegationTokenManagerTest {
 
         long t0 = 1_000_000L;
         delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+
+        delegationTokenManager.start(tokens -> {});
 
         // First re-obtain after a quiet period runs immediately (no cooldown applies).
         delegationTokenManager.reobtainDelegationTokens();
@@ -556,6 +581,188 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
 
         assertDoesNotThrow(delegationTokenManager::reobtainDelegationTokens);
+    }
+
+    @Test
+    public void reobtainBeforeStartMustNotScheduleObtainCycle() {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler);
+
+        // Providers receive the re-obtain callback already in the constructor (init), so a
+        // provider can invoke it before start(). The manager has no listener yet, so the
+        // request must be rejected instead of dispatching an obtain cycle that can only fail
+        // on the null listener and keep rescheduling itself through the retry path.
+        delegationTokenManager.reobtainDelegationTokens();
+
+        assertEquals(
+                0,
+                scheduledExecutor.getActiveScheduledTasks().size(),
+                "A re-obtain before start() must not schedule an obtain cycle");
+    }
+
+    @Test
+    public void schedulerFailureMustNotWedgeSubsequentReobtains() throws Exception {
+        final ManuallyTriggeredScheduledExecutor delegate =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        // Throws a plain RuntimeException (not a RejectedExecutionException) on the next
+        // schedule() call when the flag is set, then behaves normally again.
+        final AtomicBoolean throwNext = new AtomicBoolean(false);
+        ScheduledExecutor throwOnce =
+                new ScheduledExecutor() {
+                    @Override
+                    public ScheduledFuture<?> schedule(
+                            Runnable command, long delay, TimeUnit unit) {
+                        if (throwNext.compareAndSet(true, false)) {
+                            throw new RuntimeException("simulated scheduler failure");
+                        }
+                        return delegate.schedule(command, delay, unit);
+                    }
+
+                    @Override
+                    public <V> ScheduledFuture<V> schedule(
+                            Callable<V> callable, long delay, TimeUnit unit) {
+                        return delegate.schedule(callable, delay, unit);
+                    }
+
+                    @Override
+                    public ScheduledFuture<?> scheduleAtFixedRate(
+                            Runnable command, long initialDelay, long period, TimeUnit unit) {
+                        return delegate.scheduleAtFixedRate(command, initialDelay, period, unit);
+                    }
+
+                    @Override
+                    public ScheduledFuture<?> scheduleWithFixedDelay(
+                            Runnable command, long initialDelay, long delay, TimeUnit unit) {
+                        return delegate.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+                    }
+
+                    @Override
+                    public void execute(Runnable command) {
+                        delegate.execute(command);
+                    }
+                };
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ZERO), null, throwOnce, scheduler);
+        delegationTokenManager.start(tokens -> {});
+
+        // The first re-obtain hits a scheduler that blows up with something other than the
+        // handled RejectedExecutionException. The failure propagates to the caller.
+        throwNext.set(true);
+        assertThrows(RuntimeException.class, delegationTokenManager::reobtainDelegationTokens);
+
+        // The scheduler is healthy again. The next re-obtain must schedule a fresh obtain
+        // cycle instead of being coalesced against the cycle that never got scheduled.
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(
+                1,
+                delegate.getActiveScheduledTasks().size(),
+                "A re-obtain after a scheduler failure must schedule a fresh obtain cycle");
+    }
+
+    @Test
+    public void startShouldBeIdempotent() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        // The throw provider produces tokens so the listener gets notified on every cycle.
+        ExceptionThrowingDelegationTokenProvider.addToken.set(true);
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), true);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hadoopfs.enabled"), false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hbase.enabled"), false);
+
+        AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler) {
+                    @Override
+                    void startTokensUpdate() {
+                        startTokensUpdateCallCount.incrementAndGet();
+                        super.startTokensUpdate();
+                    }
+                };
+
+        AtomicInteger firstListenerNotifications = new AtomicInteger(0);
+        AtomicInteger secondListenerNotifications = new AtomicInteger(0);
+        delegationTokenManager.start(tokens -> firstListenerNotifications.incrementAndGet());
+        // A redundant start() (e.g. a buggy caller) must be ignored: no second inline obtain
+        // cycle, and the listener of the running manager must not be swapped.
+        delegationTokenManager.start(tokens -> secondListenerNotifications.incrementAndGet());
+
+        assertEquals(
+                1,
+                startTokensUpdateCallCount.get(),
+                "A redundant start() must not run another obtain cycle");
+        assertEquals(
+                1,
+                firstListenerNotifications.get(),
+                "The first start()'s inline cycle must notify the listener once");
+
+        // A later cycle must still notify the original listener, not the ignored one.
+        delegationTokenManager.reobtainDelegationTokens();
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+        assertEquals(
+                2,
+                firstListenerNotifications.get(),
+                "The original listener must keep receiving tokens");
+        assertEquals(
+                0,
+                secondListenerNotifications.get(),
+                "The listener from the ignored start() must never receive tokens");
+    }
+
+    @Test
+    public void retryMustBringPendingOnDemandReobtainForward() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler);
+
+        long t0 = 1_000_000L;
+        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+        delegationTokenManager.start(tokens -> {});
+
+        delegationTokenManager.reobtainDelegationTokens();
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // 10s later a second re-obtain is cooldown-deferred by 50s.
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
+
+        // A failed cycle now wants a retry in 10s. The pending on-demand cycle must be brought
+        // forward to the sooner time instead of silently swallowing the retry, otherwise the
+        // effective retry would fire 50s out while the backoff (and its token-TTL cap) asked
+        // for 10s.
+        delegationTokenManager.maybeScheduleRenewal(10_000L);
+        assertEquals(
+                10_000L,
+                onlyScheduledDelayMillis(scheduledExecutor),
+                "A sooner retry must bring the pending on-demand cycle forward");
     }
 
     @Test
@@ -583,6 +790,9 @@ public class DefaultDelegationTokenManagerTest {
             final CyclicBarrier barrier = new CyclicBarrier(2);
             final AtomicBoolean concurrentObtainDetected = new AtomicBoolean(false);
             final CountDownLatch done = new CountDownLatch(2);
+            // Enabled only after start(): its inline first cycle must not wait at (and, by
+            // timing out, break) the barrier meant for the two concurrent cycles below.
+            final AtomicBoolean barrierEnabled = new AtomicBoolean(false);
 
             DefaultDelegationTokenManager delegationTokenManager =
                     new DefaultDelegationTokenManager(
@@ -590,6 +800,9 @@ public class DefaultDelegationTokenManagerTest {
                         @Override
                         protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
                                 DelegationTokenContainer container) {
+                            if (!barrierEnabled.get()) {
+                                return Optional.empty();
+                            }
                             try {
                                 barrier.await(200, TimeUnit.MILLISECONDS);
                                 // Reached only if both cycles met here concurrently.
@@ -602,6 +815,9 @@ public class DefaultDelegationTokenManagerTest {
                             return Optional.empty();
                         }
                     };
+
+            delegationTokenManager.start(tokens -> {});
+            barrierEnabled.set(true);
 
             ioExecutor.execute(
                     () -> {
