@@ -284,6 +284,17 @@ public class HistoryServerOptions {
                                     .text("The size of the common pool for archive fetching.")
                                     .build());
 
+    public static final ConfigOption<Integer>
+            HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE =
+                    key("historyserver.lazy.fetch.executor.individual.pool-size")
+                            .intType()
+                            .defaultValue(4)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "The size of the individual pool for archive fetching.")
+                                            .build());
+
     /** The type of archive storage. */
     public enum HistoryServerArchiveStorageType {
         /** Local file system. */

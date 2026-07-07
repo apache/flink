@@ -77,6 +77,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE;
+import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE;
+import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATIONS_SUBDIR;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerApplicationArchiveFetcher.APPLICATION_OVERVIEWS_SUBDIR;
 import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.JOBS_SUBDIR;
@@ -259,6 +261,7 @@ public class HistoryServer {
         archiveLoadMode = config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_LOAD_MODE);
         HistoryServerOptions.HistoryServerArchiveStorageType archiveStorageType =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_STORAGE_TYPE);
+        AbstractHistoryServerHandler.HistoryServerHandlerFactory historyServerHandlerFactory;
         switch (archiveStorageType) {
             case FILE:
                 // create directories for job and application overview updates
@@ -267,17 +270,15 @@ public class HistoryServer {
                 Files.createDirectories(webDir.toPath().resolve(APPLICATIONS_SUBDIR));
                 Files.createDirectories(webDir.toPath().resolve(APPLICATION_OVERVIEWS_SUBDIR));
                 archiveStorage = new FileArchiveStorage(webDir);
-                historyServerHandler =
-                        new HistoryServerStaticFileServerHandler(
-                                (FileArchiveStorage) archiveStorage, webDir);
+                historyServerHandlerFactory =
+                        createFileHandlerFactory((FileArchiveStorage) archiveStorage, webDir);
                 break;
             case ROCKSDB:
                 File dbPath = new File(webDir, "rocksdb-" + UUID.randomUUID());
                 Files.createDirectories(dbPath.toPath());
                 archiveStorage = new RocksDBArchiveStorage(dbPath, config);
-                historyServerHandler =
-                        new HistoryServerRocksDBHandler(
-                                (RocksDBArchiveStorage) archiveStorage, webDir);
+                historyServerHandlerFactory =
+                        createRocksDBHandlerFactory((RocksDBArchiveStorage) archiveStorage, webDir);
                 break;
             default:
                 throw new FlinkException("Unsupported archive storage type: " + archiveStorageType);
@@ -288,6 +289,8 @@ public class HistoryServer {
                 new ConcurrentHashMap<>();
         int lazyFetchExecutorCommonPoolSize =
                 config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE);
+        int lazyFetchExecutorIndividualPoolSize =
+                config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE);
         archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
                         refreshDirs,
@@ -297,7 +300,8 @@ public class HistoryServer {
                         CompositeArchiveRetainedStrategy.createForJobFromConfig(config),
                         archiveStorage,
                         archiveMetaInfoCache,
-                        lazyFetchExecutorCommonPoolSize);
+                        lazyFetchExecutorCommonPoolSize,
+                        lazyFetchExecutorIndividualPoolSize);
         applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
@@ -308,7 +312,12 @@ public class HistoryServer {
                         archiveStorage,
                         archiveMetaInfoCache,
                         applicationArchiveMetaInfoCache,
-                        lazyFetchExecutorCommonPoolSize);
+                        lazyFetchExecutorCommonPoolSize,
+                        lazyFetchExecutorIndividualPoolSize);
+
+        historyServerHandler =
+                historyServerHandlerFactory.createHistoryServerHandler(
+                        archiveFetcher, applicationArchiveFetcher);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -364,6 +373,30 @@ public class HistoryServer {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private AbstractHistoryServerHandler.HistoryServerHandlerFactory createFileHandlerFactory(
+            FileArchiveStorage fileArchiveStorage, File webDir) {
+        return (archiveFetcher, applicationArchiveFetcher) ->
+                new HistoryServerStaticFileServerHandler(
+                        fileArchiveStorage,
+                        archiveLoadMode,
+                        (HistoryServerArchiveFetcher<File>) archiveFetcher,
+                        (HistoryServerApplicationArchiveFetcher<File>) applicationArchiveFetcher,
+                        webDir);
+    }
+
+    @SuppressWarnings("unchecked")
+    private AbstractHistoryServerHandler.HistoryServerHandlerFactory createRocksDBHandlerFactory(
+            RocksDBArchiveStorage rocksDBArchiveStorage, File webDir) {
+        return (archiveFetcher, applicationArchiveFetcher) ->
+                new HistoryServerRocksDBHandler(
+                        rocksDBArchiveStorage,
+                        archiveLoadMode,
+                        (HistoryServerArchiveFetcher<String>) archiveFetcher,
+                        (HistoryServerApplicationArchiveFetcher<String>) applicationArchiveFetcher,
+                        webDir);
+    }
+
     // ------------------------------------------------------------------------
     // Life-cycle
     // ------------------------------------------------------------------------
@@ -399,11 +432,20 @@ public class HistoryServer {
             createDashboardConfigFile();
             router.addGet("/:*", historyServerHandler);
 
-            executor.scheduleWithFixedDelay(
-                    getArchiveFetchingRunnable(archiveLoadMode),
-                    0,
-                    refreshIntervalMillis,
-                    TimeUnit.MILLISECONDS);
+            if (LAZY.equals(archiveLoadMode)) {
+                executor.submit(getArchiveFetchingRunnable(archiveLoadMode));
+                executor.scheduleWithFixedDelay(
+                        getArchiveCleaningRunnable(),
+                        refreshIntervalMillis,
+                        refreshIntervalMillis,
+                        TimeUnit.MILLISECONDS);
+            } else {
+                executor.scheduleWithFixedDelay(
+                        getArchiveFetchingRunnable(archiveLoadMode),
+                        0,
+                        refreshIntervalMillis,
+                        TimeUnit.MILLISECONDS);
+            }
 
             netty =
                     new WebFrontendBootstrap(
@@ -417,6 +459,15 @@ public class HistoryServer {
                 () -> {
                     archiveFetcher.fetchArchives(archiveLoadMode);
                     applicationArchiveFetcher.fetchArchives(archiveLoadMode);
+                },
+                FatalExitExceptionHandler.INSTANCE);
+    }
+
+    private Runnable getArchiveCleaningRunnable() {
+        return Runnables.withUncaughtExceptionHandler(
+                () -> {
+                    archiveFetcher.cleanUpArchives(archiveLoadMode);
+                    applicationArchiveFetcher.cleanUpArchives(archiveLoadMode);
                 },
                 FatalExitExceptionHandler.INSTANCE);
     }

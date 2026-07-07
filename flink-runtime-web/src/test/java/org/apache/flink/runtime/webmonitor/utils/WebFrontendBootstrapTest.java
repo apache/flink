@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.webmonitor.history.FileArchiveStorage;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.testutils.HttpUtils;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -57,12 +59,16 @@ class WebFrontendBootstrapTest {
     @Test
     void testHandlersMustBeLoaded() throws Exception {
         Path webDir = Files.createDirectories(tmp.resolve("webDir"));
+        File webDirFile = webDir.toFile();
         Configuration configuration = new Configuration();
         configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
         configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
         Router<?> router =
                 new Router<>()
-                        .addGet("/:*", new HistoryServerStaticFileServerHandler(webDir.toFile()));
+                        .addGet(
+                                "/:*",
+                                new HistoryServerStaticFileServerHandler(
+                                        new FileArchiveStorage(webDirFile), webDirFile));
         WebFrontendBootstrap webUI =
                 new WebFrontendBootstrap(
                         router,

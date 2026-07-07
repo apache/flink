@@ -89,7 +89,9 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
             ArchiveStorage<Entry> archiveStorage,
             ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
             ConcurrentHashMap<String, ArchiveMetaInfo> applicationArchiveMetaInfoCache,
-            int lazyFetchExecutorCommonPoolSize) {
+            int lazyFetchExecutorCommonPoolSize,
+            int lazyFetchExecutorIndividualPoolSize)
+            throws IOException {
         super(
                 refreshDirs,
                 webDir,
@@ -98,7 +100,8 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
                 retainedStrategy,
                 archiveStorage,
                 archiveMetaInfoCache,
-                lazyFetchExecutorCommonPoolSize);
+                lazyFetchExecutorCommonPoolSize,
+                lazyFetchExecutorIndividualPoolSize);
 
         this.applicationArchiveMetaInfoCache = applicationArchiveMetaInfoCache;
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
@@ -186,7 +189,7 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
                     .add(jobId);
             ArchiveEvent processArchiveEvents =
                     LAZY.equals(archiveLoadMode)
-                            ? lazyProcessJobArchive(jobId, jobArchive.getPath())
+                            ? lazyProcessJobArchive(jobId, jobArchive.getPath(), false)
                             : processJobArchive(jobId, jobArchive.getPath());
             events.add(processArchiveEvents);
         }
@@ -314,7 +317,8 @@ public class HistoryServerApplicationArchiveFetcher<Entry>
     List<ArchiveEvent> lazyProcessArchive(String archiveId, Path archivePath, Path refreshDir)
             throws Exception {
         List<ArchiveEvent> events = new ArrayList<>();
-        ArchiveMetaInfo archiveMetaInfo = new ArchiveMetaInfo(archiveId, OVERVIEW_PARSING);
+        ArchiveMetaInfo archiveMetaInfo =
+                new ArchiveMetaInfo(archiveId, OVERVIEW_PARSING, archivePath);
         ArchiveMetaInfo existing =
                 applicationArchiveMetaInfoCache.putIfAbsent(archiveId, archiveMetaInfo);
         if (existing != null) {

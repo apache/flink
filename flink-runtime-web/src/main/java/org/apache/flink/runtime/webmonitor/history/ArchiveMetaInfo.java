@@ -18,16 +18,22 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.core.fs.Path;
+
 /** Meta info for archived job. */
 public class ArchiveMetaInfo {
 
     private final String archiveId;
     private volatile HistoryServerArchiveFetcher.ArchiveEventType eventType;
+    private final Path archivePath;
 
     public ArchiveMetaInfo(
-            String archiveId, HistoryServerArchiveFetcher.ArchiveEventType eventType) {
+            String archiveId,
+            HistoryServerArchiveFetcher.ArchiveEventType eventType,
+            Path archivePath) {
         this.archiveId = archiveId;
         this.eventType = eventType;
+        this.archivePath = archivePath;
     }
 
     public String getArchiveId() {
@@ -40,5 +46,9 @@ public class ArchiveMetaInfo {
 
     public void setEventType(HistoryServerArchiveFetcher.ArchiveEventType eventType) {
         this.eventType = eventType;
+    }
+
+    public Path getArchivePath() {
+        return archivePath;
     }
 }

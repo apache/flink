@@ -121,6 +121,7 @@ class HistoryServerArchiveFetcherTest {
                 RETAIN_ALL,
                 storage,
                 archiveMetaInfoCache,
+                4,
                 4);
     }
 
@@ -231,7 +232,8 @@ class HistoryServerArchiveFetcherTest {
         HistoryServerArchiveFetcher<?> fetcher =
                 createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
 
-        assertThatThrownBy(() -> fetcher.lazyProcessJobArchive(jobId.toString(), archivePath))
+        assertThatThrownBy(
+                        () -> fetcher.lazyProcessJobArchive(jobId.toString(), archivePath, false))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Archive of job " + jobId + " is empty");
 
@@ -275,7 +277,8 @@ class HistoryServerArchiveFetcherTest {
 
         // try to call lazyProcessJobArchive again, should return DETAIL_PARSING.
         HistoryServerArchiveFetcher.ArchiveEvent callAgainEvent =
-                fetcher.lazyProcessJobArchive(jobIdWithDetail.toString(), jobWithDetailArchivePath);
+                fetcher.lazyProcessJobArchive(
+                        jobIdWithDetail.toString(), jobWithDetailArchivePath, false);
         assertThat(callAgainEvent.getType()).isEqualTo(DETAIL_PARSING);
 
         // Phase 2: execute the asynchronous task
@@ -351,5 +354,76 @@ class HistoryServerArchiveFetcherTest {
 
         assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isTrue();
         assertThat(archiveStorage.exists("jobs/overview.json")).isTrue();
+    }
+
+    @TestTemplate
+    void testScanArchivesWithoutFetch() throws Exception {
+        JobID jobId = JobID.generate();
+        createJobArchive(remoteArchiveRootPath, jobId, true);
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+
+        fetcher.scanArchives(EAGER, false);
+        assertThat(archiveEvents).isEmpty();
+        assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isFalse();
+    }
+
+    @TestTemplate
+    void testLazyFetchArchiveProactively() throws Exception {
+        // with explicit path
+        JobID jobId = JobID.generate();
+        Path archivePath = createJobArchive(remoteArchiveRootPath, jobId, true);
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archivePath);
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
+
+        assertThat(archiveMetaInfoCache.get(jobId.toString()).getEventType()).isEqualTo(CREATED);
+        assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
+
+        // without explicit path
+        jobId = JobID.generate();
+        createJobArchive(remoteArchiveRootPath, jobId, true);
+
+        // call without explicit path; the fetcher should locate the archive in refreshDirs.
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), null);
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
+
+        assertThat(archiveMetaInfoCache.get(jobId.toString()).getEventType()).isEqualTo(CREATED);
+        assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + "/config.json")).isTrue();
+    }
+
+    @TestTemplate
+    void testCleanUpLazyFetchTaskCancelsRunningFuture() throws Exception {
+        JobID jobId = JobID.generate();
+        createJobArchive(remoteArchiveRootPath, jobId, true);
+
+        HistoryServerTestUtils.BlockingArchiveStorage<Object> blockingStorage =
+                new HistoryServerTestUtils.BlockingArchiveStorage<>(
+                        archiveStorage, "jobs/" + jobId + "/config");
+        archiveStorage = blockingStorage;
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
+        fetcher.fetchArchives(LAZY);
+        // make sure the async detail task has started
+        assertThat(blockingStorage.asyncStartLatch.await(10, TimeUnit.SECONDS)).isTrue();
+        assertThat(fetcher.getCommonFetchTask(jobId.toString())).isNotNull();
+        assertThat(fetcher.getCommonFetchTask(jobId.toString())).isNotDone();
+
+        // cancel the in-flight task
+        fetcher.cleanUpLazyFetchTask(jobId.toString());
+
+        assertThat(fetcher.getCommonFetchTask(jobId.toString())).isNull();
+        assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + ".json")).isTrue();
+        assertThat(archiveStorage.exists("jobs/" + jobId + "/config.json")).isFalse();
     }
 }
