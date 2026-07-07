@@ -780,12 +780,16 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         Collection<String> splitsToResume = new ArrayList<>();
         splitCurrentWatermarks.forEach(
                 (splitId, splitWatermark) -> {
-                    if (currentlyIdleSplits.contains(splitId)) {
-                        return;
-                    }
                     if (splitWatermark > currentMaxDesiredWatermark) {
+                        // Skipping pause for idle splits so we won't clear their idleness
+                        if (currentlyIdleSplits.contains(splitId)) {
+                            LOG.info("[{}] Skipping pause for idle split", splitId);
+                            return;
+                        }
                         splitsToPause.add(splitId);
                     } else if (currentlyPausedSplits.contains(splitId)) {
+                        // Resuming possibly-idle splits without clearing their idleness state
+                        // (the next record to arrive will do it naturally)
                         splitsToResume.add(splitId);
                     }
                 });
