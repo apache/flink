@@ -430,13 +430,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             jobMasterIdFuture,
                             (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
                                 if (Objects.equals(leadingJobMasterId, jobMasterId)) {
-                                    // Register with the delegation token manager first. A
-                                    // provider failure rejects this registration so the job
-                                    // never starts without the tokens it requires.
+                                    // Register with the delegation token manager first, so a
+                                    // provider failure rejects the registration and the job does
+                                    // not start without the tokens it requires. LinkageError is
+                                    // caught so a plugin classpath failure is reported the same
+                                    // way.
                                     try {
                                         delegationTokenManager.registerJob(jobId, jobConfiguration);
-                                    } catch (Exception e) {
-                                        return new RegistrationResponse.Failure(e);
+                                    } catch (Exception | LinkageError e) {
+                                        return new RegistrationResponse.Failure(
+                                                new FlinkException(
+                                                        "Failed to register job "
+                                                                + jobId
+                                                                + " with the delegation token "
+                                                                + "manager",
+                                                        e));
                                     }
                                     return registerJobMasterInternal(
                                             jobMasterGateway,

@@ -44,7 +44,11 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> throwInRegister =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwErrorInRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> throwInUnregister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwErrorInUnregister =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> stopped =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
@@ -58,7 +62,9 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         constructed.set(false);
         shouldReobtainOnRegister.set(false);
         throwInRegister.set(false);
+        throwErrorInRegister.set(false);
         throwInUnregister.set(false);
+        throwErrorInUnregister.set(false);
         stopped.set(false);
         registeredJobs.get().clear();
     }
@@ -113,6 +119,9 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             throw new IllegalArgumentException();
         }
         registeredJobs.get().add(jobId);
+        if (throwErrorInRegister.get()) {
+            throw new NoClassDefFoundError("simulated classpath failure in provider registerJob");
+        }
         if (shouldReobtainOnRegister.get()) {
             callback.reobtainDelegationTokens();
         }
@@ -122,6 +131,9 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
     public void unregisterJob(JobID jobId) {
         if (throwInUnregister.get()) {
             throw new IllegalArgumentException();
+        }
+        if (throwErrorInUnregister.get()) {
+            throw new NoClassDefFoundError("simulated classpath failure in provider unregisterJob");
         }
         registeredJobs.get().remove(jobId);
     }

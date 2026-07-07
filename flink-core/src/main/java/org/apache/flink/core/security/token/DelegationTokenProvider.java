@@ -136,10 +136,10 @@ public interface DelegationTokenProvider {
      * <p>Must be idempotent: it may be called more than once for the same {@code jobId} (e.g. on
      * JobManager or ResourceManager failover, when the JobMaster re-registers).
      *
-     * <p>Should not throw: a thrown (unchecked) exception rejects the job's registration (the job
-     * does not start) and triggers {@link #unregisterJob(JobID)} on all providers to roll back.
-     * Prefer deferring the real fetch to the (retrying) obtain cycle over a synchronous fetch, so a
-     * transient failure does not fail the job.
+     * <p>Should not throw: a thrown (unchecked) exception or linkage error rejects the job's
+     * registration (the job does not start) and triggers {@link #unregisterJob(JobID)} on all
+     * providers to roll back. Prefer deferring the real fetch to the (retrying) obtain cycle over a
+     * synchronous fetch, so a transient failure does not fail the job.
      *
      * @param jobId The job id of the job.
      * @param jobConfiguration The job configuration.
@@ -149,8 +149,9 @@ public interface DelegationTokenProvider {
     /**
      * Called when the job is being removed — it reached a globally terminal state, or its
      * job-leader registration timed out — and its per-job state should be released. Must be
-     * idempotent. Exceptions are caught and logged by the framework (one provider's failure does
-     * not abort cleanup of the others), but implementations should still avoid throwing.
+     * idempotent. Exceptions and linkage errors are caught and logged by the framework (one
+     * provider's failure does not abort cleanup of the others), but implementations should still
+     * avoid throwing.
      *
      * @param jobId The job id of the job.
      */
