@@ -26,6 +26,8 @@ package org.apache.flink.runtime.webmonitor.history;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  * ***************************************************************************
  */
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -34,6 +36,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 
 import java.io.File;
 import java.io.IOException;
+
+import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.EAGER;
 
 /**
  * Simple file server handler used by the {@link HistoryServer} that serves requests to web
@@ -52,13 +56,20 @@ public class HistoryServerStaticFileServerHandler extends AbstractHistoryServerH
 
     // ------------------------------------------------------------------------
 
-    public HistoryServerStaticFileServerHandler(File rootPath) throws IOException {
-        this(new FileArchiveStorage(rootPath), rootPath);
+    @VisibleForTesting
+    public HistoryServerStaticFileServerHandler(ArchiveStorage<File> archiveStorage, File rootPath)
+            throws IOException {
+        this(archiveStorage, EAGER, null, null, rootPath);
     }
 
     public HistoryServerStaticFileServerHandler(
-            FileArchiveStorage fileArchiveStorage, File rootPath) throws IOException {
-        super(fileArchiveStorage, rootPath);
+            ArchiveStorage<File> archiveStorage,
+            HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode,
+            HistoryServerArchiveFetcher<File> archiveFetcher,
+            HistoryServerApplicationArchiveFetcher<File> applicationArchiveFetcher,
+            File rootPath)
+            throws IOException {
+        super(archiveStorage, archiveLoadMode, archiveFetcher, applicationArchiveFetcher, rootPath);
     }
 
     // ------------------------------------------------------------------------
