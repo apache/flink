@@ -53,7 +53,7 @@ public class OpenTelemetryMetricReporterProtocolTest
     }
 
     @Override
-    protected void setupAndReport(MetricConfig config) {
+    protected void setupReporter(MetricConfig config) {
         reporter.open(config);
         SimpleCounter counter = new SimpleCounter();
         reporter.notifyOfAddedMetric(counter, TEST_METRIC_NAME, metricGroup);
