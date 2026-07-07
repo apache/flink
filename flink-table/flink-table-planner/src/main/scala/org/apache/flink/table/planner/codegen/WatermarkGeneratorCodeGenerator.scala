@@ -115,7 +115,7 @@ object WatermarkGeneratorCodeGenerator {
         }
 
         @Override
-        public long extractTimestamp($ROW_DATA row) {
+        public long extractTimestamp($ROW_DATA row) throws Exception {
           $generatedTimestampCode
         }
 
