@@ -19,9 +19,29 @@
 declare module 'd3-flame-graph' {
   type ColorMapper = (node: unknown, originalColor: string) => string;
 
-  export function flamegraph(): FlameGraph;
-  export const offCpuColorMapper: ColorMapper;
-  export function defaultFlamegraphTooltip(): unknown;
+  export default function flamegraph(): FlameGraph;
+
+  export const colorMapper: {
+    allocationColorMapper: ColorMapper;
+    differentialColorMapper: ColorMapper;
+    nodeJsColorMapper: ColorMapper;
+    offCpuColorMapper: ColorMapper;
+  };
+
+  export interface FlamegraphNode {
+    data: { name: string; value: number };
+    x0: number;
+    x1: number;
+  }
+
+  export interface FlamegraphTooltip {
+    html(accessor: (node: FlamegraphNode) => string): FlamegraphTooltip;
+    text(accessor: (node: FlamegraphNode) => string): FlamegraphTooltip;
+  }
+
+  export const tooltip: {
+    defaultFlamegraphTooltip(): FlamegraphTooltip;
+  };
 
   export interface StackFrame {
     name: string;
