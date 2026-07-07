@@ -427,6 +427,102 @@ public class QueryOperationTestPrograms {
                                     + " OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY")
                     .build();
 
+    static final TableTestProgram ORDER_BY_AGGREGATE_QUERY_OPERATION =
+            TableTestProgram.of("order-by-aggregate-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(
+                                            Row.of(1L, "a"), Row.of(2L, "b"), Row.of(3L, "c"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2L))
+                                    .build())
+                    .runTableApi(
+                            t -> t.from("s").orderBy($("b")).fetch(2).select($("a").max()), "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT (MAX(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_SORT`.`a`, `$$T_SORT`.`b` FROM (\n"
+                                    + "            SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "        ) $$T_SORT ORDER BY `$$T_SORT`.`b` ASC OFFSET 0 ROWS"
+                                    + " FETCH NEXT 2 ROWS ONLY\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY 1\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram ORDER_BY_NO_FETCH_AGGREGATE_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "order-by-no-fetch-aggregate-query-operation",
+                            "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(
+                                            Row.of(1L, "a"), Row.of(2L, "b"), Row.of(3L, "c"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3L))
+                                    .build())
+                    .runTableApi(t -> t.from("s").orderBy($("b")).select($("a").max()), "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT (MAX(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_SORT`.`a`, `$$T_SORT`.`b` FROM (\n"
+                                    + "            SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "        ) $$T_SORT ORDER BY `$$T_SORT`.`b` ASC\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY 1\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram AGGREGATE_HAVING_QUERY_OPERATION =
+            TableTestProgram.of("aggregate-having-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(
+                                            Row.of(1L, "a"), Row.of(2L, "b"), Row.of(3L, "b"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("b string", "s bigint")
+                                    .consumedValues(Row.ofKind(RowKind.UPDATE_AFTER, "b", 5L))
+                                    .build())
+                    .runTableApi(
+                            t ->
+                                    t.from("s")
+                                            .groupBy($("b"))
+                                            .select($("b"), $("a").sum().as("s"))
+                                            .where($("s").isGreater(3L)),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_FILTER`.`b`, `$$T_FILTER`.`s` FROM (\n"
+                                    + "    SELECT `$$T_PROJECT`.`b`, `$$T_PROJECT`.`EXPR$0` AS `s` FROM (\n"
+                                    + "        SELECT `$$T_AGG`.`b`, (SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "            SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "        ) $$T_AGG\n"
+                                    + "        GROUP BY `$$T_AGG`.`b`\n"
+                                    + "    ) $$T_PROJECT\n"
+                                    + ") $$T_FILTER WHERE `$$T_FILTER`.`s` > CAST(3 AS BIGINT)")
+                    .build();
+
     static final TableTestProgram LIMIT_QUERY_OPERATION =
             TableTestProgram.of("limit-query-operation", "verifies sql serialization")
                     .setupTableSource(

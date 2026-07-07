@@ -108,6 +108,7 @@ import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
@@ -151,10 +152,22 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
     private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
     private final boolean isBatchMode;
 
+    // Root of the operation tree currently being converted; used to keep a top-level ORDER BY
+    // while dropping fetch-less sorts elsewhere (mirrors SqlToRelConverter#removeSortInSubQuery).
+    private QueryOperation rootOperation;
+
     public QueryOperationConverter(FlinkRelBuilder relBuilder, boolean isBatchMode) {
         this.relBuilder = relBuilder;
         this.expressionConverter = new ExpressionConverter(relBuilder);
         this.isBatchMode = isBatchMode;
+    }
+
+    public void setRootOperation(QueryOperation rootOperation) {
+        this.rootOperation = rootOperation;
+    }
+
+    public QueryOperation getRootOperation() {
+        return rootOperation;
     }
 
     @Override
@@ -176,6 +189,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
         @Override
         public RelNode visit(AggregateQueryOperation aggregate) {
+            // Project the input off a sort (as SqlToRelConverter does) so the sort's collation is
+            // not required on the aggregate output, avoiding an IOOBE in rules like e.g.
+            // FlinkExpandConversionRule.
+            final RelNode input = relBuilder.peek();
+            if (input instanceof Sort) {
+                relBuilder.project(relBuilder.fields(), input.getRowType().getFieldNames(), true);
+            }
+
             List<AggCall> aggregations =
                     aggregate.getAggregateExpressions().stream()
                             .map(this::getAggCall)
@@ -291,7 +312,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
         @Override
         public RelNode visit(SortQueryOperation sort) {
-            List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
+            // A non-root sort with neither FETCH nor a non-zero OFFSET has no observable effect,
+            // so drop it (mirrors SqlToRelConverter#removeSortInSubQuery; -1 means "unset").
+            final boolean isRoot = sort == rootOperation;
+            if (!isRoot && sort.getFetch() < 0 && sort.getOffset() <= 0) {
+                return relBuilder.build();
+            }
+            final List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
             return relBuilder.sortLimit(sort.getOffset(), sort.getFetch(), rexNodes).build();
         }
 
