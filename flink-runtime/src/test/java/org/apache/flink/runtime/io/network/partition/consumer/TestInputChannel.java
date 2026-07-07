@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointBarrier;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -31,8 +32,10 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** A mocked input channel. */
-public class TestInputChannel extends InputChannel {
+public class TestInputChannel extends InputChannel implements RecoverableInputChannel {
 
     private final Queue<BufferAndAvailabilityProvider> buffers = new ConcurrentLinkedQueue<>();
 
@@ -257,6 +260,50 @@ public class TestInputChannel extends InputChannel {
     @Override
     public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
         requiredSegmentIdFuture.complete(segmentId);
+    }
+
+    private final Deque<Buffer> recoveredBuffersSpy = new ArrayDeque<>();
+    private boolean finishRecoveredBufferDeliveryCalled = false;
+
+    @Override
+    public void onRecoveredStateBuffer(Buffer buffer) {
+        recoveredBuffersSpy.add(buffer);
+    }
+
+    @Override
+    public void finishRecoveredBufferDelivery() {
+        finishRecoveredBufferDeliveryCalled = true;
+    }
+
+    @Override
+    public void insertRecoveryCheckpointBarrierIfInRecovery(long checkpointId) throws IOException {
+        if (!finishRecoveredBufferDeliveryCalled || !recoveredBuffersSpy.isEmpty()) {
+            recoveredBuffersSpy.add(
+                    EventSerializer.toBuffer(new RecoveryCheckpointBarrier(checkpointId), false));
+        }
+    }
+
+    @Override
+    public Buffer requestRecoveryBufferBlocking() {
+        throw new UnsupportedOperationException("TestInputChannel does not back recovery drain");
+    }
+
+    @Override
+    public void onRecoveredStateConsumed() {
+        // No-op in this test stub.
+    }
+
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    public Deque<Buffer> getRecoveredBuffersSpy() {
+        return recoveredBuffersSpy;
+    }
+
+    public boolean isFinishRecoveredBufferDeliveryCalled() {
+        return finishRecoveredBufferDeliveryCalled;
     }
 
     public void assertReturnedEventsAreRecycled() {

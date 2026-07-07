@@ -67,7 +67,8 @@ class NettyMessageServerSideSerializationTest {
                         new ResultPartitionID(),
                         new ResultSubpartitionIndexSet(queueIndex),
                         new InputChannelID(),
-                        random.nextInt());
+                        random.nextInt(),
+                        random.nextBoolean());
 
         NettyMessage.PartitionRequest actual = encodeAndDecode(expected, channel);
 
@@ -75,6 +76,7 @@ class NettyMessageServerSideSerializationTest {
         assertThat(actual.queueIndexSet).isEqualTo(expected.queueIndexSet);
         assertThat(actual.receiverId).isEqualTo(expected.receiverId);
         assertThat(actual.credit).isEqualTo(expected.credit);
+        assertThat(actual.needsRecovery).isEqualTo(expected.needsRecovery);
     }
 
     @Test
