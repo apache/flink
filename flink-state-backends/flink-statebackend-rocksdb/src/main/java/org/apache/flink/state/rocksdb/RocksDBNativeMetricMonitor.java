@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
+import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
@@ -107,7 +108,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
     /** Updates the value of metricView if the reference is still valid. */
     private void setProperty(RocksDBNativePropertyMetricView metricView) {
-        if (metricView.isClosed()) {
+        if (metricView.isClosed() || rocksDB == null) {
             return;
         }
         try {
@@ -126,11 +127,11 @@ public class RocksDBNativeMetricMonitor implements Closeable {
     }
 
     private void setStatistics(RocksDBNativeStatisticsMetricView metricView) {
-        if (metricView.isClosed()) {
+        if (metricView.isClosed() || statistics == null) {
             return;
         }
-        if (statistics != null) {
-            synchronized (lock) {
+        synchronized (lock) {
+            if (statistics != null) {
                 metricView.setValue(statistics.getTickerCount(metricView.tickerType));
             }
         }
@@ -140,6 +141,8 @@ public class RocksDBNativeMetricMonitor implements Closeable {
     public void close() {
         synchronized (lock) {
             rocksDB = null;
+            // Wrapper holds a JNI shared_ptr that leaks without explicit close. See FLINK-39923.
+            IOUtils.closeQuietly(statistics);
             statistics = null;
         }
     }
