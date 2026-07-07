@@ -146,11 +146,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
 
     /**
-     * Whether {@link #stop()} has been called. Reset by {@link #start(Listener)}. Prevents a late
-     * provider callback or an in-flight obtain cycle from scheduling new work after shutdown.
+     * Whether the manager is between {@link #start(Listener)} and {@link #stop()}. Defaults to
+     * false, so work arriving before the first start() is rejected the same way as after stop().
      */
     @GuardedBy("tokensUpdateFutureLock")
-    private boolean stopped;
+    private boolean running;
 
     @Nullable private Listener listener;
 
@@ -358,10 +358,16 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     public void start(Listener listener) throws Exception {
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
-        this.listener = checkNotNull(listener, "Listener must not be null");
+        checkNotNull(listener, "Listener must not be null");
         synchronized (tokensUpdateFutureLock) {
-            checkState(tokensUpdateFuture == null, "Manager is already started");
-            stopped = false;
+            if (running) {
+                LOG.warn("DelegationTokenManager is already started, ignoring redundant start()");
+                return;
+            }
+            this.listener = listener;
+            // Set before the inline first cycle below: startTokensUpdate() and
+            // maybeScheduleRenewal() gate on it.
+            running = true;
         }
 
         startTokensUpdate();
@@ -370,13 +376,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @VisibleForTesting
     void startTokensUpdate() {
         synchronized (tokensUpdateFutureLock) {
-            // The obtain cycle is starting: clear the dedupe flag so later on-demand requests can
-            // schedule a fresh cycle.
+            // Clear the dedupe flag so later on-demand requests can schedule a fresh cycle.
             reobtainScheduled = false;
-            // If stop() ran before this cycle (already handed to the IO executor) began, skip the
-            // obtain/broadcast: the providers may already be stopped. Safe via this lock's
-            // happens-before with stop(). The dedupe flag is cleared above, so it is never stuck.
-            if (stopped) {
+            // Stopped or never started: skip the cycle. The providers may already be stopped
+            // and the listener may not be set yet.
+            if (!running) {
                 return;
             }
         }
@@ -403,10 +407,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     lastKnownNextRenewal = nextRenewal.get();
                     currentRetryBackoff = renewalRetryInitialBackoff;
                     long renewalDelay = calculateRenewalDelay(clock, nextRenewal.get());
-                    maybeScheduleRenewal(renewalDelay);
-                    LOG.info(
-                            "Tokens update task started with {} delay",
-                            TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
+                    long effectiveDelay = maybeScheduleRenewal(renewalDelay);
+                    if (effectiveDelay >= 0) {
+                        LOG.info(
+                                "Tokens update task started with {} delay",
+                                TimeUtils.formatWithHighestUnit(Duration.ofMillis(effectiveDelay)));
+                    } else {
+                        LOG.info("Tokens update task not rescheduled, the manager is not running");
+                    }
                 } else {
                     LOG.warn(
                             "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
@@ -416,11 +424,25 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 LOG.debug("Interrupted", e);
             } catch (Exception e) {
                 long delay = calculateRetryDelay(clock);
-                maybeScheduleRenewal(delay);
-                LOG.warn(
-                        "Failed to update tokens, will try again in {}",
-                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
-                        e);
+                long effectiveDelay;
+                try {
+                    effectiveDelay = maybeScheduleRenewal(delay);
+                } catch (Throwable schedulingFailure) {
+                    // The original failure was not logged yet, keep it attached.
+                    schedulingFailure.addSuppressed(e);
+                    throw schedulingFailure;
+                }
+                if (effectiveDelay >= 0) {
+                    LOG.warn(
+                            "Failed to update tokens, will try again in {}",
+                            TimeUtils.formatWithHighestUnit(Duration.ofMillis(effectiveDelay)),
+                            e);
+                } else {
+                    LOG.warn(
+                            "Failed to update tokens, no retry scheduled because the manager is "
+                                    + "not running",
+                            e);
+                }
             }
         }
     }
@@ -454,34 +476,54 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                             TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
             // Scheduled executor is shutting down: no cycle will run, so undo the bookkeeping
-            // this method set. Clearing reobtainScheduled keeps a coalesced re-obtain from
-            // getting stuck. nextScheduledAtMillis returns to the no-cycle-pending marker
-            // (stopTokensUpdate() above already nulled tokensUpdateFuture).
+            // this method set.
             reobtainScheduled = false;
             nextScheduledAtMillis = Long.MAX_VALUE;
             LOG.debug("Tokens update task rejected by scheduled executor", e);
+        } catch (Throwable t) {
+            // Undo the same bookkeeping as the rejection branch, or every later re-obtain would
+            // be coalesced against a cycle that never got scheduled. Rethrow to keep the failure
+            // visible.
+            reobtainScheduled = false;
+            nextScheduledAtMillis = Long.MAX_VALUE;
+            throw t;
         }
     }
 
     /**
-     * Schedules the next periodic renewal at the end of a completed obtain cycle, unless the
-     * manager was stopped or an on-demand re-obtain was scheduled while this cycle ran. A pending
-     * on-demand cycle already re-establishes the renewal schedule, so it is left in place rather
-     * than cancelled: the periodic renewal is folded into it, never dropped.
+     * Schedules the next cycle (periodic renewal or failure retry). A pending on-demand cycle is
+     * brought forward when {@code delayMs} is sooner and left in place otherwise, so a pending
+     * cycle is never delayed.
+     *
+     * @param delayMs requested delay in millis
+     * @return the delay in millis until the cycle that will actually run next, or -1 when nothing
+     *     is scheduled because the manager is not running.
      */
     @VisibleForTesting
-    void maybeScheduleRenewal(long delayMs) {
+    long maybeScheduleRenewal(long delayMs) {
+        // A negative delay (the token already passed its validUntil) means run now. Clamp it so
+        // it cannot be mistaken for the -1 not-running sentinel.
+        delayMs = Math.max(0L, delayMs);
         synchronized (tokensUpdateFutureLock) {
-            if (stopped) {
-                return;
+            if (!running) {
+                return -1L;
             }
             if (reobtainScheduled) {
+                long pendingInMillis = Math.max(0L, nextScheduledAtMillis - clock.millis());
+                if (delayMs < pendingInMillis) {
+                    // Bring the pending on-demand cycle forward. scheduleRenewalLocked() leaves
+                    // reobtainScheduled set, so coalescing still holds and the earlier cycle
+                    // serves the coalesced on-demand requests too.
+                    scheduleRenewalLocked(delayMs);
+                    return delayMs;
+                }
                 LOG.debug(
-                        "An on-demand re-obtain is already scheduled; leaving it in place instead "
-                                + "of overwriting it with the periodic renewal.");
-                return;
+                        "An on-demand re-obtain is already scheduled to fire sooner, leaving it "
+                                + "in place.");
+                return pendingInMillis;
             }
             scheduleRenewalLocked(delayMs);
+            return delayMs;
         }
     }
 
@@ -542,10 +584,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         LOG.info("Stopping credential renewal");
 
         synchronized (tokensUpdateFutureLock) {
-            // Mark stopped, cancel the pending cycle, and reset on-demand re-obtain bookkeeping
-            // atomically, so a concurrent reobtainDelegationTokens() cannot leave a live future
-            // orphaned after stop and a later start() does not inherit stale state.
-            stopped = true;
+            // Mark not running, cancel the pending cycle, and reset the re-obtain bookkeeping
+            // atomically, so a re-obtain racing shutdown cannot schedule a cycle for a manager
+            // that is shutting down.
+            running = false;
             stopTokensUpdate();
             reobtainScheduled = false;
             lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
@@ -572,10 +614,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                 + "request is ignored.");
                 return;
             }
-            if (stopped) {
+            if (!running) {
                 LOG.debug(
-                        "A re-obtain of delegation tokens was requested after the manager was "
-                                + "stopped; the request is ignored.");
+                        "A re-obtain of delegation tokens was requested while the manager is not "
+                                + "running (not started yet, or already stopped), ignoring the "
+                                + "request.");
                 return;
             }
             // Dedupe: if an on-demand re-obtain is already scheduled and has not started yet, the
