@@ -31,12 +31,12 @@ import org.apache.flink.annotation.Experimental;
 public interface DelegationTokenManagerCallback {
 
     /**
-     * Requests an asynchronous token re-obtain and redistribution to all receivers,
-     * bringing the next obtain cycle forward instead of waiting for the periodic renewal.
+     * Requests an asynchronous token re-obtain and redistribution to all receivers, bringing the
+     * next obtain cycle forward instead of waiting for the periodic renewal.
      *
      * <p>May be called from any thread at any time after {@code init}. The manager coalesces
-     * requests and may apply a cooldown, so a call does not necessarily map to one obtain
-     * cycle. Returns immediately and does not wait for completion.
+     * requests and may apply a cooldown, so a call does not necessarily map to one obtain cycle.
+     * Returns immediately and does not wait for completion.
      */
     void reobtainDelegationTokens();
 }
