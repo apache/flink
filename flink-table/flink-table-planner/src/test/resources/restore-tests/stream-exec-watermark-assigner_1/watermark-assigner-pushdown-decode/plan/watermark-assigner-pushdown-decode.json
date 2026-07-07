@@ -1,0 +1,265 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 11,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "VARBINARY(2147483647)"
+            }, {
+              "name" : "ts",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "CALL",
+                    "internalName" : "$DECODE$1",
+                    "operands" : [ {
+                      "kind" : "INPUT_REF",
+                      "inputIndex" : 1,
+                      "type" : "VARBINARY(2147483647)"
+                    }, {
+                      "kind" : "LITERAL",
+                      "value" : "UTF-8",
+                      "type" : "CHAR(5) NOT NULL"
+                    } ],
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(DECODE(`b`, 'UTF-8'))"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "ts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "TIMESTAMP(3)"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : "1000",
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`ts` - INTERVAL '1' SECOND"
+              }
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "WatermarkPushDown",
+        "watermarkExpr" : {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$-$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$TO_TIMESTAMP$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "internalName" : "$DECODE$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 1,
+                "type" : "VARBINARY(2147483647)"
+              }, {
+                "kind" : "LITERAL",
+                "value" : "UTF-8",
+                "type" : "CHAR(5) NOT NULL"
+              } ],
+              "type" : "VARCHAR(2147483647)"
+            } ],
+            "type" : "TIMESTAMP(3)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "1000",
+            "type" : "INTERVAL SECOND(6) NOT NULL"
+          } ],
+          "type" : "TIMESTAMP(3)"
+        },
+        "rowtimeExpr" : {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$REINTERPRET$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$TO_TIMESTAMP$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "internalName" : "$DECODE$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 1,
+                "type" : "VARBINARY(2147483647)"
+              }, {
+                "kind" : "LITERAL",
+                "value" : "UTF-8",
+                "type" : "CHAR(5) NOT NULL"
+              } ],
+              "type" : "VARCHAR(2147483647)"
+            } ],
+            "type" : "TIMESTAMP(3)"
+          } ],
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        },
+        "idleTimeoutMillis" : -1,
+        "producedType" : "ROW<`a` INT, `b` VARBINARY(2147483647)> NOT NULL",
+        "watermarkParams" : {
+          "emitStrategy" : "ON_EVENT",
+          "alignGroupName" : null,
+          "alignMaxDrift" : "PT0S",
+          "alignUpdateInterval" : "PT1S",
+          "sourceIdleTimeout" : -1
+        }
+      } ]
+    },
+    "outputType" : "ROW<`a` INT, `b` VARBINARY(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, watermark=[-(TO_TIMESTAMP(DECODE(b, _UTF-16LE'UTF-8')), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[a, b])"
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$REINTERPRET$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "internalName" : "$TO_TIMESTAMP$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "internalName" : "$DECODE$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 1,
+            "type" : "VARBINARY(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "UTF-8",
+            "type" : "CHAR(5) NOT NULL"
+          } ],
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "TIMESTAMP(3)"
+      } ],
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "INT"
+      }, {
+        "name" : "ts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[a, Reinterpret(TO_TIMESTAMP(DECODE(b, 'UTF-8'))) AS ts])"
+  }, {
+    "id" : 13,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "ts",
+              "dataType" : "TIMESTAMP(3)"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "INT"
+      }, {
+        "name" : "ts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, ts])"
+  } ],
+  "edges" : [ {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
