@@ -6,9 +6,9 @@ LogicalSink(table=[default_catalog.default_database.MyCtasTable], fields=[votes,
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MyCtasTable], fields=[votes, a, b, metadata_col])
 +- Calc(select=[null:INTEGER AS votes, a, b, null:BIGINT AS metadata_col])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MyCtasTable], fields=[votes, a, b, metadata_col])
 +- Calc(select=[null:INTEGER AS votes, a, b, null:BIGINT AS metadata_col])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])

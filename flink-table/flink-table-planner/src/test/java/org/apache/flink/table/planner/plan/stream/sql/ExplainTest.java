@@ -174,15 +174,95 @@ public class ExplainTest extends TableTestBase {
                         + "    MyTable");
     }
 
+    @Test
+    void testExplainCreateTableAsSelect() {
+        verifyExplain(
+                "CREATE TABLE MyCtasTable\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable",
+                "testExplainCtas");
+    }
+
+    @Test
+    void testExplainReplaceTableAsSelect() {
+        // Produces the same plan as CREATE TABLE AS SELECT.
+        verifyExplain(
+                "REPLACE TABLE MyCtasTable\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable",
+                "testExplainCtas");
+    }
+
+    @Test
+    void testExplainCreateTableAsSelectWithColumnsInCreateAndQueryParts() {
+        verifyExplain(
+                "CREATE TABLE MyCtasTable(\n"
+                        + "  `votes` INT,\n"
+                        + "  `votes_2x` AS `b` * 2,\n"
+                        + "  `metadata_col` BIGINT METADATA,\n"
+                        + "  `virtual_col` STRING METADATA VIRTUAL\n"
+                        + ")\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values',\n"
+                        + "   'readable-metadata' = 'metadata_col:BIGINT, virtual_col:STRING',\n"
+                        + "   'writable-metadata' = 'metadata_col:BIGINT'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable",
+                "testExplainCtasWithColumnsInCreateAndQueryParts");
+    }
+
+    @Test
+    void testExplainReplaceTableAsSelectWithColumnsInCreateAndQueryParts() {
+        // Produces the same plan as CREATE TABLE AS SELECT.
+        verifyExplain(
+                "REPLACE TABLE MyCtasTable(\n"
+                        + "  `votes` INT,\n"
+                        + "  `votes_2x` AS `b` * 2,\n"
+                        + "  `metadata_col` BIGINT METADATA,\n"
+                        + "  `virtual_col` STRING METADATA VIRTUAL\n"
+                        + ")\n"
+                        + " WITH (\n"
+                        + "   'connector' = 'values',\n"
+                        + "   'readable-metadata' = 'metadata_col:BIGINT, virtual_col:STRING',\n"
+                        + "   'writable-metadata' = 'metadata_col:BIGINT'\n"
+                        + ") AS\n"
+                        + "  SELECT\n"
+                        + "    `a`,\n"
+                        + "    `b`\n"
+                        + "  FROM\n"
+                        + "    MyTable",
+                "testExplainCtasWithColumnsInCreateAndQueryParts");
+    }
+
     private void verifyExplain(final String statement) {
-        final String actual = util.getTableEnv().explainSql(statement);
         final String displayName = this.testInfo.getDisplayName();
-        final String fileName = displayName.substring(0, displayName.length() - 2) + ".out";
+        verifyExplain(statement, displayName.substring(0, displayName.length() - 2));
+    }
+
+    private void verifyExplain(final String statement, final String fileName) {
+        final String actual = util.getTableEnv().explainSql(statement);
+        final String fullFileName = fileName + ".out";
         if (REGENERATE_FILES) {
-            writeToResource(fileName, actual);
+            writeToResource(fullFileName, actual);
             return;
         }
-        final String expected = TableTestUtil.readFromResource("/explain/" + fileName);
+        final String expected = TableTestUtil.readFromResource("/explain/" + fullFileName);
         assertThat(TableTestUtil.replaceStageId(actual))
                 .isEqualTo(TableTestUtil.replaceStageId(expected));
     }
