@@ -631,6 +631,180 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                         "AIR"));
     }
 
+    @Tag("miniBatchSize=4")
+    @Test
+    void testInnerJoinWithNoUniqueKeyInsertThenUpdateAfterFoldKeepsUpdateAfter() throws Exception {
+        // joinKey is LineOrd
+        // Batch: right +I, left +I, left -U, left +U  (4 records trigger the batch)
+        // Left fold: +I + -U folds to nothing; remaining +U keeps its RowKind without unique key
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464")); // left -U (+I -U folds away)
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464")); // left +U (triggers batch)
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_AFTER,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
+    @Tag("miniBatchSize=2")
+    @Test
+    void testInnerJoinWithJoinKeyContainsUniqueKeyUpdateBeforeThenUpdateAfterKeepsUpdateAfter()
+            throws Exception {
+        // joinKey is LineOrd (same as uniqueKey for JoinKeyContainsUniqueKey)
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left -U
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#2", "LineOrd#1", "4 Bellevue Drive, Pottstown, PB 19464")); // left +U
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_BEFORE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(
+                        RowKind.UPDATE_AFTER,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
+    @Tag("miniBatchSize=2")
+    @Test
+    void testInnerJoinWithHasUniqueKeyUpdateBeforeThenUpdateAfterKeepsUpdateAfter()
+            throws Exception {
+        // joinKey is LineOrd, uniqueKey is Ord
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left -U
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#1", "LineOrd#1", "4 Bellevue Drive, Pottstown, PB 19464")); // left +U
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_BEFORE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(
+                        RowKind.UPDATE_AFTER,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
+    @Tag("miniBatchSize=2")
+    @Test
+    void testInnerJoinWithNoUniqueKeyUpdateBeforeThenUpdateAfterKeepsUpdateAfter()
+            throws Exception {
+        // joinKey is LineOrd
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR")); // right +I
+        testHarness.processElement1(
+                insertRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left +I
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                updateBeforeRecord(
+                        "Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464")); // left -U
+        assertor.shouldEmitNothing(testHarness);
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#2", "LineOrd#1", "4 Bellevue Drive, Pottstown, PB 19464")); // left +U
+        assertor.shouldEmitAll(
+                testHarness,
+                rowOfKind(
+                        RowKind.UPDATE_AFTER,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "4 Bellevue Drive, Pottstown, PB 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(
+                        RowKind.UPDATE_BEFORE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+    }
+
     @Tag("miniBatchSize=13")
     @Test
     void testInnerJoinWithHasUniqueKeyWithinBatch() throws Exception {
