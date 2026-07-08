@@ -44,8 +44,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,6 +83,11 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
     @Nullable AsyncExecutionController<K, ?> asyncExecutionController;
+
+    private long intermediateWatermarkIntervalMs = 0;
+    private boolean intermediateWatermarkNudgeScheduled = false;
+    private long reachedWatermark = Long.MIN_VALUE;
+    private int nextServiceStartIndex = 0;
 
     private InternalTimeServiceManagerImpl(
             TaskIOMetricGroup taskIOMetricGroup,
@@ -216,14 +224,58 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     }
 
     @Override
+    public void configureIntermediateWatermarkInterval(Duration interval) {
+        this.intermediateWatermarkIntervalMs = interval.toMillis();
+    }
+
+    @Override
     public boolean tryAdvanceWatermark(
             Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception {
-        for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            if (!service.tryAdvanceWatermark(watermark.getTimestamp(), shouldStopAdvancingFn)) {
-                return false;
+        maybeScheduleIntermediateWatermarkNudge();
+        List<InternalTimerServiceImpl<K, ?>> services = new ArrayList<>(timerServices.values());
+        boolean fullyAdvanced = true;
+        for (int i = 0; i < services.size() && fullyAdvanced; i++) {
+            // Rotate the starting service every call so that a persistently-behind service can't
+            // permanently starve the ones after it in a fixed iteration order: once one service
+            // is interrupted, stop attempting to fire on the remaining ones this round, but still
+            // fold their (possibly stale, from an earlier round) reachedWatermark into the min
+            // below.
+            InternalTimerServiceImpl<K, ?> service =
+                    services.get((nextServiceStartIndex + i) % services.size());
+            if (fullyAdvanced) {
+                fullyAdvanced =
+                        service.tryAdvanceWatermark(
+                                watermark.getTimestamp(), shouldStopAdvancingFn);
             }
         }
-        return true;
+        if (!services.isEmpty()) {
+            nextServiceStartIndex = (nextServiceStartIndex + 1) % services.size();
+        }
+        long minReachedWatermark = Long.MAX_VALUE;
+        for (InternalTimerServiceImpl<?, ?> service : services) {
+            minReachedWatermark = Math.min(minReachedWatermark, service.getReachedWatermark());
+        }
+        reachedWatermark = minReachedWatermark;
+        return fullyAdvanced;
+    }
+
+    @Override
+    public long getReachedWatermark() {
+        return reachedWatermark;
+    }
+
+    // A firing loop only yields once the mailbox has other mail waiting; ordinary record/watermark
+    // traffic doesn't go through the mailbox, so a long, otherwise-idle drain would never yield on
+    // its own. This periodic no-op mail forces a yield point at roughly the configured interval,
+    // without adding any per-timer clock check to the firing loop itself.
+    private void maybeScheduleIntermediateWatermarkNudge() {
+        if (intermediateWatermarkIntervalMs > 0 && !intermediateWatermarkNudgeScheduled) {
+            intermediateWatermarkNudgeScheduled = true;
+            processingTimeService.scheduleWithFixedDelay(
+                    timestamp -> {},
+                    intermediateWatermarkIntervalMs,
+                    intermediateWatermarkIntervalMs);
+        }
     }
 
     //////////////////				Fault Tolerance Methods				///////////////////

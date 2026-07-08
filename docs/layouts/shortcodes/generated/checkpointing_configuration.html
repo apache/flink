@@ -177,6 +177,12 @@
             <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.unaligned.interruptible-timers.emit-intermediate-watermarks</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When unaligned checkpoints with interruptible timers are enabled (see 'execution.checkpointing.unaligned.interruptible-timers.enabled') and firing the timers due for a watermark advance is interrupted before completing, an intermediate watermark reflecting the progress made so far is emitted downstream, at most as often as configured by 'pipeline.auto-watermark-interval'. This keeps downstream operators from stalling on watermark progress during a long-running catch-up. Set to false to disable intermediate watermark emission.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.unaligned.interruptible-timers.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
