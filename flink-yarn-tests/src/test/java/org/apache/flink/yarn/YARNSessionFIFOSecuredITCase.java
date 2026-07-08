@@ -23,6 +23,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.HadoopSecurityContext;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -155,9 +156,12 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(),
                                 SecureTestEnvironment.getHadoopServicePrincipal());
                     }
-                    final ApplicationId applicationId =
-                            runDetachedModeTest(securityProperties, VIEW_ACLS, MODIFY_ACLS);
-                    verifyResultContainsKerberosKeytab(applicationId, VIEW_ACLS, MODIFY_ACLS);
+                    runDetachedModeTest(
+                            securityProperties,
+                            VIEW_ACLS,
+                            MODIFY_ACLS,
+                            YARNSessionFIFOSecuredITCase::verifyKerberosKeytabInLogs);
+                    verifyTokenAndAclsInContainers(VIEW_ACLS, MODIFY_ACLS);
                 });
     }
 
@@ -177,29 +181,38 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(),
                                 SecureTestEnvironment.getHadoopServicePrincipal());
                     }
-                    final ApplicationId applicationId =
-                            runDetachedModeTest(securityProperties, VIEW_ACLS, MODIFY_ACLS);
-                    verifyResultContainsKerberosKeytab(applicationId, VIEW_ACLS, MODIFY_ACLS);
-                    final ApplicationId applicationIdWithWildcard =
-                            runDetachedModeTest(
-                                    securityProperties,
-                                    VIEW_ACLS_WITH_WILDCARD,
-                                    MODIFY_ACLS_WITH_WILDCARD);
-                    verifyResultContainsKerberosKeytab(
-                            applicationIdWithWildcard, WILDCARD, WILDCARD);
+                    runDetachedModeTest(
+                            securityProperties,
+                            VIEW_ACLS,
+                            MODIFY_ACLS,
+                            YARNSessionFIFOSecuredITCase::verifyKerberosKeytabInLogs);
+                    verifyTokenAndAclsInContainers(VIEW_ACLS, MODIFY_ACLS);
+                    runDetachedModeTest(
+                            securityProperties,
+                            VIEW_ACLS_WITH_WILDCARD,
+                            MODIFY_ACLS_WITH_WILDCARD,
+                            YARNSessionFIFOSecuredITCase::verifyKerberosKeytabInLogs);
+                    verifyTokenAndAclsInContainers(WILDCARD, WILDCARD);
                 });
     }
 
-    private static void verifyResultContainsKerberosKeytab(
-            ApplicationId applicationId, String viewAcls, String modifyAcls) throws Exception {
+    /**
+     * Verifies that both the JobManager and TaskManager logged a Kerberos keytab login. The
+     * container log files are polled rather than read once, and this must run while the containers
+     * are still alive so the logs are complete. A short-lived TaskManager can otherwise be torn
+     * down before its startup log becomes durably readable.
+     */
+    private static void verifyKerberosKeytabInLogs(ApplicationId applicationId) throws Exception {
         final String[] mustHave = {"Login successful for user", "using keytab file"};
-        final boolean jobManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "jobmanager.log");
-        final boolean taskManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "taskmanager.log");
+        for (final String logFile : new String[] {"jobmanager.log", "taskmanager.log"}) {
+            log.info("Waiting until {} contains the Kerberos keytab login", logFile);
+            CommonTestUtils.waitUntilCondition(
+                    () -> verifyStringsInNamedLogFiles(mustHave, applicationId, logFile), 500);
+        }
+    }
 
-        assertThat(jobManagerRunsWithKerberos && taskManagerRunsWithKerberos).isTrue();
-
+    private static void verifyTokenAndAclsInContainers(String viewAcls, String modifyAcls)
+            throws Exception {
         final List<String> amRMTokens =
                 Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
         final String jobmanagerContainerId = getContainerIdByLogName("jobmanager.log");
