@@ -47,6 +47,8 @@ under the License.
 		<module>flink-oss-fs-hadoop</module>
 		<module>flink-azure-fs-hadoop</module>
 		<module>flink-gs-fs-hadoop</module>
+		<module>flink-fs-cse-common</module>
+		<module>flink-fs-cse-aes-gcm</module>
 	</modules>
 
 	<!-- Common dependency setup for all filesystems -->
