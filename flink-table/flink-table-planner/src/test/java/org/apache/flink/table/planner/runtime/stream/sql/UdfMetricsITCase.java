@@ -30,6 +30,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.functions.AsyncScalarFunction;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -40,8 +43,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -104,6 +113,88 @@ class UdfMetricsITCase {
         public void eval(Integer i) {
             collect(i);
             collect(i);
+        }
+    }
+
+    /** Doubles an int off the task thread; the metered async scalar path. */
+    public static class AsyncIntDoubler extends AsyncScalarFunction {
+        private transient ScheduledExecutorService executor;
+
+        @Override
+        public void open(FunctionContext context) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        @Override
+        public void close() {
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+        }
+
+        public void eval(CompletableFuture<Integer> future, Integer i) {
+            executor.schedule(
+                    () -> future.complete(i == null ? null : i * 2), 5, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Completes exceptionally the first {@code numFailures} invocations, then succeeds. Exercises
+     * the async completion-exception counter while the async operator's retry keeps the job alive.
+     */
+    public static class AsyncFlaky extends AsyncScalarFunction {
+        private final int numFailures;
+        private final AtomicInteger failures = new AtomicInteger();
+        private transient ScheduledExecutorService executor;
+
+        public AsyncFlaky(int numFailures) {
+            this.numFailures = numFailures;
+        }
+
+        @Override
+        public void open(FunctionContext context) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        @Override
+        public void close() {
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+        }
+
+        public void eval(CompletableFuture<Integer> future, Integer i) {
+            executor.schedule(
+                    () -> {
+                        if (failures.getAndIncrement() < numFailures) {
+                            future.completeExceptionally(new RuntimeException("boom"));
+                        } else {
+                            future.complete(i);
+                        }
+                    },
+                    5,
+                    TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** Emits each input twice off the task thread; the metered async table path. */
+    public static class AsyncDuplicateRows extends AsyncTableFunction<Integer> {
+        private transient ScheduledExecutorService executor;
+
+        @Override
+        public void open(FunctionContext context) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        @Override
+        public void close() {
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+        }
+
+        public void eval(CompletableFuture<Collection<Integer>> future, Integer i) {
+            executor.schedule(() -> future.complete(Arrays.asList(i, i)), 5, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -241,6 +332,70 @@ class UdfMetricsITCase {
                 .isEqualTo(SOURCE_ROWS.size());
         assertThat(histogram(jobId, processingTimePattern("negateudf")).getCount())
                 .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testAsyncScalarMetricsRecorded() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("asyncudf", AsyncIntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT asyncudf(id) FROM src");
+
+        // The processing time spans dispatch to off-thread completion; one sample per input row.
+        assertThat(histogram(jobId, processingTimePattern("asyncudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+        assertThat(counter(jobId, exceptionCountPattern("asyncudf")).getCount()).isZero();
+    }
+
+    @Test
+    void testAsyncCompletionExceptionSurvivesJob() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        // Serialize invocations so the shared failure counter drives a deterministic retry.
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS, 1);
+        tEnv.createTemporarySystemFunction("flakyudf", new AsyncFlaky(2));
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        // Two exceptional completions are counted, then the async retry succeeds and the job
+        // finishes normally: an exceptional completion is a soft error, not a job failure.
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT flakyudf(id) FROM src");
+
+        assertThat(counter(jobId, exceptionCountPattern("flakyudf")).getCount())
+                .isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void testAsyncTableMetricsRecorded() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("asynctableudf", AsyncDuplicateRows.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT x FROM src, "
+                                + "LATERAL TABLE(asynctableudf(id)) AS T(x)");
+
+        // eval is called once per input row (it completes two rows); one sample each.
+        assertThat(histogram(jobId, processingTimePattern("asynctableudf")).getCount())
+                .isEqualTo(SOURCE_ROWS.size());
+    }
+
+    @Test
+    void testAsyncDisabledRegistersNoUdfMetrics() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(false);
+        tEnv.createTemporarySystemFunction("asyncoffudf", AsyncIntDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT asyncoffudf(id) FROM src");
+
+        assertThat(reporter.findMetrics(jobId, ANY_PROCESSING_TIME_PATTERN)).isEmpty();
+        assertThat(reporter.findMetrics(jobId, ANY_EXCEPTION_COUNT_PATTERN)).isEmpty();
     }
 
     private static StreamTableEnvironment createTableEnv(boolean udfMetricEnabled) {

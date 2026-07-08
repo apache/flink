@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.utils.{DateTimeUtils, EncodingUtils}
 import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.util.Preconditions
 
 import java.time.ZoneId
 import java.util.TimeZone
@@ -929,6 +930,20 @@ class CodeGeneratorContext(
         fieldTerm
       }
     )
+  }
+
+  /**
+   * Returns the sole [[UdfMetrics]] handle term registered in this context, or `null` if none is.
+   * An async fetcher hosts exactly one async UDF, so at most one handle is ever registered; this
+   * lets the async scalar generator pass the handle into the per-invocation delegating future
+   * without re-deriving the UDF name.
+   */
+  def getSingleUdfMetricsTerm: String = {
+    val errorMessage: Any =
+      s"An async fetcher hosts exactly one async UDF, but ${reusableUdfMetricsTerms.size} UDF " +
+        "metrics handles were registered in one context."
+    Preconditions.checkState(reusableUdfMetricsTerms.size <= 1, errorMessage)
+    if (reusableUdfMetricsTerms.size == 1) reusableUdfMetricsTerms.values.head else null
   }
 
   /**
