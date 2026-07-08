@@ -106,10 +106,19 @@ abstract class BuiltInAggregateFunctionTestBase {
         testCase.execute(new MiniClusterClient(miniCluster.getConfiguration(), miniCluster));
     }
 
-    protected static Table asTable(TableEnvironment tEnv, DataType sourceRowType, List<Row> rows) {
+    protected static Table asTable(
+            TableEnvironment tEnv,
+            DataType sourceRowType,
+            List<Row> rows,
+            @Nullable String rowtimeColumn,
+            @Nullable String watermarkExpression) {
+        final Schema.Builder schemaBuilder = Schema.newBuilder().fromRowDataType(sourceRowType);
+        if (rowtimeColumn != null) {
+            schemaBuilder.watermark(rowtimeColumn, watermarkExpression);
+        }
         final TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
-                        .schema(Schema.newBuilder().fromRowDataType(sourceRowType).build())
+                        .schema(schemaBuilder.build())
                         .source(asSource(rows, sourceRowType))
                         .build();
 
@@ -204,6 +213,8 @@ abstract class BuiltInAggregateFunctionTestBase {
         private final Configuration configuration = new Configuration();
         private DataType sourceRowType;
         private List<Row> sourceRows;
+        private @Nullable String rowtimeColumn;
+        private @Nullable String watermarkExpression;
 
         private TestSpec(BuiltInFunctionDefinition definition) {
             this.definition = definition;
@@ -235,6 +246,12 @@ abstract class BuiltInAggregateFunctionTestBase {
         TestSpec withSource(DataType sourceRowType, List<Row> sourceRows) {
             this.sourceRowType = sourceRowType;
             this.sourceRows = sourceRows;
+            return this;
+        }
+
+        TestSpec withWatermark(String rowtimeColumn, String watermarkExpression) {
+            this.rowtimeColumn = rowtimeColumn;
+            this.watermarkExpression = watermarkExpression;
             return this;
         }
 
@@ -343,7 +360,13 @@ abstract class BuiltInAggregateFunctionTestBase {
                                         .inStreamingMode()
                                         .withConfiguration(configuration)
                                         .build());
-                final Table sourceTable = asTable(tEnv, sourceRowType, sourceRows);
+                final Table sourceTable =
+                        asTable(
+                                tEnv,
+                                sourceRowType,
+                                sourceRows,
+                                rowtimeColumn,
+                                watermarkExpression);
 
                 testItem.execute(tEnv, sourceTable, clusterClient);
             };

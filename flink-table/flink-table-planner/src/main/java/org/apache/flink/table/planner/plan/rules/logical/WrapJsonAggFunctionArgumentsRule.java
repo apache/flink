@@ -22,12 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -63,13 +65,19 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  * their correct representation, and the actual aggregation function's implementation can simply
  * insert the values as raw nodes instead. This avoids having to re-implement the logic for all
  * supported types in the aggregation function again.
+ *
+ * <p>This rule supports both {@link LogicalAggregate} and {@link LogicalWindowAggregate}.
  */
 @Internal
 @Value.Enclosing
 public class WrapJsonAggFunctionArgumentsRule
         extends RelRule<WrapJsonAggFunctionArgumentsRule.Config> {
 
-    public static final RelOptRule INSTANCE = new WrapJsonAggFunctionArgumentsRule(Config.DEFAULT);
+    public static final RelOptRule AGGREGATE_INSTANCE =
+            new WrapJsonAggFunctionArgumentsRule(Config.AGGREGATE_DEFAULT);
+
+    public static final RelOptRule WINDOW_AGGREGATE_INSTANCE =
+            new WrapJsonAggFunctionArgumentsRule(Config.WINDOW_AGGREGATE_DEFAULT);
 
     /** Marker hint that a call has already been transformed. */
     private static final RelHint MARKER_HINT =
@@ -81,15 +89,15 @@ public class WrapJsonAggFunctionArgumentsRule
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        final LogicalAggregate aggregate = call.rel(0);
+        final Aggregate aggregate = call.rel(0);
         final RelNode aggInput = aggregate.getInput();
         final RelBuilder relBuilder = call.builder().push(aggInput);
 
-        final LogicalAggregate wrappedAggregate = wrapJsonAggregate(aggregate, relBuilder);
+        final Aggregate wrappedAggregate = wrapJsonAggregate(aggregate, relBuilder);
         call.transformTo(wrappedAggregate.withHints(Collections.singletonList(MARKER_HINT)));
     }
 
-    private LogicalAggregate wrapJsonAggregate(LogicalAggregate aggregate, RelBuilder relBuilder) {
+    private Aggregate wrapJsonAggregate(Aggregate aggregate, RelBuilder relBuilder) {
         final int inputCount = aggregate.getInput().getRowType().getFieldCount();
         List<AggregateCall> aggCallList = new ArrayList<>(aggregate.getAggCallList());
         // This map is a mapping relationship between jsonObjectAggCall and the argument index
@@ -175,19 +183,25 @@ public class WrapJsonAggFunctionArgumentsRule
     /** Configuration for {@link WrapJsonAggFunctionArgumentsRule}. */
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
-        Config DEFAULT =
+        Config AGGREGATE_DEFAULT =
                 ImmutableWrapJsonAggFunctionArgumentsRule.Config.builder()
                         .build()
                         .as(Config.class)
-                        .onJsonAggregateFunctions();
+                        .onAggregateClass(LogicalAggregate.class);
+
+        Config WINDOW_AGGREGATE_DEFAULT =
+                ImmutableWrapJsonAggFunctionArgumentsRule.Config.builder()
+                        .build()
+                        .as(Config.class)
+                        .onAggregateClass(LogicalWindowAggregate.class);
 
         @Override
         default RelOptRule toRule() {
             return new WrapJsonAggFunctionArgumentsRule(this);
         }
 
-        default Config onJsonAggregateFunctions() {
-            final Predicate<LogicalAggregate> jsonAggPredicate =
+        default <T extends Aggregate> Config onAggregateClass(Class<T> aggregateClass) {
+            final Predicate<T> jsonAggPredicate =
                     aggregate ->
                             aggregate.getAggCallList().stream()
                                     .anyMatch(WrapJsonAggFunctionArgumentsRule::isJsonAggregation);
@@ -195,7 +209,7 @@ public class WrapJsonAggFunctionArgumentsRule
             final RelRule.OperandTransform aggTransform =
                     operandBuilder ->
                             operandBuilder
-                                    .operand(LogicalAggregate.class)
+                                    .operand(aggregateClass)
                                     .predicate(jsonAggPredicate)
                                     .anyInputs();
 

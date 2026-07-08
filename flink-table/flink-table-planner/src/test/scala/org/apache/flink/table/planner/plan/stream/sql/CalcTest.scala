@@ -39,6 +39,54 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def test(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TEMPORARY TABLE kafka_raw(
+                               |    a                 VARCHAR
+                               |    ,b VARCHAR
+                               |    ,pt                 AS PROCTIME()
+                               |)
+                               |WITH (
+                               |    'connector' = 'datagen'
+                               |)
+                               |;
+                               |""".stripMargin)
+
+    println(util.verifyExplain("""
+                                 |select
+                                 |    JSON_ARRAYAGG(ARRAY[b]) AS ecu_data
+                                 |from kafka_raw
+                                 |group by
+                                 |    TUMBLE(pt, INTERVAL '1' MINUTE)
+                                 |    ,a
+                                 |;
+                                 |""".stripMargin))
+  }
+
+  @Test
+  def test2(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TEMPORARY TABLE kafka_raw(
+                               |    a                 VARCHAR
+                               |    ,b VARCHAR
+                               |    ,pt                 AS PROCTIME()
+                               |)
+                               |WITH (
+                               |    'connector' = 'datagen'
+                               |)
+                               |;
+                               |""".stripMargin)
+
+    println(util.verifyExplain("""
+                                 |select
+                                 |    JSON_ARRAYAGG(ARRAY[b]) AS ecu_data
+                                 |from kafka_raw
+                                 |group by a
+                                 |;
+                                 |""".stripMargin))
+  }
+
+  @Test
   def testOnlyProject(): Unit = {
     util.verifyExecPlan("SELECT a, c FROM MyTable")
   }
