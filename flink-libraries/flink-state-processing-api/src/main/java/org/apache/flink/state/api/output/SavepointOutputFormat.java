@@ -79,7 +79,19 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
                         () -> {
                             try (CheckpointMetadataOutputStream out =
                                     targetLocation.createMetadataOutputStream()) {
-                                Checkpoints.storeCheckpointMetadata(metadata, out);
+                                // Must stay on the variant WITHOUT the exclusive directory. Files
+                                // retained from an existing savepoint are copied into this
+                                // directory by FileCopyFunction, but their handles still reference
+                                // the source savepoint. Writing without the exclusive directory
+                                // keeps the relative (file-name-only) encoding, which resolves
+                                // against this directory on restore and keeps the savepoint
+                                // self-contained. The exclusive-dir-aware
+                                // Checkpoints.storeCheckpointMetadata would instead fill this
+                                // savepoint's metadata with absolute paths pointing into the
+                                // source savepoint, breaking this savepoint once the source is
+                                // deleted.
+                                Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(
+                                        metadata, out);
                                 CompletedCheckpointStorageLocation finalizedLocation =
                                         out.closeAndFinalizeCheckpoint();
                                 return finalizedLocation.getExternalPointer();

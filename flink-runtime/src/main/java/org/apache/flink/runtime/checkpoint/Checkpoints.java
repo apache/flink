@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.metadata.MetadataV6Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -76,29 +78,80 @@ public class Checkpoints {
     //  Writing out checkpoint metadata
     // ------------------------------------------------------------------------
 
-    public static void storeCheckpointMetadata(
+    /**
+     * Stores the checkpoint metadata without knowing the checkpoint's exclusive directory: relative
+     * file references are always persisted as relative and are resolved against whatever directory
+     * the metadata is later read from. When writing the metadata of an actual checkpoint or
+     * savepoint, prefer {@link #storeCheckpointMetadata(CheckpointMetadata,
+     * CheckpointMetadataOutputStream)}.
+     *
+     * <p>The deliberately different method name keeps the context-free variants out of the {@code
+     * storeCheckpointMetadata} overload set, so a caller cannot switch between the two encodings by
+     * merely changing a variable's static type.
+     */
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, OutputStream out) throws IOException {
 
         DataOutputStream dos = new DataOutputStream(out);
-        storeCheckpointMetadata(checkpointMetadata, dos);
+        storeCheckpointMetadataWithoutExclusiveDir(checkpointMetadata, dos);
     }
 
+    /**
+     * Stores the checkpoint metadata into the given metadata output stream, passing the stream's
+     * exclusive checkpoint directory to the serializer so that relative file references stay
+     * self-consistent on recovery.
+     */
     public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata, CheckpointMetadataOutputStream out)
+            throws IOException {
+
+        DataOutputStream dos = new DataOutputStream(out);
+        storeCheckpointMetadata(
+                checkpointMetadata,
+                dos,
+                MetadataV6Serializer.INSTANCE,
+                out.getExclusiveCheckpointDir());
+    }
+
+    /**
+     * Variant of {@link #storeCheckpointMetadataWithoutExclusiveDir(CheckpointMetadata,
+     * OutputStream)} for a {@link DataOutputStream}.
+     */
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
-        storeCheckpointMetadata(checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
+        storeCheckpointMetadataWithoutExclusiveDir(
+                checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
     }
 
     public static void storeCheckpointMetadata(
             CheckpointMetadata checkpointMetadata,
             DataOutputStream out,
+            @Nullable Path exclusiveDir)
+            throws IOException {
+        storeCheckpointMetadata(
+                checkpointMetadata, out, MetadataV6Serializer.INSTANCE, exclusiveDir);
+    }
+
+    public static void storeCheckpointMetadataWithoutExclusiveDir(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
             MetadataSerializer serializer)
+            throws IOException {
+        storeCheckpointMetadata(checkpointMetadata, out, serializer, null);
+    }
+
+    public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
+            MetadataSerializer serializer,
+            @Nullable Path exclusiveDir)
             throws IOException {
 
         // write generic header
         out.writeInt(HEADER_MAGIC_NUMBER);
 
         out.writeInt(serializer.getVersion());
-        serializer.serialize(checkpointMetadata, out);
+        serializer.serialize(checkpointMetadata, out, exclusiveDir);
     }
 
     // ------------------------------------------------------------------------

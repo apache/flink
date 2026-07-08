@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -67,7 +68,10 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @Override
-    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    public void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
             throws IOException {
         throw new UnsupportedOperationException(
                 "Serialization in v" + getVersion() + " is no longer supported");
@@ -78,7 +82,10 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
     // ------------------------------------------------------------------------
 
     @Override
-    protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos)
+    protected void serializeOperatorState(
+            OperatorState operatorState,
+            DataOutputStream dos,
+            @Nullable SerializationContext context)
             throws IOException {
         checkState(
                 !operatorState.isFullyFinished(),
@@ -102,7 +109,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
         dos.writeInt(subtaskStateMap.size());
         for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
             dos.writeInt(entry.getKey());
-            serializeSubtaskState(entry.getValue(), dos);
+            serializeSubtaskState(entry.getValue(), dos, context);
         }
     }
 
@@ -134,7 +141,10 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @Override
-    protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos)
+    protected void serializeSubtaskState(
+            OperatorSubtaskState subtaskState,
+            DataOutputStream dos,
+            @Nullable SerializationContext context)
             throws IOException {
         // write two unused fields for compatibility:
         //   - "duration"
@@ -142,7 +152,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
         dos.writeLong(-1);
         dos.writeInt(0);
 
-        super.serializeSubtaskState(subtaskState, dos);
+        super.serializeSubtaskState(subtaskState, dos, context);
     }
 
     @Override

@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint.metadata;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.Versioned;
+
+import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -46,9 +49,42 @@ public interface MetadataSerializer extends Versioned {
             throws IOException;
 
     /**
-     * Serializes a savepoint or checkpoint metadata to an output stream.
+     * Serializes a savepoint or checkpoint metadata to an output stream without knowledge of the
+     * exclusive directory the metadata is written into.
+     *
+     * <p>This is a convenience variant of {@link #serialize(CheckpointMetadata, DataOutputStream,
+     * Path)} with a {@code null} exclusive directory: relative file references keep the relative
+     * encoding unconditionally and are resolved against whatever directory the metadata is later
+     * read from, which is only correct if every referenced file actually lives in that directory.
      *
      * @throws IOException Serialization failures are forwarded
      */
-    void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos) throws IOException;
+    default void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+            throws IOException {
+        serialize(checkpointMetadata, dos, null);
+    }
+
+    /**
+     * Serializes a savepoint or checkpoint metadata to an output stream, knowing the exclusive
+     * directory into which the metadata (and the checkpoint/savepoint it describes) is being
+     * written.
+     *
+     * <p>The exclusive directory is used to keep the on-disk references self-consistent: a relative
+     * file handle that does not belong to {@code exclusiveDirPath} (e.g. a savepoint SST reused by
+     * the first incremental checkpoint after a CLAIM-mode restore) is persisted with its absolute
+     * path instead of being (incorrectly) resolved against {@code exclusiveDirPath} on recovery.
+     *
+     * <p>This is the method implementations must provide (rather than a default dropping the
+     * exclusive directory), so that a serializer cannot silently lose the exclusive-directory
+     * information.
+     *
+     * @param exclusiveDirPath the exclusive directory of the checkpoint/savepoint being written, or
+     *     {@code null} if it is unknown.
+     * @throws IOException Serialization failures are forwarded
+     */
+    void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
+            throws IOException;
 }

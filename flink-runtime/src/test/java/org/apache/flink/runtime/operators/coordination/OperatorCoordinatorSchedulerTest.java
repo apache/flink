@@ -963,7 +963,7 @@ class OperatorCoordinatorSchedulerTest {
                         1337L, Collections.singletonList(state), Collections.emptyList());
 
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        Checkpoints.storeCheckpointMetadata(metadata, out);
+        Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(metadata, out);
         return out.toByteArray();
     }
 
