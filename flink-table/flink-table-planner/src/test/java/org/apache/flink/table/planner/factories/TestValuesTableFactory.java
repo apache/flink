@@ -716,7 +716,9 @@ public final class TestValuesTableFactory
                                     partitions,
                                     readableMetadata,
                                     null,
-                                    enableAggregatePushDown);
+                                    enableAggregatePushDown,
+                                    sleepAfterElements,
+                                    sleepTimeMillis);
                     source.setEnableMetadataFilterPushDown(enableMetadataFilterPushDown);
                     return source;
                 } else {
@@ -1750,6 +1752,8 @@ public final class TestValuesTableFactory
             extends TestValuesScanTableSource
             implements SupportsWatermarkPushDown, SupportsSourceWatermark {
         private final String tableName;
+        private final int sleepAfterElements;
+        private final long sleepTimeMillis;
 
         private WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.noWatermarks();
 
@@ -1771,7 +1775,9 @@ public final class TestValuesTableFactory
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
                 @Nullable int[] projectedMetadataFields,
-                boolean enableAggregatePushDown) {
+                boolean enableAggregatePushDown,
+                int sleepAfterElements,
+                long sleepTimeMillis) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1792,6 +1798,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     enableAggregatePushDown);
             this.tableName = tableName;
+            this.sleepAfterElements = sleepAfterElements;
+            this.sleepTimeMillis = sleepTimeMillis;
         }
 
         @Override
@@ -1817,7 +1825,13 @@ public final class TestValuesTableFactory
             try {
                 return SourceFunctionProvider.of(
                         new TestValuesRuntimeFunctions.FromElementSourceFunctionWithWatermark(
-                                tableName, serializer, values, watermarkStrategy, terminating),
+                                tableName,
+                                serializer,
+                                values,
+                                watermarkStrategy,
+                                terminating,
+                                sleepAfterElements,
+                                sleepTimeMillis),
                         false);
             } catch (IOException e) {
                 throw new TableException("Fail to init source function", e);
@@ -1845,7 +1859,9 @@ public final class TestValuesTableFactory
                             allPartitions,
                             readableMetadata,
                             projectedMetadataFields,
-                            enableAggregatePushDown);
+                            enableAggregatePushDown,
+                            sleepAfterElements,
+                            sleepTimeMillis);
             newSource.watermarkStrategy = watermarkStrategy;
             newSource.setEnableMetadataFilterPushDown(enableMetadataFilterPushDown);
             return newSource;
