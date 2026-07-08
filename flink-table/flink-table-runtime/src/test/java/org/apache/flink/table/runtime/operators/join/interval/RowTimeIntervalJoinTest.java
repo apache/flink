@@ -500,6 +500,9 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
         final List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(5L, "k1", null, null));
+        // Intermediate watermark surfacing progress after firing the first timer, before the
+        // drain is interrupted by the test's injected mail.
+        expectedOutput.add(new Watermark(5));
         expectedOutput.add(insertRecord(null, null, 6L, "k2"));
         expectedOutput.add(insertRecord(7L, "k3", null, null));
         expectedOutput.add(insertRecord(null, null, 8L, "k4"));

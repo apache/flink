@@ -83,12 +83,18 @@ class BaseTemporalSortOperatorTest {
             assertThat(output)
                     .containsExactly(
                             firedDesc(1000L),
+                            // Intermediate watermarks surfacing progress after each timer fires,
+                            // before the drain is interrupted by the next mail.
+                            watermarkDesc(999L),
                             mailDesc(1000L),
                             firedDesc(2000L),
+                            watermarkDesc(1999L),
                             mailDesc(2000L),
                             firedDesc(3000L),
+                            watermarkDesc(2999L),
                             mailDesc(3000L),
                             firedDesc(4000L),
+                            watermarkDesc(3999L),
                             mailDesc(4000L),
                             watermarkDesc(5000L));
         }
