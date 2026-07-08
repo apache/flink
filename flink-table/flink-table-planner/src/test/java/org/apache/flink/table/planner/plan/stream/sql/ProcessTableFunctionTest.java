@@ -76,6 +76,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -301,6 +302,25 @@ class ProcessTableFunctionTest extends TableTestBase {
     void testUidArgRejectedForDisabledPtf() {
         util.addTemporarySystemFunction("f", NoSystemArgsScalarFunction.class);
         assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1, uid => 'my-uid');"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'uid' argument is not supported for function 'f' "
+                                        + "because it disables system arguments."));
+    }
+
+    @Test
+    void testSystemArgRejectedForDisabledPtfViaTableApi() {
+        // The same enforcement applies to the Table API path, which resolves calls via
+        // ResolveCallByArgumentsRule instead of the SQL validator.
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.tableEnv()
+                                        .fromCall(
+                                                "f",
+                                                util.tableEnv().from("t").asArgument("r"),
+                                                lit(1).asArgument("i"),
+                                                lit("my-uid").asArgument("uid")))
                 .satisfies(
                         anyCauseMatches(
                                 "The 'uid' argument is not supported for function 'f' "

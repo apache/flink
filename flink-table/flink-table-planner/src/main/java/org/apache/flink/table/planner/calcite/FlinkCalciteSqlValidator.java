@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.logical.DecimalType;
 
@@ -92,6 +91,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -463,34 +463,27 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
     /**
      * Rejects the implicit PTF system arguments (on_time, uid) for functions that disable them.
      *
-     * <p>When a PTF sets {@code disableSystemArguments(true)}, the system arguments are not part of
-     * its signature. Enforcing this here covers all translation paths uniformly.
+     * <p>This must happen before Calcite permutes named arguments, because unknown named arguments
+     * are silently dropped during permutation and would otherwise be lost. The actual rule and
+     * error message live in {@link SystemTypeInference#checkNoSystemArguments} so that the Table
+     * API path (which resolves calls without this validator) enforces it identically.
      */
     private static void checkDisabledSystemArgs(SqlBasicCall call) {
-        if (!ShortcutUtils.isFunctionKind(call.getOperator(), FunctionKind.PROCESS_TABLE)) {
+        final SqlOperator operator = call.getOperator();
+        if (!(operator instanceof BridgingSqlFunction)
+                || !((BridgingSqlFunction) operator).getTypeInference().disableSystemArguments()) {
             return;
         }
-        if (!(call.getOperator() instanceof BridgingSqlFunction)) {
-            return;
-        }
-        final BridgingSqlFunction function = (BridgingSqlFunction) call.getOperator();
-        if (!function.getTypeInference().disableSystemArguments()) {
-            return;
-        }
-        final List<String> sysArgNames =
-                SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.stream()
-                        .map(StaticArgument::getName)
-                        .toList();
-
-        for (String argName : sysArgNames) {
-            if (extractOperandByArgName(call, argName) != null) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid function call. The '%s' argument is not supported for "
-                                        + "function '%s' because it disables system arguments.",
-                                argName, function.getName()));
+        final Set<String> suppliedArgNames = new HashSet<>();
+        for (SqlNode operand : call.getOperandList()) {
+            if (operand != null && operand.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+                final SqlNode nameNode = ((SqlCall) operand).operand(1);
+                if (nameNode instanceof SqlIdentifier) {
+                    suppliedArgNames.add(((SqlIdentifier) nameNode).getSimple());
+                }
             }
         }
+        SystemTypeInference.checkNoSystemArguments(true, suppliedArgNames, operator.getName());
     }
 
     @Override

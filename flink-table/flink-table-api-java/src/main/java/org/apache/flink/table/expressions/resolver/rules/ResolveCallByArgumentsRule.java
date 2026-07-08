@@ -299,6 +299,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                 functionName));
             }
 
+            SystemTypeInference.checkNoSystemArguments(
+                    inference.disableSystemArguments(), namedArgs.keySet(), functionName);
+
             fillInDefaultNamedArguments(declaredArgs, namedArgs);
             fillInPtfSpecificNamedArguments(
                     functionName, definition, declaredArgs, namedArgs, actualArgs);
