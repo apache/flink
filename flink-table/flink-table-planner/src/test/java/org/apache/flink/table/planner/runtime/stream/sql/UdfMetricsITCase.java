@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -57,7 +58,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * End-to-end tests for the opt-in per-operator UDF metrics (FLIP-485) registered under {@code
- * <operator>.udf.<udfName>} for sync scalar and table user-defined functions.
+ * <operator>.udf.<udfName>} for synchronous and asynchronous scalar and table user-defined
+ * functions.
  */
 class UdfMetricsITCase {
 
@@ -73,6 +75,8 @@ class UdfMetricsITCase {
                             .build());
 
     private static final List<Row> SOURCE_ROWS = Arrays.asList(Row.of(1), Row.of(2), Row.of(3));
+
+    private static final long SLEEP_MILLIS = 20;
 
     // Matches the processing-time metric of any UDF, for asserting that none is registered.
     private static final String ANY_PROCESSING_TIME_PATTERN = "\\.udf\\..*\\.udfProcessingTime";
@@ -105,6 +109,18 @@ class UdfMetricsITCase {
     public static class AlwaysThrows extends ScalarFunction {
         public Integer eval(Integer i) {
             throw new RuntimeException("boom");
+        }
+    }
+
+    /** Doubles an int after sleeping a fixed duration, so timing is measurably non-zero. */
+    public static class SleepyDoubler extends ScalarFunction {
+        public Integer eval(Integer i) {
+            try {
+                Thread.sleep(SLEEP_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return i == null ? null : i * 2;
         }
     }
 
@@ -211,6 +227,25 @@ class UdfMetricsITCase {
         // Sample interval 1 measures every invocation: one per input row.
         assertThat(processingTime.getCount()).isEqualTo(SOURCE_ROWS.size());
         assertThat(counter(jobId, exceptionCountPattern("scalarudf")).getCount()).isZero();
+    }
+
+    @Test
+    void testProcessingTimeReflectsDelay() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        tEnv.createTemporarySystemFunction("sleepyudf", SleepyDoubler.class);
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId = execute(tEnv, "INSERT INTO sink SELECT sleepyudf(id) FROM src");
+
+        HistogramStatistics stats =
+                histogram(jobId, processingTimePattern("sleepyudf")).getStatistics();
+        // Every invocation is measured (interval 1), so the histogram must reflect the induced
+        // delay and expose percentile statistics rather than just a sample count.
+        long minExpectedNanos = TimeUnit.MILLISECONDS.toNanos(SLEEP_MILLIS);
+        assertThat(stats.getMax()).isGreaterThanOrEqualTo(minExpectedNanos);
+        assertThat(stats.getMean()).isGreaterThanOrEqualTo(minExpectedNanos);
+        assertThat(stats.getQuantile(0.95)).isPositive();
     }
 
     @Test

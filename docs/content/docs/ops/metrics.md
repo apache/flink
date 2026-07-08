@@ -2382,6 +2382,34 @@ Metrics below can be used to measure the effectiveness of speculative execution.
   </tbody>
 </table>
 
+### UDF
+
+The following metrics are registered per SQL/Table user-defined function when UDF metrics are enabled (see [UDF metrics](#udf-metrics) below). They are attached to the operator that runs the function and scoped under `udf.<udf_name>`, so the full metric identifier is `<operator_name>.udf.<udf_name>.<metric>`.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 44%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Task/Operator</strong></th>
+      <td>udf.&lt;udf_name&gt;.udfProcessingTime</td>
+      <td>The time (in nanoseconds) taken by a single invocation of the user-defined function. For asynchronous functions this spans from dispatch to completion. Sampled: only one invocation out of every <samp>table.exec.udf-metric.sample-interval</samp> is measured.</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>udf.&lt;udf_name&gt;.udfExceptionCount</td>
+      <td>The number of exceptions escaping the user-defined function. For synchronous functions this counts exceptions propagating out of <samp>eval</samp>; for asynchronous functions it counts exceptional completions. Counted on every invocation, not sampled.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
@@ -2440,6 +2468,22 @@ A larger value of this configuration will require more memory, but will provide 
 It is recommended to only use them for debugging purposes.
 If state.ttl is enabled, the size of the value will include the size of the TTL-related timestamp.
 The value size of AggregatingState is not accounted for because AggregatingState returns a result processed by a user-defined AggregateFunction, whereas currently, only the actual stored data size in the state can be tracked.
+
+## UDF metrics
+
+Flink can track the processing time and exceptions of SQL/Table user-defined functions on a per-operator basis. This feature is disabled by default.
+To enable it you must set `table.exec.udf-metric-enabled` to `true`. When disabled, nothing is registered and there is no overhead.
+
+Once enabled, each user-defined function gets two metrics on the operator that runs it, scoped under `udf.<udf_name>`: a `udfProcessingTime` histogram and a `udfExceptionCount` counter.
+
+Flink samples the processing time every `N` invocations, in which `N` is defined by `table.exec.udf-metric.sample-interval`.
+This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
+Exceptions are counted on every invocation and are not sampled.
+
+The metrics cover synchronous and asynchronous scalar and table functions. Process table functions (`PROCESS_TABLE`), aggregate functions, and functions registered through the deprecated `registerFunction` API are not covered.
+
+<span class="label label-danger">Warning</span> Enabling UDF metrics may impact the performance, both from the sampled timing and from the metric reporter.
+It is recommended to only use them for debugging purposes.
 
 ## REST API integration
 
