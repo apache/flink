@@ -84,6 +84,17 @@ class FlinkLogicalWindowAggregate(
     planner.getCostFactory.makeCost(rowCnt, cpuCost, rowCnt * rowSize)
   }
 
+  override def withHints(hintList: util.List[RelHint]): RelNode = {
+    new FlinkLogicalWindowAggregate(
+      cluster,
+      traitSet,
+      hintList,
+      input,
+      getGroupSet,
+      aggCalls,
+      window,
+      namedProperties)
+  }
 }
 
 class FlinkLogicalWindowAggregateConverter(config: Config) extends ConverterRule(config) {

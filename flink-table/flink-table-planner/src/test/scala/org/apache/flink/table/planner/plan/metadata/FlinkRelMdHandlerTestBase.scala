@@ -1834,7 +1834,7 @@ class FlinkRelMdHandlerTestBase {
     val logicalWindowAgg = new LogicalWindowAggregate(
       ts.getCluster,
       ts.getTraitSet,
-      Collections.emptyList(),
+      util.List.of(),
       project,
       ImmutableBitSet.of(0, 1),
       aggCallOfWindowAgg,
@@ -1846,7 +1846,7 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalWindowAgg = new FlinkLogicalWindowAggregate(
       ts.getCluster,
       logicalTraits,
-      Collections.emptyList(),
+      util.List.of(),
       new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
       ImmutableBitSet.of(0, 1),
       aggCallOfWindowAgg,
@@ -2006,7 +2006,7 @@ class FlinkRelMdHandlerTestBase {
     val logicalWindowAgg = new LogicalWindowAggregate(
       ts.getCluster,
       ts.getTraitSet,
-      Collections.emptyList(),
+      util.List.of(),
       project,
       ImmutableBitSet.of(1),
       aggCallOfWindowAgg,
@@ -2018,7 +2018,7 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalWindowAgg = new FlinkLogicalWindowAggregate(
       ts.getCluster,
       logicalTraits,
-      Collections.emptyList(),
+      util.List.of(),
       new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
       ImmutableBitSet.of(1),
       aggCallOfWindowAgg,
@@ -2191,7 +2191,7 @@ class FlinkRelMdHandlerTestBase {
     val logicalWindowAggWithAuxGroup = new LogicalWindowAggregate(
       ts.getCluster,
       ts.getTraitSet,
-      Collections.emptyList(),
+      util.List.of(),
       project,
       ImmutableBitSet.of(0),
       aggCallOfWindowAgg,
@@ -2203,7 +2203,7 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalWindowAggWithAuxGroup = new FlinkLogicalWindowAggregate(
       ts.getCluster,
       logicalTraits,
-      Collections.emptyList(),
+      util.List.of(),
       new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
       ImmutableBitSet.of(0),
       aggCallOfWindowAgg,

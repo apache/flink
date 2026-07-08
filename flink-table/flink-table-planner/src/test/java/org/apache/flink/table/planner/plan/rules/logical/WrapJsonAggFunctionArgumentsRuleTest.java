@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,10 +38,10 @@ import java.util.List;
 class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
 
     private final boolean batchMode;
-    private final boolean isWindowAgg;
+    private final boolean isGroupWindowAgg;
     private TableTestUtil util;
 
-    @Parameters(name = "batchMode = {0}, isWindowAgg = {1}")
+    @Parameters(name = "batchMode = {0}, isGroupWindowAgg = {1}")
     private static List<Boolean[]> data() {
         return Arrays.asList(
                 new Boolean[] {true, false},
@@ -49,9 +50,9 @@ class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
                 new Boolean[] {false, true});
     }
 
-    WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode, boolean isWindowAgg) {
+    WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode, boolean isGroupWindowAgg) {
         this.batchMode = batchMode;
-        this.isWindowAgg = isWindowAgg;
+        this.isGroupWindowAgg = isGroupWindowAgg;
     }
 
     @BeforeEach
@@ -74,7 +75,7 @@ class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
                                 + batchMode
                                 + "'\n)");
 
-        if (isWindowAgg) {
+        if (isGroupWindowAgg) {
             util.tableEnv()
                     .executeSql(
                             "ALTER TABLE T add (rt TIMESTAMP(3), WATERMARK FOR rt as rt - interval '1' second)");
@@ -138,9 +139,17 @@ class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
                         "f0"));
     }
 
+    @TestTemplate
+    void testJsonObjectAggWithWindowTVF() {
+        Assumptions.assumeTrue(isGroupWindowAgg);
+        util.verifyRelPlan(
+                "SELECT JSON_OBJECTAGG(f1 VALUE f1) "
+                        + "FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(rt), INTERVAL '5' SECOND))");
+    }
+
     private String renderAggregateSQL(String projects, String... groupKeys) {
         List<String> newGroupKeys = new ArrayList<>(Arrays.asList(groupKeys));
-        if (isWindowAgg) {
+        if (isGroupWindowAgg) {
             newGroupKeys.add("TUMBLE(rt, INTERVAL '5' SECOND)");
         }
         String groupKeyStr;

@@ -557,7 +557,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 new FlinkLogicalWindowAggregate(
                         tableAgg.getCluster(),
                         tableAgg.getTraitSet(),
-                        Collections.emptyList(),
+                        List.of(),
                         tableAgg.getInput(),
                         tableAgg.getGroupSet(),
                         tableAgg.getAggCallList(),
