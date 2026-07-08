@@ -257,15 +257,24 @@ public final class TestValuesRuntimeFunctions {
 
         private final TerminatingLogic terminating;
 
+        /** Sleep for {@link #sleepTimeMillis} after emitting every {@code sleepAfterElements}. */
+        private final int sleepAfterElements;
+
+        private final long sleepTimeMillis;
+
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
                 TypeSerializer<RowData> serializer,
                 Iterable<RowData> elements,
                 WatermarkStrategy<RowData> watermarkStrategy,
-                TerminatingLogic terminating)
+                TerminatingLogic terminating,
+                int sleepAfterElements,
+                long sleepTimeMillis)
                 throws IOException {
             this.tableName = tableName;
             this.terminating = terminating;
+            this.sleepAfterElements = sleepAfterElements;
+            this.sleepTimeMillis = sleepTimeMillis;
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -324,6 +333,13 @@ public final class TestValuesRuntimeFunctions {
                     numElementsEmitted++;
                     generator.onEvent(next, Long.MIN_VALUE, output);
                     generator.onPeriodicEmit(output);
+                }
+
+                // If enabled, throttle emission of values
+                if (sleepAfterElements > 0
+                        && sleepTimeMillis > 0
+                        && numElementsEmitted % sleepAfterElements == 0) {
+                    Thread.sleep(sleepTimeMillis);
                 }
             }
 
