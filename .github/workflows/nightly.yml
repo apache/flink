@@ -128,7 +128,7 @@ jobs:
           export RELEASE_VERSION=$(MVN_RUN_VERBOSE=false run_mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "Determined RELEASE_VERSION as '$RELEASE_VERSION'"
           cd tools
-          MVN_RUN_VERBOSE=true SKIP_GPG=true ./releasing/create_binary_release.sh
+          MVN_RUN_VERBOSE=true SKIP_GPG=true SKIP_PYTHON_WHEELS=true ./releasing/create_binary_release.sh
           echo "Created files:"
           find ./releasing/release
           cd ..

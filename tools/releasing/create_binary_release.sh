@@ -21,6 +21,11 @@
 ## Variables with defaults (if not overwritten by environment)
 ##
 SKIP_GPG=${SKIP_GPG:-false}
+# Set to true for automated builds (e.g. nightly snapshots) which
+#  do not try to include Python wheels in the binary release.
+# Defaults to false for manual use, when the release manager will
+#  first download platform wheels to flink-python/dist
+SKIP_PYTHON_WHEELS=${SKIP_PYTHON_WHEELS:-false}
 MVN=${MVN:-mvn}
 
 if [ -z "${RELEASE_VERSION:-}" ]; then
@@ -135,6 +140,8 @@ make_python_release() {
   # py39,py310,py311,py312 for mac 10.9, 11.0 and linux (12 wheel packages)
   EXPECTED_WHEEL_PACKAGES_NUM=12
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
+  # (update glob behaviour to expand to nothing if there are no matching files)
+  shopt -s nullglob
   for wheel_file in *.whl; do
     if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
         echo -e "\033[31;1mThe file name of the python package: ${wheel_file} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
@@ -143,9 +150,14 @@ make_python_release() {
     cp ${wheel_file} "${PYTHON_RELEASE_DIR}/${wheel_file}"
     wheel_packages_num=$((wheel_packages_num+1))
   done
+  shopt -u nullglob
   if [[ ${wheel_packages_num} != ${EXPECTED_WHEEL_PACKAGES_NUM} ]]; then
-    echo -e "\033[31;1mThe number of wheel packages ${wheel_packages_num} is not equal to the expected number ${EXPECTED_WHEEL_PACKAGES_NUM}!\033[0m"
-    exit 1
+    if [[ "$SKIP_PYTHON_WHEELS" == "true" ]]; then
+      echo "SKIP_PYTHON_WHEELS is set: found ${wheel_packages_num} wheel(s) instead of the expected ${EXPECTED_WHEEL_PACKAGES_NUM}; continuing without them"
+    else
+      echo -e "\033[31;1mThe number of wheel packages ${wheel_packages_num} is not equal to the expected number ${EXPECTED_WHEEL_PACKAGES_NUM}!\033[0m"
+      exit 1
+    fi
   fi
 
   cd ${PYTHON_RELEASE_DIR}
