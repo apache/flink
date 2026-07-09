@@ -70,7 +70,8 @@ class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChannelStateH
                                     InflightDataRescalingDescriptor
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
-                        }));
+                        }),
+                0);
     }
 
     @Test

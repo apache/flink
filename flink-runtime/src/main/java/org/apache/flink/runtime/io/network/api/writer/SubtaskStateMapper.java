@@ -173,6 +173,38 @@ public enum SubtaskStateMapper {
         }
     },
 
+    /**
+     * Rescaling mapper for POINTWISE upstream edges. Unlike other mappers, the old-to-new mapping
+     * depends on both upstream and downstream parallelisms and edge patterns (topology-aware), so
+     * {@link #getOldSubtasks} cannot compute it from parallelisms alone. Callers must use {@link
+     * org.apache.flink.runtime.checkpoint.PointwiseChannelMappingUtils#computeInheritedOldUpstreams
+     * PointwiseChannelMappingUtils.computeInheritedOldUpstreams} with the full {@link
+     * org.apache.flink.runtime.checkpoint.PointwiseRescaleParams PointwiseRescaleParams} instead.
+     *
+     * <p>The mapping is ambiguous: multiple new upstreams may claim the same old upstream's state
+     * (e.g. when scaling up, computeInheritedOldUpstreams produces overlapping sets). Only the
+     * primary upstream (producersOf(D)[0]) is responsible for recovery.
+     *
+     * <p>In {@link org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
+     * StreamingJobGraphGenerator}, {@link #UNSUPPORTED} (set by forward/rescale partitioners on PW
+     * edges) is replaced with this value to signal the output mapping builder to use the
+     * topology-aware rescale path.
+     */
+    POINTWISE_UPSTREAM {
+        @Override
+        public int[] getOldSubtasks(
+                int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
+            throw new UnsupportedOperationException(
+                    "POINTWISE_UPSTREAM requires PointwiseRescaleParams; "
+                            + "use PointwiseChannelMappingUtils.computeInheritedOldUpstreams instead.");
+        }
+
+        @Override
+        public boolean isAmbiguous() {
+            return true;
+        }
+    },
+
     UNSUPPORTED {
         @Override
         public int[] getOldSubtasks(

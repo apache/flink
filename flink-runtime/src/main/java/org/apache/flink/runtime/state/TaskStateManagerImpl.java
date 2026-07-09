@@ -113,7 +113,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
                 new SequentialChannelStateReaderImpl(
                         jobManagerTaskRestore == null
                                 ? new TaskStateSnapshot()
-                                : jobManagerTaskRestore.getTaskStateSnapshot()));
+                                : jobManagerTaskRestore.getTaskStateSnapshot(),
+                        executionAttemptID.getSubtaskIndex()));
     }
 
     public TaskStateManagerImpl(

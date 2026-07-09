@@ -21,6 +21,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.PointwiseChannelMappingUtils;
+import org.apache.flink.runtime.checkpoint.PointwiseRescaleParams;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -34,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -78,9 +81,11 @@ class InputChannelRecoveredStateHandler
     private final InputGate[] inputGates;
 
     private final InflightDataRescalingDescriptor channelMapping;
+    private final int subtaskIndex;
 
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
+    private final Map<Integer, int[]> pointwiseUpstreamAssignmentCache = new HashMap<>();
 
     /**
      * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
@@ -112,10 +117,12 @@ class InputChannelRecoveredStateHandler
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             @Nullable ChannelStateFilteringHandler filteringHandler,
-            int memorySegmentSize) {
+            int memorySegmentSize,
+            int subtaskIndex) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
         this.filteringHandler = filteringHandler;
+        this.subtaskIndex = subtaskIndex;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
         this.memorySegmentSize = memorySegmentSize;
@@ -185,18 +192,25 @@ class InputChannelRecoveredStateHandler
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
-                RecoveredInputChannel channel = getMappedChannels(channelInfo);
-
-                if (filteringHandler != null) {
-                    recoverWithFiltering(
-                            channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
+                if (isPointwiseRescaling(channelInfo.getGateIdx())) {
+                    recoverPointwise(channelInfo, oldSubtaskIndex, buffer);
                 } else {
-                    channel.onRecoveredStateBuffer(
-                            EventSerializer.toBuffer(
-                                    new SubtaskConnectionDescriptor(
-                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                    false));
-                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                    RecoveredInputChannel channel = getMappedChannels(channelInfo);
+                    if (filteringHandler != null) {
+                        recoverWithFiltering(
+                                channel,
+                                channelInfo.getGateIdx(),
+                                channelInfo.getInputChannelIdx(),
+                                oldSubtaskIndex,
+                                buffer.retainBuffer());
+                    } else {
+                        channel.onRecoveredStateBuffer(
+                                EventSerializer.toBuffer(
+                                        new SubtaskConnectionDescriptor(
+                                                oldSubtaskIndex, channelInfo.getInputChannelIdx()),
+                                        false));
+                        channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                    }
                 }
             }
         } finally {
@@ -204,18 +218,74 @@ class InputChannelRecoveredStateHandler
         }
     }
 
+    private void recoverPointwise(InputChannelInfo channelInfo, int oldSubtaskIndex, Buffer buffer)
+            throws IOException, InterruptedException {
+        PointwiseRescaleParams params =
+                channelMapping
+                        .getGateOrPartitionDescriptor(channelInfo.getGateIdx())
+                        .getPointwiseRescaleParams();
+
+        // Step 1: old local channel index → old global upstream subtask ID
+        int oldUpstreamSubtaskIndex =
+                PointwiseChannelMappingUtils.localIndexToGlobalSubtaskIndex(
+                        oldSubtaskIndex,
+                        channelInfo.getInputChannelIdx(),
+                        params.getOldUpParallelism(),
+                        params.getOldDownParallelism(),
+                        true,
+                        params.getOldDistributionPattern());
+
+        // Step 2: old global upstream → new global upstream (A2A: modulo, PW: first-claim)
+        int newUpstreamSubtaskIndex;
+        if (params.getNewDistributionPattern() == DistributionPattern.ALL_TO_ALL) {
+            newUpstreamSubtaskIndex =
+                    PointwiseChannelMappingUtils.newSubtaskAssignedFrom(
+                            oldUpstreamSubtaskIndex, params.getNewUpParallelism());
+        } else {
+            int[] oldToNewUpstream =
+                    pointwiseUpstreamAssignmentCache.computeIfAbsent(
+                            channelInfo.getGateIdx(),
+                            idx ->
+                                    PointwiseChannelMappingUtils.computePrimaryUpstreamMapping(
+                                            subtaskIndex, params));
+            newUpstreamSubtaskIndex = oldToNewUpstream[oldUpstreamSubtaskIndex];
+        }
+
+        // Step 3: new global upstream → new local channel index
+        int newLocalChannelIndex =
+                PointwiseChannelMappingUtils.computeNewLocalInputChannelIndex(
+                        newUpstreamSubtaskIndex, subtaskIndex, params);
+
+        if (filteringHandler == null) {
+            SubtaskConnectionDescriptor descriptor =
+                    new SubtaskConnectionDescriptor(oldSubtaskIndex, oldUpstreamSubtaskIndex);
+            RecoveredInputChannel channel =
+                    getChannel(channelInfo.getGateIdx(), newLocalChannelIndex);
+            channel.onRecoveredStateBuffer(EventSerializer.toBuffer(descriptor, false));
+            channel.onRecoveredStateBuffer(buffer.retainBuffer());
+        } else {
+            recoverWithFiltering(
+                    getChannel(channelInfo.getGateIdx(), newLocalChannelIndex),
+                    channelInfo.getGateIdx(),
+                    oldUpstreamSubtaskIndex,
+                    oldSubtaskIndex,
+                    buffer.retainBuffer());
+        }
+    }
+
     private void recoverWithFiltering(
             RecoveredInputChannel channel,
-            InputChannelInfo channelInfo,
+            int gateIdx,
+            int inputChannelIdx,
             int oldSubtaskIndex,
             Buffer retainedBuffer)
             throws IOException, InterruptedException {
         checkState(filteringHandler != null, "filtering handler not set.");
         List<Buffer> filteredBuffers =
                 filteringHandler.filterAndRewrite(
-                        channelInfo.getGateIdx(),
+                        gateIdx,
                         oldSubtaskIndex,
-                        channelInfo.getInputChannelIdx(),
+                        inputChannelIdx,
                         retainedBuffer,
                         channel::requestBufferBlocking);
 
@@ -260,6 +330,10 @@ class InputChannelRecoveredStateHandler
 
     @Nonnull
     private RecoveredInputChannel calculateMapping(InputChannelInfo info) {
+        // PW path is already intercepted by recoverPointwise in recover(); defensive guard
+        if (isPointwiseRescaling(info.getGateIdx())) {
+            return getChannel(info.getGateIdx(), 0);
+        }
         final RescaleMappings oldToNewMapping =
                 oldToNewMappings.computeIfAbsent(
                         info.getGateIdx(), idx -> channelMapping.getChannelMapping(idx).invert());
@@ -270,6 +344,10 @@ class InputChannelRecoveredStateHandler
                         + "one buffer is expected to be processed once by the same task.");
         return getChannel(info.getGateIdx(), mappedIndexes[0]);
     }
+
+    private boolean isPointwiseRescaling(int gateIdx) {
+        return channelMapping.getGateOrPartitionDescriptor(gateIdx).isPointwiseRescaling();
+    }
 }
 
 class ResultSubpartitionRecoveredStateHandler
@@ -277,19 +355,20 @@ class ResultSubpartitionRecoveredStateHandler
 
     private final ResultPartitionWriter[] writers;
     private final boolean notifyAndBlockOnCompletion;
+    private final InflightDataRescalingDescriptor channelMapping;
+    private final int subtaskIndex;
     private final ResultSubpartitionDistributor resultSubpartitionDistributor;
 
     ResultSubpartitionRecoveredStateHandler(
             ResultPartitionWriter[] writers,
             boolean notifyAndBlockOnCompletion,
-            InflightDataRescalingDescriptor channelMapping) {
+            InflightDataRescalingDescriptor channelMapping,
+            int subtaskIndex) {
         this.writers = writers;
+        this.channelMapping = channelMapping;
+        this.subtaskIndex = subtaskIndex;
         this.resultSubpartitionDistributor =
                 new ResultSubpartitionDistributor(channelMapping) {
-                    /**
-                     * Override the getSubpartitionInfo to perform type checking on the
-                     * ResultPartitionWriter.
-                     */
                     @Override
                     ResultSubpartitionInfo getSubpartitionInfo(
                             int partitionIndex, int subPartitionIdx) {
@@ -323,23 +402,78 @@ class ResultSubpartitionRecoveredStateHandler
             if (!bufferConsumer.isDataAvailable()) {
                 return;
             }
-            final List<ResultSubpartitionInfo> mappedSubpartitions =
-                    resultSubpartitionDistributor.getMappedSubpartitions(subpartitionInfo);
-            CheckpointedResultPartition checkpointedResultPartition =
-                    getCheckpointedResultPartition(subpartitionInfo.getPartitionIdx());
-            for (final ResultSubpartitionInfo mappedSubpartition : mappedSubpartitions) {
-                // channel selector is created from the downstream's point of view: the
-                // subtask of downstream = subpartition index of recovered buffer
-                final SubtaskConnectionDescriptor channelSelector =
-                        new SubtaskConnectionDescriptor(
-                                subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
-                checkpointedResultPartition.addRecovered(
-                        mappedSubpartition.getSubPartitionIdx(),
-                        EventSerializer.toBufferConsumer(channelSelector, false));
-                checkpointedResultPartition.addRecovered(
-                        mappedSubpartition.getSubPartitionIdx(), bufferConsumer.copy());
+            if (isPointwiseRescaling(subpartitionInfo.getPartitionIdx())) {
+                recoverPointwise(subpartitionInfo, oldSubtaskIndex, bufferConsumer);
+            } else {
+                recoverAllToAll(subpartitionInfo, oldSubtaskIndex, bufferConsumer);
             }
         }
+    }
+
+    private void recoverAllToAll(
+            ResultSubpartitionInfo subpartitionInfo,
+            int oldSubtaskIndex,
+            BufferConsumer bufferConsumer)
+            throws IOException {
+        final List<ResultSubpartitionInfo> mappedSubpartitions =
+                resultSubpartitionDistributor.getMappedSubpartitions(subpartitionInfo);
+        CheckpointedResultPartition checkpointedResultPartition =
+                getCheckpointedResultPartition(subpartitionInfo.getPartitionIdx());
+        for (final ResultSubpartitionInfo mappedSubpartition : mappedSubpartitions) {
+            final SubtaskConnectionDescriptor channelSelector =
+                    new SubtaskConnectionDescriptor(
+                            subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
+            checkpointedResultPartition.addRecovered(
+                    mappedSubpartition.getSubPartitionIdx(),
+                    EventSerializer.toBufferConsumer(channelSelector, false));
+            checkpointedResultPartition.addRecovered(
+                    mappedSubpartition.getSubPartitionIdx(), bufferConsumer.copy());
+        }
+    }
+
+    private void recoverPointwise(
+            ResultSubpartitionInfo subpartitionInfo,
+            int oldSubtaskIndex,
+            BufferConsumer bufferConsumer)
+            throws IOException {
+        PointwiseRescaleParams params =
+                channelMapping
+                        .getGateOrPartitionDescriptor(subpartitionInfo.getPartitionIdx())
+                        .getPointwiseRescaleParams();
+
+        int oldDownstreamSubtaskIndex =
+                PointwiseChannelMappingUtils.localIndexToGlobalSubtaskIndex(
+                        oldSubtaskIndex,
+                        subpartitionInfo.getSubPartitionIdx(),
+                        params.getOldUpParallelism(),
+                        params.getOldDownParallelism(),
+                        false,
+                        params.getOldDistributionPattern());
+
+        int newDownstreamSubtaskIndex =
+                PointwiseChannelMappingUtils.newSubtaskAssignedFrom(
+                        oldDownstreamSubtaskIndex, params.getNewDownParallelism());
+
+        int newLocalSubpartitionIndex =
+                PointwiseChannelMappingUtils.computeNewLocalSubpartitionIndex(
+                        newDownstreamSubtaskIndex, subtaskIndex, params);
+        // Primary upstream dedup: returns -1 if not primary or not connected, discard buffer
+        if (newLocalSubpartitionIndex < 0) {
+            return;
+        }
+
+        SubtaskConnectionDescriptor channelSelector =
+                new SubtaskConnectionDescriptor(oldDownstreamSubtaskIndex, oldSubtaskIndex);
+        CheckpointedResultPartition checkpointedResultPartition =
+                getCheckpointedResultPartition(subpartitionInfo.getPartitionIdx());
+        checkpointedResultPartition.addRecovered(
+                newLocalSubpartitionIndex,
+                EventSerializer.toBufferConsumer(channelSelector, false));
+        checkpointedResultPartition.addRecovered(newLocalSubpartitionIndex, bufferConsumer.copy());
+    }
+
+    private boolean isPointwiseRescaling(int partitionIdx) {
+        return channelMapping.getGateOrPartitionDescriptor(partitionIdx).isPointwiseRescaling();
     }
 
     private CheckpointedResultPartition getCheckpointedResultPartition(int partitionIndex) {

@@ -28,10 +28,12 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -144,15 +146,23 @@ public class StateHandleDummyUtil {
 
     public static InputChannelStateHandle createNewInputChannelStateHandle(
             int numNamedStates, Random random) {
-        return createNewInputChannelStateHandle(numNamedStates, 0, random);
+        return createNewInputChannelStateHandle(numNamedStates, 0, 0, random);
     }
 
     public static InputChannelStateHandle createNewInputChannelStateHandle(
             int numNamedStates, int gateIndex, Random random) {
+        return createNewInputChannelStateHandle(numNamedStates, 0, gateIndex, random);
+    }
+
+    public static InputChannelStateHandle createNewInputChannelStateHandle(
+            int numNamedStates, int subtaskIndex, int gateIndex, Random random) {
+        StreamStateHandle delegate = createStreamStateHandle(numNamedStates, random);
         return new InputChannelStateHandle(
+                subtaskIndex,
                 new InputChannelInfo(gateIndex, random.nextInt()),
-                createStreamStateHandle(numNamedStates, random),
-                genOffsets(numNamedStates, random));
+                delegate,
+                genOffsets(numNamedStates, random),
+                delegate.getStateSize());
     }
 
     public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
@@ -168,10 +178,24 @@ public class StateHandleDummyUtil {
 
     public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
             int numNamedStates, int partitionIndex, int subPartitionIdx, Random random) {
+        return createNewResultSubpartitionStateHandle(
+                numNamedStates, 0, partitionIndex, subPartitionIdx, random);
+    }
+
+    public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
+            int numNamedStates,
+            int subtaskIndex,
+            int partitionIndex,
+            int subPartitionIdx,
+            Random random) {
+        StreamStateHandle delegate = createStreamStateHandle(numNamedStates, random);
+        List<Long> offsets = genOffsets(numNamedStates, random);
         return new ResultSubpartitionStateHandle(
+                subtaskIndex,
                 new ResultSubpartitionInfo(partitionIndex, subPartitionIdx),
-                createStreamStateHandle(numNamedStates, random),
-                genOffsets(numNamedStates, random));
+                delegate,
+                offsets,
+                delegate.getStateSize());
     }
 
     private static ArrayList<Long> genOffsets(int size, Random random) {

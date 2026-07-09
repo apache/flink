@@ -34,6 +34,9 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.checkpoint.EdgeDistributionPatternSnapshot;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
@@ -49,6 +52,7 @@ import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobgraph.forwardgroup.JobVertexForwardGroup;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
@@ -253,7 +257,68 @@ public class StreamingJobGraphGenerator {
         // Wait for the serialization of operator coordinators and stream config.
         serializeOperatorCoordinatorsAndStreamConfig(serializationExecutor, jobVertexBuildContext);
 
+        configureEdgeDistributionPatternHook();
+
         return jobGraph;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void configureEdgeDistributionPatternHook() {
+        if (!streamGraph.getCheckpointConfig().isUnalignedCheckpointsEnabled()
+                || !streamGraph.getCheckpointConfig().isForceUnalignedCheckpoints()) {
+            return;
+        }
+        JobCheckpointingSettings settings = jobGraph.getCheckpointingSettings();
+        if (settings == null) {
+            return;
+        }
+        try {
+            Map<OperatorID, DistributionPattern[]> outputPatterns = new HashMap<>();
+            for (JobVertex jv : jobGraph.getVerticesSortedTopologicallyFromSources()) {
+                OperatorID outputOpId = jv.getOperatorIDs().get(0).getGeneratedOperatorID();
+                List<IntermediateDataSet> outputs = jv.getProducedDataSets();
+                DistributionPattern[] patterns = new DistributionPattern[outputs.size()];
+                for (int i = 0; i < outputs.size(); i++) {
+                    IntermediateDataSet ds = outputs.get(i);
+                    patterns[i] =
+                            ds.getConsumers().isEmpty()
+                                    ? DistributionPattern.ALL_TO_ALL
+                                    : ds.getDistributionPattern();
+                }
+                outputPatterns.put(outputOpId, patterns);
+            }
+
+            MasterTriggerRestoreHook.Factory[] existingHooks;
+            SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks =
+                    settings.getMasterHooks();
+            if (serializedHooks != null) {
+                existingHooks =
+                        serializedHooks.deserializeValue(
+                                Thread.currentThread().getContextClassLoader());
+            } else {
+                existingHooks = new MasterTriggerRestoreHook.Factory[0];
+            }
+
+            MasterTriggerRestoreHook.Factory[] newHooks =
+                    new MasterTriggerRestoreHook.Factory[existingHooks.length + 1];
+            System.arraycopy(existingHooks, 0, newHooks, 0, existingHooks.length);
+            newHooks[existingHooks.length] =
+                    new EdgeDistributionPatternHook.Factory(
+                            new EdgeDistributionPatternSnapshot(outputPatterns));
+
+            JobCheckpointingSettings newSettings =
+                    new JobCheckpointingSettings(
+                            settings.getCheckpointCoordinatorConfiguration(),
+                            settings.getDefaultStateBackend(),
+                            settings.isChangelogStateBackendEnabled(),
+                            settings.getDefaultCheckpointStorage(),
+                            new SerializedValue<>(newHooks),
+                            settings.isStateBackendUseManagedMemory());
+            jobGraph.setSnapshotSettings(newSettings);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    "Failed to configure edge distribution pattern hook", e);
+        }
     }
 
     public static void serializeOperatorCoordinatorsAndStreamConfig(
@@ -1634,8 +1699,31 @@ public class StreamingJobGraphGenerator {
 
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
-        jobEdge.setDownstreamSubtaskStateMapper(partitioner.getDownstreamSubtaskStateMapper());
-        jobEdge.setUpstreamSubtaskStateMapper(partitioner.getUpstreamSubtaskStateMapper());
+        SubtaskStateMapper downstreamMapper = partitioner.getDownstreamSubtaskStateMapper();
+        SubtaskStateMapper upstreamMapper = partitioner.getUpstreamSubtaskStateMapper();
+
+        if (jobVertexBuildContext
+                        .getStreamGraph()
+                        .getCheckpointConfig()
+                        .isForceUnalignedCheckpoints()
+                && jobVertexBuildContext
+                        .getStreamGraph()
+                        .getCheckpointConfig()
+                        .isUnalignedCheckpointsEnabled()
+                && !partitioner.isSupportsUnalignedCheckpoint(false)
+                && partitioner.isSupportsUnalignedCheckpoint(true)) {
+            // PW edges: downstream via ROUND_ROBIN, upstream via POINTWISE_UPSTREAM
+            // (topology-aware)
+            if (downstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
+                downstreamMapper = SubtaskStateMapper.ROUND_ROBIN;
+            }
+            if (upstreamMapper == SubtaskStateMapper.UNSUPPORTED) {
+                upstreamMapper = SubtaskStateMapper.POINTWISE_UPSTREAM;
+            }
+        }
+
+        jobEdge.setDownstreamSubtaskStateMapper(downstreamMapper);
+        jobEdge.setUpstreamSubtaskStateMapper(upstreamMapper);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(

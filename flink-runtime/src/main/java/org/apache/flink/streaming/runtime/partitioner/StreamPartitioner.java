@@ -87,7 +87,11 @@ public abstract class StreamPartitioner<T>
     public abstract boolean isPointwise();
 
     public boolean isSupportsUnalignedCheckpoint() {
-        return supportsUnalignedCheckpoint && !isPointwise() && !isBroadcast();
+        return isSupportsUnalignedCheckpoint(false);
+    }
+
+    public boolean isSupportsUnalignedCheckpoint(boolean forceUnaligned) {
+        return supportsUnalignedCheckpoint && (forceUnaligned || !isPointwise()) && !isBroadcast();
     }
 
     public void disableUnalignedCheckpoints() {

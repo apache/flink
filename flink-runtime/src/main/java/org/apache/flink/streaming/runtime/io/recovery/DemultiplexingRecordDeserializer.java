@@ -19,6 +19,9 @@ package org.apache.flink.streaming.runtime.io.recovery;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
+import org.apache.flink.runtime.checkpoint.PointwiseChannelMappingUtils;
+import org.apache.flink.runtime.checkpoint.PointwiseRescaleParams;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -152,6 +155,21 @@ class DemultiplexingRecordDeserializer<T>
         if (oldSubtaskIndexes.length == 0) {
             return UNMAPPED;
         }
+
+        InflightDataGateOrPartitionRescalingDescriptor gateDesc =
+                rescalingDescriptor.getGateOrPartitionDescriptor(channelInfo.getGateIdx());
+
+        if (gateDesc.isPointwiseRescaling()) {
+            // PW edges: compute actual connected virtual channels via old/new topology
+            return createPointwise(
+                    channelInfo,
+                    rescalingDescriptor,
+                    gateDesc,
+                    deserializerFactory,
+                    recordFilterFactory,
+                    oldSubtaskIndexes);
+        }
+
         final int[] oldChannelIndexes =
                 rescalingDescriptor
                         .getChannelMapping(channelInfo.getGateIdx())
@@ -170,6 +188,56 @@ class DemultiplexingRecordDeserializer<T>
                         descriptor,
                         new VirtualChannel<>(
                                 deserializerFactory.apply(totalChannels),
+                                rescalingDescriptor.isAmbiguous(channelInfo.getGateIdx(), subtask)
+                                        ? recordFilterFactory.apply(channelInfo)
+                                        : RecordFilter.acceptAll()));
+            }
+        }
+
+        return new DemultiplexingRecordDeserializer(virtualChannels);
+    }
+
+    private static <T> DemultiplexingRecordDeserializer<T> createPointwise(
+            InputChannelInfo channelInfo,
+            InflightDataRescalingDescriptor rescalingDescriptor,
+            InflightDataGateOrPartitionRescalingDescriptor gateDesc,
+            Function<Integer, RecordDeserializer<DeserializationDelegate<StreamElement>>>
+                    deserializerFactory,
+            Function<InputChannelInfo, RecordFilter<T>> recordFilterFactory,
+            int[] oldSubtaskIndexes) {
+        PointwiseRescaleParams params = gateDesc.getPointwiseRescaleParams();
+
+        int totalVirtualChannels = 0;
+        for (int subtask : oldSubtaskIndexes) {
+            totalVirtualChannels +=
+                    PointwiseChannelMappingUtils.getOldLocalChannelCount(subtask, params);
+        }
+        if (totalVirtualChannels == 0) {
+            return UNMAPPED;
+        }
+
+        Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels =
+                Maps.newHashMapWithExpectedSize(totalVirtualChannels);
+        for (int subtask : oldSubtaskIndexes) {
+            int numLocalChannels =
+                    PointwiseChannelMappingUtils.getOldLocalChannelCount(subtask, params);
+            for (int localChannelIndex = 0;
+                    localChannelIndex < numLocalChannels;
+                    localChannelIndex++) {
+                int oldUpstreamSubtaskIndex =
+                        PointwiseChannelMappingUtils.localIndexToGlobalSubtaskIndex(
+                                subtask,
+                                localChannelIndex,
+                                params.getOldUpParallelism(),
+                                params.getOldDownParallelism(),
+                                true,
+                                params.getOldDistributionPattern());
+                SubtaskConnectionDescriptor descriptor =
+                        new SubtaskConnectionDescriptor(subtask, oldUpstreamSubtaskIndex);
+                virtualChannels.put(
+                        descriptor,
+                        new VirtualChannel<>(
+                                deserializerFactory.apply(totalVirtualChannels),
                                 rescalingDescriptor.isAmbiguous(channelInfo.getGateIdx(), subtask)
                                         ? recordFilterFactory.apply(channelInfo)
                                         : RecordFilter.acceptAll()));

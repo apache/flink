@@ -48,6 +48,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,6 +78,7 @@ public class StateAssignmentOperation {
     private final long restoreCheckpointId;
     private final boolean allowNonRestoredState;
     private final boolean recoverOutputOnDownstreamTask;
+    @Nullable private final EdgeDistributionPatternSnapshot oldEdgePatterns;
 
     /** The state assignments for each ExecutionJobVertex that will be filled in multiple passes. */
     private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
@@ -93,12 +96,29 @@ public class StateAssignmentOperation {
             Map<OperatorID, OperatorState> operatorStates,
             boolean allowNonRestoredState,
             boolean recoverOutputOnDownstreamTask) {
+        this(
+                restoreCheckpointId,
+                tasks,
+                operatorStates,
+                allowNonRestoredState,
+                recoverOutputOnDownstreamTask,
+                null);
+    }
+
+    public StateAssignmentOperation(
+            long restoreCheckpointId,
+            Set<ExecutionJobVertex> tasks,
+            Map<OperatorID, OperatorState> operatorStates,
+            boolean allowNonRestoredState,
+            boolean recoverOutputOnDownstreamTask,
+            @Nullable EdgeDistributionPatternSnapshot oldEdgePatterns) {
 
         this.restoreCheckpointId = restoreCheckpointId;
         this.tasks = Preconditions.checkNotNull(tasks);
         this.operatorStates = Preconditions.checkNotNull(operatorStates);
         this.allowNonRestoredState = allowNonRestoredState;
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+        this.oldEdgePatterns = oldEdgePatterns;
         this.vertexAssignments = CollectionUtil.newHashMapWithExpectedSize(tasks.size());
     }
 
@@ -148,7 +168,8 @@ public class StateAssignmentOperation {
                             operatorStates,
                             consumerAssignment,
                             vertexAssignments,
-                            recoverOutputOnDownstreamTask);
+                            recoverOutputOnDownstreamTask,
+                            oldEdgePatterns);
             vertexAssignments.put(executionJobVertex, stateAssignment);
             for (final IntermediateResult producedDataSet : executionJobVertex.getInputs()) {
                 consumerAssignment.put(producedDataSet.getId(), stateAssignment);
@@ -408,7 +429,10 @@ public class StateAssignmentOperation {
         final List<IntermediateDataSet> outputs =
                 executionJobVertex.getJobVertex().getProducedDataSets();
 
-        if (outputState.getParallelism() == executionJobVertex.getParallelism()) {
+        // 1:1 assignment when parallelism unchanged and no PW edges; PW edges need topology-aware
+        // redistribution even at same parallelism (pattern change alters subpartition coverage)
+        if (outputState.getParallelism() == executionJobVertex.getParallelism()
+                && !assignment.hasPointwiseEdge(assignment.getDownstreamAssignments(), false)) {
             assignment.resultSubpartitionStates.putAll(
                     toInstanceMap(assignment.outputOperatorID, outputOperatorState));
             return;

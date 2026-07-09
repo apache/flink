@@ -269,9 +269,14 @@ public class StreamGraphGenerator {
         LineageGraph lineageGraph = LineageGraphUtils.convertToLineageGraph(transformations);
         streamGraph.setLineageGraph(lineageGraph);
 
+        boolean forceUnaligned =
+                checkpointConfig.isForceUnalignedCheckpoints() && !streamGraph.isIterative();
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream()
-                    .anyMatch(e -> !e.getPartitioner().isSupportsUnalignedCheckpoint())) {
+                    .anyMatch(
+                            e ->
+                                    !e.getPartitioner()
+                                            .isSupportsUnalignedCheckpoint(forceUnaligned))) {
                 for (StreamEdge edge : node.getInEdges()) {
                     edge.setSupportsUnalignedCheckpoints(false);
                 }
