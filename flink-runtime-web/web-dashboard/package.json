@@ -24,7 +24,7 @@
     "core-js": "^3.49.0",
     "d3": "^7.9.0",
     "d3-flame-graph": "^5.0.0",
-    "monaco-editor": "^0.31.1",
+    "monaco-editor": "^0.55.1",
     "ng-zorro-antd": "^21.3.2",
     "rxjs": "^7.5.7",
     "tslib": "^2.0.0",
