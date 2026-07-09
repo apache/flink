@@ -413,6 +413,11 @@ under the License.
                                     <shadedPattern>org.apache.flink.fs.azurefs.shaded.org.objectweb.asm</shadedPattern>
                                 </relocation>
                             </relocations>
+                            <transformers combine.children="append">
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                                    <resource>publicsuffix/NOTICE</resource>
+                                </transformer>
+                            </transformers>
                             <filters combine.children="append">
                                 <!-- Module-specific excludes (signatures, maven poms,
                                      and NOTICE merging handled by parent pom) -->
