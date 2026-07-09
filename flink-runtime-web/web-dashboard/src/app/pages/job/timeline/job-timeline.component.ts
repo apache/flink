@@ -29,13 +29,17 @@ import {
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 
-import * as G2 from '@antv/g2';
 import { Chart } from '@antv/g2';
 import { JobDetailCorrect, VerticesItemRange } from '@flink-runtime-web/interfaces';
 import { JobService, ColorKey, ConfigService } from '@flink-runtime-web/services';
+import { timeFormat } from 'd3-time-format';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 
 import { JobLocalService } from '../job-local.service';
+
+// g2 5's string labelFormatter uses d3's numeric formatter, so a time scale needs
+// a function; mirror the previous 'HH:mm:ss.SSS' mask.
+const formatTimeAxis = timeFormat('%H:%M:%S.%L');
 
 @Component({
   selector: 'flink-job-timeline',
@@ -49,6 +53,8 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   public listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
   public mainChartInstance: Chart;
   public subTaskChartInstance: Chart;
+  private mainInterval!: ReturnType<Chart['interval']>;
+  private subTaskInterval!: ReturnType<Chart['interval']>;
   public jobDetail: JobDetailCorrect;
   public selectedName: string;
   public isShowSubTaskTimeLine = false;
@@ -87,19 +93,12 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
             };
           });
         this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
+        this.mainInterval.scale('color', this.statusColorScale(this.listOfVertex));
+        this.mainInterval.data(this.listOfVertex);
         this.mainChartInstance.changeSize(
-          this.mainChartInstance.width,
+          this.mainTimeLine.nativeElement.clientWidth,
           Math.max(this.listOfVertex.length * 50 + 100, 150)
         );
-        this.mainChartInstance.data(this.listOfVertex);
-        this.mainChartInstance.scale({
-          range: {
-            alias: 'Time',
-            type: 'time',
-            mask: 'HH:mm:ss.SSS',
-            nice: false
-          }
-        });
         this.mainChartInstance.render();
         this.cdr.markForCheck();
       });
@@ -145,19 +144,12 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
             }
           });
         });
+        this.subTaskInterval.scale('color', this.statusColorScale(this.listOfSubTaskTimeLine));
+        this.subTaskInterval.data(this.listOfSubTaskTimeLine);
         this.subTaskChartInstance.changeSize(
-          this.subTaskChartInstance.width,
+          this.subTaskTimeLine.nativeElement.clientWidth,
           Math.max(data.subtasks.length * 50 + 100, 150)
         );
-        this.subTaskChartInstance.data(this.listOfSubTaskTimeLine);
-        this.subTaskChartInstance.scale({
-          range: {
-            alias: 'Time',
-            type: 'time',
-            mask: 'HH:mm:ss.SSS',
-            nice: false
-          }
-        });
         this.subTaskChartInstance.render();
         this.isShowSubTaskTimeLine = true;
         this.cdr.markForCheck();
@@ -175,65 +167,95 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   }
 
   public setUpMainChart(): void {
-    this.mainChartInstance = new G2.Chart({
+    this.mainChartInstance = new Chart({
       container: this.mainTimeLine.nativeElement,
       autoFit: true,
       height: 500,
-      padding: [50, 50, 50, 50]
+      paddingTop: 50,
+      paddingRight: 50,
+      paddingBottom: 50,
+      paddingLeft: 50
     });
-    this.mainChartInstance.animate(false);
-    this.mainChartInstance.axis('id', false);
-    this.mainChartInstance.coordinate('rect').transpose().scale(1, -1);
-    this.mainChartInstance
+    this.mainChartInstance.coordinate({ transform: [{ type: 'transpose' }] });
+    this.mainInterval = this.mainChartInstance
       .interval()
-      .position('id*range')
-      .color('status', (type: string) => this.configService.COLOR_MAP[type as ColorKey])
-      .label('name', {
-        offset: -20,
+      .encode('x', 'id')
+      .encode('y', 'range')
+      .encode('color', 'status')
+      .scale('y', { type: 'time', nice: false })
+      .animate(false)
+      .axis('x', false)
+      .axis('y', {
+        position: 'top',
+        title: false,
+        grid: true,
+        labelFormatter: (d: Date) => formatTimeAxis(new Date(d))
+      })
+      .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+      .label({
+        text: (d: { name: string }) => (d.name.length <= 120 ? d.name : `${d.name.slice(0, 120)}...`),
         position: 'right',
-        style: {
-          fill: '#ffffff',
-          textAlign: 'right',
-          fontWeight: 'bold'
-        },
-        content: data => {
-          if (data.name.length <= 120) {
-            return data.name;
-          } else {
-            return `${data.name.slice(0, 120)}...`;
-          }
-        }
-      });
-    this.mainChartInstance.tooltip({
-      title: 'name'
-    });
-    this.mainChartInstance.on('click', (e: { x: number; y: number }) => {
-      if (this.mainChartInstance.getSnapRecords(e).length) {
-        const data = (
-          this.mainChartInstance.getSnapRecords(e)[0] as unknown as {
-            _origin: { name: string; id: string };
-          }
-        )._origin;
-        this.selectedName = data.name;
-        this.updateSubTaskChart(data.id);
+        dx: -20,
+        fill: '#ffffff',
+        textAlign: 'right',
+        fontWeight: 'bold'
+      })
+      .tooltip({ title: 'name', items: [this.statusRangeTooltipItem] });
+    this.mainChartInstance.on('interval:click', (e: { data?: { data?: { name: string; id: string } } }) => {
+      const datum = e.data?.data;
+      if (datum) {
+        this.selectedName = datum.name;
+        this.updateSubTaskChart(datum.id);
       }
     });
     this.cdr.markForCheck();
   }
 
   public setUpSubTaskChart(): void {
-    this.subTaskChartInstance = new G2.Chart({
+    this.subTaskChartInstance = new Chart({
       container: this.subTaskTimeLine.nativeElement,
       autoFit: true,
       height: 10,
-      padding: [50, 50, 50, 300]
+      paddingTop: 50,
+      paddingRight: 50,
+      paddingBottom: 50,
+      paddingLeft: 300
     });
-    this.subTaskChartInstance.animate(false);
-    this.subTaskChartInstance.coordinate('rect').transpose().scale(1, -1);
-    this.subTaskChartInstance
+    this.subTaskChartInstance.coordinate({ transform: [{ type: 'transpose' }] });
+    this.subTaskInterval = this.subTaskChartInstance
       .interval()
-      .position('name*range')
-      .color('status', (type: string) => this.configService.COLOR_MAP[type as ColorKey]);
+      .encode('x', 'name')
+      .encode('y', 'range')
+      .encode('color', 'status')
+      .scale('y', { type: 'time', nice: false })
+      .animate(false)
+      .axis('x', { title: false })
+      .axis('y', {
+        position: 'top',
+        title: false,
+        grid: true,
+        labelFormatter: (d: Date) => formatTimeAxis(new Date(d))
+      })
+      .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+      .tooltip({ items: [this.statusRangeTooltipItem] });
     this.cdr.markForCheck();
+  }
+
+  // g2 4 derived tooltip rows from the color callback and time mask; rebuild that shape explicitly.
+  private readonly statusRangeTooltipItem = (d: {
+    status: string;
+    range: [number, number];
+  }): { name: string; color: string; value: string } => ({
+    name: d.status,
+    color: this.configService.COLOR_MAP[d.status as ColorKey],
+    value: `${formatTimeAxis(new Date(d.range[0]))}-${formatTimeAxis(new Date(d.range[1]))}`
+  });
+
+  private statusColorScale(data: Array<{ status: string }>): { domain: string[]; range: string[] } {
+    const statuses = [...new Set(data.map(d => d.status))];
+    return {
+      domain: statuses,
+      range: statuses.map(s => this.configService.COLOR_MAP[s as ColorKey])
+    };
   }
 }

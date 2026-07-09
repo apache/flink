@@ -19,7 +19,7 @@
     "@angular/platform-browser": "^21.2.17",
     "@angular/platform-browser-dynamic": "^21.2.17",
     "@angular/router": "^21.2.17",
-    "@antv/g2": "^4.2.12",
+    "@antv/g2": "^5.4.8",
     "@dagrejs/dagre": "^3.0.0",
     "core-js": "^3.49.0",
     "d3": "^7.9.0",

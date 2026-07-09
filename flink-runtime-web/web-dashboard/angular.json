@@ -35,6 +35,13 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser-esbuild",
           "options": {
+            "allowedCommonJsDependencies": [
+              "@antv/coord",
+              "color-string",
+              "html2canvas",
+              "pdfast",
+              "svg-path-parser"
+            ],
             "outputPath": "web",
             "index": "src/index.html",
             "main": "src/main.ts",
