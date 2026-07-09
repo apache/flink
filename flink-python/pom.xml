@@ -710,6 +710,8 @@ under the License.
 										<exclude>LICENSE</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 										<exclude>*.proto</exclude>
+										<!-- Drop stale JPMS descriptors from relocated multi-release jars (e.g. jackson, netty) -->
+										<exclude>META-INF/**/module-info.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -730,6 +732,61 @@ under the License.
 									<shadedPattern>
 										org.apache.flink.api.python.shaded.com.fasterxml.jackson
 									</shadedPattern>
+								</relocation>
+								<!--
+								Manually relocate multi-release classes to the correct shaded package. This is needed
+								due to a bug in the Maven Shade plugin, which only relocates the content but not
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/com/fasterxml/jackson/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<!--
+								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
+								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
+								with its relocated base classes. No-op for non-multi-release jars.
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/py4j/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/py4j/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/net/razorvine/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/net/razorvine/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/joda/time/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/org/joda/time/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/google/protobuf/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/com/google/protobuf/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/apache/arrow/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/org/apache/arrow/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/io/netty/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/io/netty/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/google/flatbuffers/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/com/google/flatbuffers/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/apache/avro/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/avro/shaded/org/apache/avro/</shadedPattern>
+									<rawString>true</rawString>
 								</relocation>
 								<relocation>
 									<pattern>org.joda.time</pattern>
@@ -772,6 +829,13 @@ under the License.
 									</shadedPattern>
 								</relocation>
 							</relocations>
+							<transformers combine.children="append">
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Multi-Release>true</Multi-Release>
+									</manifestEntries>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>

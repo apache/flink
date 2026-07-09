@@ -190,6 +190,8 @@ under the License.
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 											 copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
+										<!-- Drop stale JPMS descriptor; after relocation it points at packages that no longer exist. -->
+										<exclude>META-INF/**/module-info.class</exclude>
 									</excludes>
 								</filter>
 								<filter>
