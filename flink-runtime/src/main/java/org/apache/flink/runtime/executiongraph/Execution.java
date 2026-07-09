@@ -1537,7 +1537,11 @@ public class Execution
                 initializingOrRunningFuture.complete(null);
             } else if (targetState.isTerminal()) {
                 if (preCompletionAction != null) {
-                    preCompletionAction.run();
+                    try {
+                        preCompletionAction.run();
+                    } catch (Exception e) {
+                        LOG.error("Error while executing pre-completion action.", e);
+                    }
                 }
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
