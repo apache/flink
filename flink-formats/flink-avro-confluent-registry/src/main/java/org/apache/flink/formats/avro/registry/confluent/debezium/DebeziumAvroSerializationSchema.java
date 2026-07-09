@@ -81,7 +81,7 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
         validateSchemaString(schemaString, debeziumAvroRowType);
         Schema schema =
                 schemaString == null
-                        ? AvroSchemaConverter.convertToSchema(debeziumAvroRowType)
+                        ? AvroSchemaConverter.convertToSchema(debeziumAvroRowType, false)
                         : new Parser().parse(schemaString);
 
         this.avroSerializer =
@@ -89,7 +89,7 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
                         debeziumAvroRowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
                                 schemaRegistrySubject, schema, schemaRegistryUrl, registryConfigs),
-                        RowDataToAvroConverters.createConverter(debeziumAvroRowType));
+                        RowDataToAvroConverters.createConverter(debeziumAvroRowType, false));
     }
 
     @VisibleForTesting

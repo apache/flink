@@ -32,7 +32,9 @@ import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -57,7 +59,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -152,34 +156,92 @@ class DebeziumAvroSerDeSchemaTest {
     }
 
     @Test
+    void testTombstoneMessages() throws Exception {
+        RowType rowTypeDe =
+                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
+                        fromLogicalToDataType(rowType), Collections.emptyList());
+        client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
+
+        DebeziumAvroDeserializationSchema dbzDeserializer =
+                new DebeziumAvroDeserializationSchema(
+                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
+        dbzDeserializer.open(new MockInitializationContext());
+
+        SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(null, collector);
+        dbzDeserializer.deserialize(new byte[] {}, collector);
+        assertThat(collector.list).isEmpty();
+    }
+
+    @Test
+    void testMapHelperMethods() {
+        Map<StringData, StringData> testMap = new HashMap<>();
+        testMap.put(StringData.fromString("db"), StringData.fromString("inventory"));
+        testMap.put(StringData.fromString("table"), StringData.fromString("customers"));
+        MapData mapData = new GenericMapData(testMap);
+
+        // Test getMapValue
+        assertThat(getMapValue(mapData, "db")).isEqualTo("inventory");
+        assertThat(getMapValue(mapData, "table")).isEqualTo("customers");
+        assertThat(getMapValue(mapData, "nonexistent")).isNull();
+
+        // Test null map
+        assertThat(getMapValue(null, "db")).isNull();
+    }
+
+    @Test
     void testDeserializationWithMetadata() throws Exception {
         testDeserializationWithMetadata(
                 "debezium-avro-insert.avro",
                 row -> {
-                    // Physical columns
+                    // Physical columns (0-3): id, name, description, weight
                     assertThat(row.getLong(0)).isEqualTo(1L);
                     assertThat(row.getString(1).toString()).isEqualTo("lisi");
                     assertThat(row.getString(2).toString()).isEqualTo("test debezium avro data");
                     assertThat(row.getDouble(3)).isEqualTo(21.799999237060547);
 
-                    // Metadata: ingestion-timestamp (field index 4)
-                    assertThat(row.getTimestamp(4, 3)).isNotNull();
+                    // Metadata columns (4-9)
+                    // 4: ingestion-timestamp (envelope ts_ms = 1599207472705);
+                    assertThat(row.getTimestamp(4, 3).getMillisecond()).isEqualTo(1599207472705L);
 
-                    // Metadata: source.timestamp (field index 5)
-                    assertThat(row.getTimestamp(5, 3)).isNotNull();
+                    // 5: source.timestamp (source ts_ms = 1599207472000)
+                    assertThat(row.getTimestamp(5, 3).getMillisecond()).isEqualTo(1599207472000L);
 
-                    // Metadata: source.database (field index 6)
+                    // 6: source.database
                     assertThat(row.getString(6).toString()).isEqualTo("test1");
 
-                    // Metadata: source.schema (field index 7) - may be null for MySQL
-                    // MySQL doesn't have schema field in source
+                    // 7: source.schema (Mysql doesn't use schema field)
+                    assertThat(row.isNullAt(7)).isTrue();
 
-                    // Metadata: source.table (field index 8)
+                    // 8. source.table
                     assertThat(row.getString(8).toString()).isEqualTo("person");
 
-                    // Metadata: source.properties (field index 9)
-                    assertThat(row.getMap(9)).isNotNull();
-                    assertThat(row.getMap(9).size()).isGreaterThan(0);
+                    // 9. source.properties (MAP with all source fields)
+                    MapData sourceMap = row.getMap(9);
+                    assertThat(sourceMap).isNotNull();
+
+                    // Mysql source has 14 fields
+                    assertThat(sourceMap.size()).isEqualTo(14);
+
+                    // Verify common fields (all Debezium connectors) with exact values
+                    assertThat(getMapValue(sourceMap, "version")).isEqualTo("1.2.2.Final");
+                    assertThat(getMapValue(sourceMap, "connector")).isEqualTo("mysql");
+                    assertThat(getMapValue(sourceMap, "name")).isEqualTo("fullfillment");
+                    assertThat(getMapValue(sourceMap, "ts_ms")).isEqualTo("1599207472000");
+                    assertThat(getMapValue(sourceMap, "snapshot")).isEqualTo("false");
+                    assertThat(getMapValue(sourceMap, "db")).isEqualTo("test1");
+                    assertThat(getMapValue(sourceMap, "table")).isEqualTo("person");
+
+                    // Verify MySQL-specific fields with exact values (writer schema intact)
+                    assertThat(getMapValue(sourceMap, "server_id")).isEqualTo("1");
+                    assertThat(getMapValue(sourceMap, "file")).isEqualTo("mysql-bin.000005");
+                    assertThat(getMapValue(sourceMap, "pos")).isEqualTo("213795");
+                    assertThat(getMapValue(sourceMap, "row")).isEqualTo("0");
+                    assertThat(getMapValue(sourceMap, "thread")).isEqualTo("2");
+
+                    // Verify nullable MySQL fields (null values in this test data)
+                    assertThat(getMapValue(sourceMap, "gtid")).isNull();
+                    assertThat(getMapValue(sourceMap, "query")).isNull();
                 });
     }
 
@@ -218,10 +280,24 @@ class DebeziumAvroSerDeSchemaTest {
 
         client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
+        ConfluentSchemaRegistryCoder registryCoder =
+                new ConfluentSchemaRegistryCoder(SUBJECT, client);
+
+        RegistryAvroDeserializationSchema<GenericRecord> genericDeserializer =
+                new RegistryAvroDeserializationSchema<>(
+                        GenericRecord.class, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, () -> registryCoder);
+        genericDeserializer.open(new MockInitializationContext());
+
+        DebeziumAvroDeserializationSchema.MetadataConverter[] metadataConverters =
+                createMetadataConverters(rowTypeDe, requestedMetadata);
+
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
                         InternalTypeInfo.of(producedDataType.getLogicalType()),
-                        getDeserializationSchema(rowTypeDe));
+                        getDeserializationSchema(rowTypeDe),
+                        true,
+                        metadataConverters,
+                        genericDeserializer);
         dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();
@@ -253,9 +329,24 @@ class DebeziumAvroSerDeSchemaTest {
                 rowType,
                 new RegistryAvroSerializationSchema<>(
                         GenericRecord.class,
-                        AvroSchemaConverter.convertToSchema(rowType),
+                        AvroSchemaConverter.convertToSchema(rowType, false),
                         () -> registryCoder),
-                RowDataToAvroConverters.createConverter(rowType));
+                RowDataToAvroConverters.createConverter(rowType, false));
+    }
+
+    private static DebeziumAvroDeserializationSchema.MetadataConverter[] createMetadataConverters(
+            RowType debeziumAvroRowType, List<ReadableMetadata> requestedMetadata) {
+        return requestedMetadata.stream()
+                .map(
+                        m -> {
+                            final int rootPosition =
+                                    debeziumAvroRowType
+                                            .getFieldNames()
+                                            .indexOf(m.requiredAvroField.getName());
+                            return (DebeziumAvroDeserializationSchema.MetadataConverter)
+                                    (row, pos) -> m.converter.convert(row, rootPosition);
+                        })
+                .toArray(DebeziumAvroDeserializationSchema.MetadataConverter[]::new);
     }
 
     private static RowData debeziumRow2RowData() {
@@ -276,6 +367,15 @@ class DebeziumAvroSerDeSchemaTest {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static String getMapValue(MapData map, String key) {
+        if (map == null) {
+            return null;
+        }
+        GenericMapData genericMap = (GenericMapData) map;
+        StringData value = (StringData) genericMap.get(StringData.fromString(key));
+        return value != null ? value.toString() : null;
     }
 
     private static class SimpleCollector implements Collector<RowData> {

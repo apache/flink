@@ -31,17 +31,16 @@ import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /** {@link DecodingFormat} for Debezium using Avro encoding. */
@@ -130,74 +129,88 @@ public class DebeziumAvroDecodingFormat
     // Metadata handling
     // ----------------------------------------------------------------------------------------
 
+    // StringData keys for reading source metadata from MAP runtime payload.
+    private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("ts_ms");
+    private static final StringData KEY_SOURCE_DATABASE = StringData.fromString("db");
+    private static final StringData KEY_SOURCE_SCHEMA = StringData.fromString("schema");
+    private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
+
+    // Keep Avro schema generation stable while source values are read from runtime MapData.
+    private static final DataTypes.Field REQUIRED_SOURCE_AVRO_FIELD =
+            DataTypes.FIELD("source", DataTypes.ROW());
+
     /** List of metadata that can be read with this format. */
     enum ReadableMetadata {
         INGESTION_TIMESTAMP(
                 "ingestion-timestamp",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-                DataTypes.FIELD("ts_ms", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+                DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        return row;
+                    public Object convert(GenericRowData row, int pos) {
+                        if (row.isNullAt(pos)) {
+                            return null;
+                        }
+                        return TimestampData.fromEpochMillis(row.getLong(pos));
                     }
                 }),
 
         SOURCE_TIMESTAMP(
                 "source.timestamp",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-                SOURCE_FIELD,
+                REQUIRED_SOURCE_AVRO_FIELD,
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        int pos = SOURCE_PROPERTY_POSITION.get("ts_ms");
-                        return row.getField(pos);
+                    public Object convert(GenericRowData row, int pos) {
+                        final StringData timestamp =
+                                (StringData) readProperty(row, pos, KEY_SOURCE_TIMESTAMP);
+                        if (timestamp == null) {
+                            return null;
+                        }
+                        return TimestampData.fromEpochMillis(Long.parseLong(timestamp.toString()));
                     }
                 }),
 
         SOURCE_DATABASE(
                 "source.database",
                 DataTypes.STRING().nullable(),
-                SOURCE_FIELD,
+                REQUIRED_SOURCE_AVRO_FIELD,
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        int pos = SOURCE_PROPERTY_POSITION.get("db");
-                        return row.getField(pos);
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_DATABASE);
                     }
                 }),
 
         SOURCE_SCHEMA(
                 "source.schema",
                 DataTypes.STRING().nullable(),
-                SOURCE_FIELD,
+                REQUIRED_SOURCE_AVRO_FIELD,
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        int pos = SOURCE_PROPERTY_POSITION.get("schema");
-                        return row.getField(pos);
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_SCHEMA);
                     }
                 }),
 
         SOURCE_TABLE(
                 "source.table",
                 DataTypes.STRING().nullable(),
-                SOURCE_FIELD,
+                REQUIRED_SOURCE_AVRO_FIELD,
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        int pos = SOURCE_PROPERTY_POSITION.get("table");
-                        return row.getField(pos);
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_TABLE);
                     }
                 }),
 
@@ -206,20 +219,13 @@ public class DebeziumAvroDecodingFormat
                 // key and value of the map are nullable to make handling easier in queries
                 DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable())
                         .nullable(),
-                SOURCE_FIELD,
+                REQUIRED_SOURCE_AVRO_FIELD,
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public Object convert(GenericRowData row, int unused) {
-                        Map<StringData, StringData> result = new HashMap<>();
-                        for (int i = 0; i < SOURCE_PROPERTY_FIELDS.length; i++) {
-                            Object value = row.getField(i);
-                            result.put(
-                                    StringData.fromString(SOURCE_PROPERTY_FIELDS[i].getName()),
-                                    value == null ? null : StringData.fromString(value.toString()));
-                        }
-                        return new GenericMapData(result);
+                    public Object convert(GenericRowData row, int pos) {
+                        return row.getMap(pos);
                     }
                 });
 
@@ -240,27 +246,23 @@ public class DebeziumAvroDecodingFormat
         }
     }
 
-    private static final DataTypes.Field[] SOURCE_PROPERTY_FIELDS = {
-        DataTypes.FIELD("version", DataTypes.STRING()),
-        DataTypes.FIELD("connector", DataTypes.STRING()),
-        DataTypes.FIELD("name", DataTypes.STRING()),
-        DataTypes.FIELD("ts_ms", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable()),
-        DataTypes.FIELD("snapshot", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("db", DataTypes.STRING()),
-        DataTypes.FIELD("sequence", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("schema", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("table", DataTypes.STRING()),
-        DataTypes.FIELD("txId", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("scn", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("commit_scn", DataTypes.STRING().nullable()),
-        DataTypes.FIELD("lcr_position", DataTypes.STRING().nullable())
-    };
-
-    private static final Map<String, Integer> SOURCE_PROPERTY_POSITION =
-            IntStream.range(0, SOURCE_PROPERTY_FIELDS.length)
-                    .boxed()
-                    .collect(Collectors.toMap(i -> SOURCE_PROPERTY_FIELDS[i].getName(), i -> i));
-
-    private static final DataTypes.Field SOURCE_FIELD =
-            DataTypes.FIELD("source", DataTypes.ROW(SOURCE_PROPERTY_FIELDS));
+    /**
+     * Reads a property from the source MAP by key.
+     *
+     * <p>The source field contains GenericMapData injected at runtime by {@link
+     * DebeziumAvroDeserializationSchema#convertSourceToMap}. Safe to cast because the runtime type
+     * is guaranteed.
+     *
+     * @param row the rootRow containing source MapData at pos
+     * @param pos the source field position (4 in Debezium envelope)
+     * @param key the StringData key to lookup
+     * @return the field value, or null if not found
+     */
+    private static Object readProperty(GenericRowData row, int pos, StringData key) {
+        final GenericMapData map = (GenericMapData) row.getMap(pos);
+        if (map == null) {
+            return null;
+        }
+        return map.get(key);
+    }
 }
