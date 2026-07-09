@@ -573,14 +573,16 @@ class DagOptimizationTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
 
+    // The union of two differently-grouped aggregates has no common upsert key, so it feeds a
+    // retract sink.
     TestSinkUtil.addValuesSink(
       util.tableEnv,
-      "upsertSink",
+      "retractSink",
       List("b", "c", "a_sum"),
       List(LONG, STRING, INT),
-      ChangelogMode.upsert()
+      ChangelogMode.all()
     )
-    util.verifyRelPlanInsert(table, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

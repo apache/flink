@@ -1072,15 +1072,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      * <p>Notice: even if sink pk is a subset of the upsert key, the pk is NOT considered satisfied
      * when the upsert key has columns outside sink pk. This differs from batch job's unique key
      * inference.
+     *
+     * <p>A sink without a primary key is satisfied whenever the input carries any upsert key.
      */
     private def canUpsertKeysWithImmutableColsSatisfyPk(sink: StreamPhysicalSink): Boolean = {
       val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
-      if (sinkDefinedPks.isEmpty) {
-        return true
-      }
-      val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
       val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+      if (sinkDefinedPks.isEmpty) {
+        // A keyless sink cannot apply UPDATE_AFTER in place, so it can only accept upsert when the
+        // input itself carries an upsert key; otherwise fall back to beforeAndAfter.
+        return changeLogUpsertKeys != null && !changeLogUpsertKeys.isEmpty
+      }
+      val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
       if (changeLogUpsertKeys == null) {
         return false
