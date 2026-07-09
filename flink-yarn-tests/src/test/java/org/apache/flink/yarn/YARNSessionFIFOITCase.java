@@ -23,7 +23,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
-import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -95,23 +94,6 @@ class YARNSessionFIFOITCase extends YarnTestBase {
     /** Test regular operation, including command line parameter parsing. */
     ApplicationId runDetachedModeTest(
             Map<String, String> securityProperties, String viewAcls, String modifyAcls)
-            throws Exception {
-        return runDetachedModeTest(securityProperties, viewAcls, modifyAcls, ignored -> {});
-    }
-
-    /**
-     * Test regular operation, including command line parameter parsing.
-     *
-     * @param verifyWhileRunning verification that is invoked once the job has finished but while
-     *     the YARN application and its containers are still alive, before the application is
-     *     killed. This allows subclasses to inspect complete container logs and live container
-     *     state, which is no longer possible once the application has been torn down.
-     */
-    ApplicationId runDetachedModeTest(
-            Map<String, String> securityProperties,
-            String viewAcls,
-            String modifyAcls,
-            ThrowingConsumer<ApplicationId, Exception> verifyWhileRunning)
             throws Exception {
         log.info("Starting testDetachedMode()");
 
@@ -195,10 +177,6 @@ class YARNSessionFIFOITCase extends YarnTestBase {
                                 applicationId,
                                 "jobmanager.log"),
                 testConditionIntervalInMillis);
-
-        // Run verification that requires the application and its containers to still be alive, such
-        // as reading the freshly written container logs, before the application is killed below.
-        verifyWhileRunning.accept(applicationId);
 
         // kill application "externally".
         try {
