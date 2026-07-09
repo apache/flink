@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
@@ -335,7 +336,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             int buildRowtimeIndex,
             GeneratedJoinCondition generatedJoinCondition,
             boolean[] filterNullKeys,
-            Long loadCompletedTime,
+            long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
         this.isLeftOuterJoin = isLeftOuterJoin;
@@ -350,7 +351,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         this.generatedJoinCondition = Preconditions.checkNotNull(generatedJoinCondition);
         this.filterNullKeys = Preconditions.checkNotNull(filterNullKeys);
-        this.loadCompletedTime = Preconditions.checkNotNull(loadCompletedTime);
+        this.loadCompletedTime = loadCompletedTime;
         if (this.loadCompletedTime < 0) {
             throw new IllegalArgumentException("loadCompletedTime must be non-negative");
         }
@@ -539,7 +540,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData probe = element.getValue();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
-        applyBufferedChangesIfReady();
+        applyBufferedChangesUpToCurrentWm();
         // Buffer during LOAD; in JOIN, buffer too if this key's flip drain has not finished yet
         // (probeBufferSeq != null), so the new probe is joined in order after the buffered ones by
         // its own timer instead of draining the whole buffer inline. Otherwise join immediately.
@@ -570,7 +571,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         RowData build = element.getValue();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
-        Long bufferedAt = applyBufferedChangesIfReady();
+        Long bufferedAt = applyBufferedChangesUpToCurrentWm();
         // Buffer the change under its build row-time (grouping changes that share a row-time).
         long rowtime = build.getLong(buildRowtimeIndex);
         List<RowData> atRowtime = buildChangeBuffer.get(rowtime);
@@ -641,9 +642,16 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // its key. All of a key's timers become due at the flip; interruptible timers fire them one
         // at a time, yielding to checkpoints between firings.
         long ts = timer.getTimestamp();
+        if (ts >= 0) {
+            // Buffered-probe timers are always registered at negative timestamps; a non-negative
+            // timer means a broken invariant and hints to a severe issue. Terminate the job.
+            throw new IllegalStateException(
+                    "Unexpected event-time timer timestamp " + ts + ". " + "Terminating the job");
+        }
         // Apply this key's due build-side changes before joining, so probes see the materialized
-        // build snapshot. Idempotent across the key's firings within one watermark sweep.
-        applyDueBufferedChanges();
+        // build snapshot. Cheaply short-circuits on repeat firings within one watermark sweep and
+        // when nothing is buffered for the key.
+        applyBufferedChangesUpToCurrentWm();
         RowData probe = probeBuffer.get(ts);
         if (probe == null) {
             // Already drained or evicted (e.g. by TTL) before this timer fired.
@@ -804,15 +812,16 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     /**
-     * Applies the buffered build-side changes if the build-side watermark advanced since last
-     * buffer application. This ensures that we apply buffered changes atomically once their
-     * corresponding build-side WM is passed.
+     * Applies the buffered build-side changes up to the current build-side watermark. If there are
+     * no buffered changes or if the watermark didn't advance since the last application, nothing is
+     * done. This ensures that we apply buffered changes atomically once their corresponding
+     * build-side WM is passed.
      *
-     * @return the watermark tag of the buffer that is still in effect for this key after this call,
-     *     or {@code null} if nothing is buffered.
+     * @return the watermark up to which changes have been applied, or {@code null} if no changes
+     *     remain buffered.
      */
     @Nullable
-    private Long applyBufferedChangesIfReady() throws Exception {
+    private Long applyBufferedChangesUpToCurrentWm() throws Exception {
         Long bufferedAt = bufferedAtWmState.value();
         if (bufferedAt == null) {
             // Nothing buffered for this key.
@@ -821,83 +830,104 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         if (currentBuildSideWm > bufferedAt) {
             // The build-side wm advanced: apply the changes that are now due (their row-time has
             // been reached by the build-side watermark) and keep any not-yet-due changes buffered.
-            applyDueBufferedChanges();
-            return bufferedAtWmState.value();
+            return applyBufferedChangesUpTo(currentBuildSideWm);
         } else if (phase == Phase.JOIN && currentBuildSideWm == Long.MIN_VALUE) {
             // JOIN-phase fallback: no build-side watermark seen by this subtask (recovery/rescale,
             // or idle-timeout flip). Force-apply everything now, since there is no watermark to
             // gate on and the next build watermark may not arrive for a long time.
-            applyBufferedChanges();
-            return null;
+            return applyBufferedChangesUpTo(Long.MAX_VALUE);
         }
         return bufferedAt;
     }
 
     /**
-     * Applies the buffered build-side changes that are due — i.e. whose row-time has been reached
-     * by the build-side watermark — in event-time order, leaving any not-yet-due changes untouched
-     * in state.
+     * Applies the buffered build-side changes with row-time {@code <= upToWm} to {@code
+     * buildTableState} in event-time order. Not-yet-due changes stay buffered and the buffer's
+     * watermark tag is advanced to {@code upToWm}; a fully drained buffer is cleared instead.
+     *
+     * @return the watermark up to which changes have been applied, or {@code null} if no changes
+     *     remain buffered.
      */
-    private void applyDueBufferedChanges() throws Exception {
-        if (currentBuildSideWm == Long.MIN_VALUE) {
-            applyBufferedChanges();
-            return;
+    @Nullable
+    private Long applyBufferedChangesUpTo(long upToWm) throws Exception {
+        boolean hasKept =
+                sortedStateBackend
+                        ? applyDueChangesSorted(upToWm)
+                        : applyDueChangesUnsorted(upToWm);
+        if (hasKept) {
+            bufferedAtWmState.update(upToWm);
+            return upToWm;
         }
-        // Scan keys (row-times) only; the values (rows) of not-yet-due buckets stay serialized.
+        clearBuildChangeBuffer();
+        return null;
+    }
+
+    /**
+     * Applies due changes on an ordered backend (RocksDB/ForSt). Row-times are yielded ascending,
+     * so due buckets are applied and dropped in place and the scan stops at the first not-yet-due
+     * one; values of kept buckets are never accessed.
+     *
+     * @return whether any not-yet-due changes remain buffered.
+     */
+    private boolean applyDueChangesSorted(long upToWm) throws Exception {
+        Iterator<Map.Entry<Long, List<RowData>>> it = buildChangeBuffer.iterator();
+        while (it.hasNext()) {
+            Map.Entry<Long, List<RowData>> entry = it.next();
+            if (entry.getKey() > upToWm) {
+                // All remaining row-times are also not yet due.
+                return true;
+            }
+            applyBuildChanges(entry.getValue());
+            it.remove();
+        }
+        return false;
+    }
+
+    /**
+     * Applies due changes on an unordered backend (heap). Row-times are not yielded in order, so
+     * due buckets are collected and applied sorted.
+     *
+     * @return whether any not-yet-due changes remain buffered.
+     */
+    private boolean applyDueChangesUnsorted(long upToWm) throws Exception {
+        // Collect the due row-times, then apply them sorted.
         List<Long> due = new ArrayList<>();
         boolean hasKept = false;
         for (Long rowtime : buildChangeBuffer.keys()) {
-            if (rowtime <= currentBuildSideWm) {
+            if (rowtime <= upToWm) {
                 due.add(rowtime);
             } else {
                 hasKept = true;
-                if (sortedStateBackend) {
-                    break;
+            }
+        }
+        due.sort(Long::compareTo);
+        for (long rowtime : due) {
+            applyBuildChanges(buildChangeBuffer.get(rowtime));
+            buildChangeBuffer.remove(rowtime);
+        }
+        return hasKept;
+    }
+
+    /** Applies a list of build-side changes to the {@code buildTableState} multi-set. */
+    private void applyBuildChanges(List<RowData> changes) throws Exception {
+        for (RowData change : changes) {
+            RowKind changeType = change.getRowKind();
+            change.setRowKind(RowKind.INSERT);
+            Long currentCnt = buildTableState.get(change);
+            if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
+                buildTableState.put(change, currentCnt == null ? 1L : currentCnt + 1L);
+            } else {
+                if (currentCnt == null || currentCnt <= 0L) {
+                    numUnmatchedBuildRetractions.inc();
+                    continue;
+                }
+                if (currentCnt == 1L) {
+                    buildTableState.remove(change);
+                } else {
+                    buildTableState.put(change, currentCnt - 1L);
                 }
             }
         }
-        // Ordered backends already yield due row-times ascending; otherwise sort them.
-        if (!sortedStateBackend) {
-            due.sort(Long::compareTo);
-        }
-        for (long rowtime : due) {
-            applyBufferedChangesAt(rowtime);
-        }
-        if (hasKept) {
-            bufferedAtWmState.update(currentBuildSideWm);
-        } else {
-            clearBuildChangeBuffer();
-        }
-    }
-
-    /**
-     * Force-applies all buffered build-side changes for the current key to {@code buildTableState}
-     * in event-time order, regardless of row-time, then clears the buffer. Used only when there is
-     * no build watermark to gate on (none seen yet).
-     */
-    private void applyBufferedChanges() throws Exception {
-        List<Long> rowtimes = new ArrayList<>();
-        for (Long rowtime : buildChangeBuffer.keys()) {
-            rowtimes.add(rowtime);
-        }
-        if (!sortedStateBackend) {
-            rowtimes.sort(Long::compareTo);
-        }
-        for (long rowtime : rowtimes) {
-            applyBufferedChangesAt(rowtime);
-        }
-        clearBuildChangeBuffer();
-    }
-
-    /**
-     * Applies all buffered build-side changes at a single row-time to {@code buildTableState}, then
-     * removes the row-time bucket.
-     */
-    private void applyBufferedChangesAt(long rowtime) throws Exception {
-        for (RowData c : buildChangeBuffer.get(rowtime)) {
-            applyBuildChange(c);
-        }
-        buildChangeBuffer.remove(rowtime);
     }
 
     /** Clears the per-key build-side change buffer and its watermark tag. */
@@ -916,32 +946,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         clearBuildChangeBuffer();
         clearProbeBuffer();
         ttlExpiryState.clear();
-    }
-
-    /**
-     * Apply a build-side change record directly to the build-table multi-set.
-     *
-     * <p>MUTATES the input row's {@link RowKind} to {@link RowKind#INSERT} to normalize the key
-     * used for {@code buildTableState} lookups. The caller must not rely on the original kind after
-     * this call returns. The mutation avoids a per-record copy on a hot path.
-     */
-    private void applyBuildChange(RowData change) throws Exception {
-        RowKind changeType = change.getRowKind();
-        change.setRowKind(RowKind.INSERT);
-        Long currentCnt = buildTableState.get(change);
-        if (changeType == RowKind.INSERT || changeType == RowKind.UPDATE_AFTER) {
-            buildTableState.put(change, currentCnt == null ? 1L : currentCnt + 1L);
-        } else {
-            if (currentCnt == null || currentCnt <= 0L) {
-                numUnmatchedBuildRetractions.inc();
-                return;
-            }
-            if (currentCnt == 1L) {
-                buildTableState.remove(change);
-            } else {
-                buildTableState.put(change, currentCnt - 1L);
-            }
-        }
     }
 
     /** If state TTL is configured, refreshes the state TTL timer if needed. */
