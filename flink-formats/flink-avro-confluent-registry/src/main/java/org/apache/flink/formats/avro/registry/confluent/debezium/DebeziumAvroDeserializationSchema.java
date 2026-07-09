@@ -24,12 +24,16 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
+import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroDecodingFormat.ReadableMetadata;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -38,11 +42,13 @@ import org.apache.flink.util.Collector;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
+import org.apache.avro.generic.GenericRecord;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -93,6 +99,46 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     /** Metadata to be extracted for every record. */
     private final MetadataConverter[] metadataConverters;
 
+    /** Schema registry URL for generic deserializer. */
+    private final String schemaRegistryUrl;
+
+    /** Schema registry configs for generic deserializer. */
+    private final Map<String, ?> registryConfigs;
+
+    /** Generic Avro deserializer for extracting envelope with writer schema. */
+    private transient RegistryAvroDeserializationSchema<GenericRecord> genericDeserializer;
+
+    /** Cached source MapData for current message. */
+    private transient MapData cachedSourceMap;
+
+    /**
+     * Converts Debezium source GenericRecord to {@code MAP<STRING, STRING>}.
+     *
+     * <p>Extracts all fields from writer's source schema dynamically, preserving connector-specific
+     * fields before projection.
+     *
+     * @param sourceRecord GenericRecord from writer schema
+     * @return MapData with all source fields as strings, null if input is null
+     */
+    private static MapData convertSourceToMap(@Nullable GenericRecord sourceRecord) {
+        if (sourceRecord == null) {
+            return null;
+        }
+
+        Map<StringData, StringData> map = new HashMap<>();
+        Schema sourceSchema = sourceRecord.getSchema();
+
+        for (Schema.Field field : sourceSchema.getFields()) {
+            String fieldName = field.name();
+            Object fieldValue = sourceRecord.get(fieldName);
+            map.put(
+                    StringData.fromString(fieldName),
+                    fieldValue != null ? StringData.fromString(fieldValue.toString()) : null);
+        }
+
+        return new GenericMapData(map);
+    }
+
     public DebeziumAvroDeserializationSchema(
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
@@ -101,20 +147,23 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             @Nullable String schemaString,
             @Nullable Map<String, ?> registryConfigs) {
         this.producedTypeInfo = producedTypeInfo;
+        this.schemaRegistryUrl = schemaRegistryUrl;
+        this.registryConfigs = registryConfigs;
+
         RowType debeziumAvroRowType =
                 createDebeziumAvroRowType(physicalDataType, requestedMetadata);
 
         validateSchemaString(schemaString, debeziumAvroRowType);
         Schema schema =
                 schemaString == null
-                        ? AvroSchemaConverter.convertToSchema(debeziumAvroRowType)
+                        ? AvroSchemaConverter.convertToSchema(debeziumAvroRowType, false)
                         : new Parser().parse(schemaString);
 
         this.avroDeserializer =
                 new AvroRowDataDeserializationSchema(
                         ConfluentRegistryAvroDeserializationSchema.forGeneric(
                                 schema, schemaRegistryUrl, registryConfigs),
-                        AvroToRowDataConverters.createRowConverter(debeziumAvroRowType),
+                        AvroToRowDataConverters.createRowConverter(debeziumAvroRowType, false),
                         producedTypeInfo);
 
         this.hasMetadata = requestedMetadata.size() > 0;
@@ -128,13 +177,9 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                                                     .indexOf(m.requiredAvroField.getName());
                                     return (MetadataConverter)
                                             (row, pos) -> {
-                                                Object result = row.getField(rootPosition);
-                                                if (result instanceof GenericRowData) {
-                                                    result =
-                                                            m.converter.convert(
-                                                                    (GenericRowData) result, pos);
-                                                }
-                                                return result;
+                                                // Simplified: always pass (rootRow, rootPosition)
+                                                // Converters handle scala (ts_ms), MapData (source)
+                                                return m.converter.convert(row, rootPosition);
                                             };
                                 })
                         .toArray(MetadataConverter[]::new);
@@ -148,11 +193,35 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         this.avroDeserializer = avroDeserializer;
         this.hasMetadata = false;
         this.metadataConverters = new MetadataConverter[0];
+        this.schemaRegistryUrl = null;
+        this.registryConfigs = null;
+    }
+
+    @VisibleForTesting
+    DebeziumAvroDeserializationSchema(
+            TypeInformation<RowData> producedTypeInfo,
+            AvroRowDataDeserializationSchema avroDeserializer,
+            boolean hasMetadata,
+            MetadataConverter[] metadataConverters,
+            @Nullable RegistryAvroDeserializationSchema<GenericRecord> genericDeserializer) {
+        this.producedTypeInfo = producedTypeInfo;
+        this.avroDeserializer = avroDeserializer;
+        this.hasMetadata = hasMetadata;
+        this.metadataConverters = metadataConverters;
+        this.genericDeserializer = genericDeserializer;
+        this.schemaRegistryUrl = null;
+        this.registryConfigs = null;
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
         avroDeserializer.open(context);
+
+        if (hasMetadata && this.genericDeserializer == null) {
+            this.genericDeserializer =
+                    ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                            null, schemaRegistryUrl, registryConfigs);
+        }
     }
 
     @Override
@@ -169,6 +238,14 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             return;
         }
         try {
+            // Extract source as MapData when metadata is requested
+            if (hasMetadata) {
+                GenericRecord envelope = genericDeserializer.deserialize(message);
+                GenericRecord sourceRecord = (GenericRecord) envelope.get("source");
+                this.cachedSourceMap = convertSourceToMap(sourceRecord);
+            }
+
+            // Deserialize with typed schema
             GenericRowData row = (GenericRowData) avroDeserializer.deserialize(message);
 
             GenericRowData before = (GenericRowData) row.getField(0);
@@ -213,6 +290,18 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             return;
         }
 
+        // Inject MapData at source position (4) in rootRow
+        final int sourcePosition = 4; // Stable Debezium envelope position
+        GenericRowData agumentedRoot = new GenericRowData(rootRow.getArity());
+
+        for (int i = 0; i < rootRow.getArity(); i++) {
+            if (i == sourcePosition && cachedSourceMap != null) {
+                agumentedRoot.setField(i, cachedSourceMap);
+            } else {
+                agumentedRoot.setField(i, rootRow.getField(i));
+            }
+        }
+
         final int physicalArity = physicalRow.getArity();
         final int metadataArity = metadataConverters.length;
 
@@ -226,7 +315,7 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
             producedRow.setField(
                     physicalArity + metadataPos,
-                    metadataConverters[metadataPos].convert(rootRow, metadataPos));
+                    metadataConverters[metadataPos].convert(agumentedRoot, metadataPos));
         }
 
         out.collect(producedRow);
@@ -262,8 +351,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     }
 
     public static RowType createDebeziumAvroRowType(
-            // Debezium Avro contains other information, e.g. "source", "ts_ms"
-            // but we don't need them
             DataType databaseSchema, List<ReadableMetadata> readableMetadata) {
         DataType payload =
                 DataTypes.ROW(
