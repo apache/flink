@@ -42,6 +42,10 @@ on:
           - release-1.1
           - release-1.0
 
+# Default permission grants write access; restrict to read-only for repository contents.
+permissions:
+  contents: read
+
 jobs:
   build-documentation:
     if: github.repository == 'apache/flink'

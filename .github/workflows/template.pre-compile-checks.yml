@@ -34,7 +34,9 @@ on:
         default: 17
         type: number
 
-permissions: read-all
+# Limit GITHUB_TOKEN to read-only access for the repository contents.
+permissions:
+  contents: read
 
 # This workflow should only contain steps that do not require the compilation of Flink (and therefore, are
 # independent of the used JDK)

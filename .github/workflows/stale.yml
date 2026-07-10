@@ -28,9 +28,13 @@ on:
         default: 20
         type: number
 
+# The stale action needs write permissions to label and close stale PRs.
 permissions:
+  # Required for actions/stale to add/remove labels on issues.
   issues: write
+  # Required for actions/stale to add/remove labels on PRs and post comments.
   pull-requests: write
+  # Required for actions/stale to manage its own operation state.
   actions: write
 
 jobs:

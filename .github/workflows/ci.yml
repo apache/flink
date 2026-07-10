@@ -31,7 +31,9 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
     cancel-in-progress: true
 
-permissions: read-all
+# Limit GITHUB_TOKEN to read-only access for the repository contents.
+permissions:
+  contents: read
 
 jobs:
   pre-compile-checks:

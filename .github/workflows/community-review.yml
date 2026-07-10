@@ -24,11 +24,12 @@ on:
   schedule:
     - cron: '00 00,08,16 * * *'
 
-# Same permission as stale Github action
+# The community review script needs write permissions to label PRs.
 permissions:
+  # Required for community-review.sh to create repository-level labels.
   issues: write
+  # Required for community-review.sh to add/remove labels on PRs.
   pull-requests: write
-  actions: write
 jobs:
   label:
     if: github.repository_owner == 'apache'
