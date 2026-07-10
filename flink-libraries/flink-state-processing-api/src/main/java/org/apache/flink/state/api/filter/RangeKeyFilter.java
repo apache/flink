@@ -20,37 +20,41 @@ package org.apache.flink.state.api.filter;
 
 import javax.annotation.Nullable;
 
-import java.util.Set;
-
 /** A filter based on a range with an injected comparator. */
 final class RangeKeyFilter<K> implements SavepointKeyFilter<K> {
 
     private static final long serialVersionUID = 3L;
 
     private final SerializableComparator<K> comparator;
-    @Nullable private final BoundInfo<K> lower;
-    @Nullable private final BoundInfo<K> upper;
+    @Nullable private final K lower;
+    private final boolean isLowerInclusive;
+    @Nullable private final K upper;
+    private final boolean isUpperInclusive;
 
     RangeKeyFilter(
             SerializableComparator<K> comparator,
-            @Nullable BoundInfo<K> lower,
-            @Nullable BoundInfo<K> upper) {
+            @Nullable K lower,
+            boolean isLowerInclusive,
+            @Nullable K upper,
+            boolean isUpperInclusive) {
         this.comparator = comparator;
         this.lower = lower;
+        this.isLowerInclusive = isLowerInclusive;
         this.upper = upper;
+        this.isUpperInclusive = isUpperInclusive;
     }
 
     @Override
     public boolean test(K key) {
         if (lower != null) {
-            int cmp = comparator.compare(lower.getValue(), key);
-            if (cmp > 0 || (cmp == 0 && !lower.isInclusive())) {
+            int cmp = comparator.compare(lower, key);
+            if (cmp > 0 || (cmp == 0 && !isLowerInclusive)) {
                 return false;
             }
         }
         if (upper != null) {
-            int cmp = comparator.compare(upper.getValue(), key);
-            if (cmp < 0 || (cmp == 0 && !upper.isInclusive())) {
+            int cmp = comparator.compare(upper, key);
+            if (cmp < 0 || (cmp == 0 && !isUpperInclusive)) {
                 return false;
             }
         }
@@ -58,67 +62,9 @@ final class RangeKeyFilter<K> implements SavepointKeyFilter<K> {
     }
 
     @Override
-    public BoundInfo<K> getLowerBound() {
-        return lower;
-    }
-
-    @Override
-    public BoundInfo<K> getUpperBound() {
-        return upper;
-    }
-
-    @Override
-    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
-        if (other.isEmpty()) {
-            return other;
-        }
-        final Set<K> otherExactKeys = other.getExactKeys();
-        if (otherExactKeys != null) {
-            return SavepointKeyFilter.filterKeys(otherExactKeys, this);
-        }
-        return intersectRange(other.getLowerBound(), other.getUpperBound());
-    }
-
-    private SavepointKeyFilter<K> intersectRange(
-            @Nullable BoundInfo<K> otherLower, @Nullable BoundInfo<K> otherUpper) {
-        BoundInfo<K> newLower = tighter(lower, otherLower, true);
-        BoundInfo<K> newUpper = tighter(upper, otherUpper, false);
-
-        if (newLower != null && newUpper != null) {
-            int cmp = comparator.compare(newLower.getValue(), newUpper.getValue());
-            if (cmp > 0) {
-                return SavepointKeyFilter.empty();
-            }
-            if (cmp == 0 && (!newLower.isInclusive() || !newUpper.isInclusive())) {
-                return SavepointKeyFilter.empty();
-            }
-        }
-        return new RangeKeyFilter<>(comparator, newLower, newUpper);
-    }
-
-    @Nullable
-    private BoundInfo<K> tighter(
-            @Nullable BoundInfo<K> a, @Nullable BoundInfo<K> b, boolean preferHigher) {
-        if (a == null) {
-            return b;
-        }
-        if (b == null) {
-            return a;
-        }
-        int c = comparator.compare(a.getValue(), b.getValue());
-        if (c == 0) {
-            return new BoundInfo<>(a.getValue(), a.isInclusive() && b.isInclusive());
-        }
-        boolean aWins = preferHigher ? c > 0 : c < 0;
-        return aWins ? a : b;
-    }
-
-    @Override
     public String toString() {
-        String lowerStr =
-                lower == null ? "(-∞" : (lower.isInclusive() ? "[" : "(") + lower.getValue();
-        String upperStr =
-                upper == null ? "+∞)" : upper.getValue() + (upper.isInclusive() ? "]" : ")");
+        String lowerStr = lower == null ? "(-∞" : (isLowerInclusive ? "[" : "(") + lower;
+        String upperStr = upper == null ? "+∞)" : upper + (isUpperInclusive ? "]" : ")");
         return "RangeKeyFilter" + lowerStr + ", " + upperStr;
     }
 }

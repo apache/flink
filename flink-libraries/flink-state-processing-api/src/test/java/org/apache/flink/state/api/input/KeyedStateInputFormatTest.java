@@ -145,29 +145,6 @@ class KeyedStateInputFormatTest {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    void testEmptyFilterProducesNoInputSplits(boolean asyncState) throws Exception {
-        OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
-
-        OperatorSubtaskState state =
-                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
-        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
-        operatorState.putState(0, state);
-
-        KeyedStateInputFormat<?, ?, ?> format =
-                new KeyedStateInputFormat<>(
-                        operatorState,
-                        new HashMapStateBackend(),
-                        new Configuration(),
-                        new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
-                        new ExecutionConfig(),
-                        SavepointKeyFilter.empty());
-        KeyGroupRangeInputSplit[] splits = format.createInputSplits(10);
-
-        assertThat(splits).isEmpty();
-    }
-
-    @ParameterizedTest(name = "Enable async state = {0}")
-    @ValueSource(booleans = {false, true})
     void testRangeFilterDoesNotPruneInputSplits(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 

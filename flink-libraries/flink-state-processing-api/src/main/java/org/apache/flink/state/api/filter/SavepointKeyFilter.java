@@ -23,7 +23,6 @@ import org.apache.flink.annotation.Experimental;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -38,15 +37,6 @@ public interface SavepointKeyFilter<K> extends Serializable {
     boolean test(K key);
 
     /**
-     * Returns {@code true} if this filter rejects every key.
-     *
-     * <p>Used only while combining filters during push-down translation, not during the scan.
-     */
-    default boolean isEmpty() {
-        return false;
-    }
-
-    /**
      * Returns the finite set of keys this filter matches, or {@code null} if the filter does not
      * resolve to a finite key set.
      */
@@ -55,58 +45,12 @@ public interface SavepointKeyFilter<K> extends Serializable {
         return null;
     }
 
-    /**
-     * Returns the lower bound of this filter's range, or {@code null} if the filter does not define
-     * a lower bound.
-     *
-     * <p>Used only while combining filters during push-down translation, not during the scan.
-     */
-    @Nullable
-    default BoundInfo<K> getLowerBound() {
-        return null;
-    }
-
-    /**
-     * Returns the upper bound of this filter's range, or {@code null} if the filter does not define
-     * an upper bound.
-     *
-     * <p>Used only while combining filters during push-down translation, not during the scan.
-     */
-    @Nullable
-    default BoundInfo<K> getUpperBound() {
-        return null;
-    }
-
-    /**
-     * Returns a filter that accepts a key if and only if both {@code this} and {@code other} accept
-     * it.
-     *
-     * <p>Used only while combining filters during push-down translation, not during the scan.
-     */
-    default SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
-        throw new UnsupportedOperationException(
-                getClass().getSimpleName() + " does not support intersect()");
-    }
-
-    static <K> SavepointKeyFilter<K> filterKeys(Set<K> keys, SavepointKeyFilter<K> predicate) {
-        final Set<K> retained = new HashSet<>();
-        for (K key : keys) {
-            if (predicate.test(key)) {
-                retained.add(key);
-            }
-        }
-        return exact(retained);
-    }
-
     static <K> SavepointKeyFilter<K> exact(Set<K> keys) {
-        if (keys.isEmpty()) {
-            return EmptyKeyFilter.instance();
-        }
         return new ExactKeyFilter<>(keys);
     }
 
     static <K> SavepointKeyFilter<K> exact(K value) {
-        return new ExactKeyFilter<>(Set.of(value));
+        return exact(Set.of(value));
     }
 
     static <K extends Comparable<K>> SavepointKeyFilter<K> range(
@@ -120,13 +64,7 @@ public interface SavepointKeyFilter<K> extends Serializable {
             @Nullable K upper,
             boolean upperInclusive,
             SerializableComparator<K> comparator) {
-        BoundInfo<K> lowerBoundInfo = lower != null ? new BoundInfo<>(lower, lowerInclusive) : null;
-        BoundInfo<K> upperBoundInfo = upper != null ? new BoundInfo<>(upper, upperInclusive) : null;
-        return new RangeKeyFilter<>(comparator, lowerBoundInfo, upperBoundInfo);
-    }
-
-    static <K> SavepointKeyFilter<K> empty() {
-        return EmptyKeyFilter.instance();
+        return new RangeKeyFilter<>(comparator, lower, lowerInclusive, upper, upperInclusive);
     }
 
     final class NaturalOrderComparator<K extends Comparable<K>>
