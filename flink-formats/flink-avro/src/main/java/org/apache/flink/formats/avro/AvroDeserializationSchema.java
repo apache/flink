@@ -31,6 +31,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.JsonDecoder;
@@ -162,6 +163,12 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
     AvroEncoding getEncoding() {
         return encoding;
+    }
+
+    void resetDecoder() throws IOException {
+        if (encoding == AvroEncoding.BINARY) {
+            this.decoder = DecoderFactory.get().binaryDecoder(inputStream, (BinaryDecoder) decoder);
+        }
     }
 
     @Override
