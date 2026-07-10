@@ -16,12 +16,20 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpEvent, HttpParams, HttpRequest } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
-import { JarList, NodesItemCorrect, Plan, PlanDetail, VerticesLink } from '@flink-runtime-web/interfaces';
+import {
+  JarList,
+  JarPlanRequestBody,
+  JarRunRequestBody,
+  NodesItemCorrect,
+  Plan,
+  PlanDetail,
+  VerticesLink
+} from '@flink-runtime-web/interfaces';
 
 import { ConfigService } from './config.service';
 
@@ -64,40 +72,19 @@ export class JarService {
     savepointPath: string,
     allowNonRestoredState: string
   ): Observable<{ jobid: string }> {
-    const requestParam = { entryClass, parallelism, programArgs, savepointPath, allowNonRestoredState };
-    let params = new HttpParams();
-    if (entryClass) {
-      params = params.append('entry-class', entryClass);
-    }
-    if (parallelism) {
-      params = params.append('parallelism', parallelism);
-    }
-    if (programArgs) {
-      params = params.append('program-args', programArgs);
-    }
+    const requestBody: JarRunRequestBody = this.buildBaseRequestBody(entryClass, parallelism, programArgs);
     if (savepointPath) {
-      params = params.append('savepointPath', programArgs);
+      requestBody.savepointPath = savepointPath;
     }
     if (allowNonRestoredState) {
-      params = params.append('allowNonRestoredState', allowNonRestoredState);
+      requestBody.allowNonRestoredState = true;
     }
-    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, {
-      params
-    });
+    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestBody);
   }
 
   public getPlan(jarId: string, entryClass: string, parallelism: string, programArgs: string): Observable<PlanDetail> {
-    let params = new HttpParams();
-    if (entryClass) {
-      params = params.append('entry-class', entryClass);
-    }
-    if (parallelism) {
-      params = params.append('parallelism', parallelism);
-    }
-    if (programArgs) {
-      params = params.append('program-args', programArgs);
-    }
-    return this.httpClient.get<Plan>(`${this.configService.BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+    const requestBody: JarPlanRequestBody = this.buildBaseRequestBody(entryClass, parallelism, programArgs);
+    return this.httpClient.post<Plan>(`${this.configService.BASE_URL}/jars/${jarId}/plan`, requestBody).pipe(
       map(data => {
         const links: VerticesLink[] = [];
         let nodes: NodesItemCorrect[] = [];
@@ -119,5 +106,50 @@ export class JarService {
         return { nodes, links };
       })
     );
+  }
+
+  private buildBaseRequestBody(entryClass: string, parallelism: string, programArgs: string): JarPlanRequestBody {
+    const requestBody: JarPlanRequestBody = {};
+    if (entryClass) {
+      requestBody.entryClass = entryClass;
+    }
+    if (parallelism) {
+      requestBody.parallelism = parseInt(parallelism, 10);
+    }
+    if (programArgs) {
+      requestBody.programArgsList = this.parseArgs(programArgs);
+    }
+    return requestBody;
+  }
+
+  private parseArgs(programArgs: string): string[] {
+    const args: string[] = [];
+    let current = '';
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    let hasQuote = false;
+
+    for (let i = 0; i < programArgs.length; i++) {
+      const char = programArgs[i];
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        hasQuote = true;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        hasQuote = true;
+      } else if (char === ' ' && !inSingleQuote && !inDoubleQuote) {
+        if (current.length > 0 || hasQuote) {
+          args.push(current);
+          current = '';
+          hasQuote = false;
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current.length > 0 || hasQuote) {
+      args.push(current);
+    }
+    return args;
   }
 }
