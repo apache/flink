@@ -141,7 +141,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         "The conflict is at:\n" + conflict
     } else {
       val plan = FlinkRelOptUtil.toString(rootWithModifyKindSet, withChangelogTraits = true)
-      "Can't generate a valid execution plan for the given query:\n" + plan
+      "Can't generate a valid execution plan for the given query because of a changelog mismatch: " +
+        "an operator cannot produce the changelog its consumer requires. Review the changelog " +
+        "modes of the operators in the plan below:\n" + plan
     }
   }
 

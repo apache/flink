@@ -544,14 +544,16 @@ class ProcessTableFunctionTest extends TableTestBase {
                         UpdatingUpsertFunction.class,
                         "SELECT name, SUM(`count`) OVER (PARTITION BY name ORDER BY name) "
                                 + "FROM f(r => TABLE t_updating PARTITION BY name)",
-                        "Can't generate a valid execution plan for the given query:\n"),
+                        "Can't generate a valid execution plan for the given query because of a "
+                                + "changelog mismatch"),
                 ErrorSpec.ofSelect(
                         // t_upsert produces an upsert changelog.
                         // the table argument for f requires a retract changelog
                         "retract requirement on an upsert table arg",
                         SetSemanticTableRetractArgFunction.class,
                         "SELECT * FROM f(r => TABLE t_upsert PARTITION BY name)",
-                        "Can't generate a valid execution plan for the given query:\n"),
+                        "Can't generate a valid execution plan for the given query because of a "
+                                + "changelog mismatch"),
                 ErrorSpec.ofInsertInto(
                         "upsert conflict buried below a calc",
                         UpdatingUpsertFunction.class,
