@@ -245,6 +245,45 @@ class DebeziumAvroSerDeSchemaTest {
                 });
     }
 
+    @Test
+    void testDeserializationWithMetadata_SourceDatabaseOnly() throws Exception {
+        testDeserializationWithMetadata(
+                "debezium-avro-insert.avro",
+                Collections.singletonList(ReadableMetadata.SOURCE_DATABASE),
+                row -> {
+                    assertThat(row.getLong(0)).isEqualTo(1L);
+                    assertThat(row.getString(4).toString()).isEqualTo("test1");
+                });
+    }
+
+    @Test
+    void testDeserializationWithMetadata_SourcePropertiesOnly() throws Exception {
+        testDeserializationWithMetadata(
+                "debezium-avro-insert.avro",
+                Collections.singletonList(ReadableMetadata.SOURCE_PROPERTIES),
+                row -> {
+                    MapData sourceMap = row.getMap(4);
+                    assertThat(sourceMap).isNotNull();
+                    assertThat(getMapValue(sourceMap, "db")).isEqualTo("test1");
+                    assertThat(getMapValue(sourceMap, "table")).isEqualTo("person");
+                });
+    }
+
+    @Test
+    void testDeserializationWithMetadata_MixedOrder() throws Exception {
+        testDeserializationWithMetadata(
+                "debezium-avro-insert.avro",
+                Arrays.asList(
+                        ReadableMetadata.SOURCE_TABLE,
+                        ReadableMetadata.INGESTION_TIMESTAMP,
+                        ReadableMetadata.SOURCE_DATABASE),
+                row -> {
+                    assertThat(row.getString(4).toString()).isEqualTo("person");
+                    assertThat(row.getTimestamp(5, 3).getMillisecond()).isEqualTo(1599207472705L);
+                    assertThat(row.getString(6).toString()).isEqualTo("test1");
+                });
+    }
+
     public List<String> testDeserialization(String dataPath) throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
@@ -265,8 +304,15 @@ class DebeziumAvroSerDeSchemaTest {
 
     private void testDeserializationWithMetadata(String dataPath, Consumer<RowData> testConsumer)
             throws Exception {
-        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        testDeserializationWithMetadata(
+                dataPath, Arrays.asList(ReadableMetadata.values()), testConsumer);
+    }
 
+    private void testDeserializationWithMetadata(
+            String dataPath,
+            List<ReadableMetadata> requestedMetadata,
+            Consumer<RowData> testConsumer)
+            throws Exception {
         final DataType producedDataType =
                 DataTypeUtils.appendRowFields(
                         fromLogicalToDataType(rowType),
@@ -283,13 +329,10 @@ class DebeziumAvroSerDeSchemaTest {
         ConfluentSchemaRegistryCoder registryCoder =
                 new ConfluentSchemaRegistryCoder(SUBJECT, client);
 
-        RegistryAvroDeserializationSchema<GenericRecord> genericDeserializer =
-                new RegistryAvroDeserializationSchema<>(
-                        GenericRecord.class, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, () -> registryCoder);
-        genericDeserializer.open(new MockInitializationContext());
-
         DebeziumAvroDeserializationSchema.MetadataConverter[] metadataConverters =
                 createMetadataConverters(rowTypeDe, requestedMetadata);
+
+        int sourceFieldPosition = rowTypeDe.getFieldNames().indexOf("source");
 
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
@@ -297,7 +340,9 @@ class DebeziumAvroSerDeSchemaTest {
                         getDeserializationSchema(rowTypeDe),
                         true,
                         metadataConverters,
-                        genericDeserializer);
+                        sourceFieldPosition,
+                        DEBEZIUM_SCHEMA_COMPATIBLE_TEST,
+                        () -> registryCoder);
         dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();
