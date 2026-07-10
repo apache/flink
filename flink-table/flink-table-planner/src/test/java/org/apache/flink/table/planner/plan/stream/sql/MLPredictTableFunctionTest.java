@@ -106,7 +106,7 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
     }
 
     @Test
-    public void testOnTimeArgumentNotAllowed() {
+    void testOnTimeArgumentNotAllowed() {
         // ML_PREDICT disables the implicit system arguments. Supplying `on_time` must be rejected
         // at the SQL level even though ML_PREDICT is handled by a dedicated optimizer rule.
         String sql =
@@ -120,7 +120,7 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
     }
 
     @Test
-    public void testUidArgumentNotAllowed() {
+    void testUidArgumentNotAllowed() {
         String sql =
                 "SELECT * FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
                         + "ARGS => DESCRIPTOR(a, b), uid => 'my-uid'))";
