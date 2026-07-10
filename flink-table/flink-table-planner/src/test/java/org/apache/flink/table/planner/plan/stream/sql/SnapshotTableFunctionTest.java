@@ -86,6 +86,40 @@ public class SnapshotTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testLateralContextInView() {
+        // A view stores the expanded query (as do materialized tables). Selecting from a view whose
+        // body uses LATERAL SNAPSHOT must still be rewritten into the dedicated join.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW OrdersWithRate AS "
+                                + "SELECT o.order_id, o.amount, r.rate "
+                                + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                + "input => TABLE Rates, "
+                                + "load_completed_condition => 'user_time', "
+                                + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                                + ")) AS r "
+                                + "WHERE o.currency = r.currency");
+        final String plan = util.tableEnv().explainSql("SELECT * FROM OrdersWithRate");
+        assertThat(plan).contains("LateralSnapshotJoin");
+    }
+
+    @Test
+    void testSnapshotWithViewArgument() {
+        util.tableEnv().executeSql("CREATE VIEW RatesView AS SELECT * FROM Rates");
+        final String plan =
+                util.tableEnv()
+                        .explainSql(
+                                "SELECT o.order_id, o.amount, r.rate "
+                                        + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                        + "input => TABLE RatesView, "
+                                        + "load_completed_condition => 'user_time', "
+                                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                                        + ")) AS r "
+                                        + "WHERE o.currency = r.currency");
+        assertThat(plan).contains("LateralSnapshotJoin");
+    }
+
+    @Test
     @Disabled(
             "SNAPSHOT sets disableSystemArguments(true), but that flag is currently not enforced. "
                     + "Re-enable once FLINK-40079 is fixed.")

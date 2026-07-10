@@ -50,7 +50,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -126,7 +125,7 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
                 stateTtlMs,
-                Arrays.asList(leftInputProperty, rightInputProperty),
+                List.of(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
     }

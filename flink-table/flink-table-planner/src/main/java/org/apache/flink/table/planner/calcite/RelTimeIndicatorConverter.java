@@ -401,10 +401,10 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newRight,
                 newCondition,
                 join.getJoinType(),
-                join.loadCompletedCondition(),
-                join.loadCompletedTime(),
-                join.loadCompletedIdleTimeoutMs(),
-                join.stateTtlMs());
+                join.getLoadCompletedCondition(),
+                join.getLoadCompletedTime(),
+                join.getLoadCompletedIdleTimeoutMs(),
+                join.getStateTtlMs());
     }
 
     private RelNode visitCorrelate(FlinkLogicalCorrelate correlate) {

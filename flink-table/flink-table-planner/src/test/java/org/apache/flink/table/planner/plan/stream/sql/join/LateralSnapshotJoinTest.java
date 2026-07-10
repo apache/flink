@@ -283,7 +283,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testInnerJoinWithDefaultCompileTime_compilesEndToEnd() {
+    void testInnerJoinWithDefaultCompileTimeCompilesEndToEnd() {
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b)) AS s "
                         + "ON probe.pk = s.bk";
@@ -297,7 +297,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testInnerJoinWithExplicitCompileTime_compilesEndToEnd() {
+    void testInnerJoinWithExplicitCompileTimeCompilesEndToEnd() {
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
                         + "input => TABLE b, "

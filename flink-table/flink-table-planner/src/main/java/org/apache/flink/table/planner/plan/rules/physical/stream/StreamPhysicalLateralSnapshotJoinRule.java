@@ -68,10 +68,10 @@ public class StreamPhysicalLateralSnapshotJoinRule extends ConverterRule {
                 newRight,
                 join.getCondition(),
                 join.getJoinType(),
-                join.loadCompletedCondition(),
-                join.loadCompletedTime(),
-                join.loadCompletedIdleTimeoutMs(),
-                join.stateTtlMs());
+                join.getLoadCompletedCondition(),
+                join.getLoadCompletedTime(),
+                join.getLoadCompletedIdleTimeoutMs(),
+                join.getStateTtlMs());
     }
 
     /**

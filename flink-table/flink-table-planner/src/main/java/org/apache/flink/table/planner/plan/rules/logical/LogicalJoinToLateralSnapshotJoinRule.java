@@ -57,8 +57,8 @@ import java.util.List;
  * Rewrites a {@link FlinkLogicalJoin} whose right side is a {@link FlinkLogicalTableFunctionScan}
  * backed by the built-in {@code SNAPSHOT} function into a dedicated {@link
  * FlinkLogicalLateralSnapshotJoin}. The right-side input becomes the actual TABLE argument of the
- * SNAPSHOT call. The SNAPSHOT-specific arguments (load_completed_time, load_completed_idle_timeout,
- * state_ttl) are carried as fields on the new node.
+ * SNAPSHOT call. The SNAPSHOT-specific arguments (load_completed_condition, load_completed_time,
+ * load_completed_idle_timeout, state_ttl) are carried as fields on the new node.
  *
  * <p>By the time this rule fires, Calcite's decorrelator has already converted the original {@code
  * LogicalCorrelate} into a {@code LogicalJoin} (because SNAPSHOT does not actually reference any
