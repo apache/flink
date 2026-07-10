@@ -24,7 +24,10 @@ import org.apache.flink.state.api.filter.SerializableComparator;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -49,6 +52,28 @@ public interface SavepointKeyFilterPlan<K> extends SavepointKeyFilter<K> {
     @Nullable
     default BoundInfo<K> getUpperBound() {
         return null;
+    }
+
+    /** Returns {@code true} if this filter is a single range, reporting its bounds. */
+    default boolean isRange() {
+        return false;
+    }
+
+    /**
+     * Returns the finite set of keys this filter rejects while accepting every other key, or {@code
+     * null} if this filter is not a pure exclusion.
+     */
+    @Nullable
+    default Set<K> getExcludedKeys() {
+        return null;
+    }
+
+    /**
+     * Decomposes this filter into its top-level conjunctive (AND) branches; a non-conjunction
+     * filter is a single branch.
+     */
+    default List<SavepointKeyFilterPlan<K>> getConjunctionBranches() {
+        return Collections.singletonList(this);
     }
 
     /**
@@ -96,5 +121,34 @@ public interface SavepointKeyFilterPlan<K> extends SavepointKeyFilter<K> {
 
     static <K> SavepointKeyFilterPlan<K> empty() {
         return EmptyKeyFilterPlan.instance();
+    }
+
+    /**
+     * Returns a filter accepting a key if and only if it is <em>not</em> one of the excluded keys
+     * ({@code key <> v} or {@code key NOT IN (..)}), or {@code null} if nothing is excluded.
+     */
+    @Nullable
+    static <K> SavepointKeyFilterPlan<K> exclude(Set<K> excluded) {
+        if (excluded.isEmpty()) {
+            return null;
+        }
+        return new ExclusionKeyFilterPlan<>(excluded);
+    }
+
+    /** Returns a filter accepting a key if and only if it is <em>not</em> the excluded key. */
+    static <K> SavepointKeyFilterPlan<K> exclude(K value) {
+        return new ExclusionKeyFilterPlan<>(Set.of(value));
+    }
+
+    /** Returns a filter accepting a key if and only if both {@code a} and {@code b} accept it. */
+    static <K> SavepointKeyFilterPlan<K> conjunction(
+            SavepointKeyFilterPlan<K> a, SavepointKeyFilterPlan<K> b) {
+        if (a.isEmpty() || b.isEmpty()) {
+            return empty();
+        }
+        final List<SavepointKeyFilterPlan<K>> branches = new ArrayList<>();
+        branches.addAll(a.getConjunctionBranches());
+        branches.addAll(b.getConjunctionBranches());
+        return new ConjunctionKeyFilterPlan<>(branches);
     }
 }

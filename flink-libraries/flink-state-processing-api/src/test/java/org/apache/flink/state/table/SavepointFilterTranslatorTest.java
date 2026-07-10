@@ -221,10 +221,12 @@ class SavepointFilterTranslatorTest {
     }
 
     @Test
-    void andWithExactKeyChildIsNotPushable() {
-        // AND requires all children to be range filters; exact filter breaks pushdown
+    void andOfExactAndRangeNarrowsToExactSubset() {
+        // key = 5 AND key > 3 -> {5}
         CallExpression expr = and(eq(longKeyRef(), longLit(5L)), gt(longKeyRef(), longLit(3L)));
-        assertThat(keyFilterOf(expr)).isNull();
+        SavepointKeyFilterPlan<Object> filter = keyFilterOf(expr);
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
     }
 
     // -------------------------------------------------------------------------

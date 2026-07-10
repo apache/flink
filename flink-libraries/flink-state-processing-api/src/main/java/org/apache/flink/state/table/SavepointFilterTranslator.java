@@ -52,23 +52,37 @@ class SavepointFilterTranslator {
                     FunctionDefinition,
                     BiFunction<SavepointFilterTranslator, CallExpression, SavepointKeyFilterPlan>>
             FILTERS =
-                    Map.of(
-                            BuiltInFunctionDefinitions.EQUALS,
-                            SavepointFilterTranslator::fromEquals,
-                            BuiltInFunctionDefinitions.OR,
-                            SavepointFilterTranslator::fromOr,
-                            BuiltInFunctionDefinitions.AND,
-                            SavepointFilterTranslator::fromAnd,
-                            BuiltInFunctionDefinitions.BETWEEN,
-                            SavepointFilterTranslator::fromBetween,
-                            BuiltInFunctionDefinitions.GREATER_THAN,
-                            SavepointFilterTranslator::fromGreaterThan,
-                            BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
-                            SavepointFilterTranslator::fromGreaterThanOrEqual,
-                            BuiltInFunctionDefinitions.LESS_THAN,
-                            SavepointFilterTranslator::fromLessThan,
-                            BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
-                            SavepointFilterTranslator::fromLessThanOrEqual);
+                    Map.ofEntries(
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.EQUALS,
+                                    SavepointFilterTranslator::fromEquals),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.NOT_EQUALS,
+                                    SavepointFilterTranslator::fromNotEquals),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.NOT,
+                                    SavepointFilterTranslator::fromNot),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.OR,
+                                    SavepointFilterTranslator::fromOr),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.AND,
+                                    SavepointFilterTranslator::fromAnd),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.BETWEEN,
+                                    SavepointFilterTranslator::fromBetween),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.GREATER_THAN,
+                                    SavepointFilterTranslator::fromGreaterThan),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
+                                    SavepointFilterTranslator::fromGreaterThanOrEqual),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.LESS_THAN,
+                                    SavepointFilterTranslator::fromLessThan),
+                            Map.entry(
+                                    BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
+                                    SavepointFilterTranslator::fromLessThanOrEqual));
 
     private final int keyColumnIndex;
     private final DataType keyColumnType;
@@ -137,6 +151,49 @@ class SavepointFilterTranslator {
         return SavepointKeyFilterPlan.exact(value);
     }
 
+    // -------------------------------------------------------------------------
+    //  Negation / membership
+    // -------------------------------------------------------------------------
+
+    @Nullable
+    private SavepointKeyFilterPlan fromNotEquals(CallExpression call) {
+        if (!isBinaryValid(call)) {
+            return null;
+        }
+        ResolvedExpression left = call.getResolvedChildren().get(0);
+        ResolvedExpression right = call.getResolvedChildren().get(1);
+
+        Object value = null;
+        if (isKeyField(left)) {
+            value = extractValue(right);
+        } else if (isKeyField(right)) {
+            value = extractValue(left);
+        }
+
+        if (value == null) {
+            return null;
+        }
+        return SavepointKeyFilterPlan.exclude(value);
+    }
+
+    @Nullable
+    private SavepointKeyFilterPlan fromNot(CallExpression call) {
+        if (call.getResolvedChildren().size() != 1) {
+            return null;
+        }
+        SavepointKeyFilterPlan inner = extractFilter(call.getResolvedChildren().get(0));
+        if (inner == null) {
+            return null;
+        }
+        Set<Object> keys = inner.getExactKeys();
+        // Only NOT of a finite key set is an exclusion; NOT of a range is not pushed
+        // (will be supported in a future commit).
+        if (keys == null) {
+            return null;
+        }
+        return SavepointKeyFilterPlan.exclude(keys);
+    }
+
     @Nullable
     private SavepointKeyFilterPlan fromOr(CallExpression call) {
         Set<Object> keys = new HashSet<>();
@@ -164,8 +221,8 @@ class SavepointFilterTranslator {
         SavepointKeyFilterPlan merged = null;
         for (ResolvedExpression arg : call.getResolvedChildren()) {
             SavepointKeyFilterPlan sub = extractFilter(arg);
-            // AND only absorbs range filters; exact (or null) children break pushdown.
-            if (sub == null || sub.getExactKeys() != null) {
+            // A non-pushable child breaks pushdown of the whole AND.
+            if (sub == null) {
                 return null;
             }
             merged = (merged == null) ? sub : merged.intersect(sub);

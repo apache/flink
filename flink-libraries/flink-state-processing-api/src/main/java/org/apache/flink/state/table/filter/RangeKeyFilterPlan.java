@@ -70,6 +70,11 @@ final class RangeKeyFilterPlan<K> implements SavepointKeyFilterPlan<K> {
     }
 
     @Override
+    public boolean isRange() {
+        return true;
+    }
+
+    @Override
     public SavepointKeyFilterPlan<K> intersect(SavepointKeyFilterPlan<K> other) {
         if (other.isEmpty()) {
             return other;
@@ -78,7 +83,12 @@ final class RangeKeyFilterPlan<K> implements SavepointKeyFilterPlan<K> {
         if (otherExactKeys != null) {
             return SavepointKeyFilterPlan.filterKeys(otherExactKeys, this);
         }
-        return intersectRange(other.getLowerBound(), other.getUpperBound());
+        if (other.isRange()) {
+            return intersectRange(other.getLowerBound(), other.getUpperBound());
+        }
+        // Anything else (e.g. an exclusion) intersected with a range is not a single range, so keep
+        // both constraints as a precise per-key conjunction.
+        return SavepointKeyFilterPlan.conjunction(this, other);
     }
 
     private SavepointKeyFilterPlan<K> intersectRange(
