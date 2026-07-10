@@ -243,23 +243,15 @@ class RelTreeWriterImpl(
   override def item(term: String, value: AnyRef): RelWriter = {
     if (withQueryHint || withQueryBlockAlias) {
       value match {
-        case rexNode: RexNode if containsSubQuery(rexNode) =>
-          return super.item(term, toHintAwareSubQueryString(rexNode))
+        case rexNode: RexNode =>
+          toHintAwareSubQueryString(rexNode) match {
+            case Some(rendered) => return super.item(term, rendered)
+            case None =>
+          }
         case _ =>
       }
     }
     super.item(term, value)
-  }
-
-  private def containsSubQuery(node: RexNode): Boolean = {
-    var found = false
-    node.accept(new RexVisitorImpl[Void](true) {
-      override def visitSubQuery(subQuery: RexSubQuery): Void = {
-        found = true
-        null
-      }
-    })
-    found
   }
 
   private def addHintItems(rel: RelNode, addItem: (String, AnyRef) => Unit): Unit = {
@@ -317,15 +309,14 @@ class RelTreeWriterImpl(
     }
   }
 
-  /**
-   * Renders a {@link RexNode} to string, replacing each embedded {@link RexSubQuery}'s inner rel
-   * with a hint-aware flat-style plan string.
-   */
-  private def toHintAwareSubQueryString(node: RexNode): String = {
+  /** Renders embedded {@link RexSubQuery}s with hint-aware inner relational plans. */
+  private def toHintAwareSubQueryString(node: RexNode): Option[String] = {
+    var found = false
     var result = node.toString
     var searchStart = 0
     node.accept(new RexVisitorImpl[Void](true) {
       override def visitSubQuery(subQuery: RexSubQuery): Void = {
+        found = true
         val withoutHints = RelOptUtil.toString(subQuery.rel)
         val withHints = toHintAwareRelString(subQuery.rel)
         val start = result.indexOf(withoutHints, searchStart)
@@ -337,18 +328,27 @@ class RelTreeWriterImpl(
         null
       }
     })
-    result
+    if (found) Some(result) else None
   }
 
-  /**
-   * Produces a flat-style plan string for the given rel that includes hint attributes, matching the
-   * format produced by {@link RelOptUtil#toString}.
-   */
+  /** Produces a flat-style plan string for the given rel that includes hint attributes. */
   private def toHintAwareRelString(rel: RelNode): String = {
     val sw = new StringWriter
     val hintWriter = new RelWriterImpl(new PrintWriter(sw), explainLevel, withIdPrefix) {
+      override def item(term: String, value: AnyRef): RelWriter = {
+        value match {
+          case rexNode: RexNode =>
+            toHintAwareSubQueryString(rexNode) match {
+              case Some(rendered) => super.item(term, rendered)
+              case None => super.item(term, value)
+            }
+          case _ => super.item(term, value)
+        }
+      }
+
       override def done(node: RelNode): RelWriter = {
-        addHintItems(node, (term, value) => item(term, value))
+        // RelWriterImpl stores pending attributes privately, so append hints through its item API.
+        addHintItems(node, (term, value) => super.item(term, value))
         super.done(node)
       }
     }
