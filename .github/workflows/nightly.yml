@@ -137,7 +137,9 @@ jobs:
         shell: bash
         run: |
           source ./tools/ci/deploy_nightly_to_s3.sh
-          upload_to_s3 ./tools/releasing/release
+          # while AZP snapshot release builds are still being uploaded
+          #  upload to a separate GHA-specific prefix to avoid overwrites
+          upload_to_s3 ./tools/releasing/release gha-trial/
         env:
           ARTIFACTS_S3_BUCKET: ${{ secrets.ARTIFACTS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}

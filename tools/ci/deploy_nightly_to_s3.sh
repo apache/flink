@@ -23,6 +23,7 @@ set -e -x
 
 function upload_to_s3() {
 	local FILES_DIR=$1
+	local PREFIX=${2:-}
 
 	# The AWS CLI reads credentials from the environment (AWS_ACCESS_KEY_ID /
 	# AWS_SECRET_ACCESS_KEY), so they are never placed on a command line and
@@ -41,5 +42,5 @@ function upload_to_s3() {
 
 	# Mirrors the previous uploader's behaviour: copy the directory contents to
 	# the bucket root using the bucket's default (private) ACL.
-	aws s3 cp "$FILES_DIR" "s3://$ARTIFACTS_S3_BUCKET/" --recursive --no-progress
+	aws s3 cp "$FILES_DIR" "s3://$ARTIFACTS_S3_BUCKET/${PREFIX}" --recursive --no-progress
 }
