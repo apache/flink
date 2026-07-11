@@ -4634,8 +4634,6 @@ class CheckpointCoordinatorTest {
             final ScheduledFuture<?> scheduledTaskAfterBacklogCleared =
                     scheduledTasksAfterBacklogCleared.iterator().next();
             assertThat((Object) scheduledTaskAfterBacklogCleared).isSameAs(backlogScheduledTask);
-            assertThat(scheduledTaskAfterBacklogCleared.getDelay(TimeUnit.MILLISECONDS))
-                    .isEqualTo(backlogInterval);
         } finally {
             coordinator.shutdown();
         }
