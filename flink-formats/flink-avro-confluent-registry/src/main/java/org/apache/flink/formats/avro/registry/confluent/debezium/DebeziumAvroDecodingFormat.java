@@ -249,12 +249,11 @@ public class DebeziumAvroDecodingFormat
     /**
      * Reads a property from the source MAP by key.
      *
-     * <p>The source field contains GenericMapData injected at runtime by {@link
-     * DebeziumAvroDeserializationSchema#convertSourceToMap}. Safe to cast because the runtime type
-     * is guaranteed.
+     * <p>The source field contains GenericMapData injected at runtime. Safe to cast because the
+     * runtime type is guaranteed.
      *
      * @param row the rootRow containing source MapData at pos
-     * @param pos the source field position (4 in Debezium envelope)
+     * @param pos the configured source field position
      * @param key the StringData key to lookup
      * @return the field value, or null if not found
      */
