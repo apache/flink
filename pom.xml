@@ -1024,9 +1024,9 @@ under the License.
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-surefire-plugin</artifactId>
 						<configuration>
-							<systemProperties>
+							<systemPropertyVariables>
 								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
-							</systemProperties>
+							</systemPropertyVariables>
 							<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
 						</configuration>
 					</plugin>
