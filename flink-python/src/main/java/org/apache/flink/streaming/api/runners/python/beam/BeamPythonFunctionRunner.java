@@ -65,7 +65,6 @@ import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -164,7 +163,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private transient StageBundleFactory stageBundleFactory;
 
     /** Handler for state requests. */
-    private transient StateRequestHandler stateRequestHandler;
+    private transient BeamStateRequestHandler stateRequestHandler;
 
     /** Handler for bundle progress messages, both during bundle execution and on its completion. */
     private transient BundleProgressHandler progressHandler;
@@ -340,6 +339,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             }
         } finally {
             jobBundleFactory = null;
+
+            // State backends are disposed after the runner is closed. Drain the handler after
+            // stopping Beam request production so no callback can access disposed state.
+            try {
+                if (stateRequestHandler != null) {
+                    stateRequestHandler.close();
+                }
+            } finally {
+                stateRequestHandler = null;
+            }
         }
 
         try {
@@ -734,7 +743,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         return new TimerReceiverFactory(stageBundleFactory, timerDataConsumer, null);
     }
 
-    private static StateRequestHandler getStateRequestHandler(
+    private static BeamStateRequestHandler getStateRequestHandler(
             @Nullable KeyedStateBackend<?> keyedStateBackend,
             @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
