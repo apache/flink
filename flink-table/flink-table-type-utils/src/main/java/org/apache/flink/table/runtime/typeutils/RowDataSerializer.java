@@ -327,6 +327,20 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             return CURRENT_VERSION;
         }
 
+        /**
+         * Returns the top-level {@link RowData} field names captured when this snapshot was
+         * written.
+         *
+         * <p>Returns {@code null} for legacy snapshots written before field-name persistence was
+         * introduced (snapshot version 3 and earlier). When present, the names are the top-level
+         * {@link RowType} field names and correspond one-to-one, in order, with the field types.
+         *
+         * @return the top-level field names, or {@code null} if the snapshot did not persist them
+         */
+        public @Nullable String[] getFieldNames() {
+            return fieldNames;
+        }
+
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
             out.writeInt(types.length);

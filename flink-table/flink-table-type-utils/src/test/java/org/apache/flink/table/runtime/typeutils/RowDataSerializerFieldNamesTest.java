@@ -92,6 +92,17 @@ class RowDataSerializerFieldNamesTest {
     }
 
     @Test
+    void snapshotPublicGetterReturnsPersistedNames() {
+        RowType rowType = rowType(new String[] {"f0", "f1"}, new IntType(), new BigIntType());
+
+        RowDataSerializerSnapshot snapshot =
+                (RowDataSerializerSnapshot)
+                        InternalSerializers.create(rowType).snapshotConfiguration();
+
+        assertThat(snapshot.getFieldNames()).containsExactly("f0", "f1");
+    }
+
+    @Test
     void namesSurviveSnapshotRoundTripIncludingNestedRow() throws IOException {
         RowType nested = rowType(new String[] {"a", "b"}, new IntType(), VarCharType.STRING_TYPE);
         RowType rowType = rowType(new String[] {"outer", "tail"}, nested, new IntType());
@@ -129,6 +140,8 @@ class RowDataSerializerFieldNamesTest {
         DataInputDeserializer in = new DataInputDeserializer(out.getCopyOfBuffer());
         TypeSerializerSnapshot<RowData> restored =
                 TypeSerializerSnapshot.readVersionedSnapshot(in, getClass().getClassLoader());
+
+        assertThat(((RowDataSerializerSnapshot) restored).getFieldNames()).isNull();
 
         RowDataSerializer serializer = (RowDataSerializer) restored.restoreSerializer();
         assertThat(serializer.getFieldNames()).isNull();
