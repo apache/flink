@@ -341,8 +341,8 @@ class DebeziumAvroSerDeSchemaTest {
                         true,
                         metadataConverters,
                         sourceFieldPosition,
-                        DEBEZIUM_SCHEMA_COMPATIBLE_TEST,
                         () -> registryCoder);
+
         dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();
