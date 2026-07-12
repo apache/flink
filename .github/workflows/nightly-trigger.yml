@@ -28,6 +28,9 @@ jobs:
     if: github.repository == 'apache/flink'
     permissions:
       actions: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.branch }}
+      cancel-in-progress: true
     strategy:
       matrix:
         branch:
