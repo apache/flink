@@ -205,7 +205,7 @@ Format 参数
       <td>否</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>可选标志，用于在反序列化时跳过每个 CSV 文件的第一条记录（默认禁用）。仅 filesystem 连接器支持。表 schema 不会从被跳过的记录中推断。仅影响反序列化。</td>
+      <td>可选标志，用于跳过每个输入 CSV 文件的第一条记录（默认值为 false）。仅支持 filesystem 连接器。仅影响反序列化。</td>
     </tr>
     </tbody>
 </table>

@@ -134,11 +134,7 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
             final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
 
             final RowType physicalRowType = (RowType) physicalDataType.getLogicalType();
-            CsvSchema builtSchema = buildCsvSchema(physicalRowType, formatOptions);
-            if (formatOptions.get(IGNORE_FIRST_LINE)) {
-                builtSchema = builtSchema.rebuild().setSkipFirstDataRow(true).build();
-            }
-            final CsvSchema schema = builtSchema;
+            final CsvSchema schema = buildCsvSchema(physicalRowType, formatOptions);
 
             final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
             final Converter<JsonNode, RowData, Void> converter =
@@ -219,6 +215,8 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         }
 
         options.getOptional(ALLOW_COMMENTS).ifPresent(csvBuilder::setAllowComments);
+
+        options.getOptional(IGNORE_FIRST_LINE).ifPresent(csvBuilder::setSkipFirstDataRow);
 
         options.getOptional(ARRAY_ELEMENT_DELIMITER)
                 .ifPresent(csvBuilder::setArrayElementSeparator);

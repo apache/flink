@@ -206,7 +206,7 @@ Format Options
       <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional flag to skip the first CSV record of each file during deserialization (disabled by default). Only supported by the filesystem connector. The table schema is not derived from the skipped record. Only affects deserialization.</td>
+      <td>Optional flag to skip the first CSV record of each input file (false by default). Only supported by the filesystem connector. Only affects deserialization.</td>
     </tr>
     </tbody>
 </table>
