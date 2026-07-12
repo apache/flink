@@ -19,6 +19,10 @@ on:
     - cron: '0 0 * * *' # Deploy every day
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   build-documentation:
     if: github.repository == 'apache/flink'
