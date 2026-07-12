@@ -31,16 +31,17 @@ import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for bootstrap transformations. */
-public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
+class StateBootstrapTransformationTest extends AbstractTestBase {
 
     @Test
-    public void testBroadcastStateTransformationParallelism() {
+    void testBroadcastStateTransformationParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
@@ -58,14 +59,13 @@ public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
-                "Broadcast transformations should always be run at parallelism 1",
-                1,
-                result.getParallelism());
+        assertThat(result.getParallelism())
+                .as("Broadcast transformations should always be run at parallelism 1")
+                .isOne();
     }
 
     @Test
-    public void testDefaultParallelismRespectedWhenLessThanMaxParallelism() {
+    void testDefaultParallelismRespectedWhenLessThanMaxParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -83,14 +83,14 @@ public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
-                "The parallelism of a data set should not change when less than the max parallelism of the savepoint",
-                env.getParallelism(),
-                result.getParallelism());
+        assertThat(result.getParallelism())
+                .as(
+                        "The parallelism of a data set should not change when less than the max parallelism of the savepoint")
+                .isEqualTo(env.getParallelism());
     }
 
     @Test
-    public void testMaxParallelismRespected() {
+    void testMaxParallelismRespected() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
@@ -108,14 +108,14 @@ public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
-                "The parallelism of a data set should be constrained my the savepoint max parallelism",
-                4,
-                result.getParallelism());
+        assertThat(result.getParallelism())
+                .as(
+                        "The parallelism of a data set should be constrained my the savepoint max parallelism")
+                .isEqualTo(4);
     }
 
     @Test
-    public void testOperatorSpecificMaxParallelismRespected() {
+    void testOperatorSpecificMaxParallelismRespected() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -134,14 +134,14 @@ public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
-                "The parallelism of a data set should be constrained my the savepoint max parallelism",
-                1,
-                result.getParallelism());
+        assertThat(result.getParallelism())
+                .as(
+                        "The parallelism of a data set should be constrained my the savepoint max parallelism")
+                .isOne();
     }
 
     @Test
-    public void testStreamConfig() {
+    void testStreamConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStream<String> input = env.fromData("");
 
@@ -159,10 +159,9 @@ public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
         KeySelector selector =
                 config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
 
-        Assert.assertEquals(
-                "Incorrect key selector forwarded to stream operator",
-                CustomKeySelector.class,
-                selector.getClass());
+        assertThat(selector.getClass())
+                .as("Incorrect key selector forwarded to stream operator")
+                .isEqualTo(CustomKeySelector.class);
     }
 
     private static class CustomKeySelector implements KeySelector<String, String> {

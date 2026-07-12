@@ -28,29 +28,32 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test for writing output savepoint metadata. */
-public class SavepointOutputFormatTest {
+class SavepointOutputFormatTest {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
 
-    @Test(expected = IllegalStateException.class)
-    public void testSavepointOutputFormatOnlyWorksWithParallelismOne() throws Exception {
-        Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
+    @Test
+    void testSavepointOutputFormatOnlyWorksWithParallelismOne() throws Exception {
+        Path path = new Path(temporaryFolder.getAbsolutePath());
         SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-        format.open(FirstAttemptInitializationContext.of(0, 2));
+        assertThatThrownBy(() -> format.open(FirstAttemptInitializationContext.of(0, 2)))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testSavepointOutputFormat() throws Exception {
-        Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
+    void testSavepointOutputFormat() throws Exception {
+        Path path = new Path(temporaryFolder.getAbsolutePath());
         SavepointOutputFormat format = createSavepointOutputFormat(path);
 
         CheckpointMetadata metadata = createSavepoint();
@@ -61,20 +64,17 @@ public class SavepointOutputFormatTest {
 
         CheckpointMetadata metadataOnDisk = SavepointLoader.loadSavepointMetadata(path.getPath());
 
-        Assert.assertEquals(
-                "Incorrect checkpoint id",
-                metadata.getCheckpointId(),
-                metadataOnDisk.getCheckpointId());
+        assertThat(metadataOnDisk.getCheckpointId())
+                .as("Incorrect checkpoint id")
+                .isEqualTo(metadata.getCheckpointId());
 
-        Assert.assertEquals(
-                "Incorrect number of operator states in savepoint",
-                metadata.getOperatorStates().size(),
-                metadataOnDisk.getOperatorStates().size());
+        assertThat(metadataOnDisk.getOperatorStates())
+                .as("Incorrect number of operator states in savepoint")
+                .hasSameSizeAs(metadata.getOperatorStates());
 
-        Assert.assertEquals(
-                "Incorrect operator state in savepoint",
-                metadata.getOperatorStates().iterator().next(),
-                metadataOnDisk.getOperatorStates().iterator().next());
+        assertThat(metadataOnDisk.getOperatorStates().iterator().next())
+                .as("Incorrect operator state in savepoint")
+                .isEqualTo(metadata.getOperatorStates().iterator().next());
     }
 
     private CheckpointMetadata createSavepoint() {
