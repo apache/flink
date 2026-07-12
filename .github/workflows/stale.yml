@@ -28,6 +28,10 @@ on:
         default: 20
         type: number
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
   pull-requests: write
