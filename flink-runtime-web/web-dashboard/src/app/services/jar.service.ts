@@ -76,7 +76,7 @@ export class JarService {
       params = params.append('program-args', programArgs);
     }
     if (savepointPath) {
-      params = params.append('savepointPath', programArgs);
+      params = params.append('savepointPath', savepointPath);
     }
     if (allowNonRestoredState) {
       params = params.append('allowNonRestoredState', allowNonRestoredState);
