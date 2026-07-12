@@ -305,6 +305,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Nullable private UUID currentRegistrationTimeoutId;
 
+    /**
+     * Once set, this TaskExecutor no longer attempts to (re)connect to a ResourceManager, whether
+     * because it is voluntarily preparing for termination ({@link #prepareForTermination()}) or
+     * because a ResourceManager has already fenced it off ({@link #fenceAndStop}).
+     */
+    private volatile boolean terminationRequested = false;
+
     private final Map<JobID, Collection<CompletableFuture<ExecutionState>>>
             taskResultPartitionCleanupFuturesPerJob = CollectionUtil.newHashMapWithExpectedSize(8);
 
@@ -1431,6 +1438,60 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         }
     }
 
+    @Override
+    public void fenceAndStop(Exception cause) {
+        runAsync(() -> handleFenceAndStop(cause));
+    }
+
+    private void handleFenceAndStop(Exception cause) {
+        if (terminationRequested) {
+            return;
+        }
+        terminationRequested = true;
+        log.warn(
+                "ResourceManager instructed this TaskExecutor to stop ({}). Failing all locally "
+                        + "running tasks now instead of waiting for each JobMaster to notice the "
+                        + "loss of this TaskExecutor independently.",
+                cause.getMessage());
+        disconnectAndStopReconnectingToResourceManager(cause);
+        for (JobTable.Job job : jobTable.getJobs()) {
+            job.asConnection()
+                    .ifPresent(
+                            jobManagerConnection ->
+                                    disconnectJobManagerConnection(
+                                            jobManagerConnection, cause, true));
+        }
+    }
+
+    /**
+     * Best-effort, voluntary counterpart to {@link #fenceAndStop}: disconnects from the
+     * ResourceManager without waiting to be timed out, so the ResourceManager can free this
+     * TaskExecutor's slots immediately. Unlike {@link #fenceAndStop}, this does not fail currently
+     * running tasks - it is intended to be triggered ahead of a graceful pod termination, where the
+     * caller (see {@code TaskManagerRunner#prepareForTermination()}) separately bounds how long
+     * in-flight tasks are given to finish before the process exits.
+     */
+    public void prepareForTermination() {
+        runAsync(this::handlePrepareForTermination);
+    }
+
+    private void handlePrepareForTermination() {
+        if (terminationRequested) {
+            return;
+        }
+        terminationRequested = true;
+        log.info(
+                "Preparing for graceful termination: disconnecting from the ResourceManager "
+                        + "instead of waiting to be timed out.");
+        disconnectAndStopReconnectingToResourceManager(
+                new FlinkException("TaskExecutor is preparing for graceful termination."));
+    }
+
+    private void disconnectAndStopReconnectingToResourceManager(Exception cause) {
+        closeResourceManagerConnection(cause);
+        resourceManagerAddress = null;
+    }
+
     // ----------------------------------------------------------------------
     // Other RPCs
     // ----------------------------------------------------------------------
@@ -1535,6 +1596,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private void notifyOfNewResourceManagerLeader(
             String newLeaderAddress, ResourceManagerId newResourceManagerId) {
+        if (terminationRequested) {
+            return;
+        }
         resourceManagerAddress =
                 createResourceManagerAddress(newLeaderAddress, newResourceManagerId);
         reconnectToResourceManager(

@@ -100,6 +100,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final Consumer<Exception> disconnectResourceManagerConsumer;
 
+    private final Consumer<Exception> fenceAndStopConsumer;
+
     private final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction;
 
     private final Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier;
@@ -158,6 +160,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             Consumer<JobID> freeInactiveSlotsConsumer,
             Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction,
             Consumer<Exception> disconnectResourceManagerConsumer,
+            Consumer<Exception> fenceAndStopConsumer,
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
             Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
             BiConsumer<JobID, Set<ResultPartitionID>> releasePartitionsConsumer,
@@ -195,6 +198,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
         this.heartbeatResourceManagerFunction = heartbeatResourceManagerFunction;
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
+        this.fenceAndStopConsumer = fenceAndStopConsumer;
         this.cancelTaskFunction = cancelTaskFunction;
         this.canBeReleasedSupplier = canBeReleasedSupplier;
         this.releasePartitionsConsumer = releasePartitionsConsumer;
@@ -322,6 +326,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     @Override
     public void disconnectResourceManager(Exception cause) {
         disconnectResourceManagerConsumer.accept(cause);
+    }
+
+    @Override
+    public void fenceAndStop(Exception cause) {
+        fenceAndStopConsumer.accept(cause);
     }
 
     @Override
