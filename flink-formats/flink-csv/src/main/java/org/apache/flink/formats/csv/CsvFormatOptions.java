@@ -144,8 +144,8 @@ public class CsvFormatOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Optional flag to skip the first CSV record of each file "
-                                    + "(disabled by default). "
+                            "Optional flag to skip the first CSV record of each input file "
+                                    + "(false by default). "
                                     + "Only affects deserialization.");
 
     private CsvFormatOptions() {}
