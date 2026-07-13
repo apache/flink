@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -113,5 +114,18 @@ describe('TaskManagerMetricsComponent', () => {
 
     expect(fixture.componentInstance.taskManagerDetail).toBeUndefined();
     expect(loadMetrics).not.toHaveBeenCalled();
+  });
+
+  it('hides the metric cards (no NaN) when the TaskManager is gone (404)', () => {
+    loadManager.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.taskManagerDetail).toBeUndefined();
+    expect(loadMetrics).not.toHaveBeenCalled();
+    const text = element.textContent ?? '';
+    expect(text).not.toContain('Flink Memory Model');
+    expect(text).not.toContain('Advanced');
+    expect(text).not.toContain('NaN');
   });
 });

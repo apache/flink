@@ -17,40 +17,49 @@
   -->
 
 <ng-container *ngIf="!loading; else loadingContent">
-  <div class="title-wrapper" [attr.title]="taskManagerDetail?.id">
-    <span class="title">{{ taskManagerDetail?.id }}</span>
-    <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
-  </div>
-  <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Path">
-      {{ taskManagerDetail.path }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Free/All Slots">
-      {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Assigned Tasks">
-      {{ taskManagerDetail.assignedTasks }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
-      {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Data Port">
-      {{ taskManagerDetail.dataPort }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="CPU Cores">
-      {{ taskManagerDetail.hardware.cpuCores }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Physical Memory">
-      {{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="JVM Heap Size">
-      {{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}
-    </nz-descriptions-item>
-    <nz-descriptions-item [nzSpan]="1" nzTitle="Flink Managed Memory">
-      {{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}
-    </nz-descriptions-item>
-  </nz-descriptions>
-  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+  <nz-alert
+    *ngIf="notFound; else detailContent"
+    nzType="warning"
+    nzShowIcon
+    nzMessage="TaskManager not available"
+    nzDescription="This TaskManager is no longer registered. It may have been shut down or lost."
+  ></nz-alert>
+  <ng-template #detailContent>
+    <div class="title-wrapper" [attr.title]="taskManagerDetail?.id">
+      <span class="title">{{ taskManagerDetail?.id }}</span>
+      <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
+    </div>
+    <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Path">
+        {{ taskManagerDetail.path }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Free/All Slots">
+        {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Assigned Tasks">
+        {{ taskManagerDetail.assignedTasks }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
+        {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Data Port">
+        {{ taskManagerDetail.dataPort }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="CPU Cores">
+        {{ taskManagerDetail.hardware.cpuCores }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Physical Memory">
+        {{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="JVM Heap Size">
+        {{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}
+      </nz-descriptions-item>
+      <nz-descriptions-item [nzSpan]="1" nzTitle="Flink Managed Memory">
+        {{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}
+      </nz-descriptions-item>
+    </nz-descriptions>
+    <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+  </ng-template>
 </ng-container>
 
 <ng-template #loadingContent>

@@ -16,10 +16,17 @@
  * limitations under the License.
  */
 
-import { HttpErrorResponse, HttpHandler, HttpHeaders, HttpRequest, HttpResponse } from '@angular/common/http';
+import {
+  HttpContext,
+  HttpErrorResponse,
+  HttpHandler,
+  HttpHeaders,
+  HttpRequest,
+  HttpResponse
+} from '@angular/common/http';
 import { of, Subject, throwError } from 'rxjs';
 
-import { StatusService } from '@flink-runtime-web/services';
+import { EXPECTED_NOT_FOUND, StatusService } from '@flink-runtime-web/services';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -159,6 +166,56 @@ describe('AppInterceptor', () => {
 
     expect(statusService.listOfErrorMessage).toEqual([]);
     expect(notificationService.info).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a 404 with an error body by default', () => {
+    const error = new HttpErrorResponse({
+      status: 404,
+      url: '/taskmanagers/tm-1',
+      error: { errors: ['RestHandlerException: Could not find TaskExecutor tm-1.'] }
+    });
+    handle.mockReturnValue(throwError(() => error));
+
+    interceptor.intercept(new HttpRequest('GET', '/taskmanagers/tm-1'), handler).subscribe({ error: () => {} });
+
+    expect(statusService.listOfErrorMessage).toHaveLength(1);
+    expect(notificationService.info).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not surface an expected 404 but still re-throws it to the caller', () => {
+    const error = new HttpErrorResponse({
+      status: 404,
+      url: '/taskmanagers/tm-1',
+      error: { errors: ['RestHandlerException: Could not find TaskExecutor tm-1.'] }
+    });
+    handle.mockReturnValue(throwError(() => error));
+    const request = new HttpRequest('GET', '/taskmanagers/tm-1', {
+      context: new HttpContext().set(EXPECTED_NOT_FOUND, true)
+    });
+
+    let caught: unknown;
+    interceptor.intercept(request, handler).subscribe({ error: err => (caught = err) });
+
+    expect(caught).toBe(error);
+    expect(statusService.listOfErrorMessage).toEqual([]);
+    expect(notificationService.info).not.toHaveBeenCalled();
+  });
+
+  it('still surfaces other errors on a request that expects a 404', () => {
+    const error = new HttpErrorResponse({
+      status: 500,
+      url: '/taskmanagers/tm-1',
+      error: { errors: ['Internal server error.'] }
+    });
+    handle.mockReturnValue(throwError(() => error));
+    const request = new HttpRequest('GET', '/taskmanagers/tm-1', {
+      context: new HttpContext().set(EXPECTED_NOT_FOUND, true)
+    });
+
+    interceptor.intercept(request, handler).subscribe({ error: () => {} });
+
+    expect(statusService.listOfErrorMessage).toEqual(['Internal server error.']);
+    expect(notificationService.info).toHaveBeenCalledTimes(1);
   });
 
   it.each([0, 500, 503])(

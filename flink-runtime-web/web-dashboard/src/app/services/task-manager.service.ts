@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import {
@@ -34,6 +34,7 @@ import {
 import { ProfilingDetail, ProfilingList } from '@flink-runtime-web/interfaces/job-profiler';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 
 @Injectable({
   providedIn: 'root'
@@ -52,9 +53,11 @@ export class TaskManagerService {
   }
 
   loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
-    return this.httpClient
-      .get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`)
-      .pipe(catchError(() => EMPTY));
+    // Let errors propagate (e.g. a 404 for a gone TaskManager) so callers can react to them. The 404
+    // is expected and handled by the callers, so it is not surfaced as a server error notification.
+    return this.httpClient.get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`, {
+      context: new HttpContext().set(EXPECTED_NOT_FOUND, true)
+    });
   }
 
   loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
