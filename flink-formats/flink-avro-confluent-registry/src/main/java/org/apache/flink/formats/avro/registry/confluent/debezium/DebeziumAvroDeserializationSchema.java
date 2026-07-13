@@ -191,8 +191,9 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                                                     .indexOf(m.requiredAvroField.getName());
                                     return (MetadataConverter)
                                             (row, pos) -> {
-                                                // Simplified: always pass (rootRow, rootPosition)
-                                                // Converters handle scala (ts_ms), MapData (source)
+                                                // Converters take (rootRow, rootPosition);
+                                                // each handles its own type —
+                                                // scalar for ts_ms, MapData for source.
                                                 return m.converter.convert(row, rootPosition);
                                             };
                                 })

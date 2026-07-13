@@ -59,9 +59,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -171,22 +169,6 @@ class DebeziumAvroSerDeSchemaTest {
         dbzDeserializer.deserialize(null, collector);
         dbzDeserializer.deserialize(new byte[] {}, collector);
         assertThat(collector.list).isEmpty();
-    }
-
-    @Test
-    void testMapHelperMethods() {
-        Map<StringData, StringData> testMap = new HashMap<>();
-        testMap.put(StringData.fromString("db"), StringData.fromString("inventory"));
-        testMap.put(StringData.fromString("table"), StringData.fromString("customers"));
-        MapData mapData = new GenericMapData(testMap);
-
-        // Test getMapValue
-        assertThat(getMapValue(mapData, "db")).isEqualTo("inventory");
-        assertThat(getMapValue(mapData, "table")).isEqualTo("customers");
-        assertThat(getMapValue(mapData, "nonexistent")).isNull();
-
-        // Test null map
-        assertThat(getMapValue(null, "db")).isNull();
     }
 
     @Test

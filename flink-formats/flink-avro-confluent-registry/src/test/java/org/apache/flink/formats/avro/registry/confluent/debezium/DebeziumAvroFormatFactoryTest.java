@@ -43,7 +43,6 @@ import java.util.Map;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link DebeziumAvroFormatFactory}. */
@@ -162,13 +161,13 @@ class DebeziumAvroFormatFactoryTest {
                         AVRO_SCHEMA,
                         registryConfigs);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         DebeziumAvroSerializationSchema expectedSer =
                 new DebeziumAvroSerializationSchema(
                         ROW_TYPE, REGISTRY_URL, SUBJECT, AVRO_SCHEMA, registryConfigs);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
