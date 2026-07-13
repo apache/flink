@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
@@ -753,6 +754,20 @@ public final class LogicalTypeCasts {
                 // user-facing cast here.
                 return false;
         }
+    }
+
+    /**
+     * Returns a hint pointing to the function that performs a conceptually related operation when
+     * an explicit cast is unsupported, or empty when no specific hint applies.
+     */
+    public static Optional<String> getUnsupportedCastHint(
+            LogicalType sourceType, LogicalType targetType) {
+        if (sourceType.is(VARIANT) && targetType.is(CHARACTER_STRING)) {
+            return Optional.of(
+                    "Use the JSON_STRING function to convert a VARIANT to its JSON string "
+                            + "representation.");
+        }
+        return Optional.empty();
     }
 
     private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {

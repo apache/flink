@@ -166,7 +166,30 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 call("PARSE_JSON", "\"foo\"").tryCast(INT()),
                                 "TRY_CAST(PARSE_JSON('\"foo\"') AS INT)",
                                 null,
-                                INT()));
+                                INT())
+                        // A variant that stores a JSON null casts to SQL NULL when the target is
+                        // nullable: a nullable variant source, or TRY_CAST which forces nullable.
+                        .testResult(
+                                call("TRY_PARSE_JSON", "null").cast(INT()),
+                                "CAST(TRY_PARSE_JSON('null') AS INT)",
+                                null,
+                                INT())
+                        .testResult(
+                                call("PARSE_JSON", "null").tryCast(BOOLEAN()),
+                                "TRY_CAST(PARSE_JSON('null') AS BOOLEAN)",
+                                null,
+                                BOOLEAN())
+                        // A nullable variant with a concrete value still casts normally.
+                        .testResult(
+                                call("TRY_PARSE_JSON", "42").cast(INT()),
+                                "CAST(TRY_PARSE_JSON('42') AS INT)",
+                                42,
+                                INT())
+                        // Casting a VARIANT to a string points the user to JSON_STRING.
+                        .testTableApiValidationError(
+                                call("PARSE_JSON", "42").cast(STRING()),
+                                "Use the JSON_STRING function to convert a VARIANT to its JSON "
+                                        + "string representation."));
     }
 
     private static List<TestSetSpec> allTypesBasic() {

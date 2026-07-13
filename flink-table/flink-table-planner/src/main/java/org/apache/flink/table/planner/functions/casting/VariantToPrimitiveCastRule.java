@@ -89,6 +89,29 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
         return true;
     }
 
+    /**
+     * Treats a variant that stores a JSON {@code null} as a {@code NULL} input, so it casts to SQL
+     * {@code NULL} instead of failing in the type-specific accessor. Only applied for a nullable
+     * target: a {@code NOT NULL} result cannot carry {@code NULL}, so a null-valued variant then
+     * fails as a regular type mismatch.
+     */
+    @Override
+    public CastCodeBlock generateCodeBlock(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            String inputIsNullTerm,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType) {
+        if (!targetLogicalType.isNullable()) {
+            return super.generateCodeBlock(
+                    context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+        }
+        final String isNullTerm =
+                "(" + inputIsNullTerm + " || " + methodCall(inputTerm, "isNull") + ")";
+        return super.generateCodeBlock(
+                context, inputTerm, isNullTerm, inputLogicalType, targetLogicalType);
+    }
+
     @Override
     protected String generateCodeBlockInternal(
             CodeGeneratorCastRule.Context context,
