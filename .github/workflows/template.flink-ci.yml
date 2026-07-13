@@ -88,6 +88,7 @@ jobs:
           persist-credentials: false
 
       - name: "Initialize job"
+        id: job-init
         uses: "./.github/actions/job_init"
         with:
           jdk_version: ${{ inputs.jdk_version }}
@@ -123,6 +124,15 @@ jobs:
           # use minimum here because we only need these artifacts to speed up the build
           retention-days: 1
 
+      # Only saves when the restore in job_init wasn't an exact hit, i.e. pom.xml actually
+      # changed since the last save for this namespace - avoids re-uploading an unchanged cache.
+      - name: "Save Maven package cache"
+        if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.MAVEN_REPO_FOLDER }}
+          key: ${{ steps.job-init.outputs.maven-cache-key }}
+
   packaging:
     name: "Test packaging/licensing"
     needs: compile
@@ -140,6 +150,7 @@ jobs:
           persist-credentials: false
 
       - name: "Initialize job"
+        id: job-init
         uses: "./.github/actions/job_init"
         with:
           jdk_version: ${{ inputs.jdk_version }}
@@ -162,6 +173,13 @@ jobs:
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: |
           ${{ inputs.environment }} ./tools/ci/compile_ci.sh || exit $?
+
+      - name: "Save Maven package cache"
+        if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.MAVEN_REPO_FOLDER }}
+          key: ${{ steps.job-init.outputs.maven-cache-key }}
 
   test:
     name: "Test (module: ${{ matrix.module }})"
@@ -202,6 +220,7 @@ jobs:
           persist-credentials: false
 
       - name: "Initialize job"
+        id: job-init
         uses: "./.github/actions/job_init"
         with:
           jdk_version: ${{ inputs.jdk_version }}
@@ -305,6 +324,13 @@ jobs:
         if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
 
+      - name: "Save Maven package cache"
+        if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.MAVEN_REPO_FOLDER }}
+          key: ${{ steps.job-init.outputs.maven-cache-key }}
+
   e2e:
     name: "E2E (group ${{ matrix.group }})"
     needs: compile
@@ -339,6 +365,7 @@ jobs:
           persist-credentials: false
 
       - name: "Initialize job"
+        id: job-init
         uses: "./.github/actions/job_init"
         with:
           jdk_version: ${{ inputs.jdk_version }}
@@ -432,3 +459,10 @@ jobs:
       - name: "Save Docker images to Cache"
         if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
+
+      - name: "Save Maven package cache"
+        if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.MAVEN_REPO_FOLDER }}
+          key: ${{ steps.job-init.outputs.maven-cache-key }}

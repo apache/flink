@@ -38,6 +38,13 @@ inputs:
     description: "Runs tools/azure-pipelines/free_disk_space.sh to remove unneeded pre-installed software from the runner (only works for jobs that run directly on the host, not in a container)."
     required: false
     default: "false"
+outputs:
+  maven-cache-hit:
+    description: "Whether the Maven package cache was restored via an exact key match. Callers should only save a new cache when this is not 'true'."
+    value: ${{ steps.maven-cache-restore.outputs.cache-hit }}
+  maven-cache-key:
+    description: "The cache key computed for the Maven package cache, for use by a caller's own explicit save step (placed after Maven has actually run)."
+    value: ${{ steps.maven-cache-key.outputs.key }}
 runs:
   using: "composite"
   steps:
@@ -105,14 +112,20 @@ runs:
         echo "namespace=${ns}" >> "${GITHUB_OUTPUT}"
         echo "Cache namespace: ${ns}"
 
-    - name: "Setup Maven package cache"
+    - name: "Compute Maven package cache key"
       if: ${{ inputs.maven_repo_folder != '' }}
-      uses: actions/cache@v5
+      id: maven-cache-key
+      shell: bash
+      run: echo "key=${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-${{ hashFiles('**/pom.xml') }}" >> "${GITHUB_OUTPUT}"
+
+    - name: "Restore Maven package cache"
+      if: ${{ inputs.maven_repo_folder != '' }}
+      id: maven-cache-restore
+      uses: actions/cache/restore@v6
       with:
         path: ${{ inputs.maven_repo_folder }}
-        key: ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-${{ hashFiles('**/pom.xml') }}-${{ github.run_id }}
+        key: ${{ steps.maven-cache-key.outputs.key }}
         restore-keys: |
-          ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-${{ hashFiles('**/pom.xml') }}-
           ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-
           ${{ runner.os }}-maven-
 
