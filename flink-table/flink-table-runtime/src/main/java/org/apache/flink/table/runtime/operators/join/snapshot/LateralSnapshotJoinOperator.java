@@ -107,7 +107,8 @@ import java.util.concurrent.ScheduledFuture;
  * <ul>
  *   <li>the build-side watermark reaching {@code loadCompletedTime} (event-time gate), or
  *   <li>the {@code loadCompletedIdleTimeoutMs} processing-time timer firing without any build-side
- *       watermark advance.
+ *       watermark advance. The timer is armed on the first build-side signal (record, watermark, or
+ *       idle status).
  * </ul>
  *
  * <p>State TTL eviction happens during JOIN phase and is implemented with keyed processing-time
@@ -222,7 +223,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     /**
      * Processing-time idle timeout duration (millis) on build-side watermarks. When configured, the
-     * operator flips to JOIN if no build-side watermark advance is seen for this duration.
+     * operator flips to JOIN if no build-side watermark advance is seen for this duration. The
+     * countdown starts on the first build-side signal (record, watermark, or idle status).
      */
     @Nullable private final Long loadCompletedIdleTimeoutMs;
 
@@ -500,10 +502,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         // Pin the build-side input idle: the operator absorbs build-side watermarks and status.
         combinedWatermark.updateStatus(1, true);
 
-        if (phase == Phase.LOAD && loadCompletedIdleTimeoutMs != null) {
-            scheduleIdleFlipTimer();
-        }
-
         LOG.info(
                 "Opened LateralSnapshotJoinOperator: phase={}, leftOuter={}, loadCompletedTime={}, "
                         + "idleTimeoutMs={}, stateTtlMs=[{}, {}], buildRowtimeIndex={}",
@@ -569,10 +567,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        RowData build = element.getValue();
+        armIdleFlipTimerIfNotArmed();
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesUpToCurrentWm();
         // Buffer the change under its build row-time (grouping changes that share a row-time).
+        RowData build = element.getValue();
         long rowtime = build.getLong(buildRowtimeIndex);
         List<RowData> atRowtime = buildChangeBuffer.get(rowtime);
         if (atRowtime == null) {
@@ -623,7 +622,9 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
             throws Exception {
         if (index == 1) {
-            // Build-side idle status is absorbed; combined watermark is probe-driven.
+            if (watermarkStatus.isIdle()) {
+                armIdleFlipTimerIfNotArmed();
+            }
             return;
         }
         if (phase == Phase.LOAD) {
@@ -699,6 +700,17 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         }
         clearAllPerKeyState();
         numStateTtlEvictions.inc();
+    }
+
+    /**
+     * Arms the idle-flip timer if an idle timeout is configured, we're still in LOAD phase and
+     * haven't done it yet. {@link #idleFlipTimer} is transient, so this re-arms on the first
+     * build-side signal after a restart.
+     */
+    private void armIdleFlipTimerIfNotArmed() {
+        if (phase == Phase.LOAD && loadCompletedIdleTimeoutMs != null && idleFlipTimer == null) {
+            scheduleIdleFlipTimer();
+        }
     }
 
     /**

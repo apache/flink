@@ -579,13 +579,73 @@ class LateralSnapshotJoinOperatorTest {
                 newHarness(op)) {
             h.setProcessingTime(10);
             h.open();
+            // First build WM arms the idle timer at 10+100=110.
+            addBuildWm(h, 5L);
             h.setProcessingTime(60);
-            // Build WM advances → re-arm.
+            // A later build WM advance re-arms it to 60+100=160.
             addBuildWm(h, 10L);
-            // Original idle deadline was 10+100=110. Re-armed to 60+100=160.
+            // Original deadline (110) must not fire: it was re-armed.
+            h.setProcessingTime(110);
+            assertPhase(op, Phase.LOAD);
             h.setProcessingTime(159);
             assertPhase(op, Phase.LOAD);
             h.setProcessingTime(160);
+            assertPhase(op, Phase.JOIN);
+        }
+    }
+
+    @Test
+    void idleTimerIsNotArmedBeforeAnyBuildSideSignal() throws Exception {
+        // Regression test: the timer must not be armed at open(), so a slow build-side startup
+        // (processing time advancing past the timeout before any build input) does not flip.
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(0);
+            h.open();
+            assertThat(op.isIdleFlipTimerActive()).isFalse();
+            // Probe-side activity must not arm the build-side idle timer either.
+            addProbeRecord(h, 1L, "k1", "p");
+            addProbeWm(h, 50L);
+            h.setProcessingTime(1000); // far past the idle timeout
+            assertThat(op.isIdleFlipTimerActive()).isFalse();
+            assertPhase(op, Phase.LOAD);
+        }
+    }
+
+    @Test
+    void idleTimerArmsOnFirstBuildSideRecord() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(50);
+            h.open();
+            assertThat(op.isIdleFlipTimerActive()).isFalse();
+            // First build record arms the timer at 50+100=150 (no build watermark seen).
+            addBuildChange(h, insertRecord("k1", "v1", 20L));
+            assertThat(op.isIdleFlipTimerActive()).isTrue();
+            h.setProcessingTime(149);
+            assertPhase(op, Phase.LOAD);
+            h.setProcessingTime(150);
+            assertPhase(op, Phase.JOIN);
+        }
+    }
+
+    @Test
+    void idleTimerArmsOnBuildSideIdleStatus() throws Exception {
+        // The empty/idle build-side case: no records or watermarks, only an idle status.
+        LateralSnapshotJoinOperator op = newOperator(false, 1000L, 100L, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(50);
+            h.open();
+            assertThat(op.isIdleFlipTimerActive()).isFalse();
+            // Build side declares itself idle → arm the timer at 50+100=150.
+            h.processWatermarkStatus2(WatermarkStatus.IDLE);
+            assertThat(op.isIdleFlipTimerActive()).isTrue();
+            h.setProcessingTime(149);
+            assertPhase(op, Phase.LOAD);
+            h.setProcessingTime(150);
             assertPhase(op, Phase.JOIN);
         }
     }
@@ -1499,7 +1559,7 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     @Test
-    void restoreRearmsIdleFlipTimer() throws Exception {
+    void restoreDoesNotArmIdleFlipTimerUntilBuildSideSignal() throws Exception {
         LateralSnapshotJoinOperator op1 = newOperator(false, 1000L, 100L, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -1517,10 +1577,17 @@ class LateralSnapshotJoinOperatorTest {
             h.initializeState(state);
             h.open();
             assertPhase(op2, Phase.LOAD);
-            // Re-armed at open()'s proc-time + idleTimeout = 150 + 100 = 250.
-            h.setProcessingTime(249);
+            // Not armed at open(): a slow build side after restore must not count against the idle
+            // timeout, so advancing processing time alone does not flip.
+            assertThat(op2.isIdleFlipTimerActive()).isFalse();
+            h.setProcessingTime(1000);
             assertPhase(op2, Phase.LOAD);
-            h.setProcessingTime(250);
+            // The first build-side signal after restore arms it at 1000 + 100 = 1100.
+            addBuildChange(h, insertRecord("k1", "v1", 20L));
+            assertThat(op2.isIdleFlipTimerActive()).isTrue();
+            h.setProcessingTime(1099);
+            assertPhase(op2, Phase.LOAD);
+            h.setProcessingTime(1100);
             assertPhase(op2, Phase.JOIN);
         }
     }
