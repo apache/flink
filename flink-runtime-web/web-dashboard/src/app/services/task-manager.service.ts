@@ -18,7 +18,7 @@
 
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import {
@@ -49,9 +49,8 @@ export class TaskManagerService {
   }
 
   loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
-    return this.httpClient
-      .get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`)
-      .pipe(catchError(() => EMPTY));
+    // Let errors propagate (e.g. a 404 for a gone TaskManager) so callers can react to them.
+    return this.httpClient.get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`);
   }
 
   loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
