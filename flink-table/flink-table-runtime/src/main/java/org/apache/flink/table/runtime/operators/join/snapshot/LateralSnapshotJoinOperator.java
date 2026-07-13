@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.snapshot;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -44,6 +45,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
 
     private static final long serialVersionUID = 1L;
 
+    private Long minStateTtlMs;
+
     public LateralSnapshotJoinOperator(
             boolean isLeftOuterJoin,
             InternalTypeInfo<RowData> leftType,
@@ -59,6 +62,8 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         Preconditions.checkNotNull(generatedJoinCondition);
         Preconditions.checkNotNull(filterNullKeys);
         Preconditions.checkNotNull(loadCompletedTime);
+
+        this.minStateTtlMs = stateTtlMs;
     }
 
     @Override
@@ -79,5 +84,10 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @Override
     public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
         throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    @VisibleForTesting
+    public long getMinStateTtlMs() {
+        return minStateTtlMs;
     }
 }

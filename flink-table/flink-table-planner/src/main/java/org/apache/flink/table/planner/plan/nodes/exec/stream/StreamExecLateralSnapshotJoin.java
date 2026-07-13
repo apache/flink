@@ -200,6 +200,10 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
                         leftInputType,
                         rightInputType);
 
+        // Fall back to the pipeline's state TTL when the SNAPSHOT call does not set state_ttl.
+        final long effectiveStateTtlMs =
+                stateTtlMs != null ? stateTtlMs : config.getStateRetentionTime();
+
         final LateralSnapshotJoinOperator operator =
                 new LateralSnapshotJoinOperator(
                         isLeftOuterJoin,
@@ -210,7 +214,7 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
                         joinSpec.getFilterNulls(),
                         loadCompletedTime,
                         loadCompletedIdleTimeoutMs,
-                        stateTtlMs);
+                        effectiveStateTtlMs);
 
         final Transformation<RowData> leftTransform =
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);

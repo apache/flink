@@ -18,15 +18,24 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.ZoneId;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -536,5 +545,70 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ")) AS s ON probe.pk = s.bk AND probe.pv > s.bv");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // State TTL resolution — the operator's min state TTL comes from the SNAPSHOT `state_ttl`
+    // argument, falling back to the pipeline's `table.exec.state.ttl` when the argument is absent.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void testStateTtlFallsBackToPipelineStateTtlWhenArgAbsent() {
+        util.tableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ofHours(12));
+
+        assertThat(resolveStateTtlMs("SNAPSHOT(input => TABLE b)"))
+                .isEqualTo(Duration.ofHours(12).toMillis());
+    }
+
+    @Test
+    void testExplicitStateTtlArgOverridesPipelineDefault() {
+        util.tableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ofHours(12));
+
+        assertThat(resolveStateTtlMs("SNAPSHOT(input => TABLE b, state_ttl => INTERVAL '1' DAY)"))
+                .isEqualTo(Duration.ofDays(1).toMillis());
+    }
+
+    @Test
+    void testStateTtlDisabledWhenNeitherArgNorPipelineTtlSet() {
+        util.tableEnv().getConfig().set(ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ZERO);
+
+        assertThat(resolveStateTtlMs("SNAPSHOT(input => TABLE b)")).isZero();
+    }
+
+    /**
+     * Compiles a join over the given {@code SNAPSHOT} call and returns the operator's state TTL.
+     */
+    private long resolveStateTtlMs(String snapshotCall) {
+        final CompiledPlan plan =
+                util.tableEnv()
+                        .compilePlanSql(
+                                "INSERT INTO sink SELECT * FROM probe "
+                                        + "JOIN LATERAL TABLE("
+                                        + snapshotCall
+                                        + ") AS s ON probe.pk = s.bk");
+        final List<Transformation<?>> transformations =
+                CompiledPlanUtils.toTransformations(util.tableEnv(), plan);
+        return findJoinOperator(transformations).getMinStateTtlMs();
+    }
+
+    private static LateralSnapshotJoinOperator findJoinOperator(
+            List<Transformation<?>> transformations) {
+        return transformations.stream()
+                .flatMap(t -> t.getTransitivePredecessors().stream())
+                .filter(TwoInputTransformation.class::isInstance)
+                .map(t -> ((TwoInputTransformation<?, ?, ?>) t).getOperatorFactory())
+                .filter(SimpleOperatorFactory.class::isInstance)
+                .map(f -> ((SimpleOperatorFactory<?>) f).getOperator())
+                .filter(LateralSnapshotJoinOperator.class::isInstance)
+                .map(LateralSnapshotJoinOperator.class::cast)
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new AssertionError(
+                                        "No LateralSnapshotJoinOperator found in the plan."));
     }
 }
