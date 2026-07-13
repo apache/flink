@@ -74,4 +74,4 @@ jobs:
         if: (success() || failure())
         uses: "./.github/actions/run_mvn"
         with:
-          maven-parameters: "org.apache.rat:apache-rat-plugin:check -N"
+          maven-parameters: "-T1C org.apache.rat:apache-rat-plugin:check -N"
