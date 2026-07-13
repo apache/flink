@@ -188,7 +188,14 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             ((JsonDecoder) this.decoder).configure(inputStream);
         }
 
-        return datumReader.read(null, decoder);
+        try {
+            return datumReader.read(null, decoder);
+        } catch (IOException | RuntimeException e) {
+            // A failed decode leaves stale bytes in the BinaryDecoder's internal read-ahead
+            // buffer. Reset the decoder so the next message is not corrupted by those bytes.
+            resetDecoder();
+            throw e;
+        }
     }
 
     void checkAvroInitialized() throws IOException {
