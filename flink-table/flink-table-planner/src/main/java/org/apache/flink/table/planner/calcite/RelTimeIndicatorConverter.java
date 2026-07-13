@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDistributio
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntersect;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMinus;
@@ -164,6 +165,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             return visitCalc((FlinkLogicalCalc) node);
         } else if (node instanceof FlinkLogicalCorrelate) {
             return visitCorrelate((FlinkLogicalCorrelate) node);
+        } else if (node instanceof FlinkLogicalLateralSnapshotJoin) {
+            return visitLateralSnapshotJoin((FlinkLogicalLateralSnapshotJoin) node);
         } else if (node instanceof FlinkLogicalJoin) {
             return visitJoin((FlinkLogicalJoin) node);
         } else if (node instanceof FlinkLogicalMultiJoin) {
@@ -365,6 +368,43 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             return FlinkLogicalJoin.create(
                     newLeft, newRight, newCondition, join.getHints(), join.getJoinType());
         }
+    }
+
+    private RelNode visitLateralSnapshotJoin(FlinkLogicalLateralSnapshotJoin join) {
+        RelNode newLeft = join.getLeft().accept(this);
+        RelNode newRight = join.getRight().accept(this);
+
+        // Materialize the build-side (right) proc-time attributes
+        newRight = materializeProcTime(newRight);
+
+        List<RelDataTypeField> leftRightFields = new ArrayList<>();
+        leftRightFields.addAll(newLeft.getRowType().getFieldList());
+        leftRightFields.addAll(newRight.getRowType().getFieldList());
+
+        RexNode newCondition =
+                join.getCondition()
+                        .accept(
+                                new RexShuttle() {
+                                    @Override
+                                    public RexNode visitInputRef(RexInputRef inputRef) {
+                                        if (isTimeIndicatorType(inputRef.getType())) {
+                                            return RexInputRef.of(
+                                                    inputRef.getIndex(), leftRightFields);
+                                        } else {
+                                            return super.visitInputRef(inputRef);
+                                        }
+                                    }
+                                });
+
+        return FlinkLogicalLateralSnapshotJoin.create(
+                newLeft,
+                newRight,
+                newCondition,
+                join.getJoinType(),
+                join.getLoadCompletedCondition(),
+                join.getLoadCompletedTime(),
+                join.getLoadCompletedIdleTimeoutMs(),
+                join.getStateTtlMs());
     }
 
     private RelNode visitCorrelate(FlinkLogicalCorrelate correlate) {

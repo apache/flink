@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
@@ -49,6 +50,11 @@ public class RestoreTestCompleteness {
     private static final Set<Class<? extends ExecNode<?>>> SKIP_EXEC_NODES =
             new HashSet<Class<? extends ExecNode<?>>>() {
                 {
+                    // TODO: FLINK-39781 - the LATERAL SNAPSHOT runtime operator is still a stub,
+                    //   so a restore test cannot generate a savepoint yet. Remove this entry and
+                    //   add LateralSnapshotJoinRestoreTest once the operator is implemented.
+                    add(StreamExecLateralSnapshotJoin.class);
+
                     /** Ignoring python based exec nodes temporarily. */
                     add(StreamExecPythonCalc.class);
                     add(StreamExecPythonCorrelate.class);
