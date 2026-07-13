@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom, of, throwError, toArray } from 'rxjs';
+import { HttpClient, HttpContext } from '@angular/common/http';
+import { firstValueFrom, of, throwError } from 'rxjs';
 
 import { TaskManagerDetail, TaskManagersItem } from '@flink-runtime-web/interfaces';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 import { TaskManagerService } from './task-manager.service';
 
 describe('TaskManagerService', () => {
@@ -71,12 +72,20 @@ describe('TaskManagerService', () => {
       expect(result).toBe(detail);
     });
 
-    it('swallows request errors into an empty stream, unlike loadManagers which falls back to []', async () => {
-      httpClient.get.mockReturnValue(throwError(() => new Error('cluster unreachable')));
+    it('propagates request errors so callers can react to a gone TaskManager, unlike loadManagers', async () => {
+      const error = new Error('cluster unreachable');
+      httpClient.get.mockReturnValue(throwError(() => error));
 
-      const emissions = await firstValueFrom(service.loadManager('tm-1').pipe(toArray()));
+      await expect(firstValueFrom(service.loadManager('tm-1'))).rejects.toBe(error);
+    });
 
-      expect(emissions).toEqual([]);
+    it('marks the request as expecting a 404 so the interceptor does not surface it', () => {
+      httpClient.get.mockReturnValue(of({ id: 'tm-1' }));
+
+      service.loadManager('tm-1');
+
+      const [, options] = httpClient.get.mock.calls[0] as [string, { context: HttpContext }];
+      expect(options.context.get(EXPECTED_NOT_FOUND)).toBe(true);
     });
   });
 });

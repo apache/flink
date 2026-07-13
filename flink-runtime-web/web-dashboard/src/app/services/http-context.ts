@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './http-context';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
+import { HttpContextToken } from '@angular/common/http';
+
+/**
+ * Marks a request for which a 404 is an expected outcome that the caller handles itself, so the
+ * global interceptor does not surface it as a server error notification. Any other error is
+ * still surfaced as usual.
+ */
+export const EXPECTED_NOT_FOUND = new HttpContextToken<boolean>(() => false);

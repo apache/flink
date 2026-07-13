@@ -29,7 +29,7 @@ import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 
-import { StatusService } from '@flink-runtime-web/services';
+import { EXPECTED_NOT_FOUND, StatusService } from '@flink-runtime-web/services';
 import { NzNotificationService, NzNotificationDataOptions } from 'ng-zorro-antd/notification';
 
 @Injectable()
@@ -71,8 +71,10 @@ export class AppInterceptor implements HttpInterceptor {
         }
 
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
+        const expectedNotFound = res.status === HttpStatusCode.NotFound && req.context.get(EXPECTED_NOT_FOUND);
         if (
           errorMessage &&
+          !expectedNotFound &&
           ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url)) &&
           ignoreErrorMessage.every(message => errorMessage !== message)
         ) {
