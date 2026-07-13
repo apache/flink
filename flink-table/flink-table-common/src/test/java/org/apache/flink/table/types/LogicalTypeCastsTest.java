@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
@@ -58,6 +59,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -274,7 +276,9 @@ class LogicalTypeCastsTest {
                 Arguments.of(new VariantType(), new DecimalType(10, 2), false, true),
                 Arguments.of(new VariantType(), new DateType(), false, true),
                 Arguments.of(new VariantType(), new TimestampType(), false, true),
+                Arguments.of(new VariantType(), new TimestampType(3), false, true),
                 Arguments.of(new VariantType(), new LocalZonedTimestampType(), false, true),
+                Arguments.of(new VariantType(), new LocalZonedTimestampType(9), false, true),
                 Arguments.of(
                         new VariantType(),
                         new VarBinaryType(VarBinaryType.MAX_LENGTH),
@@ -285,7 +289,13 @@ class LogicalTypeCastsTest {
                 // TIME, character strings and constructed targets are not castable from variant
                 Arguments.of(new VariantType(), new TimeType(), false, false),
                 Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, false),
-                Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false));
+                Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false),
+                Arguments.of(new VariantType(), new RowType(List.of()), false, false),
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(new IntType(), new CharType()),
+                        false,
+                        false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

@@ -142,7 +142,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         // there is no VARIANT literal to feed a source column directly. A JSON integer is stored in
         // the smallest integer type that fits (42 -> TINYINT), and numeric casts are lenient, so it
         // still widens to INT.
-        return Collections.singletonList(
+        return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to a primitive")
                         .onFieldsWithData("unused")
                         .andDataTypes(STRING())
@@ -151,6 +151,52 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('42') AS INT)",
                                 42,
                                 INT().notNull())
+                        // Integer overflow wraps around (Java narrowing), like a regular numeric
+                        // cast.
+                        .testResult(
+                                call("PARSE_JSON", "40000").cast(SMALLINT()),
+                                "CAST(PARSE_JSON('40000') AS SMALLINT)",
+                                (short) -25536,
+                                SMALLINT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "128").cast(TINYINT()),
+                                "CAST(PARSE_JSON('128') AS TINYINT)",
+                                (byte) -128,
+                                TINYINT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "2147483648").cast(INT()),
+                                "CAST(PARSE_JSON('2147483648') AS INT)",
+                                -2147483648,
+                                INT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "9223372036854775808").cast(BIGINT()),
+                                "CAST(PARSE_JSON('9223372036854775808') AS BIGINT)",
+                                -9223372036854775808L,
+                                BIGINT().notNull())
+                        // An out-of-range floating point value saturates when cast to an integer,
+                        // and a fractional value is truncated toward zero.
+                        .testResult(
+                                call("PARSE_JSON", "1e20").cast(INT()),
+                                "CAST(PARSE_JSON('1e20') AS INT)",
+                                2147483647,
+                                INT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "3.9").cast(INT()),
+                                "CAST(PARSE_JSON('3.9') AS INT)",
+                                3,
+                                INT().notNull())
+                        // A value beyond the FLOAT range becomes infinity.
+                        .testResult(
+                                call("PARSE_JSON", "1e40").cast(FLOAT()),
+                                "CAST(PARSE_JSON('1e40') AS FLOAT)",
+                                Float.POSITIVE_INFINITY,
+                                FLOAT().notNull())
+                        // DECIMAL overflow yields NULL instead of wrapping; TRY_CAST surfaces it.
+                        .testResult(
+                                call("PARSE_JSON", "123.456").tryCast(DECIMAL(4, 2)),
+                                "TRY_CAST(PARSE_JSON('123.456') AS DECIMAL(4, 2))",
+                                null,
+                                DECIMAL(4, 2))
                         .testResult(
                                 call("PARSE_JSON", "42").cast(BIGINT()),
                                 "CAST(PARSE_JSON('42') AS BIGINT)",
@@ -1326,7 +1372,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> decimalCasts() {
-        return Collections.singletonList(
+        return List.of(
                 CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
                         .fromCase(STRING(), null, null)
                         // rounding
