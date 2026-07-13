@@ -41,6 +41,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -95,6 +97,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
@@ -1540,7 +1543,100 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
                         .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
-                        .fromCase(BITMAP(), null, null));
+                        .fromCase(BITMAP(), null, null),
+                // From VARIANT to primitive types. Numeric targets are lenient: a variant holding
+                // any numeric kind converts to the requested numeric type (widening and narrowing).
+                // Non-numeric targets are strict: the stored kind must match, otherwise the cast
+                // fails and TRY_CAST returns null.
+                CastTestSpecBuilder.testCastTo(BOOLEAN())
+                        .fromCase(VARIANT(), Variant.newBuilder().of(true), true)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(false), false)
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), (byte) 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42), (byte) 42)
+                        .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(VARIANT(), Variant.newBuilder().of((short) 42), (short) 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), (short) 42)
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(true),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(INT())
+                        // widening: a JSON integer is stored in the smallest type but still casts
+                        // up
+                        .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of((short) 42), 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42), 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42L), 42)
+                        // narrowing from a floating point or decimal value truncates
+                        .fromCase(VARIANT(), Variant.newBuilder().of(3.9d), 3)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(new BigDecimal("7.2")), 7)
+                        // a non-numeric variant cannot be cast to a number
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of("foo"),
+                                TableRuntimeException.class)
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(true),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(BIGINT())
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42L), 42L)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42), 42L)
+                        .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(FLOAT())
+                        .fromCase(VARIANT(), Variant.newBuilder().of(1.5f), 1.5f)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(1.5d), 1.5f)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(3), 3.0f)
+                        .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(VARIANT(), Variant.newBuilder().of(1.5d), 1.5d)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(1.5f), 1.5d)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(3), 3.0d)
+                        .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DECIMAL(5, 2))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.45")),
+                                DecimalData.fromBigDecimal(new BigDecimal("123.45"), 5, 2))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(42),
+                                DecimalData.fromBigDecimal(new BigDecimal("42"), 5, 2))
+                        .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3}),
+                                new byte[] {1, 2, 3})
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of("foo"),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DATE())
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalDate.of(2020, 1, 1)),
+                                (int) LocalDate.of(2020, 1, 1).toEpochDay())
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(Instant.ofEpochSecond(1_600_000_000L)),
+                                TimestampData.fromInstant(Instant.ofEpochSecond(1_600_000_000L)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class));
     }
 
     @TestFactory

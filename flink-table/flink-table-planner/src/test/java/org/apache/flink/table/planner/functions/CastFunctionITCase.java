@@ -78,6 +78,7 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,7 +133,40 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(numericBounds());
         specs.addAll(constructedTypes());
         specs.addAll(bitmapCasts());
+        specs.addAll(variantCasts());
         return specs.stream();
+    }
+
+    private static List<TestSetSpec> variantCasts() {
+        // A variant is produced with PARSE_JSON so that the source column stays a STRING literal;
+        // there is no VARIANT literal to feed a source column directly. A JSON integer is stored in
+        // the smallest integer type that fits (42 -> TINYINT), and numeric casts are lenient, so it
+        // still widens to INT.
+        return Collections.singletonList(
+                TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to a primitive")
+                        .onFieldsWithData("unused")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                call("PARSE_JSON", "42").cast(INT()),
+                                "CAST(PARSE_JSON('42') AS INT)",
+                                42,
+                                INT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "42").cast(BIGINT()),
+                                "CAST(PARSE_JSON('42') AS BIGINT)",
+                                42L,
+                                BIGINT().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "true").cast(BOOLEAN()),
+                                "CAST(PARSE_JSON('true') AS BOOLEAN)",
+                                true,
+                                BOOLEAN().notNull())
+                        // TRY_CAST of a value whose kind does not match the target returns NULL
+                        .testResult(
+                                call("PARSE_JSON", "\"foo\"").tryCast(INT()),
+                                "TRY_CAST(PARSE_JSON('\"foo\"') AS INT)",
+                                null,
+                                INT()));
     }
 
     private static List<TestSetSpec> allTypesBasic() {
