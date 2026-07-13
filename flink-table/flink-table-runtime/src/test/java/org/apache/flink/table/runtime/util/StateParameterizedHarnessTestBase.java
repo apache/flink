@@ -18,7 +18,12 @@
 
 package org.apache.flink.table.runtime.util;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -36,6 +41,13 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public abstract class StateParameterizedHarnessTestBase {
+
+    /**
+     * Managed memory for the harness environment. Sized for state backends that reserve managed
+     * memory per keyed-state DB (the harness default of 3 MB is too small for them); harmless for
+     * the others.
+     */
+    private static final MemorySize MANAGED_MEMORY = MemorySize.ofMebiBytes(128);
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -93,6 +105,35 @@ public abstract class StateParameterizedHarnessTestBase {
             default:
                 throw new IllegalArgumentException("Unknown mode: " + mode);
         }
+    }
+
+    /**
+     * Builds the {@link MockEnvironment} the test harness is constructed with. The harness would
+     * otherwise build its own with only 3 MB of managed memory and no checkpoint storage. We
+     * configure it the same way for every backend: enough managed memory, and a filesystem
+     * checkpoint storage (so a backend that resolves a task-owned state directory from it works).
+     */
+    protected MockEnvironment createMockEnvironment() {
+        String checkpointPath = "file://" + tempFolder.getRoot().getAbsolutePath();
+
+        Configuration jobConfig = new Configuration();
+        jobConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath);
+
+        MockEnvironment environment =
+                new MockEnvironmentBuilder()
+                        .setManagedMemorySize(MANAGED_MEMORY.getBytes())
+                        .setJobConfiguration(jobConfig)
+                        .build();
+
+        try {
+            environment.setCheckpointStorageAccess(
+                    new FileSystemCheckpointStorage(checkpointPath)
+                            .createCheckpointStorage(new JobID()));
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Cannot create checkpoint storage for the test environment", e);
+        }
+        return environment;
     }
 
     @Parameters(name = "StateBackend={0}")
