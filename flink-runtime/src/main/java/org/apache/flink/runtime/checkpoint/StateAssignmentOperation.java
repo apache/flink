@@ -304,9 +304,76 @@ public class StateAssignmentOperation {
     }
 
     public void checkParallelismPreconditions(TaskStateAssignment taskStateAssignment) {
+        checkMaxParallelismAgreement(taskStateAssignment);
         for (OperatorState operatorState : taskStateAssignment.oldState.values()) {
             checkParallelismPreconditions(operatorState, taskStateAssignment.executionJobVertex);
         }
+    }
+
+    /**
+     * Verifies that all operators chained into a single keyed vertex recorded the same maximum
+     * parallelism in the checkpoint.
+     *
+     * <p>The per-operator reconciliation below ({@link
+     * #checkParallelismPreconditions(OperatorState, ExecutionJobVertex)}) adopts each operator's
+     * recorded maximum parallelism onto the shared vertex, so when operators disagree the vertex is
+     * left with whichever value is reconciled last. Any keyed operator on the vertex is then
+     * restored under that value rather than its own, remapping its state through an incompatible
+     * {@code hash % maxParallelism} layout. Operators sharing a vertex normally record its single
+     * maximum parallelism and therefore agree; they can only differ here if the chaining topology
+     * regrouped them since the checkpoint. This regrouping was permitted for graph construction but
+     * never validated on restore. A disagreeing operator need not be keyed itself: its recorded
+     * value can win the reconciliation and misroute another operator's keyed state, so all
+     * operators are compared. Vertices without keyed state are unaffected, since maximum
+     * parallelism only governs keyed-state routing.
+     */
+    private static void checkMaxParallelismAgreement(TaskStateAssignment taskStateAssignment) {
+        OperatorID referenceOperator = null;
+        int referenceMaxParallelism = -1;
+        OperatorID conflictingOperator = null;
+        int conflictingMaxParallelism = -1;
+        boolean vertexHasKeyedState = false;
+
+        for (Map.Entry<OperatorID, OperatorState> entry : taskStateAssignment.oldState.entrySet()) {
+            final OperatorState operatorState = entry.getValue();
+            vertexHasKeyedState |= hasKeyedState(operatorState);
+
+            if (referenceOperator == null) {
+                referenceOperator = entry.getKey();
+                referenceMaxParallelism = operatorState.getMaxParallelism();
+            } else if (conflictingOperator == null
+                    && operatorState.getMaxParallelism() != referenceMaxParallelism) {
+                conflictingOperator = entry.getKey();
+                conflictingMaxParallelism = operatorState.getMaxParallelism();
+            }
+        }
+
+        if (vertexHasKeyedState && conflictingOperator != null) {
+            throw new IllegalStateException(
+                    "The state for the execution job vertex "
+                            + taskStateAssignment.executionJobVertex.getJobVertexId()
+                            + " can not be restored. Operators "
+                            + referenceOperator
+                            + " and "
+                            + conflictingOperator
+                            + " are chained into the same keyed vertex but recorded different"
+                            + " maximum parallelism in the checkpoint ("
+                            + referenceMaxParallelism
+                            + " and "
+                            + conflictingMaxParallelism
+                            + "). Restoring would remap keyed state through an incompatible"
+                            + " key-group layout. This is currently not supported.");
+        }
+    }
+
+    private static boolean hasKeyedState(OperatorState operatorState) {
+        for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+            if (!subtaskState.getManagedKeyedState().isEmpty()
+                    || !subtaskState.getRawKeyedState().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void reDistributeKeyedStates(
