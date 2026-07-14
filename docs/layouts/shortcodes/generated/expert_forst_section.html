@@ -24,7 +24,7 @@
             <td><h5>state.backend.forst.checkpoint.transfer.thread.num</h5></td>
             <td style="word-wrap: break-word;">4</td>
             <td>Integer</td>
-            <td>The number of transfer threads used to write or copy files to the state backend.</td>
+            <td>The number of threads used to transfer files during checkpoint (writing or copying files to the checkpoint storage) and restore (transferring state files back to the ForSt working directory). Consider increasing this value when snapshotting or restoring large state. Note that the pool is created per state backend instance. Setting it too high can saturate network bandwidth or trigger rate limiting depending on the remote storage; setting it too low can lead to long checkpoint durations or timeouts for large state. The default value is '4'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.forst.executor.inline-coordinator</h5></td>

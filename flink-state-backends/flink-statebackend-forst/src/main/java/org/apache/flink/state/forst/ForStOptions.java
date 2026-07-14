@@ -32,11 +32,15 @@ import static org.apache.flink.state.forst.ForStStateBackend.CHECKPOINT_DIR_AS_P
 import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStStateBackend.PriorityQueueStateType.ForStDB;
 
-/** Configuration options for the ForStStateBackend. */
+/**
+ * Configuration options for the ForStStateBackend.
+ */
 @Experimental
 public class ForStOptions {
 
-    /** The local directory (on the TaskManager) where ForSt puts some meta files. */
+    /**
+     * The local directory (on the TaskManager) where ForSt puts some meta files.
+     */
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.forst.local-dir")
@@ -52,7 +56,9 @@ public class ForStOptions {
                                                             .key()))
                                     .build());
 
-    /** The remote directory where ForSt puts its SST files. */
+    /**
+     * The remote directory where ForSt puts its SST files.
+     */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<String> PRIMARY_DIRECTORY =
             ConfigOptions.key("state.backend.forst.primary-dir")
@@ -156,7 +162,9 @@ public class ForStOptions {
                                     + "from being promoted to the head of the LRU list. "
                                     + "The default value is '3'.");
 
-    /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
+    /**
+     * The options factory class for ForSt to create DBOptions and ColumnFamilyOptions.
+     */
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.forst.options-factory")
@@ -237,17 +245,21 @@ public class ForStOptions {
                                             + "This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
-    /** Choice of timer service implementation. */
+    /**
+     * Choice of timer service implementation.
+     */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<ForStStateBackend.PriorityQueueStateType>
             TIMER_SERVICE_FACTORY =
-                    ConfigOptions.key("state.backend.forst.timer-service.factory")
-                            .enumType(ForStStateBackend.PriorityQueueStateType.class)
-                            .defaultValue(ForStDB)
-                            .withDescription(
-                                    "This determines the factory for timer service state implementation.");
+            ConfigOptions.key("state.backend.forst.timer-service.factory")
+                    .enumType(ForStStateBackend.PriorityQueueStateType.class)
+                    .defaultValue(ForStDB)
+                    .withDescription(
+                            "This determines the factory for timer service state implementation.");
 
-    /** The cache size per key-group for ForSt timer service factory implementation. */
+    /**
+     * The cache size per key-group for ForSt timer service factory implementation.
+     */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Integer> FORST_TIMER_SERVICE_FACTORY_CACHE_SIZE =
             ConfigOptions.key("state.backend.forst.timer-service.cache-size")
@@ -307,5 +319,12 @@ public class ForStOptions {
                     .intType()
                     .defaultValue(4)
                     .withDescription(
-                            "The number of transfer threads used to write or copy files to the state backend.");
+                            "The number of threads used to transfer files during checkpoint (writing or copying "
+                                    + "files to the checkpoint storage) and restore (transferring state files back to "
+                                    + "the ForSt working directory). Consider increasing this value when snapshotting or "
+                                    + "restoring large state. Note that the pool is created per state backend instance. "
+                                    + "Setting it too high can saturate network bandwidth or trigger rate limiting depending "
+                                    + "on the remote storage; setting it too low can lead to long checkpoint durations "
+                                    + "or timeouts for large state. "
+                                    + "The default value is '4'.");
 }
