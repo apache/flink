@@ -990,6 +990,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     }
 
     @VisibleForTesting
+    public long getMinStateTtlMs() {
+        return minStateTtlMs;
+    }
+
+    @VisibleForTesting
     long getCurrentBuildSideWm() {
         return currentBuildSideWm;
     }
