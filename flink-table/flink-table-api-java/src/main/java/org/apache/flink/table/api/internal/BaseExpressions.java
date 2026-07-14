@@ -2179,7 +2179,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * lit("\"abc\"").isJson() // true
      * lit("abc").isJson() // false
-     * nullOf(DataTypes.STRING()).isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // null
      *
      * lit("1").isJson(JsonType.SCALAR) // true
      * lit("1").isJson(JsonType.ARRAY) // false
@@ -2192,7 +2192,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * @param type The type of JSON object to validate against.
      * @return {@code true} if the string is a valid JSON of the given {@param type}, {@code false}
-     *     otherwise.
+     *     otherwise, or {@code NULL} if the input is {@code NULL}.
      */
     public OutType isJson(JsonType type) {
         return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr(), valueLiteral(type)));
@@ -2203,7 +2203,8 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>This is a shortcut for {@code isJson(JsonType.VALUE)}. See {@link #isJson(JsonType)}.
      *
-     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise.
+     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise, or {@code
+     *     NULL} if the input is {@code NULL}.
      */
     public OutType isJson() {
         return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr()));
