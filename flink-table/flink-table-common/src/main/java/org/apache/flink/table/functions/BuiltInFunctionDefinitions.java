@@ -3089,8 +3089,14 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             or(
                                     sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(logical(LogicalTypeRoot.VARIANT)),
                                     sequence(
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.VARIANT),
                                             and(
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                                     LITERAL))))
