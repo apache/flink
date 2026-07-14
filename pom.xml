@@ -1559,7 +1559,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.13</version>
+				<version>0.17</version>
 				<inherited>false</inherited>
 				<executions>
 					<execution>
@@ -1572,190 +1572,161 @@ under the License.
 				<configuration>
 					<consoleOutput>true</consoleOutput>
 					<excludeSubProjects>false</excludeSubProjects>
-					<numUnapprovedLicenses>0</numUnapprovedLicenses>
-					<licenses>
-						<!-- Enforce this license:
-							Licensed to the Apache Software Foundation (ASF) under one
-							or more contributor license agreements.  See the NOTICE file
-							distributed with this work for additional information
-							regarding copyright ownership.  The ASF licenses this file
-							to you under the Apache License, Version 2.0 (the
-							"License"); you may not use this file except in compliance
-							with the License.  You may obtain a copy of the License at
-							  http://www.apache.org/licenses/LICENSE-2.0
-							Unless required by applicable law or agreed to in writing,
-							software distributed under the License is distributed on an
-							"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-							KIND, either express or implied.  See the License for the
-							specific language governing permissions and limitations
-							under the License.
-						-->
-						<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
-							<licenseFamilyCategory>AL2 </licenseFamilyCategory>
-							<licenseFamilyName>Apache License 2.0</licenseFamilyName>
-							<patterns>
-								<pattern>Licensed to the Apache Software Foundation (ASF) under one</pattern>
-							</patterns>
-						</license>
-					</licenses>
-					<licenseFamilies>
-						<licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
-							<familyName>Apache License 2.0</familyName>
-						</licenseFamily>
-					</licenseFamilies>
-					<excludes>
+					<counterMax>Unapproved:0</counterMax>
+					<config>${project.basedir}/tools/maven/rat-config.xml</config>
+					<inputExcludes>
 						<!-- Additional files like .gitignore etc.-->
-						<exclude>**/.*/**</exclude>
-						<exclude>**/*.prefs</exclude>
-						<exclude>**/*.log</exclude>
+						<inputExclude>**/.*/**</inputExclude>
+						<inputExclude>**/*.prefs</inputExclude>
+						<inputExclude>**/*.log</inputExclude>
 						<!-- External web libraries. -->
-						<exclude>docs/**/jquery*</exclude>
-						<exclude>docs/**/bootstrap*</exclude>
-						<exclude>docs/themes/book/**</exclude>
-						<exclude>docs/**/anchor*</exclude>
-						<exclude>**/resources/**/font-awesome/**</exclude>
-						<exclude>**/resources/**/jquery*</exclude>
-						<exclude>**/resources/**/bootstrap*</exclude>
-						<exclude>docs/resources/**</exclude>
-						<exclude>docs/public/**</exclude>
-						<exclude>docs/assets/github.css</exclude>
-						<exclude>docs/static/flink-header-logo.svg</exclude>
-						<exclude>docs/static/figs/*.svg</exclude>
-						<exclude>docs/static/font-awesome/**</exclude>
-						<exclude>docs/static/flink-header-logo.svg</exclude>
-						<exclude>docs/static/figs/*.svg</exclude>
-						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
+						<inputExclude>docs/**/jquery*</inputExclude>
+						<inputExclude>docs/**/bootstrap*</inputExclude>
+						<inputExclude>docs/themes/book/**</inputExclude>
+						<inputExclude>docs/**/anchor*</inputExclude>
+						<inputExclude>**/resources/**/font-awesome/**</inputExclude>
+						<inputExclude>**/resources/**/jquery*</inputExclude>
+						<inputExclude>**/resources/**/bootstrap*</inputExclude>
+						<inputExclude>docs/resources/**</inputExclude>
+						<inputExclude>docs/public/**</inputExclude>
+						<inputExclude>docs/assets/github.css</inputExclude>
+						<inputExclude>docs/static/flink-header-logo.svg</inputExclude>
+						<inputExclude>docs/static/figs/*.svg</inputExclude>
+						<inputExclude>docs/static/font-awesome/**</inputExclude>
+						<inputExclude>docs/static/flink-header-logo.svg</inputExclude>
+						<inputExclude>docs/static/figs/*.svg</inputExclude>
+						<inputExclude>flink-clients/src/main/resources/web-docs/js/*d3.js</inputExclude>
 
 						<!-- the licenses that are re-bundled -->
-						<exclude>**/packaged_licenses/LICENSE.*.txt</exclude>
-						<exclude>**/licenses/LICENSE*</exclude>
-						<exclude>**/licenses-binary/LICENSE*</exclude>
+						<inputExclude>**/packaged_licenses/LICENSE.*.txt</inputExclude>
+						<inputExclude>**/licenses/LICENSE*</inputExclude>
+						<inputExclude>**/licenses-binary/LICENSE*</inputExclude>
 
 						<!-- web dashboard config JSON files -->
-						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/package-lock.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tsconfig.spec.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
+						<inputExclude>flink-runtime-web/web-dashboard/package.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/package-lock.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/angular.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/proxy.conf.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/tsconfig.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/tsconfig.spec.json</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/src/browserslist</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</inputExclude>
 
 						<!-- web dashboard non-binary assets -->
-						<exclude>flink-runtime-web/web-dashboard/src/assets/**</exclude>
+						<inputExclude>flink-runtime-web/web-dashboard/src/assets/**</inputExclude>
 
 						<!-- generated contents -->
-						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
+						<inputExclude>flink-runtime-web/web-dashboard/web/**</inputExclude>
 
 						<!-- downloaded and generated web libraries. -->
-						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
-						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
+						<inputExclude>flink-runtime-web/web-dashboard/node_modules/**</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/node/**</inputExclude>
 
 						<!-- antlr grammar files -->
-						<exclude>flink-table/flink-table-code-splitter/src/main/antlr4/**</exclude>
+						<inputExclude>flink-table/flink-table-code-splitter/src/main/antlr4/**</inputExclude>
 
 						<!-- Test Data. -->
-						<exclude>**/src/test/resources/*-data</exclude>
-						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-                        <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
-						<exclude>flink-core/src/test/resources/abstractID-with-toString-field</exclude>
-						<exclude>flink-core/src/test/resources/abstractID-with-toString-field-set</exclude>
-						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
-						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
-						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
-						<exclude>flink-table/flink-table-api-scala/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/resources/lineage-graph/*.json</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/resources/restore-tests/**</exclude>
-						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
-						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
-						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</exclude>
-						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
-						<exclude>flink-connectors/flink-file-sink-common/src/test/resources/recoverable-serializer-migration/**</exclude>
-						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
-						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
-						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
-						<exclude>flink-tests/src/test/resources/avro/*.avsc</exclude>
-						<exclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</exclude>
-						<exclude>flink-runtime-web/web-dashboard/dev/notice-template</exclude>
-						<exclude>flink-examples/flink-examples-streaming/src/main/resources/datas/**</exclude>
-						<exclude>flink-examples/flink-examples-streaming/src/test/resources/datas/**</exclude>
-						<exclude>flink-python/pyflink/table/tests/jsonplan/*</exclude>
+						<inputExclude>**/src/test/resources/*-data</inputExclude>
+						<inputExclude>flink-tests/src/test/resources/testdata/terainput.txt</inputExclude>
+                        <inputExclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</inputExclude>
+						<inputExclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</inputExclude>
+						<inputExclude>flink-core/src/test/resources/abstractID-with-toString-field</inputExclude>
+						<inputExclude>flink-core/src/test/resources/abstractID-with-toString-field-set</inputExclude>
+						<inputExclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</inputExclude>
+						<inputExclude>out/test/flink-avro/avro/user.avsc</inputExclude>
+						<inputExclude>flink-table/flink-sql-client/src/test/resources/**/*.out</inputExclude>
+						<inputExclude>flink-table/flink-table-api-scala/src/test/resources/flink_11-kryo_registrations</inputExclude>
+						<inputExclude>flink-table/flink-table-planner/src/test/resources/**/*.out</inputExclude>
+						<inputExclude>flink-table/flink-table-planner/src/test/resources/json/*.json</inputExclude>
+						<inputExclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</inputExclude>
+						<inputExclude>flink-table/flink-table-planner/src/test/resources/lineage-graph/*.json</inputExclude>
+						<inputExclude>flink-table/flink-table-planner/src/test/resources/restore-tests/**</inputExclude>
+						<inputExclude>flink-yarn/src/test/resources/krb5.keytab</inputExclude>
+						<inputExclude>flink-end-to-end-tests/test-scripts/test-data/**</inputExclude>
+						<inputExclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</inputExclude>
+						<inputExclude>flink-connectors/flink-connector-hive/src/test/resources/**</inputExclude>
+						<inputExclude>flink-connectors/flink-file-sink-common/src/test/resources/recoverable-serializer-migration/**</inputExclude>
+						<inputExclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</inputExclude>
+						<inputExclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</inputExclude>
+						<inputExclude>flink-table/flink-table-code-splitter/src/test/resources/**</inputExclude>
+						<inputExclude>flink-tests/src/test/resources/avro/*.avsc</inputExclude>
+						<inputExclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</inputExclude>
+						<inputExclude>flink-runtime-web/web-dashboard/dev/notice-template</inputExclude>
+						<inputExclude>flink-examples/flink-examples-streaming/src/main/resources/datas/**</inputExclude>
+						<inputExclude>flink-examples/flink-examples-streaming/src/test/resources/datas/**</inputExclude>
+						<inputExclude>flink-python/pyflink/table/tests/jsonplan/*</inputExclude>
 						<!-- ArchUnit violation stores  -->
-						<exclude>**/archunit-violations/**</exclude>
+						<inputExclude>**/archunit-violations/**</inputExclude>
 
 						<!-- snapshots -->
-						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
-						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
-						<exclude>**/src/test/resources/**/test-data</exclude>
-						<exclude>**/src/test/resources/*-snapshot</exclude>
-                        <exclude>**/src/test/resources/**/*-snapshot</exclude>
-						<exclude>**/src/test/resources/*.snapshot</exclude>
-						<exclude>**/src/test/resources/*-savepoint/**</exclude>
-						<exclude>**/src/test/resources/*-savepoint-native/**</exclude>
-						<exclude>**/src/test/resources/*-checkpoint/**</exclude>
-						<exclude>flink-core/src/test/resources/serialized-kryo-serializer-1.3</exclude>
-						<exclude>flink-core/src/test/resources/type-without-avro-serialized-using-kryo</exclude>
-						<exclude>flink-formats/flink-avro/src/test/resources/flink-1.4-serializer-java-serialized</exclude>
+						<inputExclude>**/src/test/resources/serializer-snapshot-*</inputExclude>
+						<inputExclude>**/src/test/resources/**/serializer-snapshot</inputExclude>
+						<inputExclude>**/src/test/resources/**/test-data</inputExclude>
+						<inputExclude>**/src/test/resources/*-snapshot</inputExclude>
+                        <inputExclude>**/src/test/resources/**/*-snapshot</inputExclude>
+						<inputExclude>**/src/test/resources/*.snapshot</inputExclude>
+						<inputExclude>**/src/test/resources/*-savepoint/**</inputExclude>
+						<inputExclude>**/src/test/resources/*-savepoint-native/**</inputExclude>
+						<inputExclude>**/src/test/resources/*-checkpoint/**</inputExclude>
+						<inputExclude>flink-core/src/test/resources/serialized-kryo-serializer-1.3</inputExclude>
+						<inputExclude>flink-core/src/test/resources/type-without-avro-serialized-using-kryo</inputExclude>
+						<inputExclude>flink-formats/flink-avro/src/test/resources/flink-1.4-serializer-java-serialized</inputExclude>
 
-						<exclude>flink-end-to-end-tests/flink-state-evolution-test/src/main/java/org/apache/flink/avro/generated/*</exclude>
-						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
-						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
-						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
-						<exclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.json</exclude>
-						<exclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.avro</exclude>
-						<exclude>flink-formats/flink-json/src/test/resources/*.txt</exclude>
-						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
-						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
-						<exclude>flink-formats/flink-parquet/src/test/resources/protobuf/**</exclude>
-						<exclude>flink-table/flink-sql-gateway/src/test/resources/*.txt</exclude>
+						<inputExclude>flink-end-to-end-tests/flink-state-evolution-test/src/main/java/org/apache/flink/avro/generated/*</inputExclude>
+						<inputExclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</inputExclude>
+						<inputExclude>flink-formats/flink-avro/src/test/resources/testdata.avro</inputExclude>
+						<inputExclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</inputExclude>
+						<inputExclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.json</inputExclude>
+						<inputExclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.avro</inputExclude>
+						<inputExclude>flink-formats/flink-json/src/test/resources/*.txt</inputExclude>
+						<inputExclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</inputExclude>
+						<inputExclude>flink-formats/flink-parquet/src/test/resources/avro/**</inputExclude>
+						<inputExclude>flink-formats/flink-parquet/src/test/resources/protobuf/**</inputExclude>
+						<inputExclude>flink-table/flink-sql-gateway/src/test/resources/*.txt</inputExclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
-						<exclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</exclude>
+						<inputExclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</inputExclude>
 						<!-- Configuration Files. -->
-						<exclude>**/flink-bin/conf/workers</exclude>
-						<exclude>**/flink-bin/conf/masters</exclude>
+						<inputExclude>**/flink-bin/conf/workers</inputExclude>
+						<inputExclude>**/flink-bin/conf/masters</inputExclude>
 						<!-- Administrative files in the main trunk. -->
-						<exclude>**/README.md</exclude>
-						<exclude>.github/**</exclude>
+						<inputExclude>**/README.md</inputExclude>
+						<inputExclude>.github/**</inputExclude>
 						<!-- Build files -->
-						<exclude>**/*.iml</exclude>
-						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
+						<inputExclude>**/*.iml</inputExclude>
+						<inputExclude>flink-quickstart/**/testArtifact/goal.txt</inputExclude>
 						<!-- Generated content -->
-						<exclude>out/**</exclude>
-						<exclude>**/target/**</exclude>
-						<exclude>build-target/**</exclude>
-						<exclude>docs/layouts/shortcodes/generated/**</exclude>
-						<exclude>docs/themes/connectors/layouts/shortcodes/generated/**</exclude>
-						<exclude>docs/static/generated/**</exclude>
+						<inputExclude>out/**</inputExclude>
+						<inputExclude>**/target/**</inputExclude>
+						<inputExclude>build-target/**</inputExclude>
+						<inputExclude>docs/layouts/shortcodes/generated/**</inputExclude>
+						<inputExclude>docs/themes/connectors/layouts/shortcodes/generated/**</inputExclude>
+						<inputExclude>docs/static/generated/**</inputExclude>
 						<!-- Tools: watchdog -->
-						<exclude>tools/artifacts/**</exclude>
-						<exclude>tools/flink*/**</exclude>
+						<inputExclude>tools/artifacts/**</inputExclude>
+						<inputExclude>tools/flink*/**</inputExclude>
 						<!-- Tools: japicmp output -->
-						<exclude>tools/japicmp-output/**</exclude>
+						<inputExclude>tools/japicmp-output/**</inputExclude>
 						<!-- artifacts created during release process -->
-						<exclude>tools/releasing/release/**</exclude>
+						<inputExclude>tools/releasing/release/**</inputExclude>
 						<!-- PyCharm -->
-						<exclude>**/.idea/**</exclude>
+						<inputExclude>**/.idea/**</inputExclude>
 						<!-- Generated code via Avro -->
-						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
-						<exclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</exclude>
+						<inputExclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</inputExclude>
+						<inputExclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</inputExclude>
 
 						<!-- flink-python -->
-						<exclude>flink-python/lib/**</exclude>
-						<exclude>flink-python/dev/download/**</exclude>
-						<exclude>flink-python/docs/_build/**</exclude>
-						<exclude>flink-python/docs/_static/switcher.json</exclude>
-						<exclude>flink-python/docs/uv.lock</exclude>
+						<inputExclude>flink-python/lib/**</inputExclude>
+						<inputExclude>flink-python/dev/download/**</inputExclude>
+						<inputExclude>flink-python/docs/_build/**</inputExclude>
+						<inputExclude>flink-python/docs/_static/switcher.json</inputExclude>
+						<inputExclude>flink-python/docs/uv.lock</inputExclude>
 
 						<!-- AWS SDK config that does not support license headers -->
-						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
+						<inputExclude>**/awssdk/global/handlers/execution.interceptors</inputExclude>
 
 						<!-- The most recently published version configuration file -->
-						<exclude>flink-test-utils-parent/flink-migration-test-utils/src/main/resources/most_recently_published_version</exclude>
-					</excludes>
+						<inputExclude>flink-test-utils-parent/flink-migration-test-utils/src/main/resources/most_recently_published_version</inputExclude>
+					</inputExcludes>
 				</configuration>
 			</plugin>
 			<plugin>
