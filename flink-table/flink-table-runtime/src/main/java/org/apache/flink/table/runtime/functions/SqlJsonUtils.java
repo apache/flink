@@ -400,11 +400,17 @@ public class SqlJsonUtils {
 
         if (value instanceof LinkedList) {
             final LinkedList<?> matched = (LinkedList<?>) value;
+
             if (matched.size() != 1) {
                 if (context.mode == PathMode.STRICT || matched.isEmpty()) {
                     return null;
                 }
-                return matched.size();
+                int totalLength = 0;
+                for (Object item : matched) {
+                    totalLength += jsonLengthValue(item);
+                }
+                return totalLength;
+
             }
             return jsonLengthValue(matched.get(0));
         }

@@ -1715,7 +1715,7 @@ bitmapagg:
       How STRICT mode defers to LAX mode:
         - When using wildcard character: 
             -STRICT mode will return null when more than 1 paths are found
-            -LAX mode will return the number of potential paths
+            -LAX mode will return the total number of elements in all of the potential paths
 
 catalog:
   - sql: CURRENT_DATABASE()
