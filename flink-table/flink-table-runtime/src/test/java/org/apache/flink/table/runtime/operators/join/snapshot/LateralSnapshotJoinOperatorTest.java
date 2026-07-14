@@ -918,8 +918,7 @@ class LateralSnapshotJoinOperatorTest {
                 // assert that changes have been applied and removed from buffer
                 assertThat(bufferedAtWmFor(h, op, "k1")).isNull();
                 assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
-                assertThat(buildTableForKey(h, op, "k1"))
-                        .isEqualTo(Map.of("v2", 1L, "v3", 1L));
+                assertThat(buildTableForKey(h, op, "k1")).isEqualTo(Map.of("v2", 1L, "v3", 1L));
                 // assert join results (v2 carries row-time 102, v3 carries row-time 103)
                 JOINED_ASSERTOR.shouldEmitAll(
                         h,
@@ -1478,7 +1477,8 @@ class LateralSnapshotJoinOperatorTest {
 
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
-    void restoreFromLoadPhaseWithMultipleBufferedProbesPerKey(StateBackend backend) throws Exception {
+    void restoreFromLoadPhaseWithMultipleBufferedProbesPerKey(StateBackend backend)
+            throws Exception {
         // Recovery with several per-record flip timers for one key: the buffered probes, their
         // sequence counter, and one event-time timer per probe must all survive the snapshot and,
         // after restore, drain in insertion order when the flip fires them.
@@ -1703,7 +1703,8 @@ class LateralSnapshotJoinOperatorTest {
 
     @ParameterizedTest(name = "backend={0}")
     @MethodSource("stateBackends")
-    void restoreFromJoinPhaseWithBufferedProbesDrainsInOrder(StateBackend backend) throws Exception {
+    void restoreFromJoinPhaseWithBufferedProbesDrainsInOrder(StateBackend backend)
+            throws Exception {
         LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
@@ -1741,9 +1742,7 @@ class LateralSnapshotJoinOperatorTest {
                             .toList();
             assertThat(emittedIds).containsExactly(1L, 2L);
             JOINED_ASSERTOR.shouldEmitAll(
-                    h,
-                    row(1L, "k1", "p1", "k1", "v1", 1L),
-                    row(2L, "k1", "p2", "k1", "v1", 1L));
+                    h, row(1L, "k1", "p1", "k1", "v1", 1L), row(2L, "k1", "p2", "k1", "v1", 1L));
             assertThat(probeBufferForKey(h, op2, "k1")).isEmpty();
         }
     }
