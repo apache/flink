@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -66,6 +67,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /** Harness tests for {@link LateralSnapshotJoinOperator}. */
@@ -776,6 +778,41 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
+    @Test
+    void onEventTimeRejectsNonNegativeTimestamp() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.open();
+            // Buffered-probe timers are always negative; a non-negative event-time timer is a
+            // broken invariant and must fail fast.
+            InternalTimer<RowData, VoidNamespace> timer =
+                    new InternalTimer<>() {
+                        @Override
+                        public long getTimestamp() {
+                            return 5L;
+                        }
+
+                        @Override
+                        public RowData getKey() {
+                            return stringKey("k1");
+                        }
+
+                        @Override
+                        public VoidNamespace getNamespace() {
+                            return VoidNamespace.INSTANCE;
+                        }
+
+                        @Override
+                        public int comparePriorityTo(InternalTimer<?, ?> other) {
+                            return Long.compare(getTimestamp(), other.getTimestamp());
+                        }
+                    };
+            assertThatThrownBy(() -> op.onEventTime(timer))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
     // ----------------------------------------------------------------- JOIN phase
 
     @ParameterizedTest
@@ -882,8 +919,8 @@ class LateralSnapshotJoinOperatorTest {
                 assertThat(bufferedAtWmFor(h, op, "k1")).isNull();
                 assertThat(bufferedChangesForKey(h, op, "k1")).isEmpty();
                 assertThat(buildTableForKey(h, op, "k1"))
-                        .isEqualTo(Map.of("v2", 1L, "v3", 1L)); // /
-                // assert join results (v2 carries row-time 2, v3 carries row-time 1)
+                        .isEqualTo(Map.of("v2", 1L, "v3", 1L));
+                // assert join results (v2 carries row-time 102, v3 carries row-time 103)
                 JOINED_ASSERTOR.shouldEmitAll(
                         h,
                         row(2L, "k1", "p-2", "k1", "v2", 102L),
@@ -1284,14 +1321,16 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    @Test
-    void stateTtlRestoreResetsFlipProcTime() throws Exception {
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void stateTtlRestoreResetsFlipProcTime(StateBackend backend) throws Exception {
         // stateTtlMs = 50. Build write at t=0 arms TTL at 75. Flip at t=0 → flipProcTime=0.
         // Original grace ends at 0+50=50.
         LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, 50L);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
+            h.setStateBackend(backend);
             h.setProcessingTime(0);
             h.open();
             addBuildChange(h, insertRecord("k1", "v1", 1L));
@@ -1304,6 +1343,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, 50L);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
+            h.setStateBackend(backend);
             h.setProcessingTime(30);
             h.initializeState(state);
             h.open();
@@ -1322,14 +1362,69 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    // ----------------------------------------------------------------- Snapshot / restore
+    @Test
+    void stateTtlDisabledRegistersNoTimers() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(0);
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addProbeRecord(h, 1L, "k1", "p1"); // buffered
+            addBuildWm(h, 100L); // flip to JOIN
+            addProbeWm(h, 100L); // drain buffered probe (join emitted)
+            assertPhase(op, Phase.JOIN);
+
+            h.setProcessingTime(Long.MAX_VALUE);
+            assertThat(op.getNumStateTtlEvictions().getCount()).isEqualTo(0L);
+            assertThat(buildTableForKey(h, op, "k1")).isNotEmpty();
+            // TTL expiry state is null: no timer ever registered
+            h.getOperator().setCurrentKey(stringKey("k1"));
+            assertThat(op.getTtlExpiryState().value()).isNull();
+        }
+    }
 
     @Test
-    void restoreFromLoadPhaseSnapshot() throws Exception {
+    void stateTtlDoesNotEvictKeyWithBufferedProbes() throws Exception {
+        LateralSnapshotJoinOperator op = newOperator(false, 100L, null, 50L);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op)) {
+            h.setProcessingTime(0);
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addProbeRecord(h, 1L, "k1", "p1"); // buffered; TTL timer → 75
+            addBuildWm(h, 100L);
+            assertPhase(op, Phase.JOIN);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+
+            // Timer at 75 fires; probeBufferSeq!=null → reschedule, not evict
+            h.setProcessingTime(80);
+            assertThat(op.getNumStateTtlEvictions().getCount()).isEqualTo(0L);
+            assertThat(probeBufferForKey(h, op, "k1")).hasSize(1);
+
+            // Drain the buffered probe
+            addProbeWm(h, 100L);
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(1L, "k1", "p1", "k1", "v1", 1L));
+            assertThat(probeBufferForKey(h, op, "k1")).isEmpty();
+
+            // Timer at 155 fires; buffer now empty → evict
+            h.setProcessingTime(160);
+            assertThat(op.getNumStateTtlEvictions().getCount()).isEqualTo(1L);
+            assertThat(buildTableForKey(h, op, "k1")).isEmpty();
+        }
+    }
+
+    // ----------------------------------------------------------------- Snapshot / restore
+
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreFromLoadPhaseSnapshot(StateBackend backend) throws Exception {
         LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
+            h.setStateBackend(backend);
             h.open();
             // Build-side multi-set with a duplicate count, plus a buffered
             // probe.
@@ -1347,6 +1442,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
+            h.setStateBackend(backend);
             h.initializeState(state);
             h.open();
             assertPhase(op2, Phase.LOAD);
@@ -1380,8 +1476,9 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    @Test
-    void restoreFromLoadPhaseWithMultipleBufferedProbesPerKey() throws Exception {
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreFromLoadPhaseWithMultipleBufferedProbesPerKey(StateBackend backend) throws Exception {
         // Recovery with several per-record flip timers for one key: the buffered probes, their
         // sequence counter, and one event-time timer per probe must all survive the snapshot and,
         // after restore, drain in insertion order when the flip fires them.
@@ -1389,6 +1486,7 @@ class LateralSnapshotJoinOperatorTest {
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
+            h.setStateBackend(backend);
             h.open();
             addBuildChange(h, insertRecord("k1", "v1", 1L));
             addProbeRecord(h, 1L, "k1", "p1");
@@ -1403,6 +1501,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
+            h.setStateBackend(backend);
             h.initializeState(state);
             h.open();
             assertPhase(op2, Phase.LOAD);
@@ -1434,13 +1533,15 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    @Test
-    void restoreFromMixedPhaseSnapshot() throws Exception {
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreFromMixedPhaseSnapshot(StateBackend backend) throws Exception {
         // Subtask A: drive into JOIN with a buffered change for k1.
         LateralSnapshotJoinOperator opA = newOperator(false, 100L, null, null);
         OperatorSubtaskState stateA;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opA)) {
+            h.setStateBackend(backend);
             h.open();
             addBuildChange(h, insertRecord("k1", "v1", 1L));
             addBuildWm(h, 100L);
@@ -1455,6 +1556,7 @@ class LateralSnapshotJoinOperatorTest {
         OperatorSubtaskState stateB;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opB)) {
+            h.setStateBackend(backend);
             h.open();
             addProbeRecord(h, 1L, "k2", "p1");
             assertPhase(opB, Phase.LOAD);
@@ -1468,6 +1570,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator opC = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(opC)) {
+            h.setStateBackend(backend);
             h.initializeState(combined);
             h.open();
             assertPhase(opC, Phase.LOAD);
@@ -1504,12 +1607,14 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    @Test
-    void restoreFromJoinPhaseSnapshot() throws Exception {
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreFromJoinPhaseSnapshot(StateBackend backend) throws Exception {
         LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
+            h.setStateBackend(backend);
             h.open();
             addBuildChange(h, insertRecord("k1", "v1", 1L));
             addBuildChange(h, insertRecord("k2", "v1", 1L));
@@ -1526,6 +1631,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
+            h.setStateBackend(backend);
             h.initializeState(state);
             h.open();
             assertPhase(op2, Phase.JOIN);
@@ -1558,12 +1664,14 @@ class LateralSnapshotJoinOperatorTest {
         }
     }
 
-    @Test
-    void restoreDoesNotArmIdleFlipTimerUntilBuildSideSignal() throws Exception {
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreDoesNotArmIdleFlipTimerUntilBuildSideSignal(StateBackend backend) throws Exception {
         LateralSnapshotJoinOperator op1 = newOperator(false, 1000L, 100L, null);
         OperatorSubtaskState state;
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op1)) {
+            h.setStateBackend(backend);
             h.setProcessingTime(50);
             h.open();
             assertPhase(op1, Phase.LOAD);
@@ -1573,6 +1681,7 @@ class LateralSnapshotJoinOperatorTest {
         LateralSnapshotJoinOperator op2 = newOperator(false, 1000L, 100L, null);
         try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
                 newHarness(op2)) {
+            h.setStateBackend(backend);
             h.setProcessingTime(150);
             h.initializeState(state);
             h.open();
@@ -1589,6 +1698,53 @@ class LateralSnapshotJoinOperatorTest {
             assertPhase(op2, Phase.LOAD);
             h.setProcessingTime(1100);
             assertPhase(op2, Phase.JOIN);
+        }
+    }
+
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void restoreFromJoinPhaseWithBufferedProbesDrainsInOrder(StateBackend backend) throws Exception {
+        LateralSnapshotJoinOperator op1 = newOperator(false, 100L, null, null);
+        OperatorSubtaskState state;
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op1)) {
+            h.setStateBackend(backend);
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 1L));
+            addProbeRecord(h, 1L, "k1", "p1");
+            addProbeRecord(h, 2L, "k1", "p2");
+            assertPhase(op1, Phase.LOAD);
+            assertThat(probeBufferForKey(h, op1, "k1")).hasSize(2);
+            assertThat(h.numEventTimeTimers()).isEqualTo(2);
+            addBuildWm(h, 100L); // flip — no probe WM, so both probes stay buffered in JOIN
+            assertPhase(op1, Phase.JOIN);
+            assertThat(probeBufferForKey(h, op1, "k1")).hasSize(2);
+            assertThat(h.getOutput()).isEmpty();
+            state = h.snapshot(0L, 0L);
+        }
+
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op2)) {
+            h.setStateBackend(backend);
+            h.initializeState(state);
+            h.open();
+            assertPhase(op2, Phase.JOIN);
+            assertThat(probeBufferForKey(h, op2, "k1")).hasSize(2);
+            assertThat(h.numEventTimeTimers()).isEqualTo(2);
+
+            addProbeWm(h, 50L); // fires flip timers; drains p1 then p2
+            stripWatermarksAndStatusesFromOutput(h);
+            List<Long> emittedIds =
+                    h.getOutput().stream()
+                            .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
+                            .toList();
+            assertThat(emittedIds).containsExactly(1L, 2L);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(1L, "k1", "p1", "k1", "v1", 1L),
+                    row(2L, "k1", "p2", "k1", "v1", 1L));
+            assertThat(probeBufferForKey(h, op2, "k1")).isEmpty();
         }
     }
 

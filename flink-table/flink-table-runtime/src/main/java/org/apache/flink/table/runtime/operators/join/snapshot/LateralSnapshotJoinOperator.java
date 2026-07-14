@@ -689,11 +689,20 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
             return; // stale timer fire
         }
         long now = getProcessingTimeService().getCurrentProcessingTime();
-        // Reschedule if still in LOAD, or in JOIN but within stateTtlMs of the flip (grace window).
-        if (phase == Phase.LOAD || (flipProcTime != null && now < flipProcTime + minStateTtlMs)) {
-            // set the new TTL timer maxStateTtlMs ahead
-            long newDeadline =
-                    phase == Phase.LOAD ? now + maxStateTtlMs : flipProcTime + maxStateTtlMs;
+        // Defer eviction while the key still has pending work: during LOAD, within the post-flip
+        // grace window, or while probes are still buffered (not yet drained) for this key.
+        boolean withinGraceWindow = flipProcTime != null && now < flipProcTime + minStateTtlMs;
+        if (phase == Phase.LOAD || withinGraceWindow || probeBufferSeq.value() != null) {
+            long newDeadline;
+            if (phase == Phase.LOAD) {
+                newDeadline = now + maxStateTtlMs;
+            } else if (withinGraceWindow) {
+                // the ttl timer fired, but we only "recently" flipped into JOIN phase
+                newDeadline = flipProcTime + maxStateTtlMs;
+            } else {
+                // the ttl timer fired, but the probe-side hasn't been drained yet.
+                newDeadline = now + maxStateTtlMs;
+            }
             timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, newDeadline);
             ttlExpiryState.update(newDeadline);
             return;
@@ -784,7 +793,6 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
      */
     private void joinProbeRow(RowData probe) throws Exception {
         boolean matched = false;
-        // Number of result rows emitted for this probe row (the join fan-out).
         long fanOut = 0;
         for (Map.Entry<RowData, Long> entry : buildTableState.entries()) {
             RowData buildRow = entry.getKey();
@@ -813,7 +821,7 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
         if (!matched && !isLeftOuterJoin) {
             numUnmatchedProbeRecords.inc();
         }
-        // Update fan-out statistics (fan-out = number of result rows emitted for this probe).
+        // Update fan-out statistics.
         totalProbeJoins++;
         totalJoinFanOut += fanOut;
         if (fanOut > maxJoinFanOut) {
