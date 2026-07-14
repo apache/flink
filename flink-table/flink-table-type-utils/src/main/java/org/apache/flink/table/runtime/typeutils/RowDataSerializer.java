@@ -362,12 +362,10 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             this.nestedSerializersSnapshotDelegate =
                     NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(
                             in, userCodeClassLoader);
-            if (readVersion >= 4) {
-                if (in.readBoolean()) {
-                    fieldNames = new String[types.length];
-                    for (int i = 0; i < types.length; i++) {
-                        fieldNames[i] = in.readUTF();
-                    }
+            if (readVersion >= 4 && in.readBoolean()) {
+                fieldNames = new String[types.length];
+                for (int i = 0; i < types.length; i++) {
+                    fieldNames[i] = in.readUTF();
                 }
             }
         }
