@@ -1775,29 +1775,29 @@ bitmapagg:
   - sql: JSON_LENGTH(json_doc[, path])
     table: jsonLength(jsonObject[, path])
     description: |
-      返回一个 JSON 文档中的元素个数；如果提供了 path，则返回该路径下值的长度。
-      如果参数为 NULL 或 path 未定位到任何值，则返回 NULL。
-      例如：
-        -- 2
+      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
+      Returns NULL if the argument is NULL or the path does not locate a value.
+      eg. 
         JSON_LENGTH('{1: "hello", 2: "bye bye"}')
-
-        -- 5
+        -- 2
+      
         JSON_LENGTH('[1,2,3,4,5]')
-
-        -- 1
+        -- 5
+      
         JSON_LENGTH('hello')
-
         -- 1
+      
         JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
+        -- 1
+      
+      
+      The length is determined as follows:
+      
+        - Scalar values (number, string, boolean): has length 1.
+        - Array: has a length equal to the number of its elements.
+        - Object: has a length equal to the number of its key-value pairs.
 
-
-      长度的确定方式如下：
-
-        - 标量值（数字、字符串、布尔值）：长度为 1。
-        - 数组：长度等于其元素个数。
-        - 对象：长度等于其键值对个数。
-
-      嵌套的数组和对象各自算作一个元素，其内部内容不计入长度。
+      Nested arrays and objects each count as a single element and their contents are not included in the count.
 
 catalog:
   - sql: CURRENT_DATABASE()

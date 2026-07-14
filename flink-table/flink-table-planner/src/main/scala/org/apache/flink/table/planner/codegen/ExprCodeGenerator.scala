@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RexLiteralUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -936,7 +937,29 @@ class ExprCodeGenerator(
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.JSON_LENGTH =>
-            new JsonLengthCallGen().generate(ctx, operands, resultType)
+            generateCallWithStmtIfArgsNotNull(ctx, resultType, operands, resultNullable = true) {
+              argTerms =>
+                val inputTerm = s"${argTerms.head}.toString()"
+                val (varName, parseCode) =
+                  ctx.getReusableInputUnboxingExprs(inputTerm, Int.MinValue) match {
+                    case Some(expr) => (expr.resultTerm, "")
+                    case None =>
+                      val v = CodeGenUtils.newName(ctx, "jsonParsed")
+                      ctx.addReusableMember(
+                        s"${classOf[SqlJsonUtils.JsonValueContext].getName} $v;")
+                      ctx.addReusableInputUnboxingExprs(
+                        inputTerm,
+                        Int.MinValue,
+                        GeneratedExpression(v, "false", "", null))
+                      (v, s"$v = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}($inputTerm);")
+                  }
+                val (method, terms) =
+                  if (operands.length > 1)
+                    (BuiltInMethods.JSON_LENGTH_PATH, Seq(varName, s"${argTerms(1)}.toString()"))
+                  else
+                    (BuiltInMethods.JSON_LENGTH, Seq(varName))
+                (parseCode, s"${qualifyMethod(method)}(${terms.mkString(", ")})")
+            }
 
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)

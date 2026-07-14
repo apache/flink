@@ -32,6 +32,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
 import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
 import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.PathNotFoundException;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -385,13 +386,17 @@ public class SqlJsonUtils {
     }
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
-    public static Integer jsonLength(final JsonValueContext parsedInput,final String pathSpec) {
+    public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
         if (parsedInput.hasException()) {
             // invalid input JSON
             return null;
         }
         final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
+
         final Object value = context.hasException() ? null : context.obj;
+        if (context.hasException() || value == null) {
+            return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
+        }
 
         if (value instanceof LinkedList) {
             final LinkedList<?> matched = (LinkedList<?>) value;
@@ -403,14 +408,11 @@ public class SqlJsonUtils {
             }
             return jsonLengthValue(matched.get(0));
         }
-        if (context.hasException() || value == null) {
-            return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
-        }
 
         return jsonLengthValue(value);
     }
 
-    private static Integer jsonLengthValue(final Object value) {
+    private static int jsonLengthValue(final Object value) {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
         }
@@ -426,7 +428,7 @@ public class SqlJsonUtils {
      * whether the matched value is a JSON null literal. Uses {@link Option#AS_PATH_LIST} so the
      * result is the list of matched canonical paths, which is empty iff the path does not exist.
      */
-    private static boolean pathExists(Object json, String pathSpec) {
+    private static boolean pathExists(final Object json, final String pathSpec) {
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
         final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
         try {
@@ -441,7 +443,7 @@ public class SqlJsonUtils {
                                             .build())
                             .read(pathStr);
             return matched != null && !matched.isEmpty();
-        } catch (Exception e) {
+        } catch (PathNotFoundException e) {
             return false;
         }
     }

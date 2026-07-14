@@ -2528,10 +2528,16 @@ public abstract class BaseExpressions<InType, OutType> {
     /**
      * Returns the number of elements contained in a JSON value, optionally at a given path.
      *
-     * <p>Return the length of a JSON value by given rules: - Scalars have length 1. - Arrays have
-     * length equal to their number of elements. - Objects have length equal to their number of
-     * keys. - Nested arrays/objects are not counted recursively. - Returns None if the value is
-     * None.
+     * <p>Return the length of a JSON value by given rules:
+     *
+     * <ul>
+     *   <li>Scalars have length 1.
+     *   <li>Arrays have length equal to their number of elements.
+     *   <li>Objects have length equal to their number of keys.
+     *   <li>Nested arrays/objects are not counted recursively.
+     *   <li>Returns Null if the json input is Null or if the given path does not resolve to
+     *       anything.
+     * </ul>
      *
      * <p>When a path is provided, the count applies to the value found at that path rather than the
      * document as a whole. Returns {@code NULL} if any argument is {@code NULL} or the path does

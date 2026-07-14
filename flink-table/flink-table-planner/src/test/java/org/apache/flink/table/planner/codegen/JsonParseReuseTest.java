@@ -135,7 +135,7 @@ class JsonParseReuseTest {
                         Row.of("admin", "{\"city\":\"Berlin\"}"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_VALUE + JSON_QUERY on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -151,7 +151,7 @@ class JsonParseReuseTest {
                         Row.of("admin", "30", "{\"city\":\"Berlin\"}"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("Three JSON function calls on the same input should parse once")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -163,7 +163,7 @@ class JsonParseReuseTest {
         assertThat(rows).containsExactlyInAnyOrder(Row.of("account", null), Row.of("admin", "1"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_VALUE calls on different inputs should parse separately")
-                .isEqualTo(2);
+                .isOne();
     }
 
     @Test

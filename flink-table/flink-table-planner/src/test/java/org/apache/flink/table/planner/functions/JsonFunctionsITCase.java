@@ -103,17 +103,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_LENGTH)
                 .onFieldsWithData(
-                        jsonValue, // f0: existing resource JSON
-                        "{\"a\":1,\"b\":2}", // f1: object
-                        "[1,2,3]", // f2: array
-                        "\"abc\"", // f3: scalar string
-                        "null", // f4: JSON null
-                        "{", // f5: invalid JSON
+                        jsonValue,
+                        "{\"a\":1,\"b\":2}",
+                        "[1,2,3]",
+                        "\"abc\"",
+                        "null",
+                        "{",
                         ((String) null), // f6: SQL NULL
                         "$",
-                        "{\"a\":[true, false, null]}", // f8
-                        "{}", // f9: empty object
-                        "[]") // f10: empty array
+                        "{\"a\":[true, false, null]}",
+                        "{}",
+                        "[]")
                 .andDataTypes(
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
                         STRING(), STRING(), STRING(), STRING())
@@ -128,7 +128,6 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
 
                 // whole-document length from the existing resource:
-                // top-level keys are type, author, metadata
                 .testSqlResult("JSON_LENGTH(f0)", 3, INT().nullable())
 
                 // basic shapes
@@ -185,9 +184,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
                 // WILDCARDS matching MULTIPLE nodes -> LAX counts, STRICT returns NULL.
                 // This is the key place where LAX and STRICT diverge.
-                // `$.*` -> the 3 top-level values (type, author, metadata)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.*')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'lax $.*')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'strict $.*')", null, INT().nullable())
                 // default (no mode prefix) behaves like STRICT
                 .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
                 // `$.author.*` -> name + address

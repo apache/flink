@@ -1691,17 +1691,17 @@ bitmapagg:
       Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
       Returns NULL if the argument is NULL or the path does not locate a value.
       eg. 
-        -- 2
         JSON_LENGTH('{1: "hello", 2: "bye bye"}')
+        -- 2
       
-        -- 5
         JSON_LENGTH('[1,2,3,4,5]')
+        -- 5
       
-        -- 1
         JSON_LENGTH('hello')
-      
         -- 1
+      
         JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
+        -- 1
       
       
       The length is determined as follows:
@@ -1711,6 +1711,11 @@ bitmapagg:
         - Object: has a length equal to the number of its key-value pairs.
 
       Nested arrays and objects each count as a single element and their contents are not included in the count.
+      
+      How STRICT mode defers to LAX mode:
+        - When using wildcard character: 
+            -STRICT mode will return null when more than 1 paths are found
+            -LAX mode will return the number of potential paths
 
 catalog:
   - sql: CURRENT_DATABASE()
