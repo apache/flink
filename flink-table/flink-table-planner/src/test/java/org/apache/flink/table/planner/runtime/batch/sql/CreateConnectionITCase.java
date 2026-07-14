@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 /** IT case for CREATE CONNECTION statement. */
 class CreateConnectionITCase extends BatchTestBase {
@@ -41,7 +42,7 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
                         connection -> {
-                            assertThat(connection.getOptions()).containsEntry("k", "v");
+                            assertThat(connection.getOptions()).containsOnly(entry("k", "v"));
                             assertThat(connection.getComment()).isEqualTo("hi there");
                         });
     }
@@ -61,7 +62,9 @@ class CreateConnectionITCase extends BatchTestBase {
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
-                        connection -> assertThat(connection.getOptions()).containsEntry("k", "v1"));
+                        connection ->
+                                assertThat(connection.getOptions())
+                                        .containsOnly(entry("k", "v1")));
     }
 
     @Test
