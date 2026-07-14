@@ -103,21 +103,26 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_LENGTH)
                 .onFieldsWithData(
-                        jsonValue,              // f0: existing resource JSON
-                        "{\"a\":1,\"b\":2}",    // f1: object
-                        "[1,2,3]",              // f2: array
-                        "\"abc\"",              // f3: scalar string
-                        "null",                 // f4: JSON null
-                        "{",                    // f5: invalid JSON
-                        (String) null)          // f6: SQL NULL
+                        jsonValue, // f0: existing resource JSON
+                        "{\"a\":1,\"b\":2}", // f1: object
+                        "[1,2,3]", // f2: array
+                        "\"abc\"", // f3: scalar string
+                        "null", // f4: JSON null
+                        "{", // f5: invalid JSON
+                        ((String) null), // f6: SQL NULL
+                        "$",
+                        "{\"a\":[true, false, null]}", // f8
+                        "{}", // f9: empty object
+                        "[]") // f10: empty array
                 .andDataTypes(
-                        STRING(),
-                        STRING(),
-                        STRING(),
-                        STRING(),
-                        STRING(),
-                        STRING(),
-                        STRING())
+                        STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
+                        STRING(), STRING(), STRING(), STRING())
+                // path exists but resolves to a JSON null literal -> scalar, length 1
+                // (distinct from a missing path, which yields NULL)
+                .testSqlResult("JSON_LENGTH(f8, '$.a[2]')", 1, INT().nullable())
+                // contrast: missing paths on the same document -> NULL
+                .testSqlResult("JSON_LENGTH(f8, 'lax $.a[9]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, 'lax $.b')", null, INT().nullable())
 
                 // SQL NULL input
                 .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
@@ -131,13 +136,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f2)", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f3)", 1, INT().nullable())
 
+                // empty containers -> 0
+                .testSqlResult("JSON_LENGTH(f9)", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10)", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f9, '$')", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, '$')", 0, INT().nullable())
+
                 // keep this line aligned with your intended semantics
                 // current implementation returns NULL for JSON literal null
-                .testSqlResult("JSON_LENGTH(f4)", null, INT().nullable())
-                // if you later treat JSON null as a scalar, change expected result to 1
+                .testSqlResult("JSON_LENGTH(f4)", 1, INT().nullable())
 
-                // invalid JSON -> NULL
-                .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
+                // (valid) paths
                 .testSqlResult("JSON_LENGTH(f0, '$')", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
@@ -145,10 +154,90 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.references')", 1, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0]')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable());
-    }
+                .testSqlResult(
+                        "JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
+                // (invalid) path
+                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f7)", null, INT().nullable())
 
+                // invalid JSON -> NULL
+                .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
+
+                // literal (NOT NULL) arguments must still yield a nullable result,
+                // otherwise constant folding / output writing NPEs when the path is missing
+                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
+
+                // lax vs strict
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.metadata.tags')", 3, INT().nullable())
+
+                // missing path: neither mode throws -> both yield NULL
+                // (this is the "strict doesn't throw" behaviour)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.author.nope')", null, INT().nullable())
+
+                // WILDCARDS matching MULTIPLE nodes -> LAX counts, STRICT returns NULL.
+                // This is the key place where LAX and STRICT diverge.
+                // `$.*` -> the 3 top-level values (type, author, metadata)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.*')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.*')", null, INT().nullable())
+                // default (no mode prefix) behaves like STRICT
+                .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
+                // `$.author.*` -> name + address
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.*')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $.author.*')", null, INT().nullable())
+                // `$.author.address.*` -> country + city
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.address.*')", 2, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'strict $.author.address.*')", null, INT().nullable())
+                // array wildcard `$.metadata.tags[*]` -> flink, streaming, json
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags[*]')", 3, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'strict $.metadata.tags[*]')", null, INT().nullable())
+                // deep-scan `$..name` -> author.name + references[0].name
+                .testSqlResult("JSON_LENGTH(f0, 'lax $..name')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $..name')", null, INT().nullable())
+
+                // WILDCARDS matching a SINGLE node -> unwrapped, so LAX and STRICT agree.
+                // deep-scan `$..url` -> single scalar
+                .testSqlResult("JSON_LENGTH(f0, 'lax $..url')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $..url')", 1, INT().nullable())
+                // deep-scan `$..address` -> single object (country + city)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $..address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $..address')", 2, INT().nullable())
+                // array wildcard `$.metadata.references[*]` -> single object (name + url)
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'lax $.metadata.references[*]')", 2, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'strict $.metadata.references[*]')", 2, INT().nullable())
+                // `$.metadata.references[*].name` -> single scalar
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'lax $.metadata.references[*].name')", 1, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'strict $.metadata.references[*].name')",
+                        1,
+                        INT().nullable())
+
+                // WILDCARDS matching NOTHING -> both modes yield NULL
+                .testSqlResult("JSON_LENGTH(f0, 'lax $..nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'strict $..nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, 'lax $[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, 'strict $[*]')", null, INT().nullable())
+
+                // mode prefix is case-insensitive and tolerates extra whitespace
+                .testSqlResult("JSON_LENGTH(f0, 'LAX $.*')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'Lax $.*')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'lAx    $.metadata.tags[*]')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'STRICT $.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'sTrIcT $.metadata.tags')", 3, INT().nullable());
+    }
 
     private static TestSetSpec jsonExistsSpec() {
         final String jsonValue = getJsonFromResource("/json/json-exists.json");

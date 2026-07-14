@@ -2524,20 +2524,19 @@ public abstract class BaseExpressions<InType, OutType> {
         return jsonQuery(
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
     }
+
     /**
      * Returns the number of elements contained in a JSON value, optionally at a given path.
      *
-     * <p>Counting works differently depending on the JSON type: objects report how many
-     * key-value pairs they contain, arrays report how many entries they hold, and any scalar
-     * value (such as a number, string, or boolean) is treated as a single element and reports 1.
-     * Only the top level is measured — elements that are themselves arrays or objects contribute
-     * 1 to the count regardless of what they contain.
+     * <p>Return the length of a JSON value by given rules: - Scalars have length 1. - Arrays have
+     * length equal to their number of elements. - Objects have length equal to their number of
+     * keys. - Nested arrays/objects are not counted recursively. - Returns None if the value is
+     * None.
      *
-     * <p>When a path is provided, the count applies to the value found at that path rather than
-     * the document as a whole. Returns NULL if any argument is NULL{@code} or the path does not
-     * match a value.
+     * <p>When a path is provided, the count applies to the value found at that path rather than the
+     * document as a whole. Returns {@code NULL} if any argument is {@code NULL} or the path does
+     * not locate a value.
      */
-
     public OutType jsonLength() {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
     }

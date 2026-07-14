@@ -165,4 +165,39 @@ class JsonParseReuseTest {
                 .as("JSON_VALUE calls on different inputs should parse separately")
                 .isEqualTo(2);
     }
+
+    @Test
+    void testTwoJsonLengthCalls() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_LENGTH(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, 1), Row.of(4, 1));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Two JSON_LENGTH calls on the same input should parse once")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testJsonLengthAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_VALUE(json_data, '$.type') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, "account"), Row.of(4, "admin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_VALUE on the same input should parse once")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testJsonLengthAndJsonQueryMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(4, "{\"city\":\"Munich\"}"), Row.of(4, "{\"city\":\"Berlin\"}"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_QUERY on the same input should parse once")
+                .isEqualTo(1);
+    }
 }

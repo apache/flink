@@ -2267,12 +2267,7 @@ class Expression(Generic[T]):
             - Nested arrays/objects are not counted recursively.
             - Returns None if the value is None.
         """
-
-
         return _unary_op("jsonLength")(self) if path is None else _binary_op("jsonLength")(self, path)
-
-
-
 
     # ---------------------------- value modification functions -----------------------------
 

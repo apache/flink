@@ -1772,6 +1772,32 @@ bitmapagg:
       `bitmap BITMAP`
       
       返回一个 `BIGINT`。
+  - sql: JSON_LENGTH(json_doc[, path])
+    table: jsonLength(jsonObject[, path])
+    description: |
+      返回一个 JSON 文档中的元素个数；如果提供了 path，则返回该路径下值的长度。
+      如果参数为 NULL 或 path 未定位到任何值，则返回 NULL。
+      例如：
+        -- 2
+        JSON_LENGTH('{1: "hello", 2: "bye bye"}')
+
+        -- 5
+        JSON_LENGTH('[1,2,3,4,5]')
+
+        -- 1
+        JSON_LENGTH('hello')
+
+        -- 1
+        JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
+
+
+      长度的确定方式如下：
+
+        - 标量值（数字、字符串、布尔值）：长度为 1。
+        - 数组：长度等于其元素个数。
+        - 对象：长度等于其键值对个数。
+
+      嵌套的数组和对象各自算作一个元素，其内部内容不计入长度。
 
 catalog:
   - sql: CURRENT_DATABASE()
