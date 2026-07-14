@@ -319,6 +319,7 @@ JSON functions
 
 .. autosummary::
     :toctree: api/
+
     Expression.is_json
     Expression.json_exists
     Expression.json_value

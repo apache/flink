@@ -49,6 +49,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -374,25 +375,75 @@ public class SqlJsonUtils {
         }
     }
 
-    public static Integer jsonLength(String input, String pathSpec) {
-        return jsonLength(jsonApiCommonSyntax(input, pathSpec));
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Integer jsonLength(final JsonValueContext parsedInput) {
+        if (parsedInput.hasException()) {
+            return null;
+        }
+        // Whole document: a top-level JSON null literal counts as a scalar (length 1).
+        return jsonLengthValue(parsedInput.obj);
     }
 
-    private static Integer jsonLength(JsonPathContext context) {
-        if (context.hasException()) {
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Integer jsonLength(final JsonValueContext parsedInput,final String pathSpec) {
+        if (parsedInput.hasException()) {
+            // invalid input JSON
             return null;
         }
-        final Object value = context.obj;
-        if (value == null) {
-            return null;
+        final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
+        final Object value = context.hasException() ? null : context.obj;
+
+        if (value instanceof LinkedList) {
+            final LinkedList<?> matched = (LinkedList<?>) value;
+            if (matched.size() != 1) {
+                if (context.mode == PathMode.STRICT || matched.isEmpty()) {
+                    return null;
+                }
+                return matched.size();
+            }
+            return jsonLengthValue(matched.get(0));
         }
+        if (context.hasException() || value == null) {
+            return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
+        }
+
+        return jsonLengthValue(value);
+    }
+
+    private static Integer jsonLengthValue(final Object value) {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
         }
         if (value instanceof Collection) {
             return ((Collection<?>) value).size();
         }
+        // Scalars, including a JSON null literal, have length 1.
         return 1;
+    }
+
+    /**
+     * Returns whether {@code pathSpec} matches at least one node in {@code json}, independent of
+     * whether the matched value is a JSON null literal. Uses {@link Option#AS_PATH_LIST} so the
+     * result is the list of matched canonical paths, which is empty iff the path does not exist.
+     */
+    private static boolean pathExists(Object json, String pathSpec) {
+        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
+        final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
+        try {
+            final List<String> matched =
+                    JsonPath.parse(
+                                    json,
+                                    Configuration.builder()
+                                            .options(
+                                                    Option.AS_PATH_LIST, Option.SUPPRESS_EXCEPTIONS)
+                                            .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                                            .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                                            .build())
+                            .read(pathStr);
+            return matched != null && !matched.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static Object json(String input) {

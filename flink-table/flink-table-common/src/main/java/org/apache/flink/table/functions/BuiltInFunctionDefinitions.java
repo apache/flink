@@ -3094,11 +3094,9 @@ public final class BuiltInFunctionDefinitions {
                                             and(
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                                     LITERAL))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.JsonLengthFunction")
+                    .outputTypeStrategy(explicit(DataTypes.INT().nullable()))
+                    .runtimeProvided()
                     .build();
-    // I need to complete this
     // --------------------------------------------------------------------------------------------
     // Variant functions
     // --------------------------------------------------------------------------------------------
