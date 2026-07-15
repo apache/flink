@@ -406,6 +406,9 @@ object FlinkStreamRuleSets {
     // Rewrites a join over a SNAPSHOT table function call into a dedicated
     // FlinkLogicalLateralSnapshotJoin for the LATERAL SNAPSHOT operator.
     LogicalJoinToLateralSnapshotJoinRule.INSTANCE,
+    // Rejects SNAPSHOT scans that survived the rewrite above, i.e. SNAPSHOT calls used outside a
+    // LATERAL context. Must run after LogicalJoinToLateralSnapshotJoinRule.
+    ForbidSnapshotOutsideLateralRule.INSTANCE,
     // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from the result (projection).
