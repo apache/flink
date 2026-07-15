@@ -952,7 +952,6 @@ json:
       '"abc"' IS JSON
       -- FALSE
       'abc' IS JSON
-      NULL IS JSON
 
       -- TRUE
       '1' IS JSON SCALAR
@@ -967,6 +966,12 @@ json:
       '{}' IS JSON ARRAY
       -- TRUE
       '{}' IS JSON OBJECT
+
+      -- NULL
+      NULL IS JSON
+      NULL IS JSON SCALAR
+      NULL IS JSON OBJECT
+      NULL IS JSON ARRAY
       ```
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])

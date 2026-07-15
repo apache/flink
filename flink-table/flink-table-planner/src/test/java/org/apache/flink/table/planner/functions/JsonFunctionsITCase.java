@@ -316,59 +316,97 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData((String) null)
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
+                        // IS [NOT] JSON follows SQL three-valued logic and returns NULL for a NULL
+                        // input, see FLINK-39943. This holds for every JSON type and for both the
+                        // IS JSON and IS NOT JSON forms.
+                        .testResult($("f0").isJson(), "f0 IS JSON", null, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE).not(),
+                                "f0 IS NOT JSON VALUE",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR),
+                                "f0 IS JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR).not(),
+                                "f0 IS NOT JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY), "f0 IS JSON ARRAY", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY).not(),
+                                "f0 IS NOT JSON ARRAY",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT).not(),
+                                "f0 IS NOT JSON OBJECT",
+                                null,
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("a")
                         .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", true, BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        // A non-nullable input yields a non-nullable BOOLEAN result.
+                        .onFieldsWithData("a")
+                        .andDataTypes(STRING().notNull())
                         .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("\"a\"")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 true,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 false,
-                                BOOLEAN().notNull()),
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("{}")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
-                                BOOLEAN().notNull()));
+                                BOOLEAN()));
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {
