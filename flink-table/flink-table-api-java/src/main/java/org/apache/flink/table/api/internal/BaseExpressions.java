@@ -2541,7 +2541,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>When a path is provided, the count applies to the value found at that path rather than the
      * document as a whole. Returns {@code NULL} if any argument is {@code NULL} or the path does
-     * not locate a value.
+     * not locate a value, or if the path given describes more than 1 path ie. using the "*" wildcard.
      */
     public OutType jsonLength() {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));

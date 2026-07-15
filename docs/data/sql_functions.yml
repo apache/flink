@@ -1712,10 +1712,7 @@ bitmapagg:
 
       Nested arrays and objects each count as a single element and their contents are not included in the count.
       
-      How STRICT mode defers to LAX mode:
-        - When using wildcard character: 
-            -STRICT mode will return null when more than 1 paths are found
-            -LAX mode will return the total number of elements in all of the potential paths
+      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL. 
 
 catalog:
   - sql: CURRENT_DATABASE()
