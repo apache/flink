@@ -158,6 +158,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -307,6 +308,16 @@ public final class TestValuesTableFactory
     public static void registerLocalRawResultsObserver(
             String tableName, BiConsumer<Integer, List<Row>> observer) {
         TestValuesRuntimeFunctions.registerLocalRawResultsObserver(tableName, observer);
+    }
+
+    /**
+     * Returns a future that completes once source {@code tableName} has emitted at least {@code
+     * targetCount} rows (cumulative across all subtasks). Useful for triggering a savepoint at a
+     * controlled point when the operator under test produces no output yet. For now only wired for
+     * the watermark-push-down {@code NewSource} runtime used by restore tests.
+     */
+    public static CompletableFuture<Void> awaitSourceEmitted(String tableName, int targetCount) {
+        return TestValuesRuntimeFunctions.awaitSourceEmitted(tableName, targetCount);
     }
 
     public static List<Watermark> getWatermarkOutput(String tableName) {
