@@ -35,7 +35,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class MetricsService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   public loadAllAvailableMetrics(jobId: string, vertexId: string): Observable<JobMetric[]> {
     return this.httpClient

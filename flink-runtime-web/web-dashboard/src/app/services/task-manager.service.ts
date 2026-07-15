@@ -39,7 +39,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class TaskManagerService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   loadManagers(): Observable<TaskManagersItem[]> {
     return this.httpClient.get<TaskManagerList>(`${this.configService.BASE_URL}/taskmanagers`).pipe(

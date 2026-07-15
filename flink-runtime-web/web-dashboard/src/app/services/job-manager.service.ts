@@ -38,7 +38,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class JobManagerService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   loadConfig(): Observable<ClusterConfiguration[]> {
     return this.httpClient.get<ClusterConfiguration[]>(`${this.configService.BASE_URL}/jobmanager/config`);

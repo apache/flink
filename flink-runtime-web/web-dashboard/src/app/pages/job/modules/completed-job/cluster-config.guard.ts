@@ -26,7 +26,10 @@ import { StatusService } from '@flink-runtime-web/services';
   providedIn: 'root'
 })
 export class ClusterConfigGuard {
-  constructor(private statusService: StatusService, private router: Router) {}
+  constructor(
+    private statusService: StatusService,
+    private router: Router
+  ) {}
 
   canActivate(
     route: ActivatedRouteSnapshot,
