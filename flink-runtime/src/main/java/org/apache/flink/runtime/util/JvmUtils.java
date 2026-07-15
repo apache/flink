@@ -40,14 +40,14 @@ public final class JvmUtils {
     private static final Logger LOG = LoggerFactory.getLogger(JvmUtils.class);
 
     /**
-     * Creates a thread dump of the current JVM.
-     *
-     * @return the thread dump of current JVM
+     * Creates a thread dump of the current JVM. See {@link
+     * java.lang.management.ThreadMXBean#dumpAllThreads(boolean, boolean)} for the semantics of the
+     * two flags.
      */
-    public static Collection<ThreadInfo> createThreadDump() {
+    public static Collection<ThreadInfo> createThreadDump(
+            boolean lockedMonitors, boolean lockedSynchronizers) {
         ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
-
-        return Arrays.asList(threadMxBean.dumpAllThreads(true, true));
+        return Arrays.asList(threadMxBean.dumpAllThreads(lockedMonitors, lockedSynchronizers));
     }
 
     /**

@@ -77,14 +77,16 @@ export class TaskManagerService {
       );
   }
 
-  loadThreadDump(taskManagerId: string): Observable<string> {
-    return this.httpClient
-      .get<TaskManagerThreadDump>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
-      .pipe(
-        map(taskManagerThreadDump => {
-          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-        })
-      );
+  loadThreadDump(taskManagerId: string, mode?: 'lite' | 'full'): Observable<string> {
+    let url = `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`;
+    if (mode) {
+      url += `?mode=${mode}`;
+    }
+    return this.httpClient.get<TaskManagerThreadDump>(url).pipe(
+      map(taskManagerThreadDump => {
+        return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+      })
+    );
   }
 
   loadLogs(taskManagerId: string): Observable<string> {

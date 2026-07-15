@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 
@@ -62,7 +63,7 @@ public class DispatcherThreadDumpOffloadTest extends AbstractDispatcherTest {
         final ThreadDumpInfo dump =
                 dispatcher
                         .getSelfGateway(DispatcherGateway.class)
-                        .requestThreadDump(TIMEOUT)
+                        .requestThreadDump(ThreadDumpMode.FULL, TIMEOUT)
                         .get(20, TimeUnit.SECONDS);
 
         assertThat(dump.getThreadInfos())
