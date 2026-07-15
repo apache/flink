@@ -25,3 +25,28 @@
     inset: 0;
   }
 }
+
+.thread-dump-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 32px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  // Inner <flink-addon-compact> is also position:absolute by default; neutralize
+  // it so it stacks naturally to the right of the mode selector inside this flex
+  // container.
+  flink-addon-compact {
+    position: static;
+    top: auto;
+    right: auto;
+  }
+}
+
+.thread-dump-mode-group {
+  .thread-dump-mode-warn {
+    margin-left: 4px;
+  }
+}
