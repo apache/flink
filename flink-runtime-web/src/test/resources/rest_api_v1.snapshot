@@ -1085,7 +1085,10 @@
       "pathParameters" : [ ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "mode",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "object",
@@ -5429,7 +5432,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "mode",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "object",

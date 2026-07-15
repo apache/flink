@@ -54,9 +54,11 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
         return new ThreadDumpInfo(threadInfos);
     }
 
-    public static ThreadDumpInfo dumpAndCreate(int stacktraceMaxDepth) {
+    /** Dumps all threads of the current JVM at the granularity indicated by {@code mode}. */
+    public static ThreadDumpInfo dumpAndCreate(int stacktraceMaxDepth, ThreadDumpMode mode) {
         return create(
-                JvmUtils.createThreadDump().stream()
+                JvmUtils.createThreadDump(mode.isLockedMonitors(), mode.isLockedSynchronizers())
+                        .stream()
                         .map(
                                 threadInfo ->
                                         ThreadDumpInfo.ThreadInfo.create(

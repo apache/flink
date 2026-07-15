@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo.ProfilingMode;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -257,13 +258,13 @@ public interface ResourceManagerGateway
     /**
      * Requests the thread dump from the given {@link TaskExecutor}.
      *
-     * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the thread
-     *     dump from
+     * @param taskManagerId identifies the {@link TaskExecutor} to dump
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the thread dump information
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, @RpcTimeout Duration timeout);
+            ResourceID taskManagerId, ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Requests the {@link TaskExecutorGateway}.

@@ -27,6 +27,12 @@
             <td>Whether processes should halt on fatal errors instead of performing a graceful shutdown. In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead to a JVM deadlock. See <a href="https://issues.apache.org/jira/browse/FLINK-16510">FLINK-16510</a> for details.</td>
         </tr>
         <tr>
+            <td><h5>cluster.thread-dump.default-mode</h5></td>
+            <td style="word-wrap: break-word;">"FULL"</td>
+            <td>String</td>
+            <td>Default granularity of the JobManager/TaskManager thread-dump REST endpoint when no explicit <code class="highlighter-rouge">mode</code> query parameter is supplied. Allowed values (case-insensitive): <code class="highlighter-rouge">LITE</code> (stack traces only, negligible JVM pause) and <code class="highlighter-rouge">FULL</code> (adds locked monitors and j.u.c. synchronizers, equivalent to jstack -l; pauses the JVM in a safepoint for a duration that scales with heap size and thread count -- seconds on large TaskManagers). The default is <code class="highlighter-rouge">FULL</code> to preserve historical behavior; operators of large clusters are strongly encouraged to switch to <code class="highlighter-rouge">LITE</code> to avoid heartbeat timeouts caused by long safepoint pauses.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
             <td style="word-wrap: break-word;">50</td>
             <td>Integer</td>

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -188,10 +189,12 @@ public interface RestfulGateway extends RpcGateway {
     /**
      * Requests the thread dump from the JobManager.
      *
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the thread dump information
      */
-    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Duration timeout);
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Triggers a checkpoint with the given savepoint directory as a target.

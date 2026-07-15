@@ -21,10 +21,13 @@ package org.apache.flink.runtime.rest.handler.cluster;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
+import org.apache.flink.runtime.rest.messages.ThreadDumpModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerThreadDumpMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -37,13 +40,16 @@ import java.util.concurrent.CompletableFuture;
 /** Rest handler which serves the thread dump info from the JobManager. */
 public class JobManagerThreadDumpHandler
         extends AbstractRestHandler<
-                RestfulGateway, EmptyRequestBody, ThreadDumpInfo, EmptyMessageParameters> {
+                RestfulGateway,
+                EmptyRequestBody,
+                ThreadDumpInfo,
+                JobManagerThreadDumpMessageParameters> {
 
     public JobManagerThreadDumpHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Duration timeout,
             Map<String, String> responseHeaders,
-            MessageHeaders<EmptyRequestBody, ThreadDumpInfo, EmptyMessageParameters>
+            MessageHeaders<EmptyRequestBody, ThreadDumpInfo, JobManagerThreadDumpMessageParameters>
                     messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
     }
@@ -52,6 +58,9 @@ public class JobManagerThreadDumpHandler
     protected CompletableFuture<ThreadDumpInfo> handleRequest(
             @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
-        return gateway.requestThreadDump(timeout);
+        final ThreadDumpMode mode =
+                HandlerRequestUtils.getQueryParameter(
+                        request, ThreadDumpModeQueryParameter.class, null);
+        return gateway.requestThreadDump(mode, timeout);
     }
 }

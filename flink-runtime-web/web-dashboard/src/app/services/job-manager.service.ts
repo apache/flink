@@ -82,8 +82,12 @@ export class JobManagerService {
       );
   }
 
-  loadThreadDump(): Observable<string> {
-    return this.httpClient.get<JobManagerThreadDump>(`${this.configService.BASE_URL}/jobmanager/thread-dump`).pipe(
+  loadThreadDump(mode?: 'lite' | 'full'): Observable<string> {
+    let url = `${this.configService.BASE_URL}/jobmanager/thread-dump`;
+    if (mode) {
+      url += `?mode=${mode}`;
+    }
+    return this.httpClient.get<JobManagerThreadDump>(url).pipe(
       map(JobManagerThreadDump => {
         return JobManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
       })
