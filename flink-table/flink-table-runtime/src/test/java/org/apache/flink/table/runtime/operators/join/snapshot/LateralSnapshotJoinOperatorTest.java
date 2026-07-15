@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_CHANGE_BUFFER_STATE_NAME;
@@ -491,7 +492,7 @@ class LateralSnapshotJoinOperatorTest {
             List<Long> emittedProbeIds =
                     h.getOutput().stream()
                             .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
-                            .toList();
+                            .collect(Collectors.toList());
             assertThat(emittedProbeIds).containsExactly(1L, 2L, 3L, 4L, 5L);
             JOINED_ASSERTOR.shouldEmitAll(
                     h,
@@ -536,7 +537,7 @@ class LateralSnapshotJoinOperatorTest {
             List<Long> emittedProbeIds =
                     h.getOutput().stream()
                             .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
-                            .toList();
+                            .collect(Collectors.toList());
             assertThat(emittedProbeIds).containsExactly(1L, 2L);
             JOINED_ASSERTOR.shouldEmitAll(
                     h, row(1L, "k1", "p1", "k1", "v1", 1L), row(2L, "k1", "p2", "k1", "v1", 1L));
@@ -1518,7 +1519,7 @@ class LateralSnapshotJoinOperatorTest {
             List<Long> emittedProbeIds =
                     h.getOutput().stream()
                             .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
-                            .toList();
+                            .collect(Collectors.toList());
             assertThat(emittedProbeIds).containsExactly(1L, 2L, 3L);
             JOINED_ASSERTOR.shouldEmitAll(
                     h,
@@ -1739,7 +1740,7 @@ class LateralSnapshotJoinOperatorTest {
             List<Long> emittedIds =
                     h.getOutput().stream()
                             .map(o -> ((RowData) ((StreamRecord<?>) o).getValue()).getLong(0))
-                            .toList();
+                            .collect(Collectors.toList());
             assertThat(emittedIds).containsExactly(1L, 2L);
             JOINED_ASSERTOR.shouldEmitAll(
                     h, row(1L, "k1", "p1", "k1", "v1", 1L), row(2L, "k1", "p2", "k1", "v1", 1L));
@@ -2048,7 +2049,7 @@ class LateralSnapshotJoinOperatorTest {
                 .getKeys(BUILD_TABLE_STATE_NAME, VoidNamespace.INSTANCE)
                 .map(r -> ((BinaryRowData) r).getString(0).toString())
                 .sorted()
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private static List<String> probeBufferKeys(
@@ -2059,7 +2060,7 @@ class LateralSnapshotJoinOperatorTest {
                 .getKeys(PROBE_BUFFER_STATE_NAME, VoidNamespace.INSTANCE)
                 .map(r -> ((BinaryRowData) r).getString(0).toString())
                 .sorted()
-                .toList();
+                .collect(Collectors.toList());
     }
 
     /**
@@ -2156,7 +2157,10 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     private static List<Watermark> extractWatermarks(ConcurrentLinkedQueue<Object> output) {
-        return output.stream().filter(o -> o instanceof Watermark).map(w -> (Watermark) w).toList();
+        return output.stream()
+                .filter(o -> o instanceof Watermark)
+                .map(w -> (Watermark) w)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -2180,6 +2184,6 @@ class LateralSnapshotJoinOperatorTest {
         return output.stream()
                 .filter(o -> o instanceof WatermarkStatus)
                 .map(w -> (WatermarkStatus) w)
-                .toList();
+                .collect(Collectors.toList());
     }
 }
