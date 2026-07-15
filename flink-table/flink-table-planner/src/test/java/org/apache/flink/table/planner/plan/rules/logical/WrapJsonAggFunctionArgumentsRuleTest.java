@@ -24,27 +24,35 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 /** Tests for {@link WrapJsonAggFunctionArgumentsRule}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
 
     private final boolean batchMode;
+    private final boolean isGroupWindowAgg;
     private TableTestUtil util;
 
-    @Parameters(name = "batchMode = {0}")
-    private static Collection<Boolean> data() {
-        return Arrays.asList(true, false);
+    @Parameters(name = "batchMode = {0}, isGroupWindowAgg = {1}")
+    private static List<Boolean[]> data() {
+        return Arrays.asList(
+                new Boolean[] {true, false},
+                new Boolean[] {true, true},
+                new Boolean[] {false, false},
+                new Boolean[] {false, true});
     }
 
-    WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode) {
+    WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode, boolean isGroupWindowAgg) {
         this.batchMode = batchMode;
+        this.isGroupWindowAgg = isGroupWindowAgg;
     }
 
     @BeforeEach
@@ -67,70 +75,89 @@ class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
                                 + batchMode
                                 + "'\n)");
 
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE T1(\n"
-                                + " f0 INTEGER,\n"
-                                + " f1 VARCHAR,\n"
-                                + " f2 BIGINT\n"
-                                + ") WITH (\n"
-                                + " 'connector' = 'values'\n"
-                                + " ,'bounded' = '"
-                                + batchMode
-                                + "'\n)");
+        if (isGroupWindowAgg) {
+            util.tableEnv()
+                    .executeSql(
+                            "ALTER TABLE T add (rt TIMESTAMP(3), WATERMARK FOR rt as rt - interval '1' second)");
+        }
     }
 
     @TestTemplate
     void testJsonObjectAgg() {
-        util.verifyRelPlan("SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T");
+        util.verifyRelPlan(renderAggregateSQL("JSON_OBJECTAGG(f1 VALUE f1)"));
     }
 
     @TestTemplate
     void testJsonObjectAggInGroupWindow() {
-        util.verifyRelPlan("SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0");
+        util.verifyRelPlan(renderAggregateSQL("f0, JSON_OBJECTAGG(f1 VALUE f0)", "f0"));
     }
 
     @TestTemplate
     void testJsonArrayAgg() {
-        util.verifyRelPlan("SELECT JSON_ARRAYAGG(f0) FROM T");
+        util.verifyRelPlan(renderAggregateSQL("JSON_ARRAYAGG(f0)"));
     }
 
     @TestTemplate
     void testJsonArrayAggInGroupWindow() {
-        util.verifyRelPlan("SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0");
+        util.verifyRelPlan(renderAggregateSQL("f0, JSON_ARRAYAGG(f0)", "f0"));
     }
 
     @TestTemplate
     void testJsonObjectAggWithOtherAggs() {
-        util.verifyRelPlan("SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T");
+        util.verifyRelPlan(renderAggregateSQL("COUNT(*), JSON_OBJECTAGG(f1 VALUE f1)"));
     }
 
     @TestTemplate
     void testGroupJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
-                "SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0");
+                renderAggregateSQL("f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2)", "f0"));
     }
 
     @TestTemplate
     void testJsonArrayAggWithOtherAggs() {
-        util.verifyRelPlan("SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T");
+        util.verifyRelPlan(renderAggregateSQL("COUNT(*), JSON_ARRAYAGG(f0)"));
     }
 
     @TestTemplate
     void testGroupJsonArrayAggInWithOtherAggs() {
-        util.verifyRelPlan("SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0");
+        util.verifyRelPlan(renderAggregateSQL("f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2)", "f0"));
     }
 
     @TestTemplate
     void testJsonArrayAggAndJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
-                "SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T");
+                renderAggregateSQL(
+                        "MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0)"));
     }
 
     @TestTemplate
     void testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
-                "SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2),"
-                        + " SUM(f2) FROM T GROUP BY f0");
+                renderAggregateSQL(
+                        "f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2),"
+                                + " SUM(f2)",
+                        "f0"));
+    }
+
+    @TestTemplate
+    void testJsonObjectAggWithWindowTVF() {
+        Assumptions.assumeTrue(isGroupWindowAgg);
+        util.verifyRelPlan(
+                "SELECT JSON_OBJECTAGG(f1 VALUE f1) "
+                        + "FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(rt), INTERVAL '5' SECOND))");
+    }
+
+    private String renderAggregateSQL(String projects, String... groupKeys) {
+        List<String> newGroupKeys = new ArrayList<>(Arrays.asList(groupKeys));
+        if (isGroupWindowAgg) {
+            newGroupKeys.add("TUMBLE(rt, INTERVAL '5' SECOND)");
+        }
+        String groupKeyStr;
+        if (newGroupKeys.isEmpty()) {
+            groupKeyStr = "";
+        } else {
+            groupKeyStr = " GROUP BY " + String.join(",", newGroupKeys);
+        }
+        return String.format("SELECT %s FROM T%s", projects, groupKeyStr);
     }
 }

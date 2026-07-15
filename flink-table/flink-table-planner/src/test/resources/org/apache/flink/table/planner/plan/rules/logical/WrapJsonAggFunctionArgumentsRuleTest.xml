@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -35,7 +35,30 @@ GroupAggregate(groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f4) AS
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true]">
+  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[$5])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $3)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($2)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($3)], EXPR$4=[SUM($3)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1], f2=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f5) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f4) AS EXPR$2, JSON_ARRAYAGG_ABSENT_ON_NULL($f5) AS EXPR$3, SUM(f2) AS EXPR$4])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, rt, f1, f2, JSON_STRING(f1) AS $f4, JSON_STRING(f2) AS $f5])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -55,7 +78,29 @@ SortAggregate(isMerge=[false], groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = false]">
+  <TestCase name="testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[$5])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $3)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($2)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($3)], EXPR$4=[SUM($3)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1], f2=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f5) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f4) AS EXPR$2, JSON_ARRAYAGG_ABSENT_ON_NULL($f5) AS EXPR$3, SUM(f2) AS EXPR$4])
++- Calc(select=[f0, rt, f1, f2, JSON_STRING(f1) AS $f4, JSON_STRING(f2) AS $f5])
+   +- Sort(orderBy=[f0 ASC, rt ASC])
+      +- Exchange(distribution=[hash[f0]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -75,7 +120,30 @@ GroupAggregate(groupBy=[f0], select=[f0, COUNT(*) AS EXPR$1, JSON_ARRAYAGG_ABSEN
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = true]">
+  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT()], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)], EXPR$3=[SUM($2)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f2=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, COUNT(*) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f3) AS EXPR$2, SUM(f2) AS EXPR$3])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, rt, f2, JSON_STRING(f0) AS $f3])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt, f2], metadata=[]]], fields=[f0, rt, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -96,7 +164,29 @@ SortAggregate(isMerge=[false], groupBy=[f0], select=[f0, COUNT(*) AS EXPR$1, JSO
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testGroupJsonArrayAggInWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT()], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)], EXPR$3=[SUM($2)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f2=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, COUNT(*) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f3) AS EXPR$2, SUM(f2) AS EXPR$3])
++- Calc(select=[f0, rt, f2, JSON_STRING(f0) AS $f3])
+   +- Sort(orderBy=[f0 ASC, rt ASC])
+      +- Exchange(distribution=[hash[f0]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt, f2], metadata=[]]], fields=[f0, rt, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -115,7 +205,30 @@ GroupAggregate(groupBy=[f0], select=[f0, COUNT(*) AS EXPR$1, JSON_OBJECTAGG_NULL
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = true]">
+  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT()], EXPR$2=[JSON_OBJECTAGG_NULL_ON_NULL($2, $0)], EXPR$3=[SUM($3)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1], f2=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, COUNT(*) AS EXPR$1, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f4) AS EXPR$2, SUM(f2) AS EXPR$3])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, rt, f1, f2, JSON_STRING(f0) AS $f4])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0]]>
     </Resource>
@@ -137,7 +250,31 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_COUNT(count1$0) AS
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testGroupJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT()], EXPR$2=[JSON_OBJECTAGG_NULL_ON_NULL($2, $0)], EXPR$3=[SUM($3)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1], f2=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, Final_COUNT(count1$0) AS EXPR$1, Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$2) AS EXPR$2, Final_SUM(sum$1) AS EXPR$3])
++- Sort(orderBy=[f0 ASC, assignedWindow$ ASC])
+   +- Exchange(distribution=[hash[f0]])
+      +- LocalSortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f4) AS EXPR$2, Partial_SUM(f2) AS sum$1])
+         +- Calc(select=[f0, rt, f1, f2, JSON_STRING(f0) AS $f4])
+            +- Sort(orderBy=[f0 ASC, rt ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -157,7 +294,30 @@ GroupAggregate(select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) A
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true]">
+  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $1)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($2)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0], f1=[$1])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f3) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f4) AS EXPR$2, JSON_ARRAYAGG_ABSENT_ON_NULL($f3) AS EXPR$3])
++- Exchange(distribution=[single])
+   +- Calc(select=[rt, f0, f1, JSON_STRING(f0) AS $f3, JSON_STRING(f1) AS $f4])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0, f1], metadata=[]]], fields=[rt, f0, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -177,7 +337,29 @@ SortAggregate(isMerge=[false], select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = false]">
+  <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $1)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($2)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0], f1=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f3) AS EXPR$1, JSON_ARRAYAGG_ABSENT_ON_NULL($f4) AS EXPR$2, JSON_ARRAYAGG_ABSENT_ON_NULL($f3) AS EXPR$3])
++- Calc(select=[rt, f0, f1, JSON_STRING(f0) AS $f3, JSON_STRING(f1) AS $f4])
+   +- Sort(orderBy=[rt ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0, f1], metadata=[]]], fields=[rt, f0, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0]]>
     </Resource>
@@ -197,7 +379,30 @@ GroupAggregate(groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EX
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = true]">
+  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$1])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, rt, JSON_STRING(f0) AS $f2])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt], metadata=[]]], fields=[f0, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0]]>
     </Resource>
@@ -218,7 +423,29 @@ SortAggregate(isMerge=[false], groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testJsonArrayAggInGroupWindow[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$1])
++- Calc(select=[f0, rt, JSON_STRING(f0) AS $f2])
+   +- Sort(orderBy=[f0 ASC, rt ASC])
+      +- Exchange(distribution=[hash[f0]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt], metadata=[]]], fields=[f0, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -238,7 +465,30 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = true]">
+  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- Calc(select=[rt, f0, JSON_STRING(f0) AS $f2])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0], metadata=[]]], fields=[rt, f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -258,7 +508,29 @@ SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAgg[batchMode = false]">
+  <TestCase name="testJsonArrayAggWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$1])
++- Calc(select=[rt, f0, JSON_STRING(f0) AS $f2])
+   +- Sort(orderBy=[rt ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0], metadata=[]]], fields=[rt, f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAgg[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -278,7 +550,30 @@ GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAgg[batchMode = true]">
+  <TestCase name="testJsonArrayAgg[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[rt, f0, JSON_STRING(f0) AS $f2])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0], metadata=[]]], fields=[rt, f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAgg[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
@@ -298,7 +593,29 @@ SortAggregate(isMerge=[false], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = false]">
+  <TestCase name="testJsonArrayAgg[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f0=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f2) AS EXPR$0])
++- Calc(select=[rt, f0, JSON_STRING(f0) AS $f2])
+   +- Sort(orderBy=[rt ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f0], metadata=[]]], fields=[rt, f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0]]>
     </Resource>
@@ -318,7 +635,30 @@ GroupAggregate(groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = true]">
+  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $0)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f3) AS EXPR$1])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, rt, f1, JSON_STRING(f0) AS $f3])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt, f1], metadata=[]]], fields=[f0, rt, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0]]>
     </Resource>
@@ -341,7 +681,31 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_JSON_OBJECTAGG_NUL
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testJsonObjectAggInGroupWindow[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0,TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], EXPR$1=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($2, $0)])
+   +- LogicalProject(f0=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$1) AS EXPR$1])
++- Sort(orderBy=[f0 ASC, assignedWindow$ ASC])
+   +- Exchange(distribution=[hash[f0]])
+      +- LocalSortWindowAggregate(groupBy=[f0], window=[TumblingGroupWindow('w$, rt, 5000)], select=[f0, Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f3) AS EXPR$1])
+         +- Calc(select=[f0, rt, f1, JSON_STRING(f0) AS $f3])
+            +- Sort(orderBy=[f0 ASC, rt ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0, rt, f1], metadata=[]]], fields=[f0, rt, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
     </Resource>
@@ -361,7 +725,30 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1)
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = true]">
+  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
     </Resource>
@@ -382,7 +769,80 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSO
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAgg[batchMode = false]">
+  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$1) AS EXPR$1])
++- Sort(orderBy=[assignedWindow$ ASC])
+   +- Exchange(distribution=[single])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$1])
+         +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
+            +- Sort(orderBy=[rt ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggWithWindowTVF[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(rt), INTERVAL '5' SECOND))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
++- LogicalProject(f1=[$1])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 5000:INTERVAL SECOND)], rowType=[RecordType(INTEGER f0, VARCHAR(2147483647) f1, BIGINT f2, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      +- LogicalProject(f0=[$0], f1=[$1], f2=[$2], rt=[$3])
+         +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[5 s])])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1, rt], metadata=[]]], fields=[f1, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggWithWindowTVF[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(rt), INTERVAL '5' SECOND))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
++- LogicalProject(f1=[$1])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 5000:INTERVAL SECOND)], rowType=[RecordType(INTEGER f0, VARCHAR(2147483647) f1, BIGINT f2, TIMESTAMP(3) rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalProject(f0=[$0], f1=[$1], f2=[$2], rt=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+      +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[5 s])])
+            +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1, rt], metadata=[]]], fields=[f1, rt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAgg[batchMode = false, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
     </Resource>
@@ -402,7 +862,30 @@ GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAgg[batchMode = true]">
+  <TestCase name="testJsonObjectAgg[batchMode = false, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($1, $1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAgg[batchMode = true, isGroupWindowAgg = false]">
     <Resource name="sql">
       <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
     </Resource>
@@ -420,6 +903,30 @@ SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) 
    +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
       +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
          +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAgg[batchMode = true, isGroupWindowAgg = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T GROUP BY TUMBLE(rt, INTERVAL '5' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($1, $1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], f1=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
++- Sort(orderBy=[assignedWindow$ ASC])
+   +- Exchange(distribution=[single])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$0])
+         +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
+            +- Sort(orderBy=[rt ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
 ]]>
     </Resource>
   </TestCase>

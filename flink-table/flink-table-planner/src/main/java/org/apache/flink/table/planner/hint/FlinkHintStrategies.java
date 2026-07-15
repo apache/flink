@@ -82,7 +82,9 @@ public abstract class FlinkHintStrategies {
                 .hintStrategy(
                         FlinkHints.HINT_NAME_JSON_AGGREGATE_WRAPPED,
                         HintStrategy.builder(HintPredicates.AGGREGATE)
-                                .excludedRules(WrapJsonAggFunctionArgumentsRule.INSTANCE)
+                                .excludedRules(
+                                        WrapJsonAggFunctionArgumentsRule.AGGREGATE_INSTANCE,
+                                        WrapJsonAggFunctionArgumentsRule.WINDOW_AGGREGATE_INSTANCE)
                                 .build())
                 // internal query hint used for alias
                 .hintStrategy(

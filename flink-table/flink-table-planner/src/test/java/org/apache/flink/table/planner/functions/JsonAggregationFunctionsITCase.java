@@ -22,6 +22,7 @@ import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Stream;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.jsonArrayAgg;
@@ -240,6 +242,102 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 ROW(INT(), STRING(), STRING().notNull()),
                                 Arrays.asList(
                                         Row.of(1, "A", "[\"A\"]"),
-                                        Row.of(2, "D", "[\"C\",\"D\"]"))));
+                                        Row.of(2, "D", "[\"C\",\"D\"]"))),
+
+                // JSON_OBJECTAGG - Window (group window) Aggregation
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("Window Aggregation")
+                        .withSource(
+                                ROW(STRING(), INT(), TIMESTAMP(3)),
+                                Arrays.asList(
+                                        Row.ofKind(
+                                                INSERT,
+                                                "A",
+                                                1,
+                                                LocalDateTime.parse("2020-01-01T00:00:01")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                "B",
+                                                2,
+                                                LocalDateTime.parse("2020-01-01T00:00:02")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                "C",
+                                                3,
+                                                LocalDateTime.parse("2020-01-01T00:00:06"))))
+                        .withWatermark("f2", "f2 - INTERVAL '1' SECOND")
+                        .testSqlResult(
+                                source ->
+                                        "SELECT JSON_OBJECTAGG(f0 VALUE f1) FROM "
+                                                + source
+                                                + " GROUP BY TUMBLE(f2, INTERVAL '5' SECOND)",
+                                ROW(VARCHAR(2000).notNull()),
+                                Arrays.asList(Row.of("{\"A\":1,\"B\":2}"), Row.of("{\"C\":3}"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("Window Group Aggregation With Other Aggs")
+                        .withSource(
+                                ROW(INT(), STRING(), INT(), TIMESTAMP(3)),
+                                Arrays.asList(
+                                        Row.ofKind(
+                                                INSERT,
+                                                1,
+                                                "A",
+                                                1,
+                                                LocalDateTime.parse("2020-01-01T00:00:01")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                1,
+                                                "B",
+                                                3,
+                                                LocalDateTime.parse("2020-01-01T00:00:02")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                2,
+                                                "A",
+                                                2,
+                                                LocalDateTime.parse("2020-01-01T00:00:06")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                2,
+                                                "C",
+                                                5,
+                                                LocalDateTime.parse("2020-01-01T00:00:07"))))
+                        .withWatermark("f3", "f3 - INTERVAL '1' SECOND")
+                        .testSqlResult(
+                                source ->
+                                        "SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), max(f2) FROM "
+                                                + source
+                                                + " GROUP BY f0, TUMBLE(f3, INTERVAL '5' SECOND)",
+                                ROW(INT(), VARCHAR(2000).notNull(), INT()),
+                                Arrays.asList(
+                                        Row.of(1, "{\"A\":1,\"B\":3}", 3),
+                                        Row.of(2, "{\"A\":2,\"C\":5}", 5))),
+
+                // JSON_ARRAYAGG - Window (group window) Aggregation
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Window Aggregation")
+                        .withSource(
+                                ROW(STRING(), TIMESTAMP(3)),
+                                Arrays.asList(
+                                        Row.ofKind(
+                                                INSERT,
+                                                "A",
+                                                LocalDateTime.parse("2020-01-01T00:00:01")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                "B",
+                                                LocalDateTime.parse("2020-01-01T00:00:02")),
+                                        Row.ofKind(
+                                                INSERT,
+                                                "C",
+                                                LocalDateTime.parse("2020-01-01T00:00:06"))))
+                        .withWatermark("f1", "f1 - INTERVAL '1' SECOND")
+                        .testSqlResult(
+                                source ->
+                                        "SELECT JSON_ARRAYAGG(f0) FROM "
+                                                + source
+                                                + " GROUP BY TUMBLE(f1, INTERVAL '5' SECOND)",
+                                ROW(VARCHAR(2000).notNull()),
+                                Arrays.asList(Row.of("[\"A\",\"B\"]"), Row.of("[\"C\"]"))));
     }
 }

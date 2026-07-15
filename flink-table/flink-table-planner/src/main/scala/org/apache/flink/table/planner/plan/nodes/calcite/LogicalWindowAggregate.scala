@@ -24,6 +24,7 @@ import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -31,12 +32,33 @@ import java.util
 final class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     child: RelNode,
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: util.List[NamedWindowProperty])
-  extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties) {
+  extends WindowAggregate(
+    cluster,
+    traitSet,
+    hints,
+    child,
+    groupSet,
+    aggCalls,
+    window,
+    namedProperties) {
+
+  override def withHints(hintList: util.List[RelHint]): RelNode = {
+    new LogicalWindowAggregate(
+      cluster,
+      traitSet,
+      hintList,
+      input,
+      getGroupSet,
+      aggCalls,
+      window,
+      namedProperties)
+  }
 
   override def copy(
       traitSet: RelTraitSet,
@@ -47,6 +69,7 @@ final class LogicalWindowAggregate(
     new LogicalWindowAggregate(
       cluster,
       traitSet,
+      getHints,
       input,
       groupSet,
       aggCalls,
@@ -58,6 +81,7 @@ final class LogicalWindowAggregate(
     new LogicalWindowAggregate(
       cluster,
       traitSet,
+      getHints,
       input,
       getGroupSet,
       aggCalls,
@@ -76,6 +100,7 @@ final class LogicalWindowAggregate(
     new LogicalWindowAggregate(
       cluster,
       traitSet,
+      getHints,
       input,
       groupSet,
       aggCalls,
@@ -97,6 +122,7 @@ object LogicalWindowAggregate {
     new LogicalWindowAggregate(
       cluster,
       traitSet,
+      agg.getHints,
       agg.getInput,
       agg.getGroupSet,
       agg.getAggCallList,
