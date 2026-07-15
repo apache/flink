@@ -79,17 +79,18 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
                         () -> {
                             try (CheckpointMetadataOutputStream out =
                                     targetLocation.createMetadataOutputStream()) {
-                                // Must stay on the variant WITHOUT the exclusive directory. Files
-                                // retained from an existing savepoint are copied into this
-                                // directory by FileCopyFunction, but their handles still reference
-                                // the source savepoint. Writing without the exclusive directory
-                                // keeps the relative (file-name-only) encoding, which resolves
-                                // against this directory on restore and keeps the savepoint
-                                // self-contained. The exclusive-dir-aware
-                                // Checkpoints.storeCheckpointMetadata would instead fill this
-                                // savepoint's metadata with absolute paths pointing into the
-                                // source savepoint, breaking this savepoint once the source is
-                                // deleted.
+                                // Must use the WITHOUT-exclusive-directory method.
+                                // The State Processor API guarantees that
+                                // every file referenced by this _metadata physically lives in
+                                // the new savepoint folder:
+                                // 1. FileCopyFunction copies carried-over operators' files into it.
+                                // 2. New operators write their files directly into it.
+                                // So relative, filename-only encoding resolves to a local file on
+                                // restore, and the savepoint stays self-contained.
+                                // The exclusive-dir-aware Checkpoints.storeCheckpointMetadata
+                                // would instead persist carried-over handles' absolute paths
+                                // that point to the source savepoint,
+                                // breaking this savepoint once the source is deleted.
                                 Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(
                                         metadata, out);
                                 CompletedCheckpointStorageLocation finalizedLocation =
