@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.Versioned;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 
 import javax.annotation.Nullable;
 
@@ -49,13 +50,11 @@ public interface MetadataSerializer extends Versioned {
             throws IOException;
 
     /**
-     * Serializes a savepoint or checkpoint metadata to an output stream without knowledge of the
-     * exclusive directory the metadata is written into.
-     *
-     * <p>This is a convenience variant of {@link #serialize(CheckpointMetadata, DataOutputStream,
-     * Path)} with a {@code null} exclusive directory: relative file references keep the relative
-     * encoding unconditionally and are resolved against whatever directory the metadata is later
-     * read from, which is only correct if every referenced file actually lives in that directory.
+     * Convenience variant of {@link #serialize(CheckpointMetadata, DataOutputStream, Path)} with a
+     * {@code null} exclusive directory: every relative file reference is kept relative,
+     * unconditionally, and is resolved against whatever directory the metadata is later read from.
+     * Only correct if every referenced file ends up in that directory; see {@link
+     * Checkpoints#storeCheckpointMetadataWithoutExclusiveDir} for the use case.
      *
      * @throws IOException Serialization failures are forwarded
      */
@@ -65,21 +64,22 @@ public interface MetadataSerializer extends Versioned {
     }
 
     /**
-     * Serializes a savepoint or checkpoint metadata to an output stream, knowing the exclusive
-     * directory into which the metadata (and the checkpoint/savepoint it describes) is being
-     * written.
+     * Serializes a savepoint or checkpoint metadata to an output stream.
      *
-     * <p>The exclusive directory is used to keep the on-disk references self-consistent: a relative
-     * file handle that does not belong to {@code exclusiveDirPath} (e.g. a savepoint SST reused by
-     * the first incremental checkpoint after a CLAIM-mode restore) is persisted with its absolute
-     * path instead of being (incorrectly) resolved against {@code exclusiveDirPath} on recovery.
+     * <p>Implementations check every relative file reference against {@code exclusiveDirPath}:
+     * references to files inside that directory keep the relative encoding, references to files
+     * anywhere else (e.g. a savepoint SST reused by the first incremental checkpoint after a
+     * CLAIM-mode restore) are persisted with their absolute path, because the relative form would
+     * be resolved against the wrong directory on recovery. See {@link Checkpoints} for what the
+     * exclusive directory is.
      *
      * <p>This is the method implementations must provide (rather than a default dropping the
      * exclusive directory), so that a serializer cannot silently lose the exclusive-directory
      * information.
      *
-     * @param exclusiveDirPath the exclusive directory of the checkpoint/savepoint being written, or
-     *     {@code null} if it is unknown.
+     * @param exclusiveDirPath the directory that will contain the metadata file (the checkpoint's
+     *     exclusive directory), or {@code null} to keep every relative reference relative
+     *     regardless of where its file lives
      * @throws IOException Serialization failures are forwarded
      */
     void serialize(
