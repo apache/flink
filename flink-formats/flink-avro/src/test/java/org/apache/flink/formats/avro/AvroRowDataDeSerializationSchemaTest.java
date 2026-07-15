@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -229,6 +230,97 @@ class AvroRowDataDeSerializationSchemaTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Failed to serialize row.")
                 .hasStackTraceContaining("Fail to serialize at field: f1");
+    }
+
+    @Test
+    void testDeserializeWithNonZeroStartingProjection() throws Exception {
+        final DataType physicalDataType =
+                ROW(
+                                FIELD("user_id", BIGINT()),
+                                FIELD("name", STRING()),
+                                FIELD("event_id", BIGINT()),
+                                FIELD("payload", STRING().notNull()))
+                        .notNull();
+        final Schema schema =
+                AvroSchemaConverter.convertToSchema(physicalDataType.getLogicalType());
+
+        final GenericRecord record = new GenericData.Record(schema);
+        record.put(0, 3L);
+        record.put(1, "name 3");
+        record.put(2, 102L);
+        record.put(3, "payload 3");
+        final byte[] input = writeRecord(record, schema);
+
+        // projection does not start at 0: reads only {name, event_id}
+        final RowData rowData =
+                createProjectedDeserializationSchema(physicalDataType, new int[][] {{1}, {2}})
+                        .deserialize(input);
+
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getString(0).toString()).isEqualTo("name 3");
+        assertThat(rowData.getLong(1)).isEqualTo(102L);
+    }
+
+    @Test
+    void testDeserializeProjectionWithNestedRow() throws Exception {
+        final DataType physicalDataType =
+                ROW(
+                                FIELD("id", BIGINT()),
+                                FIELD("name", STRING()),
+                                FIELD(
+                                        "nested",
+                                        ROW(FIELD("a", INT().notNull()), FIELD("b", STRING()))
+                                                .notNull()))
+                        .notNull();
+        final Schema schema =
+                AvroSchemaConverter.convertToSchema(physicalDataType.getLogicalType());
+
+        final GenericRecord nested =
+                new GenericData.Record(schema.getField("nested").schema());
+        nested.put(0, 7);
+        nested.put(1, "inner");
+        final GenericRecord record = new GenericData.Record(schema);
+        record.put(0, 1L);
+        record.put(1, "outer");
+        record.put(2, nested);
+        final byte[] input = writeRecord(record, schema);
+
+        // project {name, nested}, i.e. a non-zero starting projection including a nested row
+        final RowData rowData =
+                createProjectedDeserializationSchema(physicalDataType, new int[][] {{1}, {2}})
+                        .deserialize(input);
+
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getString(0).toString()).isEqualTo("outer");
+        final RowData nestedOut = rowData.getRow(1, 2);
+        assertThat(nestedOut.getInt(0)).isEqualTo(7);
+        assertThat(nestedOut.getString(1).toString()).isEqualTo("inner");
+    }
+
+    private static byte[] writeRecord(GenericRecord record, Schema schema) throws Exception {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        final GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
+        final Encoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        return out.toByteArray();
+    }
+
+    private AvroRowDataDeserializationSchema createProjectedDeserializationSchema(
+            DataType physicalDataType, int[][] projections) throws Exception {
+        final DataType producedDataType = Projection.of(projections).project(physicalDataType);
+        final RowType producedRowType = (RowType) producedDataType.getLogicalType();
+        final RowType physicalRowType = (RowType) physicalDataType.getLogicalType();
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        AvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(producedRowType),
+                                AvroSchemaConverter.convertToSchema(physicalRowType)),
+                        AvroToRowDataConverters.createRowConverter(producedRowType),
+                        InternalTypeInfo.of(producedRowType));
+        deserializationSchema.open(null);
+        return deserializationSchema;
     }
 
     private AvroRowDataSerializationSchema createSerializationSchema(DataType dataType)
