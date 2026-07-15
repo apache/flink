@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -72,11 +73,22 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
                     int[][] projections) {
                 final DataType producedDataType =
                         Projection.of(projections).project(physicalDataType);
-                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final RowType producedRowType = (RowType) producedDataType.getLogicalType();
+                final RowType physicalRowType = (RowType) physicalDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        rowType, rowDataTypeInfo, encoding, legacyTimestampMapping);
+                        AvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(
+                                        producedRowType, legacyTimestampMapping),
+                                producedRowType.equals(physicalRowType)
+                                        ? null
+                                        : AvroSchemaConverter.convertToSchema(
+                                                physicalRowType, legacyTimestampMapping),
+                                encoding),
+                        AvroToRowDataConverters.createRowConverter(
+                                producedRowType, legacyTimestampMapping),
+                        rowDataTypeInfo);
             }
 
             @Override
