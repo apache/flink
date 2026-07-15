@@ -275,8 +275,7 @@ class AvroRowDataDeSerializationSchemaTest {
         final Schema schema =
                 AvroSchemaConverter.convertToSchema(physicalDataType.getLogicalType());
 
-        final GenericRecord nested =
-                new GenericData.Record(schema.getField("nested").schema());
+        final GenericRecord nested = new GenericData.Record(schema.getField("nested").schema());
         nested.put(0, 7);
         nested.put(1, "inner");
         final GenericRecord record = new GenericData.Record(schema);
