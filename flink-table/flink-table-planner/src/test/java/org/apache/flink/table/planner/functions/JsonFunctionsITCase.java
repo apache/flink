@@ -182,25 +182,26 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f0, 'lax $.author.nope')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, 'strict $.author.nope')", null, INT().nullable())
 
-                // WILDCARDS matching MULTIPLE nodes -> LAX counts, STRICT returns NULL.
-                // This is the key place where LAX and STRICT diverge.
-                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'lax $.*')", 3, INT().nullable())
+                // WILDCARDS matching MULTIPLE nodes -> NULL in both modes.
+                // JSON_LENGTH is tolerant (like Calcite): a path that does not identify a single
+                // value has no defined length, so both LAX and STRICT return NULL (no throw).
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'lax $.*')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'strict $.*')", null, INT().nullable())
-                // default (no mode prefix) behaves like STRICT
+                // default (no mode prefix) parses as STRICT; result is the same either way
                 .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
-                // `$.author.*` -> name + address
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.*')", 2, INT().nullable())
+                // `$.author.*` -> name + address (multiple)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.*')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, 'strict $.author.*')", null, INT().nullable())
-                // `$.author.address.*` -> country + city
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.address.*')", 2, INT().nullable())
+                // `$.author.address.*` -> country + city (multiple)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.address.*')", null, INT().nullable())
                 .testSqlResult(
                         "JSON_LENGTH(f0, 'strict $.author.address.*')", null, INT().nullable())
-                // array wildcard `$.metadata.tags[*]` -> flink, streaming, json
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags[*]')", 3, INT().nullable())
+                // array wildcard `$.metadata.tags[*]` -> flink, streaming, json (multiple)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags[*]')", null, INT().nullable())
                 .testSqlResult(
                         "JSON_LENGTH(f0, 'strict $.metadata.tags[*]')", null, INT().nullable())
-                // deep-scan `$..name` -> author.name + references[0].name
-                .testSqlResult("JSON_LENGTH(f0, 'lax $..name')", 2, INT().nullable())
+                // deep-scan `$..name` -> author.name + references[0].name (multiple)
+                .testSqlResult("JSON_LENGTH(f0, 'lax $..name')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, 'strict $..name')", null, INT().nullable())
 
                 // WILDCARDS matching a SINGLE node -> unwrapped, so LAX and STRICT agree.
@@ -230,9 +231,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f10, 'strict $[*]')", null, INT().nullable())
 
                 // mode prefix is case-insensitive and tolerates extra whitespace
-                .testSqlResult("JSON_LENGTH(f0, 'LAX $.*')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'Lax $.*')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'lAx    $.metadata.tags[*]')", 3, INT().nullable())
+                // (the wildcard cases match multiple nodes -> NULL; the definite path -> its length)
+                .testSqlResult("JSON_LENGTH(f0, 'LAX $.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, 'Lax $.*')", null, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, 'lAx    $.metadata.tags[*]')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, 'STRICT $.*')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, 'sTrIcT $.metadata.tags')", 3, INT().nullable());
     }
