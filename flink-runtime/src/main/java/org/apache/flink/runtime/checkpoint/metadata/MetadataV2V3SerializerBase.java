@@ -338,11 +338,6 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static void serializeKeyedStateHandle(KeyedStateHandle stateHandle, DataOutputStream dos)
-            throws IOException {
-        serializeKeyedStateHandle(stateHandle, dos, null);
-    }
-
     static void serializeKeyedStateHandle(
             KeyedStateHandle stateHandle,
             DataOutputStream dos,
@@ -744,11 +739,6 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
     //  low-level state handles
     // ------------------------------------------------------------------------
-
-    static void serializeStreamStateHandle(StreamStateHandle stateHandle, DataOutputStream dos)
-            throws IOException {
-        serializeStreamStateHandle(stateHandle, dos, null);
-    }
 
     static void serializeStreamStateHandle(
             StreamStateHandle stateHandle,

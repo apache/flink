@@ -263,6 +263,10 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     // ------------------------------------------------------------------------
     //  exposed static methods for test cases
     //
+    //  These helpers (de)serialize standalone handles outside any checkpoint,
+    //  so there is no exclusive directory to check relative references
+    //  against: the (de)serialization context is always null.
+    //
     //  NOTE: The fact that certain tests directly call these lower level
     //        serialization methods is a problem, because that way the tests
     //        bypass the versioning scheme. Especially tests that test for
@@ -273,7 +277,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public static void serializeStreamStateHandle(
             StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        MetadataV2V3SerializerBase.serializeStreamStateHandle(stateHandle, dos);
+        MetadataV2V3SerializerBase.serializeStreamStateHandle(stateHandle, dos, null);
     }
 
     @VisibleForTesting

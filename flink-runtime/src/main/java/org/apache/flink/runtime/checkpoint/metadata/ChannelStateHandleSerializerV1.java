@@ -99,7 +99,9 @@ class ChannelStateHandleSerializerV1 implements ChannelStateHandleSerializer {
             dos.writeLong(offset);
         }
         dos.writeLong(handle.getStateSize());
-        serializeStreamStateHandle(handle.getDelegate(), dos);
+        // null context: channel state is always written into the current checkpoint's own
+        // exclusive directory, see MetadataV3Serializer#serializeSubtaskState.
+        serializeStreamStateHandle(handle.getDelegate(), dos, null);
     }
 
     static <Info, Handle extends AbstractChannelStateHandle<Info>>

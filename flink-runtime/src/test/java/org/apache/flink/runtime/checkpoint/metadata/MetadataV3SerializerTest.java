@@ -268,7 +268,8 @@ class MetadataV3SerializerTest {
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
             MetadataV2V3SerializerBase.serializeStreamStateHandle(
                     new KeyGroupsStateHandle(offsets, new ByteStreamStateHandle("test", data)),
-                    new DataOutputStream(out));
+                    new DataOutputStream(out),
+                    null);
             try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
                 StreamStateHandle handle =
                         MetadataV2V3SerializerBase.deserializeStreamStateHandle(
@@ -298,7 +299,8 @@ class MetadataV3SerializerTest {
     private void testSerializeChangelogStateBackendHandle(boolean fullSnapshot) throws IOException {
         ChangelogStateBackendHandle handle = createChangelogStateBackendHandle(fullSnapshot);
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-            MetadataV2V3SerializerBase.serializeKeyedStateHandle(handle, new DataOutputStream(out));
+            MetadataV2V3SerializerBase.serializeKeyedStateHandle(
+                    handle, new DataOutputStream(out), null);
             try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
                 KeyedStateHandle deserialized =
                         MetadataV2V3SerializerBase.deserializeKeyedStateHandle(
