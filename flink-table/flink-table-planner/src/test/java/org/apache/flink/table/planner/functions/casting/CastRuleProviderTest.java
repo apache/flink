@@ -28,13 +28,20 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,6 +55,7 @@ class CastRuleProviderTest {
                     .build();
     private static final LogicalType INT = INT().getLogicalType();
     private static final LogicalType TINYINT = TINYINT().getLogicalType();
+    private static final LogicalType VARIANT = VARIANT().getLogicalType();
     private static final LogicalType ROW =
             ROW(FIELD("a", INT()), FIELD("b", TINYINT().notNull())).getLogicalType();
     private static final LogicalType STRUCTURED =
@@ -107,5 +115,25 @@ class CastRuleProviderTest {
                 .isTrue();
         assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), STRING()).getLogicalType()))
                 .isFalse();
+    }
+
+    @Test
+    void testResolveVariantToPrimitive() {
+        assertThat(CastRuleProvider.resolve(VARIANT, INT))
+                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, BOOLEAN().getLogicalType()))
+                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.exists(VARIANT, DECIMAL(10, 2).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, DATE().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP_LTZ().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, BYTES().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.canFail(VARIANT, INT)).isTrue();
+
+        // TIME has no variant counterpart and is not castable
+        assertThat(CastRuleProvider.exists(VARIANT, TIME().getLogicalType())).isFalse();
+        // character strings keep going through the display-oriented rule
+        assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
+                .isSameAs(VariantToStringCastRule.INSTANCE);
     }
 }

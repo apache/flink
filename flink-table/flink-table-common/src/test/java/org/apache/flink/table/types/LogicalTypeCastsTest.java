@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
@@ -46,6 +47,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -57,6 +59,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -262,7 +265,37 @@ class LogicalTypeCastsTest {
                         new RawType<>(Integer.class, IntSerializer.INSTANCE),
                         VarCharType.STRING_TYPE,
                         false,
-                        true));
+                        true),
+
+                // variant to scalar is explicit only
+                Arguments.of(new VariantType(), new BooleanType(), false, true),
+                Arguments.of(new VariantType(), new TinyIntType(), false, true),
+                Arguments.of(new VariantType(), new IntType(), false, true),
+                Arguments.of(new VariantType(), new BigIntType(), false, true),
+                Arguments.of(new VariantType(), new DoubleType(), false, true),
+                Arguments.of(new VariantType(), new DecimalType(10, 2), false, true),
+                Arguments.of(new VariantType(), new DateType(), false, true),
+                Arguments.of(new VariantType(), new TimestampType(), false, true),
+                Arguments.of(new VariantType(), new TimestampType(3), false, true),
+                Arguments.of(new VariantType(), new LocalZonedTimestampType(), false, true),
+                Arguments.of(new VariantType(), new LocalZonedTimestampType(9), false, true),
+                Arguments.of(
+                        new VariantType(),
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH),
+                        false,
+                        true),
+                // variant identity cast is implicit
+                Arguments.of(new VariantType(), new VariantType(), true, true),
+                // TIME, character strings and constructed targets are not castable from variant
+                Arguments.of(new VariantType(), new TimeType(), false, false),
+                Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, false),
+                Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false),
+                Arguments.of(new VariantType(), new RowType(List.of()), false, false),
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(new IntType(), new CharType()),
+                        false,
+                        false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

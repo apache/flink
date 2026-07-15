@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
@@ -79,6 +80,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getDayPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFractionalPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
@@ -646,6 +648,9 @@ public final class LogicalTypeCasts {
             // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
             // would corrupt the serialized bitmap data.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
+        } else if (sourceRoot == VARIANT) {
+            // a VARIANT can only be explicitly cast to a supported scalar type
+            return allowExplicit && supportsVariantToScalarCast(targetType);
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {
@@ -724,6 +729,45 @@ public final class LogicalTypeCasts {
             return true;
         }
         return false;
+    }
+
+    private static boolean supportsVariantToScalarCast(LogicalType targetType) {
+        switch (targetType.getTypeRoot()) {
+            case BOOLEAN:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            case FLOAT:
+            case DOUBLE:
+            case DECIMAL:
+            case BINARY:
+            case VARBINARY:
+            case DATE:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return true;
+            default:
+                // TIME has no counterpart in the Variant type model. CHARACTER_STRING is handled by
+                // the display-oriented VariantToStringCastRule and is intentionally not offered as
+                // a
+                // user-facing cast here.
+                return false;
+        }
+    }
+
+    /**
+     * Returns a hint pointing to the function that performs a conceptually related operation when
+     * an explicit cast is unsupported, or empty when no specific hint applies.
+     */
+    public static Optional<String> getUnsupportedCastHint(
+            LogicalType sourceType, LogicalType targetType) {
+        if (sourceType.is(VARIANT) && targetType.is(CHARACTER_STRING)) {
+            return Optional.of(
+                    "Use the JSON_STRING function to convert a VARIANT to its JSON string "
+                            + "representation.");
+        }
+        return Optional.empty();
     }
 
     private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {
