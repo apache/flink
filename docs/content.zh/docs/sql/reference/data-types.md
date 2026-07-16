@@ -1086,7 +1086,7 @@ The type can be declared using the above combinations where `p1` is the number o
 and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
 specified, it is equal to `6` by default.
 
-### Constructured Data Types
+### Constructed Data Types
 
 #### `ARRAY`
 
@@ -1507,7 +1507,7 @@ close to the semantics of JSON. Compared to `ROW` and `STRUCTURED` type, `VARIAN
 flexibility to support highly nested and evolving schema.
 
 `VARIANT` allows for deeply nested data structures, such as arrays within arrays, maps within maps,
-or combinations of both.This capability makes `VARIANT` ideal for scenarios where data complexity
+or combinations of both. This capability makes `VARIANT` ideal for scenarios where data complexity
 and nesting are significant.
 
 `VARIANT` allows schema evolution, enabling the storage of data with changing or unknown schemas
@@ -1515,11 +1515,54 @@ without requiring upfront schema definition. For example, if a new field is adde
 can be directly incorporated into the `VARIANT` data without modifying the table schema. This is
 particularly useful in dynamic environments where schemas may evolve over time.
 
+A `VARIANT` stores a single value of one of the following kinds: `NULL`, `BOOLEAN`, `TINYINT`,
+`SMALLINT`, `INT`, `BIGINT`, `FLOAT`, `DOUBLE`, `DECIMAL` (up to precision 38), `STRING`, `DATE`,
+`TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or a nested array or object. `TIMESTAMP` and `TIMESTAMP_LTZ`
+are stored with microsecond precision and `DATE` as a day count. There is no `TIME` kind.
+
+The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
+
+| JSON input                                          | Stored `VARIANT` kind                           |
+|-----------------------------------------------------|-------------------------------------------------|
+| `null`                                              | `NULL`                                          |
+| `true` / `false`                                    | `BOOLEAN`                                       |
+| Integer within the 64-bit signed range              | smallest of `TINYINT`/`SMALLINT`/`INT`/`BIGINT` |
+| Integer beyond 64-bit, up to 38 significant digits  | `DECIMAL`                                       |
+| Decimal in plain notation, up to precision/scale 38 | `DECIMAL`                                       |
+| Number in scientific notation, e.g. `1.5e3`         | `DOUBLE`                                        |
+| Number exceeding 38 digits of precision or scale    | `DOUBLE`                                        |
+| String                                              | `STRING`                                        |
+| Array                                               | array (elements encoded by the same rules)      |
+| Object                                              | object (values encoded by the same rules)       |
+
+Because JSON has no literal for float, date, timestamp, or binary values, `PARSE_JSON` never
+produces `FLOAT`, `DATE`, `TIMESTAMP`, `TIMESTAMP_LTZ`, or `BYTES`. A `VARIANT` can still hold
+those kinds when built by other producers, such as the programmatic `VariantBuilder` API or format
+conversions like Avro.
+
+The JSON specification has no `NaN` or infinity literals, so `PARSE_JSON('NaN')`,
+`PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail, and `TRY_PARSE_JSON` returns `NULL`.
+A `VARIANT` has no dedicated kind for these values. To keep one, store it as a JSON string and cast
+it back out, for example `CAST(CAST(PARSE_JSON('"Infinity"') AS STRING) AS FLOAT)`.
+
 A primitive-valued `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. Numeric
-targets are lenient: a variant holding any numeric value casts to any numeric type, so a JSON integer
-such as `PARSE_JSON('42')` casts to `INT` or `BIGINT`. Other targets require the stored value to be of
-the matching kind. When the value cannot be converted, `CAST` fails the job and `TRY_CAST` returns
-`NULL`. Use the `JSON_STRING` function to obtain the JSON string representation of a `VARIANT`.
+targets accept any numeric value, so `PARSE_JSON('42')` casts to `INT`, `BIGINT`, or `DOUBLE`. A
+value outside an integer or `DECIMAL` target's range fails `CAST` and returns `NULL` for
+`TRY_CAST`. Other targets require the stored value to be of the matching kind, and a mismatch is
+handled the same way. Casting a `VARIANT` to `CHAR`/`VARCHAR` extracts the scalar value, so a
+stored string is returned unquoted (for example `foo`), while objects and arrays return their JSON
+representation. Use `JSON_STRING` for the JSON representation, where a string stays quoted (for
+example `"foo"`). Casting to `TIME` is not supported.
+
+{{< hint info >}}
+Unlike a regular numeric cast, casting a numeric `VARIANT` never wraps on overflow. To narrow a 
+`VARIANT` with wrap-around semantics, first cast it to a type that fits the stored value, then apply a 
+regular narrowing cast:
+
+```sql
+CAST(CAST(PARSE_JSON('1000') AS INT) AS TINYINT) -- returns -24 (wrap-around)
+```
+{{< /hint >}}
 
 **Declaration**
 
