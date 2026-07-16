@@ -22,7 +22,7 @@ export interface JobSubTaskTime {
   now: number;
   subtasks: Array<{
     subtask: number;
-    host: string;
+    endpoint: string;
     duration: number;
     timestamps: {
       CREATED: number;
