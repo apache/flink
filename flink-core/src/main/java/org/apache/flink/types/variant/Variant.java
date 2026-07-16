@@ -127,7 +127,7 @@ public interface Variant {
 
     /**
      * Get the scalar value of variant as LocalDateTime, if the variant type is {@link
-     * Type#TIMESTAMP}.
+     * Type#TIMESTAMP}. The returned value has microsecond precision.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
      *     Type#TIMESTAMP}.
@@ -135,10 +135,11 @@ public interface Variant {
     LocalDateTime getDateTime() throws VariantTypeException;
 
     /**
-     * Get the scalar value of variant as Instant, if the variant type is {@link Type#TIMESTAMP}.
+     * Get the scalar value of variant as Instant, if the variant type is {@link
+     * Type#TIMESTAMP_LTZ}. The returned value has microsecond precision.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP}.
+     *     Type#TIMESTAMP_LTZ}.
      */
     Instant getInstant() throws VariantTypeException;
 
