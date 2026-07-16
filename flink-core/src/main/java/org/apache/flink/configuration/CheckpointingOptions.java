@@ -583,6 +583,19 @@ public class CheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
+    public static final ConfigOption<Duration> CHECKPOINTING_SYNC_PHASE_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.sync-phase-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDescription(
+                            "A timeout for the synchronous phase of a checkpoint, after which a task cancellation is triggered."
+                                    + " If the task thread is merely slow, the task will restart and continue."
+                                    + " If a true thread blockage is encountered, (e.g. by a blocking native call), "
+                                    + " a fatal error will be thrown after the "
+                                    + TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key()
+                                    + "and trigger a TM restart to address the blockage."
+                                    + " Defaults to 0 (disabled).");
+
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()
