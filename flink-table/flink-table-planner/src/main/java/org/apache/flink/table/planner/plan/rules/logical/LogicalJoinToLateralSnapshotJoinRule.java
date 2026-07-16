@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLateralSnap
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.LateralSnapshotJoinUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.inference.strategies.LateralSnapshotTypeStrategy;
 
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -123,22 +124,27 @@ public class LogicalJoinToLateralSnapshotJoinRule
                     "Could not resolve the TABLE input of the SNAPSHOT scan on the build side of "
                             + "a LATERAL SNAPSHOT join. This is a bug, please file an issue.");
         }
-        // The build-side input must declare exactly one watermark, otherwise the operator cannot
-        // determine when the LOAD phase is complete.
-        final long rowtimeCount =
-                rawTableInput.getRowType().getFieldList().stream()
-                        .filter(f -> FlinkTypeFactory.isRowtimeIndicatorType(f.getType()))
-                        .count();
-        if (rowtimeCount == 0) {
-            throw new ValidationException(
-                    "LATERAL SNAPSHOT requires a watermark on the build-side input.");
-        }
-        if (rowtimeCount > 1) {
-            throw new ValidationException(
-                    String.format(
-                            "The build-side input of a LATERAL SNAPSHOT join must not have more than one "
-                                    + "row-time attribute, but found %d.",
-                            rowtimeCount));
+        // The build-side row-time attribute drives the streaming operator's LOAD phase. In batch
+        // all input is bounded and the join degrades to a regular join (see
+        // BatchPhysicalLateralSnapshotJoinRule), so no watermark is required.
+        if (!ShortcutUtils.unwrapContext(join).isBatchMode()) {
+            // The build-side input must declare exactly one watermark, otherwise the operator
+            // cannot determine when the LOAD phase is complete.
+            final long rowtimeCount =
+                    rawTableInput.getRowType().getFieldList().stream()
+                            .filter(f -> FlinkTypeFactory.isRowtimeIndicatorType(f.getType()))
+                            .count();
+            if (rowtimeCount == 0) {
+                throw new ValidationException(
+                        "LATERAL SNAPSHOT requires a watermark on the build-side input.");
+            }
+            if (rowtimeCount > 1) {
+                throw new ValidationException(
+                        String.format(
+                                "The build-side input of a LATERAL SNAPSHOT join must not have more than one "
+                                        + "row-time attribute, but found %d.",
+                                rowtimeCount));
+            }
         }
 
         // Replace the SNAPSHOT TableFunctionScan with its input, preserving any FlinkLogicalCalc
