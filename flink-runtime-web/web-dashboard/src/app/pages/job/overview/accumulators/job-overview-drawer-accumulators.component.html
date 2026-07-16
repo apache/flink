@@ -76,7 +76,7 @@
           <ng-container *ngIf="narrowSubTaskAccumulators(data) as subTaskAccumulator">
             <tr>
               <td nzLeft>
-                ({{ subTaskAccumulator['subtask'] }}) {{ subTaskAccumulator.host }}, attempt:
+                ({{ subTaskAccumulator['subtask'] }}) {{ subTaskAccumulator.endpoint }}, attempt:
                 {{ subTaskAccumulator.attempt + 1 }}
               </td>
               <td>{{ subTaskAccumulator.name }}</td>
