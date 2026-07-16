@@ -106,25 +106,37 @@ public class RecursiveMessageProtoToRowTest {
     }
 
     @Test
-    public void testProto3UnsetFieldReadsDefaultBytes() throws Exception {
-        // In proto3, the recursive field is treated as a primitive type (VARBINARY)
-        // by the codegen, so it always reads default values regardless of the
-        // readDefaultValues config. Both true and false produce the same result:
-        // empty bytes from .toByteArray() on the default message instance.
+    public void testProto3UnsetFieldIsNull() throws Exception {
+        // A recursive field is represented as VARBINARY (a "simple type") but is still a MESSAGE.
+        // With readDefaultValues=false an unset message field must be absent (null), not
+        // materialized as default bytes -- matching proto2 and non-recursive message fields. See
+        // FLINK-34620.
         RecursiveMessageTest message =
                 RecursiveMessageTest.newBuilder().setId(1).setName("leaf").build();
 
-        for (boolean readDefaults : new boolean[] {true, false}) {
-            RowData row = deserialize(PROTO3_CLASS, readDefaults, message.toByteArray());
-            assertNotNull(row);
-            assertEquals(1, row.getInt(0));
-            assertEquals("leaf", row.getString(1).toString());
-            byte[] parentBytes = row.getBinary(2);
-            assertNotNull("readDefaultValues=" + readDefaults, parentBytes);
-            RecursiveMessageTest parsed = RecursiveMessageTest.parseFrom(parentBytes);
-            assertEquals(0, parsed.getId());
-            assertEquals("", parsed.getName());
-        }
+        RowData row = deserialize(PROTO3_CLASS, false, message.toByteArray());
+        assertNotNull(row);
+        assertEquals(1, row.getInt(0));
+        assertEquals("leaf", row.getString(1).toString());
+        assertTrue("Proto3 unset recursive field should be null", row.isNullAt(2));
+    }
+
+    @Test
+    public void testProto3UnsetFieldWithReadDefaultValues() throws Exception {
+        // With readDefaultValues=true the unset recursive field is materialized as the default
+        // instance (empty message bytes) instead of null.
+        RecursiveMessageTest message =
+                RecursiveMessageTest.newBuilder().setId(1).setName("leaf").build();
+
+        RowData row = deserialize(PROTO3_CLASS, true, message.toByteArray());
+        assertNotNull(row);
+        assertEquals(1, row.getInt(0));
+        assertEquals("leaf", row.getString(1).toString());
+        byte[] parentBytes = row.getBinary(2);
+        assertNotNull(parentBytes);
+        RecursiveMessageTest parsed = RecursiveMessageTest.parseFrom(parentBytes);
+        assertEquals(0, parsed.getId());
+        assertEquals("", parsed.getName());
     }
 
     // --- proto2 deserialization ---
