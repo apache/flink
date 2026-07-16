@@ -58,7 +58,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class JobService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   /**
    * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the

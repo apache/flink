@@ -27,7 +27,10 @@ import { ApplicationService } from '@flink-runtime-web/services';
   providedIn: 'root'
 })
 export class RunningApplicationGuard implements CanActivate {
-  constructor(private readonly applicationService: ApplicationService, private router: Router) {}
+  constructor(
+    private readonly applicationService: ApplicationService,
+    private router: Router
+  ) {}
 
   canActivate(
     route: ActivatedRouteSnapshot,
