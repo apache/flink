@@ -18,23 +18,21 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.functions.casting.CastRuleUtils.CodeWriter;
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.ternaryOperator;
@@ -166,38 +164,35 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
     }
 
     /**
-     * Converts a numeric variant to the numeric {@code target} via the matching {@link Number}
-     * accessor, mirroring regular numeric cast semantics. A non-numeric variant raises {@link
-     * ClassCastException}, failing {@code CAST} and yielding {@code null} for {@code TRY_CAST}.
+     * Converts a numeric variant to the numeric {@code target}. Integer and decimal targets are
+     * range-checked so that an out-of-range value fails {@code CAST} and yields {@code null} for
+     * {@code TRY_CAST}, following Spark's variant cast semantics; {@code FLOAT} and {@code DOUBLE}
+     * keep lenient IEEE conversion (overflow becomes infinity). A non-numeric variant raises {@link
+     * ClassCastException}, which fails {@code CAST} and yields {@code null} for {@code TRY_CAST}.
      */
     private static String numericExpression(String inputTerm, LogicalType target) {
         final String number = cast(className(Number.class), methodCall(inputTerm, "get"));
-        if (!target.is(LogicalTypeRoot.DECIMAL)) {
-            return methodCall(number, numberAccessor(target));
-        }
-        final DecimalType decimalType = (DecimalType) target;
-        return staticCall(
-                DecimalData.class,
-                "fromBigDecimal",
-                constructorCall(BigDecimal.class, methodCall(number, "toString")),
-                decimalType.getPrecision(),
-                decimalType.getScale());
-    }
-
-    private static String numberAccessor(LogicalType target) {
         switch (target.getTypeRoot()) {
             case TINYINT:
-                return "byteValue";
+                return staticCall(VariantCastUtils.class, "toByteExact", number);
             case SMALLINT:
-                return "shortValue";
+                return staticCall(VariantCastUtils.class, "toShortExact", number);
             case INTEGER:
-                return "intValue";
+                return staticCall(VariantCastUtils.class, "toIntExact", number);
             case BIGINT:
-                return "longValue";
+                return staticCall(VariantCastUtils.class, "toLongExact", number);
             case FLOAT:
-                return "floatValue";
+                return methodCall(number, "floatValue");
             case DOUBLE:
-                return "doubleValue";
+                return methodCall(number, "doubleValue");
+            case DECIMAL:
+                final DecimalType decimalType = (DecimalType) target;
+                return staticCall(
+                        VariantCastUtils.class,
+                        "toDecimalExact",
+                        number,
+                        decimalType.getPrecision(),
+                        decimalType.getScale());
             default:
                 throw new IllegalArgumentException(
                         "Unsupported numeric target for casting from VARIANT: " + target);

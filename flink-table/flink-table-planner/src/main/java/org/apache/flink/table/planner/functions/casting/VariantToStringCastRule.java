@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.variant.Variant;
 
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
-/** {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+/**
+ * {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ *
+ * <p>Extracts the scalar value (a string stays unquoted); objects and arrays cast to JSON. Use
+ * {@code JSON_STRING} for the JSON representation.
+ */
 class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant> {
 
     static final VariantToStringCastRule INSTANCE = new VariantToStringCastRule();
@@ -45,6 +51,6 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return methodCall(inputTerm, "toString");
+        return staticCall(VariantCastUtils.class, "toStringValue", inputTerm);
     }
 }
