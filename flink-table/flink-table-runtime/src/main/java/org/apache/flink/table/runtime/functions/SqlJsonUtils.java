@@ -50,7 +50,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -398,14 +397,11 @@ public class SqlJsonUtils {
             return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
         }
 
-        if (value instanceof LinkedList) {
-            final LinkedList<?> matched = (LinkedList<?>) value;
-            if (matched.size() == 1) {
-                return jsonLengthValue(matched.get(0));
-            }
-
-            return null;
-
+        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
+        final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
+        if (!JsonPath.isPathDefinite(pathStr)) {
+            final List<?> matched = (List<?>) value;
+            return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
         }
 
         return jsonLengthValue(value);
