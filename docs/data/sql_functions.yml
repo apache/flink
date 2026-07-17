@@ -1218,6 +1218,34 @@ json:
       -- [{"nested_json":{"value":42}}]
       JSON_ARRAY(JSON('{"nested_json": {"value": 42}}'))
       ```
+  - sql: JSON_LENGTH(json_doc[, path])
+    table: jsonLength(jsonObject[, path])
+    description: |
+      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
+      Returns NULL if the argument is NULL or the path does not locate a value.
+      eg. 
+        -- 2
+        JSON_LENGTH('{1: "hello", 2: "bye bye"}')
+      
+        -- 5
+        JSON_LENGTH('[1,2,3,4,5]')
+      
+        -- 1
+        JSON_LENGTH('hello')
+      
+        -- 1
+        JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
+      
+      
+      The length is determined as follows:
+      
+        - Scalar values (number, string, boolean): has length 1.
+        - Array: has a length equal to the number of its elements.
+        - Object: has a length equal to the number of its key-value pairs.
+      
+      Nested arrays and objects each count as a single element and their contents are not included in the count.
+      
+      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL. 
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
@@ -1685,35 +1713,6 @@ bitmapagg:
       `bitmap BITMAP`
       
       Returns a `BIGINT`.
-  - sql: JSON_LENGTH(json_doc[, path])
-    table: jsonLength(jsonObject[, path])
-    description: |
-      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
-      Returns NULL if the argument is NULL or the path does not locate a value.
-      eg. 
-        JSON_LENGTH('{1: "hello", 2: "bye bye"}')
-        -- 2
-      
-        JSON_LENGTH('[1,2,3,4,5]')
-        -- 5
-      
-        JSON_LENGTH('hello')
-        -- 1
-      
-        JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
-        -- 1
-      
-      
-      The length is determined as follows:
-      
-        - Scalar values (number, string, boolean): has length 1.
-        - Array: has a length equal to the number of its elements.
-        - Object: has a length equal to the number of its key-value pairs.
-
-      Nested arrays and objects each count as a single element and their contents are not included in the count.
-      
-      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL. 
-
 catalog:
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
