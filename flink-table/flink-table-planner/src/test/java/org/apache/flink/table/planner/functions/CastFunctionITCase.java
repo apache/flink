@@ -1415,6 +1415,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(FLOAT())
                         .fromCase(DOUBLE(), -1.7976931348623157E308d, Float.NEGATIVE_INFINITY)
+                        .fromCase(STRING(), "NaN", Float.NaN)
+                        .fromCase(STRING(), "Infinity", Float.POSITIVE_INFINITY)
+                        .fromCase(STRING(), "-Infinity", Float.NEGATIVE_INFINITY)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(STRING(), "NaN", Double.NaN)
+                        .fromCase(STRING(), "Infinity", Double.POSITIVE_INFINITY)
+                        .fromCase(STRING(), "-Infinity", Double.NEGATIVE_INFINITY)
                         .build(),
                 CastTestSpecBuilder.testCastTo(DECIMAL(38, 0))
                         .fromCase(
