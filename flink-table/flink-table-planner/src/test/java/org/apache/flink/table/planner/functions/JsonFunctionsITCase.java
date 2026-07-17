@@ -121,8 +121,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 // (distinct from a missing path, which yields NULL)
                 .testSqlResult("JSON_LENGTH(f8, '$.a[2]')", 1, INT().nullable())
                 // contrast: missing paths on the same document -> NULL
-                .testSqlResult("JSON_LENGTH(f8, 'lax $.a[9]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f8, 'lax $.b')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '$.a[9]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '$.b')", null, INT().nullable())
 
                 // SQL NULL input
                 .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
@@ -167,77 +167,81 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
 
-                // lax vs strict
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.type')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.type')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.author')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.metadata.tags')", 3, INT().nullable())
+                // vs strict
+                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
 
                 // missing path: neither mode throws -> both yield NULL
-                // (this is the "strict doesn't throw" behaviour)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.missing')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.missing')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.nope')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.author.nope')", null, INT().nullable())
+                // (this is the "doesn't throw" behaviour)
+                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
 
                 // WILDCARDS matching MULTIPLE nodes -> NULL in both modes.
                 // JSON_LENGTH is tolerant (like Calcite): a path that does not identify a single
                 // value has no defined length, so both LAX and STRICT return NULL (no throw).
-                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'lax $.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), 'strict $.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
                 // default (no mode prefix) parses as STRICT; result is the same either way
                 .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
                 // `$.author.*` -> name + address (multiple)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $.author.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
                 // `$.author.address.*` -> country + city (multiple)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.author.address.*')", null, INT().nullable())
-                .testSqlResult(
-                        "JSON_LENGTH(f0, 'strict $.author.address.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
                 // array wildcard `$.metadata.tags[*]` -> flink, streaming, json (multiple)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $.metadata.tags[*]')", null, INT().nullable())
-                .testSqlResult(
-                        "JSON_LENGTH(f0, 'strict $.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
                 // deep-scan `$..name` -> author.name + references[0].name (multiple)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $..name')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $..name')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
 
                 // WILDCARDS matching a SINGLE node -> unwrapped, so LAX and STRICT agree.
                 // deep-scan `$..url` -> single scalar
-                .testSqlResult("JSON_LENGTH(f0, 'lax $..url')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $..url')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
                 // deep-scan `$..address` -> single object (country + city)
-                .testSqlResult("JSON_LENGTH(f0, 'lax $..address')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $..address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
                 // array wildcard `$.metadata.references[*]` -> single object (name + url)
-                .testSqlResult(
-                        "JSON_LENGTH(f0, 'lax $.metadata.references[*]')", 2, INT().nullable())
-                .testSqlResult(
-                        "JSON_LENGTH(f0, 'strict $.metadata.references[*]')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
                 // `$.metadata.references[*].name` -> single scalar
                 .testSqlResult(
-                        "JSON_LENGTH(f0, 'lax $.metadata.references[*].name')", 1, INT().nullable())
+                        "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
                 .testSqlResult(
-                        "JSON_LENGTH(f0, 'strict $.metadata.references[*].name')",
-                        1,
-                        INT().nullable())
+                        "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
 
                 // WILDCARDS matching NOTHING -> both modes yield NULL
-                .testSqlResult("JSON_LENGTH(f0, 'lax $..nope')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'strict $..nope')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f10, 'lax $[*]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f10, 'strict $[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..nope')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, '$[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, '$[*]')", null, INT().nullable())
 
-                // mode prefix is case-insensitive and tolerates extra whitespace
-                // (the wildcard cases match multiple nodes -> NULL; the definite path -> its length)
-                .testSqlResult("JSON_LENGTH(f0, 'LAX $.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'Lax $.*')", null, INT().nullable())
-                .testSqlResult(
-                        "JSON_LENGTH(f0, 'lAx    $.metadata.tags[*]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'STRICT $.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, 'sTrIcT $.metadata.tags')", 3, INT().nullable());
+                // a wildcard path matching multiple nodes -> NULL; a definite path -> its length
+                .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
+
+                // lax/strict path modes are not supported and are rejected at runtime
+                .testSqlRuntimeError(
+                        "JSON_LENGTH(f0, 'strict $.type')",
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support lax/strict path modes.")
+                .testSqlRuntimeError(
+                        "JSON_LENGTH(f0, 'lax $.type')",
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support lax/strict path modes.")
+                .testTableApiRuntimeError(
+                        $("f0").jsonLength("strict $.type"),
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support lax/strict path modes.");
     }
 
     private static TestSetSpec jsonExistsSpec() {

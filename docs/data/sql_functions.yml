@@ -1222,7 +1222,7 @@ json:
     table: jsonLength(jsonObject[, path])
     description: |
       Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
-      Returns NULL if the argument is NULL or the path does not locate a value.
+      Returns NULL if the argument is NULL, the json is invalid, or the path does not locate a value.
       eg. 
         -- 2
         JSON_LENGTH('{1: "hello", 2: "bye bye"}')
@@ -1245,7 +1245,33 @@ json:
       
       Nested arrays and objects each count as a single element and their contents are not included in the count.
       
-      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL. 
+      Lax and strict mode produce the same output, so mode selection is disabled for this function.                                                                                                            
+      
+        The path argument uses the form:                                                                                                                                                                         
+      
+          path  ::= '$' ( '.' `field` | '[' `index` ']' )*                                                                                                                                                     
+          field ::= a key in a JSON object                                                                                                                                                                     
+          index ::= a zero-based position in a JSON array                                                                                                                                                      
+      
+        For example: `$.author.address` or `$.metadata.tags[0]`.
+      
+      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL.
+
+      Because a NULL result can mean several different things (the input is not valid JSON, the path
+      does not match anything, or a wildcard path matched 2 or more nodes), it is recommended to pair
+      JSON_LENGTH with a helper function so invalid input is handled explicitly rather than silently
+      returning NULL:
+
+        - Without a path, guard the call with IS JSON to separate malformed input from a real result:
+
+          -- returns the length only for valid JSON, otherwise NULL means "invalid input"
+          SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
+
+        - With a path, use JSON_EXISTS to tell "the path is absent" apart from "the path matched but
+          was ambiguous / matched 2 or more nodes":
+
+          -- path_present is TRUE even when JSON_LENGTH is NULL because of a multi-match wildcard
+          SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])

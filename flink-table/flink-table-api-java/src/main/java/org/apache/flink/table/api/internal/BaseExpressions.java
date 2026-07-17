@@ -2525,28 +2525,77 @@ public abstract class BaseExpressions<InType, OutType> {
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
     }
 
-    /**
-     * Returns the number of elements contained in a JSON value, optionally at a given path.
-     *
-     * <p>Return the length of a JSON value by given rules:
-     *
-     * <ul>
-     *   <li>Scalars have length 1.
-     *   <li>Arrays have length equal to their number of elements.
-     *   <li>Objects have length equal to their number of keys.
-     *   <li>Nested arrays/objects are not counted recursively.
-     *   <li>Returns Null if the json input is Null or if the given path does not resolve to
-     *       anything.
-     * </ul>
-     *
-     * <p>When a path is provided, the count applies to the value found at that path rather than the
-     * document as a whole. Returns {@code NULL} if any argument is {@code NULL} or the path does
-     * not locate a value, or if the path given describes more than 1 path ie. using the "*" wildcard.
-     */
     public OutType jsonLength() {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
     }
 
+    /**
+     * Returns the number of elements in a JSON document, or the length of the value at the
+     * specified path if one is provided.
+     *
+     * <p>Returns {@code NULL} if the argument is {@code NULL}, the input is not valid JSON, or the
+     * path does not locate a value.
+     *
+     * <p>The length is determined as follows:
+     *
+     * <ul>
+     *   <li>Scalar values (number, string, boolean) have length 1.
+     *   <li>Arrays have a length equal to the number of their elements.
+     *   <li>Objects have a length equal to the number of their key-value pairs.
+     * </ul>
+     *
+     * <p>Nested arrays and objects each count as a single element and their contents are not
+     * included in the count.
+     *
+     * <p>Lax and strict mode produce the same output, so mode selection is disabled in this
+     * function. For the path argument, use the form:
+     *
+     * <pre>{@code
+     * path  ::= '$' ( '.' <field> | '[' <index> ']' )*
+     * field ::= a key in a JSON object
+     * index ::= a zero-based position in a JSON array
+     * }</pre>
+     *
+     * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
+     * JSON_LENGTH} resolves to {@code NULL}.
+     *
+     * <p>Because a {@code NULL} result can mean several different things (the input is not valid
+     * JSON, the path does not match anything, or a wildcard path matched 2 or more nodes), it is
+     * recommended to pair {@code JSON_LENGTH} with a helper function so invalid input is handled
+     * explicitly rather than silently returning {@code NULL}:
+     *
+     * <ul>
+     *   <li>Without a path, guard the call with {@code IS JSON} to separate malformed input from a
+     *       real result.
+     *   <li>With a path, use {@code JSON_EXISTS} to tell "the path is absent" apart from "the path
+     *       matched but was ambiguous / matched 2 or more nodes".
+     * </ul>
+     *
+     * <pre>{@code
+     * // returns the length only for valid JSON, otherwise NULL means "invalid input"
+     * lit("[1,2,3]").isJson().then(lit("[1,2,3]").jsonLength(), nullOf(DataTypes.INT()))
+     *
+     * // pathPresent is true even when jsonLength is NULL because of a multi-match wildcard
+     * lit("{}").jsonExists("$.items[*]")
+     * lit("{}").jsonLength("$.items[*]")
+     * }</pre>
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * JSON_LENGTH('{1: "hello", 2: "bye bye"}') // 2
+     * JSON_LENGTH('[1,2,3,4,5]') // 5
+     * JSON_LENGTH('hello') // 1
+     *
+     * JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.1') // 1
+     * JSON_LENGTH('{1: [1,2,3], 2: "bye bye"}', '$.1') // 3
+     * JSON_LENGTH('[1,2,3,4,5]', $.[3]) // 1
+     *
+     *
+     * JSON_LENGTH('[1,2,3,4,5]', '$.[7]') // Null
+     * JSON_LENGTH('{1: "bad", 2: "syntax here ->"', '$.1') // Null
+     * }</pre>
+     */
     public OutType jsonLength(String path) {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr(), valueLiteral(path)));
     }

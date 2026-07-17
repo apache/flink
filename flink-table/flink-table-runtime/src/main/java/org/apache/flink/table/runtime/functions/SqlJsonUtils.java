@@ -48,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -390,14 +391,18 @@ public class SqlJsonUtils {
             // invalid input JSON
             return null;
         }
+        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
+        if (matcher.matches()) {
+            throw new TableRuntimeException(
+                    "JSON_LENGTH does not support lax/strict path modes. "
+                            + "Please refer to the documentation for the supported path format.");
+        }
         final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
-
         final Object value = context.hasException() ? null : context.obj;
         if (context.hasException() || value == null) {
             return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
         }
 
-        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
         final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
         if (!JsonPath.isPathDefinite(pathStr)) {
             final List<?> matched = (List<?>) value;
@@ -411,8 +416,8 @@ public class SqlJsonUtils {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
         }
-        if (value instanceof Collection) {
-            return ((Collection<?>) value).size();
+        if (value instanceof ArrayList) {
+            return ((ArrayList<?>) value).size();
         }
         // Scalars, including a JSON null literal, have length 1.
         return 1;
