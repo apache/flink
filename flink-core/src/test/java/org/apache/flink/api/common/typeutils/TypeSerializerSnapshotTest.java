@@ -54,6 +54,17 @@ class TypeSerializerSnapshotTest {
                 .isTrue();
     }
 
+    @Test
+    void testMigrateReturnsValueUnchangedByDefault() {
+        // NotCompletedTypeSerializerSnapshot does not override migrate, so the default
+        // identity implementation applies.
+        TypeSerializerSnapshot<Integer> oldSnapshot = new NotCompletedTypeSerializerSnapshot();
+        TypeSerializerSnapshot<Integer> newSnapshot = new NotCompletedTypeSerializerSnapshot();
+        Integer value = 42;
+
+        assertThat(newSnapshot.migrate(oldSnapshot, value)).isSameAs(value);
+    }
+
     private static class NotCompletedTypeSerializer extends TypeSerializer<Integer> {
 
         @Override

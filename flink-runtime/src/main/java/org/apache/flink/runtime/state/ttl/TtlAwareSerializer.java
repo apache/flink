@@ -128,29 +128,49 @@ public class TtlAwareSerializer<T, S extends TypeSerializer<T>> extends TypeSeri
         return Objects.hash(isTtlEnabled, typeSerializer);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void migrateValueFromPriorSerializer(
             TtlAwareSerializer<T, ?> priorTtlAwareSerializer,
             SupplierWithException<T, IOException> inputSupplier,
             DataOutputView target,
             TtlTimeProvider ttlTimeProvider)
             throws IOException {
+        T priorValue = inputSupplier.get();
+        // Unwrap the prior value to its bare (non-TTL) form.
+        Object bareValue =
+                priorTtlAwareSerializer.isTtlEnabled
+                        ? ((TtlValue<?>) priorValue).getUserValue()
+                        : priorValue;
+        // Migrate the bare value to the current schema. The hook is identity for serializers
+        // that do not override it, so non-RowData state is byte-identical to before; the RowData
+        // serializer overrides it to remap fields on a backward-compatible schema change.
+        TypeSerializerSnapshot oldInnerSnapshot =
+                innerValueSerializer(priorTtlAwareSerializer).snapshotConfiguration();
+        TypeSerializerSnapshot newInnerSnapshot =
+                innerValueSerializer(this).snapshotConfiguration();
+        Object migratedValue = newInnerSnapshot.migrate(oldInnerSnapshot, bareValue);
+        // Re-wrap in a TtlValue when this serializer is TTL-enabled, preserving the prior
+        // timestamp when the prior value already carried one.
         T outputRecord;
         if (this.isTtlEnabled()) {
-            outputRecord =
+            long lastAccessTimestamp =
                     priorTtlAwareSerializer.isTtlEnabled
-                            ? inputSupplier.get()
-                            : (T)
-                                    new TtlValue<>(
-                                            inputSupplier.get(),
-                                            ttlTimeProvider.currentTimestamp());
+                            ? ((TtlValue<?>) priorValue).getLastAccessTimestamp()
+                            : ttlTimeProvider.currentTimestamp();
+            outputRecord = (T) new TtlValue<>(migratedValue, lastAccessTimestamp);
         } else {
-            outputRecord =
-                    priorTtlAwareSerializer.isTtlEnabled
-                            ? ((TtlValue<T>) inputSupplier.get()).getUserValue()
-                            : inputSupplier.get();
+            outputRecord = (T) migratedValue;
         }
         this.serialize(outputRecord, target);
+    }
+
+    // The serializer for the bare (non-TTL) value: the inner value serializer for a TTL
+    // serializer, otherwise the serializer itself.
+    private static TypeSerializer<?> innerValueSerializer(TtlAwareSerializer<?, ?> serializer) {
+        TypeSerializer<?> original = serializer.getOriginalTypeSerializer();
+        return serializer.isTtlEnabled()
+                ? ((TtlStateFactory.TtlSerializer<?>) original).getValueSerializer()
+                : original;
     }
 
     @Override

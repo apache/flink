@@ -72,6 +72,16 @@ public interface SerializerConfig extends Serializable {
     TernaryBoolean isForceKryoAvroEnabled();
 
     /**
+     * Whether state schema evolution for {@code RowData} state is enabled, mirroring the table
+     * option {@code table.exec.state.schema-evolution.enabled}. When enabled, the Table runtime
+     * builds RowData state serializers that retain field names so backward-compatible schema
+     * changes can be migrated on restore.
+     */
+    default boolean isStateSchemaEvolutionEnabled() {
+        return false;
+    }
+
+    /**
      * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
      * PipelineOptions#FORCE_KRYO}.
      *

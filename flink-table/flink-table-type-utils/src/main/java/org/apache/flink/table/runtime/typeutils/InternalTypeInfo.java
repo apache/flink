@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -194,7 +195,13 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public TypeSerializer<T> createSerializer(SerializerConfig config) {
+        if (config != null
+                && config.isStateSchemaEvolutionEnabled()
+                && type.is(LogicalTypeRoot.ROW)) {
+            return (TypeSerializer<T>) RowDataSerializer.withFieldNames(toRowType());
+        }
         return typeSerializer;
     }
 

@@ -24,12 +24,21 @@ import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TtlAwareSerializerTest {
+
+    private static final long PRIOR_TIMESTAMP = 1_000L;
+    private static final long CURRENT_TIMESTAMP = 9_999L;
+    private static final TtlTimeProvider FIXED_TIME_PROVIDER = () -> CURRENT_TIMESTAMP;
 
     @Test
     void testSerializerTtlEnabled() {
@@ -146,5 +155,68 @@ class TtlAwareSerializerTest {
                         (((MapSerializerSnapshot) mapTtlAwareSerializer.snapshotConfiguration())
                                 .getValueSerializerSnapshot()))
                 .isInstanceOf(TtlAwareSerializerSnapshot.class);
+    }
+
+    @Test
+    void testMigrateValueNoTtlToNoTtl() throws IOException {
+        Object result = migrate(false, false, "value");
+        assertThat(result).isEqualTo("value");
+    }
+
+    @Test
+    void testMigrateValueNoTtlToTtl() throws IOException {
+        Object result = migrate(true, false, "value");
+        assertThat(result).isInstanceOf(TtlValue.class);
+        TtlValue<?> ttlValue = (TtlValue<?>) result;
+        assertThat(ttlValue.getUserValue()).isEqualTo("value");
+        assertThat(ttlValue.getLastAccessTimestamp()).isEqualTo(CURRENT_TIMESTAMP);
+    }
+
+    @Test
+    void testMigrateValueTtlToNoTtl() throws IOException {
+        Object result = migrate(false, true, new TtlValue<>("value", PRIOR_TIMESTAMP));
+        assertThat(result).isEqualTo("value");
+    }
+
+    @Test
+    void testMigrateValueTtlToTtlPreservesTimestamp() throws IOException {
+        Object result = migrate(true, true, new TtlValue<>("value", PRIOR_TIMESTAMP));
+        assertThat(result).isInstanceOf(TtlValue.class);
+        TtlValue<?> ttlValue = (TtlValue<?>) result;
+        assertThat(ttlValue.getUserValue()).isEqualTo("value");
+        // The prior timestamp must be preserved, not reset to the current time.
+        assertThat(ttlValue.getLastAccessTimestamp()).isEqualTo(PRIOR_TIMESTAMP);
+    }
+
+    /**
+     * Runs {@code migrateValueFromPriorSerializer} for a non-RowData inner value type across a
+     * given (current TTL, prior TTL) combination and returns the value read back with the current
+     * serializer. {@code priorValue} is the bare {@code String} when {@code priorTtlEnabled} is
+     * false, or a {@code TtlValue<String>} when it is true.
+     */
+    private static Object migrate(
+            boolean currentTtlEnabled, boolean priorTtlEnabled, Object priorValue)
+            throws IOException {
+        TtlAwareSerializer<?, ?> prior = stringSerializer(priorTtlEnabled);
+        TtlAwareSerializer<?, ?> current = stringSerializer(currentTtlEnabled);
+
+        DataOutputSerializer output = new DataOutputSerializer(64);
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        TtlAwareSerializer<Object, ?> currentRaw = (TtlAwareSerializer) current;
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        TtlAwareSerializer<Object, ?> priorRaw = (TtlAwareSerializer) prior;
+        currentRaw.migrateValueFromPriorSerializer(
+                priorRaw, () -> priorValue, output, FIXED_TIME_PROVIDER);
+
+        return current.deserialize(new DataInputDeserializer(output.getCopyOfBuffer()));
+    }
+
+    private static TtlAwareSerializer<?, ?> stringSerializer(boolean ttlEnabled) {
+        if (ttlEnabled) {
+            return TtlAwareSerializer.wrapTtlAwareSerializer(
+                    new TtlStateFactory.TtlSerializer<>(
+                            LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+        }
+        return TtlAwareSerializer.wrapTtlAwareSerializer(StringSerializer.INSTANCE);
     }
 }
