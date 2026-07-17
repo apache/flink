@@ -148,8 +148,9 @@ public abstract class MetadataV2V3SerializerBase {
     protected void serializeMetadata(
             CheckpointMetadata checkpointMetadata,
             DataOutputStream dos,
-            @Nullable SerializationContext context)
+            SerializationContext context)
             throws IOException {
+        Preconditions.checkNotNull(context, "SerializationContext");
         // first: checkpoint ID
         dos.writeLong(checkpointMetadata.getCheckpointId());
 
@@ -270,18 +271,14 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     protected abstract void serializeOperatorState(
-            OperatorState operatorState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
             throws IOException;
 
     protected abstract OperatorState deserializeOperatorState(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException;
 
     protected void serializeSubtaskState(
-            OperatorSubtaskState subtaskState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorSubtaskState subtaskState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         serializeSingleton(
                 subtaskState.getManagedOperatorState(),
@@ -298,7 +295,7 @@ public abstract class MetadataV2V3SerializerBase {
     private void serializeKeyedStateCol(
             StateObjectCollection<KeyedStateHandle> managedKeyedState,
             DataOutputStream dos,
-            @Nullable SerializationContext context)
+            SerializationContext context)
             throws IOException {
         serializeKeyedStateHandle(extractSingleton(managedKeyedState), dos, context);
     }
@@ -339,9 +336,7 @@ public abstract class MetadataV2V3SerializerBase {
 
     @VisibleForTesting
     static void serializeKeyedStateHandle(
-            KeyedStateHandle stateHandle,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            KeyedStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle == null) {
             dos.writeByte(NULL_HANDLE);
@@ -618,9 +613,7 @@ public abstract class MetadataV2V3SerializerBase {
     }
 
     void serializeOperatorStateHandle(
-            OperatorStateHandle stateHandle,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle != null) {
             dos.writeByte(
@@ -741,20 +734,15 @@ public abstract class MetadataV2V3SerializerBase {
     // ------------------------------------------------------------------------
 
     static void serializeStreamStateHandle(
-            StreamStateHandle stateHandle,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            StreamStateHandle stateHandle, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (stateHandle == null) {
             dos.writeByte(NULL_HANDLE);
 
         } else if (stateHandle instanceof RelativeFileStateHandle
                 && canKeepRelativeEncoding((RelativeFileStateHandle) stateHandle, context)) {
-            // The relative encoding stores just the file name; on restore it is resolved
-            // against the directory the metadata is read from. So it is only used for files
-            // that live in the directory being written. Handles to files anywhere else fail
-            // canKeepRelativeEncoding and take the FileStateHandle branch below, which keeps
-            // their full absolute path.
+            // Foreign handles fail canKeepRelativeEncoding and fall through to the
+            // FileStateHandle branch below, which keeps their full absolute path.
             RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
             dos.writeByte(RELATIVE_STREAM_STATE_HANDLE);
             dos.writeUTF(relativeFileStateHandle.getRelativePath());
@@ -801,20 +789,22 @@ public abstract class MetadataV2V3SerializerBase {
     }
 
     /**
-     * Decides whether a {@link RelativeFileStateHandle} can be written with the relative encoding,
-     * or has to be written with its absolute path like a plain {@link FileStateHandle}.
+     * Decides whether a {@link RelativeFileStateHandle} keeps the relative encoding or must be
+     * written with its absolute path like a plain {@link FileStateHandle}.
      *
-     * <p>The relative encoding stores only the file name. Whoever reads the metadata later rebuilds
-     * the full path as {@code <directory containing the metadata>/<file name>} (see {@link
-     * #resolveRelativeHandle}). This only works for files that actually live in the directory the
-     * metadata is written to. Files elsewhere (for example a claimed savepoint's SSTs that a later
-     * incremental checkpoint still references) would be looked up at a path where they do not
-     * exist, so their handles must keep the absolute path. If the directory being written to is
-     * unknown ({@code null}), the legacy behavior applies and the relative encoding is kept.
+     * <p>A relative reference is rebuilt on read as {@code <directory containing the
+     * metadata>/<relative path>} (see {@link #resolveRelativeHandle}), so a handle may only stay
+     * relative if its file actually lives in the exclusive directory being written. A handle
+     * pointing anywhere else (e.g. a claimed savepoint's SST that a later incremental checkpoint
+     * still references) would be resolved to a path where its file never existed, so it keeps its
+     * absolute path.
+     *
+     * <p>Without an exclusive directory ({@link SerializationContext#withoutExclusiveDir()}) every
+     * relative reference stays relative unconditionally.
      */
     private static boolean canKeepRelativeEncoding(
-            RelativeFileStateHandle handle, @Nullable SerializationContext context) {
-        Path exclusiveDirPath = context == null ? null : context.getExclusiveDirPath();
+            RelativeFileStateHandle handle, SerializationContext context) {
+        Path exclusiveDirPath = context.getExclusiveDirPath();
         return exclusiveDirPath == null
                 || handle.getFilePath()
                         .equals(resolveRelativeHandle(exclusiveDirPath, handle.getRelativePath()));
@@ -945,9 +935,7 @@ public abstract class MetadataV2V3SerializerBase {
     }
 
     private static void serializeHandleAndLocalPathList(
-            List<HandleAndLocalPath> list,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            List<HandleAndLocalPath> list, DataOutputStream dos, SerializationContext context)
             throws IOException {
 
         dos.writeInt(list.size());
@@ -987,10 +975,32 @@ public abstract class MetadataV2V3SerializerBase {
      */
     protected static final class SerializationContext {
 
+        private static final SerializationContext WITHOUT_EXCLUSIVE_DIR =
+                new SerializationContext(null);
+
         @Nullable private final Path exclusiveDirPath;
 
-        SerializationContext(@Nullable Path exclusiveDirPath) {
+        private SerializationContext(@Nullable Path exclusiveDirPath) {
             this.exclusiveDirPath = exclusiveDirPath;
+        }
+
+        /**
+         * Context for metadata written into a known exclusive directory: a {@link
+         * RelativeFileStateHandle} keeps its relative encoding only when its file lives in {@code
+         * exclusiveDirPath}, otherwise it is persisted with its absolute path.
+         */
+        static SerializationContext withExclusiveDir(Path exclusiveDirPath) {
+            return new SerializationContext(Preconditions.checkNotNull(exclusiveDirPath));
+        }
+
+        /**
+         * Context for metadata written without a known exclusive directory, so every {@link
+         * RelativeFileStateHandle} keeps its relative encoding unconditionally. Correct only when
+         * every referenced file ends up next to the metadata; each call site documents why that
+         * holds for it.
+         */
+        static SerializationContext withoutExclusiveDir() {
+            return WITHOUT_EXCLUSIVE_DIR;
         }
 
         @Nullable

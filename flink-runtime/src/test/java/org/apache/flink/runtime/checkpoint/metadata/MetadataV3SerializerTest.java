@@ -219,7 +219,7 @@ class MetadataV3SerializerTest {
 
         CheckpointMetadata metadata =
                 new CheckpointMetadata(checkpointId, operatorStates, masterStates);
-        MetadataV3Serializer.INSTANCE.serialize(metadata, out);
+        MetadataV3Serializer.INSTANCE.serialize(metadata, out, null);
         out.close();
 
         // The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same
@@ -269,7 +269,7 @@ class MetadataV3SerializerTest {
             MetadataV2V3SerializerBase.serializeStreamStateHandle(
                     new KeyGroupsStateHandle(offsets, new ByteStreamStateHandle("test", data)),
                     new DataOutputStream(out),
-                    null);
+                    MetadataV2V3SerializerBase.SerializationContext.withoutExclusiveDir());
             try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
                 StreamStateHandle handle =
                         MetadataV2V3SerializerBase.deserializeStreamStateHandle(
@@ -300,7 +300,9 @@ class MetadataV3SerializerTest {
         ChangelogStateBackendHandle handle = createChangelogStateBackendHandle(fullSnapshot);
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
             MetadataV2V3SerializerBase.serializeKeyedStateHandle(
-                    handle, new DataOutputStream(out), null);
+                    handle,
+                    new DataOutputStream(out),
+                    MetadataV2V3SerializerBase.SerializationContext.withoutExclusiveDir());
             try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
                 KeyedStateHandle deserialized =
                         MetadataV2V3SerializerBase.deserializeKeyedStateHandle(

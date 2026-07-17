@@ -83,9 +83,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 
     @Override
     protected void serializeOperatorState(
-            OperatorState operatorState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         checkState(
                 !operatorState.isFullyFinished(),
@@ -142,9 +140,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 
     @Override
     protected void serializeSubtaskState(
-            OperatorSubtaskState subtaskState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorSubtaskState subtaskState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         // write two unused fields for compatibility:
         //   - "duration"

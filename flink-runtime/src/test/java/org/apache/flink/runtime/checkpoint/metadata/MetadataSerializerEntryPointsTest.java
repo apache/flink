@@ -47,19 +47,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests that the {@link MetadataSerializer#serialize} entry points agree with each other across
+ * Tests that the single {@link MetadataSerializer#serialize} entry point behaves correctly across
  * every registered metadata version:
  *
  * <ul>
- *   <li>without an exclusive directory, every entry point produces byte-identical output — a
- *       convenience overload must not drift from the contract-bearing method it delegates to;
  *   <li>a supplied exclusive directory reaches the relative-handle encoder instead of being
  *       silently dropped: making a shared relative handle foreign to it changes the written bytes;
- *   <li>the deserialize-only versions reject serialization through every entry point.
+ *   <li>the deserialize-only versions reject serialization.
  * </ul>
  *
- * <p>Which method carries the contract and how the convenience overload delegates to it is
- * documented on {@link MetadataSerializer#serialize(CheckpointMetadata, DataOutputStream, Path)}.
+ * <p>What the exclusive directory means is documented on {@link
+ * MetadataSerializer#serialize(CheckpointMetadata, DataOutputStream, Path)}.
  */
 class MetadataSerializerEntryPointsTest {
 
@@ -77,20 +75,6 @@ class MetadataSerializerEntryPointsTest {
     private static final long STATE_SIZE = 4242L;
 
     @Test
-    void testBothEntryPointsProduceIdenticalBytesForNullExclusiveDir() throws Exception {
-        for (MetadataSerializer serializer : writableSerializers()) {
-            // Serialize the very same metadata object twice so any random state-handle ids are
-            // identical between the two runs and only the entry point differs.
-            final CheckpointMetadata metadata = metadataWithForeignSharedState();
-            assertThat(serialize(serializer, metadata))
-                    .as(
-                            "2-arg and 3-arg(null) entry points must be byte-identical for v%d",
-                            serializer.getVersion())
-                    .isEqualTo(serialize(serializer, metadata, null));
-        }
-    }
-
-    @Test
     void testNonNullExclusiveDirReachesEncoderAndChangesForeignHandleBytes() throws Exception {
         for (MetadataSerializer serializer : writableSerializers()) {
             final CheckpointMetadata metadata = metadataWithForeignSharedState();
@@ -105,14 +89,11 @@ class MetadataSerializerEntryPointsTest {
     }
 
     @Test
-    void testDeserializeOnlyVersionsRejectSerializationThroughBothEntryPoints() {
+    void testDeserializeOnlyVersionsRejectSerialization() {
         final CheckpointMetadata metadata = metadataWithForeignSharedState();
         for (MetadataSerializer serializer : deserializeOnlySerializers()) {
-            assertThatThrownBy(() -> serialize(serializer, metadata))
-                    .as("2-arg serialize must be unsupported for v%d", serializer.getVersion())
-                    .isInstanceOf(UnsupportedOperationException.class);
             assertThatThrownBy(() -> serialize(serializer, metadata, null))
-                    .as("3-arg serialize must be unsupported for v%d", serializer.getVersion())
+                    .as("serialize must be unsupported for v%d", serializer.getVersion())
                     .isInstanceOf(UnsupportedOperationException.class);
         }
     }
@@ -158,15 +139,6 @@ class MetadataSerializerEntryPointsTest {
                 Collections.emptyList(),
                 CheckpointProperties.forCheckpoint(
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
-    }
-
-    private static byte[] serialize(MetadataSerializer serializer, CheckpointMetadata metadata)
-            throws IOException {
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (DataOutputStream dos = new DataOutputStream(baos)) {
-            serializer.serialize(metadata, dos);
-        }
-        return baos.toByteArray();
     }
 
     private static byte[] serialize(

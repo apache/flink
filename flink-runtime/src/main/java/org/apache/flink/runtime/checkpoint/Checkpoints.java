@@ -113,8 +113,8 @@ public class Checkpoints {
      * CheckpointMetadataOutputStream#getExclusiveCheckpointDir()}): a handle whose file lives in
      * that directory keeps the relative encoding, while a handle pointing anywhere else (e.g. an
      * SST file reused from a claimed savepoint) is persisted with its absolute path, because the
-     * relative form would be re-anchored to the wrong directory when the metadata is read back.
-     * Use this variant when writing an actual checkpoint or savepoint.
+     * relative form would be re-anchored to the wrong directory when the metadata is read back. Use
+     * this variant when writing an actual checkpoint or savepoint.
      */
     public static void storeCheckpointMetadata(
             CheckpointMetadata checkpointMetadata, CheckpointMetadataOutputStream out)

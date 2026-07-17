@@ -203,12 +203,12 @@ class MetadataV2V3SerializerBaseTest {
     /**
      * Without a known exclusive directory (a {@code null} {@code exclusiveDirPath}, which is what
      * the state processor API requests via {@code
-     * Checkpoints#storeCheckpointMetadataWithoutExclusiveDir}), the legacy encoding must be
-     * preserved: every relative handle stays relative and is resolved against whatever directory
-     * the metadata is later read from.
+     * Checkpoints#storeCheckpointMetadataWithoutExclusiveDir}), the relative encoding must be kept
+     * unconditionally: every relative handle stays relative and is resolved against whatever
+     * directory the metadata is later read from.
      */
     @Test
-    void testNullExclusiveDirKeepsLegacyRelativeEncoding() throws Exception {
+    void testNullExclusiveDirKeepsRelativeEncoding() throws Exception {
         final File checkpointDir = TempDirUtils.newFolder(tmp, "chk-5");
         final File savepointDir = TempDirUtils.newFolder(tmp, "savepoint");
         writeEmptyMetadataFile(checkpointDir);
@@ -220,10 +220,11 @@ class MetadataV2V3SerializerBaseTest {
 
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (DataOutputStream dos = new DataOutputStream(baos)) {
-            // context-free convenience variant: must behave like exclusiveDirPath == null
+            // no exclusive directory: every relative handle stays relative, unconditionally
             MetadataV3Serializer.INSTANCE.serialize(
                     metadataFor(incrementalHandleWithSharedState(foreignHandle, "000001.sst")),
-                    dos);
+                    dos,
+                    null);
         }
 
         final IncrementalRemoteKeyedStateHandle reloaded =
@@ -231,7 +232,7 @@ class MetadataV2V3SerializerBaseTest {
         final StreamStateHandle reloadedShared = reloaded.getSharedState().get(0).getHandle();
         assertThat(reloadedShared).isInstanceOf(RelativeFileStateHandle.class);
         assertThat(((FileStateHandle) reloadedShared).getFilePath())
-                .as("legacy encoding resolves the handle against the directory it is read from")
+                .as("relative encoding resolves the handle against the directory it is read from")
                 .isEqualTo(new Path(Path.fromLocalFile(checkpointDir), fileName));
     }
 
@@ -254,7 +255,8 @@ class MetadataV2V3SerializerBaseTest {
                 MetadataV2V3SerializerBase.serializeStreamStateHandle(
                         foreignHandle,
                         dos,
-                        new MetadataV2V3SerializerBase.SerializationContext(exclusiveDir));
+                        MetadataV2V3SerializerBase.SerializationContext.withExclusiveDir(
+                                exclusiveDir));
             }
 
             // a null deserialization context suffices exactly because the handle must have been
@@ -275,7 +277,7 @@ class MetadataV2V3SerializerBaseTest {
     /**
      * Counterpart of {@link #testForeignRelativeHandleOnObjectStoreIsWrittenAbsolute}: a handle
      * that belongs to the object-store exclusive directory keeps the relative encoding, bit for bit
-     * the same as the legacy (context-free) encoding.
+     * the same as the no-exclusive-directory encoding.
      */
     @Test
     void testOwnRelativeHandleOnObjectStoreStaysRelative() throws Exception {
@@ -285,21 +287,25 @@ class MetadataV2V3SerializerBaseTest {
             final RelativeFileStateHandle ownHandle =
                     new RelativeFileStateHandle(new Path(exclusiveDir, fileName), fileName, 55L);
 
-            final ByteArrayOutputStream withContext = new ByteArrayOutputStream();
-            try (DataOutputStream dos = new DataOutputStream(withContext)) {
+            final ByteArrayOutputStream withExclusiveDir = new ByteArrayOutputStream();
+            try (DataOutputStream dos = new DataOutputStream(withExclusiveDir)) {
                 MetadataV2V3SerializerBase.serializeStreamStateHandle(
                         ownHandle,
                         dos,
-                        new MetadataV2V3SerializerBase.SerializationContext(exclusiveDir));
+                        MetadataV2V3SerializerBase.SerializationContext.withExclusiveDir(
+                                exclusiveDir));
             }
-            final ByteArrayOutputStream legacy = new ByteArrayOutputStream();
-            try (DataOutputStream dos = new DataOutputStream(legacy)) {
-                MetadataV2V3SerializerBase.serializeStreamStateHandle(ownHandle, dos, null);
+            final ByteArrayOutputStream withoutExclusiveDir = new ByteArrayOutputStream();
+            try (DataOutputStream dos = new DataOutputStream(withoutExclusiveDir)) {
+                MetadataV2V3SerializerBase.serializeStreamStateHandle(
+                        ownHandle,
+                        dos,
+                        MetadataV2V3SerializerBase.SerializationContext.withoutExclusiveDir());
             }
 
-            assertThat(withContext.toByteArray())
-                    .as(scheme + " own handle must keep the (relative) legacy encoding")
-                    .isEqualTo(legacy.toByteArray());
+            assertThat(withExclusiveDir.toByteArray())
+                    .as(scheme + " own handle must keep the relative encoding")
+                    .isEqualTo(withoutExclusiveDir.toByteArray());
         }
     }
 

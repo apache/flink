@@ -47,9 +47,7 @@ public class MetadataV5Serializer extends MetadataV4Serializer {
 
     @Override
     protected void serializeOperatorState(
-            OperatorState operatorState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         if (operatorState.getOperatorName().isPresent()
                 && operatorState.getOperatorName().get().isEmpty()) {

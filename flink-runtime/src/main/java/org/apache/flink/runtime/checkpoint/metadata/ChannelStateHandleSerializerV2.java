@@ -146,9 +146,12 @@ class ChannelStateHandleSerializerV2 implements ChannelStateHandleSerializer {
 
         dos.writeInt(handle.getSubtaskIndex());
         dos.writeLong(handle.getStateSize());
-        // null context: channel state is always written into the current checkpoint's own
-        // exclusive directory, see MetadataV3Serializer#serializeSubtaskState.
-        serializeStreamStateHandle(handle.getDelegate(), dos, null);
+        // No exclusive directory: channel state is always written into the current checkpoint's
+        // own exclusive directory, see MetadataV3Serializer#serializeSubtaskState.
+        serializeStreamStateHandle(
+                handle.getDelegate(),
+                dos,
+                MetadataV2V3SerializerBase.SerializationContext.withoutExclusiveDir());
 
         dos.writeInt(handle.getSerializedChannelOffsets().length);
         dos.write(handle.getSerializedChannelOffsets());

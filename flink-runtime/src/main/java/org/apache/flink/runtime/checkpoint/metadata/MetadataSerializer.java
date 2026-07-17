@@ -50,20 +50,6 @@ public interface MetadataSerializer extends Versioned {
             throws IOException;
 
     /**
-     * Convenience variant of {@link #serialize(CheckpointMetadata, DataOutputStream, Path)} with a
-     * {@code null} exclusive directory: every relative file reference is kept relative,
-     * unconditionally, and is resolved against whatever directory the metadata is later read from.
-     * Only correct if every referenced file ends up in that directory; see {@link
-     * Checkpoints#storeCheckpointMetadataWithoutExclusiveDir} for the use case.
-     *
-     * @throws IOException Serialization failures are forwarded
-     */
-    default void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
-            throws IOException {
-        serialize(checkpointMetadata, dos, null);
-    }
-
-    /**
      * Serializes a savepoint or checkpoint metadata to an output stream.
      *
      * <p>Implementations check every relative file reference against {@code exclusiveDirPath}:
@@ -72,10 +58,6 @@ public interface MetadataSerializer extends Versioned {
      * CLAIM-mode restore) are persisted with their absolute path, because the relative form would
      * be resolved against the wrong directory on recovery. See {@link Checkpoints} for what the
      * exclusive directory is.
-     *
-     * <p>This is the method implementations must provide (rather than a default dropping the
-     * exclusive directory), so that a serializer cannot silently lose the exclusive-directory
-     * information.
      *
      * @param exclusiveDirPath the directory that will contain the metadata file (the checkpoint's
      *     exclusive directory), or {@code null} to keep every relative reference relative

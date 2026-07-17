@@ -54,11 +54,11 @@ public abstract class CheckpointMetadataOutputStream extends FSDataOutputStream 
      *
      * <p>Implementations whose state files can be referenced through {@code
      * RelativeFileStateHandle}s (in particular any storage laying out state in a per-checkpoint
-     * exclusive directory) must override this method. Returning {@code null} preserves the legacy
-     * relative encoding, which is correct as long as every relative handle points into the
-     * directory the metadata is written to; a relative handle pointing elsewhere would be resolved
-     * against the wrong directory on recovery, making the checkpoint unrestorable. For storage
-     * without an exclusive directory layout, returning {@code null} is the right choice.
+     * exclusive directory) must override this method. Returning {@code null} keeps every relative
+     * handle relative unconditionally, which is correct as long as every relative handle points
+     * into the directory the metadata is written to; a relative handle pointing elsewhere would be
+     * resolved against the wrong directory on recovery, making the checkpoint unrestorable. For
+     * storage without an exclusive directory layout, returning {@code null} is the right choice.
      */
     @Nullable
     public Path getExclusiveCheckpointDir() {

@@ -84,7 +84,12 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
             DataOutputStream dos,
             @Nullable Path exclusiveDirPath)
             throws IOException {
-        serializeMetadata(checkpointMetadata, dos, new SerializationContext(exclusiveDirPath));
+        serializeMetadata(
+                checkpointMetadata,
+                dos,
+                exclusiveDirPath == null
+                        ? SerializationContext.withoutExclusiveDir()
+                        : SerializationContext.withExclusiveDir(exclusiveDirPath));
     }
 
     @Override
@@ -100,9 +105,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 
     @Override
     protected void serializeOperatorState(
-            OperatorState operatorState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         // Operator ID
         dos.writeLong(operatorState.getOperatorID().getLowerPart());
@@ -145,9 +148,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 
     @Override
     protected void serializeSubtaskState(
-            OperatorSubtaskState subtaskState,
-            DataOutputStream dos,
-            @Nullable SerializationContext context)
+            OperatorSubtaskState subtaskState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         super.serializeSubtaskState(subtaskState, dos, context);
         // Channel state (unaligned checkpoints) is always written fresh into the current
@@ -265,7 +266,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     //
     //  These helpers (de)serialize standalone handles outside any checkpoint,
     //  so there is no exclusive directory to check relative references
-    //  against: the (de)serialization context is always null.
+    //  against: they serialize with SerializationContext.withoutExclusiveDir()
+    //  and deserialize with a null DeserializationContext.
     //
     //  NOTE: The fact that certain tests directly call these lower level
     //        serialization methods is a problem, because that way the tests
@@ -277,7 +279,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public static void serializeStreamStateHandle(
             StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        MetadataV2V3SerializerBase.serializeStreamStateHandle(stateHandle, dos, null);
+        MetadataV2V3SerializerBase.serializeStreamStateHandle(
+                stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting
@@ -289,7 +292,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public void serializeOperatorStateHandleUtil(
             OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        serializeOperatorStateHandle(stateHandle, dos, null);
+        serializeOperatorStateHandle(stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting
@@ -301,7 +304,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public void serializeKeyedStateHandleUtil(KeyedStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
-        serializeKeyedStateHandle(stateHandle, dos, null);
+        serializeKeyedStateHandle(stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting
