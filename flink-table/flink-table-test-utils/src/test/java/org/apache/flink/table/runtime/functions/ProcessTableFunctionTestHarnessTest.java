@@ -118,6 +118,14 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
+    /** PTF with a non-Row (atomic) output, for testing the EXPR$0 wrap in getOutput(). */
+    public static class AtomicOutputPTF extends ProcessTableFunction<Integer> {
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+            int value = input.getFieldAs("value");
+            collect(value * 2);
+        }
+    }
+
     /**
      * PTF with PASS_COLUMNS_THROUGH for validating that all input columns are prepended to output.
      */
@@ -936,13 +944,16 @@ class ProcessTableFunctionTestHarnessTest {
 
             harness.processElement(Row.of("Alice", 25));
 
-            List<User> output = harness.getOutput();
+            List<User> output = harness.getFunctionOutput();
             assertThat(output).hasSize(1);
 
             User result = output.get(0);
             assertThat(result.getClass()).isEqualTo(User.class);
             assertThat(result.name).isEqualTo("Alice");
             assertThat(result.age).isEqualTo(26);
+
+            // getOutput() flattens the POJO into its attributes.
+            assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 26));
         }
     }
 
@@ -1212,12 +1223,49 @@ class ProcessTableFunctionTestHarnessTest {
             harness.processElement(Row.of(10));
             harness.processElement(Row.of(20));
             assertThat(harness.getOutput()).hasSize(2);
+            assertThat(harness.getFunctionOutput()).hasSize(2);
 
             harness.clearOutput();
             assertThat(harness.getOutput()).isEmpty();
+            assertThat(harness.getFunctionOutput()).isEmpty();
 
             harness.processElement(Row.of(30));
             assertThat(harness.getOutput()).hasSize(1);
+            assertThat(harness.getFunctionOutput()).hasSize(1);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Function Output Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testFunctionOutputReturnsUnwrappedAtomicValue() throws Exception {
+        try (ProcessTableFunctionTestHarness<Integer> harness =
+                ProcessTableFunctionTestHarness.ofClass(AtomicOutputPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .build()) {
+
+            harness.processElement(Row.of(21));
+
+            assertThat(harness.getFunctionOutput()).containsExactly(42);
+            assertThat(harness.getOutput()).containsExactly(Row.of(42));
+        }
+    }
+
+    @Test
+    void testFunctionOutputExcludesPrependedPartitionKey() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build()) {
+
+            harness.processElement(Row.of("X", 10));
+            harness.processElement(Row.of("Y", 20));
+
+            assertThat(harness.getFunctionOutput()).containsExactly(Row.of(10), Row.of(20));
+            assertThat(harness.getOutput()).containsExactly(Row.of("X", 10), Row.of("Y", 20));
         }
     }
 
