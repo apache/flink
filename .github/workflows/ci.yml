@@ -22,9 +22,14 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
+      - '.idea/**'
       - '**.md'
+      - '.asf.yaml'
+      - '.editorconfig'
+      - '.git-blame-ignore-revs'
       - '.gitignore'
       - '.gitattributes'
+      - 'azure-pipelines.yml'
   workflow_dispatch:
 
 concurrency:
