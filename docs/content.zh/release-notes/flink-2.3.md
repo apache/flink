@@ -90,17 +90,11 @@ CREATE FUNCTION my_func AS 'com.example.MyUdf'
 
 Flink 2.3 reworks how `SinkUpsertMaterializer` handles the case where a query's upsert key
 differs from the sink's primary key. Previously this required maintaining the full history of
-records and could blow up state. Two changes address this:
+records and could blow up state. A change partially addressed this issue:
 
 - A new `ON CONFLICT` clause with `DO NOTHING`, `DO ERROR` and `DO DEDUPLICATE` strategies makes
   the behavior on key conflict explicit. By default, planning now fails when the upsert and
   primary keys differ, requiring the user to choose a conflict strategy.
-- Watermark-based record compaction is introduced to fix internal changelog disorder. The
-  trigger and frequency of compaction are controlled by:
-  - `table.exec.sink.upserts.compaction-mode` (default: `WATERMARK`) — `WATERMARK` or
-    `CHECKPOINT`.
-  - `table.exec.sink.upserts.compaction-interval` — optional fallback interval for emitting
-    watermarks when none arrive naturally.
 
 #### Process Table Function enhancements
 
