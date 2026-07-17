@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql.join;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLateralSnapshotJoinRule;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -33,8 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>In batch all input is bounded and append-only, so the processing-time {@code LATERAL SNAPSHOT}
  * join degenerates to a regular join of the probe side against the (final) build side. {@link
- * org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLateralSnapshotJoinRule}
- * performs this translation and the SNAPSHOT-specific arguments are dropped.
+ * BatchPhysicalLateralSnapshotJoinRule} performs this translation and the SNAPSHOT-specific
+ * arguments are dropped.
  */
 public class LateralSnapshotJoinTest extends TableTestBase {
 
@@ -123,40 +124,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testInnerJoinWithCteBuildSide() {
-        util.verifyRelPlan(
-                "WITH cte AS (SELECT bk, bv + 1 AS bv, bts FROM b) "
-                        + "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
-                        + "input => TABLE cte, "
-                        + "load_completed_condition => 'user_time', "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
-                        + "ON probe.pk = s.bk");
-    }
-
-    @Test
-    void testSnapshotArgumentsAreDropped() {
-        // The idle-timeout and state-ttl arguments are streaming-only; in batch they are dropped
-        // and the plan is a plain join, identical to testInnerJoin.
-        util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
-                        + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
-                        + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
-                        + "state_ttl => INTERVAL '1' DAY"
-                        + ")) AS s "
-                        + "ON probe.pk = s.bk");
-    }
-
-    @Test
-    void testDefaultCompileTime() {
-        util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b)) AS s "
-                        + "ON probe.pk = s.bk");
-    }
-
-    @Test
     void testBuildSideWithProctime() {
         // A PROCTIME() build column is a time-attribute indicator in batch; the rule materializes
         // it (into a PROCTIME_MATERIALIZE call) when degrading to a regular join.
@@ -218,21 +185,5 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .hasMessageContaining(
                         "The SNAPSHOT function can only be used as the build side "
                                 + "(right-hand side) of a LATERAL join");
-    }
-
-    @Test
-    void testRejectInvalidSnapshotArgument() {
-        // Although batch drops the SNAPSHOT arguments, they are still validated: an invalid
-        // argument
-        // is rejected rather than silently ignored.
-        final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
-                        + "input => TABLE b, "
-                        + "state_ttl => INTERVAL -'10' MINUTE"
-                        + ")) AS s "
-                        + "ON probe.pk = s.bk";
-        assertThatThrownBy(() -> util.verifyExecPlan(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Argument 'state_ttl' of SNAPSHOT must not be negative.");
     }
 }

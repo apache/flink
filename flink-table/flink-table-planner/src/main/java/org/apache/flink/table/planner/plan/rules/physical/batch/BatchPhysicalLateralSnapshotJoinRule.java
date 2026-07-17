@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin;
+import org.apache.flink.table.planner.plan.rules.logical.LogicalJoinToLateralSnapshotJoinRule;
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLateralSnapshotJoinRule;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -32,15 +34,15 @@ import org.apache.calcite.util.ImmutableIntList;
 
 /**
  * Converts a {@link FlinkLogicalLateralSnapshotJoin} (created by {@link
- * org.apache.flink.table.planner.plan.rules.logical.LogicalJoinToLateralSnapshotJoinRule}) into a
- * regular batch {@link BatchPhysicalHashJoin} for batch execution.
+ * LogicalJoinToLateralSnapshotJoinRule}) into a regular batch {@link BatchPhysicalHashJoin} for
+ * batch execution.
  *
- * <p>In batch all input is bounded and append-only (batch rejects non-insert-only sources up
- * front), so the processing-time {@code LATERAL SNAPSHOT} join degenerates to a regular join of the
- * probe side against the (final) build side; the SNAPSHOT-specific arguments are irrelevant and
- * dropped. This rule mirrors the streaming {@link
- * org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLateralSnapshotJoinRule},
- * which converts the same logical node to a dedicated stream operator.
+ * <p>In batch all input is bounded and append-only (batch rejects or in the future materializes
+ * non-insert-only sources up front), so the processing-time {@code LATERAL SNAPSHOT} join
+ * degenerates to a regular join of the probe side against the (final) build side; the
+ * SNAPSHOT-specific arguments are irrelevant and dropped. This rule mirrors the streaming {@link
+ * StreamPhysicalLateralSnapshotJoinRule}, which converts the same logical node to a dedicated
+ * stream operator.
  *
  * <p>The SNAPSHOT input is the build (right) side of the LATERAL join and is the dimension-like
  * side, expected to be smaller than the probe (left) side. The join is therefore emitted as a

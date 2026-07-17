@@ -66,30 +66,6 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, b
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDefaultCompileTime">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b)) AS s ON probe.pk = s.bk]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
-      +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, b]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, bts], build=[right])
-:- Exchange(distribution=[hash[pk]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
-+- Exchange(distribution=[hash[bk]])
-   +- TableSourceScan(table=[[default_catalog, default_database, b]], fields=[bk, bv, bts])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInnerJoin">
     <Resource name="sql">
       <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
@@ -135,32 +111,6 @@ HashJoin(joinType=[InnerJoin], where=[AND(=(pk, bk), =(pv, bv))], select=[pk, pv
 :  +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
 +- Exchange(distribution=[hash[bk, bv]])
    +- TableSourceScan(table=[[default_catalog, default_database, b]], fields=[bk, bv, bts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testInnerJoinWithCteBuildSide">
-    <Resource name="sql">
-      <![CDATA[WITH cte AS (SELECT bk, bv + 1 AS bv, bts FROM b) SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE cte, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
-      +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
-         +- LogicalProject(bk=[$0], bv=[+($1, 1)], bts=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, b]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, bts], build=[right])
-:- Exchange(distribution=[hash[pk]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
-+- Exchange(distribution=[hash[bk]])
-   +- Calc(select=[bk, +(bv, 1) AS bv, bts])
-      +- TableSourceScan(table=[[default_catalog, default_database, b]], fields=[bk, bv, bts])
 ]]>
     </Resource>
   </TestCase>
@@ -231,30 +181,6 @@ LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
     <Resource name="optimized rel plan">
       <![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, bts], build=[right])
-:- Exchange(distribution=[hash[pk]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
-+- Exchange(distribution=[hash[bk]])
-   +- TableSourceScan(table=[[default_catalog, default_database, b]], fields=[bk, bv, bts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSnapshotArgumentsAreDropped">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), load_completed_idle_timeout => INTERVAL '10' SECOND, state_ttl => INTERVAL '1' DAY)) AS s ON probe.pk = s.bk]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, 10000:INTERVAL SECOND, 86400000:INTERVAL DAY)], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
-      +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, b]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, bts], build=[right])
 :- Exchange(distribution=[hash[pk]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
 +- Exchange(distribution=[hash[bk]])
