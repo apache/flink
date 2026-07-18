@@ -1370,7 +1370,7 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                NullPointerException.class)
+                                TableRuntimeException.class)
                         .fromCase(
                                 ARRAY(ARRAY(INT().nullable())),
                                 new GenericArrayData(
@@ -1430,12 +1430,12 @@ class CastRulesTest {
                         .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(null, 1d)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
                         .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(123, null)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
                         .fromCase(
                                 MULTISET(INT().nullable()),
@@ -1455,7 +1455,7 @@ class CastRulesTest {
                         .fail(
                                 MULTISET(INT().nullable()),
                                 mapData(entry(null, 1)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
