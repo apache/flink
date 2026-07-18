@@ -29,9 +29,9 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /**
@@ -179,10 +179,6 @@ class CharVarCharTrimPadCastRule
         return methodCall(strTerm, "length") + " > " + targetLength;
     }
 
-    static String stringShouldPad(String strTerm, int targetLength) {
-        return methodCall(strTerm, "length") + " < " + targetLength;
-    }
-
     static boolean couldTrim(int targetLength) {
         return targetLength < VarCharType.MAX_LENGTH;
     }
@@ -199,8 +195,7 @@ class CharVarCharTrimPadCastRule
             String resultStringTerm,
             String builderTerm,
             CodeGeneratorContext codeGeneratorContext) {
-        writer.declStmt(String.class, resultStringTerm)
-                .assignStmt(resultStringTerm, methodCall(builderTerm, "toString"));
+        writer.declStmt(String.class, resultStringTerm);
 
         // Trim and Pad if needed
         if (!legacyBehaviour && (couldTrim(length) || couldPad(targetType, length))) {
@@ -209,23 +204,21 @@ class CharVarCharTrimPadCastRule
                     thenWriter ->
                             thenWriter.assignStmt(
                                     resultStringTerm,
-                                    methodCall(
-                                            builderTerm,
-                                            "substring",
-                                            0,
-                                            staticCall(
-                                                    Math.class,
-                                                    "min",
-                                                    methodCall(builderTerm, "length"),
-                                                    length))),
-                    elseWriter ->
-                            padStringIfNeeded(
-                                    elseWriter,
-                                    targetType,
-                                    legacyBehaviour,
-                                    length,
-                                    resultStringTerm,
-                                    codeGeneratorContext));
+                                    methodCall(builderTerm, "substring", 0, length)),
+                    elseWriter -> {
+                        elseWriter.assignStmt(
+                                resultStringTerm, methodCall(builderTerm, "toString"));
+                        padStringIfNeeded(
+                                elseWriter,
+                                targetType,
+                                legacyBehaviour,
+                                length,
+                                resultStringTerm,
+                                methodCall(builderTerm, "length"),
+                                codeGeneratorContext);
+                    });
+        } else {
+            writer.assignStmt(resultStringTerm, methodCall(builderTerm, "toString"));
         }
         return writer;
     }
@@ -236,34 +229,24 @@ class CharVarCharTrimPadCastRule
             boolean legacyBehaviour,
             int length,
             String returnTerm,
+            String currentLengthTerm,
             CodeGeneratorContext codeGeneratorContext) {
 
         // Pad if needed
         if (!legacyBehaviour && couldPad(targetType, length)) {
             final String padLength = newName(codeGeneratorContext, "padLength");
-            final String sbPadding = newName(codeGeneratorContext, "sbPadding");
             writer.ifStmt(
-                    stringShouldPad(returnTerm, length),
+                    currentLengthTerm + " < " + length,
                     thenWriter ->
                             thenWriter
                                     .declStmt(int.class, padLength)
-                                    .assignStmt(
-                                            padLength,
-                                            length + " - " + methodCall(returnTerm, "length"))
-                                    .declStmt(StringBuilder.class, sbPadding)
-                                    .assignStmt(sbPadding, constructorCall(StringBuilder.class))
-                                    .forStmt(
-                                            padLength,
-                                            (idx, loopWriter) ->
-                                                    loopWriter.stmt(
-                                                            methodCall(
-                                                                    sbPadding, "append", "\" \"")),
-                                            codeGeneratorContext)
+                                    .assignStmt(padLength, length + " - " + currentLengthTerm)
                                     .assignStmt(
                                             returnTerm,
                                             returnTerm
                                                     + " + "
-                                                    + methodCall(sbPadding, "toString")));
+                                                    + methodCall(
+                                                            strLiteral(" "), "repeat", padLength)));
         }
     }
 }
