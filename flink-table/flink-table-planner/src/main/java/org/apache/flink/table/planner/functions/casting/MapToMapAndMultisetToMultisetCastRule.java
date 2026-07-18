@@ -165,35 +165,20 @@ class MapToMapAndMultisetToMultisetCastRule
                             codeWriter
                                     .declStmt(innerTargetKeyTypeTerm, key, null)
                                     .declStmt(innerTargetValueTypeTerm, value, null);
-                            if (innerTargetKeyType.isNullable()) {
-                                codeWriter.ifStmt(
-                                        "!" + methodCall(keyArrayTerm, "isNullAt", index),
-                                        thenWriter ->
-                                                thenWriter
-                                                        .append(keyCodeBlock)
-                                                        .assignStmt(
-                                                                key, keyCodeBlock.getReturnTerm()));
-                            } else {
-                                codeWriter
-                                        .append(keyCodeBlock)
-                                        .assignStmt(key, keyCodeBlock.getReturnTerm());
-                            }
+                            codeWriter.ifStmt(
+                                    "!" + methodCall(keyArrayTerm, "isNullAt", index),
+                                    thenWriter ->
+                                            thenWriter
+                                                    .append(keyCodeBlock)
+                                                    .assignStmt(key, keyCodeBlock.getReturnTerm()));
 
-                            if (inputLogicalType.is(LogicalTypeRoot.MAP)
-                                    && innerTargetValueType.isNullable()) {
-                                codeWriter.ifStmt(
-                                        "!" + methodCall(valueArrayTerm, "isNullAt", index),
-                                        thenWriter ->
-                                                thenWriter
-                                                        .append(valueCodeBlock)
-                                                        .assignStmt(
-                                                                value,
-                                                                valueCodeBlock.getReturnTerm()));
-                            } else {
-                                codeWriter
-                                        .append(valueCodeBlock)
-                                        .assignStmt(value, valueCodeBlock.getReturnTerm());
-                            }
+                            codeWriter.ifStmt(
+                                    "!" + methodCall(valueArrayTerm, "isNullAt", index),
+                                    thenWriter ->
+                                            thenWriter
+                                                    .append(valueCodeBlock)
+                                                    .assignStmt(
+                                                            value, valueCodeBlock.getReturnTerm()));
                             codeWriter.stmt(methodCall(map, "put", key, value));
                         },
                         codeGeneratorContext)

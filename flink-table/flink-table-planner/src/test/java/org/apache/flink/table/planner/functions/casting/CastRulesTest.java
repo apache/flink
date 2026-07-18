@@ -1431,15 +1431,15 @@ class CastRulesTest {
                                 mapData(entry(TIMESTAMP, 123.456)),
                                 mapData(entry(TIMESTAMP_STRING, fromString("123.456")))),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().nullable()))
-                        .fail(
+                        .fromCase(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(null, 1d)),
-                                NullPointerException.class),
+                                mapData(entry(null, fromString("1.0")))),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
-                        .fail(
+                        .fromCase(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(123, null)),
-                                NullPointerException.class),
+                                mapData(entry(fromString("123"), null))),
                 CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
                         .fromCase(
                                 MULTISET(INT().nullable()),
@@ -1456,10 +1456,10 @@ class CastRulesTest {
                                 mapData(entry(null, 1)),
                                 mapData(entry(null, 1))),
                 CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
-                        .fail(
+                        .fromCase(
                                 MULTISET(INT().nullable()),
                                 mapData(entry(null, 1)),
-                                NullPointerException.class),
+                                mapData(entry(null, 1))),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
