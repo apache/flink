@@ -109,6 +109,32 @@ The following predicates are examples of valid interval join conditions:
 For streaming queries, compared to the regular join, interval join only supports append-only tables with time attributes.
 Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
+### Early Fire for Outer Interval Joins
+
+By default an outer interval join waits for the time window of an unmatched row to fully close before emitting that row null-padded. The `EARLY_FIRE` hint shortens this wait: an unmatched outer row is emitted speculatively with a null-padded counterpart after a configurable `delay`, and corrected later if a real match arrives within the window. This trades the append-only result for an updating one, so the downstream sink must accept updates.
+
+```sql
+SELECT /*+ EARLY_FIRE('delay'='5s') */ o.id, s.ship_time
+FROM Orders o
+LEFT OUTER JOIN Shipments s
+ON o.id = s.order_id
+AND o.order_time BETWEEN s.ship_time - INTERVAL '1' HOUR AND s.ship_time
+```
+
+When an order has no shipment yet, the join emits `+I[id, NULL]` once the `delay` has elapsed, instead of waiting for the order's one-hour window to close. If a matching shipment later arrives inside the window, the speculative row is corrected with `-U[id, NULL]` followed by `+U[id, ship_time]`. Each outer row fires at most once; the hint does not emit periodically.
+
+The hint accepts the following options:
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `target` | no | The operator kind the hint applies to. Currently only `interval_join` is supported; any other value is an error. When omitted, the hint applies to the interval join. |
+| `delay` | yes | A duration of at least 1 millisecond (for example `'5s'`). In `rowtime` mode it is measured from the row's time attribute; in `proctime` mode it is measured from the wall-clock time at which the row is processed. The speculative null-padded row is emitted once this delay elapses without a match. |
+| `time-mode` | no | Either `rowtime` or `proctime`. Controls whether the delay is measured against the watermark (`rowtime`) or wall-clock time (`proctime`). Defaults to `rowtime` for an event-time join and `proctime` for a processing-time join. Setting `'time-mode'='proctime'` on an event-time join triggers early fire on wall-clock time instead of the watermark, which helps when watermarks are sparse or stalled; matching and state cleanup still follow event time, and the join keeps extra state on each input to track the pending early fires. Setting `'time-mode'='rowtime'` on a processing-time join is an error. |
+
+The hint only affects outer joins (`LEFT`, `RIGHT`, `FULL`). It is ignored on inner joins and on joins whose window has a negative span, both of which remain append-only.
+
+**Note:** `EARLY_FIRE` is unrelated to the `table.exec.emit.early-fire.*` configuration, which controls early firing for windowed aggregations rather than interval joins.
+
 Temporal Joins
 --------------
 
