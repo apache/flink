@@ -19,9 +19,13 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.EarlyFireJoinHintOptions;
+import org.apache.flink.table.api.config.EarlyFireJoinHintOptions.TimeMode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
@@ -32,11 +36,16 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -133,6 +142,8 @@ public class StreamPhysicalIntervalJoinRule
             RelTraitSet providedTraitSet) {
         Tuple2<Option<IntervalJoinSpec.WindowBounds>, Option<RexNode>> tuple2 =
                 extractWindowBounds(join);
+        boolean isEventTime = tuple2.f0.get().isEventTime();
+        EarlyFire earlyFire = extractEarlyFire(join.getHints(), isEventTime);
         return new StreamPhysicalIntervalJoin(
                 join.getCluster(),
                 providedTraitSet,
@@ -141,7 +152,53 @@ public class StreamPhysicalIntervalJoinRule
                 join.getJoinType(),
                 join.getCondition(),
                 tuple2.f1.getOrElse(() -> join.getCluster().getRexBuilder().makeLiteral(true)),
-                tuple2.f0.get());
+                tuple2.f0.get(),
+                earlyFire.delay,
+                earlyFire.timeMode);
+    }
+
+    private static EarlyFire extractEarlyFire(List<RelHint> hints, boolean isEventTime) {
+        RelHint earlyFireHint = null;
+        for (RelHint hint : hints) {
+            if (JoinStrategy.isEarlyFireHint(hint.hintName)) {
+                earlyFireHint = hint;
+                break;
+            }
+        }
+        if (earlyFireHint == null) {
+            return new EarlyFire(null, null);
+        }
+
+        Configuration conf = Configuration.fromMap(earlyFireHint.kvOptions);
+        Duration delay = conf.get(EarlyFireJoinHintOptions.DELAY);
+        TimeMode timeMode = conf.get(EarlyFireJoinHintOptions.TIME_MODE);
+        if (timeMode == null) {
+            timeMode = isEventTime ? TimeMode.ROWTIME : TimeMode.PROCTIME;
+        }
+
+        if (!isEventTime && timeMode == TimeMode.ROWTIME) {
+            throw new ValidationException(
+                    "EARLY_FIRE hint requested row-time triggering on a processing-time interval"
+                            + " join. Row-time triggering requires a row-time interval join.");
+        }
+        if (isEventTime && timeMode == TimeMode.PROCTIME) {
+            // Processing-time triggering on an event-time interval join is not supported.
+            throw new TableException(
+                    "EARLY_FIRE hint requested processing-time triggering on a row-time interval"
+                            + " join, which is not yet supported.");
+        }
+
+        return new EarlyFire(delay == null ? null : delay.toMillis(), timeMode);
+    }
+
+    private static final class EarlyFire {
+        @Nullable private final Long delay;
+        @Nullable private final TimeMode timeMode;
+
+        EarlyFire(@Nullable Long delay, @Nullable TimeMode timeMode) {
+            this.delay = delay;
+            this.timeMode = timeMode;
+        }
     }
 
     /** Configuration for {@link StreamPhysicalIntervalJoinRule}. */
