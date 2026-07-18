@@ -141,6 +141,17 @@ class EarlyFireJoinHintTest extends TableTestBase {
     }
 
     @Test
+    void testEarlyFireUnsupportedTarget() {
+        String sql =
+                "SELECT /*+ EARLY_FIRE('target'='window_join', 'delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
+        assertThatThrownBy(() -> verify(sql))
+                .hasMessageContaining("target value 'window_join' is not supported");
+    }
+
+    @Test
     void testEarlyFireLowerCaseHintNamePreservesOptions() {
         String sql =
                 "SELECT /*+ early_fire('delay'='5s', 'time-mode'='rowtime') */ t1.a, t2.b\n"
@@ -154,6 +165,16 @@ class EarlyFireJoinHintTest extends TableTestBase {
     void testEarlyFireOnRowTimeLeftOuterJoin() {
         String sql =
                 "SELECT /*+ EARLY_FIRE('delay'='5s') */ t1.a, t2.b\n"
+                        + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
+                        + "  t1.a = t2.a AND\n"
+                        + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
+        verify(sql);
+    }
+
+    @Test
+    void testEarlyFireExplicitTargetIntervalJoin() {
+        String sql =
+                "SELECT /*+ EARLY_FIRE('target'='interval_join', 'delay'='5s') */ t1.a, t2.b\n"
                         + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
                         + "  t1.a = t2.a AND\n"
                         + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
