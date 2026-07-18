@@ -395,6 +395,63 @@ class IntervalJoinTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
+  // Tests for the EARLY_FIRE join hint
+  @Test
+  def testEarlyFireMissingDelay(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('time_mode'='rowtime') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("incomplete required option(s)")
+  }
+
+  @Test
+  def testEarlyFireNonPositiveDelay(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('delay'='0s') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("value should be a positive duration")
+  }
+
+  @Test
+  def testEarlyFireInvalidTimeMode(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('delay'='5s', 'time_mode'='unknown') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("Invalid EARLY_FIRE hint options")
+  }
+
+  @Test
+  def testEarlyFireUnknownOption(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('delay'='5s', 'timemode'='proctime') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("Unsupported EARLY_FIRE hint option(s) [timemode]")
+  }
+
   // Other tests
   @Test
   def testJoinTimeBoundary(): Unit = {

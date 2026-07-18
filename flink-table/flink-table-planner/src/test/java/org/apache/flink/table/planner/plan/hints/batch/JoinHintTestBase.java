@@ -61,8 +61,9 @@ public abstract class JoinHintTestBase extends TableTestBase {
 
     private final List<String> allJoinHintNames =
             Lists.newArrayList(JoinStrategy.values()).stream()
-                    // LOOKUP hint has different kv-options against other join hints
-                    .filter(hint -> hint != JoinStrategy.LOOKUP)
+                    // LOOKUP and EARLY_FIRE hints only support key-value options, unlike the
+                    // list-option join hints exercised here
+                    .filter(hint -> hint != JoinStrategy.LOOKUP && hint != JoinStrategy.EARLY_FIRE)
                     .map(JoinStrategy::getJoinHintName)
                     .collect(Collectors.toList());
 
