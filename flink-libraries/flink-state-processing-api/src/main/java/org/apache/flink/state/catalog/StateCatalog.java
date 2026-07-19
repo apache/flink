@@ -61,9 +61,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * A read-only Flink SQL catalog that discovers checkpoints and savepoints from a configured set of
@@ -108,6 +110,7 @@ public class StateCatalog extends AbstractCatalog {
     public static final String OPERATOR_UID_PREFIX = "uid_";
     public static final String OPERATOR_ID_PREFIX = "id_";
     public static final String OPERATOR_TABLE_SUFFIX = "_keyed";
+    public static final String FLAT_STATE_TABLE_SUFFIX = "_keyed_flat";
 
     private static final CatalogDatabase EMPTY_DATABASE =
             new CatalogDatabaseImpl(Collections.emptyMap(), "");
@@ -214,15 +217,33 @@ public class StateCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), databaseName);
         }
         List<String> tables = new ArrayList<>();
+        tables.add(METADATA_TABLE);
+        Set<String> seen = new LinkedHashSet<>();
         try {
             CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(snapshotPath.get());
             for (OperatorIdentifier opId : StateTableUtils.getOperatorIdentifiers(metadata)) {
                 for (ResolvedTable candidate : candidateTablesForOperator(metadata, opId)) {
-                    tables.add(
+                    String name =
                             tableName(
                                     candidate.operatorIdentifier,
                                     candidate.kind,
-                                    candidate.stateName));
+                                    candidate.stateName);
+                    // Two distinct (operator, state) combinations can legitimately derive the
+                    // same table name, since operator UIDs and state names may themselves
+                    // contain underscores (see #tableName). Skip and warn rather than exposing
+                    // the same name twice, mirroring how SnapshotDiscovery#list handles
+                    // colliding database names.
+                    if (!seen.add(name)) {
+                        LOG.warn(
+                                "Table name '{}' is ambiguous between multiple operators/states "
+                                        + "in database '{}' and only the first one found is "
+                                        + "exposed. Consider renaming the colliding operator "
+                                        + "UID(s) or state name(s).",
+                                name,
+                                databaseName);
+                        continue;
+                    }
+                    tables.add(name);
                 }
             }
         } catch (IOException e) {
@@ -269,6 +290,18 @@ public class StateCatalog extends AbstractCatalog {
                                 snapshotPath.get(),
                                 resolved.operatorIdentifier);
                     }
+                case KEYED_FLAT:
+                    {
+                        KeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getFlattenedStateCatalogTable(
+                                metadata,
+                                schemaInfo,
+                                resolved.stateName,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
                 default:
                     throw new IllegalStateException("Unhandled table kind " + resolved.kind);
             }
@@ -296,6 +329,10 @@ public class StateCatalog extends AbstractCatalog {
             CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(snapshotPath.get());
             return resolveTable(metadata, tableName).isPresent();
         } catch (IOException e) {
+            LOG.warn(
+                    "Failed to load checkpoint metadata while checking existence of table '{}'",
+                    tablePath,
+                    e);
             return false;
         }
     }
@@ -560,7 +597,7 @@ public class StateCatalog extends AbstractCatalog {
 
     /**
      * Table name for a {@code kind} of operator state, optionally scoped to one flattened/non-keyed
-     * state (see {@link #OPERATOR_TABLE_SUFFIX}).
+     * state (see {@link #OPERATOR_TABLE_SUFFIX}/{@link #FLAT_STATE_TABLE_SUFFIX}).
      *
      * <p>{@code stateName} must be {@code null} for {@link StateReaderMode#KEYED}/{@link
      * StateReaderMode#WINDOWED} (the general keyed/namespaced table, one per operator) and non-null
@@ -569,7 +606,9 @@ public class StateCatalog extends AbstractCatalog {
      * within an operator).
      */
     private static final Map<StateReaderMode, String> TABLE_SUFFIXES =
-            Map.of(StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX);
+            Map.of(
+                    StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX,
+                    StateReaderMode.KEYED_FLAT, FLAT_STATE_TABLE_SUFFIX);
 
     static String tableName(
             OperatorIdentifier opId, StateReaderMode kind, @Nullable String stateName) {
@@ -620,6 +659,7 @@ public class StateCatalog extends AbstractCatalog {
             try {
                 candidates = candidateTablesForOperator(metadata, opId);
             } catch (IOException e) {
+                LOG.warn("Failed to load state schema for operator '{}'. Skipping.", opId, e);
                 continue;
             }
             for (ResolvedTable candidate : candidates) {
@@ -633,8 +673,8 @@ public class StateCatalog extends AbstractCatalog {
     }
 
     /**
-     * Enumerates every table that {@code opId} contributes: currently just the general keyed table
-     * (if any plain per-key state is registered).
+     * Enumerates every table that {@code opId} contributes: the general keyed table (if any plain
+     * per-key state is registered), plus one flattened table per LIST/MAP keyed state.
      *
      * <p>Shared by {@link #listTables} (which collects names for every candidate) and {@link
      * #resolveTable} (which matches candidates against a target name), so that adding a new state
@@ -647,6 +687,14 @@ public class StateCatalog extends AbstractCatalog {
         KeyedStateSchemaInfo schemaInfo = StateTableUtils.getKeyedStateSchema(metadata, opId);
         if (!schemaInfo.stateSchemas.isEmpty()) {
             candidates.add(new ResolvedTable(opId, StateReaderMode.KEYED));
+            for (Map.Entry<String, KeyedStateSchemaInfo.StateEntryInfo> entry :
+                    schemaInfo.stateSchemas.entrySet()) {
+                StateType stateType = entry.getValue().stateType;
+                if (stateType == StateType.LIST || stateType == StateType.MAP) {
+                    candidates.add(
+                            new ResolvedTable(opId, StateReaderMode.KEYED_FLAT, entry.getKey()));
+                }
+            }
         }
 
         return candidates;

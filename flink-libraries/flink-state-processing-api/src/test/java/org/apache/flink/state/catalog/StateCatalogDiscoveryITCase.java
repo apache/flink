@@ -48,8 +48,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests for basic {@link StateCatalog} functionality driven through {@code CREATE
  * CATALOG} DDL and SQL: multi-label discovery and the {@code metadata} view. Checkpoint metadata is
- * written directly via {@link Checkpoints#storeCheckpointMetadata} — no minicluster or real state
- * backend is involved, so these tests are backend-agnostic by construction.
+ * written directly via {@link Checkpoints#storeCheckpointMetadataWithoutExclusiveDir} — no
+ * minicluster or real state backend is involved, so these tests are backend-agnostic by
+ * construction.
  *
  * <p>For reads of real (generated) keyed-state savepoints, see {@code
  * StateCatalogGeneratedSavepointITCase} (HashMap-only, checked-in fixtures) and {@code
@@ -135,7 +136,8 @@ class StateCatalogDiscoveryITCase {
         assertThat(catalog.databaseExists(dbName)).isTrue();
         assertThat(catalog.databaseExists("app/nonexistent")).isFalse();
 
-        assertThat(catalog.listTables(dbName)).isEmpty();
+        // listTables includes views (the "metadata" view), per the Catalog contract.
+        assertThat(catalog.listTables(dbName)).containsExactly(StateCatalog.METADATA_TABLE);
         assertThat(catalog.listViews(dbName)).containsExactly(StateCatalog.METADATA_TABLE);
 
         assertThat(catalog.tableExists(new ObjectPath(dbName, StateCatalog.METADATA_TABLE)))
@@ -193,7 +195,7 @@ class StateCatalogDiscoveryITCase {
         CheckpointMetadata metadata =
                 new CheckpointMetadata(checkpointId, operators, Collections.emptyList());
         try (OutputStream out = Files.newOutputStream(snapshotDir.resolve("_metadata"))) {
-            Checkpoints.storeCheckpointMetadata(metadata, out);
+            Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(metadata, out);
         }
     }
 

@@ -65,6 +65,14 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                         stateBackendType,
                         statePath,
                         operatorIdentifier);
+            case KEYED_FLAT:
+                return createFlattenedDynamicTableSource(
+                        context,
+                        options,
+                        serializerConfig,
+                        stateBackendType,
+                        statePath,
+                        operatorIdentifier);
             default:
                 throw new IllegalArgumentException("Unsupported state reader mode: " + readerMode);
         }
@@ -118,6 +126,66 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
     }
 
     /**
+     * Creates a {@link FlattenedSavepointDynamicTableSource} for a table exposing a single
+     * flattened LIST/MAP state (selected via {@link SavepointConnectorOptions#STATE_READER_MODE}
+     * being set to {@link SavepointConnectorOptions.StateReaderMode#KEYED_FLAT}). The state name is
+     * resolved from {@link SavepointConnectorOptions#FLATTENED_STATE_NAME}.
+     */
+    private DynamicTableSource createFlattenedDynamicTableSource(
+            Context context,
+            Configuration options,
+            SerializerConfig serializerConfig,
+            String stateBackendType,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        SavepointConnectorOptions.StateType stateType =
+                FlattenedStateTableMapping.validateFlattenedSchema(context.getCatalogTable());
+
+        RowType rowType = (RowType) context.getPhysicalRowDataType().getLogicalType();
+
+        String stateName = validateAndGetFlattenedStateName(options);
+
+        // Defer I/O to scan time by creating the mapping lazily.
+        Supplier<FlattenedStateTableMapping> mappingSupplier =
+                () ->
+                        FlattenedStateTableMapping.from(
+                                context.getCatalogTable(),
+                                stateName,
+                                statePath,
+                                operatorIdentifier,
+                                serializerConfig,
+                                stateType);
+
+        return new FlattenedSavepointDynamicTableSource<>(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                FlattenedStateTableMapping.STATE_KEY_COLUMN_INDEX,
+                mappingSupplier,
+                rowType,
+                "Flattened Savepoint Table Source",
+                FlattenedSavepointDataStreamScanProvider::new);
+    }
+
+    /**
+     * Validates {@code options} against the required/optional option sets extended with {@link
+     * SavepointConnectorOptions#FLATTENED_STATE_NAME}, and returns the resolved state name — shared
+     * by every table kind whose columns represent a single named state's flattened value fields (or
+     * a single scalar value column) rather than encoding the state's name via the column layout
+     * itself.
+     */
+    private String validateAndGetFlattenedStateName(Configuration options) {
+        Set<ConfigOption<?>> requiredOptions = new HashSet<>(requiredOptions());
+        requiredOptions.add(SavepointConnectorOptions.FLATTENED_STATE_NAME);
+        Set<ConfigOption<?>> optionalOptions = new HashSet<>(optionalOptions());
+
+        validateOptions(options, requiredOptions, optionalOptions);
+
+        return options.get(SavepointConnectorOptions.FLATTENED_STATE_NAME);
+    }
+
+    /**
      * Validates {@code options} against the given required/optional option sets and ensures no
      * unrecognized keys remain (shared by both the general and flattened table source paths).
      */
@@ -163,6 +231,11 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         // Selects between the general and flattened keyed-state table schemas; set automatically
         // by StateCatalog.
         options.add(STATE_READER_MODE);
+
+        // Required only for STATE_READER_MODE == KEYED_FLAT/WINDOWED_FLAT (enforced in
+        // validateAndGetFlattenedStateName); listed here as optional so that generic option
+        // introspection (docs, Table API tooling) can discover it regardless of mode.
+        options.add(SavepointConnectorOptions.FLATTENED_STATE_NAME);
 
         return options;
     }
