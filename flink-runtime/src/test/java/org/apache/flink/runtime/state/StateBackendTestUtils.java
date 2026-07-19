@@ -283,6 +283,12 @@ public class StateBackendTestUtils {
                 }
 
                 @Override
+                public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(
+                        List<String> states, N namespace) {
+                    return delegatedKeyedStateBackend.getKeysAndKeyGroups(states, namespace);
+                }
+
+                @Override
                 public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
                     return delegatedKeyedStateBackend.getKeysAndNamespaces(state);
                 }

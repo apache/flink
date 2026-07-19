@@ -19,6 +19,7 @@
 package org.apache.flink.state.table;
 
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -26,6 +27,8 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /**
  * Converts {@link ResolvedExpression} key filter predicates into {@link SavepointKeyFilter}
@@ -62,13 +66,13 @@ class SavepointFilterTranslator {
                             BuiltInFunctionDefinitions.BETWEEN,
                             SavepointFilterTranslator::fromBetween,
                             BuiltInFunctionDefinitions.GREATER_THAN,
-                            SavepointFilterTranslator::fromGreaterThan,
+                            (t, call) -> t.fromComparison(call, Comparison.GT),
                             BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
-                            SavepointFilterTranslator::fromGreaterThanOrEqual,
+                            (t, call) -> t.fromComparison(call, Comparison.GTE),
                             BuiltInFunctionDefinitions.LESS_THAN,
-                            SavepointFilterTranslator::fromLessThan,
+                            (t, call) -> t.fromComparison(call, Comparison.LT),
                             BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
-                            SavepointFilterTranslator::fromLessThanOrEqual);
+                            (t, call) -> t.fromComparison(call, Comparison.LTE));
 
     private final int keyColumnIndex;
     private final DataType keyColumnType;
@@ -95,6 +99,27 @@ class SavepointFilterTranslator {
         }
 
         return new Result(accepted, remaining, keyFilter);
+    }
+
+    /**
+     * Shared {@code SupportsFilterPushDown.applyFilters} implementation for {@link
+     * SavepointDynamicTableSource} and {@link FlattenedSavepointDynamicTableSource}: translates
+     * {@code filters} against the key column at {@code keyColumnIndex}, reports the extracted key
+     * filter to {@code keyFilterSetter}, and returns the accepted/remaining split.
+     */
+    static SupportsFilterPushDown.Result applyKeyColumnFilters(
+            int keyColumnIndex,
+            RowType rowType,
+            List<ResolvedExpression> filters,
+            Consumer<SavepointKeyFilter> keyFilterSetter) {
+        Result result =
+                new SavepointFilterTranslator(
+                                keyColumnIndex,
+                                TypeConversions.fromLogicalToDataType(
+                                        rowType.getTypeAt(keyColumnIndex)))
+                        .apply(filters);
+        keyFilterSetter.accept(result.keyFilter());
+        return SupportsFilterPushDown.Result.of(result.accepted(), result.remaining());
     }
 
     @Nullable
@@ -203,26 +228,6 @@ class SavepointFilterTranslator {
         return SavepointKeyFilter.range(
                 (Comparable) lower, true,
                 (Comparable) upper, true);
-    }
-
-    @Nullable
-    private SavepointKeyFilter fromGreaterThan(CallExpression call) {
-        return fromComparison(call, Comparison.GT);
-    }
-
-    @Nullable
-    private SavepointKeyFilter fromGreaterThanOrEqual(CallExpression call) {
-        return fromComparison(call, Comparison.GTE);
-    }
-
-    @Nullable
-    private SavepointKeyFilter fromLessThan(CallExpression call) {
-        return fromComparison(call, Comparison.LT);
-    }
-
-    @Nullable
-    private SavepointKeyFilter fromLessThanOrEqual(CallExpression call) {
-        return fromComparison(call, Comparison.LTE);
     }
 
     @Nullable
