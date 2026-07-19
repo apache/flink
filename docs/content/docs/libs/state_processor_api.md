@@ -749,17 +749,13 @@ The following predicates on the key column can be pushed down:
 | Option                           | Required | Default | Type                                   | Description                                                                                                                                                                                                                                                                      |
 |----------------------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | fields.#.state-name              | optional | (none)  | String                                 | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                                                                                                         |
-| fields.#.state-type              | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value).                                                                             |
-| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).        |
-| fields.#.key-type-factory        | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                            |
-| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).      |
-| fields.#.value-type-factory      | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                          |
 
 ### Default Data Type Mapping
 
-The state SQL connector infers the data type for primitive types when `fields.#.value-class` and `fields.#.key-class`
-are not defined. The following table shows the `Flink SQL type` -> `Java type` default mapping. If the mapping is not calculated properly
-then it can be overridden with the two mentioned config parameters on a per-column basis.
+The state SQL connector automatically infers each column's data type from the savepoint's serializer
+snapshot metadata (this covers primitive, Avro, Row and POJO types). When no serializer snapshot is
+available for a column, it falls back to inferring a primitive Java type directly from the SQL type,
+using the mapping below.
 
 | Flink SQL type          | Java type                                                               |
 |-------------------------|-------------------------------------------------------------------------|

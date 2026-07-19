@@ -173,14 +173,9 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
         registry = new CloseableRegistry();
 
         RuntimeContext runtimeContext = getRuntimeContext();
-        ExecutionConfig executionConfig;
-        try {
-            executionConfig =
-                    serializedExecutionConfig.deserializeValue(
-                            runtimeContext.getUserCodeClassLoader());
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Could not deserialize ExecutionConfig.", e);
-        }
+        ExecutionConfig executionConfig =
+                KeyedStateInputFormat.deserialize(
+                        serializedExecutionConfig, runtimeContext.getUserCodeClassLoader());
         final StreamOperatorStateContext context =
                 new StreamOperatorContextBuilder(
                                 runtimeContext,
