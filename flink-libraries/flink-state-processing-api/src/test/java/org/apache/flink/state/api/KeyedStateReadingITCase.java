@@ -19,6 +19,10 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -32,20 +36,30 @@ import org.apache.flink.state.api.schema.KeyedStateSchemaInfo;
 import org.apache.flink.state.api.schema.StateSchemaExtractor;
 import org.apache.flink.state.api.schema.StateSchemaInfo;
 import org.apache.flink.state.api.utils.SavepointTestBase;
+import org.apache.flink.state.catalog.StateCatalog;
+import org.apache.flink.state.table.module.StateModule;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,6 +73,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * backends (see {@code HashMapKeyedStateReadingITCase} / {@code
  * EmbeddedRocksDBKeyedStateReadingITCase}) so that schema extraction and reads are checked against
  * both keyed-state-handle formats.
+ *
+ * <p>Unlike {@code StateCatalogGeneratedSavepointITCase}, which reads savepoints checked in as test
+ * resources (necessarily HashMap-only, since RocksDB fixtures can't be generated locally), every
+ * savepoint here is produced at test run time, so it runs on whichever backend the subclass
+ * configures.
  */
 public abstract class KeyedStateReadingITCase extends SavepointTestBase {
 
@@ -177,11 +196,9 @@ public abstract class KeyedStateReadingITCase extends SavepointTestBase {
 
         OperatorIdentifier opId = OperatorIdentifier.forUid(POJO_UID);
 
-        // Discover states via StateTableUtils
         List<String> stateNames = StateTableUtils.getKeyedStates(metadata, opId);
         assertTrue(stateNames.contains("person"), "Expected 'person' state");
 
-        // Extract schema via StateTableUtils — all states in one call
         KeyedStateSchemaInfo schemaInfo = StateTableUtils.getKeyedStateSchema(metadata, opId);
         KeyedStateSchemaInfo.StateEntryInfo personEntry = schemaInfo.stateSchemas.get("person");
         assertNotNull(personEntry, "'person' state not found in schema");
@@ -193,48 +210,105 @@ public abstract class KeyedStateReadingITCase extends SavepointTestBase {
         assertHasField(rowType, "name", LogicalTypeRoot.VARCHAR);
         assertHasField(rowType, "age", LogicalTypeRoot.INTEGER);
         assertHasField(rowType, "score", LogicalTypeRoot.BIGINT);
-    }
 
-    @Test
-    public void testDeserializerBuiltFromPojoSnapshot() throws Exception {
-        StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(getConfiguration());
-        env.setParallelism(1);
-
-        PersonPojo[] data = {new PersonPojo("Alice", 30, 100L)};
-        env.addSource(createSource(data))
-                .returns(PersonPojo.class)
-                .keyBy(p -> p.name)
-                .process(new PersonStateWriter())
-                .uid(POJO_UID)
-                .sinkTo(new DiscardingSink<>());
-
-        String savepointPath = takeSavepoint(env);
-        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
-
-        OperatorIdentifier opId = OperatorIdentifier.forUid(POJO_UID);
-
-        KeyedStateSchemaInfo schemaInfo = StateTableUtils.getKeyedStateSchema(metadata, opId);
-        KeyedStateSchemaInfo.StateEntryInfo personEntry = schemaInfo.stateSchemas.get("person");
-        assertNotNull(personEntry);
-
-        // Building the PojoToRowDataDeserializer directly from the snapshot (lower-level API)
-        List<StateSchemaInfo> rawSchemas =
-                StateSchemaExtractor.extractSchema(findOperatorState(metadata, opId));
+        // The same snapshot must also be usable to build a deserializer directly (lower-level API).
         StateSchemaInfo personRaw =
-                rawSchemas.stream()
+                StateSchemaExtractor.extractSchema(findOperatorState(metadata, opId)).stream()
                         .filter(s -> "person".equals(s.stateName))
                         .findFirst()
                         .orElse(null);
         assertNotNull(personRaw);
-
-        var deser =
+        assertNotNull(
                 PojoToRowDataDeserializer.create(
-                        (PojoSerializerSnapshot<?>) personRaw.valueSnapshot);
-        assertNotNull(deser);
-        assertTrue(
-                deser instanceof PojoToRowDataDeserializer,
-                "Expected PojoToRowDataDeserializer, got: " + deser.getClass().getSimpleName());
+                        (PojoSerializerSnapshot<?>) personRaw.valueSnapshot));
+    }
+
+    // -------------------------------------------------------------------------
+    // End-to-end read through StateCatalog + SQL: primitive, POJO, list and map state
+    // -------------------------------------------------------------------------
+    //
+    // This is the backend-parameterized equivalent of
+    // StateCatalogGeneratedSavepointITCase.SchemaDiscoveryWithoutSourceClasses — same state
+    // shapes, but written and savepointed at test run time instead of read from a checked-in
+    // HashMap-only fixture, so it also runs on RocksDB.
+
+    private static final String MIXED_STATE_UID = "mixed-state-operator";
+    private static final ValueStateDescriptor<Long> COUNT_STATE_DESC =
+            new ValueStateDescriptor<>("count", Long.class);
+    private static final ListStateDescriptor<Long> ITEMS_STATE_DESC =
+            new ListStateDescriptor<>("items", Long.class);
+    private static final MapStateDescriptor<Long, Long> COUNTS_STATE_DESC =
+            new MapStateDescriptor<>("counts", Long.class, Long.class);
+
+    @Test
+    public void testReadPrimitivePojoListAndMapStateThroughCatalog() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(getConfiguration());
+        env.setParallelism(1);
+
+        Long[] keys = {1L, 2L, 3L};
+        env.addSource(createSource(keys))
+                .returns(Long.class)
+                .keyBy(k -> k)
+                .process(new MixedStateWriter())
+                .uid(MIXED_STATE_UID)
+                .sinkTo(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
+        // takeSavepoint() returns a "file:" URI string, not a plain filesystem path.
+        Path catalogRoot = Paths.get(java.net.URI.create(savepointPath)).getParent();
+
+        StateCatalog catalog =
+                new StateCatalog(
+                        "state",
+                        Collections.singletonMap("test", catalogRoot.toAbsolutePath().toString()));
+        catalog.open();
+        try {
+            List<String> dbs = catalog.listDatabases();
+            assertEquals(1, dbs.size());
+            String dbName = dbs.get(0);
+
+            TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+            tableEnv.loadModule("state", StateModule.INSTANCE);
+            tableEnv.registerCatalog("state", catalog);
+            tableEnv.useCatalog("state");
+            tableEnv.useDatabase(dbName);
+
+            String mainTable =
+                    "`"
+                            + StateCatalog.OPERATOR_UID_PREFIX
+                            + MIXED_STATE_UID
+                            + StateCatalog.OPERATOR_TABLE_SUFFIX
+                            + "`";
+            List<Row> rows = collectWithSql(tableEnv, "SELECT * FROM " + mainTable);
+            assertEquals(3, rows.size());
+            for (Row row : rows) {
+                Long key = (Long) row.getField("state_key");
+                assertNotNull(key);
+                assertEquals(key, row.getField("count"));
+
+                Row person = (Row) row.getField("person");
+                assertNotNull(person);
+                assertEquals("name-" + key, person.getField("name"));
+                assertEquals(key * 100, person.getField("score"));
+            }
+
+            String listFlatTable =
+                    "`"
+                            + StateCatalog.OPERATOR_UID_PREFIX
+                            + MIXED_STATE_UID
+                            + "_items"
+                            + StateCatalog.FLAT_STATE_TABLE_SUFFIX
+                            + "`";
+            List<Row> listRows =
+                    collectWithSql(
+                            tableEnv, "SELECT * FROM " + listFlatTable + " WHERE state_key = 2");
+            assertEquals(1, listRows.size());
+            assertEquals(2L, listRows.get(0).getField("state_key"));
+            assertEquals(20L, listRows.get(0).getField("list_value"));
+        } finally {
+            catalog.close();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -262,6 +336,15 @@ public abstract class KeyedStateReadingITCase extends SavepointTestBase {
                 expectedRoot, field.getType().getTypeRoot(), "Wrong type for field '" + name + "'");
     }
 
+    private static List<Row> collectWithSql(TableEnvironment tEnv, String sql) throws Exception {
+        List<Row> rows = new ArrayList<>();
+        TableResult result = tEnv.executeSql(sql);
+        try (CloseableIterator<Row> it = result.collect()) {
+            it.forEachRemaining(rows::add);
+        }
+        return rows;
+    }
+
     // -------------------------------------------------------------------------
     // Operators
     // -------------------------------------------------------------------------
@@ -278,6 +361,29 @@ public abstract class KeyedStateReadingITCase extends SavepointTestBase {
         public void processElement(PersonPojo value, Context ctx, Collector<Void> out)
                 throws Exception {
             state.update(value);
+        }
+    }
+
+    private static class MixedStateWriter extends KeyedProcessFunction<Long, Long, Void> {
+        private transient ValueState<Long> countState;
+        private transient ValueState<PersonPojo> personState;
+        private transient ListState<Long> itemsState;
+        private transient MapState<Long, Long> countsState;
+
+        @Override
+        public void open(OpenContext ctx) throws Exception {
+            countState = getRuntimeContext().getState(COUNT_STATE_DESC);
+            personState = getRuntimeContext().getState(PERSON_STATE_DESC);
+            itemsState = getRuntimeContext().getListState(ITEMS_STATE_DESC);
+            countsState = getRuntimeContext().getMapState(COUNTS_STATE_DESC);
+        }
+
+        @Override
+        public void processElement(Long key, Context ctx, Collector<Void> out) throws Exception {
+            countState.update(key);
+            personState.update(new PersonPojo("name-" + key, key.intValue(), key * 100));
+            itemsState.add(key * 10);
+            countsState.put(key, key);
         }
     }
 }
