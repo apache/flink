@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -33,7 +34,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -49,7 +50,8 @@ import static org.apache.flink.util.StringUtils.writeString;
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
 public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
-    private Class<T> runtimeType;
+    @Nullable private Class<T> runtimeType;
+    private String runtimeTypeName;
     private Schema schema;
     private Schema runtimeSchema;
 
@@ -61,6 +63,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     AvroSerializerSnapshot(Schema schema, Class<T> runtimeType) {
         this.schema = schema;
         this.runtimeType = runtimeType;
+        this.runtimeTypeName = runtimeType.getName();
     }
 
     @Override
@@ -106,7 +109,11 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     private void readV1(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
         final String previousSchemaDefinition = in.readUTF();
         this.schema = parseAvroSchema(previousSchemaDefinition);
-        this.runtimeType = findClassOrFallbackToGeneric(userCodeClassLoader, schema.getFullName());
+        this.runtimeTypeName = schema.getFullName();
+        // V1 snapshots predate CustomRestoreSerializerFactory support: preserve their original
+        // behavior of falling back to GenericRecord rather than failing when the runtime type is
+        // missing from the classpath.
+        this.runtimeType = findClassOrFallbackToGeneric(userCodeClassLoader, runtimeTypeName);
         this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
     }
 
@@ -114,18 +121,22 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         final String previousRuntimeTypeName = in.readUTF();
         final String previousSchemaDefinition = in.readUTF();
 
-        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.runtimeTypeName = previousRuntimeTypeName;
+        this.runtimeType = tryFindClass(userCodeClassLoader, runtimeTypeName);
         this.schema = parseAvroSchema(previousSchemaDefinition);
-        this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+        this.runtimeSchema =
+                runtimeType == null ? null : tryExtractAvroSchema(userCodeClassLoader, runtimeType);
     }
 
     private void readV3(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
         final String previousRuntimeTypeName = readString(in);
         final String previousSchemaDefinition = readString(in);
 
-        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.runtimeTypeName = previousRuntimeTypeName;
+        this.runtimeType = tryFindClass(userCodeClassLoader, runtimeTypeName);
         this.schema = parseAvroSchema(previousSchemaDefinition);
-        this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+        this.runtimeSchema =
+                runtimeType == null ? null : tryExtractAvroSchema(userCodeClassLoader, runtimeType);
     }
 
     @Override
@@ -141,8 +152,11 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
     @Override
     public TypeSerializer<T> restoreSerializer() {
-        checkNotNull(runtimeType);
         checkNotNull(schema);
+
+        if (runtimeType == null) {
+            return CustomRestoreSerializerFactory.restoreFallbackSerializer(this, runtimeTypeName);
+        }
 
         if (runtimeSchema != null) {
             return new AvroSerializer<>(
@@ -155,6 +169,11 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     new SerializableAvroSchema(schema),
                     new SerializableAvroSchema(schema));
         }
+    }
+
+    /** Returns the Avro writer schema stored in this snapshot. */
+    public Schema getSchema() {
+        return schema;
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -225,32 +244,16 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         return d.getSchema(runtimeType);
     }
 
-    @SuppressWarnings("unchecked")
-    @Nonnull
-    private static <T> Class<T> findClassOrThrow(
-            ClassLoader userCodeClassLoader, String className) {
-        try {
-            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-            return (Class<T>) runtimeTarget;
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException(
-                    ""
-                            + "Unable to find the class '"
-                            + className
-                            + "' which is used to deserialize "
-                            + "the elements of this serializer. "
-                            + "Were the class was moved or renamed?",
-                    e);
-        }
+    @Nullable
+    private static <T> Class<T> tryFindClass(ClassLoader userCodeClassLoader, String className) {
+        return CustomRestoreSerializerFactory.resolveOrNull(className, userCodeClassLoader);
     }
 
     @SuppressWarnings("unchecked")
-    @Nonnull
     private static <T> Class<T> findClassOrFallbackToGeneric(
             ClassLoader userCodeClassLoader, String className) {
         try {
-            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-            return (Class<T>) runtimeTarget;
+            return (Class<T>) Class.forName(className, false, userCodeClassLoader);
         } catch (ClassNotFoundException e) {
             return (Class<T>) GenericRecord.class;
         }
