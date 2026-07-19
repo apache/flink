@@ -19,6 +19,13 @@
 package org.apache.flink.state.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.state.api.OperatorIdentifier;
+import org.apache.flink.state.api.StateTableUtils;
+import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.state.api.schema.KeyedStateSchemaInfo;
+import org.apache.flink.state.table.SavepointConnectorOptions.StateReaderMode;
+import org.apache.flink.state.table.SavepointConnectorOptions.StateType;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -98,6 +105,9 @@ public class StateCatalog extends AbstractCatalog {
     private static final Logger LOG = LoggerFactory.getLogger(StateCatalog.class);
 
     public static final String METADATA_TABLE = "metadata";
+    public static final String OPERATOR_UID_PREFIX = "uid_";
+    public static final String OPERATOR_ID_PREFIX = "id_";
+    public static final String OPERATOR_TABLE_SUFFIX = "_keyed";
 
     private static final CatalogDatabase EMPTY_DATABASE =
             new CatalogDatabaseImpl(Collections.emptyMap(), "");
@@ -199,10 +209,27 @@ public class StateCatalog extends AbstractCatalog {
     @Override
     public List<String> listTables(String databaseName)
             throws DatabaseNotExistException, CatalogException {
-        if (discovery.find(databaseName).isEmpty()) {
+        Optional<String> snapshotPath = discovery.find(databaseName);
+        if (snapshotPath.isEmpty()) {
             throw new DatabaseNotExistException(getName(), databaseName);
         }
-        return Collections.emptyList();
+        List<String> tables = new ArrayList<>();
+        try {
+            CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(snapshotPath.get());
+            for (OperatorIdentifier opId : StateTableUtils.getOperatorIdentifiers(metadata)) {
+                for (ResolvedTable candidate : candidateTablesForOperator(metadata, opId)) {
+                    tables.add(
+                            tableName(
+                                    candidate.operatorIdentifier,
+                                    candidate.kind,
+                                    candidate.stateName));
+                }
+            }
+        } catch (IOException e) {
+            throw new CatalogException(
+                    "Failed to load checkpoint metadata for database '" + databaseName + "'", e);
+        }
+        return tables;
     }
 
     @Override
@@ -225,7 +252,30 @@ public class StateCatalog extends AbstractCatalog {
         if (METADATA_TABLE.equals(tableName)) {
             return buildMetadataView(snapshotPath.get());
         }
-        throw new TableNotExistException(getName(), tablePath);
+        try {
+            CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(snapshotPath.get());
+            ResolvedTable resolved =
+                    resolveTable(metadata, tableName)
+                            .orElseThrow(() -> new TableNotExistException(getName(), tablePath));
+            switch (resolved.kind) {
+                case KEYED:
+                    {
+                        KeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getStateCatalogTable(
+                                metadata,
+                                schemaInfo,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
+                default:
+                    throw new IllegalStateException("Unhandled table kind " + resolved.kind);
+            }
+        } catch (IOException e) {
+            throw new CatalogException(
+                    "Failed to load state schema for table '" + tablePath + "'", e);
+        }
     }
 
     @Override
@@ -234,7 +284,20 @@ public class StateCatalog extends AbstractCatalog {
         if (snapshotPath.isEmpty()) {
             return false;
         }
-        return METADATA_TABLE.equals(tablePath.getObjectName());
+        String tableName = tablePath.getObjectName();
+        if (METADATA_TABLE.equals(tableName)) {
+            return true;
+        }
+        if (!tableName.startsWith(OPERATOR_UID_PREFIX)
+                && !tableName.startsWith(OPERATOR_ID_PREFIX)) {
+            return false;
+        }
+        try {
+            CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(snapshotPath.get());
+            return resolveTable(metadata, tableName).isPresent();
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     @Override
@@ -489,5 +552,103 @@ public class StateCatalog extends AbstractCatalog {
                 query,
                 query,
                 Collections.emptyMap());
+    }
+
+    // -------------------------------------------------------------------------
+    // Operator table helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Table name for a {@code kind} of operator state, optionally scoped to one flattened/non-keyed
+     * state (see {@link #OPERATOR_TABLE_SUFFIX}).
+     *
+     * <p>{@code stateName} must be {@code null} for {@link StateReaderMode#KEYED}/{@link
+     * StateReaderMode#WINDOWED} (the general keyed/namespaced table, one per operator) and non-null
+     * for every other kind (a table scoped to one flattened LIST/MAP state, or one non-keyed state
+     * — the state name alone disambiguates the table since keyed/non-keyed state names are unique
+     * within an operator).
+     */
+    private static final Map<StateReaderMode, String> TABLE_SUFFIXES =
+            Map.of(StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX);
+
+    static String tableName(
+            OperatorIdentifier opId, StateReaderMode kind, @Nullable String stateName) {
+        String base =
+                opId.getUid()
+                        .map(uid -> OPERATOR_UID_PREFIX + uid)
+                        .orElseGet(() -> OPERATOR_ID_PREFIX + opId.getOperatorId().toHexString());
+        String suffix = TABLE_SUFFIXES.get(kind);
+        if (suffix == null) {
+            throw new IllegalArgumentException("Unknown state reader mode: " + kind);
+        }
+        return stateName == null ? base + suffix : base + "_" + stateName + suffix;
+    }
+
+    /**
+     * Identifies which table a table name refers to: the operator, the table shape ({@link
+     * StateReaderMode}), and — for flattened tables — the name of the flattened state.
+     */
+    private static final class ResolvedTable {
+        final OperatorIdentifier operatorIdentifier;
+        final StateReaderMode kind;
+        @Nullable final String stateName;
+
+        ResolvedTable(OperatorIdentifier operatorIdentifier, StateReaderMode kind) {
+            this(operatorIdentifier, kind, null);
+        }
+
+        ResolvedTable(
+                OperatorIdentifier operatorIdentifier,
+                StateReaderMode kind,
+                @Nullable String stateName) {
+            this.operatorIdentifier = operatorIdentifier;
+            this.kind = kind;
+            this.stateName = stateName;
+        }
+    }
+
+    /**
+     * Resolves a table name to the operator (and, for flattened tables, the state) it refers to, by
+     * generating candidate names for every operator/state in the checkpoint and matching against
+     * {@code tableName}. Names cannot be parsed directly since operator UIDs and state names may
+     * themselves contain underscores.
+     */
+    private static Optional<ResolvedTable> resolveTable(
+            CheckpointMetadata metadata, String tableName) {
+        for (OperatorIdentifier opId : StateTableUtils.getOperatorIdentifiers(metadata)) {
+            List<ResolvedTable> candidates;
+            try {
+                candidates = candidateTablesForOperator(metadata, opId);
+            } catch (IOException e) {
+                continue;
+            }
+            for (ResolvedTable candidate : candidates) {
+                if (tableName(candidate.operatorIdentifier, candidate.kind, candidate.stateName)
+                        .equals(tableName)) {
+                    return Optional.of(candidate);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Enumerates every table that {@code opId} contributes: currently just the general keyed table
+     * (if any plain per-key state is registered).
+     *
+     * <p>Shared by {@link #listTables} (which collects names for every candidate) and {@link
+     * #resolveTable} (which matches candidates against a target name), so that adding a new state
+     * kind only requires updating this one traversal.
+     */
+    private static List<ResolvedTable> candidateTablesForOperator(
+            CheckpointMetadata metadata, OperatorIdentifier opId) throws IOException {
+        List<ResolvedTable> candidates = new ArrayList<>();
+
+        KeyedStateSchemaInfo schemaInfo = StateTableUtils.getKeyedStateSchema(metadata, opId);
+        if (!schemaInfo.stateSchemas.isEmpty()) {
+            candidates.add(new ResolvedTable(opId, StateReaderMode.KEYED));
+        }
+
+        return candidates;
     }
 }

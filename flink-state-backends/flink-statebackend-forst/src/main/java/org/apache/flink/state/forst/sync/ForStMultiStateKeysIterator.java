@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.rocksdb.iterator;
+package org.apache.flink.state.forst.sync;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
-import org.apache.flink.state.rocksdb.RocksIteratorWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -34,17 +33,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
-import static org.apache.flink.state.rocksdb.iterator.AbstractRocksStateKeysIterator.isMatchingNameSpace;
-
 /**
- * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over
- * the keys. This class is not thread safe.
+ * Adapter class to bridge between {@link ForStIteratorWrapper} and {@link Iterator} to iterate over
+ * the keys of multiple states in namespace order. This class is not thread safe.
  *
- * @param <K> the type of the iterated objects, which are keys in RocksDB.
+ * @param <K> the type of the iterated objects, which are keys in ForSt.
  */
-public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K> {
+public class ForStMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K> {
 
-    private final List<RocksIteratorWrapper> iterators;
+    private final List<ForStIteratorWrapper> iterators;
     private final List<String> states;
     private final TypeSerializer<K> keySerializer;
     private final List<Boolean> ambiguousKeyPossibles;
@@ -58,8 +55,8 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
     private K nextKey;
     private byte[] nextKeyBytes;
 
-    public RocksMultiStateKeysIterator(
-            List<RocksIteratorWrapper> iterators,
+    public ForStMultiStateKeysIterator(
+            List<ForStIteratorWrapper> iterators,
             List<String> states,
             @Nonnull TypeSerializer<K> keySerializer,
             int keyGroupPrefixBytes,
@@ -99,7 +96,7 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
     }
 
     private boolean hasDataToProcess() {
-        boolean result = iterators.stream().anyMatch(RocksIteratorWrapper::isValid);
+        boolean result = iterators.stream().anyMatch(ForStIteratorWrapper::isValid);
         if (!result) {
             for (int i = 0; i < iterators.size(); ++i) {
                 if (iteratorKeys[i] != null) {
@@ -113,7 +110,7 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
 
     private void pullKeysFromIterators() {
         for (int i = 0; i < iterators.size(); ++i) {
-            RocksIteratorWrapper iterator = iterators.get(i);
+            ForStIteratorWrapper iterator = iterators.get(i);
             if (iteratorKeys[i] == null && iterator.isValid()) {
                 iteratorKeys[i] = iterator.key();
                 iterator.next();
@@ -175,6 +172,19 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
         return null;
     }
 
+    private static boolean isMatchingNameSpace(
+            @Nonnull byte[] key, int namespaceBytesStartPos, @Nonnull byte[] namespaceBytes) {
+        if (key.length >= namespaceBytesStartPos + namespaceBytes.length) {
+            for (int i = 0; i < namespaceBytes.length; ++i) {
+                if (key[namespaceBytesStartPos + i] != namespaceBytes[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public K next() {
         if (!hasNext()) {
@@ -187,19 +197,14 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
         return tmpKey;
     }
 
-    /**
-     * Returns the key-group of the key most recently returned by {@link #next()}, decoded from that
-     * key's RocksDB byte prefix rather than recomputed from {@code hashCode()}. Only valid
-     * immediately after a call to {@link #next()}; the decoding happens here so that callers which
-     * never need the key-group pay nothing for it.
-     */
+    /** Returns the key-group of the key most recently returned by {@link #next()}. */
     public int getKeyGroup() {
         return CompositeKeySerializationUtils.extractKeyGroup(keyGroupPrefixBytes, nextKeyBytes);
     }
 
     @Override
     public void close() {
-        for (RocksIteratorWrapper iterator : iterators) {
+        for (ForStIteratorWrapper iterator : iterators) {
             iterator.close();
         }
     }
