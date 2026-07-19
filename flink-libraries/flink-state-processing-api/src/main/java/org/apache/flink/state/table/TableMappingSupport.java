@@ -19,6 +19,7 @@
 package org.apache.flink.state.table;
 
 import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -26,12 +27,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.SavepointLoader.OperatorStateMetadata;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -181,5 +187,122 @@ final class TableMappingSupport {
                 typeResolver.resolveStateKind(stateName),
                 mapKeyTypeSerializer,
                 valueTypeSerializer);
+    }
+
+    /**
+     * Infers the flattened state type (LIST or MAP) from the sub-key column name and validates that
+     * the value column is named consistently with it.
+     *
+     * @param tableKindLabel e.g. "Flattened keyed state tables", used in validation error messages
+     * @param subKeyColumnOrdinal ordinal word for the sub-key column's position, e.g. "second"
+     * @param valueColumnOrdinal ordinal word for the value column's position, e.g. "third"
+     */
+    static SavepointConnectorOptions.StateType inferFlattenedStateTypeAndValidateValueColumn(
+            String tableKindLabel,
+            String subKeyColumnOrdinal,
+            String valueColumnOrdinal,
+            String subKeyColumnName,
+            String valueColumnName) {
+        SavepointConnectorOptions.StateType stateType;
+        String expectedValueColumnName;
+        switch (subKeyColumnName) {
+            case "list_index":
+                stateType = SavepointConnectorOptions.StateType.LIST;
+                expectedValueColumnName = "list_value";
+                break;
+            case "map_key":
+                stateType = SavepointConnectorOptions.StateType.MAP;
+                expectedValueColumnName = "map_value";
+                break;
+            default:
+                throw new ValidationException(
+                        tableKindLabel
+                                + " must name their "
+                                + subKeyColumnOrdinal
+                                + " column either 'list_index' (LIST state) or 'map_key' (MAP "
+                                + "state), but found '"
+                                + subKeyColumnName
+                                + "'.");
+        }
+
+        if (!expectedValueColumnName.equals(valueColumnName)) {
+            throw new ValidationException(
+                    tableKindLabel
+                            + " must name their "
+                            + valueColumnOrdinal
+                            + " column '"
+                            + expectedValueColumnName
+                            + "', but found '"
+                            + valueColumnName
+                            + "'.");
+        }
+
+        return stateType;
+    }
+
+    /** Resolved key type and value-related serializers for a flattened (LIST/MAP) state mapping. */
+    static final class FlattenedSerializers {
+        final TypeInformation<?> keyTypeInfo;
+        @Nullable final TypeSerializer<?> mapKeyTypeSerializer;
+        final TypeSerializer<?> valueTypeSerializer;
+
+        FlattenedSerializers(
+                TypeInformation<?> keyTypeInfo,
+                @Nullable TypeSerializer<?> mapKeyTypeSerializer,
+                TypeSerializer<?> valueTypeSerializer) {
+            this.keyTypeInfo = keyTypeInfo;
+            this.mapKeyTypeSerializer = mapKeyTypeSerializer;
+            this.valueTypeSerializer = valueTypeSerializer;
+        }
+    }
+
+    /**
+     * Resolves the key type and value-related serializers shared by {@link
+     * FlattenedStateTableMapping} and {@link WindowFlattenedStateTableMapping}'s {@code from(...)}
+     * factories.
+     */
+    static FlattenedSerializers resolveFlattenedSerializers(
+            RowType rowType,
+            SavepointTypeInfoResolver typeResolver,
+            String stateName,
+            SavepointConnectorOptions.StateType stateType,
+            int stateKeyColumnIndex,
+            int subKeyColumnIndex,
+            int valueColumnIndex) {
+        TypeInformation<?> keyTypeInfo =
+                typeResolver.resolveKeyType(rowType.getFields().get(stateKeyColumnIndex));
+
+        RowType.RowField compositeValueField =
+                buildCompositeValueField(
+                        rowType, stateName, stateType, subKeyColumnIndex, valueColumnIndex);
+
+        TypeSerializer<?> mapKeyTypeSerializer =
+                typeResolver.resolveMapKeySerializer(
+                        compositeValueField, stateType == SavepointConnectorOptions.StateType.MAP);
+        TypeSerializer<?> valueTypeSerializer =
+                typeResolver.resolveValueSerializer(compositeValueField);
+
+        return new FlattenedSerializers(keyTypeInfo, mapKeyTypeSerializer, valueTypeSerializer);
+    }
+
+    /**
+     * Builds a synthetic {@link RowType.RowField} for a flattened LIST/MAP state's composite
+     * (ArrayType/MapType) value, keyed by {@code stateName} so metadata lookup succeeds, mirroring
+     * how the general (non-flattened) path resolves value columns.
+     */
+    private static RowType.RowField buildCompositeValueField(
+            RowType rowType,
+            String stateName,
+            SavepointConnectorOptions.StateType stateType,
+            int subKeyColumnIndex,
+            int valueColumnIndex) {
+        LogicalType valueLogicalType = rowType.getFields().get(valueColumnIndex).getType();
+        LogicalType compositeLogicalType =
+                stateType == SavepointConnectorOptions.StateType.LIST
+                        ? new ArrayType(valueLogicalType)
+                        : new MapType(
+                                rowType.getFields().get(subKeyColumnIndex).getType(),
+                                valueLogicalType);
+        return new RowType.RowField(stateName, compositeLogicalType);
     }
 }

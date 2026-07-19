@@ -40,7 +40,10 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
@@ -263,6 +266,137 @@ public final class StateTableUtils {
         withStateBackendType(options, metadata, operatorIdentifier);
 
         return CatalogTable.newBuilder().schema(schema).options(options).build();
+    }
+
+    /**
+     * Builds a {@link CatalogTable} exposing a single keyed LIST or MAP state flattened into one
+     * row per list element / map entry, rather than one row per key.
+     *
+     * <p>The resulting table has 3 columns, with a composite primary key on {@code state_key} and
+     * the sub-key column (the {@code state_key} value repeats across rows belonging to the same
+     * key, but the pair uniquely identifies a row). The third column has a fixed name — not the
+     * state's own name, to avoid collisions with other (reserved) column names:
+     *
+     * <ul>
+     *   <li>LIST: {@code (state_key, list_index, list_value)}, primary key {@code (state_key,
+     *       list_index)}
+     *   <li>MAP: {@code (state_key, map_key, map_value)}, primary key {@code (state_key, map_key)}
+     * </ul>
+     *
+     * @param metadata the checkpoint metadata the operator belongs to
+     * @param schemaInfo the schema information returned by {@link #getKeyedStateSchema}
+     * @param stateName the name of the LIST or MAP state to flatten
+     * @param statePath the path to the savepoint / checkpoint
+     * @param operatorIdentifier identifies the operator whose state to read
+     * @return a {@link CatalogTable} ready for registration
+     */
+    public static CatalogTable getFlattenedStateCatalogTable(
+            CheckpointMetadata metadata,
+            KeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+        return buildFlattenedKeyedCatalogTable(
+                metadata, schemaInfo, stateName, statePath, operatorIdentifier, false);
+    }
+
+    /**
+     * Builds a {@link CatalogTable} exposing a single LIST or MAP state flattened into one row per
+     * list element / map entry, either plain-keyed ({@code windowed == false}, see {@link
+     * #getFlattenedStateCatalogTable}) or namespaced ({@code windowed == true}).
+     */
+    private static CatalogTable buildFlattenedKeyedCatalogTable(
+            CheckpointMetadata metadata,
+            KeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            String statePath,
+            OperatorIdentifier operatorIdentifier,
+            boolean windowed) {
+
+        KeyedStateSchemaInfo.StateEntryInfo entryInfo = schemaInfo.stateSchemas.get(stateName);
+        if (entryInfo == null) {
+            throw new IllegalArgumentException(
+                    "State '"
+                            + stateName
+                            + "' not found for operator '"
+                            + operatorIdentifier
+                            + "'.");
+        }
+        if (entryInfo.stateType != SavepointConnectorOptions.StateType.LIST
+                && entryInfo.stateType != SavepointConnectorOptions.StateType.MAP) {
+            throw new IllegalArgumentException(
+                    "Flattened state tables are only supported for LIST and MAP states, but '"
+                            + stateName
+                            + "' is "
+                            + entryInfo.stateType
+                            + ".");
+        }
+        if (windowed && entryInfo.windowLogicalType == null) {
+            throw new IllegalArgumentException(
+                    "State '"
+                            + stateName
+                            + "' is not a namespaced state for operator '"
+                            + operatorIdentifier
+                            + "'.");
+        }
+
+        Schema.Builder schemaBuilder = Schema.newBuilder();
+        schemaBuilder.column(
+                "state_key", LogicalTypeDataTypeConverter.toDataType(schemaInfo.keyType).notNull());
+        if (windowed) {
+            schemaBuilder.column(
+                    "state_window",
+                    LogicalTypeDataTypeConverter.toDataType(entryInfo.windowLogicalType).notNull());
+        }
+
+        String subKeyColumnName = addFlattenedValueColumns(schemaBuilder, entryInfo);
+        if (!windowed) {
+            schemaBuilder.primaryKeyNamed(
+                    "PK_state_key_" + subKeyColumnName, "state_key", subKeyColumnName);
+        }
+        Schema schema = schemaBuilder.build();
+
+        Map<String, String> options = buildBaseConnectorOptions(statePath, operatorIdentifier);
+        options.put(
+                SavepointConnectorOptions.STATE_READER_MODE.key(),
+                (windowed
+                                ? SavepointConnectorOptions.StateReaderMode.WINDOWED_FLAT
+                                : SavepointConnectorOptions.StateReaderMode.KEYED_FLAT)
+                        .toString());
+        options.put(SavepointConnectorOptions.FLATTENED_STATE_NAME.key(), stateName);
+        withStateBackendType(options, metadata, operatorIdentifier);
+
+        return CatalogTable.newBuilder().schema(schema).options(options).build();
+    }
+
+    /**
+     * Adds the LIST- or MAP-shaped sub-key and value columns (e.g. {@code (list_index, list_value)}
+     * or {@code (map_key, map_value)}) for a flattened state table, and returns the sub-key
+     * column's name.
+     */
+    private static String addFlattenedValueColumns(
+            Schema.Builder schemaBuilder, KeyedStateSchemaInfo.StateEntryInfo entryInfo) {
+        LogicalType valueType;
+        String subKeyColumnName;
+        String valueColumnName;
+        if (entryInfo.stateType == SavepointConnectorOptions.StateType.LIST) {
+            valueType = ((ArrayType) entryInfo.logicalType).getElementType();
+            subKeyColumnName = "list_index";
+            valueColumnName = "list_value";
+            schemaBuilder.column(
+                    subKeyColumnName,
+                    LogicalTypeDataTypeConverter.toDataType(new BigIntType(false)));
+        } else {
+            MapType mapType = (MapType) entryInfo.logicalType;
+            valueType = mapType.getValueType();
+            subKeyColumnName = "map_key";
+            valueColumnName = "map_value";
+            schemaBuilder.column(
+                    subKeyColumnName,
+                    LogicalTypeDataTypeConverter.toDataType(mapType.getKeyType()).notNull());
+        }
+        schemaBuilder.column(valueColumnName, LogicalTypeDataTypeConverter.toDataType(valueType));
+        return subKeyColumnName;
     }
 
     // -------------------------------------------------------------------------
