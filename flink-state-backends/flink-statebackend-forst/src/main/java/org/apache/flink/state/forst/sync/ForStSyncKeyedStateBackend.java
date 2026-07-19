@@ -88,7 +88,9 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -383,8 +385,98 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public <N> Stream<K> getKeys(List<String> states, N namespace) {
-        // TODO
-        throw new UnsupportedOperationException();
+        final ForStMultiStateKeysIterator<K> iteratorWrapper =
+                openMultiStateKeysIterator(states, namespace);
+        Stream<K> targetStream =
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED),
+                        false);
+        return targetStream.onClose(iteratorWrapper::close);
+    }
+
+    @Override
+    public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace) {
+        final ForStMultiStateKeysIterator<K> iteratorWrapper =
+                openMultiStateKeysIterator(states, namespace);
+        Iterator<Tuple2<K, Integer>> keyAndKeyGroupIterator =
+                new Iterator<Tuple2<K, Integer>>() {
+                    @Override
+                    public boolean hasNext() {
+                        return iteratorWrapper.hasNext();
+                    }
+
+                    @Override
+                    public Tuple2<K, Integer> next() {
+                        K key = iteratorWrapper.next();
+                        return Tuple2.of(key, iteratorWrapper.getKeyGroup());
+                    }
+                };
+        Stream<Tuple2<K, Integer>> targetStream =
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(
+                                keyAndKeyGroupIterator, Spliterator.ORDERED),
+                        false);
+        return targetStream.onClose(iteratorWrapper::close);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <N> ForStMultiStateKeysIterator<K> openMultiStateKeysIterator(
+            List<String> states, N namespace) {
+        final List<Boolean> ambiguousKeyPossibles = new ArrayList<>();
+        final List<ForStIteratorWrapper> iterators = new ArrayList<>();
+        byte[] namespaceBytes = null;
+
+        for (String state : states) {
+            ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
+            if (columnInfo == null
+                    || !(columnInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo)) {
+                continue;
+            }
+
+            RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
+                    (RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.metaInfo;
+
+            final TypeSerializer<N> namespaceSerializer =
+                    registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
+            final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
+            boolean ambiguousKeyPossible =
+                    CompositeKeySerializationUtils.isAmbiguousKeyPossible(
+                            getKeySerializer(), namespaceSerializer);
+            ambiguousKeyPossibles.add(ambiguousKeyPossible);
+            try {
+                CompositeKeySerializationUtils.writeNameSpace(
+                        namespace, namespaceSerializer, namespaceOutputView, ambiguousKeyPossible);
+                final byte[] stateNamespaceBytes = namespaceOutputView.getCopyOfBuffer();
+                if (namespaceBytes == null) {
+                    namespaceBytes = stateNamespaceBytes;
+                } else {
+                    if (!Arrays.equals(namespaceBytes, stateNamespaceBytes)) {
+                        throw new FlinkRuntimeException(
+                                "Key namespaces are different for states ["
+                                        + String.join(",", states)
+                                        + "]");
+                    }
+                }
+            } catch (IOException ex) {
+                throw new FlinkRuntimeException(
+                        "Failed to get keys from ForSt sync state backend.", ex);
+            }
+
+            ForStIteratorWrapper iterator =
+                    ForStOperationUtils.getForStIterator(
+                            db, columnInfo.columnFamilyHandle, readOptions);
+            iterator.seekToFirst();
+            iterators.add(iterator);
+        }
+
+        Preconditions.checkNotNull(namespaceBytes, "Namespace must exist");
+        return new ForStMultiStateKeysIterator<>(
+                iterators,
+                states,
+                getKeySerializer(),
+                keyGroupPrefixBytes,
+                ambiguousKeyPossibles,
+                namespaceBytes);
     }
 
     @Override

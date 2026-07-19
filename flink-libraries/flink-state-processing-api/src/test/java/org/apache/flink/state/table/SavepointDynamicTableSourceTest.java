@@ -37,6 +37,7 @@ import java.util.stream.LongStream;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** Unit tests for the savepoint SQL reader. */
 class SavepointDynamicTableSourceTest {
@@ -411,6 +412,94 @@ class SavepointDynamicTableSourceTest {
     }
 
     // -------------------------------------------------------------------------
+    //  Projection push-down tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testProjectionPushDownSelectKeyAndOneColumn() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        // Projection only: all 10 rows, 2 columns.
+        String sql = "SELECT k, KeyedPrimitiveValue FROM state_table ORDER BY k";
+        List<Row> result = tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100);
+
+        assertThat(result).hasSize(10);
+        for (Row row : result) {
+            assertThat(row.getArity()).isEqualTo(2);
+            assertThat(row.getField("KeyedPrimitiveValue")).isEqualTo(1L);
+        }
+        List<Long> keys =
+                result.stream().map(r -> (Long) r.getField("k")).collect(Collectors.toList());
+        assertThat(keys)
+                .containsExactlyElementsOf(
+                        LongStream.range(0L, 10L).boxed().collect(Collectors.toList()));
+
+        // Projection combined with filter push-down: applyProjection updates keyColumnIndex to its
+        // position in the projected row, but keyFilter holds only the key value so it remains
+        // valid regardless of how the key column moves in the output.
+        String filteredSql = "SELECT k, KeyedPrimitiveValue FROM state_table WHERE k = 5";
+        assertThat(hasPushedDownFilter(tEnv, filteredSql)).isTrue();
+        List<Row> filteredResult =
+                tEnv.toDataStream(tEnv.sqlQuery(filteredSql)).executeAndCollect(100);
+        assertThat(filteredResult).hasSize(1);
+        Row row = filteredResult.get(0);
+        assertThat(row.getArity()).isEqualTo(2);
+        assertThat(row.getField("k")).isEqualTo(5L);
+        assertThat(row.getField("KeyedPrimitiveValue")).isEqualTo(1L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testProjectionPushDownAllColumns() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        List<Row> result =
+                tEnv.toDataStream(tEnv.sqlQuery("SELECT * FROM state_table"))
+                        .executeAndCollect(100);
+
+        assertThat(result).hasSize(10);
+        for (Row row : result) {
+            assertThat(row.getArity()).isEqualTo(5);
+            assertThat(row.getField("KeyedPrimitiveValue")).isEqualTo(1L);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    //  Lazy type resolution tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testPlanningSucceedsWithNonexistentSavepointPath() {
+        // Planning must never touch the savepoint (metadata I/O or class loading); both are
+        // deferred to the scan runtime provider. A nonexistent path/operator would fail
+        // immediately if either were resolved eagerly during planning.
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+
+        String ddl =
+                "CREATE TABLE state_table_missing (\n"
+                        + "  k bigint,\n"
+                        + "  KeyedPrimitiveValue bigint,\n"
+                        + "  PRIMARY KEY (k) NOT ENFORCED\n"
+                        + ")\n"
+                        + "with (\n"
+                        + "  'connector' = 'savepoint',\n"
+                        + "  'state.path' = 'src/test/resources/does-not-exist',\n"
+                        + "  'operator.uid' = 'nonexistent-operator-uid'\n"
+                        + ")";
+
+        tEnv.executeSql(ddl);
+        tEnv.executeSql("CREATE TABLE sink (k BIGINT) WITH ('connector' = 'blackhole')");
+
+        assertThatCode(
+                        () ->
+                                tEnv.compilePlanSql(
+                                        "INSERT INTO sink SELECT k FROM state_table_missing"))
+                .doesNotThrowAnyException();
+    }
+
+    // -------------------------------------------------------------------------
     //  Helpers
     // -------------------------------------------------------------------------
 
@@ -423,7 +512,7 @@ class SavepointDynamicTableSourceTest {
 
     private static final Pattern PUSHED_DOWN_FILTER =
             Pattern.compile(
-                    "TableSourceScan\\(table=\\[\\[default_catalog, default_database, state_table, filter=\\[.+?]]]");
+                    "TableSourceScan\\(table=\\[\\[default_catalog, default_database, state_table, filter=\\[[^\\]]+\\]");
 
     private static boolean hasPushedDownFilter(StreamTableEnvironment tEnv, String sql) {
         return PUSHED_DOWN_FILTER.matcher(tEnv.explainSql(sql)).find();

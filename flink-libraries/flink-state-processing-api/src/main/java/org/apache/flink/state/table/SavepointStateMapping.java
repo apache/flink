@@ -18,12 +18,20 @@
 
 package org.apache.flink.state.table;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-/** {@link TypeInformation} factory for decoding savepoint value data. */
-@Experimental
-public interface SavepointTypeInformationFactory {
-    /** Returns {@link TypeInformation} for data deserialization. */
-    TypeInformation<?> getTypeInformation();
+import javax.annotation.Nullable;
+
+/**
+ * Common surface shared by every keyed state table mapping, allowing {@link
+ * AbstractSavepointDataStreamScanProvider} and {@link AbstractSavepointDynamicTableSource} to
+ * operate on any of them generically.
+ */
+@Internal
+interface SavepointStateMapping {
+
+    /** The resolved key {@link TypeInformation} for the keyed state(s) backing this mapping. */
+    @Nullable
+    TypeInformation<?> getKeyTypeInfo();
 }
