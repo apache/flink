@@ -38,9 +38,6 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonArrayAggAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonObjectAggAggFunction;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.util.mapping.MappingType;
-import org.apache.calcite.util.mapping.Mappings;
-import org.apache.calcite.util.mapping.Mappings.TargetMapping;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
@@ -126,14 +123,16 @@ public class WrapJsonAggFunctionArgumentsRule
                 valueIndicesAfterProjection);
 
         List<AggregateCall> newWrappedArgCallList = new ArrayList<>(aggCallList);
-        final int newInputCount = inputCount + valueIndicesAfterProjection.size();
         for (Integer jsonAggCallIndex : wrapIndicesMap.keySet()) {
-            final TargetMapping argsMapping =
-                    Mappings.create(MappingType.BIJECTION, newInputCount, newInputCount);
-            Integer valueIndex = wrapIndicesMap.get(jsonAggCallIndex);
-            argsMapping.set(valueIndex, valueIndicesAfterProjection.get(valueIndex));
-            final AggregateCall newAggregateCall =
-                    newWrappedArgCallList.get(jsonAggCallIndex).transform(argsMapping);
+            final AggregateCall aggregateCall = newWrappedArgCallList.get(jsonAggCallIndex);
+            final List<Integer> newArgList = new ArrayList<>(aggregateCall.getArgList());
+            // AggregateCall argument positions are zero-based: JSON_OBJECTAGG has (key, value),
+            // so its value is at position 1; JSON_ARRAYAGG has only (value), at position 0.
+            final int valueArgPosition =
+                    aggregateCall.getAggregation() instanceof SqlJsonObjectAggAggFunction ? 1 : 0;
+            final Integer valueIndex = wrapIndicesMap.get(jsonAggCallIndex);
+            newArgList.set(valueArgPosition, valueIndicesAfterProjection.get(valueIndex));
+            final AggregateCall newAggregateCall = aggregateCall.withArgList(newArgList);
             newWrappedArgCallList.set(jsonAggCallIndex, newAggregateCall);
         }
 
