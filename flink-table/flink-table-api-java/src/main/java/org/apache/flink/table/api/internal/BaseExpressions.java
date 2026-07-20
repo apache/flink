@@ -2544,11 +2544,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *   <li>Objects have a length equal to the number of their key-value pairs.
      * </ul>
      *
-     * <p>Nested arrays and objects each count as a single element and their contents are not
-     * included in the count.
-     *
-     * <p>Lax and strict mode produce the same output, so mode selection is disabled in this
-     * function. For the path argument, use the form:
+     * <p>For the path argument, use the form:
      *
      * <pre>{@code
      * path  ::= '$' ( '.' <field> | '[' <index> ']' )*
@@ -2583,17 +2579,15 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>Examples:
      *
      * <pre>{@code
-     * JSON_LENGTH('{1: "hello", 2: "bye bye"}') // 2
+     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}') // 2
      * JSON_LENGTH('[1,2,3,4,5]') // 5
-     * JSON_LENGTH('hello') // 1
+     * JSON_LENGTH('"hello"') // 1
      *
-     * JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.1') // 1
-     * JSON_LENGTH('{1: [1,2,3], 2: "bye bye"}', '$.1') // 3
-     * JSON_LENGTH('[1,2,3,4,5]', $.[3]) // 1
-     *
+     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.1') // 1
+     * JSON_LENGTH('{"1": [1,2,3], "2": "bye bye"}', '$.1') // 3
+     * JSON_LENGTH('[1,2,3,4,5]', '$[3]') // 1
      *
      * JSON_LENGTH('[1,2,3,4,5]', '$.[7]') // Null
-     * JSON_LENGTH('{1: "bad", 2: "syntax here ->"', '$.1') // Null
      * }</pre>
      */
     public OutType jsonLength(String path) {

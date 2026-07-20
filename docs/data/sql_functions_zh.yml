@@ -1779,29 +1779,28 @@ bitmapagg:
       Returns NULL if the argument is NULL, the json is invalid, or the path does not locate a value.
       eg. 
         -- 2
-        JSON_LENGTH('{1: "hello", 2: "bye bye"}')
+        JSON_LENGTH('{"1": "hello", "2": "bye bye"}')
       
         -- 5
         JSON_LENGTH('[1,2,3,4,5]')
       
         -- 1
-        JSON_LENGTH('hello')
+        JSON_LENGTH('"hello"')
       
         -- 1
-        JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.2')
-      
-      
+        JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.2')
+
+        -- NULL
+        JSON_LENGTH('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2')
+
+
       The length is determined as follows:
       
         - Scalar values (number, string, boolean): has length 1.
         - Array: has a length equal to the number of its elements.
         - Object: has a length equal to the number of its key-value pairs.
       
-      Nested arrays and objects each count as a single element and their contents are not included in the count.
-      
-      Lax and strict mode produce the same output, so mode selection is disabled for this function.                                                                                                            
-      
-        The path argument uses the form:                                                                                                                                                                         
+      The path argument uses the form:                                                                                                                                                                         
       
           path  ::= '$' ( '.' `field` | '[' `index` ']' )*                                                                                                                                                     
           field ::= a key in a JSON object                                                                                                                                                                     
@@ -1812,20 +1811,26 @@ bitmapagg:
       When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL.
 
       Because a NULL result can mean several different things (the input is not valid JSON, the path
-      does not match anything, or a wildcard path matched 2 or more nodes), it is recommended to pair
-      JSON_LENGTH with a helper function so invalid input is handled explicitly rather than silently
-      returning NULL:
+      does not match anything, or a wildcard path matched 2 or more nodes), pair JSON_LENGTH with a
+      helper function so those cases are handled explicitly rather than silently returning NULL.
 
-        - Without a path, guard the call with IS JSON to separate malformed input from a real result:
+      When JSON_LENGTH returns NULL and you need to know why, check in this order:
 
-          -- returns the length only for valid JSON, otherwise NULL means "invalid input"
-          SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
+        1. Is the input valid JSON? Guard the call with IS JSON:
 
-        - With a path, use JSON_EXISTS to tell "the path is absent" apart from "the path matched but
-          was ambiguous / matched 2 or more nodes":
+           -- FALSE when the input is malformed (here the closing '}' is missing)
+           SELECT '{"1": "hello", "2": "BAD SYNTAX ->"' IS JSON;
 
-          -- path_present is TRUE even when JSON_LENGTH is NULL because of a multi-match wildcard
-          SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
+           -- returns the length only for valid JSON, otherwise NULL means "invalid input"
+           SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
+
+        2. If the input is valid JSON, does the path match? Use JSON_EXISTS. With the default
+           FALSE ON ERROR behavior it returns FALSE when the path matches nothing, and TRUE when the
+           path matches one or more nodes. So if JSON_EXISTS is TRUE but JSON_LENGTH is still NULL,
+           the path matched 2 or more nodes (a wildcard), which JSON_LENGTH does not support:
+
+           -- JSON_EXISTS is TRUE even when JSON_LENGTH is NULL because of a multi-match wildcard
+           SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
     description: 返回当前数据库。

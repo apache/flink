@@ -109,7 +109,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "\"abc\"",
                         "null",
                         "{",
-                        ((String) null), // f6: SQL NULL
+                        ((String) null),
                         "$",
                         "{\"a\":[true, false, null]}",
                         "{}",
@@ -118,9 +118,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
                         STRING(), STRING(), STRING(), STRING())
                 // path exists but resolves to a JSON null literal -> scalar, length 1
-                // (distinct from a missing path, which yields NULL)
                 .testSqlResult("JSON_LENGTH(f8, '$.a[2]')", 1, INT().nullable())
-                // contrast: missing paths on the same document -> NULL
+                // missing paths on the same document -> NULL
                 .testSqlResult("JSON_LENGTH(f8, '$.a[9]')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f8, '$.b')", null, INT().nullable())
 
@@ -140,9 +139,6 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f10)", 0, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f9, '$')", 0, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f10, '$')", 0, INT().nullable())
-
-                // keep this line aligned with your intended semantics
-                // current implementation returns NULL for JSON literal null
                 .testSqlResult("JSON_LENGTH(f4)", 1, INT().nullable())
 
                 // (valid) paths
@@ -163,65 +159,41 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
 
                 // literal (NOT NULL) arguments must still yield a nullable result,
-                // otherwise constant folding / output writing NPEs when the path is missing
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
-
-                // vs strict
-                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
 
                 // missing path: neither mode throws -> both yield NULL
-                // (this is the "doesn't throw" behaviour)
                 .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
 
-                // WILDCARDS matching MULTIPLE nodes -> NULL in both modes.
-                // JSON_LENGTH is tolerant (like Calcite): a path that does not identify a single
-                // value has no defined length, so both LAX and STRICT return NULL (no throw).
+                // WILDCARDS matching MULTIPLE nodes -> NULL .
                 .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
-                // default (no mode prefix) parses as STRICT; result is the same either way
                 .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
                 // `$.author.*` -> name + address (multiple)
                 .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
                 // `$.author.address.*` -> country + city (multiple)
-                .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
                 // array wildcard `$.metadata.tags[*]` -> flink, streaming, json (multiple)
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
                 // deep-scan `$..name` -> author.name + references[0].name (multiple)
                 .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
 
-                // WILDCARDS matching a SINGLE node -> unwrapped, so LAX and STRICT agree.
                 // deep-scan `$..url` -> single scalar
                 .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
+
                 // deep-scan `$..address` -> single object (country + city)
-                .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
                 // array wildcard `$.metadata.references[*]` -> single object (name + url)
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
-                // `$.metadata.references[*].name` -> single scalar
-                .testSqlResult(
-                        "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
+                // `$.metadata.references[*].name` -> single scalar)
                 .testSqlResult(
                         "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
 
                 // WILDCARDS matching NOTHING -> both modes yield NULL
                 .testSqlResult("JSON_LENGTH(f0, '$..nope')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$..nope')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f10, '$[*]')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f10, '$[*]')", null, INT().nullable())
 
                 // a wildcard path matching multiple nodes -> NULL; a definite path -> its length

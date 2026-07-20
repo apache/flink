@@ -2259,65 +2259,59 @@ class Expression(Generic[T]):
 
     def json_length(self, path = None) -> 'Expression':
         """
+        Returns the number of elements in a JSON document, or the length of the value at the
+        specified path if one is provided.
 
-                  Returns the number of elements in a JSON document, or the length of the value at the
-                  specified path if one is provided.
+        Returns None if the argument is None, the input is not valid JSON, or the path
+        does not locate a value.
 
-                  Returns None if the argument is None, the input is not valid JSON, or the path
-                  does not locate a value.
+        The length is determined as follows:
 
-                  The length is determined as follows:
-                    -Scalar values (number, string, boolean) have length 1.
-                    -Arrays have a length equal to the number of their elements.
-                    -Objects have a length equal to the number of their key-value pairs.
+        - Scalar values (number, string, boolean) have length 1.
+        - Arrays have a length equal to the number of their elements.
+        - Objects have a length equal to the number of their key-value pairs.
 
+        For the path argument, use the form:
 
-                  Nested arrays and objects each count as a single element and their contents are not
-                  included in the count.
+            path  ::= '$' ( '.' <field> | '[' <index> ']' )*
+            field ::= a key in a JSON object
+            index ::= a zero-based position in a JSON array
 
-                  Lax and strict mode produce the same output, so mode selection is disabled in this
-                  function. For the path argument, use the form:
+        When provided with a path that uses a wildcard and resolves to 2 or more paths,
+        'json_length' resolves to None.
 
-                      path  ::= '$' ( '.' <field> | '[' <index> ']' )*
-                      field ::= a key in a JSON object
-                      index ::= a zero-based position in a JSON array
+        Because a None result can mean several different things (the input is not valid
+        JSON, the path does not match anything, or a wildcard path matched 2 or more
+        nodes), it is recommended to pair json_length with a helper function so invalid
+        input is handled explicitly rather than silently returning None:
 
+        - Without a path, guard the call with is_json to separate malformed input from a
+          real result.
+        - With a path, use json_exists to tell "the path is absent" apart from "the path
+          matched but was ambiguous / matched 2 or more nodes".
 
-                  When provided with a path that uses a wildcard and resolves to 2 or more paths,
-                  'json_length' resolves to None.
+        ::
 
-                  Because a None result can mean several different things (the input is not valid
-                  JSON, the path does not match anything, or a wildcard path matched 2 or more
-                  nodes), it is recommended to pair json_length with a helper function so invalid
-                  input is handled explicitly rather than silently returning None:
-                    -Without a path, guard the call with is_json to separate malformed input from a
-                     real result.
-                    -With a path, use json_exists to tell "the path is absent" apart from "the path
-                     matched but was ambiguous / matched 2 or more nodes".
+            # returns the length only for valid JSON, otherwise None means "invalid input"
+            >>> lit("[1,2,3]").is_json().then(lit("[1,2,3]").json_length(), null_of(DataTypes.INT()))
 
-                  e.g.
-                    from pyflink.table.expressions import lit, null_of
-                    from pyflink.table.types import DataTypes
+            # path is present even when json_length is None due to a multi-match wildcard
+            >>> lit("{}").json_exists("$.items[*]")
+            >>> lit("{}").json_length("$.items[*]")
 
-                    # returns the length only for valid JSON, otherwise None means "invalid input"
-                    lit("[1,2,3]").is_json().then(lit("[1,2,3]").json_length(), null_of(DataTypes.INT()))
+        Examples:
+        ::
 
-                    # path is present even when json_length is None due to a multi-match wildcard
-                    lit("{}").json_exists("$.items[*]")
-                    lit("{}").json_length("$.items[*]")
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length() # 2
+            >>> lit('[1,2,3,4,5]').json_length() # 5
+            >>> lit('"hello"').json_length() # 1
 
-                  Examples:
-                    -JSON_LENGTH('{1: "hello", 2: "bye bye"}') -> 2
-                    -JSON_LENGTH('[1,2,3,4,5]') -> 5
-                    -JSON_LENGTH('hello') -> 1
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length('$.1') # 1
+            >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
+            >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
 
-                    -JSON_LENGTH('{1: "hello", 2: "bye bye"}', '$.1') -> 1
-                    -JSON_LENGTH('{1: [1,2,3], 2: "bye bye"}', '$.1') -> 3
-                    -JSON_LENGTH('[1,2,3,4,5]', $.[3]) -> 1
-
-                    -JSON_LENGTH('[1,2,3,4,5]', '$.[7]') -> None
-                    -JSON_LENGTH('{1: "bad", 2: "syntax here ->"', '$.1') -> None
-
+            >>> lit('[1,2,3,4,5]').json_length('$.[7]') # None
+            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
         """
         return _unary_op("jsonLength")(self) if path is None else _binary_op("jsonLength")(self, path)
 

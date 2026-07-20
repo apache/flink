@@ -936,18 +936,7 @@ class ExprCodeGenerator(
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.JSON_LENGTH =>
-            generateCallWithStmtIfArgsNotNull(ctx, resultType, operands, resultNullable = true) {
-              argTerms =>
-                val inputTerm = s"${argTerms.head}.toString()"
-                val parsed = JsonCodeGenHelper.getOrCreateParsedJson(ctx, inputTerm)
-                val varName = parsed.varName
-                val (method, terms) =
-                  if (operands.length > 1)
-                    (BuiltInMethods.JSON_LENGTH_PATH, Seq(varName, s"${argTerms(1)}.toString()"))
-                  else
-                    (BuiltInMethods.JSON_LENGTH, Seq(varName))
-                (parsed.parseCode, s"${qualifyMethod(method)}(${terms.mkString(", ")})")
-            }
+            new JsonLengthCallGen().generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
