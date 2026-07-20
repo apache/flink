@@ -24,6 +24,7 @@ import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.StateTableUtils;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.schema.KeyedStateSchemaInfo;
+import org.apache.flink.state.api.schema.NonKeyedStateSchemaInfo;
 import org.apache.flink.state.table.SavepointConnectorOptions.StateReaderMode;
 import org.apache.flink.state.table.SavepointConnectorOptions.StateType;
 import org.apache.flink.table.api.DataTypes;
@@ -76,8 +77,8 @@ import java.util.Set;
  * <ul>
  *   <li>Catalog: the name given at registration time (e.g. {@code "state"})
  *   <li>Database: one entry per discovered snapshot (e.g. {@code "app1_savepoint-acce1cedsad"})
- *   <li>Table: a single view named {@code "metadata"} per database, backed by the {@code
- *       savepoint_metadata} function from {@code StateModule}
+ *   <li>Table: one per state exposed by the snapshot, plus a view named {@code "metadata"} per
+ *       database, backed by the {@code savepoint_metadata} function from {@code StateModule}
  * </ul>
  *
  * <p>Database names preserve hyphens from the original directory names. Backtick quoting is
@@ -113,6 +114,9 @@ public class StateCatalog extends AbstractCatalog {
     public static final String FLAT_STATE_TABLE_SUFFIX = "_keyed_flat";
     public static final String WINDOW_TABLE_SUFFIX = "_windowed";
     public static final String FLAT_WINDOW_TABLE_SUFFIX = "_windowed_flat";
+    public static final String LIST_TABLE_SUFFIX = "_list";
+    public static final String UNION_TABLE_SUFFIX = "_union";
+    public static final String BROADCAST_TABLE_SUFFIX = "_broadcast";
 
     private static final CatalogDatabase EMPTY_DATABASE =
             new CatalogDatabaseImpl(Collections.emptyMap(), "");
@@ -322,6 +326,29 @@ public class StateCatalog extends AbstractCatalog {
                                         metadata, resolved.operatorIdentifier);
                         return StateTableUtils.getFlattenedWindowStateCatalogTable(
                                 metadata,
+                                schemaInfo,
+                                resolved.stateName,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
+                case LIST:
+                case UNION:
+                    {
+                        NonKeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getNonKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getOperatorStateCatalogTable(
+                                schemaInfo,
+                                resolved.stateName,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
+                case BROADCAST:
+                    {
+                        NonKeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getNonKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getBroadcastStateCatalogTable(
                                 schemaInfo,
                                 resolved.stateName,
                                 snapshotPath.get(),
@@ -620,10 +647,19 @@ public class StateCatalog extends AbstractCatalog {
     // Operator table helpers
     // -------------------------------------------------------------------------
 
+    private static final Map<StateReaderMode, String> TABLE_SUFFIXES =
+            Map.of(
+                    StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX,
+                    StateReaderMode.KEYED_FLAT, FLAT_STATE_TABLE_SUFFIX,
+                    StateReaderMode.WINDOWED, WINDOW_TABLE_SUFFIX,
+                    StateReaderMode.WINDOWED_FLAT, FLAT_WINDOW_TABLE_SUFFIX,
+                    StateReaderMode.LIST, LIST_TABLE_SUFFIX,
+                    StateReaderMode.UNION, UNION_TABLE_SUFFIX,
+                    StateReaderMode.BROADCAST, BROADCAST_TABLE_SUFFIX);
+
     /**
      * Table name for a {@code kind} of operator state, optionally scoped to one flattened/non-keyed
-     * state (see {@link #OPERATOR_TABLE_SUFFIX}/{@link #FLAT_STATE_TABLE_SUFFIX}/{@link
-     * #WINDOW_TABLE_SUFFIX}/{@link #FLAT_WINDOW_TABLE_SUFFIX}).
+     * state (see {@link #TABLE_SUFFIXES}).
      *
      * <p>{@code stateName} must be {@code null} for {@link StateReaderMode#KEYED}/{@link
      * StateReaderMode#WINDOWED} (the general keyed/namespaced table, one per operator) and non-null
@@ -631,13 +667,6 @@ public class StateCatalog extends AbstractCatalog {
      * — the state name alone disambiguates the table since keyed/non-keyed state names are unique
      * within an operator).
      */
-    private static final Map<StateReaderMode, String> TABLE_SUFFIXES =
-            Map.of(
-                    StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX,
-                    StateReaderMode.KEYED_FLAT, FLAT_STATE_TABLE_SUFFIX,
-                    StateReaderMode.WINDOWED, WINDOW_TABLE_SUFFIX,
-                    StateReaderMode.WINDOWED_FLAT, FLAT_WINDOW_TABLE_SUFFIX);
-
     static String tableName(
             OperatorIdentifier opId, StateReaderMode kind, @Nullable String stateName) {
         String base =
@@ -702,8 +731,8 @@ public class StateCatalog extends AbstractCatalog {
 
     /**
      * Enumerates every table that {@code opId} contributes: the general keyed/window table (if any
-     * plain per-key/namespaced state is registered), plus one flattened table per LIST/MAP keyed or
-     * window state.
+     * plain per-key/namespaced state is registered), one flattened table per LIST/MAP keyed or
+     * window state, and one table per non-keyed (list/union/broadcast) state.
      *
      * <p>Shared by {@link #listTables} (which collects names for every candidate) and {@link
      * #resolveTable} (which matches candidates against a target name), so that adding a new state
@@ -738,6 +767,15 @@ public class StateCatalog extends AbstractCatalog {
                             new ResolvedTable(opId, StateReaderMode.WINDOWED_FLAT, entry.getKey()));
                 }
             }
+        }
+
+        // Non-keyed states each get their own table; the entry's kind already carries the table
+        // shape (LIST/UNION/BROADCAST), so there is no general per-operator table here.
+        NonKeyedStateSchemaInfo nonKeyedSchemaInfo =
+                StateTableUtils.getNonKeyedStateSchema(metadata, opId);
+        for (Map.Entry<String, NonKeyedStateSchemaInfo.StateEntryInfo> entry :
+                nonKeyedSchemaInfo.stateSchemas.entrySet()) {
+            candidates.add(new ResolvedTable(opId, entry.getValue().kind, entry.getKey()));
         }
 
         return candidates;
