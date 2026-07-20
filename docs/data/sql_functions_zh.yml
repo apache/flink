@@ -1789,18 +1789,18 @@ bitmapagg:
       
         -- 1
         JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.2')
-
+      
         -- NULL
         JSON_LENGTH('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2')
-
-
+      
+      
       The length is determined as follows:
       
         - Scalar values (number, string, boolean): has length 1.
         - Array: has a length equal to the number of its elements.
         - Object: has a length equal to the number of its key-value pairs.
       
-      The path argument uses the form:                                                                                                                                                                         
+        The path argument uses the form:                                                                                                                                                                         
       
           path  ::= '$' ( '.' `field` | '[' `index` ']' )*                                                                                                                                                     
           field ::= a key in a JSON object                                                                                                                                                                     
@@ -1808,29 +1808,19 @@ bitmapagg:
       
         For example: `$.author.address` or `$.metadata.tags[0]`.
       
-      When provided with a path that uses a wildcard and resolves in 2 or more paths, JSON_LENGTH will resolve as NULL.
-
-      Because a NULL result can mean several different things (the input is not valid JSON, the path
-      does not match anything, or a wildcard path matched 2 or more nodes), pair JSON_LENGTH with a
-      helper function so those cases are handled explicitly rather than silently returning NULL.
-
-      When JSON_LENGTH returns NULL and you need to know why, check in this order:
-
-        1. Is the input valid JSON? Guard the call with IS JSON:
-
-           -- FALSE when the input is malformed (here the closing '}' is missing)
-           SELECT '{"1": "hello", "2": "BAD SYNTAX ->"' IS JSON;
-
-           -- returns the length only for valid JSON, otherwise NULL means "invalid input"
-           SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
-
-        2. If the input is valid JSON, does the path match? Use JSON_EXISTS. With the default
-           FALSE ON ERROR behavior it returns FALSE when the path matches nothing, and TRUE when the
-           path matches one or more nodes. So if JSON_EXISTS is TRUE but JSON_LENGTH is still NULL,
-           the path matched 2 or more nodes (a wildcard), which JSON_LENGTH does not support:
-
-           -- JSON_EXISTS is TRUE even when JSON_LENGTH is NULL because of a multi-match wildcard
-           SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
+      A wildcard path that matches 2 or more nodes returns NULL.
+      A NULL result is ambiguous - it means invalid JSON, no match, or a multi-match wildcard.
+      
+      Pair JSON_LENGTH with a helper function to handle these cases explicitly:
+        -- IS JSON separates invalid input from a real result
+        SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
+      
+        -- JSON_EXISTS separates an absent path from a present one
+        SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
+      
+        -- JSON_EXISTS separates a multi-match path from a present one 
+           (returns True if multimatch is present given f0 is a valid json string otherwise returns False)
+        SELECT JSON_EXISTS(f0, 'lax $.metadata.tags[*]') AND JSON_LENGTH(f0, '$.metadata.tags[*]') IS NULL;
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
     description: 返回当前数据库。

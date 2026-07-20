@@ -1264,25 +1264,9 @@ json:
         -- JSON_EXISTS separates an absent path from a present one
         SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
       
-        -- To count multiple wildcard matches, wrap them into an array first
-        SELECT JSON_LENGTH(JSON_QUERY(json_doc, '$.items[*]' WITH ARRAY WRAPPER));
-      
-      
-        eg.
-        consider this JSON_LENGTH query JSON_LENGTH('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2'), 
-        this string will return NULL, however as a user, to understand why we must use the parameter,
-        "IS JSON" and function "JSON_EXISTS()".
-      
-        In order to understand why JSON_LENGTH gave a NULL output you can look at the following example:
-          
-          -- '{"1": "hello", "2": "BAD SYNTAX ->"' IS JSON 
-          This will return FALSE if we have a malformed JSON input.
-      
-          -- JSON_EXISTS('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2')
-          This will return FALSE if the path given is an invalid path in our given JSON string or 
-          invalid JSON, so you must do "IS JSON" first to get a definative answer. However if this 
-          returns TRUE and the JSON input is validated already, it means that the path describes
-          two or more paths (ie. using the wildcard operator), which JSON_LENGTH doesnt support.
+        -- JSON_EXISTS separates a multi-match path from a present one 
+           (returns True if multimatch is present given f0 is a valid json string otherwise returns False)
+        SELECT JSON_EXISTS(f0, 'lax $.metadata.tags[*]') AND JSON_LENGTH(f0, '$.metadata.tags[*]') IS NULL;
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     description: |

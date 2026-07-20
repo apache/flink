@@ -201,6 +201,13 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
 
+                // JSON_EXISTS sees a multi-match wildcard as present while JSON_LENGTH returns NULL
+                .testSqlResult(
+                        "JSON_EXISTS(f0, 'lax $.metadata.tags[*]') "
+                                + "AND JSON_LENGTH(f0, '$.metadata.tags[*]') IS NULL",
+                        true,
+                        BOOLEAN())
+
                 // lax/strict path modes are not supported and are rejected at runtime
                 .testSqlRuntimeError(
                         "JSON_LENGTH(f0, 'strict $.type')",
