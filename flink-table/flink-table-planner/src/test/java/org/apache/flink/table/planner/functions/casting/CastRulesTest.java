@@ -1363,18 +1363,14 @@ class CastRulesTest {
                                 new GenericArrayData(new int[] {1, 2}),
                                 new GenericArrayData(new long[] {1L, 2L})),
                 CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(BIGINT().notNull())))
-                        .fromCase(
+                        .fail(
                                 ARRAY(ARRAY(INT().nullable())),
                                 new GenericArrayData(
                                         new GenericArrayData[] {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                new GenericArrayData(
-                                        new GenericArrayData[] {
-                                            new GenericArrayData(new Long[] {1L, 2L, null}),
-                                            new GenericArrayData(new Long[] {3L})
-                                        }))
+                                TableRuntimeException.class)
                         .fromCase(
                                 ARRAY(ARRAY(INT().nullable())),
                                 new GenericArrayData(
