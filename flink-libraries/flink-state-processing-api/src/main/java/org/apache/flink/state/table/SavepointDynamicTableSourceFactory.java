@@ -73,6 +73,22 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                         stateBackendType,
                         statePath,
                         operatorIdentifier);
+            case WINDOWED:
+                return createWindowDynamicTableSource(
+                        context,
+                        options,
+                        serializerConfig,
+                        stateBackendType,
+                        statePath,
+                        operatorIdentifier);
+            case WINDOWED_FLAT:
+                return createFlattenedWindowDynamicTableSource(
+                        context,
+                        options,
+                        serializerConfig,
+                        stateBackendType,
+                        statePath,
+                        operatorIdentifier);
             default:
                 throw new IllegalArgumentException("Unsupported state reader mode: " + readerMode);
         }
@@ -166,6 +182,98 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                 rowType,
                 "Flattened Savepoint Table Source",
                 FlattenedSavepointDataStreamScanProvider::new);
+    }
+
+    /**
+     * Creates a {@link SavepointDynamicTableSource} for the general namespaced (e.g. window-scoped)
+     * keyed state table (selected via {@link SavepointConnectorOptions#STATE_READER_MODE} being set
+     * to {@link SavepointConnectorOptions.StateReaderMode#WINDOWED}).
+     */
+    private DynamicTableSource createWindowDynamicTableSource(
+            Context context,
+            Configuration options,
+            SerializerConfig serializerConfig,
+            String stateBackendType,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        Set<ConfigOption<?>> requiredOptions = new HashSet<>(requiredOptions());
+        Set<ConfigOption<?>> optionalOptions = new HashSet<>(optionalOptions());
+
+        // Validate schema and register per-field options eagerly (no class loading) so that
+        // option validation passes at planning time.
+        int[] keyAndWindowColumnIndices =
+                WindowStateTableMapping.validateAndExtractKeyAndWindowColumns(
+                        context.getCatalogTable(), optionalOptions);
+        int keyColumnIndex = keyAndWindowColumnIndices[0];
+
+        validateOptions(options, requiredOptions, optionalOptions);
+
+        // Defer I/O and class loading to scan time by creating the mapping lazily.
+        Supplier<WindowStateTableMapping> mappingSupplier =
+                () ->
+                        WindowStateTableMapping.from(
+                                context.getCatalogTable(),
+                                options,
+                                statePath,
+                                operatorIdentifier,
+                                serializerConfig);
+
+        RowType rowType = (RowType) context.getPhysicalRowDataType().getLogicalType();
+
+        return new SavepointDynamicTableSource<>(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                keyColumnIndex,
+                mappingSupplier,
+                rowType,
+                "Window Savepoint Table Source",
+                WindowSavepointDataStreamScanProvider::new);
+    }
+
+    /**
+     * Creates a {@link FlattenedSavepointDynamicTableSource} for a table exposing a single
+     * flattened namespaced (e.g. window-scoped) LIST/MAP state (selected via {@link
+     * SavepointConnectorOptions#STATE_READER_MODE} being set to {@link
+     * SavepointConnectorOptions.StateReaderMode#WINDOWED_FLAT}). The state name is resolved from
+     * {@link SavepointConnectorOptions#FLATTENED_STATE_NAME}.
+     */
+    private DynamicTableSource createFlattenedWindowDynamicTableSource(
+            Context context,
+            Configuration options,
+            SerializerConfig serializerConfig,
+            String stateBackendType,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        SavepointConnectorOptions.StateType stateType =
+                WindowFlattenedStateTableMapping.validateFlattenedSchema(context.getCatalogTable());
+
+        RowType rowType = (RowType) context.getPhysicalRowDataType().getLogicalType();
+
+        String stateName = validateAndGetFlattenedStateName(options);
+
+        // Defer I/O to scan time by creating the mapping lazily.
+        Supplier<WindowFlattenedStateTableMapping> mappingSupplier =
+                () ->
+                        WindowFlattenedStateTableMapping.from(
+                                context.getCatalogTable(),
+                                stateName,
+                                statePath,
+                                operatorIdentifier,
+                                serializerConfig,
+                                stateType);
+
+        return new FlattenedSavepointDynamicTableSource<>(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                WindowFlattenedStateTableMapping.STATE_KEY_COLUMN_INDEX,
+                mappingSupplier,
+                rowType,
+                "Flattened Window Savepoint Table Source",
+                WindowFlattenedSavepointDataStreamScanProvider::new);
     }
 
     /**
