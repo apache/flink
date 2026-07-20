@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.input.deserializer.MissingClassSerializerFactory;
 import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.util.CollectionUtil;
@@ -176,6 +178,11 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
         ExecutionConfig executionConfig =
                 KeyedStateInputFormat.deserialize(
                         serializedExecutionConfig, runtimeContext.getUserCodeClassLoader());
+
+        // Falls back to RowData/GenericRecord for POJO/Avro state whose class is missing from the
+        // classpath. Must be set before the backend restores, which eagerly restores serializers.
+        CustomRestoreSerializerFactory.set(MissingClassSerializerFactory::create);
+
         final StreamOperatorStateContext context =
                 new StreamOperatorContextBuilder(
                                 runtimeContext,
