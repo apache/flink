@@ -483,4 +483,52 @@ class ParquetRowDataWriterTest {
         v = (v > 0 ? v : -v) % 1000;
         return LocalDateTime.now().plusNanos(v).plusSeconds(v);
     }
+
+    /**
+     * Verifies that {@code parquet.page.size.row.check.min} and {@code
+     * parquet.page.size.row.check.max} configuration keys are honoured by {@link
+     * ParquetRowDataBuilder}.
+     *
+     * <p>Before the fix, {@code FlinkParquetBuilder.createWriter()} never called {@code
+     * withMinRowCountForPageSizeCheck()} / {@code withMaxRowCountForPageSizeCheck()}, so these
+     * conf keys were silently ignored. A job writing rows with large binary fields could accumulate
+     * data across 100–10,000 rows (the defaults) before a page-size check, causing
+     * {@code java.lang.OutOfMemoryError: Size of data exceeded Integer.MAX_VALUE}.
+     */
+    @Test
+    void testRowCountForPageSizeCheckConfIsHonoured(@TempDir java.nio.file.Path folder)
+            throws IOException {
+        // Use a tiny page size (4 KB) and check after every row so the writer
+        // flushes frequently — this would OOM with the defaults on large payloads.
+        Configuration conf = new Configuration();
+        conf.setInt(ParquetOutputFormat.PAGE_SIZE, 4096);
+        conf.setInt(ParquetOutputFormat.MIN_ROW_COUNT_FOR_PAGE_SIZE_CHECK, 1);
+        conf.setInt(ParquetOutputFormat.MAX_ROW_COUNT_FOR_PAGE_SIZE_CHECK, 1);
+
+        RowType rowType =
+                RowType.of(new VarBinaryType(VarBinaryType.MAX_LENGTH));
+
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, true);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+
+        // Write rows with binary payloads larger than the page size.
+        // With row.check.min=1 the writer checks after every row and flushes before overflow.
+        byte[] largePayload = new byte[40_960]; // 40 KB — 10× the 4 KB page size
+        DataFormatConverters.DataFormatConverter<RowData, Row> converter =
+                (DataFormatConverters.DataFormatConverter<RowData, Row>)
+                        DataFormatConverters.getConverterForDataType(
+                                TypeConversions.fromLogicalToDataType(rowType));
+
+        // Write enough rows that the page buffer would overflow without frequent checks
+        RowData rowData = converter.toInternal(Row.of((Object) largePayload));
+        for (int i = 0; i < 100; i++) {
+            writer.addElement(rowData);
+        }
+        // Should complete without OutOfMemoryError
+        writer.flush();
+        writer.finish();
+    }
 }
