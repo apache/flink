@@ -108,7 +108,7 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
                                                                 codeBlock.getReturnTerm()),
                                         elseWriter ->
                                                 elseWriter.throwStmt(
-                                                        "new org.apache.flink.table.api.TableRuntimeException(\"Value is not nullable but a NULL was found\")"));
+                                                        "new org.apache.flink.table.api.TableRuntimeException(\"Target is not nullable but a NULL was found.\")"));
                             }
                         },
                         context.getCodeGeneratorContext())
