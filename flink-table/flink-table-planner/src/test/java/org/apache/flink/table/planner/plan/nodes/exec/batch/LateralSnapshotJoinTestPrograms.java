@@ -55,7 +55,6 @@ public class LateralSnapshotJoinTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
-                                    .testMaterializedData()
                                     .consumedValues(
                                             Row.of("a", 1, "a", 10),
                                             Row.of("a", 1, "a", 11),
@@ -75,7 +74,6 @@ public class LateralSnapshotJoinTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
-                                    .testMaterializedData()
                                     .consumedValues(
                                             Row.of("a", 1, "a", 10),
                                             Row.of("a", 1, "a", 11),
@@ -96,7 +94,6 @@ public class LateralSnapshotJoinTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
-                                    .testMaterializedData()
                                     .consumedValues(
                                             Row.of("a", 1, "a", 11), Row.of("b", 2, "b", 20))
                                     .build())
@@ -115,7 +112,6 @@ public class LateralSnapshotJoinTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
-                                    .testMaterializedData()
                                     .consumedValues(
                                             Row.of("a", 1, "a", 10),
                                             Row.of("a", 1, "a", 11),
