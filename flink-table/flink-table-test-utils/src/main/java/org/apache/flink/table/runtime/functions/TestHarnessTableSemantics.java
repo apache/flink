@@ -23,7 +23,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -34,24 +35,19 @@ class TestHarnessTableSemantics implements TableSemantics {
     private final int[] partitionByColumns;
     private final List<int[]> upsertKeyColumns;
     private final int timeColumnIndex;
-
-    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns) {
-        this(dataType, partitionByColumns, Collections.emptyList(), -1);
-    }
-
-    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns, int timeColumnIndex) {
-        this(dataType, partitionByColumns, Collections.emptyList(), timeColumnIndex);
-    }
+    @Nullable private final ChangelogMode changelogMode;
 
     TestHarnessTableSemantics(
             DataType dataType,
             int[] partitionByColumns,
             List<int[]> upsertKeyColumns,
-            int timeColumnIndex) {
+            int timeColumnIndex,
+            @Nullable ChangelogMode changelogMode) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.upsertKeyColumns = upsertKeyColumns;
         this.timeColumnIndex = timeColumnIndex;
+        this.changelogMode = changelogMode;
     }
 
     @Override
@@ -81,7 +77,7 @@ class TestHarnessTableSemantics implements TableSemantics {
 
     @Override
     public Optional<ChangelogMode> changelogMode() {
-        return Optional.empty();
+        return Optional.ofNullable(changelogMode);
     }
 
     @Override
