@@ -214,11 +214,14 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public TaskInfo getTaskInfo() {
+        // The read job's parallelism is unrelated to the operator's maxParallelism and may exceed
+        // it (e.g. windowAll() has maxParallelism == 1); cap it to satisfy TaskInfoImpl's
+        // maxParallelism >= numberOfParallelSubtasks invariant.
         return new TaskInfoImpl(
                 ctx.getTaskInfo().getTaskName(),
                 maxParallelism,
                 indexOfSubtask,
-                ctx.getTaskInfo().getNumberOfParallelSubtasks(),
+                Math.min(ctx.getTaskInfo().getNumberOfParallelSubtasks(), maxParallelism),
                 ctx.getTaskInfo().getAttemptNumber());
     }
 
