@@ -32,7 +32,6 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.functions.ProcessTableFunctionTestHarness.TableArgument;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
@@ -50,13 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProcessTableFunctionTestHarnessTest {
-
-    @DataTypeHint("ROW<value INT>")
-    public static class PassthroughPTF extends ProcessTableFunction<Row> {
-        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            collect(input);
-        }
-    }
 
     /** Passthrough PTF for testing field ordering. */
     @DataTypeHint("ROW<user STRING, value INT>")
@@ -718,35 +710,6 @@ class ProcessTableFunctionTestHarnessTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void testProcessElementWithRowKind() throws Exception {
-        // Verify RowKind is preserved through processing (ROW_SEMANTIC_TABLE)
-        try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
-                        .withTableArgument(
-                                TableArgument.forName("input")
-                                        .type(DataTypes.of("ROW<value INT>"))
-                                        .build())
-                        .build()) {
-
-            harness.processElement(RowKind.INSERT, 10);
-            harness.processElement(RowKind.UPDATE_BEFORE, 15);
-            harness.processElement(RowKind.UPDATE_AFTER, 20);
-            harness.processElement(RowKind.DELETE, 30);
-
-            List<Row> output = harness.getOutput();
-            assertThat(output).hasSize(4);
-            assertThat(output.get(0).getKind()).isEqualTo(RowKind.INSERT);
-            assertThat(output.get(0).getField("value")).isEqualTo(10);
-            assertThat(output.get(1).getKind()).isEqualTo(RowKind.UPDATE_BEFORE);
-            assertThat(output.get(1).getField("value")).isEqualTo(15);
-            assertThat(output.get(2).getKind()).isEqualTo(RowKind.UPDATE_AFTER);
-            assertThat(output.get(2).getField("value")).isEqualTo(20);
-            assertThat(output.get(3).getKind()).isEqualTo(RowKind.DELETE);
-            assertThat(output.get(3).getField("value")).isEqualTo(30);
-        }
-    }
-
-    @Test
     void testPassColumnsThroughTrait() throws Exception {
         // Verify PASS_COLUMNS_THROUGH prepends ALL input columns (not just partition keys)
         try (ProcessTableFunctionTestHarness<Row> harness =
@@ -1312,7 +1275,7 @@ class ProcessTableFunctionTestHarnessTest {
     @Test
     void testClearOutput() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(PtfTestFunctions.PassthroughPTF.class)
                         .withTableArgument(
                                 TableArgument.forName("input")
                                         .type(DataTypes.of("ROW<value INT>"))
@@ -1381,7 +1344,7 @@ class ProcessTableFunctionTestHarnessTest {
     @Test
     void testProcessElementForTableWithInvalidName() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(PtfTestFunctions.PassthroughPTF.class)
                         .withTableArgument(
                                 TableArgument.forName("input")
                                         .type(DataTypes.of("ROW<value INT>"))
@@ -2489,10 +2452,10 @@ class ProcessTableFunctionTestHarnessTest {
 
             assertThat(harness.getOutput()).hasSize(1);
             Row evalResult = harness.getOutput().get(0);
-            assertThat(evalResult.getFieldAs(0).toString()).isEqualTo("P1");
-            assertThat(evalResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat(evalResult.<String>getFieldAs(0)).isEqualTo("P1");
+            assertThat(evalResult.<String>getFieldAs(1)).isEqualTo("[0]");
             assertThat((int) evalResult.getFieldAs(2)).isEqualTo(1);
-            assertThat(evalResult.getFieldAs(3).toString())
+            assertThat(evalResult.<String>getFieldAs(3))
                     .isEqualTo(ChangelogMode.insertOnly().toString());
 
             harness.clearOutput();
@@ -2500,10 +2463,10 @@ class ProcessTableFunctionTestHarnessTest {
 
             assertThat(harness.getOutput()).hasSize(1);
             Row timerResult = harness.getOutput().get(0);
-            assertThat(timerResult.getFieldAs(0).toString()).isEqualTo("P1");
-            assertThat(timerResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat(timerResult.<String>getFieldAs(0)).isEqualTo("P1");
+            assertThat(timerResult.<String>getFieldAs(1)).isEqualTo("[0]");
             assertThat((int) timerResult.getFieldAs(2)).isEqualTo(1);
-            assertThat(timerResult.getFieldAs(3).toString())
+            assertThat(timerResult.<String>getFieldAs(3))
                     .isEqualTo(ChangelogMode.insertOnly().toString());
         }
     }
@@ -2582,7 +2545,7 @@ class ProcessTableFunctionTestHarnessTest {
     @Test
     void testWatermarkAdvancesWithoutOnTimeColumn() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
-                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                ProcessTableFunctionTestHarness.ofClass(PtfTestFunctions.PassthroughPTF.class)
                         .withTableArgument(
                                 TableArgument.forName("input")
                                         .type(DataTypes.of("ROW<value INT>"))
