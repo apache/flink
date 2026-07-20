@@ -147,8 +147,8 @@ public class SystemTypeInference {
             if (suppliedArgumentNames.contains(systemArg.getName())) {
                 throw new ValidationException(
                         String.format(
-                                "Invalid function call. The '%s' argument is not supported for "
-                                        + "function '%s' because it disables system arguments.",
+                                "Invalid function call. The '%s' argument is not supported "
+                                        + "because function '%s' does not use system arguments.",
                                 systemArg.getName(), functionName));
             }
         }

@@ -77,8 +77,7 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
     @Test
     public void testInputTableIsInsertOnlyStream() {
         String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
+                "SELECT *\n" + "FROM ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b))";
         util.verifyRelPlan(
                 sql,
                 JavaScalaConversionUtil.toScala(
@@ -110,24 +109,24 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
         // ML_PREDICT disables the implicit system arguments. Supplying `on_time` must be rejected
         // at the SQL level even though ML_PREDICT is handled by a dedicated optimizer rule.
         String sql =
-                "SELECT * FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
-                        + "ARGS => DESCRIPTOR(a, b), on_time => DESCRIPTOR(rowtime)))";
+                "SELECT * FROM ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
+                        + "ARGS => DESCRIPTOR(a, b), on_time => DESCRIPTOR(rowtime))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .satisfies(
                         anyCauseMatches(
-                                "The 'on_time' argument is not supported for function 'ML_PREDICT' "
-                                        + "because it disables system arguments."));
+                                "The 'on_time' argument is not supported because function "
+                                        + "'ML_PREDICT' does not use system arguments."));
     }
 
     @Test
     void testUidArgumentNotAllowed() {
         String sql =
-                "SELECT * FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
-                        + "ARGS => DESCRIPTOR(a, b), uid => 'my-uid'))";
+                "SELECT * FROM ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
+                        + "ARGS => DESCRIPTOR(a, b), uid => 'my-uid')";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .satisfies(
                         anyCauseMatches(
-                                "The 'uid' argument is not supported for function 'ML_PREDICT' "
-                                        + "because it disables system arguments."));
+                                "The 'uid' argument is not supported because function "
+                                        + "'ML_PREDICT' does not use system arguments."));
     }
 }

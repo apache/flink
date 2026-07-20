@@ -294,8 +294,8 @@ class ProcessTableFunctionTest extends TableTestBase {
                                                 + "on_time => DESCRIPTOR(ts));"))
                 .satisfies(
                         anyCauseMatches(
-                                "The 'on_time' argument is not supported for function 'f' "
-                                        + "because it disables system arguments."));
+                                "The 'on_time' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
     }
 
     @Test
@@ -304,8 +304,8 @@ class ProcessTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1, uid => 'my-uid');"))
                 .satisfies(
                         anyCauseMatches(
-                                "The 'uid' argument is not supported for function 'f' "
-                                        + "because it disables system arguments."));
+                                "The 'uid' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
     }
 
     @Test
@@ -323,8 +323,8 @@ class ProcessTableFunctionTest extends TableTestBase {
                                                 lit("my-uid").asArgument("uid")))
                 .satisfies(
                         anyCauseMatches(
-                                "The 'uid' argument is not supported for function 'f' "
-                                        + "because it disables system arguments."));
+                                "The 'uid' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
     }
 
     @Test
