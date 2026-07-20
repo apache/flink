@@ -172,24 +172,58 @@ class MapToMapAndMultisetToMultisetCastRule
                             codeWriter
                                     .declStmt(innerTargetKeyTypeTerm, key, null)
                                     .declStmt(innerTargetValueTypeTerm, value, null);
-                            codeWriter.ifStmt(
-                                    "!" + methodCall(keyArray, "isNullAt", index),
-                                    thenWriter ->
-                                            thenWriter
-                                                    .append(keyCodeBlock)
-                                                    .assignStmt(key, keyCodeBlock.getReturnTerm()));
+                            if (innerTargetKeyType.isNullable()) {
+                                iterateOverElements(
+                                        index, codeWriter, keyArray, keyCodeBlock, key, false);
+                            } else {
+                                iterateOverElements(
+                                        index, codeWriter, keyArray, keyCodeBlock, key, true);
+                            }
 
-                            codeWriter.ifStmt(
-                                    "!" + methodCall(valueArray, "isNullAt", index),
-                                    thenWriter ->
-                                            thenWriter
-                                                    .append(valueCodeBlock)
-                                                    .assignStmt(
-                                                            value, valueCodeBlock.getReturnTerm()));
+                            if (inputLogicalType.is(LogicalTypeRoot.MAP)
+                                    && innerTargetValueType.isNullable()) {
+                                iterateOverElements(
+                                        index,
+                                        codeWriter,
+                                        valueArray,
+                                        valueCodeBlock,
+                                        value,
+                                        false);
+                            } else {
+                                iterateOverElements(
+                                        index, codeWriter, valueArray, valueCodeBlock, value, true);
+                            }
                             codeWriter.stmt(methodCall(map, "put", key, value));
                         },
                         codeGeneratorContext)
                 .assignStmt(returnVariable, constructorCall(GenericMapData.class, map))
                 .toString();
+    }
+
+    private static void iterateOverElements(
+            String index,
+            CastRuleUtils.CodeWriter codeWriter,
+            String keyArray,
+            CastCodeBlock keyCodeBlock,
+            String key,
+            boolean throwIfNull) {
+        if (throwIfNull) {
+            codeWriter.ifStmt(
+                    "!" + methodCall(keyArray, "isNullAt", index),
+                    thenWriter ->
+                            thenWriter
+                                    .append(keyCodeBlock)
+                                    .assignStmt(key, keyCodeBlock.getReturnTerm()),
+                    elseWriter ->
+                            elseWriter.throwStmt(
+                                    "new org.apache.flink.table.api.TableRuntimeException(\"Value is not nullable but a NULL was found\")"));
+        } else {
+            codeWriter.ifStmt(
+                    "!" + methodCall(keyArray, "isNullAt", index),
+                    thenWriter ->
+                            thenWriter
+                                    .append(keyCodeBlock)
+                                    .assignStmt(key, keyCodeBlock.getReturnTerm()));
+        }
     }
 }

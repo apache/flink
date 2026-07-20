@@ -1427,15 +1427,15 @@ class CastRulesTest {
                                 mapData(entry(TIMESTAMP, 123.456)),
                                 mapData(entry(TIMESTAMP_STRING, fromString("123.456")))),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().nullable()))
-                        .fromCase(
+                        .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(null, 1d)),
-                                mapData(entry(null, fromString("1.0")))),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
-                        .fromCase(
+                        .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(123, null)),
-                                mapData(entry(fromString("123"), null))),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
                         .fromCase(
                                 MULTISET(INT().nullable()),
@@ -1452,10 +1452,10 @@ class CastRulesTest {
                                 mapData(entry(null, 1)),
                                 mapData(entry(null, 1))),
                 CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
-                        .fromCase(
+                        .fail(
                                 MULTISET(INT().nullable()),
                                 mapData(entry(null, 1)),
-                                mapData(entry(null, 1))),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
