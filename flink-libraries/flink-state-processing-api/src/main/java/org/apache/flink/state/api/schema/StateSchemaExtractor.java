@@ -29,23 +29,26 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorBackendSerializationProxy;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.CommonOptionsKeys;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.CommonSerializerKeys;
 import org.apache.flink.state.api.input.deserializer.MissingClassSerializerFactory;
+import org.apache.flink.state.table.SavepointConnectorOptions.StateReaderMode;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Utility for extracting {@link StateSchemaInfo} from a savepoint without instantiating the full
- * state backend or requiring user POJO classes on the classpath.
- *
- * <p>It reads the {@link KeyedBackendSerializationProxy} header that every heap/RocksDB keyed state
- * file starts with.
+ * Utility for extracting {@link StateSchemaInfo} / {@link OperatorStateSchemaInfo} from a savepoint
+ * without instantiating the full state backend or requiring user POJO classes on the classpath, by
+ * reading the {@link KeyedBackendSerializationProxy} / {@link OperatorBackendSerializationProxy}
+ * header that every keyed / non-keyed state file starts with.
  */
 @Internal
 public final class StateSchemaExtractor {
@@ -53,23 +56,14 @@ public final class StateSchemaExtractor {
     private StateSchemaExtractor() {}
 
     /**
-     * Reads state schema information from the first available keyed state handle in the given
-     * operator state.
+     * Reads state schema info from the first available keyed state handle. Returns an empty list
+     * (rather than throwing) when the operator registers only non-keyed state.
      *
-     * <p>Returns an empty list rather than throwing when no keyed state handle is found: an
-     * operator may register only non-keyed (list/union/broadcast) state, in which case it has no
-     * keyed state to describe.
-     *
-     * <p>The metadata header lives in different places depending on the state backend: heap ({@code
-     * HashMapStateBackend}) savepoints hand back a {@code KeyGroupsStateHandle}, which is itself a
-     * {@link StreamStateHandle} starting with the header; RocksDB (incremental or full native)
-     * snapshots hand back an {@link IncrementalKeyedStateHandle}, whose own data stream starts with
-     * the SST payload instead, so the header must be read from {@link
+     * <p>The metadata header's location depends on the backend: heap ({@code HashMapStateBackend})
+     * hands back a {@code KeyGroupsStateHandle} that is itself a {@link StreamStateHandle} starting
+     * with the header, while RocksDB hands back an {@link IncrementalKeyedStateHandle} whose stream
+     * starts with the SST payload instead, so the header must come from {@link
      * IncrementalKeyedStateHandle#getMetaDataStateHandle()}.
-     *
-     * @param operatorState the operator state from a loaded savepoint / checkpoint metadata
-     * @return list of schema info, one entry per registered state; never null, may be empty
-     * @throws IOException if the state header cannot be read
      */
     public static List<StateSchemaInfo> extractSchema(OperatorState operatorState)
             throws IOException {
@@ -84,7 +78,7 @@ public final class StateSchemaExtractor {
                     metadataHandle = (StreamStateHandle) handle;
                 }
                 if (metadataHandle != null) {
-                    try (java.io.InputStream stream = metadataHandle.openInputStream()) {
+                    try (InputStream stream = metadataHandle.openInputStream()) {
                         return extractSchema(new DataInputViewStreamWrapper(stream));
                     }
                 }
@@ -93,10 +87,7 @@ public final class StateSchemaExtractor {
         return Collections.emptyList();
     }
 
-    /**
-     * Package-private overload that accepts a {@link DataInputView} directly. Allows unit tests to
-     * inject pre-built byte arrays without a real filesystem.
-     */
+    /** Package-private overload for tests to inject pre-built bytes without a real filesystem. */
     static List<StateSchemaInfo> extractSchema(DataInputView in) throws IOException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         KeyedBackendSerializationProxy<?> proxy = new KeyedBackendSerializationProxy<>(classLoader);
@@ -134,6 +125,72 @@ public final class StateSchemaExtractor {
                             valueSnapshot,
                             mapKeySnapshot,
                             namespaceSnapshot));
+        }
+
+        return result;
+    }
+
+    /**
+     * Reads non-keyed (operator) state schema info — {@code ListState}, {@code UnionState}, {@code
+     * BroadcastState} — from the first available operator state handle. Returns an empty list
+     * (rather than throwing) when none is found. Unlike keyed state, an {@link OperatorStateHandle}
+     * is itself a {@link StreamStateHandle} starting with the metadata header, for every backend.
+     */
+    public static List<OperatorStateSchemaInfo> extractOperatorSchema(OperatorState operatorState)
+            throws IOException {
+
+        for (OperatorSubtaskState subtask : operatorState.getSubtaskStates().values()) {
+            for (OperatorStateHandle handle : subtask.getManagedOperatorState()) {
+                try (InputStream stream = handle.openInputStream()) {
+                    return extractOperatorSchema(new DataInputViewStreamWrapper(stream));
+                }
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    /** Package-private overload for tests to inject pre-built bytes without a real filesystem. */
+    static List<OperatorStateSchemaInfo> extractOperatorSchema(DataInputView in)
+            throws IOException {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        OperatorBackendSerializationProxy proxy =
+                new OperatorBackendSerializationProxy(classLoader);
+        CustomRestoreSerializerFactory.set(MissingClassSerializerFactory::create);
+        proxy.read(in);
+
+        List<OperatorStateSchemaInfo> result = new ArrayList<>();
+
+        for (StateMetaInfoSnapshot meta : proxy.getOperatorStateMetaInfoSnapshots()) {
+            TypeSerializerSnapshot<?> valueSnapshot =
+                    meta.getTypeSerializerSnapshot(CommonSerializerKeys.VALUE_SERIALIZER);
+            if (valueSnapshot == null) {
+                continue;
+            }
+
+            // Only union-distributed list state is redistributed as a whole on rescale; every
+            // other distribution mode behaves like a plain (split) ListState here.
+            String distributionMode =
+                    meta.getOption(CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE);
+            StateReaderMode kind =
+                    OperatorStateHandle.Mode.UNION.name().equals(distributionMode)
+                            ? StateReaderMode.UNION
+                            : StateReaderMode.LIST;
+
+            result.add(new OperatorStateSchemaInfo(meta.getName(), kind, valueSnapshot, null));
+        }
+
+        for (StateMetaInfoSnapshot meta : proxy.getBroadcastStateMetaInfoSnapshots()) {
+            TypeSerializerSnapshot<?> valueSnapshot =
+                    meta.getTypeSerializerSnapshot(CommonSerializerKeys.VALUE_SERIALIZER);
+            TypeSerializerSnapshot<?> keySnapshot =
+                    meta.getTypeSerializerSnapshot(CommonSerializerKeys.KEY_SERIALIZER);
+            if (valueSnapshot == null || keySnapshot == null) {
+                continue;
+            }
+
+            result.add(
+                    new OperatorStateSchemaInfo(
+                            meta.getName(), StateReaderMode.BROADCAST, valueSnapshot, keySnapshot));
         }
 
         return result;
