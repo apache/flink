@@ -1263,10 +1263,6 @@ json:
       
         -- JSON_EXISTS separates an absent path from a present one
         SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
-      
-        -- JSON_EXISTS separates a multi-match path from a present one 
-           (returns True if multimatch is present given f0 is a valid json string otherwise returns False)
-        SELECT JSON_EXISTS(f0, 'lax $.metadata.tags[*]') AND JSON_LENGTH(f0, '$.metadata.tags[*]') IS NULL;
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     description: |

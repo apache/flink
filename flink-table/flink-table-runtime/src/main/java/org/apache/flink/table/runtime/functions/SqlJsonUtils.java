@@ -48,7 +48,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -392,10 +391,14 @@ public class SqlJsonUtils {
             return null;
         }
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
-        if (matcher.matches()) {
+        final boolean doesMatch = matcher.matches();
+        if (doesMatch) {
             throw new TableRuntimeException(
-                    "JSON_LENGTH does not support lax/strict path modes. "
-                            + "Please refer to the documentation for the supported path format.");
+                    String.format(
+                            "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
+                                    + "Use a plain path such as '$.a.b'. To check path existence or handle "
+                                    + "invalid input, use JSON_EXISTS or IS JSON.",
+                            pathSpec));
         }
         final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
         final Object value = context.hasException() ? null : context.obj;
@@ -403,7 +406,7 @@ public class SqlJsonUtils {
             return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
         }
 
-        final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
+        final String pathStr = doesMatch ? matcher.group("spec") : pathSpec;
         if (!JsonPath.isPathDefinite(pathStr)) {
             final List<?> matched = (List<?>) value;
             return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
@@ -416,8 +419,8 @@ public class SqlJsonUtils {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
         }
-        if (value instanceof ArrayList) {
-            return ((ArrayList<?>) value).size();
+        if (value instanceof List) {
+            return ((List<?>) value).size();
         }
         // Scalars, including a JSON null literal, have length 1.
         return 1;
