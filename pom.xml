@@ -974,6 +974,27 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
+			<id>spotless-ratchet</id>
+			<activation>
+				<property>
+					<name>spotless.ratchetFrom</name>
+				</property>
+			</activation>
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>com.diffplug.spotless</groupId>
+							<artifactId>spotless-maven-plugin</artifactId>
+							<configuration>
+								<ratchetFrom>${spotless.ratchetFrom}</ratchetFrom>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+		<profile>
 			<id>scala-2.12</id>
 			<properties>
 				<scala.version>2.12.21</scala.version>

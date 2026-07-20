@@ -59,16 +59,33 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
 
-      - name: "Checkstyle"
-        uses: "./.github/actions/run_mvn"
+      - name: "Resolve last green commit for spotless ratchet"
+        id: last-green
+        uses: "./.github/actions/last_workflow_run"
         with:
-          maven-parameters: "checkstyle:check -T1C"
+          workflow_id: "ci.yml"
+          branch: ${{ github.ref_name }}
+          status: "success"
 
-      - name: "Spotless"
-        if: (success() || failure())
+      - name: "Fetch last green commit"
+        if: steps.last-green.outputs.sha != ''
+        shell: bash
+        run: |
+          sha="${{ steps.last-green.outputs.sha }}"
+          if git -c safe.directory='*' fetch --depth=1 origin "${sha}" \
+             && git -c safe.directory='*' cat-file -e "${sha}^{commit}"; then
+            echo "RATCHET_SHA=${sha}" >> "${GITHUB_ENV}"
+            echo "Ratcheting spotless from ${sha}"
+          else
+            echo "Could not fetch ${sha}; running full spotless check."
+          fi
+
+      - name: "Checkstyle & Spotless"
         uses: "./.github/actions/run_mvn"
         with:
-          maven-parameters: "spotless:check -T1C"
+          maven-parameters: >-
+            checkstyle:check spotless:check -T1C -fae
+            ${{ env.RATCHET_SHA && format('-Dspotless.ratchetFrom={0}', env.RATCHET_SHA) || '' }}
 
       - name: "License Headers"
         if: (success() || failure())
