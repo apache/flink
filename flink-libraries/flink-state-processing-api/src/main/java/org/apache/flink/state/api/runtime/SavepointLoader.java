@@ -31,6 +31,8 @@ import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorBackendSerializationProxy;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -41,6 +43,7 @@ import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -70,6 +73,27 @@ public final class SavepointLoader {
                 @Nullable TypeSerializerSnapshot<?> keySerializerSnapshot) {
             this.stateSnapshots = stateSnapshots;
             this.keySerializerSnapshot = keySerializerSnapshot;
+        }
+    }
+
+    /**
+     * Non-keyed (operator) state metadata loaded in a single I/O pass. List/union and broadcast
+     * states are kept in separate maps since a list/union state may share its name with a
+     * differently-typed broadcast state.
+     */
+    public static final class NonKeyedOperatorStateMetadata {
+
+        /** Per-state serializer snapshots for {@code ListState}/{@code UnionState}, by name. */
+        public final Map<String, StateMetaInfoSnapshot> operatorStateSnapshots;
+
+        /** Per-state serializer snapshots for {@code BroadcastState}, by name. */
+        public final Map<String, StateMetaInfoSnapshot> broadcastStateSnapshots;
+
+        NonKeyedOperatorStateMetadata(
+                Map<String, StateMetaInfoSnapshot> operatorStateSnapshots,
+                Map<String, StateMetaInfoSnapshot> broadcastStateSnapshots) {
+            this.operatorStateSnapshots = operatorStateSnapshots;
+            this.broadcastStateSnapshots = broadcastStateSnapshots;
         }
     }
 
@@ -122,22 +146,7 @@ public final class SavepointLoader {
     public static OperatorStateMetadata loadOperatorMetadata(
             String savepointPath, OperatorIdentifier operatorIdentifier) throws IOException {
 
-        CheckpointMetadata checkpointMetadata = loadSavepointMetadata(savepointPath);
-
-        OperatorState operatorState =
-                checkpointMetadata.getOperatorStates().stream()
-                        .filter(
-                                state ->
-                                        operatorIdentifier
-                                                .getOperatorId()
-                                                .equals(state.getOperatorID()))
-                        .findFirst()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "Operator "
-                                                        + operatorIdentifier
-                                                        + " not found in savepoint"));
+        OperatorState operatorState = findOperatorState(savepointPath, operatorIdentifier);
 
         KeyedStateHandle keyedStateHandle =
                 operatorState.getStates().stream()
@@ -150,12 +159,52 @@ public final class SavepointLoader {
                                                         + operatorIdentifier));
 
         KeyedBackendSerializationProxy<?> proxy = readSerializationProxy(keyedStateHandle);
-        Map<String, StateMetaInfoSnapshot> stateSnapshots =
-                proxy.getStateMetaInfoSnapshots().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        StateMetaInfoSnapshot::getName, Function.identity()));
-        return new OperatorStateMetadata(stateSnapshots, proxy.getKeySerializerSnapshot());
+        return new OperatorStateMetadata(
+                byStateName(proxy.getStateMetaInfoSnapshots()), proxy.getKeySerializerSnapshot());
+    }
+
+    /**
+     * Loads the per-state serializer snapshots of an operator's non-keyed (operator) state — {@code
+     * ListState}/{@code UnionState}/{@code BroadcastState} — in a single I/O operation.
+     */
+    public static NonKeyedOperatorStateMetadata loadNonKeyedOperatorMetadata(
+            String savepointPath, OperatorIdentifier operatorIdentifier) throws IOException {
+
+        OperatorState operatorState = findOperatorState(savepointPath, operatorIdentifier);
+
+        OperatorStateHandle operatorStateHandle =
+                operatorState.getStates().stream()
+                        .flatMap(s -> s.getManagedOperatorState().stream())
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "No operator state found for operator "
+                                                        + operatorIdentifier));
+
+        OperatorBackendSerializationProxy proxy = readSerializationProxy(operatorStateHandle);
+        return new NonKeyedOperatorStateMetadata(
+                byStateName(proxy.getOperatorStateMetaInfoSnapshots()),
+                byStateName(proxy.getBroadcastStateMetaInfoSnapshots()));
+    }
+
+    private static OperatorState findOperatorState(
+            String savepointPath, OperatorIdentifier operatorIdentifier) throws IOException {
+        return loadSavepointMetadata(savepointPath).getOperatorStates().stream()
+                .filter(state -> operatorIdentifier.getOperatorId().equals(state.getOperatorID()))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Operator "
+                                                + operatorIdentifier
+                                                + " not found in savepoint"));
+    }
+
+    private static Map<String, StateMetaInfoSnapshot> byStateName(
+            List<StateMetaInfoSnapshot> snapshots) {
+        return snapshots.stream()
+                .collect(Collectors.toMap(StateMetaInfoSnapshot::getName, Function.identity()));
     }
 
     private static KeyedBackendSerializationProxy<?> readSerializationProxy(
@@ -180,6 +229,24 @@ public final class SavepointLoader {
 
             KeyedBackendSerializationProxy<?> proxy =
                     new KeyedBackendSerializationProxy<>(
+                            Thread.currentThread().getContextClassLoader());
+            CustomRestoreSerializerFactory.set(MissingClassSerializerFactory::create);
+            proxy.read(inputView);
+
+            return proxy;
+        }
+    }
+
+    private static OperatorBackendSerializationProxy readSerializationProxy(
+            OperatorStateHandle stateHandle) throws IOException {
+
+        // Unlike keyed state, an OperatorStateHandle is itself a StreamStateHandle whose stream
+        // starts with the metadata header, for every state backend.
+        try (FSDataInputStream inputStream = stateHandle.openInputStream()) {
+            DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
+
+            OperatorBackendSerializationProxy proxy =
+                    new OperatorBackendSerializationProxy(
                             Thread.currentThread().getContextClassLoader());
             CustomRestoreSerializerFactory.set(MissingClassSerializerFactory::create);
             proxy.read(inputView);
