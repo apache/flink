@@ -304,12 +304,6 @@ A `LATERAL SNAPSHOT` join is a *stream enrichment* join that augments an append-
 As in the [temporal joins](#temporal-joins), the enriched (left) input is called the *probe side* and the enriching (right) input is called the *build side*.
 Every probe-side row is joined with the build-side state that is current at the time the row is processed.
 
-This is the same mode of operation as the [processing-time temporal join](#processing-time-temporal-join), which also joins each probe-side row against the latest build-side state.
-However, the processing-time temporal join has been disabled for Flink SQL due to a fundamental limitation. 
-The processing-time temporal join starts joining immediately when the query is started: early probe-side rows are joined against whatever build-side rows happen to have been loaded so far. 
-Right after query start-up, the build side is typically still incomplete, so early probe-side rows may be enriched with missing or stale data, and the result depends on the order in which the two inputs are read.
-A `LATERAL SNAPSHOT` join addresses this problem by first loading the build side up to a well-defined point in time (the *load phase*) before it starts joining (the *join phase*).
-
 **When to use it**
 
 The `LATERAL SNAPSHOT` join is designed for enrichment scenarios where the other temporal joins are a poor fit:
@@ -320,7 +314,9 @@ The `LATERAL SNAPSHOT` join is designed for enrichment scenarios where the other
 
 **How the join works**
 
-During the *load phase*, the operator accumulates the build-side changes into state until the load-completion condition is met, without emitting any results yet. This lets the build side load its initial state so that early probe-side rows are not joined against an incomplete build side. Probe-side rows that arrive during the load phase are buffered. The load phase completes when one of the following occurs:
+A `LATERAL SNAPSHOT` join operates in two phases to avoid joining probe-side rows against an incomplete build side: it first loads the build side up to a well-defined point in time (the *load phase*) before it starts joining (the *join phase*).
+
+During the *load phase*, the operator accumulates the build-side changes into state until the load-completion condition is met, without emitting any results yet. Probe-side rows that arrive during the load phase are buffered. The load phase completes when one of the following occurs:
 
 - the build-side watermark reaches a configured `load_completed_time`. This time is either explicitly set by the user (`load_completed_condition => 'user_time'`) or automatically set to the wall-clock time when the query is compiled (`load_completed_condition => 'compile_time'`), or
 - as a fallback, the `load_completed_idle_timeout` elapses in processing time without the build-side watermark advancing (which handles build sides that become idle during start-up).
@@ -328,6 +324,8 @@ During the *load phase*, the operator accumulates the build-side changes into st
 When the load phase completes, the operator transitions to the *join phase*: all buffered probe-side rows are joined against the current build-side state and emitted. 
 From then on, each probe-side row is joined and emitted immediately against the build-side state that is current at that moment. 
 Build-side updates continue to be applied to the state and become visible to subsequent probe-side rows.
+
+The load phase is what distinguishes a `LATERAL SNAPSHOT` join from the [processing-time temporal join](#processing-time-temporal-join), which has been disabled for Flink SQL. The processing-time temporal join starts joining immediately at query start, so early probe-side rows are joined against whatever build-side data happens to have been loaded so far, producing missing or stale results that depend on the order in which the inputs are read. By first loading the build side, a `LATERAL SNAPSHOT` join avoids this problem.
 
 **Syntax**
 
