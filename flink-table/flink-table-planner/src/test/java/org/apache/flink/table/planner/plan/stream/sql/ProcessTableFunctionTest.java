@@ -309,6 +309,20 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testSystemArgRejectedByNameBeforeTypeCheck() {
+        // System arguments are rejected by name, rather than a type mismatch.
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM f(r => TABLE t, i => 1, on_time => 1);"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
+    }
+
+    @Test
     void testSystemArgRejectedForDisabledPtfViaTableApi() {
         // The same enforcement applies to the Table API path, which resolves calls via
         // ResolveCallByArgumentsRule instead of the SQL validator.
