@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -121,9 +120,6 @@ public class SnapshotTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    @Disabled(
-            "SNAPSHOT sets disableSystemArguments(true), but that flag is currently not enforced. "
-                    + "Re-enable once FLINK-40079 is fixed.")
     void testSystemArgumentsNotAllowed() {
         // SNAPSHOT disables the implicit system arguments (e.g. `on_time`). Passing one in a
         // LATERAL context must be rejected because the argument is not part of the function
@@ -136,7 +132,10 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                                                 + "input => TABLE Rates, "
                                                 + "on_time => DESCRIPTOR(rate_time))) AS r "
                                                 + "WHERE o.currency = r.currency"))
-                .satisfies(anyCauseMatches("on_time"));
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported because function "
+                                        + "'SNAPSHOT' does not use system arguments."));
     }
 
     @Test
