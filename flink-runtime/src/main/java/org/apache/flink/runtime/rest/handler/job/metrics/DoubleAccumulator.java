@@ -20,6 +20,9 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.ranking.NaNStrategy;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,6 +62,7 @@ interface DoubleAccumulator {
          * Creates a new accumulator with the given initial value.
          *
          * @param init initial value
+         *
          * @return new accumulator with the given initial value
          */
         A get(double init);
@@ -68,7 +72,8 @@ interface DoubleAccumulator {
     final class DoubleMaximumFactory implements DoubleAccumulatorFactory<DoubleMaximum> {
         private static final DoubleMaximumFactory INSTANCE = new DoubleMaximumFactory();
 
-        private DoubleMaximumFactory() {}
+        private DoubleMaximumFactory() {
+        }
 
         @Override
         public DoubleMaximum get(double init) {
@@ -84,7 +89,8 @@ interface DoubleAccumulator {
     final class DoubleMinimumFactory implements DoubleAccumulatorFactory<DoubleMinimum> {
         private static final DoubleMinimumFactory INSTANCE = new DoubleMinimumFactory();
 
-        private DoubleMinimumFactory() {}
+        private DoubleMinimumFactory() {
+        }
 
         @Override
         public DoubleMinimum get(double init) {
@@ -100,7 +106,8 @@ interface DoubleAccumulator {
     final class DoubleSumFactory implements DoubleAccumulatorFactory<DoubleSum> {
         private static final DoubleSumFactory INSTANCE = new DoubleSumFactory();
 
-        private DoubleSumFactory() {}
+        private DoubleSumFactory() {
+        }
 
         @Override
         public DoubleSum get(double init) {
@@ -116,7 +123,8 @@ interface DoubleAccumulator {
     final class DoubleAverageFactory implements DoubleAccumulatorFactory<DoubleAverage> {
         private static final DoubleAverageFactory INSTANCE = new DoubleAverageFactory();
 
-        private DoubleAverageFactory() {}
+        private DoubleAverageFactory() {
+        }
 
         @Override
         public DoubleAverage get(double init) {
@@ -132,7 +140,8 @@ interface DoubleAccumulator {
     final class DoubleDataSkewFactory implements DoubleAccumulatorFactory<DoubleDataSkew> {
         private static final DoubleDataSkewFactory INSTANCE = new DoubleDataSkewFactory();
 
-        private DoubleDataSkewFactory() {}
+        private DoubleDataSkewFactory() {
+        }
 
         @Override
         public DoubleDataSkew get(double init) {
@@ -141,6 +150,36 @@ interface DoubleAccumulator {
 
         public static DoubleDataSkewFactory get() {
             return INSTANCE;
+        }
+    }
+
+    /** Factory for {@link DoublePercentile}. */
+    final class DoublePercentileFactory implements DoubleAccumulatorFactory<DoublePercentile> {
+        private static final DoublePercentileFactory P50 = new DoublePercentileFactory(50);
+        private static final DoublePercentileFactory P90 = new DoublePercentileFactory(90);
+        private static final DoublePercentileFactory P99 = new DoublePercentileFactory(99);
+
+        private final double percentile;
+
+        private DoublePercentileFactory(double percentile) {
+            this.percentile = percentile;
+        }
+
+        @Override
+        public DoublePercentile get(double init) {
+            return new DoublePercentile(percentile, init);
+        }
+
+        public static DoublePercentileFactory p50() {
+            return P50;
+        }
+
+        public static DoublePercentileFactory p90() {
+            return P90;
+        }
+
+        public static DoublePercentileFactory p99() {
+            return P99;
         }
     }
 
@@ -268,7 +307,8 @@ interface DoubleAccumulator {
         private final List<Double> values = new ArrayList<>();
 
         @VisibleForTesting
-        DoubleDataSkew() {}
+        DoubleDataSkew() {
+        }
 
         private DoubleDataSkew(double init) {
             values.add(init);
@@ -300,6 +340,42 @@ interface DoubleAccumulator {
         @Override
         public String getName() {
             return NAME;
+        }
+    }
+
+    /**
+     * {@link DoubleAccumulator} that returns a percentile (e.g. p50/p90/p99) over all values. A
+     * percentile needs the whole sample, so this buffers every value (like {@link DoubleDataSkew})
+     * and computes the result lazily in {@link #getValue()}.
+     */
+    final class DoublePercentile implements DoubleAccumulator {
+
+        private final double percentile;
+
+        private final String name;
+
+        private final List<Double> values = new ArrayList<>();
+
+        private DoublePercentile(double percentile, double init) {
+            this.percentile = percentile;
+            this.name = "p" + (int) percentile;
+            values.add(init);
+        }
+
+        @Override
+        public void add(double value) {
+            values.add(value);
+        }
+
+        @Override
+        public double getValue() {
+            double[] arr = values.stream().mapToDouble(Double::doubleValue).toArray();
+            return new Percentile().withNaNStrategy(NaNStrategy.FIXED).evaluate(arr, percentile);
+        }
+
+        @Override
+        public String getName() {
+            return name;
         }
     }
 }
