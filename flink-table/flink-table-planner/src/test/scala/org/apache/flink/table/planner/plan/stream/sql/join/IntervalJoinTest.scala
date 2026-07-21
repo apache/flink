@@ -400,7 +400,7 @@ class IntervalJoinTest extends TableTestBase {
   def testEarlyFireMissingDelay(): Unit = {
     val sqlQuery =
       """
-        |SELECT /*+ EARLY_FIRE('time_mode'='rowtime') */ t1.a, t2.b
+        |SELECT /*+ EARLY_FIRE('time-mode'='rowtime') */ t1.a, t2.b
         |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
@@ -428,7 +428,7 @@ class IntervalJoinTest extends TableTestBase {
   def testEarlyFireInvalidTimeMode(): Unit = {
     val sqlQuery =
       """
-        |SELECT /*+ EARLY_FIRE('delay'='5s', 'time_mode'='unknown') */ t1.a, t2.b
+        |SELECT /*+ EARLY_FIRE('delay'='5s', 'time-mode'='unknown') */ t1.a, t2.b
         |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR

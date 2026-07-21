@@ -46,7 +46,7 @@ public class EarlyFireJoinHintOptions {
                                     + " emitted. Must be a positive duration.");
 
     public static final ConfigOption<TimeMode> TIME_MODE =
-            key("time_mode")
+            key("time-mode")
                     .enumType(TimeMode.class)
                     .noDefaultValue()
                     .withDescription(
