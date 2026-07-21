@@ -305,7 +305,7 @@ public abstract class FlinkHintStrategies {
                 Duration delay = conf.get(EarlyFireJoinHintOptions.DELAY);
                 litmus.check(
                         null != delay && delay.toMillis() > 0,
-                        "Invalid EARLY_FIRE hint option: {} value should be a positive duration but was {}",
+                        "Invalid EARLY_FIRE hint option: {} value should be at least 1 millisecond but was {}",
                         EarlyFireJoinHintOptions.DELAY.key(),
                         delay);
                 return true;

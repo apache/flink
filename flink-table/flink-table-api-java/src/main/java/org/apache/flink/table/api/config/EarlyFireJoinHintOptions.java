@@ -43,7 +43,7 @@ public class EarlyFireJoinHintOptions {
                     .withDescription(
                             "The delay between the time an unmatched outer row becomes eligible to"
                                     + " be emitted with null padding and the time it is actually"
-                                    + " emitted. Must be a positive duration.");
+                                    + " emitted. Must be at least 1 millisecond.");
 
     public static final ConfigOption<TimeMode> TIME_MODE =
             key("time-mode")

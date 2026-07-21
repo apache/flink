@@ -421,7 +421,7 @@ class IntervalJoinTest extends TableTestBase {
       """.stripMargin
 
     assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .hasMessageContaining("value should be a positive duration")
+      .hasMessageContaining("value should be at least 1 millisecond")
   }
 
   @Test
@@ -450,6 +450,47 @@ class IntervalJoinTest extends TableTestBase {
 
     assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
       .hasMessageContaining("Unsupported EARLY_FIRE hint option(s) [timemode]")
+  }
+
+  @Test
+  def testEarlyFireSubMillisecondDelay(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('delay'='1ns') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("value should be at least 1 millisecond")
+  }
+
+  @Test
+  def testEarlyFireListOptionsRejected(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ EARLY_FIRE('5s') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("only support key-value options")
+  }
+
+  @Test
+  def testEarlyFireLowerCaseHintNamePreservesOptions(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT /*+ early_fire('delay'='5s', 'time-mode'='rowtime') */ t1.a, t2.b
+        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Other tests
