@@ -19,40 +19,29 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.flink.metrics.SlidingWindowHistogram;
 
 import java.io.Serializable;
 
-/**
- * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link
- * DescriptiveStatistics} as a Flink {@link Histogram}.
- */
-public class DescriptiveStatisticsHistogram implements Histogram, Serializable {
+/** Runtime compatibility alias for the shared sliding-window {@link Histogram}. */
+public class DescriptiveStatisticsHistogram extends SlidingWindowHistogram implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final CircularDoubleArray descriptiveStatistics;
-
     public DescriptiveStatisticsHistogram(int windowSize) {
-        this.descriptiveStatistics = new CircularDoubleArray(windowSize);
-    }
-
-    @Override
-    public void update(long value) {
-        this.descriptiveStatistics.addValue(value);
-    }
-
-    @Override
-    public long getCount() {
-        return this.descriptiveStatistics.getElementsSeen();
+        super(windowSize);
     }
 
     @Override
     public HistogramStatistics getStatistics() {
-        return new DescriptiveStatisticsHistogramStatistics(this.descriptiveStatistics);
+        final long[] values = getValuesSnapshot();
+        final double[] doubleValues = new double[values.length];
+        for (int i = 0; i < values.length; i++) {
+            doubleValues[i] = values[i];
+        }
+        return new DescriptiveStatisticsHistogramStatistics(doubleValues);
     }
 
-    /** Fixed-size array that wraps around at the end and has a dynamic start position. */
+    /** Fixed-size array retained for compatibility with histogram statistics constructors. */
     static class CircularDoubleArray implements Serializable {
         private static final long serialVersionUID = 1L;
         private final double[] backingArray;
