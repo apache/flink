@@ -20,10 +20,12 @@ package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
+import org.apache.flink.fs.s3.common.token.HadoopS3DelegationTokenReceiver;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,5 +106,24 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
         final S3AFileSystem s3Afs = (S3AFileSystem) fs;
         return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
+    }
+
+    @Override
+    protected void applyHadoopConfigDefaults(org.apache.hadoop.conf.Configuration hadoopConfig) {
+        // hadoop-aws 3.4 defaults fs.s3a.input.stream.type to the S3 Analytics Accelerator
+        // stream, which changes the read pattern (and S3 GET volume) of every s3a:// read.
+        // Default to the classic stream so the Hadoop upgrade is behavior-preserving; users
+        // opt in via s3.input.stream.type=analytics. The legacy prefetch toggle takes
+        // precedence in Hadoop when the stream type is unset, so it must not be overridden.
+        if (hadoopConfig.get(Constants.INPUT_STREAM_TYPE) == null
+                && !hadoopConfig.getBoolean(
+                        Constants.PREFETCH_ENABLED_KEY, Constants.PREFETCH_ENABLED_DEFAULT)) {
+            hadoopConfig.set(Constants.INPUT_STREAM_TYPE, Constants.INPUT_STREAM_TYPE_CLASSIC);
+        }
+    }
+
+    @Override
+    protected void updateDelegationTokenConfig(org.apache.hadoop.conf.Configuration hadoopConfig) {
+        HadoopS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
     }
 }

@@ -57,13 +57,6 @@ under the License.
 					</exclusion>
 				</exclusions>
 			</dependency>
-
-			<dependency>
-				<!-- Bumped for security purposes -->
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<version>1.9.4</version>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 	<dependencies>
@@ -84,12 +77,42 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- S3 base -->
+		<!--
+			This plugin builds on Hadoop's s3a connector (hadoop-aws), which migrated
+			to AWS SDK v2 (`software.amazon.awssdk:*`) in the Hadoop 3.4.x line. The
+			bundled v2 modules are declared in flink-s3-fs-base's pom.
+
+			flink-s3-fs-base still pulls AWS SDK v1 (`com.amazonaws:*`) transitively
+			because the sibling `flink-s3-fs-presto` plugin remains on v1. This plugin
+			is v2-only, so the v1 modules are excluded here entirely.
+		-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-kms</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-dynamodb</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -284,12 +307,31 @@ under the License.
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
-									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
-										Filter must be removed as soon as XmlResponsesSaxParser of this module is
-										dropped, for example when discontinuing support for Java 8. -->
+									<artifact>org.apache.flink:flink-s3-fs-base</artifact>
+									<!-- Exclude XmlResponsesSaxParser from flink-s3-fs-base as it is AWS SDK v1 code.
+										We do not need this for SDK v2. This is only needed by Presto. -->
 									<excludes>
 										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
+										<!-- SDK v1 based token classes serving only flink-s3-fs-presto; they cannot
+										     link in this plugin, which bundles no SDK v1. Configurations referencing
+										     the credentials provider by name are remapped to the SDK v2 provider by
+										     HadoopS3DelegationTokenReceiver. -->
+										<exclude>org/apache/flink/fs/s3/common/token/DynamicTemporaryAWSCredentialsProvider**</exclude>
+										<exclude>org/apache/flink/fs/s3/common/token/AbstractS3DelegationTokenProvider**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<!-- analyticsaccelerator-s3 (transitive of hadoop-aws 3.4.x) ships
+									     LICENSE, NOTICE, and THIRD-PARTY-NOTICES at the jar root. The
+									     license checker rejects root-level license files; the
+									     THIRD-PARTY-NOTICES also references GPL/LGPL terms that the
+									     checker flags. Attribution is consolidated in this module's
+									     META-INF/NOTICE. -->
+									<artifact>software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3</artifact>
+									<excludes>
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
+										<exclude>THIRD-PARTY-NOTICES</exclude>
 									</excludes>
 								</filter>
 							</filters>

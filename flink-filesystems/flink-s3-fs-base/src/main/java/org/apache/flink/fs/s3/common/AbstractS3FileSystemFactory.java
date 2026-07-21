@@ -186,7 +186,8 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             // create the Hadoop FileSystem
             org.apache.hadoop.conf.Configuration hadoopConfig =
                     hadoopConfigLoader.getOrLoadHadoopConfig();
-            AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
+            applyHadoopConfigDefaults(hadoopConfig);
+            updateDelegationTokenConfig(hadoopConfig);
             org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
             fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
 
@@ -258,4 +259,19 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
     @Nullable
     protected abstract S3AccessHelper getS3AccessHelper(org.apache.hadoop.fs.FileSystem fs);
+
+    /**
+     * Applies Flink-side defaults to the loaded Hadoop configuration before the file system is
+     * initialized. Only invoked for keys the user has not configured; subclasses override this to
+     * pin Hadoop defaults that would otherwise change behavior across Hadoop upgrades.
+     */
+    protected void applyHadoopConfigDefaults(org.apache.hadoop.conf.Configuration hadoopConfig) {}
+
+    /**
+     * Updates the Hadoop configuration with delegation token credentials provider. Subclasses can
+     * override this method to use a different credentials provider (e.g., SDK v2 only).
+     */
+    protected void updateDelegationTokenConfig(org.apache.hadoop.conf.Configuration hadoopConfig) {
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
+    }
 }

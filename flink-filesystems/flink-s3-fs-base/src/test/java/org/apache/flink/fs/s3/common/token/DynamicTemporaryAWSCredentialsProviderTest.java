@@ -20,9 +20,9 @@ package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.util.InstantiationUtil;
 
+import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.services.securitytoken.model.Credentials;
-import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +52,7 @@ class DynamicTemporaryAWSCredentialsProviderTest {
         DynamicTemporaryAWSCredentialsProvider provider =
                 new DynamicTemporaryAWSCredentialsProvider();
 
-        assertThatThrownBy(provider::getCredentials).isInstanceOf(NoAwsCredentialsException.class);
+        assertThatThrownBy(provider::getCredentials).isInstanceOf(SdkClientException.class);
     }
 
     @Test

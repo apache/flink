@@ -18,10 +18,15 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import com.amazonaws.services.s3.model.PartETag;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -83,6 +88,41 @@ class S3RecoverableSerializerTest {
         assertThatIsEqualTo(originalFullRecoverable, copiedFullRecoverable);
     }
 
+    // ------------------------------------------------------------------------
+    //  Wire-format fixture tests. Version-1 bytes are persisted in checkpoints
+    //  and savepoints, so state written by previous releases must keep
+    //  deserializing. These tests pin the exact byte layout independently of
+    //  the serializer implementation; if they fail, the layout changed and a
+    //  new serializer version is required instead.
+    // ------------------------------------------------------------------------
+
+    @Test
+    void wireFormatIsStableWithCompleteAndIncompleteParts() throws IOException {
+        S3Recoverable recoverable = createTestS3Recoverable(true, 1, 5, 9);
+        byte[] expectedBytes =
+                buildV1WireBytes(
+                        TEST_OBJECT_NAME,
+                        TEST_UPLOAD_ID,
+                        new int[] {1, 5, 9},
+                        12345L,
+                        INCOMPLETE_OBJECT_NAME,
+                        54321L);
+
+        assertThat(serializer.serialize(recoverable)).isEqualTo(expectedBytes);
+        assertThatIsEqualTo(serializer.deserialize(1, expectedBytes), recoverable);
+    }
+
+    @Test
+    void wireFormatIsStableWithoutIncompleteObject() throws IOException {
+        S3Recoverable recoverable = createTestS3Recoverable(false, 1, 5, 9);
+        byte[] expectedBytes =
+                buildV1WireBytes(
+                        TEST_OBJECT_NAME, TEST_UPLOAD_ID, new int[] {1, 5, 9}, 12345L, null, -1L);
+
+        assertThat(serializer.serialize(recoverable)).isEqualTo(expectedBytes);
+        assertThatIsEqualTo(serializer.deserialize(1, expectedBytes), recoverable);
+    }
+
     private static void assertThatIsEqualTo(
             S3Recoverable actualRecoverable, S3Recoverable expectedRecoverable) {
         assertThat(actualRecoverable.getObjectName())
@@ -94,33 +134,92 @@ class S3RecoverableSerializerTest {
                 .isEqualTo(expectedRecoverable.incompleteObjectName());
         assertThat(actualRecoverable.incompleteObjectLength())
                 .isEqualTo(expectedRecoverable.incompleteObjectLength());
-        assertThat(actualRecoverable.parts().stream().map(PartETag::getETag).toArray())
-                .isEqualTo(expectedRecoverable.parts().stream().map(PartETag::getETag).toArray());
+        assertThat(actualRecoverable.parts().stream().map(CompletedPart::eTag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(CompletedPart::eTag).toArray());
     }
 
     // --------------------------------- Test Utils ---------------------------------
 
     private static S3Recoverable createTestS3Recoverable(
             boolean withIncompletePart, int... partNumbers) {
-        List<PartETag> etags = new ArrayList<>();
+        List<CompletedPart> parts = new ArrayList<>();
         for (int i : partNumbers) {
-            etags.add(createEtag(i));
+            parts.add(createCompletedPart(i));
         }
 
         if (withIncompletePart) {
             return new S3Recoverable(
                     TEST_OBJECT_NAME,
                     TEST_UPLOAD_ID,
-                    etags,
+                    parts,
                     12345L,
                     INCOMPLETE_OBJECT_NAME,
                     54321L);
         } else {
-            return new S3Recoverable(TEST_OBJECT_NAME, TEST_UPLOAD_ID, etags, 12345L);
+            return new S3Recoverable(TEST_OBJECT_NAME, TEST_UPLOAD_ID, parts, 12345L);
         }
     }
 
-    private static PartETag createEtag(int partNumber) {
-        return new PartETag(partNumber, ETAG_PREFIX + partNumber);
+    private static CompletedPart createCompletedPart(int partNumber) {
+        return CompletedPart.builder()
+                .partNumber(partNumber)
+                .eTag(ETAG_PREFIX + partNumber)
+                .build();
+    }
+
+    /**
+     * Hand-builds the version-1 wire layout: little-endian; magic number (int); key length (int) +
+     * UTF-8 bytes; upload id length (int) + bytes; part count (int); per part: part number (int) +
+     * etag length (int) + bytes; bytes in parts (long); incomplete object name length (int, 0 for
+     * none) + bytes; incomplete object length (long).
+     */
+    private static byte[] buildV1WireBytes(
+            String objectName,
+            String uploadId,
+            int[] partNumbers,
+            long numBytesInParts,
+            @Nullable String incompleteObjectName,
+            long incompleteObjectLength) {
+        final byte[] keyBytes = objectName.getBytes(StandardCharsets.UTF_8);
+        final byte[] uploadIdBytes = uploadId.getBytes(StandardCharsets.UTF_8);
+        final byte[][] etags = new byte[partNumbers.length][];
+        int partBytes = 0;
+        for (int i = 0; i < partNumbers.length; i++) {
+            etags[i] = (ETAG_PREFIX + partNumbers[i]).getBytes(StandardCharsets.UTF_8);
+            partBytes += 2 * Integer.BYTES + etags[i].length;
+        }
+        final byte[] incompleteBytes =
+                incompleteObjectName == null
+                        ? new byte[0]
+                        : incompleteObjectName.getBytes(StandardCharsets.UTF_8);
+
+        final ByteBuffer bb =
+                ByteBuffer.allocate(
+                                4 * Integer.BYTES
+                                        + keyBytes.length
+                                        + uploadIdBytes.length
+                                        + partBytes
+                                        + 2 * Long.BYTES
+                                        + Integer.BYTES
+                                        + incompleteBytes.length)
+                        .order(ByteOrder.LITTLE_ENDIAN);
+
+        bb.putInt(0x98761432);
+        bb.putInt(keyBytes.length);
+        bb.put(keyBytes);
+        bb.putInt(uploadIdBytes.length);
+        bb.put(uploadIdBytes);
+        bb.putInt(partNumbers.length);
+        for (int i = 0; i < partNumbers.length; i++) {
+            bb.putInt(partNumbers[i]);
+            bb.putInt(etags[i].length);
+            bb.put(etags[i]);
+        }
+        bb.putLong(numBytesInParts);
+        bb.putInt(incompleteBytes.length);
+        bb.put(incompleteBytes);
+        bb.putLong(incompleteObjectLength);
+
+        return bb.array();
     }
 }

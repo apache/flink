@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.shaded.guava33.com.google.common.base.Predicates.not;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,7 +87,13 @@ public abstract class HAJobRunOnSeaweedFsS3StoreITCase extends AbstractHAJobRunI
                 .listObjects(
                         getSeaweedFsContainer().getDefaultBucketName(),
                         createSubPath(CLUSTER_ID, JOB_RESULT_STORE_FOLDER))
-                .getObjectSummaries();
+                .getObjectSummaries()
+                .stream()
+                // S3A keeps zero-byte directory markers since Hadoop 3.4
+                // (fs.s3a.directory.marker.retention defaults to "keep"); only actual
+                // JobResultStore entries are relevant for the assertions.
+                .filter(summary -> !summary.getKey().endsWith("/"))
+                .collect(Collectors.toList());
     }
 
     private static String createSubPath(String... subfolders) {
