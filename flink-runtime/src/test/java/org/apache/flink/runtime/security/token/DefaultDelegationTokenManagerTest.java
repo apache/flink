@@ -362,14 +362,53 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void stopShouldStopProviders() {
-        Configuration configuration = new Configuration();
+    public void closeShouldStopProvidersExactlyOnce() {
         DefaultDelegationTokenManager delegationTokenManager =
-                new DefaultDelegationTokenManager(configuration, null, null, null);
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
 
-        delegationTokenManager.stop();
+        // close() is the terminal teardown: it stops the providers, and a repeated close() must
+        // not stop them again (the SPI promises stop() is called at most once).
+        delegationTokenManager.close();
+        delegationTokenManager.close();
 
         assertTrue(ExceptionThrowingDelegationTokenProvider.stopped.get());
+        assertEquals(1, (int) ExceptionThrowingDelegationTokenProvider.stopCallCount.get());
+    }
+
+    @Test
+    public void closeShouldEndSessionAndUnregisterJobs() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        JobID jobId = JobID.generate();
+        delegationTokenManager.registerJob(jobId, new Configuration());
+
+        // close() ends the session first, so the jobs are unregistered while the providers are
+        // still usable, and only then are the providers stopped.
+        delegationTokenManager.close();
+
+        assertEquals(0, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+        assertTrue(ExceptionThrowingDelegationTokenProvider.stopped.get());
+    }
+
+    @Test
+    public void startAfterCloseMustFail() {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler);
+        delegationTokenManager.close();
+
+        // A closed manager's providers are stopped for good: starting it would run obtain
+        // cycles against dead providers, so it must fail fast.
+        assertThrows(IllegalStateException.class, () -> delegationTokenManager.start(tokens -> {}));
     }
 
     @Test
@@ -711,6 +750,33 @@ public class DefaultDelegationTokenManagerTest {
                 1,
                 delegate.getActiveScheduledTasks().size(),
                 "A re-obtain after a scheduler failure must schedule a fresh obtain cycle");
+    }
+
+    @Test
+    public void stopShouldKeepProvidersUsableForSubsequentStart() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        new Configuration(), null, scheduledExecutor, scheduler);
+
+        // The manager is a process-lifetime singleton reused across ResourceManager leadership
+        // sessions: stop() runs on every leadership revoke and start() on the next grant, with
+        // the same provider instances. Providers are init()-ed exactly once, in the manager
+        // constructor, and the SPI has no re-init hook, so a provider closed by stop() stays
+        // broken for every following term. Providers must therefore only be closed at genuine
+        // process shutdown, not by the per-session stop().
+        delegationTokenManager.start(tokens -> {});
+        delegationTokenManager.stop();
+        delegationTokenManager.start(tokens -> {});
+
+        assertFalse(
+                ExceptionThrowingDelegationTokenProvider.stopped.get(),
+                "A leadership-session stop() must not close the providers, the next start()"
+                        + " re-uses them");
     }
 
     @Test

@@ -163,10 +163,12 @@ public interface DelegationTokenProvider {
     /**
      * Stops the provider. Any resources should be closed.
      *
-     * <p>Called once during manager shutdown. Note that an obtain-and-broadcast cycle started just
-     * before shutdown may still be running on another thread when this is invoked, so {@code
-     * stop()} may overlap an in-flight {@link #obtainDelegationTokens()}; implementations must
-     * release resources in a way that is safe with respect to that overlap.
+     * <p>Called at most once, when the manager is closed at process shutdown. It is not called on
+     * ResourceManager leadership changes, those only stop and restart the manager's obtain session
+     * and the provider instance stays in use. An obtain cycle started just before shutdown may
+     * still be running, so {@code stop()} may overlap an in-flight {@link
+     * #obtainDelegationTokens()} and implementations must release resources in a way that is safe
+     * with respect to that overlap.
      */
     default void stop() {}
 }

@@ -56,6 +56,7 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> stopped =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Integer> stopCallCount = ThreadLocal.withInitial(() -> 0);
     public static volatile ThreadLocal<Boolean> mutateJobConfiguration =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Set<JobID>> registeredJobs =
@@ -72,6 +73,7 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         throwInUnregister.set(false);
         throwErrorInUnregister.set(false);
         stopped.set(false);
+        stopCallCount.set(0);
         mutateJobConfiguration.set(false);
         registeredJobs.get().clear();
     }
@@ -151,5 +153,6 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
     @Override
     public void stop() {
         stopped.set(true);
+        stopCallCount.set(stopCallCount.get() + 1);
     }
 }
