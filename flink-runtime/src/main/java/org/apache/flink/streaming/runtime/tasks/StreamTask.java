@@ -1814,6 +1814,29 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 String.format("checkpoint %d subsumed", checkpointId));
     }
 
+    @Override
+    public Future<Void> notifyRegionalCheckpointFallbackAsync(
+            long checkpointId, long fallbackCheckpointId) {
+        return notifyCheckpointOperation(
+                () -> notifyRegionalCheckpointFallback(checkpointId, fallbackCheckpointId),
+                String.format(
+                        "regional checkpoint %d fallback to %d",
+                        checkpointId, fallbackCheckpointId));
+    }
+
+    private void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId)
+            throws Exception {
+        LOG.debug(
+                "Notify regional checkpoint {} fallback to {} on task {}",
+                checkpointId,
+                fallbackCheckpointId,
+                getName());
+        // Propagate to subtask checkpoint coordinator which handles local state cleanup
+        // and operator chain notification.
+        subtaskCheckpointCoordinator.notifyRegionalCheckpointFallback(
+                checkpointId, fallbackCheckpointId, operatorChain, this::isRunning);
+    }
+
     private Future<Void> notifyCheckpointOperation(
             RunnableWithException runnable, String description) {
         CompletableFuture<Void> result = new CompletableFuture<>();

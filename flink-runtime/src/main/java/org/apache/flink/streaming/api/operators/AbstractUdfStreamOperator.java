@@ -145,6 +145,28 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     }
 
     @Override
+    public void notifyRegionalCheckpointComplete(
+            long checkpointId, org.apache.flink.api.common.state.RegionalCheckpointInfo info)
+            throws Exception {
+        super.notifyRegionalCheckpointComplete(checkpointId, info);
+
+        if (userFunction instanceof CheckpointListener) {
+            ((CheckpointListener) userFunction)
+                    .notifyRegionalCheckpointComplete(checkpointId, info);
+        }
+    }
+
+    @Override
+    public void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId) {
+        super.notifyRegionalCheckpointFallback(checkpointId, fallbackCheckpointId);
+
+        if (userFunction instanceof CheckpointListener) {
+            ((CheckpointListener) userFunction)
+                    .notifyRegionalCheckpointFallback(checkpointId, fallbackCheckpointId);
+        }
+    }
+
+    @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         super.notifyCheckpointAborted(checkpointId);
 

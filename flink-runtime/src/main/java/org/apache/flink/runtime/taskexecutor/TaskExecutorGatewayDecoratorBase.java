@@ -142,12 +142,14 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
             ExecutionAttemptID executionAttemptID,
             long completedCheckpointId,
             long completedCheckpointTimestamp,
-            long lastSubsumedCheckpointId) {
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {
         return originalGateway.confirmCheckpoint(
                 executionAttemptID,
                 completedCheckpointId,
                 completedCheckpointTimestamp,
-                lastSubsumedCheckpointId);
+                lastSubsumedCheckpointId,
+                fallbackCheckpointId);
     }
 
     @Override
