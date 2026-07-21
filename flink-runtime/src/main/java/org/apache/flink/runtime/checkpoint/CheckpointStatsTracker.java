@@ -102,6 +102,9 @@ public interface CheckpointStatsTracker {
      */
     void reportFailedCheckpointsWithoutInProgress();
 
+    /** Callback when a regional checkpoint completes successfully. */
+    void reportRegionalCheckpointCompleted();
+
     /**
      * Creates a new snapshot of the available stats.
      *
