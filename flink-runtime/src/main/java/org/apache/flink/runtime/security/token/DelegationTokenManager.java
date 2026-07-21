@@ -62,12 +62,21 @@ public interface DelegationTokenManager {
     void start(Listener listener) throws Exception;
 
     /**
-     * Stops the re-occurring token obtain task. Implementations also release any per-job provider
-     * state accumulated through {@link #registerJob(JobID, Configuration)}, so stale registrations
-     * cannot outlive the stop (a job that is still running re-registers through the normal
-     * JobMaster registration retry).
+     * Stops the re-occurring token obtain task. Implementations also unregister all jobs registered
+     * through {@link #registerJob(JobID, Configuration)}, so nothing leaks across leadership
+     * sessions (a job that is still running re-registers through the normal JobMaster registration
+     * retry). Providers are not stopped here and stay usable for a subsequent {@link
+     * #start(Listener)}. Their teardown happens in {@link #close()}.
      */
     void stop();
+
+    /**
+     * Terminal teardown of the manager: ends any active obtain session and releases the providers'
+     * resources, exactly once. Called by the component that created the manager at process
+     * shutdown, unlike {@link #stop()}, which may run once per ResourceManager leadership session.
+     * The manager must not be started after close.
+     */
+    default void close() {}
 
     /**
      * Requests an immediate, asynchronous token-obtain-and-distribute cycle, bringing the next

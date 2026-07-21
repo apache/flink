@@ -52,6 +52,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -166,6 +167,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * ResourceManager main thread, and leadership sessions are serialized.
      */
     private final Set<JobID> registeredJobs = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Set once by {@link #close()}. Keeps provider stop() at most once and rejects any later {@link
+     * #start(Listener)}.
+     */
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public DefaultDelegationTokenManager(
             Configuration configuration,
@@ -369,6 +376,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      */
     @Override
     public void start(Listener listener) throws Exception {
+        checkState(
+                !closed.get(),
+                "The delegation token manager is already closed, its providers are stopped");
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
         checkNotNull(listener, "Listener must not be null");
@@ -616,7 +626,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     /**
      * Stops the re-occurring token obtain task, releases the listener, and unregisters the jobs of
-     * the ending session. See the interface javadoc.
+     * the ending session. Providers stay usable for a later {@link #start(Listener)}. Their
+     * teardown happens in {@link #close()}.
      */
     @Override
     public void stop() {
@@ -647,6 +658,23 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
         }
 
+        LOG.info("Stopped credential renewal");
+    }
+
+    /**
+     * Terminal teardown: ends any active session via {@link #stop()} and then stops all providers,
+     * exactly once. Called by the component that created the manager at process shutdown, not on
+     * ResourceManager leadership changes.
+     */
+    @Override
+    public void close() {
+        // Flip the flag before stopping anything: a concurrent start() then fails its
+        // !closed check instead of slipping in between the session stop and the provider
+        // teardown and running on providers that get stopped underneath it.
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        stop();
         for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
             try {
                 provider.stop();
@@ -654,8 +682,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 LOG.error("Failed to stop delegation token provider {}", provider.serviceName(), t);
             }
         }
-
-        LOG.info("Stopped credential renewal");
     }
 
     @Override
