@@ -39,7 +39,7 @@ jobs:
           - release-1.20
           - release-1.19
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ matrix.branch }}
 
