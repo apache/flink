@@ -32,9 +32,12 @@ import java.util.Optional;
  *
  * <p><b>Threading contract.</b> A single instance per provider implementation is created and {@link
  * #init(Configuration, DelegationTokenManagerCallback) initialized} once and then shared for the
- * lifetime of the manager. {@link #obtainDelegationTokens()} runs on the manager's IO executor,
- * while {@link #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)} are invoked
- * from the ResourceManager main thread. These can therefore run concurrently. {@link
+ * lifetime of the manager. {@link #obtainDelegationTokens()} usually runs on the manager's IO
+ * executor, but the first cycle runs on the thread that starts the manager (the ResourceManager
+ * main thread) and one-shot obtains run on the caller's thread, so implementations must not assume
+ * a particular thread. {@link #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)}
+ * are invoked from the ResourceManager main thread. These can therefore run concurrently with
+ * {@link #obtainDelegationTokens()}. {@link
  * DelegationTokenManagerCallback#reobtainDelegationTokens()} may be invoked from any thread.
  * Implementations must keep any per-job state thread-safe, and {@code registerJob}/{@code
  * unregisterJob} must be non-blocking so they do not stall the ResourceManager — defer real work to

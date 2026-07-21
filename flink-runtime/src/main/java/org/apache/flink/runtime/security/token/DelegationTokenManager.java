@@ -61,7 +61,12 @@ public interface DelegationTokenManager {
      */
     void start(Listener listener) throws Exception;
 
-    /** Stops re-occurring token obtain task. */
+    /**
+     * Stops the re-occurring token obtain task. Implementations also release any per-job provider
+     * state accumulated through {@link #registerJob(JobID, Configuration)}, so stale registrations
+     * cannot outlive the stop (a job that is still running re-registers through the normal
+     * JobMaster registration retry).
+     */
     void stop();
 
     /**
@@ -78,10 +83,11 @@ public interface DelegationTokenManager {
 
     /**
      * Called when a job has started. Fans the event out to all loaded {@link
-     * org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure the job is
-     * unregistered from all providers and the exception is rethrown so the caller can reject the
-     * job's registration. A provider that needs the new job's tokens distributed immediately
-     * requests it via {@link
+     * org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure of the job's first
+     * registration, the job is unregistered from all providers and the exception is rethrown so the
+     * caller can reject the registration. A failed re-registration rethrows but keeps the job
+     * registered, so a running job's tokens are not dropped. A provider that needs the new job's
+     * tokens distributed immediately requests it via {@link
      * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
      *
      * @param jobId The job id which just started.
@@ -91,7 +97,8 @@ public interface DelegationTokenManager {
 
     /**
      * Called when a job is being removed. Fans the event out to all loaded providers. Must be
-     * idempotent.
+     * idempotent. Per-provider failures are caught and logged (one provider's failure does not
+     * abort cleanup of the others), so in practice this does not throw for provider failures.
      *
      * @param jobId The job id of the job.
      */
