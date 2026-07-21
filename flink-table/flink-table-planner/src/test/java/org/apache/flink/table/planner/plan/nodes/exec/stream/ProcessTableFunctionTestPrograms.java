@@ -2012,22 +2012,22 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "suite_name STRING",
                                             "test_name STRING",
+                                            "`group` STRING",
                                             "ts TIMESTAMP_LTZ(3)",
                                             "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
                                     .producedValues(
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(0)),
-                                            Row.of("suiteB", "test2", Instant.ofEpochMilli(1)),
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(2)),
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(3)),
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(4)),
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(5)),
-                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(6)))
+                                            // group is only used to force two independent SESSION
+                                            // windows for suiteA/test1 whose window_time ties.
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(0)),
+                                            Row.of("suiteB", "test2", "x", Instant.ofEpochMilli(1)),
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(2)),
+                                            Row.of("suiteA", "test1", "y", Instant.ofEpochMilli(2)))
                                     .build())
                     .setupSql(
                             "CREATE VIEW v AS "
                                     + "SELECT suite_name, test_name, window_time, COUNT(*) AS c "
-                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
-                                    + "GROUP BY suite_name, test_name, window_start, window_end, window_time")
+                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name, `group`), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
+                                    + "GROUP BY suite_name, test_name, `group`, window_start, window_end, window_time")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(
@@ -2036,7 +2036,8 @@ public class ProcessTableFunctionTestPrograms {
                                             "`out` STRING")
                                     .consumedValues(
                                             "+I[suiteB, test2, {+I[suiteB, test2, 1970-01-01T00:00:00.002Z, 1], 1}]",
-                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.007Z, 6], 1}]")
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 2], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 1], 1}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f("
