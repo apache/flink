@@ -162,6 +162,26 @@ class CreateConnectionITCase extends BatchTestBase {
     }
 
     @Test
+    void testShowConnections() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION b_conn WITH ('k' = 'v')");
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION a_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("SHOW CONNECTIONS"))
+                .containsExactly(Row.of("a_conn"), Row.of("b_conn"));
+    }
+
+    @Test
+    void testShowConnectionsLike() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION prod_conn WITH ('k' = 'v')");
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION tmp_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("SHOW CONNECTIONS LIKE 'prod_%'"))
+                .containsExactly(Row.of("prod_conn"));
+        assertThat(collectRows("SHOW CONNECTIONS NOT LIKE 'prod_%'"))
+                .containsExactly(Row.of("tmp_conn"));
+    }
+
+    @Test
     void testDescribeTemporaryConnection() {
         tEnv().executeSql(
                         "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
