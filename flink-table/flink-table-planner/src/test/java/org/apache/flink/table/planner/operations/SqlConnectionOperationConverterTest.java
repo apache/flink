@@ -25,7 +25,10 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCreateConnectionOperation;
+import org.apache.flink.table.operations.ShowConnectionsOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 import org.junit.jupiter.api.Test;
 
@@ -156,6 +159,47 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Could not execute SHOW CREATE CONNECTION. Connection with identifier");
+    }
+
+    @Test
+    void testShowConnections() {
+        Operation operation = parse("SHOW CONNECTIONS");
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS");
+    }
+
+    @Test
+    void testShowConnectionsWithDatabase() {
+        Operation operation = parse("SHOW CONNECTIONS FROM db1");
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS FROM builtin.db1");
+    }
+
+    @Test
+    void testShowConnectionsWithCatalogAndDatabase() {
+        Operation operation = parse("SHOW CONNECTIONS IN cat1.db1");
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS IN cat1.db1");
+    }
+
+    @Test
+    void testShowConnectionsLike() {
+        Operation operation = parse("SHOW CONNECTIONS LIKE '%conn%'");
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS LIKE '%conn%'");
+    }
+
+    @Test
+    void testShowConnectionsNotLike() {
+        Operation operation = parse("SHOW CONNECTIONS NOT LIKE 'tmp_%'");
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        assertThat(operation)
+                .isEqualTo(
+                        new ShowConnectionsOperation(
+                                "builtin",
+                                "default",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "tmp_%")));
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS NOT LIKE 'tmp_%'");
     }
 
     private void createTemporaryConnection(String connectionName) {
