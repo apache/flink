@@ -16,14 +16,16 @@
     limitations under the License.
    ################################################################################
 
-=============
-API Reference
-=============
+==================
+PyFlink DataFrame
+==================
+
+This page gives an overview of all public PyFlink DataFrame APIs.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    pyflink.dataframe/index
-    pyflink.table/index
-    pyflink.datastream/index
-    pyflink.common/index
+    dataframe
+    creation
+    datatype
+    environment

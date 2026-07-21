@@ -16,14 +16,23 @@
     limitations under the License.
    ################################################################################
 
-=============
-API Reference
-=============
+==========
+Data Types
+==========
 
-.. toctree::
-    :maxdepth: 2
+Data types describe the logical types of values used by DataFrame expressions and operations.
 
-    pyflink.dataframe/index
-    pyflink.table/index
-    pyflink.datastream/index
-    pyflink.common/index
+Example::
+
+    >>> import pyflink.dataframe as pf
+    >>> identifier = pf.lit(42, pf.DataType.int64())
+    >>> name = pf.lit("Alice", pf.DataType.string())
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataType
+    DataType.int64
+    DataType.string

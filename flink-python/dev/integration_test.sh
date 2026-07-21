@@ -34,6 +34,9 @@ function test_all_modules() {
     # test datastream module
     test_module "datastream"
 
+    # test dataframe module
+    test_module "dataframe"
+
     # test fn_execution module
     test_module "fn_execution"
 
