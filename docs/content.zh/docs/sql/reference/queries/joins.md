@@ -304,6 +304,37 @@ A `LATERAL SNAPSHOT` join is a *stream enrichment* join that augments an append-
 As in the [temporal joins](#temporal-joins), the enriched (left) input is called the *probe side* and the enriching (right) input is called the *build side*.
 Every probe-side row is joined with the build-side state that is current at the time the row is processed.
 
+For example, the following query enriches an append-only stream of `orders` (the probe side) with the conversion rate from an updating `currency_rates` table (the build side) that is current when the order is processed:
+
+```sql
+-- probe side: append-only stream of orders
+-- order_id | currency | amount | order_time
+-- ---------+----------+--------+-----------
+--        1 | EUR      |     10 |      10:15
+--        2 | EUR      |     10 |      10:31
+--        3 | USD      |     20 |      11:00
+
+-- build side: updating currency rates (upsert on currency)
+-- currency | rate | update_time
+-- ---------+------+------------
+-- EUR      | 1.1  |       10:00
+-- USD      | 1.0  |       10:00
+-- EUR      | 1.2  |       10:30
+
+SELECT o.order_id, o.currency, o.amount, r.rate
+FROM orders AS o
+JOIN LATERAL TABLE(SNAPSHOT(input => TABLE currency_rates)) AS r
+ON o.currency = r.currency;
+
+order_id  currency  amount  rate
+========  ========  ======  ====
+       1  EUR           10  1.1   -- rate as of 10:00
+       2  EUR           10  1.2   -- rate as of 10:30
+       3  USD           20  1.0   -- rate as of 10:00
+```
+
+*Important:* The `LATERAL SNAPSHOT` join is non-deterministic. The order with `order_id = 2` could also have been joined with the `10:00` version of `EUR`. The result depends on the order in which the operator processes its inputs, which cannot be controlled.
+
 **When to use it**
 
 The `LATERAL SNAPSHOT` join is designed for enrichment scenarios where the other temporal joins are a poor fit:
@@ -356,23 +387,6 @@ The `SNAPSHOT` function accepts the following arguments:
 | `state_ttl` | INTERVAL | no | Retention time for build-side state. Join keys that are not accessed within this duration become eligible for eviction. Only applied during the join phase. Defaults to the pipeline's [state TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).                                                                                               |
 
 `load_completed_condition`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl` only affect streaming execution and are ignored in batch mode (see **Batch mode** below).
-
-**Example**
-
-Reusing the `orders` and `currency_rates` tables from the [event-time temporal join](#event-time-temporal-join) example, the following query enriches each order with the conversion rate that is current when the order is processed. In contrast to the event-time temporal join, the join keeps making progress even if the rates are updated only rarely, e.g., once a day.
-
-```sql
-SELECT
-     order_id,
-     price,
-     orders.currency,
-     conversion_rate,
-     order_time
-FROM orders
-JOIN LATERAL TABLE(
-    SNAPSHOT(input => TABLE currency_rates)) AS rates
-ON orders.currency = rates.currency;
-```
 
 **Result and state characteristics**
 
