@@ -19,12 +19,13 @@
 import unittest
 
 import pyflink.dataframe as pf
+from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
-from pyflink.testing.test_case_utils import (
-    PyFlinkStreamDataFrameTestCase,
-    PyFlinkStreamTableTestCase,
-)
+from pyflink.table.expression import Expression
+from pyflink.testing.test_case_utils import PyFlinkStreamDataFrameTestCase
 from pyflink.util.api_stability_decorators import PublicEvolving
+
+_PREEXISTING_TABLE_ENVIRONMENT = object()
 
 
 class _CloseableIterator:
@@ -197,6 +198,10 @@ class DataFrameValidationTests(unittest.TestCase):
         ):
             self.dataframe.filter(lambda df: True)
 
+    def test_filter_rejects_expression_class(self):
+        with self.assertRaisesRegex(TypeError, "predicate must be an Expression"):
+            self.dataframe.filter(Expression)
+
     def test_with_column_rejects_non_expression(self):
         with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
             self.dataframe.with_column("answer", 42)
@@ -204,6 +209,10 @@ class DataFrameValidationTests(unittest.TestCase):
     def test_with_column_rejects_callable_returning_non_expression(self):
         with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
             self.dataframe.with_column("answer", lambda df: 42)
+
+    def test_with_column_rejects_expression_class(self):
+        with self.assertRaisesRegex(TypeError, "expr must be an Expression"):
+            self.dataframe.with_column("answer", Expression)
 
     def test_with_column_rejects_non_string_name(self):
         with self.assertRaisesRegex(TypeError, "name must be a string"):
@@ -229,6 +238,20 @@ class DataFrameValidationTests(unittest.TestCase):
 
 
 class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        pf.set_table_environment(_PREEXISTING_TABLE_ENVIRONMENT)
+        super(DataFrameEndToEndTests, cls).setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            super(DataFrameEndToEndTests, cls).tearDownClass()
+            if pf.get_table_environment() is not _PREEXISTING_TABLE_ENVIRONMENT:
+                raise AssertionError("the previous table environment was not restored")
+        finally:
+            pf.set_table_environment(None)
+
     def test_uses_current_test_environment(self):
         self.assertIs(pf.get_table_environment(), self.t_env)
 
@@ -262,6 +285,14 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
         self.assertEqual(
             result.collect(), [Row(1, "Alice"), Row(2, "Bob")]
         )
+
+    def test_from_dict_does_not_validate_unselected_columns(self):
+        result = pf.from_dict(
+            {"id": [1], "unused": [10, 20]},
+            schema=["id"],
+        )
+
+        self.assertEqual(result.collect(), [Row(1)])
 
     def test_from_dict_uses_insertion_order_without_schema(self):
         result = pf.from_dict({"name": ["Alice"], "id": [1]})
@@ -341,6 +372,13 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
 
         self.assertEqual(result.collect(), [Row(3, 0.95, "SF")])
 
+    def test_filter_treats_none_constraint_as_null_check(self):
+        result = pf.from_records(
+            [(1, None), (2, "Paris")], schema=["id", "city"]
+        ).filter(city=None)
+
+        self.assertEqual(result.collect(), [Row(1, None)])
+
     def test_filter_accepts_sql_string_predicate(self):
         result = pf.from_records(
             [(1, "Alice"), (2, "Bob")], schema=["id", "name"]
@@ -379,16 +417,18 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
             .with_column("inferred_int", pf.lit(2))
             .with_column("inferred_string", pf.lit("x"))
             .with_column("explicit_int", pf.lit(3, pf.DataType.int64()))
+            .with_column("explicit_large_int", pf.lit(1 << 40, pf.DataType.int64()))
             .with_column("explicit_string", pf.lit("y", pf.DataType.string()))
             .select(
                 "inferred_int",
                 "inferred_string",
                 "explicit_int",
+                "explicit_large_int",
                 "explicit_string",
             )
         )
 
-        self.assertEqual(result.collect(), [Row(2, "x", 3, "y")])
+        self.assertEqual(result.collect(), [Row(2, "x", 3, 1 << 40, "y")])
 
     def test_lit_supports_explicitly_typed_nulls(self):
         result = pf.from_records([(1,)], schema=["id"]).select(
@@ -398,10 +438,16 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
 
         self.assertEqual(result.collect(), [Row(None, None)])
 
-
-class DataFrameEnvironmentCleanupTests(PyFlinkStreamTableTestCase):
-    def test_previous_test_environment_is_cleared(self):
-        self.assertIsNone(pf.get_table_environment())
+    def test_lit_rejects_values_incompatible_with_explicit_type(self):
+        incompatible_values = [
+            (3.14, pf.DataType.int64()),
+            ("abc", pf.DataType.int64()),
+            (42, pf.DataType.string()),
+        ]
+        for value, data_type in incompatible_values:
+            with self.subTest(value=value, data_type=data_type):
+                with self.assertRaises(Py4JJavaError):
+                    pf.lit(value, data_type)
 
 
 if __name__ == "__main__":

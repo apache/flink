@@ -34,10 +34,14 @@ class _TupleRecordIterable:
 
 
 def _validate_schema(schema: List[str]) -> None:
-    if not schema:
-        raise ValueError("schema must not be empty")
     if not isinstance(schema, list) or any(not isinstance(name, str) for name in schema):
         raise TypeError("schema must be a list of strings")
+    if not schema:
+        raise ValueError("schema must not be empty")
+    if any(not name for name in schema):
+        raise ValueError("schema field names must not be empty")
+    if len(set(schema)) != len(schema):
+        raise ValueError("schema field names must be unique")
 
 
 @PublicEvolving()
@@ -48,16 +52,20 @@ def from_records(
     """
     Create a DataFrame from row-oriented records.
 
-    Records may be mappings or equal-width non-string sequences. Mapping keys from the first
-    record define the field names when ``schema`` is omitted. A schema is required for sequence
-    records. Field types are inferred from the record values.
+    For mapping records, every record must have the same keys. When ``schema`` is omitted, the
+    mapping keys are used as field names.
+
+    For sequence records, every record must be a non-string sequence with the same number of
+    values. A ``schema`` is required to provide the field names.
+
+    Field types are inferred from the record values.
 
     :param data: Non-empty sequence of mapping or non-string sequence records.
     :param schema: Optional non-empty list of field names.
     :return: A DataFrame containing the records.
     :raises TypeError: If a record or schema has an invalid type.
-    :raises ValueError: If data or schema is empty, a required schema is omitted, or record widths
-        differ.
+    :raises ValueError: If data or schema is empty, schema field names are invalid, a required
+        schema is omitted, mapping keys differ, a schema field is absent, or record widths differ.
 
     Example::
 
@@ -72,19 +80,32 @@ def from_records(
 
     .. versionadded:: 2.4.0
     """
+    if not isinstance(data, Sequence) or isinstance(data, (str, bytes, bytearray)):
+        raise TypeError("data must be a non-string sequence of records")
     if not data:
         raise ValueError("data must not be empty")
 
     first_record = data[0]
     rows: Iterable[Sequence[Any]]
     if isinstance(first_record, Mapping):
+        expected_keys = set(first_record.keys())
         columns = list(first_record.keys()) if schema is None else schema
         _validate_schema(columns)
+        for name in columns:
+            if name not in first_record:
+                raise ValueError(
+                    "schema field %r is not present in mapping records" % name
+                )
         mapping_rows: List[Sequence[Any]] = []
-        for record in data:
+        for index, record in enumerate(data):
             if not isinstance(record, Mapping):
                 raise TypeError("records must all be mappings")
-            mapping_rows.append(tuple(record.get(name) for name in columns))
+            if set(record.keys()) != expected_keys:
+                raise ValueError(
+                    "mapping record at index %d must have the same keys as the first record"
+                    % index
+                )
+            mapping_rows.append(tuple(record[name] for name in columns))
         rows = mapping_rows
     elif isinstance(first_record, Sequence) and not isinstance(
         first_record, (str, bytes, bytearray)
@@ -125,14 +146,15 @@ def from_dict(
     """
     Create a DataFrame from a column-oriented dictionary.
 
-    All columns must contain the same non-zero number of values. ``schema`` can select a subset of
-    columns and controls their order. If omitted, dictionary insertion order is used.
+    All selected columns must contain the same non-zero number of values. ``schema`` can select a
+    subset of columns and controls their order. If omitted, dictionary insertion order is used.
 
     :param data: Non-empty mapping of column names to value sequences.
     :param schema: Optional non-empty list of selected column names.
     :return: A DataFrame containing the selected columns.
-    :raises TypeError: If the selected schema is not a list of strings.
-    :raises ValueError: If the input is empty, column lengths differ, or a column is missing.
+    :raises TypeError: If the selected schema or a selected column value has an invalid type.
+    :raises ValueError: If the input is empty, schema field names are invalid, selected column
+        lengths differ, or a selected column is missing.
 
     Example::
 
@@ -146,16 +168,23 @@ def from_dict(
     """
     if not data:
         raise ValueError("data must not be empty")
-    lengths = {name: len(values) for name, values in data.items()}
-    if len(set(lengths.values())) != 1:
-        raise ValueError("columns must have equal lengths")
-    if next(iter(lengths.values())) == 0:
-        raise ValueError("data must contain at least one row")
     columns = list(data.keys()) if schema is None else schema
     _validate_schema(columns)
     for name in columns:
         if name not in data:
             raise ValueError("column %r is not present in data" % name)
+        values = data[name]
+        if not isinstance(values, Sequence) or isinstance(
+            values, (str, bytes, bytearray)
+        ):
+            raise TypeError(
+                "column %r values must be a non-string sequence" % name
+            )
+    lengths = {name: len(data[name]) for name in columns}
+    if len(set(lengths.values())) != 1:
+        raise ValueError("columns must have equal lengths")
+    if next(iter(lengths.values())) == 0:
+        raise ValueError("data must contain at least one row")
     row_count = next(iter(lengths.values()))
     records = [
         tuple(data[name][row_index] for name in columns)

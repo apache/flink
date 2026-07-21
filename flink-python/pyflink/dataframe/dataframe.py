@@ -28,6 +28,7 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
+from pyflink.table.types import DataTypes as TableDataTypes
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "col", "lit"]
@@ -57,7 +58,8 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
     """
     Create a literal expression.
 
-    The data type is inferred from ``value`` when ``data_type`` is omitted.
+    The data type is inferred from ``value`` when ``data_type`` is omitted. Otherwise, the
+    declared data type is applied during literal construction.
 
     :param value: Literal value.
     :param data_type: Optional data type for the literal.
@@ -76,10 +78,18 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
         return table_lit(value)
     if not isinstance(data_type, DataType):
         raise TypeError("data_type must be a pyflink.dataframe.DataType")
+    table_data_type = data_type._to_table_data_type()
     if value is None:
-        return table_lit(value, data_type._to_table_data_type())
-    # Py4J materializes Python integers as java.lang.Integer, which typed BIGINT literals reject.
-    return table_lit(value).cast(data_type._to_table_data_type())
+        return table_lit(value, table_data_type)
+    if (
+        data_type == DataType.int64()
+        and isinstance(value, int)
+        and not isinstance(value, bool)
+        and -(1 << 31) <= value < (1 << 31)
+    ):
+        # Py4J sends values in this range as java.lang.Integer rather than java.lang.Long.
+        return table_lit(value, TableDataTypes.INT().not_null()).cast(table_data_type)
+    return table_lit(value, table_data_type.not_null())
 
 
 @PublicEvolving()
@@ -116,7 +126,8 @@ class DataFrame:
         Keep rows that satisfy every predicate and equality constraint.
 
         Predicates may be boolean expressions, SQL expression strings, or callables that receive
-        this DataFrame and return a boolean expression.
+        this DataFrame and return a boolean expression. A constraint value of ``None`` selects
+        rows where the corresponding column is null.
 
         :param predicates: Conditions used to test each row.
         :param constraints: Values keyed by the column names that must equal them.
@@ -133,6 +144,7 @@ class DataFrame:
             ... ])
             >>> adults = df.filter(pf.col("age") >= 18, status="active")
             >>> adults = df.filter(lambda current: current["age"] >= 18)
+            >>> missing_status = df.filter(status=None)
 
         .. versionadded:: 2.4.0
         """
@@ -147,7 +159,7 @@ class DataFrame:
                 conditions.append(call_sql(predicate))
             elif isinstance(predicate, Expression):
                 conditions.append(predicate)
-            elif callable(predicate):
+            elif callable(predicate) and not isinstance(predicate, type):
                 condition = predicate(self)
                 if not isinstance(condition, Expression):
                     raise TypeError(
@@ -159,7 +171,8 @@ class DataFrame:
                     "predicate must be an Expression, SQL string, or callable"
                 )
         for name, value in constraints.items():
-            conditions.append(table_col(name) == table_lit(value))
+            column = table_col(name)
+            conditions.append(column.is_null if value is None else column == table_lit(value))
 
         condition = conditions[0] if len(conditions) == 1 else and_(*conditions)
         return DataFrame(self._table.filter(condition))
@@ -193,7 +206,12 @@ class DataFrame:
         """
         if not isinstance(name, str):
             raise TypeError("name must be a string")
-        expression = expr(self) if callable(expr) else expr
+        if isinstance(expr, Expression):
+            expression = expr
+        elif callable(expr) and not isinstance(expr, type):
+            expression = expr(self)
+        else:
+            raise TypeError("expr must be an Expression")
         if not isinstance(expression, Expression):
             raise TypeError("expr must be an Expression")
         return DataFrame(self._table.add_or_replace_columns(expression.alias(name)))

@@ -174,17 +174,20 @@ class PyFlinkStreamDataFrameTestCase(PyFlinkStreamTableTestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(PyFlinkStreamDataFrameTestCase, cls).setUpClass()
-        from pyflink.dataframe import set_table_environment
+        from pyflink.dataframe import get_table_environment, set_table_environment
 
+        cls._previous_table_environment = get_table_environment()
+        super(PyFlinkStreamDataFrameTestCase, cls).setUpClass()
         set_table_environment(cls.t_env)
 
     @classmethod
     def tearDownClass(cls):
         from pyflink.dataframe import set_table_environment
 
-        set_table_environment(None)
-        super(PyFlinkStreamDataFrameTestCase, cls).tearDownClass()
+        try:
+            super(PyFlinkStreamDataFrameTestCase, cls).tearDownClass()
+        finally:
+            set_table_environment(cls._previous_table_environment)
 
 
 class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
