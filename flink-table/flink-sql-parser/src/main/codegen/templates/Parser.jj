@@ -1658,7 +1658,8 @@ SqlNode PartitionedQueryOrQueryOrExpr(ExprContext exprContext) :
     SqlNode e;
 }
 {
-    e = OrderedQueryOrExpr(exprContext)
+    // QueryOrExpr, not OrderedQueryOrExpr: ORDER BY is handled by PartitionedByAndOrderBy below.
+    e = QueryOrExpr(exprContext)
     e = PartitionedByAndOrderBy(e)
 
     { return e; }
