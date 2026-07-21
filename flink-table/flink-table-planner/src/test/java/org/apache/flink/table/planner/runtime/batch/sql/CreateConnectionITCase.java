@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,6 +76,43 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThatThrownBy(() -> tEnv().executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("WritableSecretStore must be configured");
+    }
+
+    @Test
+    void testDescribeTemporaryConnection() {
+        tEnv().executeSql(
+                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                                + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
+
+        List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
+
+        assertThat(rows)
+                .contains(
+                        Row.of("k", "v"), Row.of("type", "default"), Row.of("comment", "hi there"));
+        assertThat(rows.stream().map(Row::toString))
+                .noneMatch(row -> row.contains("super-secret"))
+                .noneMatch(row -> row.contains("password"))
+                .noneMatch(row -> row.contains("__flink.encrypted-secret-key__"));
+    }
+
+    @Test
+    void testDescribeTemporaryConnectionExtended() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION EXTENDED my_conn"))
+                .contains(Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeMissingConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Connection with identifier");
+    }
+
+    private List<Row> collectRows(String sql) {
+        TableResult result = tEnv().executeSql(sql);
+        return CollectionUtil.iteratorToList(result.collect());
     }
 
     private CatalogManager catalogManager() {

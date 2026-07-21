@@ -1910,6 +1910,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
     }
 
+    public boolean isTemporaryConnection(ObjectIdentifier objectIdentifier) {
+        return temporaryConnections.containsKey(objectIdentifier);
+    }
+
     /**
      * List all connections in the given catalog and database.
      *
