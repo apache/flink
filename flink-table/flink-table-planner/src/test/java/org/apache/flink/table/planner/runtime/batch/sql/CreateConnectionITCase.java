@@ -63,8 +63,7 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
                         connection ->
-                                assertThat(connection.getOptions())
-                                        .containsOnly(entry("k", "v1")));
+                                assertThat(connection.getOptions()).containsOnly(entry("k", "v1")));
     }
 
     @Test
