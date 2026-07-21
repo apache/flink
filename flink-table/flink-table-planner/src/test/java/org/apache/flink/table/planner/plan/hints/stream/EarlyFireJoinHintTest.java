@@ -128,7 +128,8 @@ class EarlyFireJoinHintTest extends TableTestBase {
                         + "FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON\n"
                         + "  t1.a = t2.a AND\n"
                         + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR";
-        assertThatThrownBy(() -> verify(sql)).hasMessageContaining("only support key-value options");
+        assertThatThrownBy(() -> verify(sql))
+                .hasMessageContaining("only support key-value options");
     }
 
     @Test
