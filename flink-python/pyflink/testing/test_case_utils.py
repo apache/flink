@@ -169,6 +169,24 @@ class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
+class PyFlinkStreamDataFrameTestCase(PyFlinkStreamTableTestCase):
+    """Base class for DataFrame streaming tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamDataFrameTestCase, cls).setUpClass()
+        from pyflink.dataframe import set_table_environment
+
+        set_table_environment(cls.t_env)
+
+    @classmethod
+    def tearDownClass(cls):
+        from pyflink.dataframe import set_table_environment
+
+        set_table_environment(None)
+        super(PyFlinkStreamDataFrameTestCase, cls).tearDownClass()
+
+
 class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
     """
     Base class for table batch tests.
