@@ -1925,6 +1925,36 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
+     * Get a connection from the catalog with contextual metadata.
+     *
+     * @param objectIdentifier The fully qualified path of the connection.
+     * @return The requested connection wrapped in Optional.
+     */
+    public Optional<ContextResolvedConnection> getResolvedConnection(
+            ObjectIdentifier objectIdentifier) {
+        CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
+        if (temporaryConnection != null) {
+            return Optional.of(
+                    ContextResolvedConnection.of(objectIdentifier, temporaryConnection, true));
+        }
+
+        Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+        if (catalog.isPresent()) {
+            try {
+                return Optional.of(
+                        ContextResolvedConnection.of(
+                                objectIdentifier,
+                                catalog.get().getConnection(objectIdentifier.toObjectPath()),
+                                false));
+            } catch (ConnectionNotExistException | UnsupportedOperationException e) {
+                return Optional.empty();
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
      * List all connections in the given catalog and database.
      *
      * @param catalogName The name of the catalog.
