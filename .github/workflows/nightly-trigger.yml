@@ -39,6 +39,12 @@ jobs:
           - release-1.20
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            .github/actions/last_workflow_run
+
       - name: "Resolve last nightly run"
         id: last-nightly
         uses: "./.github/actions/last_workflow_run"
