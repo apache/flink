@@ -157,7 +157,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 // invalid JSON -> NULL
                 .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
 
-                // literal (NOT NULL) arguments must still yield a nullable result,
+                // literal (NOT NULL) arguments must still yield a nullable result
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
 

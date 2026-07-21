@@ -391,8 +391,8 @@ public class SqlJsonUtils {
             return null;
         }
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
-        final boolean doesMatch = matcher.matches();
-        if (doesMatch) {
+        final boolean isExplicitLaxStrict = matcher.matches();
+        if (isExplicitLaxStrict) {
             throw new TableRuntimeException(
                     String.format(
                             "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
@@ -406,8 +406,7 @@ public class SqlJsonUtils {
             return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
         }
 
-        final String pathStr = doesMatch ? matcher.group("spec") : pathSpec;
-        if (!JsonPath.isPathDefinite(pathStr)) {
+        if (!JsonPath.isPathDefinite(pathSpec)) {
             final List<?> matched = (List<?>) value;
             return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
         }

@@ -2313,7 +2313,10 @@ class Expression(Generic[T]):
             >>> lit('[1,2,3,4,5]').json_length('$.[7]') # None
             >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
         """
-        return _unary_op("jsonLength")(self) if path is None else _binary_op("jsonLength")(self, path)
+        if path is None:
+            return _unary_op("jsonLength")(self)
+        else:
+            return _binary_op("jsonLength")(self, path)
 
     # ---------------------------- value modification functions -----------------------------
 

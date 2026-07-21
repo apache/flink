@@ -3102,6 +3102,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(DataTypes.INT().nullable()))
                     .runtimeProvided()
                     .build();
+
     // --------------------------------------------------------------------------------------------
     // Variant functions
     // --------------------------------------------------------------------------------------------
