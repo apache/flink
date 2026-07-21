@@ -23,6 +23,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
@@ -64,6 +65,7 @@ public class ShowCreateUtil {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
             DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
     private static final String PRINT_INDENT = "  ";
+    private static final String CONNECTION_SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
 
     private ShowCreateUtil() {}
 
@@ -95,6 +97,29 @@ public class ShowCreateUtil {
                                                         "%s)%s",
                                                         System.lineSeparator(),
                                                         System.lineSeparator())));
+        return sb.toString();
+    }
+
+    public static String buildShowCreateConnectionRow(
+            CatalogConnection connection,
+            ObjectIdentifier connectionIdentifier,
+            boolean isTemporary,
+            List<String> additionalSensitiveKeys) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "CONNECTION",
+                                        isTemporary,
+                                        connectionIdentifier,
+                                        false,
+                                        false));
+        extractComment(connection).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractFormattedOptions(
+                        withoutConnectionInternalOptions(connection.getOptions()),
+                        PRINT_INDENT,
+                        additionalSensitiveKeys)
+                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
     }
 
@@ -347,6 +372,18 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(model.getComment())
                 ? Optional.empty()
                 : Optional.of(model.getComment());
+    }
+
+    static Optional<String> extractComment(CatalogConnection connection) {
+        return StringUtils.isEmpty(connection.getComment())
+                ? Optional.empty()
+                : Optional.of(connection.getComment());
+    }
+
+    static Map<String, String> withoutConnectionInternalOptions(Map<String, String> options) {
+        return options.entrySet().stream()
+                .filter(entry -> !CONNECTION_SECRET_REFERENCE_KEY.equals(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
