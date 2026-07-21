@@ -2112,6 +2112,62 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
+     * Rename a connection in the given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the connection to rename.
+     * @param newConnectionName The new connection name.
+     * @param ignoreIfNotExists If false exception will be thrown if the connection to be renamed
+     *     does not exist.
+     */
+    public void renameConnection(
+            ObjectIdentifier objectIdentifier,
+            String newConnectionName,
+            boolean ignoreIfNotExists) {
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(newConnectionName));
+        ObjectIdentifier newIdentifier =
+                ObjectIdentifier.of(
+                        objectIdentifier.getCatalogName(),
+                        objectIdentifier.getDatabaseName(),
+                        newConnectionName);
+        CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
+        if (temporaryConnection != null) {
+            if (getConnection(newIdentifier).isPresent()) {
+                throw new ValidationException(
+                        String.format(
+                                "Connection with identifier '%s' already exists.",
+                                newIdentifier.asSummaryString()));
+            }
+            temporaryConnections.remove(objectIdentifier);
+            temporaryConnections.put(newIdentifier, temporaryConnection);
+            return;
+        }
+
+        Optional<CatalogConnection> existingOpt = getConnection(objectIdentifier);
+        if (!existingOpt.isPresent()) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        if (getConnection(newIdentifier).isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' already exists.",
+                            newIdentifier.asSummaryString()));
+        }
+
+        execute(
+                (catalog, path) ->
+                        catalog.renameConnection(path, newConnectionName, ignoreIfNotExists),
+                objectIdentifier,
+                ignoreIfNotExists,
+                "RenameConnection");
+    }
+
+    /**
      * Drop a permanent connection from the given fully qualified path.
      *
      * @param objectIdentifier The fully qualified path of the connection to be dropped.
