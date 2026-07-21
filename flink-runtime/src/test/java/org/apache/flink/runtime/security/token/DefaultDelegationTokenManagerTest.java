@@ -62,6 +62,7 @@ import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFI
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -372,7 +373,7 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void registerJobShouldRollBackAndRethrowWhenProviderThrows() throws Exception {
+    public void failedFirstRegistrationMustRethrowWithoutTouchingOtherJobs() throws Exception {
         Configuration configuration = new Configuration();
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(configuration, null, null, null);
@@ -381,13 +382,19 @@ public class DefaultDelegationTokenManagerTest {
         delegationTokenManager.registerJob(jobId, new Configuration());
         assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
 
-        // A provider that throws during registration must cause the job to be unregistered from
-        // all providers and the exception to be rethrown.
+        // A provider that throws during the FIRST registration of a job must cause that job to
+        // be unregistered from all providers and the exception to be rethrown, without touching
+        // other jobs' state. (A failed RE-registration keeps the previous registration instead,
+        // see failedReregistrationMustNotWipePreviousRegistration.)
         ExceptionThrowingDelegationTokenProvider.throwInRegister.set(true);
+        JobID otherJobId = JobID.generate();
         assertThrows(
                 IllegalArgumentException.class,
-                () -> delegationTokenManager.registerJob(jobId, new Configuration()));
-        assertEquals(0, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+                () -> delegationTokenManager.registerJob(otherJobId, new Configuration()));
+        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+        assertTrue(
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().contains(jobId),
+                "A failed registration of another job must not affect this job's state");
     }
 
     @Test
@@ -870,6 +877,323 @@ public class DefaultDelegationTokenManagerTest {
         } finally {
             ioExecutor.shutdownNow();
         }
+    }
+
+    @Test
+    public void failedReregistrationMustNotWipePreviousRegistration() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        // The job registers successfully when it starts...
+        JobID jobId = JobID.generate();
+        delegationTokenManager.registerJob(jobId, new Configuration());
+        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+
+        // ...and later re-registers while still running (e.g. after a JobMaster<->RM heartbeat
+        // timeout). A transient provider failure during the re-registration must not roll back
+        // the per-job state the earlier successful registration established, or obtain cycles
+        // would broadcast token sets missing the running job until a registration retry
+        // succeeds.
+        ExceptionThrowingDelegationTokenProvider.throwInRegister.set(true);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> delegationTokenManager.registerJob(jobId, new Configuration()));
+
+        assertEquals(
+                1,
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
+                "A failed re-registration must keep the previous registration intact");
+    }
+
+    @Test
+    public void stopShouldUnregisterAllRegisteredJobs() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        delegationTokenManager.registerJob(JobID.generate(), new Configuration());
+        delegationTokenManager.registerJob(JobID.generate(), new Configuration());
+        assertEquals(2, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+
+        // stop() ends the manager's (leadership) session. Jobs still running re-register with
+        // the next session (registerJob is idempotent by contract), while jobs that reached a
+        // terminal state when no session was active never re-register, and their per-job provider
+        // state must be released here or it leaks for the process lifetime.
+        delegationTokenManager.stop();
+
+        assertEquals(
+                0,
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
+                "stop() must release the per-job provider state of every registered job");
+    }
+
+    @Test
+    public void leftoverRollbackStateMustBeReleasedByStop() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        // A FIRST registration fails after the provider recorded state (add-then-throw), and
+        // the rollback's unregister fails too: the state is left behind in the provider.
+        ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(true);
+        ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(true);
+        JobID jobId = JobID.generate();
+        assertThrows(
+                NoClassDefFoundError.class,
+                () -> delegationTokenManager.registerJob(jobId, new Configuration()));
+        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+
+        // The job must have stayed tracked despite the failed rollback, so stop() releases the
+        // leftover state once the provider recovers.
+        ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(false);
+        ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(false);
+        delegationTokenManager.stop();
+        assertEquals(
+                0,
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
+                "State left behind by a failed rollback must be released by stop()");
+    }
+
+    @Test
+    public void stopMustRetryFailedUnregistration() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        JobID jobId = JobID.generate();
+        delegationTokenManager.registerJob(jobId, new Configuration());
+        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+
+        // A provider fails its unregistration (swallowed by contract), so its per-job state
+        // survives. The manager must keep tracking the job instead of forgetting it.
+        ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(true);
+        delegationTokenManager.unregisterJob(jobId);
+        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+
+        // Once the provider recovers, stop() gets another attempt, without the retry
+        // the job's state would leak in the process-lifetime provider until process shutdown.
+        ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(false);
+        delegationTokenManager.stop();
+        assertEquals(
+                0,
+                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
+                "A job whose unregistration failed must be released by stop()");
+    }
+
+    @Test
+    public void cooldownMustSpaceObtainCycleExecutionsNotRequests() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler);
+
+        long t0 = 1_000_000L;
+        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+        delegationTokenManager.start(tokens -> {});
+
+        // The first request runs immediately.
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // A request at t0+1s is deferred by 59s: its obtain cycle runs at t0+60s.
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 1_000L), ZoneId.systemDefault()));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(59_000L, onlyScheduledDelayMillis(scheduledExecutor));
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 60_000L), ZoneId.systemDefault()));
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // The option documents a minimum time between two consecutive on-demand obtain CYCLES,
+        // so a request arriving just after the deferred cycle ran must be deferred by a full
+        // cooldown measured from that cycle's execution, not run (almost) immediately because
+        // the previous REQUEST arrived one cooldown ago.
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 61_000L), ZoneId.systemDefault()));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(
+                59_000L,
+                onlyScheduledDelayMillis(scheduledExecutor),
+                "The cooldown must space obtain cycle executions, not requests");
+    }
+
+    @Test
+    public void broughtForwardReobtainMustMoveCooldownAnchor() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler);
+
+        long t0 = 1_000_000L;
+        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+        delegationTokenManager.start(tokens -> {});
+
+        delegationTokenManager.reobtainDelegationTokens();
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // 10s later a second request is cooldown-deferred by 50s (would run at t0+60s).
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
+
+        // A completed cycle (renewal or failure retry) brings the pending on-demand cycle
+        // forward to +5s, so the coalesced cycle actually executes at t0+15s.
+        delegationTokenManager.maybeScheduleRenewal(5_000L);
+        assertEquals(5_000L, onlyScheduledDelayMillis(scheduledExecutor));
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 15_000L), ZoneId.systemDefault()));
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // The next request must measure its cooldown from the brought-forward execution
+        // (t0+15s), not from the originally scheduled t0+60s. Otherwise it would defer
+        // beyond a full cooldown (104s here instead of 59s).
+        delegationTokenManager.setClock(
+                Clock.fixed(ofEpochMilli(t0 + 16_000L), ZoneId.systemDefault()));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(
+                59_000L,
+                onlyScheduledDelayMillis(scheduledExecutor),
+                "The cooldown anchor must follow a brought-forward on-demand cycle");
+    }
+
+    @Test
+    public void startAfterStopMustResetRetryState() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, Duration.ofSeconds(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF, Duration.ofSeconds(64));
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler);
+
+        delegationTokenManager.start(tokens -> {});
+        // The session escalates the retry state through repeated obtain failures.
+        delegationTokenManager.currentRetryBackoff = Duration.ofSeconds(64).toMillis();
+        delegationTokenManager.lastKnownNextRenewal = 123L;
+
+        // The manager instance is reused across leadership sessions: the next session must
+        // start from the configured initial backoff instead of inheriting the previous
+        // session's increased one (which would delay token recovery by up to the max backoff).
+        delegationTokenManager.stop();
+        delegationTokenManager.start(tokens -> {});
+
+        assertEquals(
+                Duration.ofSeconds(1).toMillis(),
+                delegationTokenManager.currentRetryBackoff,
+                "A new session must start from the initial retry backoff");
+        assertEquals(
+                Long.MAX_VALUE,
+                delegationTokenManager.lastKnownNextRenewal,
+                "A new session must not inherit the previous session's renewal deadline");
+    }
+
+    @Test
+    public void inFlightCycleMustNotNotifyListenerAfterStop() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        // The "throw" provider stays enabled so its RECEIVER is loaded: the token added below
+        // must have a live receiver, or a regression that removes the broadcast gate would hide
+        // behind the missing-receiver IllegalStateException (swallowed by the cycle's catch) and
+        // this test would pass vacuously. The overridden obtain below bypasses the providers, so
+        // the throw provider itself never runs.
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hadoopfs.enabled"), false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hbase.enabled"), false);
+
+        final CountDownLatch cycleInObtain = new CountDownLatch(1);
+        final CountDownLatch resumeObtain = new CountDownLatch(1);
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        // Produce a token so the broadcast path is reached, then park until the
+                        // test has run stop(), simulating slow provider I/O overlapping shutdown.
+                        container.addToken("throw", new byte[] {1});
+                        cycleInObtain.countDown();
+                        try {
+                            resumeObtain.await(10, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return Optional.empty();
+                    }
+                };
+
+        AtomicInteger listenerNotifications = new AtomicInteger(0);
+        // start() runs the first obtain cycle inline, so it parks in the obtain above.
+        Thread starter =
+                new Thread(
+                        () -> {
+                            try {
+                                delegationTokenManager.start(
+                                        tokens -> listenerNotifications.incrementAndGet());
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+        starter.start();
+        assertTrue(cycleInObtain.await(10, TimeUnit.SECONDS));
+
+        // stop() does not wait for the in-flight cycle. Once that cycle resumes it must notice
+        // the manager stopped: the stopped session's listener must not be notified, and the
+        // manager must not keep referencing it (it is the disposed ResourceManager).
+        delegationTokenManager.stop();
+        resumeObtain.countDown();
+        starter.join(10_000L);
+        assertFalse(starter.isAlive());
+
+        assertEquals(
+                0,
+                listenerNotifications.get(),
+                "An obtain cycle finishing after stop() must not notify the stopped session's"
+                        + " listener");
+        assertNull(delegationTokenManager.listener, "stop() must release the listener reference");
+    }
+
+    @Test
+    public void registerJobMustNotExposeCallersConfigurationToProviders() throws Exception {
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+
+        // The caller's configuration object is the live job configuration (the ExecutionPlan's),
+        // which reaches the manager by reference over local RPC. Providers are plugin code and
+        // must receive a copy: a provider mutating it must not corrupt the runtime's state.
+        ExceptionThrowingDelegationTokenProvider.mutateJobConfiguration.set(true);
+        Configuration callerConfiguration = new Configuration();
+        JobID jobId = JobID.generate();
+        delegationTokenManager.registerJob(jobId, callerConfiguration);
+
+        assertTrue(ExceptionThrowingDelegationTokenProvider.registeredJobs.get().contains(jobId));
+        assertFalse(
+                callerConfiguration.containsKey(
+                        ExceptionThrowingDelegationTokenProvider.MUTATED_KEY),
+                "A provider-side mutation must not be visible in the caller's configuration");
     }
 
     /**

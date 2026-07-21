@@ -20,6 +20,7 @@ package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.security.token.DelegationTokenManagerCallback;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 
@@ -31,6 +32,9 @@ import java.util.Set;
  * An example implementation of {@link DelegationTokenProvider} which throws exception when enabled.
  */
 public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
+
+    /** Key written into the job configuration when {@link #mutateJobConfiguration} is set. */
+    public static final String MUTATED_KEY = "test.mutated.by.provider";
 
     public static volatile ThreadLocal<Boolean> throwInInit =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
@@ -52,6 +56,8 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> stopped =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> mutateJobConfiguration =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Set<JobID>> registeredJobs =
             ThreadLocal.withInitial(HashSet::new);
 
@@ -66,6 +72,7 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         throwInUnregister.set(false);
         throwErrorInUnregister.set(false);
         stopped.set(false);
+        mutateJobConfiguration.set(false);
         registeredJobs.get().clear();
     }
 
@@ -117,6 +124,9 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
     public void registerJob(JobID jobId, Configuration jobConfiguration) {
         if (throwInRegister.get()) {
             throw new IllegalArgumentException();
+        }
+        if (mutateJobConfiguration.get()) {
+            jobConfiguration.set(ConfigurationUtils.getBooleanConfigOption(MUTATED_KEY), true);
         }
         registeredJobs.get().add(jobId);
         if (throwErrorInRegister.get()) {
