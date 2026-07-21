@@ -111,6 +111,36 @@ class ConnectionITCase extends AbstractTestBase {
     }
 
     @TestTemplate
+    void testAlterConnectionRenameTemporaryConnection() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        tEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+        assertThat(catalogManager().getConnection(connectionIdentifier("new_conn")))
+                .hasValueSatisfying(
+                        connection ->
+                                assertThat(connection.getOptions()).containsOnly(entry("k", "v")));
+    }
+
+    @TestTemplate
+    void testAlterConnectionRenameIfExists() {
+        tEnv.executeSql("ALTER CONNECTION IF EXISTS missing_conn RENAME TO new_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("new_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testAlterConnectionRenameToExistingConnectionRejected() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("already exists");
+    }
+
+    @TestTemplate
     void testShowCreatePermanentConnection() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
