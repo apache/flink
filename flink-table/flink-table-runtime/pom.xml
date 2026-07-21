@@ -78,6 +78,13 @@ under the License.
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
+		<dependency>
+			<groupId>org.locationtech.jts</groupId>
+			<artifactId>jts-core</artifactId>
+			<version>1.19.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- Flink dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -186,6 +193,7 @@ under the License.
 									<include>org.codehaus.janino:*</include>
 									<include>org.apache.flink:flink-table-code-splitter</include>
 									<include>org.apache.flink:flink-table-type-utils</include>
+									<include>org.locationtech.jts:jts-core</include>
 								</includes>
 							</artifactSet>
 						</configuration>
