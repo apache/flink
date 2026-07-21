@@ -62,7 +62,6 @@ interface DoubleAccumulator {
          * Creates a new accumulator with the given initial value.
          *
          * @param init initial value
-         *
          * @return new accumulator with the given initial value
          */
         A get(double init);
@@ -72,8 +71,7 @@ interface DoubleAccumulator {
     final class DoubleMaximumFactory implements DoubleAccumulatorFactory<DoubleMaximum> {
         private static final DoubleMaximumFactory INSTANCE = new DoubleMaximumFactory();
 
-        private DoubleMaximumFactory() {
-        }
+        private DoubleMaximumFactory() {}
 
         @Override
         public DoubleMaximum get(double init) {
@@ -89,8 +87,7 @@ interface DoubleAccumulator {
     final class DoubleMinimumFactory implements DoubleAccumulatorFactory<DoubleMinimum> {
         private static final DoubleMinimumFactory INSTANCE = new DoubleMinimumFactory();
 
-        private DoubleMinimumFactory() {
-        }
+        private DoubleMinimumFactory() {}
 
         @Override
         public DoubleMinimum get(double init) {
@@ -106,8 +103,7 @@ interface DoubleAccumulator {
     final class DoubleSumFactory implements DoubleAccumulatorFactory<DoubleSum> {
         private static final DoubleSumFactory INSTANCE = new DoubleSumFactory();
 
-        private DoubleSumFactory() {
-        }
+        private DoubleSumFactory() {}
 
         @Override
         public DoubleSum get(double init) {
@@ -123,8 +119,7 @@ interface DoubleAccumulator {
     final class DoubleAverageFactory implements DoubleAccumulatorFactory<DoubleAverage> {
         private static final DoubleAverageFactory INSTANCE = new DoubleAverageFactory();
 
-        private DoubleAverageFactory() {
-        }
+        private DoubleAverageFactory() {}
 
         @Override
         public DoubleAverage get(double init) {
@@ -140,8 +135,7 @@ interface DoubleAccumulator {
     final class DoubleDataSkewFactory implements DoubleAccumulatorFactory<DoubleDataSkew> {
         private static final DoubleDataSkewFactory INSTANCE = new DoubleDataSkewFactory();
 
-        private DoubleDataSkewFactory() {
-        }
+        private DoubleDataSkewFactory() {}
 
         @Override
         public DoubleDataSkew get(double init) {
