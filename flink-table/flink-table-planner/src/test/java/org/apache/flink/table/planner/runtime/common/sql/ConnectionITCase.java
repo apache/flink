@@ -111,6 +111,29 @@ class ConnectionITCase extends AbstractTestBase {
     }
 
     @TestTemplate
+    void testDropTemporaryConnection() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        tEnv().executeSql("DROP TEMPORARY CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropTemporaryConnectionIfExists() {
+        tEnv().executeSql("DROP TEMPORARY CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @TestTemplate
+    void testDropMissingTemporaryConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DROP TEMPORARY CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Temporary connection with identifier");
+    }
+
+    @TestTemplate
     void testShowCreatePermanentConnection() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
