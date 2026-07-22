@@ -146,6 +146,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
+import org.apache.flink.util.JobMdcRegistry;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.OptionalConsumer;
@@ -661,9 +662,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Duration timeout) {
 
         final JobID jobId = tdd.getJobId();
-        // todo: consider adding task info
-        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
-
+        JobInformation jobInformation = null;
+        try {
+            jobInformation = tdd.getJobInformation();
+        } catch (IllegalStateException ignored) {
+            // Expected when job information is offloaded to blob storage and not yet loaded.
+        } catch (IOException | ClassNotFoundException e) {
+            log.debug("Could not deserialize job information for early MDC enrichment", e);
+        }
+        try (MdcCloseable ignored =
+                MdcUtils.withContext(
+                        jobInformation == null
+                                ? MdcUtils.asContextData(jobId)
+                                : MdcUtils.asContextData(
+                                        jobId, jobInformation.getJobConfiguration()))) {
             final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 
             final JobTable.Connection jobManagerConnection =
@@ -716,18 +728,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
 
             // deserialize the pre-serialized information
-            final JobInformation jobInformation;
             final TaskInformation taskInformation;
             final JobManagerTaskRestore taskRestore;
             try {
-                jobInformation = tdd.getJobInformation();
+                if (jobInformation == null) {
+                    jobInformation = tdd.getJobInformation();
+                }
                 taskInformation = tdd.getTaskInformation();
                 taskRestore = tdd.getTaskRestore();
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
                         "Could not deserialize the job or task information.", e);
             }
-
             if (!jobId.equals(jobInformation.getJobId())) {
                 throw new TaskSubmissionException(
                         "Inconsistent job ID information inside TaskDeploymentDescriptor ("
@@ -736,7 +748,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                 + jobInformation.getJobId()
                                 + ")");
             }
-
+            JobMdcRegistry.registerOrClear(jobId, jobInformation.getJobConfiguration());
             TaskManagerJobMetricGroup jobGroup =
                     taskManagerMetricGroup.addJob(
                             jobInformation.getJobId(), jobInformation.getJobName());
@@ -757,13 +769,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new RpcTaskOperatorEventGateway(
                             jobManagerConnection.getJobManagerGateway(),
                             executionAttemptID,
-                            (t) ->
-                                    runAsync(
-                                            () ->
-                                                    failTask(
-                                                            jobInformation.getJobId(),
-                                                            executionAttemptID,
-                                                            t)));
+                            (t) -> runAsync(() -> failTask(jobId, executionAttemptID, t)));
 
             TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
             CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
@@ -2078,6 +2084,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         taskInformationCache.clearCacheForGroup(jobId);
         shuffleDescriptorsCache.clearCacheForGroup(jobId);
         fileMergingManager.releaseMergingSnapshotManagerForJob(jobId);
+        JobMdcRegistry.unregister(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
