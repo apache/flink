@@ -30,6 +30,8 @@ import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -38,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -102,8 +103,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private final long reobtainCooldownMillis;
 
-    /** Clock used for cooldown bookkeeping; overridable in tests. */
-    private volatile Clock clock = Clock.systemDefaultZone();
+    /** Clock used for renewal and cooldown timing. */
+    private final Clock clock;
 
     /**
      * Serializes the obtain-and-broadcast cycle so that, even though {@code cancel(true)} does not
@@ -179,7 +180,23 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             @Nullable PluginManager pluginManager,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable ExecutorService ioExecutor) {
+        this(
+                configuration,
+                pluginManager,
+                scheduledExecutor,
+                ioExecutor,
+                SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    DefaultDelegationTokenManager(
+            Configuration configuration,
+            @Nullable PluginManager pluginManager,
+            @Nullable ScheduledExecutor scheduledExecutor,
+            @Nullable ExecutorService ioExecutor,
+            Clock clock) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
+        this.clock = checkNotNull(clock, "Clock must not be null");
         this.pluginManager = pluginManager;
         this.tokensRenewalTimeRatio = configuration.get(DELEGATION_TOKENS_RENEWAL_TIME_RATIO);
         this.renewalRetryInitialBackoff =
@@ -501,7 +518,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @GuardedBy("tokensUpdateFutureLock")
     private void scheduleRenewalLocked(long delayMs) {
         stopTokensUpdate();
-        nextScheduledAtMillis = clock.millis() + delayMs;
+        nextScheduledAtMillis = clock.absoluteTimeMillis() + delayMs;
         try {
             tokensUpdateFuture =
                     scheduledExecutor.schedule(
@@ -554,12 +571,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 return -1L;
             }
             if (reobtainScheduled) {
-                long pendingInMillis = Math.max(0L, nextScheduledAtMillis - clock.millis());
+                long pendingInMillis =
+                        Math.max(0L, nextScheduledAtMillis - clock.absoluteTimeMillis());
                 if (delayMs < pendingInMillis) {
                     // Bring the pending on-demand cycle forward. scheduleRenewalLocked() leaves
                     // reobtainScheduled set, so coalescing still holds. Move the cooldown anchor
                     // to the time the cycle now actually runs.
-                    lastReobtainAtMillis = clock.millis() + delayMs;
+                    lastReobtainAtMillis = clock.absoluteTimeMillis() + delayMs;
                     scheduleRenewalLocked(delayMs);
                     return delayMs;
                 }
@@ -586,7 +604,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting
     long calculateRetryDelay(Clock clock) {
-        long nowMillis = clock.millis();
+        long nowMillis = clock.absoluteTimeMillis();
         long effectiveMax;
         if (lastKnownNextRenewal != Long.MAX_VALUE) {
             long remaining = lastKnownNextRenewal - nowMillis;
@@ -608,7 +626,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting
     long calculateRenewalDelay(Clock clock, long nextRenewal) {
-        long now = clock.millis();
+        long now = clock.absoluteTimeMillis();
         long renewalDelay = Math.round(tokensRenewalTimeRatio * (nextRenewal - now));
         LOG.debug(
                 "Calculated delay on renewal is {}, based on next renewal {} and the ratio {}, and current time {}",
@@ -617,11 +635,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 tokensRenewalTimeRatio,
                 now);
         return renewalDelay;
-    }
-
-    @VisibleForTesting
-    void setClock(Clock clock) {
-        this.clock = clock;
     }
 
     /**
@@ -708,7 +721,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
             // Cooldown: bound how often on-demand re-obtains can run by deferring this cycle until
             // at least reobtainCooldownMillis have passed since the previous on-demand re-obtain.
-            long now = clock.millis();
+            long now = clock.absoluteTimeMillis();
             long delayMillis =
                     lastReobtainAtMillis == NO_PREVIOUS_REOBTAIN
                             ? 0L
