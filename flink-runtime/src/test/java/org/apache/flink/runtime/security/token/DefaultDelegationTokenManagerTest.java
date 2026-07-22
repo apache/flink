@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -30,9 +31,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,7 +51,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
@@ -251,7 +249,7 @@ public class DefaultDelegationTokenManagerTest {
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
-        Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
+        ManualClock constantClock = new ManualClock(100 * 1_000_000L);
         assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
     }
 
@@ -265,7 +263,7 @@ public class DefaultDelegationTokenManagerTest {
         DefaultDelegationTokenManager manager =
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
-        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        ManualClock clock = new ManualClock(0);
         long delay1 = manager.calculateRetryDelay(clock);
         long delay2 = manager.calculateRetryDelay(clock);
         long delay3 = manager.calculateRetryDelay(clock);
@@ -289,7 +287,7 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         // Ramp up the backoff via two failures.
-        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        ManualClock clock = new ManualClock(0);
         manager.calculateRetryDelay(clock);
         manager.calculateRetryDelay(clock);
         // Simulate success: reset currentRetryBackoff (as startTokensUpdate() would).
@@ -311,7 +309,7 @@ public class DefaultDelegationTokenManagerTest {
 
         // Simulate a failure close to token expiry (30 s remaining). The delay must be capped
         // so that the retry happens while the token is still valid (at most 30 s / 3 = 10 s).
-        Clock clock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
+        ManualClock clock = new ManualClock(0);
         manager.lastKnownNextRenewal = Duration.ofSeconds(30).toMillis();
 
         long delay = manager.calculateRetryDelay(clock);
@@ -567,12 +565,12 @@ public class DefaultDelegationTokenManagerTest {
                 new ManuallyTriggeredScheduledExecutorService();
 
         Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler);
+                        configuration, null, scheduledExecutor, scheduler, clock);
 
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
         delegationTokenManager.start(tokens -> {});
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
@@ -580,8 +578,7 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // A request arriving after the full cooldown window has elapsed runs immediately again.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 70_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(70_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
     }
@@ -594,12 +591,12 @@ public class DefaultDelegationTokenManagerTest {
                 new ManuallyTriggeredScheduledExecutorService();
 
         Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler);
+                        configuration, null, scheduledExecutor, scheduler, clock);
 
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
         delegationTokenManager.start(tokens -> {});
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
@@ -607,8 +604,7 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // 10s later a re-obtain is deferred by the cooldown.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(10_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
 
@@ -616,8 +612,7 @@ public class DefaultDelegationTokenManagerTest {
         // next re-obtain runs immediately instead of inheriting the stale cooldown.
         delegationTokenManager.stop();
         delegationTokenManager.start(tokens -> {});
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 15_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(5_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
     }
@@ -630,12 +625,11 @@ public class DefaultDelegationTokenManagerTest {
                 new ManuallyTriggeredScheduledExecutorService();
 
         Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler);
-
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
+                        configuration, null, scheduledExecutor, scheduler, clock);
 
         delegationTokenManager.start(tokens -> {});
 
@@ -646,8 +640,7 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // A second re-obtain 10s later must be deferred until the 60s cooldown elapses.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(10_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
     }
@@ -842,12 +835,12 @@ public class DefaultDelegationTokenManagerTest {
                 new ManuallyTriggeredScheduledExecutorService();
 
         Configuration configuration = hermeticCooldownConfig(Duration.ofMillis(60_000));
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        configuration, null, scheduledExecutor, scheduler);
+                        configuration, null, scheduledExecutor, scheduler, clock);
 
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
         delegationTokenManager.start(tokens -> {});
 
         delegationTokenManager.reobtainDelegationTokens();
@@ -855,8 +848,7 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // 10s later a second re-obtain is cooldown-deferred by 50s.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(10_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
 
@@ -1050,15 +1042,16 @@ public class DefaultDelegationTokenManagerTest {
         final ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
 
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
                         hermeticCooldownConfig(Duration.ofMillis(60_000)),
                         null,
                         scheduledExecutor,
-                        scheduler);
+                        scheduler,
+                        clock);
 
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
         delegationTokenManager.start(tokens -> {});
 
         // The first request runs immediately.
@@ -1068,12 +1061,10 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // A request at t0+1s is deferred by 59s: its obtain cycle runs at t0+60s.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 1_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(1_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(59_000L, onlyScheduledDelayMillis(scheduledExecutor));
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 60_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(59_000L));
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
 
@@ -1081,8 +1072,7 @@ public class DefaultDelegationTokenManagerTest {
         // so a request arriving just after the deferred cycle ran must be deferred by a full
         // cooldown measured from that cycle's execution, not run (almost) immediately because
         // the previous REQUEST arrived one cooldown ago.
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 61_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(1_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(
                 59_000L,
@@ -1097,15 +1087,16 @@ public class DefaultDelegationTokenManagerTest {
         final ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
 
+        long t0 = 1_000_000L;
+        ManualClock clock = new ManualClock(t0 * 1_000_000L);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
                         hermeticCooldownConfig(Duration.ofMillis(60_000)),
                         null,
                         scheduledExecutor,
-                        scheduler);
+                        scheduler,
+                        clock);
 
-        long t0 = 1_000_000L;
-        delegationTokenManager.setClock(Clock.fixed(ofEpochMilli(t0), ZoneId.systemDefault()));
         delegationTokenManager.start(tokens -> {});
 
         delegationTokenManager.reobtainDelegationTokens();
@@ -1113,8 +1104,7 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
 
         // 10s later a second request is cooldown-deferred by 50s (would run at t0+60s).
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 10_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(10_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(50_000L, onlyScheduledDelayMillis(scheduledExecutor));
 
@@ -1122,16 +1112,14 @@ public class DefaultDelegationTokenManagerTest {
         // forward to +5s, so the coalesced cycle actually executes at t0+15s.
         delegationTokenManager.maybeScheduleRenewal(5_000L);
         assertEquals(5_000L, onlyScheduledDelayMillis(scheduledExecutor));
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 15_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(5_000L));
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
 
         // The next request must measure its cooldown from the brought-forward execution
         // (t0+15s), not from the originally scheduled t0+60s. Otherwise it would defer
         // beyond a full cooldown (104s here instead of 59s).
-        delegationTokenManager.setClock(
-                Clock.fixed(ofEpochMilli(t0 + 16_000L), ZoneId.systemDefault()));
+        clock.advanceTime(Duration.ofMillis(1_000L));
         delegationTokenManager.reobtainDelegationTokens();
         assertEquals(
                 59_000L,
