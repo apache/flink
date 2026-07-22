@@ -1560,7 +1560,9 @@ value outside an integer or `DECIMAL` target's range fails `CAST` and returns `N
 handled the same way. Casting a `VARIANT` to `CHAR`/`VARCHAR` extracts the scalar value, so a
 stored string is returned unquoted (for example `foo`), while objects and arrays return their JSON
 representation. Use `JSON_STRING` for the JSON representation, where a string stays quoted (for
-example `"foo"`).
+example `"foo"`). A bounded `CHAR(n)`/`VARCHAR(n)` target is length-checked strictly, with no
+padding or truncation: `VARCHAR(n)` accepts up to `n` characters and `CHAR(n)` requires exactly `n`,
+otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
 
 {{< hint info >}}
 Unlike a regular numeric cast, casting a numeric `VARIANT` never overflows. To narrow a 

@@ -67,18 +67,35 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Casts a {@code VARIANT} to its SQL string value: scalars use their raw value (a string stays
-     * unquoted, unlike {@code JSON_STRING}), objects and arrays use JSON.
+     * Casts a {@code VARIANT} to its SQL string value for a {@code CHAR(targetLength)} or {@code
+     * VARCHAR(targetLength)} target. Scalars use their raw value (a string stays unquoted, unlike
+     * {@code JSON_STRING}); objects and arrays use their JSON representation.
+     *
+     * <p>The target length is enforced strictly, with no padding or truncation: a {@code VARCHAR}
+     * value must not be longer than {@code targetLength}, and a {@code CHAR} value must match it
+     * exactly. A value that does not fit raises {@link TableRuntimeException}.
      */
-    public static String toStringValue(Variant variant) {
+    public static String toStringValue(Variant variant, int targetLength, boolean charTarget) {
+        final String value;
         switch (variant.getType()) {
             case OBJECT:
             case ARRAY:
             case BYTES:
-                return variant.toJson();
+                value = variant.toJson();
+                break;
             default:
-                return String.valueOf(variant.get());
+                value = String.valueOf(variant.get());
         }
+        final int length = value.length();
+        final boolean fits = charTarget ? length == targetLength : length <= targetLength;
+        if (!fits) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "The VARIANT string value of length %d does not fit %s(%d); VARIANT "
+                                    + "string casts do not pad or truncate.",
+                            length, charTarget ? "CHAR" : "VARCHAR", targetLength));
+        }
+        return value;
     }
 
     private static long toIntegralExact(Number value, long min, long max, String targetType) {
