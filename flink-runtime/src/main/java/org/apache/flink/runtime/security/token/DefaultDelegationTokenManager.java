@@ -103,7 +103,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private final long reobtainCooldownMillis;
 
-    /** Clock used for renewal and cooldown timing. */
+    /**
+     * Clock used for renewal and cooldown timing. Renewal math reads absolute time (a token's
+     * validUntil is an absolute epoch), while scheduling and the cooldown read relative time, which
+     * wall-clock adjustments cannot distort. Never mix the two in one expression.
+     */
     private final Clock clock;
 
     /**
@@ -128,10 +132,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private ScheduledFuture<?> tokensUpdateFuture;
 
     /**
-     * Clock time (millis) at which {@link #tokensUpdateFuture} is scheduled to fire, or {@link
-     * Long#MAX_VALUE} when no cycle is pending. Lets an on-demand re-obtain only ever bring the
-     * next obtain cycle <em>forward</em> and never push an already-scheduled (e.g. periodic)
-     * renewal later, which could otherwise let a short-lived token expire before it is renewed.
+     * Relative (monotonic) clock time (millis) at which {@link #tokensUpdateFuture} is scheduled to
+     * fire, or {@link Long#MAX_VALUE} when no cycle is pending. Lets an on-demand re-obtain only
+     * ever bring the next obtain cycle <em>forward</em> and never push an already-scheduled (e.g.
+     * periodic) renewal later, which could otherwise let a short-lived token expire before it is
+     * renewed.
      */
     @GuardedBy("tokensUpdateFutureLock")
     private long nextScheduledAtMillis = Long.MAX_VALUE;
@@ -141,9 +146,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private boolean reobtainScheduled;
 
     /**
-     * Clock time (millis) at which the last on-demand re-obtain cycle was scheduled to execute, or
-     * {@link #NO_PREVIOUS_REOBTAIN}. Anchored to the execution time rather than the request time,
-     * so the cooldown spaces cycle executions. Updated only by on-demand re-obtains.
+     * Relative (monotonic) clock time (millis) at which the last on-demand re-obtain cycle was
+     * scheduled to execute, or {@link #NO_PREVIOUS_REOBTAIN}. Anchored to the execution time rather
+     * than the request time, so the cooldown spaces cycle executions. Updated only by on-demand
+     * re-obtains.
      */
     @GuardedBy("tokensUpdateFutureLock")
     private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
@@ -154,6 +160,16 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      */
     @GuardedBy("tokensUpdateFutureLock")
     private boolean running;
+
+    /**
+     * Incremented by every {@link #start(Listener)}. An obtain cycle captures it when it begins and
+     * re-checks it before notifying, so a cycle that began under an earlier leadership session
+     * cannot deliver into a later session. The fence gates delivery only: a stale cycle's renewal
+     * state is cleared by start()'s reset, and a timer it scheduled just runs a fresh,
+     * fence-checked cycle later.
+     */
+    @GuardedBy("tokensUpdateFutureLock")
+    private long sessionEpoch;
 
     @GuardedBy("tokensUpdateFutureLock")
     @VisibleForTesting
@@ -393,18 +409,25 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      */
     @Override
     public void start(Listener listener) throws Exception {
-        checkState(
-                !closed.get(),
-                "The delegation token manager is already closed, its providers are stopped");
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
         checkNotNull(listener, "Listener must not be null");
         synchronized (tokensUpdateFutureLock) {
+            // Checked under the lock so a start() arriving after close() fails instead of
+            // resurrecting a session against stopped providers. A start() racing close() can
+            // still slip past the check. close()'s stop() then ends its session under this
+            // lock, so its inline first cycle either skips on running == false or runs at most
+            // one obtain that cannot deliver or reschedule and may overlap the provider stop()
+            // (see close()).
+            checkState(
+                    !closed.get(),
+                    "The delegation token manager is already closed, its providers are stopped");
             if (running) {
                 LOG.warn("DelegationTokenManager is already started, ignoring redundant start()");
                 return;
             }
             this.listener = listener;
+            sessionEpoch++;
             // Set before the inline first cycle below: startTokensUpdate() and
             // maybeScheduleRenewal() gate on it.
             running = true;
@@ -423,6 +446,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting
     void startTokensUpdate() {
+        final long cycleEpoch;
         synchronized (tokensUpdateFutureLock) {
             // Clear the dedupe flag so later on-demand requests can schedule a fresh cycle.
             reobtainScheduled = false;
@@ -431,6 +455,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             if (!running) {
                 return;
             }
+            cycleEpoch = sessionEpoch;
         }
         // Serialize the obtain-and-broadcast so a re-obtain racing the periodic renewal cannot run
         // two cycles concurrently on the (multi-threaded) IO executor and broadcast out of order.
@@ -441,13 +466,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 Optional<Long> nextRenewal = obtainDelegationTokensAndGetNextRenewal(container);
 
                 if (container.hasTokens()) {
-                    // stop() does not wait for an in-flight cycle. Re-check so a cycle resuming
-                    // after stop() does not notify the stopped session's listener (the disposed
-                    // ResourceManager). A stop() right after this read still lets one delivery
-                    // through, which is benign.
+                    // stop() does not wait for an in-flight cycle: re-check running so a resumed
+                    // cycle does not notify the stopped session's listener, and compare epochs
+                    // so a cycle begun under an earlier session cannot deliver into the next
+                    // one (see sessionEpoch). A stop() right after this read still lets one
+                    // delivery through, which is benign.
                     final Listener currentListener;
                     synchronized (tokensUpdateFutureLock) {
-                        currentListener = running ? listener : null;
+                        currentListener = running && cycleEpoch == sessionEpoch ? listener : null;
                     }
                     if (currentListener != null) {
                         delegationTokenReceiverRepository.onNewTokensObtained(container);
@@ -518,7 +544,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @GuardedBy("tokensUpdateFutureLock")
     private void scheduleRenewalLocked(long delayMs) {
         stopTokensUpdate();
-        nextScheduledAtMillis = clock.absoluteTimeMillis() + delayMs;
+        nextScheduledAtMillis = clock.relativeTimeMillis() + delayMs;
         try {
             tokensUpdateFuture =
                     scheduledExecutor.schedule(
@@ -572,12 +598,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
             if (reobtainScheduled) {
                 long pendingInMillis =
-                        Math.max(0L, nextScheduledAtMillis - clock.absoluteTimeMillis());
+                        Math.max(0L, nextScheduledAtMillis - clock.relativeTimeMillis());
                 if (delayMs < pendingInMillis) {
                     // Bring the pending on-demand cycle forward. scheduleRenewalLocked() leaves
                     // reobtainScheduled set, so coalescing still holds. Move the cooldown anchor
                     // to the time the cycle now actually runs.
-                    lastReobtainAtMillis = clock.absoluteTimeMillis() + delayMs;
+                    lastReobtainAtMillis = clock.relativeTimeMillis() + delayMs;
                     scheduleRenewalLocked(delayMs);
                     return delayMs;
                 }
@@ -681,9 +707,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      */
     @Override
     public void close() {
-        // Flip the flag before stopping anything: a concurrent start() then fails its
-        // !closed check instead of slipping in between the session stop and the provider
-        // teardown and running on providers that get stopped underneath it.
+        // Flip the flag before stopping anything. start() checks it under
+        // tokensUpdateFutureLock, so a racing start() either fails the check or has its
+        // session ended by the stop() below (see start()). At most one obtain may still
+        // overlap the provider stop() below, which the provider threading contract covers.
         if (!closed.compareAndSet(false, true)) {
             return;
         }
@@ -721,7 +748,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
             // Cooldown: bound how often on-demand re-obtains can run by deferring this cycle until
             // at least reobtainCooldownMillis have passed since the previous on-demand re-obtain.
-            long now = clock.absoluteTimeMillis();
+            long now = clock.relativeTimeMillis();
             long delayMillis =
                     lastReobtainAtMillis == NO_PREVIOUS_REOBTAIN
                             ? 0L

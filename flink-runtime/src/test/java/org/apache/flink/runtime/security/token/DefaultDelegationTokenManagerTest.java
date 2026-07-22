@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -50,6 +51,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
@@ -1231,6 +1234,159 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
+    public void inFlightCycleMustNotDeliverIntoTheNextSession() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        // Same setup rationale as inFlightCycleMustNotNotifyListenerAfterStop: keep the "throw"
+        // receiver loaded so the broadcast path is real. Unlike there, only the first obtain
+        // parks (the old session's inline cycle). The new session's first cycle must run
+        // through.
+        Configuration configuration = new Configuration();
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hadoopfs.enabled"), false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".hbase.enabled"), false);
+
+        final CountDownLatch cycleInObtain = new CountDownLatch(1);
+        final CountDownLatch resumeObtain = new CountDownLatch(1);
+        final AtomicBoolean parkNextObtain = new AtomicBoolean(true);
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, scheduler) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        container.addToken("throw", new byte[] {1});
+                        if (parkNextObtain.compareAndSet(true, false)) {
+                            cycleInObtain.countDown();
+                            try {
+                                // Longer than the readiness-poll deadline below, so A cannot
+                                // resume on its own while the test is still waiting for B.
+                                resumeObtain.await(30, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                        return Optional.empty();
+                    }
+                };
+
+        AtomicReference<Throwable> starterFailure = new AtomicReference<>();
+        AtomicInteger sessionANotifications = new AtomicInteger(0);
+        Thread starterA =
+                new Thread(
+                        () -> {
+                            try {
+                                delegationTokenManager.start(
+                                        tokens -> sessionANotifications.incrementAndGet());
+                            } catch (Throwable t) {
+                                starterFailure.compareAndSet(null, t);
+                            }
+                        });
+        starterA.start();
+        assertTrue(cycleInObtain.await(10, TimeUnit.SECONDS));
+
+        // Leadership changes while A's cycle is parked in the obtain: stop() ends session A and
+        // the next session starts before the cycle resumes. start(B) publishes B's listener
+        // under tokensUpdateFutureLock and then blocks on obtainLock behind A's cycle, so the
+        // resuming cycle observes running == true and B's listener.
+        delegationTokenManager.stop();
+        AtomicInteger sessionBNotifications = new AtomicInteger(0);
+        Thread starterB =
+                new Thread(
+                        () -> {
+                            try {
+                                delegationTokenManager.start(
+                                        tokens -> sessionBNotifications.incrementAndGet());
+                            } catch (Throwable t) {
+                                starterFailure.compareAndSet(null, t);
+                            }
+                        });
+        starterB.start();
+        // Wait until start(B) is parked on obtainLock behind A's cycle. B publishes its
+        // listener under the manager's lock strictly before it can block there, so a durable
+        // BLOCKED state implies the listener is in place without reading the lock-guarded
+        // field unsynchronized. This gates when to resume A's parked cycle, so A's re-check
+        // exercises the epoch fence, not the running flag.
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (starterB.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+            Thread.sleep(1);
+        }
+        assertEquals(Thread.State.BLOCKED, starterB.getState());
+
+        resumeObtain.countDown();
+        starterA.join(10_000L);
+        starterB.join(10_000L);
+        assertFalse(starterA.isAlive());
+        assertFalse(starterB.isAlive());
+        if (starterFailure.get() != null) {
+            throw new AssertionError("start() failed in a session thread", starterFailure.get());
+        }
+
+        assertEquals(
+                0,
+                sessionANotifications.get(),
+                "Session A's listener was released by stop() and must not be notified");
+        assertEquals(
+                1,
+                sessionBNotifications.get(),
+                "A cycle that began under an earlier session must not deliver into the next"
+                        + " session: only the next session's own first cycle may notify it");
+    }
+
+    @Test
+    public void cooldownMustBeImmuneToWallClockJumps() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        JumpableClock clock = new JumpableClock(1_000_000L);
+        DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMillis(60_000)),
+                        null,
+                        scheduledExecutor,
+                        scheduler,
+                        clock);
+
+        delegationTokenManager.start(tokens -> {});
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(0L, onlyScheduledDelayMillis(scheduledExecutor));
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // 10s of real time pass, then NTP steps the wall clock back by an hour. The cooldown is
+        // a process-local interval, so the next request must still be deferred by the remaining
+        // 50s, not by the wall-clock difference.
+        clock.advance(Duration.ofSeconds(10));
+        clock.jumpWallClock(Duration.ofHours(-1));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(
+                50_000L,
+                onlyScheduledDelayMillis(scheduledExecutor),
+                "The cooldown must be computed on monotonic time: a wall-clock rollback must"
+                        + " not extend it");
+
+        // Let the deferred cycle run at its due time (the anchor sits at its execution time).
+        clock.advance(Duration.ofSeconds(50));
+        scheduledExecutor.triggerScheduledTasks();
+        scheduler.triggerAll();
+
+        // 10s later the wall clock jumps two hours forward. Under wall-clock math that would
+        // zero the remaining cooldown. The monotonic cooldown must still defer by 50s.
+        clock.advance(Duration.ofSeconds(10));
+        clock.jumpWallClock(Duration.ofHours(2));
+        delegationTokenManager.reobtainDelegationTokens();
+        assertEquals(
+                50_000L,
+                onlyScheduledDelayMillis(scheduledExecutor),
+                "The cooldown must be computed on monotonic time: a wall-clock jump forward"
+                        + " must not bypass it");
+    }
+
+    @Test
     public void registerJobMustNotExposeCallersConfigurationToProviders() throws Exception {
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
@@ -1271,5 +1427,44 @@ public class DefaultDelegationTokenManagerTest {
         Collection<ScheduledFuture<?>> tasks = scheduledExecutor.getActiveScheduledTasks();
         assertEquals(1, tasks.size());
         return tasks.iterator().next().getDelay(TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * A clock whose absolute (wall) time can jump independently of its relative (monotonic) time,
+     * simulating an NTP step or a manual clock adjustment. {@link ManualClock} cannot express this:
+     * it drives both flavors from one counter.
+     */
+    private static final class JumpableClock extends Clock {
+        private final AtomicLong absoluteMillis;
+        private final AtomicLong relativeNanos = new AtomicLong();
+
+        JumpableClock(long absoluteMillis) {
+            this.absoluteMillis = new AtomicLong(absoluteMillis);
+        }
+
+        @Override
+        public long absoluteTimeMillis() {
+            return absoluteMillis.get();
+        }
+
+        @Override
+        public long relativeTimeMillis() {
+            return relativeNanos.get() / 1_000_000L;
+        }
+
+        @Override
+        public long relativeTimeNanos() {
+            return relativeNanos.get();
+        }
+
+        void advance(Duration duration) {
+            absoluteMillis.addAndGet(duration.toMillis());
+            relativeNanos.addAndGet(duration.toNanos());
+        }
+
+        /** Steps the wall clock only; relative time is unaffected, like a real NTP step. */
+        void jumpWallClock(Duration duration) {
+            absoluteMillis.addAndGet(duration.toMillis());
+        }
     }
 }
