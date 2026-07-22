@@ -25,4 +25,3 @@ org.apache.flink.table.planner.utils.TestSimpleDynamicTableSourceFactory
 org.apache.flink.table.planner.factories.TestValuesModelFactory
 org.apache.flink.table.planner.factories.PlainTestCatalogFactory
 org.apache.flink.table.planner.factories.TimeoutAsyncLookupTableFactory
-org.apache.flink.table.planner.factories.UnreachableTestCatalogFactory

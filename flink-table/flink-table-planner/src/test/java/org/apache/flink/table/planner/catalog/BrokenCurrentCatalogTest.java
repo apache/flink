@@ -18,16 +18,14 @@
 
 package org.apache.flink.table.planner.catalog;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.catalog.CatalogDescriptor;
-import org.apache.flink.table.planner.factories.UnreachableTestCatalogFactory;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions.IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -42,21 +40,32 @@ class BrokenCurrentCatalogTest {
                 TableEnvironment.create(
                         EnvironmentSettings.newInstance().inStreamingMode().build());
 
-        Configuration healthyOptions = new Configuration();
-        healthyOptions.setString("type", IDENTIFIER);
-        healthyOptions.setString("default-database", "default");
-        tEnv.createCatalog("healthy", CatalogDescriptor.of("healthy", healthyOptions));
+        tEnv.registerCatalog("healthy", new GenericInMemoryCatalog("healthy", "default"));
         tEnv.useCatalog("healthy");
         tEnv.executeSql(
                 "CREATE VIEW `healthy`.`default`.`v` AS SELECT * FROM (VALUES (1), (2), (3)) AS t(id)");
 
-        Configuration brokenOptions = new Configuration();
-        brokenOptions.setString("type", UnreachableTestCatalogFactory.IDENTIFIER);
-        tEnv.createCatalog("broken", CatalogDescriptor.of("broken", brokenOptions));
+        tEnv.registerCatalog("broken", new UnreachableCatalog("broken"));
         tEnv.useCatalog("broken");
 
         Table table = tEnv.sqlQuery("SELECT * FROM `healthy`.`default`.`v`");
 
         assertThat(table.getResolvedSchema().getColumnNames()).containsExactly("id");
+    }
+
+    private static class UnreachableCatalog extends GenericInMemoryCatalog {
+        UnreachableCatalog(String name) {
+            super(name, "default");
+        }
+
+        @Override
+        public boolean databaseExists(String databaseName) {
+            throw new CatalogException(
+                    "Failed to connect to database '"
+                            + databaseName
+                            + "' of catalog '"
+                            + getName()
+                            + "'.");
+        }
     }
 }

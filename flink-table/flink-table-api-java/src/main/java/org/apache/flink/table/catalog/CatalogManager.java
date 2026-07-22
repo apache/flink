@@ -1120,7 +1120,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             try {
                                 return c.databaseExists(databaseName);
                             } catch (CatalogException e) {
-                                LOG.debug(
+                                LOG.warn(
                                         "Unable to check whether database '{}' exists in catalog '{}'.",
                                         databaseName,
                                         catalogName,
