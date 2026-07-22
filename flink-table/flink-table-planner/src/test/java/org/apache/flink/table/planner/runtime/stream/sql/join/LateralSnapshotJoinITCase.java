@@ -153,7 +153,7 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
         final List<Row> probes =
                 IntStream.range(0, probeCount)
                         .mapToObj(i -> Row.of("k", i, ts(String.format("00:00:%02d", i))))
-                        .toList();
+                        .collect(Collectors.toList());
         createProbe(probes, 200L); // last probe at ~1400 ms, well past the last post-flip update
         createUpsertBuild(
                 Arrays.asList(
