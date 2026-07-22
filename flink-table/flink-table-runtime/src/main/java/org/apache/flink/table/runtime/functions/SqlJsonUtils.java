@@ -418,7 +418,7 @@ public class SqlJsonUtils {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
         }
-        if (value instanceof List) {
+        if (value instanceof List<?>) {
             return ((List<?>) value).size();
         }
         // Scalars, including a JSON null literal, have length 1.
@@ -431,8 +431,6 @@ public class SqlJsonUtils {
      * result is the list of matched canonical paths, which is empty iff the path does not exist.
      */
     private static boolean pathExists(final Object json, final String pathSpec) {
-        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
-        final String pathStr = matcher.matches() ? matcher.group("spec") : pathSpec;
         try {
             final List<String> matched =
                     JsonPath.parse(
@@ -443,7 +441,7 @@ public class SqlJsonUtils {
                                             .jsonProvider(JSON_PATH_JSON_PROVIDER)
                                             .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
                                             .build())
-                            .read(pathStr);
+                            .read(pathSpec);
             return matched != null && !matched.isEmpty();
         } catch (PathNotFoundException e) {
             return false;
