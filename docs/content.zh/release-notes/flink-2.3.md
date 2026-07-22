@@ -90,7 +90,7 @@ CREATE FUNCTION my_func AS 'com.example.MyUdf'
 
 Flink 2.3 reworks how `SinkUpsertMaterializer` handles the case where a query's upsert key
 differs from the sink's primary key. Previously this required maintaining the full history of
-records and could blow up state. A change partially addressed this issue:
+records and could blow up state. An enhancement allows you to manage this situation:
 
 - A new `ON CONFLICT` clause with `DO NOTHING`, `DO ERROR` and `DO DEDUPLICATE` strategies makes
   the behavior on key conflict explicit. By default, planning now fails when the upsert and
