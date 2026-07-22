@@ -2555,6 +2555,9 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
      * JSON_LENGTH} resolves to {@code NULL}.
      *
+     * <p>JSON_LENGTH also supports input of the VARIANT type; you can pass the output of
+     * PARSE_JSON into JSON_LENGTH.
+     *
      * <p>Because a {@code NULL} result can mean several different things (the input is not valid
      * JSON, the path does not match anything, or a wildcard path matched 2 or more nodes), it is
      * recommended to pair {@code JSON_LENGTH} with a helper function so invalid input is handled
@@ -2588,6 +2591,10 @@ public abstract class BaseExpressions<InType, OutType> {
      * JSON_LENGTH('[1,2,3,4,5]', '$[3]') // 1
      *
      * JSON_LENGTH('[1,2,3,4,5]', '$.[7]') // Null
+     *
+     * // VARIANT input via PARSE_JSON
+     * JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]')) // 5
+     * JSON_LENGTH(PARSE_JSON('{"1": "hello", "2": "bye bye"}'), '$.1') // 1
      * }</pre>
      */
     public OutType jsonLength(String path) {

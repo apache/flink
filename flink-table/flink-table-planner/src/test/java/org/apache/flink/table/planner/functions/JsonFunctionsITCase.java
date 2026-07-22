@@ -149,7 +149,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.references')", 1, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0]')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
                 // (invalid) path
                 .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f7)", null, INT().nullable())
@@ -179,27 +180,28 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 // `$.metadata.references[*].name` -> single scalar)
                 .testSqlResult(
                         "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
-
-                // JSON_EXISTS sees a multi-match wildcard as present while JSON_LENGTH returns NULL
+                // JSON_LENGTH variant support (runtime path, no constant folding)
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0))", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]'))", 5, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON('\"hello\"'))", 1, INT().nullable())
                 .testSqlResult(
-                        "JSON_EXISTS(f0, 'lax $.metadata.tags[*]') "
-                                + "AND JSON_LENGTH(f0, '$.metadata.tags[*]') IS NULL",
-                        true,
-                        BOOLEAN())
+                        "JSON_LENGTH(PARSE_JSON(f0), '$.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.items[*]')", null, INT().nullable())
 
                 // lax/strict path modes are not supported and are rejected at runtime
                 .testSqlRuntimeError(
                         "JSON_LENGTH(f0, 'strict $.type')",
                         TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s').")
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').")
                 .testSqlRuntimeError(
                         "JSON_LENGTH(f0, 'lax $.type')",
                         TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s').")
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'lax $.type').")
                 .testTableApiRuntimeError(
                         $("f0").jsonLength("strict $.type"),
                         TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s').");
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').");
     }
 
     private static TestSetSpec jsonExistsSpec() {
@@ -279,7 +281,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testTableApiRuntimeError(
                         $("f0").jsonExists("strict $.invalid", JsonExistsOnError.ERROR),
                         TableRuntimeException.class,
-                        "No results for path: $['invalid']");
+                        "No results for path: $['invalid']")
+                .testSqlResult("JSON_EXISTS(f0, '$.items[*]')", false, BOOLEAN())
+                .testSqlResult("JSON_EXISTS(f0, '$.metadata.tags[*]')", true, BOOLEAN());
     }
 
     private static TestSetSpec jsonValueSpec() {

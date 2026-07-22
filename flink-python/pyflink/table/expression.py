@@ -2280,6 +2280,9 @@ class Expression(Generic[T]):
         When provided with a path that uses a wildcard and resolves to 2 or more paths,
         'json_length' resolves to None.
 
+        json_length also supports input of the VARIANT type; you can pass the output of
+        PARSE_JSON into json_length.
+
         Because a None result can mean several different things (the input is not valid
         JSON, the path does not match anything, or a wildcard path matched 2 or more
         nodes), it is recommended to pair json_length with a helper function so invalid
@@ -2293,7 +2296,7 @@ class Expression(Generic[T]):
         ::
 
             # returns the length only for valid JSON, otherwise None means "invalid input"
-            >>> lit("[1,2,3]").is_json().then(lit("[1,2,3]").json_length(), null_of(DataTypes.INT()))
+            >>> lit("[1,2]").is_json().then(lit("[1,2]").json_length(), null_of(DataTypes.INT()))
 
             # path is present even when json_length is None due to a multi-match wildcard
             >>> lit("{}").json_exists("$.items[*]")
@@ -2312,6 +2315,10 @@ class Expression(Generic[T]):
 
             >>> lit('[1,2,3,4,5]').json_length('$.[7]') # None
             >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
+
+            # VARIANT input via PARSE_JSON, reached through call_sql
+            >>> call_sql("PARSE_JSON('[1,2,3,4,5]')").json_length() # 5
+            >>> call_sql("PARSE_JSON('{\"1\":1,\"2\":2}')").json_length('$.1') # 1
         """
         if path is None:
             return _unary_op("jsonLength")(self)
