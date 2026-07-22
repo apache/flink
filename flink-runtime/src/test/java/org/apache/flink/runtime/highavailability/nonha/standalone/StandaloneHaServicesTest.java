@@ -30,6 +30,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -140,5 +142,37 @@ public class StandaloneHaServicesTest extends TestLogger {
         verify(jmListener2)
                 .notifyLeaderAddress(
                         eq(jobManagerAddress2), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
+    }
+
+    /**
+     * Tests that the constructor properly validates null parameters and provides meaningful error
+     * messages.
+     */
+    @Test
+    public void testConstructorNullValidation() {
+        // Test null resourceManagerAddress
+        Exception exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () -> new StandaloneHaServices(null, dispatcherAddress, webMonitorAddress));
+        assertTrue(exception.getMessage().contains("resourceManagerAddress"));
+
+        // Test null dispatcherAddress
+        exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () ->
+                                new StandaloneHaServices(
+                                        resourceManagerAddress, null, webMonitorAddress));
+        assertTrue(exception.getMessage().contains("dispatcherAddress"));
+
+        // Test null clusterRestEndpointAddress
+        exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () ->
+                                new StandaloneHaServices(
+                                        resourceManagerAddress, dispatcherAddress, null));
+        assertTrue(exception.getMessage().contains("clusterRestEndpointAddress"));
     }
 }
