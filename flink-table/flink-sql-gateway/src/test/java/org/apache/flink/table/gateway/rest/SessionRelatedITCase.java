@@ -166,6 +166,7 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
 
         long lastAccessTime = session.getLastAccessTime();
 
+        Thread.sleep(1); // ensure requests are not sent at the same time
         CompletableFuture<EmptyResponseBody> future =
                 sendRequest(
                         TriggerSessionHeartbeatHeaders.getInstance(),
