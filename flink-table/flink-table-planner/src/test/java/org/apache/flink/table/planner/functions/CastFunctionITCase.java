@@ -237,16 +237,22 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('true') AS STRING)",
                                 "true",
                                 STRING().notNull())
+                        // Objects and arrays are not scalar strings: CAST fails and points to
+                        // JSON_STRING, TRY_CAST returns NULL. Use JSON_STRING for the JSON form.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[\"a\", \"b\"]").cast(STRING()), "JSON_STRING")
                         .testResult(
-                                call("PARSE_JSON", "[\"a\", \"b\"]").cast(STRING()),
-                                "CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
-                                "[\"a\",\"b\"]",
-                                STRING().notNull())
+                                call("PARSE_JSON", "[\"a\", \"b\"]").tryCast(STRING()),
+                                "TRY_CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
+                                null,
+                                STRING())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "{\"a\": 1}").cast(STRING()), "JSON_STRING")
                         .testResult(
-                                call("PARSE_JSON", "{\"a\": 1}").cast(STRING()),
-                                "CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
-                                "{\"a\":1}",
-                                STRING().notNull())
+                                call("PARSE_JSON", "{\"a\": 1}").tryCast(STRING()),
+                                "TRY_CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
+                                null,
+                                STRING())
                         // Bounded CHAR/VARCHAR is strict on length.
                         // VARCHAR(n) allows any length up to n;
                         // CHAR(n) requires the exact length.

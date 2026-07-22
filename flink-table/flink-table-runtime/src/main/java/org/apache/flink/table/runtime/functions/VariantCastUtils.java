@@ -30,8 +30,9 @@ import java.math.BigInteger;
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
  *
  * <p>Numeric targets are range-checked and raise {@link TableRuntimeException} on overflow instead
- * of wrapping. Casting to a string extracts the scalar value (a string stays unquoted), while
- * objects and arrays use their JSON representation.
+ * of wrapping. Casting to a character string extracts the scalar value (a string stays unquoted); a
+ * variant holding an object, array, or binary value is not castable and raises {@link
+ * TableRuntimeException} (use {@code JSON_STRING} for its JSON representation).
  */
 @Internal
 public final class VariantCastUtils {
@@ -69,23 +70,27 @@ public final class VariantCastUtils {
     /**
      * Casts a {@code VARIANT} to its SQL string value for a {@code CHAR(targetLength)} or {@code
      * VARCHAR(targetLength)} target. Scalars use their raw value (a string stays unquoted, unlike
-     * {@code JSON_STRING}); objects and arrays use their JSON representation.
+     * {@code JSON_STRING}); a variant holding an object, array, or binary value is not castable and
+     * raises {@link TableRuntimeException}.
      *
      * <p>The target length is enforced strictly, with no padding or truncation: a {@code VARCHAR}
      * value must not be longer than {@code targetLength}, and a {@code CHAR} value must match it
      * exactly. A value that does not fit raises {@link TableRuntimeException}.
      */
     public static String toStringValue(Variant variant, int targetLength, boolean charTarget) {
-        final String value;
         switch (variant.getType()) {
             case OBJECT:
             case ARRAY:
             case BYTES:
-                value = variant.toJson();
-                break;
+                throw new TableRuntimeException(
+                        String.format(
+                                "Cannot cast a VARIANT %s value to a character string. Use the "
+                                        + "JSON_STRING function to obtain its JSON representation.",
+                                variant.getType()));
             default:
-                value = String.valueOf(variant.get());
+                // Scalars are cast to their raw string value.
         }
+        final String value = String.valueOf(variant.get());
         final int length = value.length();
         final boolean fits = charTarget ? length == targetLength : length <= targetLength;
         if (!fits) {

@@ -1550,9 +1550,9 @@ targets accept any numeric value, so `PARSE_JSON('42')` casts to `INT`, `BIGINT`
 value outside an integer or `DECIMAL` target's range fails `CAST` and returns `NULL` for
 `TRY_CAST`. Other targets require the stored value to be of the matching kind, and a mismatch is
 handled the same way. Casting a `VARIANT` to `CHAR`/`VARCHAR` extracts the scalar value, so a
-stored string is returned unquoted (for example `foo`), while objects and arrays return their JSON
-representation. Use `JSON_STRING` for the JSON representation, where a string stays quoted (for
-example `"foo"`). A bounded `CHAR(n)`/`VARCHAR(n)` target is length-checked strictly, with no
+stored string is returned unquoted (for example `foo`). A variant that holds an object, array, or
+binary value is not castable to a string; use `JSON_STRING` for its JSON representation instead
+(there a string stays quoted, for example `"foo"`). A bounded `CHAR(n)`/`VARCHAR(n)` target is length-checked strictly, with no
 padding or truncation: `VARCHAR(n)` accepts up to `n` characters and `CHAR(n)` requires exactly `n`,
 otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
 
