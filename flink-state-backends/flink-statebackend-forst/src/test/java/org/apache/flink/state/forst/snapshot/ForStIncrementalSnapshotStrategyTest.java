@@ -200,7 +200,8 @@ class ForStIncrementalSnapshotStrategyTest {
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2),
                 UUID.randomUUID(),
                 new TreeMap<>(),
-                new ForStStateDataTransfer(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()),
+                new ForStStateDataTransfer(
+                        ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()),
                 -1);
     }
 
@@ -232,7 +233,8 @@ class ForStIncrementalSnapshotStrategyTest {
                 new KeyGroupRange(0, 1),
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2),
                 UUID.randomUUID(),
-                new ForStStateDataTransfer(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()));
+                new ForStStateDataTransfer(
+                        ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()));
     }
 
     private FsCheckpointStreamFactory createFsCheckpointStreamFactory() throws IOException {

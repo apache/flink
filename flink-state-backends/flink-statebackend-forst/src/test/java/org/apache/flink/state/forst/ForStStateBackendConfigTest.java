@@ -835,12 +835,11 @@ public class ForStStateBackendConfigTest {
     public void testConfigureCheckpointTransferThreadNumber() throws Exception {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         Configuration configuration = new Configuration();
-        configuration.setString(
-                ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.key(), "10");
+        configuration.setString(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.key(), "10");
         forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
 
         try (ForStResourceContainer resourceContainer =
-                     forStStateBackend.createOptionsAndResourceContainer(null)) {
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
             assertEquals(10, resourceContainer.getDataTransferThreadNum());
         }
     }
