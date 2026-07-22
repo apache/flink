@@ -301,8 +301,7 @@ interface DoubleAccumulator {
         private final List<Double> values = new ArrayList<>();
 
         @VisibleForTesting
-        DoubleDataSkew() {
-        }
+        DoubleDataSkew() {}
 
         private DoubleDataSkew(double init) {
             values.add(init);
