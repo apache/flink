@@ -16,14 +16,17 @@
     limitations under the License.
    ################################################################################
 
-=============
-API Reference
-=============
+=====================
+Execution Environment
+=====================
 
-.. toctree::
-    :maxdepth: 2
+Functions for setting, inspecting, and creating the environment used by DataFrame operations.
 
-    pyflink.dataframe/index
-    pyflink.table/index
-    pyflink.datastream/index
-    pyflink.common/index
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    set_table_environment
+    get_table_environment
+    get_or_create_table_environment

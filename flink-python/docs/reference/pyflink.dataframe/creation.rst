@@ -16,14 +16,25 @@
     limitations under the License.
    ################################################################################
 
-=============
-API Reference
-=============
+==================
+DataFrame Creation
+==================
 
-.. toctree::
-    :maxdepth: 2
+Functions for creating DataFrames from row-oriented or column-oriented Python data.
 
-    pyflink.dataframe/index
-    pyflink.table/index
-    pyflink.datastream/index
-    pyflink.common/index
+Example::
+
+    >>> import pyflink.dataframe as pf
+    >>> users = pf.from_records([
+    ...     {"id": 1, "name": "Alice"},
+    ...     {"id": 2, "name": "Bob"},
+    ... ])
+    >>> users = pf.from_dict({"id": [1, 2], "name": ["Alice", "Bob"]})
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    from_records
+    from_dict
