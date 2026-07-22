@@ -1552,15 +1552,15 @@ value outside an integer or `DECIMAL` target's range fails `CAST` and returns `N
 handled the same way. Casting a `VARIANT` to `CHAR`/`VARCHAR` extracts the scalar value, so a
 stored string is returned unquoted (for example `foo`), while objects and arrays return their JSON
 representation. Use `JSON_STRING` for the JSON representation, where a string stays quoted (for
-example `"foo"`). Casting to `TIME` is not supported.
+example `"foo"`).
 
 {{< hint info >}}
-Unlike a regular numeric cast, casting a numeric `VARIANT` never wraps on overflow. To narrow a 
-`VARIANT` with wrap-around semantics, first cast it to a type that fits the stored value, then apply a 
+Unlike a regular numeric cast, casting a numeric `VARIANT` never overflows. To narrow a 
+`VARIANT`, first cast it to a type that fits the stored value, then apply a 
 regular narrowing cast:
 
 ```sql
-CAST(CAST(PARSE_JSON('1000') AS INT) AS TINYINT) -- returns -24 (wrap-around)
+CAST(CAST(PARSE_JSON('1000') AS INT) AS TINYINT) -- returns -24 (after overflow)
 ```
 {{< /hint >}}
 

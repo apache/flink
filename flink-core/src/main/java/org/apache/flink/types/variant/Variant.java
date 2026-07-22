@@ -94,7 +94,8 @@ public interface Variant {
     float getFloat() throws VariantTypeException;
 
     /**
-     * Get the scalar value of variant as BigDecimal, if the variant type is {@link Type#DECIMAL}.
+     * Get the scalar value of variant as {@link BigDecimal}, if the variant type is {@link
+     * Type#DECIMAL}.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
      *     Type#DECIMAL}.
@@ -118,7 +119,8 @@ public interface Variant {
     String getString() throws VariantTypeException;
 
     /**
-     * Get the scalar value of variant as LocalDate, if the variant type is {@link Type#DATE}.
+     * Get the scalar value of variant as {@link LocalDate}, if the variant type is {@link
+     * Type#DATE}.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
      *     Type#DATE}.
@@ -126,7 +128,7 @@ public interface Variant {
     LocalDate getDate() throws VariantTypeException;
 
     /**
-     * Get the scalar value of variant as LocalDateTime, if the variant type is {@link
+     * Get the scalar value of variant as {@link LocalDateTime}, if the variant type is {@link
      * Type#TIMESTAMP}. The returned value has microsecond precision.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
@@ -135,7 +137,7 @@ public interface Variant {
     LocalDateTime getDateTime() throws VariantTypeException;
 
     /**
-     * Get the scalar value of variant as Instant, if the variant type is {@link
+     * Get the scalar value of variant as {@link Instant}, if the variant type is {@link
      * Type#TIMESTAMP_LTZ}. The returned value has microsecond precision.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link

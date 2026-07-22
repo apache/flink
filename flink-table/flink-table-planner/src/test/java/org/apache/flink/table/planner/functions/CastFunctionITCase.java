@@ -151,7 +151,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('42') AS INT)",
                                 42,
                                 INT().notNull())
-                        // Spark-style overflow: an integer value outside the target range fails
+                        // An integer value outside the target range fails
                         // CAST and returns NULL for TRY_CAST, instead of wrapping around.
                         .testTableApiRuntimeError(
                                 call("PARSE_JSON", "40000").cast(SMALLINT()), "overflowed")
@@ -247,6 +247,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
                                 "{\"a\":1}",
                                 STRING().notNull())
+                        // Bounded CHAR/VARCHAR targets trim or pad to the target length, the same
+                        // as any other cast to a string (via CharVarCharTrimPadCastRule).
+                        .testResult(
+                                call("PARSE_JSON", "\"foobar\"").cast(VARCHAR(3)),
+                                "CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
+                                "foo",
+                                VARCHAR(3).notNull())
+                        .testResult(
+                                call("PARSE_JSON", "\"ab\"").cast(CHAR(5)),
+                                "CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
+                                "ab   ",
+                                CHAR(5).notNull())
                         // TRY_CAST of a value whose kind does not match the target returns NULL
                         .testResult(
                                 call("PARSE_JSON", "\"foo\"").tryCast(INT()),

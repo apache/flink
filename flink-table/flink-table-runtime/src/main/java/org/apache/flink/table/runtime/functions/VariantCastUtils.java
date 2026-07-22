@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.types.variant.Variant;
 
@@ -28,9 +29,9 @@ import java.math.BigInteger;
 /**
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
  *
- * <p>Numeric targets are range-checked and raise {@link ArithmeticException} on overflow instead of
- * wrapping. Casting to a string extracts the scalar value (a string stays unquoted), while objects
- * and arrays use their JSON representation.
+ * <p>Numeric targets are range-checked and raise {@link TableRuntimeException} on overflow instead
+ * of wrapping. Casting to a string extracts the scalar value (a string stays unquoted), while
+ * objects and arrays use their JSON representation.
  */
 @Internal
 public final class VariantCastUtils {
@@ -57,7 +58,7 @@ public final class VariantCastUtils {
         final DecimalData decimal =
                 DecimalData.fromBigDecimal(toBigDecimal(value), precision, scale);
         if (decimal == null) {
-            throw new ArithmeticException(
+            throw new TableRuntimeException(
                     String.format(
                             "Casting the VARIANT value %s to DECIMAL(%d, %d) overflowed.",
                             value, precision, scale));
@@ -85,7 +86,7 @@ public final class VariantCastUtils {
         final BigInteger integral = toBigDecimal(value).toBigInteger();
         if (integral.compareTo(BigInteger.valueOf(min)) < 0
                 || integral.compareTo(BigInteger.valueOf(max)) > 0) {
-            throw new ArithmeticException(
+            throw new TableRuntimeException(
                     String.format(
                             "Casting the VARIANT value %s to %s overflowed.", value, targetType));
         }

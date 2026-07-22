@@ -40,9 +40,9 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.ter
 /**
  * {@link LogicalTypeRoot#VARIANT} to primitive type cast rule.
  *
- * <p>Numeric targets are lenient and follow regular numeric cast semantics; other targets require
- * the stored value to match the target kind. On a mismatch {@code CAST} fails and {@code TRY_CAST}
- * returns {@code null}.
+ * <p>Numeric targets accept any stored numeric value but are range-checked, so an out-of-range
+ * integer or decimal fails {@code CAST} and yields {@code null} for {@code TRY_CAST}. Other targets
+ * require the stored value to match the target kind, handled the same way on a mismatch.
  *
  * <p>{@code CHARACTER_STRING} is handled by {@link VariantToStringCastRule}; {@code TIME} has no
  * variant counterpart and is unsupported.
@@ -166,9 +166,9 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
     /**
      * Converts a numeric variant to the numeric {@code target}. Integer and decimal targets are
      * range-checked so that an out-of-range value fails {@code CAST} and yields {@code null} for
-     * {@code TRY_CAST}, following Spark's variant cast semantics; {@code FLOAT} and {@code DOUBLE}
-     * keep lenient IEEE conversion (overflow becomes infinity). A non-numeric variant raises {@link
-     * ClassCastException}, which fails {@code CAST} and yields {@code null} for {@code TRY_CAST}.
+     * {@code TRY_CAST}; {@code FLOAT} and {@code DOUBLE} keep lenient IEEE conversion (overflow
+     * becomes infinity). A non-numeric variant raises {@link ClassCastException}, which fails
+     * {@code CAST} and yields {@code null} for {@code TRY_CAST}.
      */
     private static String numericExpression(String inputTerm, LogicalType target) {
         final String number = cast(className(Number.class), methodCall(inputTerm, "get"));

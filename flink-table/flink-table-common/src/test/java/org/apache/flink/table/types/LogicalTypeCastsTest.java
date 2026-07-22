@@ -289,7 +289,7 @@ class LogicalTypeCastsTest {
                 Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, true),
                 // variant identity cast is implicit
                 Arguments.of(new VariantType(), new VariantType(), true, true),
-                // TIME, character strings and constructed targets are not castable from variant
+                // TIME and constructed targets are not castable from variant
                 Arguments.of(new VariantType(), new TimeType(), false, false),
                 Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false),
                 Arguments.of(new VariantType(), new RowType(List.of()), false, false),
