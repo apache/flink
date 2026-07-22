@@ -36,6 +36,7 @@ import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.FileCacheEntry;
 import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -49,6 +50,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -68,6 +70,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.state.forst.ForStOptions.CACHE_LRU_ACCESS_BEFORE_PROMOTION;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ForStFlinkFileSystem}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -469,6 +472,79 @@ public class ForStFlinkFileSystemTest {
                         FileSystem.getLocalFileSystem()
                                 .getFileStatus(mappingEntry.getSourcePath())
                                 .getLen());
+    }
+
+    @Test
+    public void testListStatusDropsDeletedNotOwnedEntryAfterGiveUpOwnership() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        null);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+
+        org.apache.flink.core.fs.Path survivorPath =
+                new org.apache.flink.core.fs.Path(remotePath, "survivor.sst");
+        try (ByteBufferWritableFSDataOutputStream os = fileSystem.create(survivorPath)) {
+            os.write(1);
+        }
+
+        org.apache.flink.core.fs.Path notOwnedPath =
+                new org.apache.flink.core.fs.Path(remotePath, "not-owned.sst");
+        try (ByteBufferWritableFSDataOutputStream os = fileSystem.create(notOwnedPath)) {
+            os.write(2);
+        }
+        org.apache.flink.core.fs.Path notOwnedSource =
+                fileSystem.getMappingEntry(notOwnedPath).getSourcePath();
+        fileSystem.giveUpOwnership(notOwnedPath, new FileStateHandle(notOwnedSource, 1L));
+        assertThat(fileSystem.getMappingEntry(notOwnedPath).getFileOwnership())
+                .isEqualTo(FileOwnership.NOT_OWNED);
+
+        // Now the JM is deleting the physical object.
+        fileSystem.getDelegateFS().delete(notOwnedSource, false);
+
+        FileStatus[] statuses = fileSystem.listStatus(remotePath);
+        assertThat(statuses).hasSize(1);
+        assertThat(statuses[0].getPath()).isEqualTo(survivorPath);
+        assertThat(fileSystem.getMappingEntry(notOwnedPath)).isNull();
+        assertThat(fileSystem.getMappingEntry(survivorPath)).isNotNull();
+    }
+
+    @Test
+    public void testListStatusStillFailsForDeletedDbOwnedFile() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        null);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+
+        org.apache.flink.core.fs.Path dbOwnedPath =
+                new org.apache.flink.core.fs.Path(remotePath, "db-owned.sst");
+        try (ByteBufferWritableFSDataOutputStream os = fileSystem.create(dbOwnedPath)) {
+            os.write(1);
+        }
+        MappingEntry entry = fileSystem.getMappingEntry(dbOwnedPath);
+        assertThat(entry.getFileOwnership()).isEqualTo(FileOwnership.SHAREABLE_OWNED_BY_DB);
+
+        // Delete the physical object out from under the DB-owned entry.
+        fileSystem.getDelegateFS().delete(entry.getSourcePath(), false);
+
+        assertThatThrownBy(() -> fileSystem.listStatus(remotePath))
+                .isInstanceOf(FileNotFoundException.class);
+        assertThat(fileSystem.getMappingEntry(dbOwnedPath)).isNotNull();
     }
 
     @Test
