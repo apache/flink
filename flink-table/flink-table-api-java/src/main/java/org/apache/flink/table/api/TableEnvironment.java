@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -1079,6 +1080,48 @@ public interface TableEnvironment {
      * @see TableEnvironment#useDatabase(String)
      */
     Table from(String path);
+
+    /**
+     * Reads a registered table and applies dynamic options, returning the corresponding {@link
+     * Table}.
+     *
+     * <p>This is the Table API equivalent of SQL's {@code OPTIONS} hint. Use it to override table
+     * options at query time without modifying the table's DDL definition. Typical use cases include
+     * changing the scan startup mode, adjusting parallelism hints, or overriding format settings
+     * for a specific query.
+     *
+     * <pre>{@code
+     * // Table API (this method)
+     * Table tab = tableEnv.from("kafka_table1", Map.of("scan.startup.mode", "earliest-offset"));
+     *
+     * // Equivalent SQL
+     * // SELECT * FROM kafka_table1 /*+ OPTIONS('scan.startup.mode'='earliest-offset') * /
+     * }</pre>
+     *
+     * <p>Dynamic options override the table's static options defined at creation time (DDL). This
+     * method supports both regular catalog tables and materialized tables, but <b>not views</b>.
+     *
+     * <p>Options are represented as {@code Map<String, String>} for consistency with the rest of
+     * the Table/SQL ecosystem (DDL WITH clauses, SQL OPTIONS hints, {@link
+     * CatalogTable#getOptions()}). Typed values are parsed from their string representation by the
+     * connector factory at execution time.
+     *
+     * <p>Note that option validation (e.g., unrecognized keys or invalid values) is performed
+     * lazily when the query is optimized or executed, not at the time this method is called.
+     * Invalid options will result in a {@link ValidationException} during planning or execution.
+     *
+     * <p>The configuration option {@code table.dynamic-table-options.enabled} must be set to {@code
+     * true} (the default) for dynamic options to take effect.
+     *
+     * @param path The path of a table API object to scan.
+     * @param dynamicOptions A map of option key-value pairs to override on the table. Must not be
+     *     null. An empty map is treated as a no-op (original options are preserved).
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @throws ValidationException if the table is not found, is a view, or dynamic options are
+     *     disabled.
+     * @see TableEnvironment#from(String)
+     */
+    Table from(String path, Map<String, String> dynamicOptions);
 
     /**
      * Returns a {@link Table} backed by the given {@link TableDescriptor descriptor}.

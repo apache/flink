@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.AbstractDataType;
 
+import java.util.Map;
 import java.util.function.Function;
 
 /** Test step for execution of a Table API. Similar to {@link SqlTestStep}. */
@@ -85,6 +86,11 @@ public class TableApiTestStep implements TestStep {
                     }
 
                     @Override
+                    public Table from(String path, Map<String, String> dynamicOptions) {
+                        return env.from(path, dynamicOptions);
+                    }
+
+                    @Override
                     public Model fromModel(String modelPath) {
                         return env.fromModel(modelPath);
                     }
@@ -136,6 +142,8 @@ public class TableApiTestStep implements TestStep {
 
         /** See {@link TableEnvironment#sqlQuery(String)}. */
         Table sqlQuery(String query);
+
+        Table from(String path, Map<String, String> dynamicOptions);
 
         /** See {@link TableEnvironment#fromModel(String)}. */
         Model fromModel(String modelPath);

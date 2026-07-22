@@ -30,6 +30,7 @@ import org.apache.flink.table.test.program.TableApiTestStep.TableEnvAccessor;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Map;
 import java.util.function.Function;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -102,6 +103,11 @@ public final class FailingTableApiTestStep implements TestStep {
                     @Override
                     public Table sqlQuery(String query) {
                         return env.sqlQuery(query);
+                    }
+
+                    @Override
+                    public Table from(String path, Map<String, String> dynamicOptions) {
+                        return null;
                     }
 
                     @Override
