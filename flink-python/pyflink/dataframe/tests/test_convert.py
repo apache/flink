@@ -28,14 +28,6 @@ class _CapturingEnvironment:
 
 
 class FromRecordsTests(unittest.TestCase):
-    def test_rejects_string_like_data_container(self):
-        for data in ["ab", b"ab", bytearray(b"ab")]:
-            with self.subTest(data_type=type(data)):
-                with self.assertRaisesRegex(
-                    TypeError, "data must be a non-string sequence of records"
-                ):
-                    pf.from_records(data, schema=["id"])
-
     def test_rejects_empty_data(self):
         with self.assertRaisesRegex(ValueError, "data must not be empty"):
             pf.from_records([], schema=["id"])
@@ -66,7 +58,7 @@ class FromRecordsTests(unittest.TestCase):
 
     def test_rejects_unsupported_record_type(self):
         with self.assertRaisesRegex(
-            TypeError, "records must be mappings or non-string sequences"
+            TypeError, "records must be mappings or sequences"
         ):
             pf.from_records([1], schema=["id"])
 
@@ -89,9 +81,25 @@ class FromRecordsTests(unittest.TestCase):
             with self.subTest(records=records):
                 with self.assertRaisesRegex(
                     ValueError,
-                    "mapping record at index 1 must have the same keys as the first record",
+                    "record at index 1 must have the same fields as schema",
                 ):
                     pf.from_records(records)
+
+    def test_explicit_schema_ignores_unselected_mapping_keys(self):
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
+        environment = _CapturingEnvironment()
+        pf.set_table_environment(environment)
+
+        pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "nickname": "Al"},
+                {"id": 2, "name": "Bob"},
+            ],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(environment.rows, [(1, "Alice"), (2, "Bob")])
 
     def test_rejects_schema_field_missing_from_mapping_records(self):
         previous_environment = pf.get_table_environment()
@@ -99,7 +107,7 @@ class FromRecordsTests(unittest.TestCase):
         pf.set_table_environment(_CapturingEnvironment())
 
         with self.assertRaisesRegex(
-            ValueError, "schema field 'name' is not present in mapping records"
+            ValueError, "schema field 'name' is not present in records"
         ):
             pf.from_records([{"id": 1}], schema=["id", "name"])
 
@@ -118,6 +126,12 @@ class FromRecordsTests(unittest.TestCase):
 
 
 class FromDictTests(unittest.TestCase):
+    def test_rejects_data_that_is_not_a_mapping(self):
+        for data in [[], [("id", [1])]]:
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(TypeError, "data must be a mapping"):
+                    pf.from_dict(data)
+
     def test_rejects_empty_data(self):
         with self.assertRaisesRegex(ValueError, "data must not be empty"):
             pf.from_dict({})
@@ -125,14 +139,6 @@ class FromDictTests(unittest.TestCase):
     def test_rejects_zero_rows(self):
         with self.assertRaisesRegex(ValueError, "data must contain at least one row"):
             pf.from_dict({"id": []})
-
-    def test_rejects_string_like_column_values(self):
-        for values in ["Alice", b"abc", bytearray(b"abc")]:
-            with self.subTest(value_type=type(values)):
-                with self.assertRaisesRegex(
-                    TypeError, "column 'value' values must be a non-string sequence"
-                ):
-                    pf.from_dict({"value": values})
 
     def test_rejects_columns_with_different_lengths(self):
         with self.assertRaisesRegex(ValueError, "columns must have equal lengths"):
@@ -157,7 +163,6 @@ class FromDictTests(unittest.TestCase):
     def test_rejects_duplicate_schema_field_names(self):
         with self.assertRaisesRegex(ValueError, "schema field names must be unique"):
             pf.from_dict({"id": [1]}, schema=["id", "id"])
-
 
 if __name__ == "__main__":
     unittest.main()

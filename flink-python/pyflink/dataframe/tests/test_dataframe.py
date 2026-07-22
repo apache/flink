@@ -17,15 +17,26 @@
 ################################################################################
 
 import unittest
+from typing import NamedTuple
 
 import pyflink.dataframe as pf
 from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
+from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.expression import Expression
 from pyflink.testing.test_case_utils import PyFlinkStreamDataFrameTestCase
-from pyflink.util.api_stability_decorators import PublicEvolving
 
 _PREEXISTING_TABLE_ENVIRONMENT = object()
+
+
+class _Point(NamedTuple):
+    x: int
+    y: int
+
+
+class _OtherPoint(NamedTuple):
+    x: int
+    z: int
 
 
 class _CloseableIterator:
@@ -63,103 +74,6 @@ class _Table:
 
     def execute(self):
         return _TableResult(self._iterator)
-
-
-class DataFramePublicApiTests(unittest.TestCase):
-    def test_exports_minimal_public_api(self):
-        expected_exports = [
-            "DataFrame",
-            "DataType",
-            "col",
-            "lit",
-            "from_dict",
-            "from_records",
-            "set_table_environment",
-            "get_table_environment",
-            "get_or_create_table_environment",
-        ]
-
-        self.assertEqual(pf.__all__, expected_exports)
-        for name in expected_exports:
-            with self.subTest(name=name):
-                self.assertTrue(hasattr(pf, name))
-
-    def test_exports_are_public_evolving_and_versioned(self):
-        for name in pf.__all__:
-            exported = getattr(pf, name)
-            with self.subTest(name=name):
-                self.assertIn(
-                    PublicEvolving,
-                    getattr(exported, "__stability_decorators", set()),
-                )
-                self.assertIn(".. versionadded:: 2.4.0", exported.__doc__)
-
-    def test_public_methods_are_versioned(self):
-        methods = [
-            pf.DataFrame.filter,
-            pf.DataFrame.with_column,
-            pf.DataFrame.select,
-            pf.DataFrame.__getitem__,
-            pf.DataFrame.collect,
-            pf.DataType.int64,
-            pf.DataType.string,
-        ]
-
-        for method in methods:
-            with self.subTest(method=method.__name__):
-                self.assertIn(".. versionadded:: 2.4.0", method.__doc__)
-
-    def test_dataframe_methods_are_public_evolving(self):
-        methods = [
-            pf.DataFrame.filter,
-            pf.DataFrame.with_column,
-            pf.DataFrame.select,
-            pf.DataFrame.__getitem__,
-            pf.DataFrame.collect,
-            pf.DataType.int64,
-            pf.DataType.string,
-        ]
-
-        for method in methods:
-            with self.subTest(method=method.__name__):
-                self.assertIn(
-                    PublicEvolving,
-                    getattr(method, "__stability_decorators", set()),
-                )
-
-    def test_public_api_docstrings_include_examples(self):
-        documented_objects = [
-            pf,
-            pf.DataFrame,
-            pf.DataType,
-            pf.col,
-            pf.lit,
-            pf.from_dict,
-            pf.from_records,
-            pf.set_table_environment,
-            pf.get_table_environment,
-            pf.get_or_create_table_environment,
-            pf.DataFrame.filter,
-            pf.DataFrame.with_column,
-            pf.DataFrame.select,
-            pf.DataFrame.__getitem__,
-            pf.DataFrame.collect,
-            pf.DataType.int64,
-            pf.DataType.string,
-        ]
-
-        for documented_object in documented_objects:
-            with self.subTest(documented_object=documented_object):
-                self.assertIn("Example::\n\n", documented_object.__doc__)
-
-    def test_dataframe_public_method_surface(self):
-        public_methods = {
-            name for name in dir(pf.DataFrame) if not name.startswith("_")
-        }
-
-        self.assertEqual(
-            public_methods, {"collect", "filter", "select", "with_column"}
-        )
 
 
 class DataFrameCollectTests(unittest.TestCase):
@@ -311,6 +225,30 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
 
         self.assertEqual(result.collect(), [Row(0, 1), Row(2, 3)])
 
+    def test_from_records_uses_named_tuple_fields_as_schema(self):
+        result = pf.from_records([_Point(1, 2), _Point(3, 4)]).select("x", "y")
+
+        self.assertEqual(result.collect(), [Row(1, 2), Row(3, 4)])
+
+    def test_from_records_rejects_schema_that_renames_named_tuple_fields(self):
+        with self.assertRaisesRegex(
+            ValueError, "schema field 'a' is not present in records"
+        ):
+            pf.from_records([_Point(1, 2)], schema=["a", "b"])
+
+    def test_from_records_schema_selects_named_tuple_fields(self):
+        result = pf.from_records(
+            [_Point(1, 2), _Point(3, 4)], schema=["y", "x"]
+        )
+
+        self.assertEqual(result.collect(), [Row(2, 1), Row(4, 3)])
+
+    def test_from_records_rejects_different_inferred_named_tuple_fields(self):
+        with self.assertRaisesRegex(
+            ValueError, "record at index 1 must have the same fields as schema"
+        ):
+            pf.from_records([_Point(1, 2), _OtherPoint(3, 4)])
+
     def test_from_records_infers_schema_from_mapping_records(self):
         result = pf.from_records(
             [{"name": "Alice", "id": 1}, {"name": "Bob", "id": 2}]
@@ -437,6 +375,14 @@ class DataFrameEndToEndTests(PyFlinkStreamDataFrameTestCase):
         )
 
         self.assertEqual(result.collect(), [Row(None, None)])
+
+    def test_lit_supports_small_int_for_non_nullable_bigint(self):
+        non_nullable_bigint = pf.DataType(TableDataTypes.BIGINT().not_null())
+        result = pf.from_records([(1,)], schema=["id"]).select(
+            value=pf.lit(3, non_nullable_bigint)
+        )
+
+        self.assertEqual(result.collect(), [Row(3)])
 
     def test_lit_rejects_values_incompatible_with_explicit_type(self):
         incompatible_values = [

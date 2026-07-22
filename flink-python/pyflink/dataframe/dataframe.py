@@ -82,12 +82,14 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
     if value is None:
         return table_lit(value, table_data_type)
     if (
-        data_type == DataType.int64()
+        table_data_type.nullable() == TableDataTypes.BIGINT()
         and isinstance(value, int)
         and not isinstance(value, bool)
         and -(1 << 31) <= value < (1 << 31)
     ):
-        # Py4J sends values in this range as java.lang.Integer rather than java.lang.Long.
+        # Py4J sends Python integers in this range as java.lang.Integer, but a typed BIGINT
+        # literal requires java.lang.Long. Match BIGINT independently of its nullability, then
+        # cast a typed INT literal to the originally declared BIGINT type.
         return table_lit(value, TableDataTypes.INT().not_null()).cast(table_data_type)
     return table_lit(value, table_data_type.not_null())
 
