@@ -356,8 +356,16 @@ public final class BinaryVariant implements Variant {
                 sb.append(escapeJson(BinaryVariantUtil.getString(value, pos)));
                 break;
             case DOUBLE:
-                sb.append(BinaryVariantUtil.getDouble(value, pos));
-                break;
+                {
+                    final double d = BinaryVariantUtil.getDouble(value, pos);
+                    if (Double.isInfinite(d) || Double.isNaN(d)) {
+                        throw new VariantTypeException(
+                                String.format(
+                                        "Non-finite value %s cannot be serialized to JSON.", d));
+                    }
+                    sb.append(d);
+                    break;
+                }
             case DECIMAL:
                 sb.append(BinaryVariantUtil.getDecimal(value, pos).toPlainString());
                 break;
@@ -382,8 +390,17 @@ public final class BinaryVariant implements Variant {
                                         .atZone(ZoneOffset.UTC)));
                 break;
             case FLOAT:
-                sb.append(BinaryVariantUtil.getFloat(value, pos));
-                break;
+                {
+                    final float f = BinaryVariantUtil.getFloat(value, pos);
+                    if (Float.isInfinite(f) || Float.isNaN(f)) {
+                        throw new VariantTypeException(
+                                String.format(
+                                        "Non-finite value %s cannot be serialized to JSON.",
+                                        (double) f));
+                    }
+                    sb.append(f);
+                    break;
+                }
             case BYTES:
                 appendQuoted(
                         sb,

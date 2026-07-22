@@ -20,6 +20,8 @@ package org.apache.flink.types.variant;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -234,6 +236,22 @@ class BinaryVariantTest {
         String json = variant.toJson();
         assertThat(json)
                 .isEqualTo("{" + "\"list\":[\"hello\",1]," + "\"object\":{\"ff\":10.0,\"ss\":1}}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN})
+    void testToJsonRejectsNonFiniteDouble(final double nonFinite) {
+        assertThatThrownBy(() -> builder.of(nonFinite).toJson())
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("cannot be serialized to JSON");
+    }
+
+    @ParameterizedTest
+    @ValueSource(floats = {Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NaN})
+    void testToJsonRejectsNonFiniteFloat(final float nonFinite) {
+        assertThatThrownBy(() -> builder.of(nonFinite).toJson())
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("cannot be serialized to JSON");
     }
 
     @Test
