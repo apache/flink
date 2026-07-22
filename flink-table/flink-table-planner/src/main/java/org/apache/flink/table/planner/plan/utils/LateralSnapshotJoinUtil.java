@@ -22,8 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -81,12 +85,21 @@ public final class LateralSnapshotJoinUtil {
             RelDataType rightType,
             JoinRelType joinType,
             List<RelDataTypeField> systemFieldList) {
+        final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
         final RelDataTypeFactory.Builder materializedRight = typeFactory.builder();
         for (RelDataTypeField field : rightType.getFieldList()) {
-            final RelDataType fieldType =
-                    field.getType() instanceof TimeIndicatorRelDataType
-                            ? ((TimeIndicatorRelDataType) field.getType()).getOriginalType()
-                            : field.getType();
+            final RelDataType fieldType;
+            if (field.getType() instanceof TimeIndicatorRelDataType) {
+                // Materialize the build-side time attribute to a regular timestamp, following the
+                // same convention as RelTimeIndicatorConverter
+                final LogicalType materialized =
+                        FlinkTypeFactory.isTimestampLtzIndicatorType(field.getType())
+                                ? new LocalZonedTimestampType(field.getType().isNullable(), 3)
+                                : new TimestampType(field.getType().isNullable(), 3);
+                fieldType = flinkTypeFactory.createFieldTypeFromLogicalType(materialized);
+            } else {
+                fieldType = field.getType();
+            }
             materializedRight.add(field.getName(), fieldType);
         }
         return SqlValidatorUtil.deriveJoinRowType(
