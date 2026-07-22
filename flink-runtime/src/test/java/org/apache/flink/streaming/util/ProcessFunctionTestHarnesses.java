@@ -21,6 +21,8 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
@@ -33,6 +35,8 @@ import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -87,6 +91,24 @@ public class ProcessFunctionTestHarnesses {
         return testHarness;
     }
 
+    public static <K, IN, OUT>
+            KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> forKeyedProcessFunctionWithStateV2(
+                    final KeyedProcessFunction<K, IN, OUT> function,
+                    final KeySelector<IN, K> keySelector,
+                    final TypeInformation<K> keyType)
+                    throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> testHarness =
+                AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                        new AsyncKeyedProcessOperator<>(Preconditions.checkNotNull(function)),
+                        keySelector,
+                        keyType,
+                        1,
+                        1,
+                        0);
+        testHarness.open();
+        return testHarness;
+    }
+
     /**
      * Returns an initialized test harness for {@link CoProcessFunction} with two input streams.
      *
@@ -129,6 +151,29 @@ public class ProcessFunctionTestHarnesses {
         KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> testHarness =
                 new KeyedTwoInputStreamOperatorTestHarness<>(
                         new KeyedCoProcessOperator<>(Preconditions.checkNotNull(function)),
+                        keySelector1,
+                        keySelector2,
+                        keyType,
+                        1,
+                        1,
+                        0);
+
+        testHarness.open();
+        return testHarness;
+    }
+
+    public static <K, IN1, IN2, OUT>
+            KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
+                    forKeyedCoProcessFunctionWithStateV2(
+                            final KeyedCoProcessFunction<K, IN1, IN2, OUT> function,
+                            final KeySelector<IN1, K> keySelector1,
+                            final KeySelector<IN2, K> keySelector2,
+                            final TypeInformation<K> keyType)
+                            throws Exception {
+
+        KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                        new AsyncKeyedCoProcessOperator<>(Preconditions.checkNotNull(function)),
                         keySelector1,
                         keySelector2,
                         keyType,
