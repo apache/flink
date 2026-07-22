@@ -19,6 +19,8 @@
 package org.apache.flink.types.variant;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -118,6 +120,15 @@ class BinaryVariantInternalBuilderTest {
         variant = BinaryVariantInternalBuilder.parseJson("{\"k1\":1,\"k1\":2,\"k2\":1.5}", true);
         assertThat(variant.getField("k1").getByte()).isEqualTo((byte) 2);
         assertThat(variant.getField("k2").getDecimal()).isEqualTo(BigDecimal.valueOf(1.5));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"NaN", "Infinity", "-Infinity", "1e400", "-1e400"})
+    void testParseJsonRejectsNonFiniteNumbers(final String nonFiniteNumber) {
+        // NaN and the infinities are not valid JSON; 1e400 is valid JSON but overflows the double
+        // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL.
+        assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(nonFiniteNumber, false))
+                .isInstanceOf(IOException.class);
     }
 
     @Test

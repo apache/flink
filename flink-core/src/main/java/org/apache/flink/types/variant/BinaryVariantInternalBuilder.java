@@ -91,6 +91,7 @@ public class BinaryVariantInternalBuilder {
             new VariantTypeException("VARIANT_SIZE_LIMIT");
     public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
             new VariantTypeException("VARIANT_DUPLICATE_KEY");
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -103,7 +104,7 @@ public class BinaryVariantInternalBuilder {
      */
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
-        try (JsonParser parser = new JsonFactory().createParser(json)) {
+        try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }
@@ -622,7 +623,17 @@ public class BinaryVariantInternalBuilder {
 
     private void parseFloatingPoint(JsonParser parser) throws IOException {
         if (!tryParseDecimal(parser.getText())) {
-            appendDouble(parser.getDoubleValue());
+            final double d = parser.getDoubleValue();
+            // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
+            // of storing a non-finite double that toJson() could not render as valid JSON.
+            if (Double.isInfinite(d) || Double.isNaN(d)) {
+                throw new JsonParseException(
+                        parser,
+                        String.format(
+                                "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
+                                parser.getText()));
+            }
+            appendDouble(d);
         }
     }
 
