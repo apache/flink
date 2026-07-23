@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -37,6 +38,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -173,6 +175,98 @@ public class ExecutionConfigTest {
         executionConfig.configure(configuration, ExecutionConfigTest.class.getClassLoader());
 
         assertThat(executionConfig).isEqualTo(new ExecutionConfig());
+    }
+
+    @Test
+    void testArchiveUsesRestartStrategyConfiguredViaConfigOptions() {
+        assertThat(archiveRestartStrategyDescription(fixedDelayRestartConfiguration()))
+                .isEqualTo("Restart with fixed delay (PT1M). #10 restart attempts.");
+
+        Configuration noRestartConfiguration = new Configuration();
+        noRestartConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY,
+                RestartStrategyOptions.RestartStrategyType.NO_RESTART_STRATEGY.getMainValue());
+        assertThat(archiveRestartStrategyDescription(noRestartConfiguration))
+                .isEqualTo("Restart deactivated.");
+
+        Configuration failureRateConfiguration = new Configuration();
+        failureRateConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY,
+                RestartStrategyOptions.RestartStrategyType.FAILURE_RATE.getMainValue());
+        failureRateConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 7);
+        failureRateConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
+                Duration.ofMinutes(2));
+        failureRateConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY, Duration.ofSeconds(3));
+        assertThat(archiveRestartStrategyDescription(failureRateConfiguration))
+                .isEqualTo(
+                        "Failure rate restart with maximum of 7 failures within interval PT2M and fixed delay PT3S.");
+
+        Configuration exponentialDelayConfiguration = new Configuration();
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY,
+                RestartStrategyOptions.RestartStrategyType.EXPONENTIAL_DELAY.getMainValue());
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF,
+                Duration.ofSeconds(1));
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF,
+                Duration.ofMinutes(1));
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 2.0);
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD,
+                Duration.ofHours(1));
+        exponentialDelayConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.3);
+        assertThat(archiveRestartStrategyDescription(exponentialDelayConfiguration))
+                .isEqualTo(
+                        "Restart with exponential delay: starting at PT1S, increasing by 2.000000, with maximum PT1M. "
+                                + "Delay resets after PT1H with jitter 0.300000");
+    }
+
+    @Test
+    void testArchivePrefersExplicitRestartStrategyOverConfigOptions() {
+        ExecutionConfig executionConfig = new ExecutionConfig(fixedDelayRestartConfiguration());
+        executionConfig.setRestartStrategy(RestartStrategies.noRestart());
+
+        assertThat(executionConfig.archive().getRestartStrategyDescription())
+                .isEqualTo("Restart deactivated.");
+    }
+
+    @Test
+    void testArchiveUsesFallbackRestartStrategyWithoutConfigOptions() {
+        assertThat(new ExecutionConfig().archive().getRestartStrategyDescription())
+                .isEqualTo("Cluster level default restart strategy");
+    }
+
+    @Test
+    void testArchiveKeepsLegacyExecutionRetryRestartStrategy() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setNumberOfExecutionRetries(4);
+        executionConfig.setExecutionRetryDelay(123);
+
+        assertThat(executionConfig.archive().getRestartStrategyDescription())
+                .isEqualTo("Restart with fixed delay (PT0.123S). #4 restart attempts.");
+    }
+
+    private String archiveRestartStrategyDescription(Configuration configuration) {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.configure(configuration, ExecutionConfigTest.class.getClassLoader());
+        return executionConfig.archive().getRestartStrategyDescription();
+    }
+
+    private Configuration fixedDelayRestartConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY,
+                RestartStrategyOptions.RestartStrategyType.FIXED_DELAY.getMainValue());
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 10);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMinutes(1));
+        return configuration;
     }
 
     @Test

@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -44,11 +45,7 @@ public class ArchivedExecutionConfig implements Serializable {
 
     public ArchivedExecutionConfig(ExecutionConfig ec) {
         executionMode = ec.getExecutionMode().name();
-        if (ec.getRestartStrategy() != null) {
-            restartStrategyDescription = ec.getRestartStrategy().getDescription();
-        } else {
-            restartStrategyDescription = "default";
-        }
+        restartStrategyDescription = getRestartStrategyDescription(ec);
         maxParallelism = ec.getMaxParallelism();
         parallelism = ec.getParallelism();
         objectReuseEnabled = ec.isObjectReuseEnabled();
@@ -58,6 +55,20 @@ public class ArchivedExecutionConfig implements Serializable {
         } else {
             globalJobParameters = Collections.emptyMap();
         }
+    }
+
+    private static String getRestartStrategyDescription(ExecutionConfig ec) {
+        final RestartStrategies.RestartStrategyConfiguration restartStrategy =
+                ec.getRestartStrategy();
+        if (restartStrategy != null
+                && !(restartStrategy
+                        instanceof RestartStrategies.FallbackRestartStrategyConfiguration)) {
+            return restartStrategy.getDescription();
+        }
+
+        return RestartStrategies.fromConfiguration(ec.toConfiguration())
+                .map(RestartStrategies.RestartStrategyConfiguration::getDescription)
+                .orElse(restartStrategy != null ? restartStrategy.getDescription() : "default");
     }
 
     public ArchivedExecutionConfig(
