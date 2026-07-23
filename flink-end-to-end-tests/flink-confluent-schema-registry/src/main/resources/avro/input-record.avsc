@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
- {"namespace": "example.avro",
- "type": "record",
- "name": "User",
- "fields": [
-     {"name": "name", "type": "string", "default": ""},
-     {"name": "favoriteNumber",  "type": "string", "default": ""},
-     {"name": "favoriteColor", "type": "string", "default": ""},
-     {"name": "eventType","type": {"name": "EventType","type": "enum", "symbols": ["meeting"] }}
- ]
-}
+{
+  "namespace": "org.apache.flink.avro.generated",
+  "type": "record",
+  "name": "record",
+  "fields": [
+    {"name": "name", "type": ["null", "string"], "default": null},
+    {"name": "favoriteNumber", "type": ["null", "string"], "default": null},
+    {"name": "favoriteColor", "type": ["null", "string"], "default": null},
+    {"name": "eventType", "type": ["null", "string"], "default": null}
+  ]
+} 

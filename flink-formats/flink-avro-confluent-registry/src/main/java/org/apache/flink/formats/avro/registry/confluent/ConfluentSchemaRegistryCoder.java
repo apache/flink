@@ -24,41 +24,87 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
 
+import javax.annotation.Nullable;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.Map;
 
 import static java.lang.String.format;
 
 /** Reads and Writes schema using Confluent Schema Registry protocol. */
 public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
+    private static final String AUTO_REGISTER_SCHEMAS_CONFIG = "auto.register.schemas";
+
     private final SchemaRegistryClient schemaRegistryClient;
+    private final boolean autoRegisterSchemas;
     private String subject;
     private static final int CONFLUENT_MAGIC_BYTE = 0;
 
     /**
-     * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
+     * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to the
      * schema registry.
      *
-     * @param schemaRegistryClient client to connect schema registry
      * @param subject subject of schema registry to produce
+     * @param schemaRegistryClient client to connect to the schema registry
+     * @param registryConfigs map with additional schema registry configs. Supports {@code
+     *     auto.register.schemas} to control whether schemas are registered on write (default) or
+     *     only looked up
      */
-    public ConfluentSchemaRegistryCoder(String subject, SchemaRegistryClient schemaRegistryClient) {
+    public ConfluentSchemaRegistryCoder(
+            String subject,
+            SchemaRegistryClient schemaRegistryClient,
+            @Nullable Map<String, ?> registryConfigs) {
         this.schemaRegistryClient = schemaRegistryClient;
         this.subject = subject;
+        this.autoRegisterSchemas = parseAutoRegisterSchemas(registryConfigs);
     }
 
     /**
-     * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
+     * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to the
      * schema registry.
      *
-     * @param schemaRegistryClient client to connect schema registry
+     * @param subject subject of schema registry to produce
+     * @param schemaRegistryClient client to connect to the schema registry
+     */
+    public ConfluentSchemaRegistryCoder(String subject, SchemaRegistryClient schemaRegistryClient) {
+        this(subject, schemaRegistryClient, null);
+    }
+
+    /**
+     * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to the
+     * schema registry.
+     *
+     * @param schemaRegistryClient client to connect to the schema registry
      */
     public ConfluentSchemaRegistryCoder(SchemaRegistryClient schemaRegistryClient) {
-        this.schemaRegistryClient = schemaRegistryClient;
+        this(null, schemaRegistryClient, null);
+    }
+
+    private static boolean parseAutoRegisterSchemas(@Nullable Map<String, ?> registryConfigs) {
+        Object value =
+                registryConfigs == null ? null : registryConfigs.get(AUTO_REGISTER_SCHEMAS_CONFIG);
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        String stringValue = value.toString();
+        if ("true".equalsIgnoreCase(stringValue)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(stringValue)) {
+            return false;
+        }
+        throw new IllegalArgumentException(
+                format(
+                        "Invalid value '%s' for configuration '%s'. Supported values are 'true' or 'false'.",
+                        value, AUTO_REGISTER_SCHEMAS_CONFIG));
     }
 
     @Override
@@ -81,13 +127,32 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
     @Override
     public void writeSchema(Schema schema, OutputStream out) throws IOException {
-        try {
-            int registeredId = schemaRegistryClient.register(subject, schema);
-            out.write(CONFLUENT_MAGIC_BYTE);
-            byte[] schemaIdBytes = ByteBuffer.allocate(4).putInt(registeredId).array();
-            out.write(schemaIdBytes);
-        } catch (RestClientException e) {
-            throw new IOException("Could not register schema in registry", e);
+        int registeredId;
+        if (autoRegisterSchemas) {
+            try {
+                registeredId = schemaRegistryClient.register(subject, schema);
+            } catch (RestClientException e) {
+                throw new IOException(
+                        format(
+                                "Could not register schema %s under subject %s in registry",
+                                schema.getFullName(), subject),
+                        e);
+            }
+        } else {
+            try {
+                registeredId = schemaRegistryClient.getId(subject, schema);
+            } catch (RestClientException | IOException e) {
+                throw new IOException(
+                        format(
+                                "Could not retrieve id for schema %s under subject %s from registry. "
+                                        + "Since '%s' is 'false', an identical schema must be registered "
+                                        + "under this subject before it can be used",
+                                schema.getFullName(), subject, AUTO_REGISTER_SCHEMAS_CONFIG),
+                        e);
+            }
         }
+        out.write(CONFLUENT_MAGIC_BYTE);
+        byte[] schemaIdBytes = ByteBuffer.allocate(4).putInt(registeredId).array();
+        out.write(schemaIdBytes);
     }
 }

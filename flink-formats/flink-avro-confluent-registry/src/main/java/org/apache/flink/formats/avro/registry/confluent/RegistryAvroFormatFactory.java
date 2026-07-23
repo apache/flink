@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.AUTO_REGISTER_SCHEMAS;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
@@ -186,6 +187,7 @@ public class RegistryAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(AUTO_REGISTER_SCHEMAS);
         return options;
     }
 
@@ -203,7 +205,8 @@ public class RegistryAvroFormatFactory
                         BASIC_AUTH_CREDENTIALS_SOURCE,
                         BASIC_AUTH_USER_INFO,
                         BEARER_AUTH_CREDENTIALS_SOURCE,
-                        BEARER_AUTH_TOKEN)
+                        BEARER_AUTH_TOKEN,
+                        AUTO_REGISTER_SCHEMAS)
                 .collect(Collectors.toSet());
     }
 
@@ -237,6 +240,9 @@ public class RegistryAvroFormatFactory
         formatOptions
                 .getOptional(BEARER_AUTH_TOKEN)
                 .ifPresent(v -> properties.put("bearer.auth.token", v));
+        formatOptions
+                .getOptional(AUTO_REGISTER_SCHEMAS)
+                .ifPresent(v -> properties.put("auto.register.schemas", Boolean.toString(v)));
 
         if (properties.isEmpty()) {
             return null;
