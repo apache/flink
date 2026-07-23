@@ -435,6 +435,30 @@ class CorrelateITCase extends StreamingTestBase {
   }
 
   @Test
+  def testCorrelateWithRightSideProjection(): Unit = {
+    val data = List((1, 2, "a|b"), (3, 4, "c|d"))
+
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T1", t1)
+
+    val sql =
+      "SELECT a, s FROM T1, " +
+        "LATERAL (SELECT CONCAT(v, '_x') FROM TABLE(STRING_SPLIT(c, '|')) AS T(v)) AS R(s)"
+
+    val result = tEnv.sqlQuery(sql)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
+    result.executeInsert("MySink").await()
+
+    val expected = List("+I[1, a_x]", "+I[1, b_x]", "+I[3, c_x]", "+I[3, d_x]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
   def testLateralCrossJoin(): Unit = {
     val data = List((1, 2, "x|y"))
 

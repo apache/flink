@@ -18,19 +18,26 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelate
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCalc, StreamPhysicalCorrelate}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule.{getMergedCalc, getTableScan}
-import org.apache.flink.table.planner.plan.utils.{AsyncUtil, PythonUtil}
+import org.apache.flink.table.planner.plan.utils.{AsyncUtil, FlinkRelUtil, PythonUtil}
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
-import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
+import org.apache.calcite.rex.{RexNode, RexProgram, RexUtil}
+import org.apache.calcite.sql.validate.SqlValidatorUtil
+
+import java.util.Collections
+
+import scala.collection.JavaConverters._
 
 /** Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]]. */
 class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
@@ -63,40 +70,75 @@ class StreamPhysicalCorrelateRule(config: Config) extends ConverterRule(config) 
 
   override def convert(rel: RelNode): RelNode = {
     val correlate = rel.asInstanceOf[FlinkLogicalCorrelate]
+    val cluster = correlate.getCluster
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val convInput: RelNode =
       RelOptRule.convert(correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
 
     @scala.annotation.tailrec
-    def convertToCorrelate(
-        relNode: RelNode,
-        condition: Option[RexNode]): StreamPhysicalCorrelate = {
+    def unwrap(relNode: RelNode)
+        : (FlinkLogicalTableFunctionScan, Option[Seq[RexNode]], Option[RexNode]) = {
       relNode match {
-        case rel: RelSubset =>
-          convertToCorrelate(rel.getRelList.get(0), condition)
-
+        case rel: RelSubset => unwrap(rel.getRelList.get(0))
         case calc: FlinkLogicalCalc =>
           val tableScan = getTableScan(calc)
           val newCalc = getMergedCalc(calc)
-          convertToCorrelate(
-            tableScan,
-            if (newCalc.getProgram.getCondition == null) None
-            else Some(newCalc.getProgram.expandLocalRef(newCalc.getProgram.getCondition))
-          )
-
+          val program = newCalc.getProgram
+          val condition =
+            if (program.getCondition == null) None
+            else Some(program.expandLocalRef(program.getCondition))
+          val projects =
+            if (program.projectsOnlyIdentity()) None
+            else Some(program.getProjectList.asScala.map(program.expandLocalRef).toSeq)
+          (tableScan, projects, condition)
         case scan: FlinkLogicalTableFunctionScan =>
-          new StreamPhysicalCorrelate(
-            rel.getCluster,
-            traitSet,
-            convInput,
-            scan,
-            condition,
-            rel.getRowType,
-            correlate.getJoinType)
+          (scan, None, None)
       }
     }
-    convertToCorrelate(right, None)
+
+    val (scan, projectsOpt, condition) = unwrap(right)
+
+    projectsOpt match {
+      case None =>
+        new StreamPhysicalCorrelate(
+          cluster,
+          traitSet,
+          convInput,
+          scan,
+          condition,
+          correlate.getRowType,
+          correlate.getJoinType)
+      case Some(projects) =>
+        val innerRowType = SqlValidatorUtil.deriveJoinRowType(
+          correlate.getLeft.getRowType,
+          scan.getRowType,
+          correlate.getJoinType,
+          cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory],
+          null,
+          Collections.emptyList[RelDataTypeField]()
+        )
+        val innerCorrelate = new StreamPhysicalCorrelate(
+          cluster,
+          traitSet,
+          convInput,
+          scan,
+          condition,
+          innerRowType,
+          correlate.getJoinType)
+        val outerProgram = StreamPhysicalCorrelateRule.buildOuterProgram(
+          cluster,
+          correlate.getLeft.getRowType.getFieldCount,
+          innerRowType,
+          correlate.getRowType,
+          projects)
+        new StreamPhysicalCalc(
+          cluster,
+          traitSet,
+          innerCorrelate,
+          outerProgram,
+          correlate.getRowType)
+    }
   }
 
 }
@@ -117,17 +159,7 @@ object StreamPhysicalCorrelateRule {
     child match {
       case calc1: FlinkLogicalCalc =>
         val bottomCalc = getMergedCalc(calc1)
-        val topCalc = calc
-        val topProgram: RexProgram = topCalc.getProgram
-        val mergedProgram: RexProgram = RexProgramBuilder
-          .mergePrograms(
-            topCalc.getProgram,
-            bottomCalc.getProgram,
-            topCalc.getCluster.getRexBuilder)
-        assert(mergedProgram.getOutputRowType eq topProgram.getOutputRowType)
-        topCalc
-          .copy(topCalc.getTraitSet, bottomCalc.getInput, mergedProgram)
-          .asInstanceOf[FlinkLogicalCalc]
+        FlinkRelUtil.merge(calc, bottomCalc).asInstanceOf[FlinkLogicalCalc]
       case _ =>
         calc
     }
@@ -144,5 +176,23 @@ object StreamPhysicalCorrelateRule {
       case calc: FlinkLogicalCalc => getTableScan(calc)
       case _ => throw new TableException("This must be a bug, could not find table scan")
     }
+  }
+
+  def buildOuterProgram(
+      cluster: RelOptCluster,
+      leftFieldCount: Int,
+      innerRowType: RelDataType,
+      outputRowType: RelDataType,
+      rightProjects: Seq[RexNode]): RexProgram = {
+    val rexBuilder = cluster.getRexBuilder
+    val builder = new java.util.ArrayList[RexNode]()
+    val leftFields = innerRowType.getFieldList
+    var i = 0
+    while (i < leftFieldCount) {
+      builder.add(rexBuilder.makeInputRef(leftFields.get(i).getType, i))
+      i += 1
+    }
+    rightProjects.foreach(p => builder.add(RexUtil.shift(p, leftFieldCount)))
+    RexProgram.create(innerRowType, builder, null, outputRowType, rexBuilder)
   }
 }
