@@ -165,7 +165,7 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
         dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
         // metrics
-        registerMetric(cacheSize);
+        registerMetric(() -> kvRowKeyMap.size() * getDefaultTopNSize());
     }
 
     @Override
