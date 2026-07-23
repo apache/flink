@@ -401,9 +401,15 @@ public class SqlJsonUtils {
                             pathSpec));
         }
         final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
-        final Object value = context.hasException() ? null : context.obj;
-        if (context.hasException() || value == null) {
-            return pathExists(parsedInput.obj, pathSpec) ? 1 : null;
+        final Object value = context.obj;
+        if (value == null) {
+            if (pathExists(parsedInput.obj, pathSpec)){
+                //literal null
+                return 1;
+            }
+            else{
+                return null;
+            }
         }
 
         if (!JsonPath.isPathDefinite(pathSpec)) {
