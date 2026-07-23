@@ -241,6 +241,10 @@ public class TableKeyedAsyncWaitOperator<IN, OUT, KEY>
         // timer not in running will be forbidden to fire after this, so that when the async
         // operation is stuck, it results in deadlock due to what the timeout timer is not fired
         waitInFlightInputsFinished();
+        // Send MAX_WATERMARK downstream if not yet received, ensuring end-of-event-time signal.
+        if (asyncExecutionController.getCurrentWatermark() < Long.MAX_VALUE) {
+            asyncExecutionController.submitWatermark(Watermark.MAX_WATERMARK);
+        }
     }
 
     public void invoke(AecRecord<IN, OUT> element) throws Exception {
