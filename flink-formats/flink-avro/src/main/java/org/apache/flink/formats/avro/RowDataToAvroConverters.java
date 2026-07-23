@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.CollectionUtil;
 
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -36,6 +37,7 @@ import org.apache.avro.util.Utf8;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -166,7 +168,11 @@ public class RowDataToAvroConverters {
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                    final TimestampData timestampData = (TimestampData) object;
+                                    if (isMicrosLogicalType(schema)) {
+                                        return toEpochMicros(timestampData.toInstant());
+                                    }
+                                    return timestampData.toInstant().toEpochMilli();
                                 }
                             };
                 } else {
@@ -176,7 +182,14 @@ public class RowDataToAvroConverters {
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object)
+                                    final TimestampData timestampData = (TimestampData) object;
+                                    if (isMicrosLogicalType(schema)) {
+                                        return toEpochMicros(
+                                                timestampData
+                                                        .toLocalDateTime()
+                                                        .toInstant(ZoneOffset.UTC));
+                                    }
+                                    return timestampData
                                             .toLocalDateTime()
                                             .toInstant(ZoneOffset.UTC)
                                             .toEpochMilli();
@@ -194,7 +207,11 @@ public class RowDataToAvroConverters {
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                    final TimestampData timestampData = (TimestampData) object;
+                                    if (isMicrosLogicalType(schema)) {
+                                        return toEpochMicros(timestampData.toInstant());
+                                    }
+                                    return timestampData.toInstant().toEpochMilli();
                                 }
                             };
                 }
@@ -352,5 +369,17 @@ public class RowDataToAvroConverters {
                 return map;
             }
         };
+    }
+
+    private static boolean isMicrosLogicalType(Schema schema) {
+        final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
+        return logicalType == LogicalTypes.timestampMicros()
+                || logicalType == LogicalTypes.localTimestampMicros();
+    }
+
+    private static long toEpochMicros(Instant instant) {
+        return Math.addExact(
+                Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                instant.getNano() / 1_000L);
     }
 }

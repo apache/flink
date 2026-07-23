@@ -29,8 +29,10 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.avro.generic.GenericFixed;
@@ -128,12 +130,13 @@ public class AvroToRowDataConverters {
             case TIME_WITHOUT_TIME_ZONE:
                 return AvroToRowDataConverters::convertToTime;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return AvroToRowDataConverters::convertToTimestamp;
+                return createTimestampConverter(((TimestampType) type).getPrecision());
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 if (legacyTimestampMapping) {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
                 } else {
-                    return AvroToRowDataConverters::convertToTimestamp;
+                    return createTimestampConverter(
+                            ((LocalZonedTimestampType) type).getPrecision());
                 }
             case CHAR:
             case VARCHAR:
@@ -211,10 +214,27 @@ public class AvroToRowDataConverters {
         };
     }
 
-    private static TimestampData convertToTimestamp(Object object) {
+    private static AvroToRowDataConverter createTimestampConverter(int precision) {
+        // AvroSchemaConverter maps timestamp-millis to TIMESTAMP precision <= 3 and
+        // timestamp-micros to precision in (3, 6] in both directions, so the Flink
+        // precision is enough to decide how to interpret the incoming epoch value.
+        final boolean isMicros = precision > 3;
+        return object -> convertToTimestamp(object, isMicros);
+    }
+
+    private static TimestampData convertToTimestamp(Object object, boolean isMicros) {
         final long millis;
         if (object instanceof Long) {
-            millis = (Long) object;
+            final long value = (Long) object;
+            if (isMicros) {
+                // Use floor semantics so negative epoch values (pre-1970) split into
+                // a non-positive millis component and a non-negative nano remainder,
+                // which is what TimestampData.fromEpochMillis(long, int) expects.
+                return TimestampData.fromEpochMillis(
+                        Math.floorDiv(value, 1_000L),
+                        (int) (Math.floorMod(value, 1_000L) * 1_000L));
+            }
+            millis = value;
         } else if (object instanceof Instant) {
             millis = ((Instant) object).toEpochMilli();
         } else if (object instanceof LocalDateTime) {
