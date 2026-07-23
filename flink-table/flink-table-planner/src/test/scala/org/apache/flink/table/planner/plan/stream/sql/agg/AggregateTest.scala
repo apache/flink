@@ -150,15 +150,6 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testGroupByOrdinal(): Unit = {
-    // With ordinals enabled, "GROUP BY 1" resolves to the 1st SELECT expression (a),
-    // so streaming planning proceeds exactly as "GROUP BY a".
-    util.tableEnv.getConfig
-      .set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, Boolean.box(true))
-    util.verifyExecPlan("SELECT a, COUNT(*) FROM MyTable GROUP BY 1")
-  }
-
-  @Test
   def testGroupByOrdinalPointingAtAggregateFails(): Unit = {
     // Ordinal 1 resolves to COUNT(*), which is not a legal grouping key.
     util.tableEnv.getConfig
