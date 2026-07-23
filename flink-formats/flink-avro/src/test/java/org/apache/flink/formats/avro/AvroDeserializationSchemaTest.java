@@ -85,4 +85,65 @@ class AvroDeserializationSchemaTest {
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
         assertThat(deserializedData).isEqualTo(data);
     }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testGenericRecordWithFastReader(AvroEncoding encoding) throws Exception {
+        DeserializationSchema<GenericRecord> deserializationSchema =
+                AvroDeserializationSchema.forGeneric(address.getSchema(), encoding, true);
+
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
+        GenericRecord genericRecord = deserializationSchema.deserialize(encodedAddress);
+        assertThat(genericRecord.get("city").toString()).isEqualTo(address.getCity());
+        assertThat(genericRecord.get("num")).isEqualTo(address.getNum());
+        assertThat(genericRecord.get("state").toString()).isEqualTo(address.getState());
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testGenericRecordWithFastReaderMultipleDeserializations(AvroEncoding encoding)
+            throws Exception {
+        DeserializationSchema<GenericRecord> deserializationSchema =
+                AvroDeserializationSchema.forGeneric(address.getSchema(), encoding, true);
+
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
+
+        // First deserialization
+        GenericRecord genericRecord1 = deserializationSchema.deserialize(encodedAddress);
+        assertThat(genericRecord1.get("city").toString()).isEqualTo(address.getCity());
+        assertThat(genericRecord1.get("num")).isEqualTo(address.getNum());
+        assertThat(genericRecord1.get("state").toString()).isEqualTo(address.getState());
+
+        // Second deserialization - should reuse schema and not set it again
+        GenericRecord genericRecord2 = deserializationSchema.deserialize(encodedAddress);
+        assertThat(genericRecord2.get("city").toString()).isEqualTo(address.getCity());
+        assertThat(genericRecord2.get("num")).isEqualTo(address.getNum());
+        assertThat(genericRecord2.get("state").toString()).isEqualTo(address.getState());
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testGenericRecordWithFastReaderDisabled(AvroEncoding encoding) throws Exception {
+        DeserializationSchema<GenericRecord> deserializationSchema =
+                AvroDeserializationSchema.forGeneric(address.getSchema(), encoding, false);
+
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
+        GenericRecord genericRecord = deserializationSchema.deserialize(encodedAddress);
+        assertThat(genericRecord.get("city").toString()).isEqualTo(address.getCity());
+        assertThat(genericRecord.get("num")).isEqualTo(address.getNum());
+        assertThat(genericRecord.get("state").toString()).isEqualTo(address.getState());
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificRecordNotAffectedByFastReader(AvroEncoding encoding) throws Exception {
+        // SpecificRecord deserialization should work the same regardless of fastReader
+        // setting
+        DeserializationSchema<Address> deserializer =
+                AvroDeserializationSchema.forSpecific(Address.class, encoding);
+
+        byte[] encodedAddress = writeRecord(address, encoding);
+        Address deserializedAddress = deserializer.deserialize(encodedAddress);
+        assertThat(deserializedAddress).isEqualTo(address);
+    }
 }
