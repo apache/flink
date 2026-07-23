@@ -281,7 +281,7 @@ public class QueryOperationTestPrograms {
                                     + "        TUMBLE((\n"
                                     + "            SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
                                     + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
-                                    + "        ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.0' DAY TO SECOND(3))\n"
+                                    + "        ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.000' DAY(2) TO SECOND(3))\n"
                                     + "    ) $$T_WIN_AGG GROUP BY window_start, window_end, `$$T_WIN_AGG`.`b`\n"
                                     + ") $$T_PROJECT")
                     .build();
@@ -961,8 +961,8 @@ public class QueryOperationTestPrograms {
                     .runSql(
                             "SELECT `$$T_PROJECT`.`k`, (LAST_VALUE(`$$T_PROJECT`.`v`) "
                                     + "OVER(PARTITION BY `$$T_PROJECT`.`k` "
-                                    + "ORDER BY `$$T_PROJECT`.`ts` RANGE BETWEEN INTERVAL '0 "
-                                    + "00:00:02.0' DAY TO SECOND(3) PRECEDING AND CURRENT ROW)) AS `_c1`, `$$T_PROJECT`.`ts` FROM (\n"
+                                    + "ORDER BY `$$T_PROJECT`.`ts` RANGE BETWEEN INTERVAL "
+                                    + "'0 00:00:02.000' DAY(2) TO SECOND(3) PRECEDING AND CURRENT ROW)) AS `_c1`, `$$T_PROJECT`.`ts` FROM (\n"
                                     + "    SELECT `$$T_SOURCE`.`k`, `$$T_SOURCE`.`v`, "
                                     + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`data` $$T_SOURCE\n"
                                     + ") $$T_PROJECT")
