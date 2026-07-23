@@ -377,19 +377,31 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput) {
-        if (parsedInput.hasException()) {
+        try{
+            if (parsedInput.hasException()) {
+                return null;
+            }
+        }
+        catch(Exception e){
             return null;
         }
+
         // Whole document: a top-level JSON null literal counts as a scalar (length 1).
         return jsonLengthValue(parsedInput.obj);
     }
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
-        if (parsedInput.hasException()) {
-            // invalid input JSON
+        try{
+            if (parsedInput.hasException()) {
+                // invalid input JSON
+                return null;
+            }
+        }
+        catch (Exception e){
             return null;
         }
+
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
         final boolean isExplicitLaxStrict = matcher.matches();
         if (isExplicitLaxStrict) {
@@ -449,7 +461,7 @@ public class SqlJsonUtils {
                                             .build())
                             .read(pathSpec);
             return matched != null && !matched.isEmpty();
-        } catch (PathNotFoundException e) {
+        } catch (Exception e) {
             return false;
         }
     }
