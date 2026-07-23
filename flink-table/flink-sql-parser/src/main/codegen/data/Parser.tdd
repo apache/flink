@@ -184,7 +184,6 @@
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
     "org.apache.calcite.sql.SqlExplicitModelOperator"
-    "org.apache.calcite.sql.SqlGroupByAllOperator"
     "org.apache.calcite.sql.SqlIntervalLiteral"
     "org.apache.calcite.sql.SqlLambda"
     "org.apache.calcite.runtime.Resources"
