@@ -135,7 +135,8 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
         if (byteArray.len == byteArray.data.length) {
             return byteArray.data;
         } else {
-            return Arrays.copyOfRange(byteArray.data, byteArray.offset, byteArray.len);
+            return Arrays.copyOfRange(
+                    byteArray.data, byteArray.offset, byteArray.offset + byteArray.len);
         }
     }
 
