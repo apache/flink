@@ -2307,7 +2307,7 @@ class Expression(Generic[T]):
             >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
             >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
 
-            >>> lit('[1,2,3,4,5]').json_length('$.[7]') # None
+            >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
             >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
         """
         if path is None:
