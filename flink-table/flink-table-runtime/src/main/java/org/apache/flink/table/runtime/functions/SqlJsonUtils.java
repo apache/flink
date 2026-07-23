@@ -382,7 +382,7 @@ public class SqlJsonUtils {
                 return null;
             }
         }
-        catch(Exception e){
+        catch(NullPointerException e){
             return null;
         }
 
@@ -398,7 +398,7 @@ public class SqlJsonUtils {
                 return null;
             }
         }
-        catch (Exception e){
+        catch (NullPointerException e){
             return null;
         }
 
@@ -461,7 +461,7 @@ public class SqlJsonUtils {
                                             .build())
                             .read(pathSpec);
             return matched != null && !matched.isEmpty();
-        } catch (Exception e) {
+        } catch (InvalidPathException e ) {
             return false;
         }
     }
