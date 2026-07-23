@@ -87,6 +87,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonStringSpec());
+        testCases.addAll(parseJsonSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonSpec());
         testCases.addAll(jsonArraySpec());
@@ -758,6 +759,45 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> parseJsonSpec() {
+        // The bulk of parsing behavior is covered by BinaryVariantInternalBuilderTest.
+        return List.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1,\"b\":[2,3]}", "1e400")
+                        .andDataTypes(STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString(call("PARSE_JSON", $("f0"))),
+                                "JSON_STRING(PARSE_JSON(f0))",
+                                "{\"a\":1,\"b\":[2,3]}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(call("PARSE_JSON", nullOf(STRING()))),
+                                "JSON_STRING(PARSE_JSON(CAST(NULL AS STRING)))",
+                                null,
+                                STRING().nullable())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", $("f1")),
+                                TableRuntimeException.class,
+                                "Failed to parse json string"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1}", "1e400")
+                        .andDataTypes(STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f0"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f0))",
+                                "{\"a\":1}",
+                                STRING())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f1"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f1))",
+                                null,
+                                STRING()));
     }
 
     private static List<TestSetSpec> jsonSpec() {
