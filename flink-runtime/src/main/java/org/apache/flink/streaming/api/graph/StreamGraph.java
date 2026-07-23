@@ -401,6 +401,7 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
                                                 .UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM))
                         .setPauseSourcesUntilFirstCheckpoint(
                                 cfg.isPauseSourcesUntilFirstCheckpoint())
+                        .setInitialCheckpointDelay(cfg.getInitialCheckpointDelay())
                         .build(),
                 serializedStateBackend,
                 getJobConfiguration()
