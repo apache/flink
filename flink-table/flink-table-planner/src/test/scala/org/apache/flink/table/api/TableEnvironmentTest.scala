@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceEstimatedCost, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
@@ -157,8 +157,8 @@ class TableEnvironmentTest {
 
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explainSql("insert into MySink select first from MyTable")
-    assertThat(TableTestUtil.replaceStageId(actual))
-      .isEqualTo(TableTestUtil.replaceStageId(expected))
+    assertThat(TableTestUtil.replaceStageId(replaceEstimatedCost(actual)))
+      .isEqualTo(TableTestUtil.replaceStageId(replaceEstimatedCost(expected)))
   }
 
   @Test
@@ -177,8 +177,8 @@ class TableEnvironmentTest {
 
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explainSql("execute insert into MySink select first from MyTable")
-    assertThat(TableTestUtil.replaceStageId(actual))
-      .isEqualTo(TableTestUtil.replaceStageId(expected))
+    assertThat(TableTestUtil.replaceStageId(replaceEstimatedCost(actual)))
+      .isEqualTo(TableTestUtil.replaceStageId(replaceEstimatedCost(expected)))
   }
 
   @Test
@@ -256,9 +256,12 @@ class TableEnvironmentTest {
       "insert into MySink select first from MyTable",
       ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+    assertThat(
+      TableTestUtil.replaceNodeIdInOperator(
+        TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(actual))))
       .isEqualTo(
-        TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected))
+        TableTestUtil.replaceNodeIdInOperator(
+          TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(expected)))
       )
   }
 
@@ -284,8 +287,12 @@ class TableEnvironmentTest {
     statementSet.addInsertSql("insert into MySink select first from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
-      .isEqualTo(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)))
+    assertThat(
+      TableTestUtil.replaceNodeIdInOperator(
+        TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(actual))))
+      .isEqualTo(
+        TableTestUtil.replaceNodeIdInOperator(
+          TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(expected))))
   }
 
   @Test
@@ -313,9 +320,12 @@ class TableEnvironmentTest {
       ExplainDetail.JSON_EXECUTION_PLAN
     )
 
-    assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+    assertThat(
+      TableTestUtil.replaceNodeIdInOperator(
+        TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(actual))))
       .isEqualTo(
-        TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected))
+        TableTestUtil.replaceNodeIdInOperator(
+          TableTestUtil.replaceStreamNodeId(replaceEstimatedCost(expected)))
       )
   }
 
@@ -2129,7 +2139,8 @@ class TableEnvironmentTest {
     val actual =
       tableEnv.explainSql("select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
-    assertThat(replaceStageId(actual)).isEqualTo(replaceStageId(expected))
+    assertThat(replaceStageId(replaceEstimatedCost(actual)))
+      .isEqualTo(replaceStageId(replaceEstimatedCost(expected)))
   }
 
   @Test
@@ -2152,7 +2163,8 @@ class TableEnvironmentTest {
       "execute select * from MyTable where a > 10",
       ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
-    assertThat(replaceStageId(actual)).isEqualTo(replaceStageId(expected))
+    assertThat(replaceStageId(replaceEstimatedCost(actual)))
+      .isEqualTo(replaceStageId(replaceEstimatedCost(expected)))
   }
 
   @Test
@@ -2186,7 +2198,8 @@ class TableEnvironmentTest {
 
     val actual = tableEnv.explainSql("insert into MySink select a, b from MyTable where a > 10")
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithInsert.out")
-    assertThat(replaceStageId(actual)).isEqualTo(replaceStageId(expected))
+    assertThat(replaceStageId(replaceEstimatedCost(actual)))
+      .isEqualTo(replaceStageId(replaceEstimatedCost(expected)))
   }
 
   @Test
@@ -3595,10 +3608,12 @@ class TableEnvironmentTest {
     assertThat(it).hasNext
     val row = it.next()
     assertThat(row.getArity).isOne
-    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
-    val expected = replaceNodeIdInOperator(
-      replaceStreamNodeId(TableTestUtil.readFromResource(resultPath).trim))
-    assertThat(replaceStageId(expected)).isEqualTo(replaceStageId(actual))
+    val actual = replaceEstimatedCost(
+      replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim)))
+    val expected = replaceEstimatedCost(
+      replaceNodeIdInOperator(replaceStreamNodeId(TableTestUtil.readFromResource(resultPath).trim)))
+    assertThat(replaceStageId(replaceEstimatedCost(expected)))
+      .isEqualTo(replaceStageId(replaceEstimatedCost(actual)))
     assertThat(it.hasNext).isFalse
   }
 

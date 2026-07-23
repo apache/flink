@@ -4,9 +4,9 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXP
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2])
-+- Calc(select=[f0, f1, '123' AS EXPR$2])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]], fields=[f0, f1, f2])
+Sink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[f0, f1, '123' AS EXPR$2]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(f0, f1, f2)]]], fields=[f0, f1, f2]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[f0, f1, EXPR$2])

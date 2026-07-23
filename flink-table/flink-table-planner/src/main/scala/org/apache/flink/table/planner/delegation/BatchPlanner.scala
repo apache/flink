@@ -166,9 +166,15 @@ class BatchPlanner(
     } else {
       SqlExplainLevel.EXPPLAN_ATTRIBUTES
     }
+    // Show rowcount and cumulative cost at the default explain level to help users
+    // understand the optimizer's cost estimation. This is redundant when the level is
+    // already ALL_ATTRIBUTES (which shows cost natively), so we only enable it for the
+    // default EXPPLAN_ATTRIBUTES case.
+    val withRowCountAndCost = explainLevel != SqlExplainLevel.ALL_ATTRIBUTES
     optimizedRelNodes.foreach {
       rel =>
-        sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
+        sb.append(
+          FlinkRelOptUtil.toString(rel, explainLevel, withRowCountAndCost = withRowCountAndCost))
         sb.append(System.lineSeparator)
     }
 
