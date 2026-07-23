@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.core.testutils.FlinkAssertions;
@@ -34,6 +35,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,6 +53,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -222,6 +225,75 @@ public class JsonRowDataSerDeSchemaTest {
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
         assertThat(serializedJson).containsExactly(actualBytes);
+    }
+
+    @Test
+    public void testEmptyJsonArrayDeserialization() throws Exception {
+        DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ArrayNode arrayNode = objectMapper.createArrayNode();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+
+        open(deserializationSchema);
+
+        List<RowData> result = new ArrayList<>();
+        Collector<RowData> collector = new ListCollector<>(result);
+        deserializationSchema.deserialize(objectMapper.writeValueAsBytes(arrayNode), collector);
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    public void testJsonArrayToMultiRecords() throws Exception {
+        DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ObjectNode element1 = objectMapper.createObjectNode();
+        element1.put("f1", 1);
+        element1.put("f2", true);
+        element1.put("f3", "str");
+
+        ObjectNode element2 = objectMapper.createObjectNode();
+        element2.put("f1", 10);
+        element2.put("f2", false);
+        element2.put("f3", "newStr");
+
+        ArrayNode arrayNode = objectMapper.createArrayNode();
+        arrayNode.add(element1);
+        arrayNode.add(element2);
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+
+        open(deserializationSchema);
+
+        // test serialization
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true,
+                        false);
+        open(serializationSchema);
+
+        List<RowData> result = new ArrayList<>();
+        Collector<RowData> collector = new ListCollector<>(result);
+        deserializationSchema.deserialize(objectMapper.writeValueAsBytes(arrayNode), collector);
+        assertThat(result).hasSize(2);
+
+        byte[] result1 = serializationSchema.serialize(result.get(0));
+        byte[] result2 = serializationSchema.serialize(result.get(1));
+        assertThat(result1).isEqualTo(objectMapper.writeValueAsBytes(element1));
+        assertThat(result2).isEqualTo(objectMapper.writeValueAsBytes(element2));
     }
 
     /**
