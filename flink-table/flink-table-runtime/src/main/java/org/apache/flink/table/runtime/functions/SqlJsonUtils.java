@@ -68,7 +68,8 @@ public class SqlJsonUtils {
     private static final ObjectMapper MAPPER =
             new ObjectMapper(JSON_FACTORY)
                     .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
-                    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+                    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true)
+                    .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
     private static final Pattern JSON_PATH_BASE =
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
