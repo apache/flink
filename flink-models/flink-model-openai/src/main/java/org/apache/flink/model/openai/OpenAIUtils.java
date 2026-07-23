@@ -21,7 +21,9 @@ package org.apache.flink.model.openai;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
+import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.client.okhttp.OpenAIOkHttpClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,26 +39,27 @@ public class OpenAIUtils {
 
     private static final Object LOCK = new Object();
 
-    private static final Map<ReferenceKey, ReferenceValue> cache = new HashMap<>();
+    private static final Map<ReferenceKey, AsyncReferenceValue> asyncCache = new HashMap<>();
+    private static final Map<ReferenceKey, SyncReferenceValue> syncCache = new HashMap<>();
 
     public static OpenAIClientAsync createAsyncClient(String baseUrl, String apiKey, int numRetry) {
         synchronized (LOCK) {
             ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
-            ReferenceValue value = cache.get(key);
+            AsyncReferenceValue value = asyncCache.get(key);
             if (value != null) {
-                LOG.debug("Returning an existing OpenAI client.");
+                LOG.debug("Returning an existing OpenAI async client.");
                 value.referenceCount.incrementAndGet();
                 return value.client;
             }
 
-            LOG.debug("Building a new OpenAI client.");
+            LOG.debug("Building a new OpenAI async client.");
             OpenAIClientAsync client =
                     OpenAIOkHttpClientAsync.builder()
                             .apiKey(apiKey)
                             .baseUrl(baseUrl)
                             .maxRetries(numRetry)
                             .build();
-            cache.put(key, new ReferenceValue(client));
+            asyncCache.put(key, new AsyncReferenceValue(client));
             return client;
         }
     }
@@ -64,23 +67,70 @@ public class OpenAIUtils {
     public static void releaseAsyncClient(String baseUrl, String apiKey) {
         synchronized (LOCK) {
             ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
-            ReferenceValue value = cache.get(key);
+            AsyncReferenceValue value = asyncCache.get(key);
             Preconditions.checkNotNull(
-                    value, "The creation and release of OpenAI client does not match.");
+                    value, "The creation and release of OpenAI async client does not match.");
             int count = value.referenceCount.decrementAndGet();
             if (count == 0) {
-                LOG.debug("Closing the OpenAI client.");
-                cache.remove(key);
+                LOG.debug("Closing the OpenAI async client.");
+                asyncCache.remove(key);
                 value.client.close();
             }
         }
     }
 
-    private static class ReferenceValue {
+    public static OpenAIClient createSyncClient(String baseUrl, String apiKey, int numRetry) {
+        synchronized (LOCK) {
+            ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
+            SyncReferenceValue value = syncCache.get(key);
+            if (value != null) {
+                LOG.debug("Returning an existing OpenAI sync client.");
+                value.referenceCount.incrementAndGet();
+                return value.client;
+            }
+
+            LOG.debug("Building a new OpenAI sync client.");
+            OpenAIClient client =
+                    OpenAIOkHttpClient.builder()
+                            .apiKey(apiKey)
+                            .baseUrl(baseUrl)
+                            .maxRetries(numRetry)
+                            .build();
+            syncCache.put(key, new SyncReferenceValue(client));
+            return client;
+        }
+    }
+
+    public static void releaseSyncClient(String baseUrl, String apiKey) {
+        synchronized (LOCK) {
+            ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
+            SyncReferenceValue value = syncCache.get(key);
+            Preconditions.checkNotNull(
+                    value, "The creation and release of OpenAI sync client does not match.");
+            int count = value.referenceCount.decrementAndGet();
+            if (count == 0) {
+                LOG.debug("Closing the OpenAI sync client.");
+                syncCache.remove(key);
+                value.client.close();
+            }
+        }
+    }
+
+    private static class AsyncReferenceValue {
         private final OpenAIClientAsync client;
         private final AtomicInteger referenceCount;
 
-        private ReferenceValue(OpenAIClientAsync client) {
+        private AsyncReferenceValue(OpenAIClientAsync client) {
+            this.client = client;
+            this.referenceCount = new AtomicInteger(1);
+        }
+    }
+
+    private static class SyncReferenceValue {
+        private final OpenAIClient client;
+        private final AtomicInteger referenceCount;
+
+        private SyncReferenceValue(OpenAIClient client) {
             this.client = client;
             this.referenceCount = new AtomicInteger(1);
         }
@@ -109,7 +159,12 @@ public class OpenAIUtils {
     }
 
     @VisibleForTesting
-    static Map<ReferenceKey, ReferenceValue> getCache() {
-        return cache;
+    static Map<ReferenceKey, AsyncReferenceValue> getCache() {
+        return asyncCache;
+    }
+
+    @VisibleForTesting
+    static Map<ReferenceKey, SyncReferenceValue> getSyncCache() {
+        return syncCache;
     }
 }
