@@ -81,8 +81,14 @@ public class VariantSerializer extends TypeSerializerSingleton<Variant> {
         byte[] value = new byte[valueLength];
         byte[] metaData = new byte[metadataLength];
 
-        source.read(value);
-        source.read(metaData);
+        // Use readFully, not read: DataInputView#read(byte[]) may return a partial (short) read
+        // when the array straddles a buffer/compression-frame boundary in the source stream, and
+        // its returned count must not be ignored. A short read here desyncs the stream and surfaces
+        // as MALFORMED_VARIANT / OutOfMemoryError when restoring large Variant keys from a
+        // checkpoint key-group stream on rescale. readFully loops until the buffer is filled and
+        // throws EOFException only on a genuine end-of-stream (a truly truncated checkpoint).
+        source.readFully(value);
+        source.readFully(metaData);
         return new BinaryVariant(value, metaData);
     }
 
