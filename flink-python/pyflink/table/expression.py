@@ -2262,20 +2262,14 @@ class Expression(Generic[T]):
         Returns the number of elements in a JSON document, or the length of the value at the
         specified path if one is provided.
 
-        Returns None if the argument is None, the input is not valid JSON, or the path
-        does not locate a value.
+        The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
+        the json is invalid, or the path does not locate a value.
 
         The length is determined as follows:
 
         - Scalar values (number, string, boolean) have length 1.
         - Arrays have a length equal to the number of their elements.
         - Objects have a length equal to the number of their key-value pairs.
-
-        For the path argument, use the form:
-
-            path  ::= '$' ( '.' <field> | '[' <index> ']' )*
-            field ::= a key in a JSON object
-            index ::= a zero-based position in a JSON array
 
         When provided with a path that uses a wildcard and resolves to 2 or more paths,
         'json_length' resolves to None.
@@ -2315,10 +2309,6 @@ class Expression(Generic[T]):
 
             >>> lit('[1,2,3,4,5]').json_length('$.[7]') # None
             >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
-
-            # VARIANT input via PARSE_JSON, reached through call_sql
-            >>> call_sql("PARSE_JSON('[1,2,3,4,5]')").json_length() # 5
-            >>> call_sql("PARSE_JSON('{\"1\":1,\"2\":2}')").json_length('$.1') # 1
         """
         if path is None:
             return _unary_op("jsonLength")(self)

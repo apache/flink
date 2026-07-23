@@ -2533,8 +2533,8 @@ public abstract class BaseExpressions<InType, OutType> {
      * Returns the number of elements in a JSON document, or the length of the value at the
      * specified path if one is provided.
      *
-     * <p>Returns {@code NULL} if the argument is {@code NULL}, the input is not valid JSON, or the
-     * path does not locate a value.
+     * <p>The input can be a JSON STRING or a VARIANT. Returns {@code NULL} if the argument is
+     * {@code NULL}, the json is invalid, or the path does not locate a value.
      *
      * <p>The length is determined as follows:
      *
@@ -2543,14 +2543,6 @@ public abstract class BaseExpressions<InType, OutType> {
      *   <li>Arrays have a length equal to the number of their elements.
      *   <li>Objects have a length equal to the number of their key-value pairs.
      * </ul>
-     *
-     * <p>For the path argument, use the form:
-     *
-     * <pre>{@code
-     * path  ::= '$' ( '.' <field> | '[' <index> ']' )*
-     * field ::= a key in a JSON object
-     * index ::= a zero-based position in a JSON array
-     * }</pre>
      *
      * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
      * JSON_LENGTH} resolves to {@code NULL}.
@@ -2590,11 +2582,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * JSON_LENGTH('{"1": [1,2,3], "2": "bye bye"}', '$.1') // 3
      * JSON_LENGTH('[1,2,3,4,5]', '$[3]') // 1
      *
-     * JSON_LENGTH('[1,2,3,4,5]', '$.[7]') // Null
-     *
-     * // VARIANT input via PARSE_JSON
-     * JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]')) // 5
-     * JSON_LENGTH(PARSE_JSON('{"1": "hello", "2": "bye bye"}'), '$.1') // 1
+     * JSON_LENGTH('[1,2,3,4,5]', '$[7]') // Null
      * }</pre>
      */
     public OutType jsonLength(String path) {

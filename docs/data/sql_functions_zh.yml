@@ -1775,8 +1775,9 @@ bitmapagg:
   - sql: JSON_LENGTH(json_doc[, path])
     table: jsonLength(jsonObject[, path])
     description: |
-      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided. 
-      Returns NULL if the argument is NULL, the json is invalid, or the path does not locate a value.
+      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided.
+      
+      The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL, the json is invalid, or the path does not locate a value.
       eg. 
         -- 2
         JSON_LENGTH('{"1": "hello", "2": "bye bye"}')
