@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.TimeZone;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermarkWithOffset;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMills;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
@@ -133,7 +134,54 @@ class TimeWindowUtilTest {
         assertThat(toEpochMills(Long.MAX_VALUE, zoneId)).isEqualTo(Long.MAX_VALUE);
     }
 
+    /**
+     * Verifies that getNextTriggerWatermarkWithOffset uses timezone-aware arithmetic for non-UTC,
+     * non-DST timezones (e.g., Asia/Shanghai, UTC+8).
+     */
+    @Test
+    void testGetNextTriggerWatermarkForNonDstLtzTimezone() {
+        ZoneId shangHai = ZoneId.of("Asia/Shanghai"); // UTC+8, no DST
+        long oneDayMs = 86_400_000L;
+
+        // currentWatermark = 2020-10-09T16:07:59Z  (= 2020-10-10 00:07:59 Asia/Shanghai)
+        long wm1 = epochOf("2020-10-09T16:07:59");
+        // The record belongs to local day [2020-10-10 00:00, 2020-10-11 00:00) Asia/Shanghai.
+        // The window's trigger epoch = 2020-10-10T15:59:59.999Z (= local 2020-10-10 23:59:59.999)
+        long expectedTrigger = epochOf("2020-10-10T15:59:59.999");
+
+        assertThat(getNextTriggerWatermarkWithOffset(wm1, oneDayMs, 0, shangHai, false))
+                .as("trigger must align to local midnight, not UTC midnight")
+                .isEqualTo(expectedTrigger);
+
+        // A watermark just below the trigger should still return the same trigger
+        assertThat(
+                        getNextTriggerWatermarkWithOffset(
+                                expectedTrigger - 1, oneDayMs, 0, shangHai, false))
+                .isEqualTo(expectedTrigger);
+
+        // A watermark exactly at the trigger should advance to the NEXT day's trigger
+        long nextDayTrigger = expectedTrigger + oneDayMs; // = 2020-10-11T15:59:59.999Z
+        assertThat(getNextTriggerWatermarkWithOffset(expectedTrigger, oneDayMs, 0, shangHai, false))
+                .isEqualTo(nextDayTrigger);
+    }
+
+    @Test
+    void testGetNextTriggerWatermarkForUtc() {
+        ZoneId utc = UTC_ZONE_ID;
+        long oneDayMs = 86_400_000L;
+
+        // For UTC the result must be the same as the old epoch-millis arithmetic
+        long wm = epochOf("2020-10-09T16:07:59");
+        long expectedTrigger = epochOf("2020-10-09T23:59:59.999");
+        assertThat(getNextTriggerWatermarkWithOffset(wm, oneDayMs, 0, utc, false))
+                .isEqualTo(expectedTrigger);
+    }
+
     private static long utcMills(String utcDateTime) {
         return LocalDateTime.parse(utcDateTime).atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+    }
+
+    private static long epochOf(String utcDateTime) {
+        return utcMills(utcDateTime);
     }
 }

@@ -194,16 +194,14 @@ public class TimeWindowUtil {
         }
 
         long triggerWatermark;
-        // consider the DST timezone
-        if (useDayLightSaving) {
-            long utcWindowStart =
-                    getWindowStartWithOffset(
-                            toUtcTimestampMills(currentWatermark, shiftTimezone), offset, interval);
-            triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
-        } else {
-            long start = getWindowStartWithOffset(currentWatermark, offset, interval);
-            triggerWatermark = start + interval - 1;
-        }
+        // Always compute the trigger watermark in the shifted-timezone space so that window
+        // boundaries align to local time for TIMESTAMP_LTZ columns.
+        // toUtcTimestampMills / toEpochMillsForTimer are no-ops for UTC, so this is safe for
+        // all timezone combinations including the DST case.
+        long utcWindowStart =
+                getWindowStartWithOffset(
+                        toUtcTimestampMills(currentWatermark, shiftTimezone), offset, interval);
+        triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
 
         if (triggerWatermark > currentWatermark) {
             return triggerWatermark;
