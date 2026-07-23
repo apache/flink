@@ -51,6 +51,13 @@ public class IOMetrics implements Serializable {
     @Nullable
     protected Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes;
 
+    /**
+     * Per-downstream-target breakdown of {@link #numRecordsOut}, keyed by target {@code
+     * JobVertexID} (hex string). May be empty when the task has no outputs for which a target was
+     * registered (e.g. sinks, or the broadcast fan-out path). Never {@code null}.
+     */
+    protected Map<String, Long> numRecordsOutPerTarget;
+
     public IOMetrics(
             Meter recordsIn,
             Meter recordsOut,
@@ -60,7 +67,8 @@ public class IOMetrics implements Serializable {
             Gauge<Long> accumulatedIdleTime,
             Gauge<Double> accumulatedBusyTime,
             Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
-                    resultPartitionBytesCounters) {
+                    resultPartitionBytesCounters,
+            Map<String, Long> numRecordsOutPerTarget) {
         this.numRecordsIn = recordsIn.getCount();
         this.numRecordsOut = recordsOut.getCount();
         this.numBytesIn = bytesIn.getCount();
@@ -74,6 +82,10 @@ public class IOMetrics implements Serializable {
                                 Collectors.toMap(
                                         Map.Entry::getKey,
                                         entry -> entry.getValue().createSnapshot()));
+        this.numRecordsOutPerTarget =
+                numRecordsOutPerTarget == null
+                        ? Collections.emptyMap()
+                        : Collections.unmodifiableMap(numRecordsOutPerTarget);
     }
 
     public IOMetrics(
@@ -106,6 +118,29 @@ public class IOMetrics implements Serializable {
             long accumulateBackPressuredTime,
             @Nullable
                     Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes) {
+        this(
+                numBytesIn,
+                numBytesOut,
+                numRecordsIn,
+                numRecordsOut,
+                accumulateIdleTime,
+                accumulateBusyTime,
+                accumulateBackPressuredTime,
+                resultPartitionBytes,
+                null);
+    }
+
+    @VisibleForTesting
+    public IOMetrics(
+            long numBytesIn,
+            long numBytesOut,
+            long numRecordsIn,
+            long numRecordsOut,
+            long accumulateIdleTime,
+            double accumulateBusyTime,
+            long accumulateBackPressuredTime,
+            @Nullable Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes,
+            @Nullable Map<String, Long> numRecordsOutPerTarget) {
         this.numBytesIn = numBytesIn;
         this.numBytesOut = numBytesOut;
         this.numRecordsIn = numRecordsIn;
@@ -114,6 +149,10 @@ public class IOMetrics implements Serializable {
         this.accumulateBusyTime = accumulateBusyTime;
         this.accumulateBackPressuredTime = accumulateBackPressuredTime;
         this.resultPartitionBytes = resultPartitionBytes;
+        this.numRecordsOutPerTarget =
+                numRecordsOutPerTarget == null
+                        ? Collections.emptyMap()
+                        : Collections.unmodifiableMap(numRecordsOutPerTarget);
     }
 
     public long getNumRecordsIn() {
@@ -146,5 +185,16 @@ public class IOMetrics implements Serializable {
 
     public Map<IntermediateResultPartitionID, ResultPartitionBytes> getResultPartitionBytes() {
         return Collections.unmodifiableMap(checkNotNull(resultPartitionBytes));
+    }
+
+    /**
+     * Returns the per-downstream-target {@code numRecordsOut} breakdown, keyed by target {@code
+     * JobVertexID} (hex string). Never {@code null}; returns an empty map when no per-target
+     * counters were registered.
+     */
+    public Map<String, Long> getNumRecordsOutPerTarget() {
+        return numRecordsOutPerTarget == null
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(numRecordsOutPerTarget);
     }
 }

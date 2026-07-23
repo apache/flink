@@ -186,7 +186,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 accumulatedBackPressuredTime,
                 accumulatedIdleTime,
                 accumulatedBusyTime,
-                resultPartitionBytes);
+                resultPartitionBytes,
+                numRecordsOut.getCounters());
     }
 
     // ============================================================================================
@@ -207,6 +208,17 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     public Counter getNumRecordsOutCounter() {
         return numRecordsOut;
+    }
+
+    /**
+     * Returns a snapshot of the per-downstream-target {@code numRecordsOut} counts, keyed by target
+     * {@code JobVertexID} (hex string). Only contains entries for outputs registered via {@link
+     * #reuseRecordsOutputCounter(Counter, String)}. The sum of the returned values may be less than
+     * {@link #getNumRecordsOutCounter()} when some outputs are registered without a target key
+     * (e.g. broadcast fan-out collectors).
+     */
+    public Map<String, Long> getNumRecordsOutPerTarget() {
+        return numRecordsOut.getCounters();
     }
 
     public Counter getNumBuffersOutCounter() {
@@ -342,6 +354,35 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numRecordsOut.addCounter(numRecordsOutCounter);
     }
 
+    /**
+     * Registers an output record counter whose emits are directed to the given downstream target
+     * vertex. The counter contributes both to the aggregate {@link MetricNames#IO_NUM_RECORDS_OUT}
+     * and to a per-target metric {@code numRecordsOut.<targetJobVertexId>}, enabling consumers
+     * (e.g. the Kubernetes autoscaler) to compute accurate per-edge data rates when a task has
+     * multiple downstream outputs (including side outputs).
+     */
+    public void reuseRecordsOutputCounter(Counter numRecordsOutCounter, String jobVertexId) {
+        this.numRecordsOut.addCounter(numRecordsOutCounter, jobVertexId);
+        // Also expose it as an individual, discoverable metric so reporters (Prometheus, JMX, etc.)
+        // and the REST metric store can see the per-target breakdown.
+        counter(MetricNames.ioNumRecordsOutPerTargetName(jobVertexId), numRecordsOutCounter);
+    }
+
+    /**
+     * Registers a per-downstream-target output record counter <em>without</em> adding it to the
+     * aggregate {@link MetricNames#IO_NUM_RECORDS_OUT} total. Used for the multi-output / broadcast
+     * fan-out path, where the aggregate is already incremented once per logical emit by the
+     * broadcast collector via {@link #reuseRecordsOutputCounter(Counter)}, and summing every
+     * per-target counter on top of that would double-count.
+     *
+     * <p>The counter is still exposed as the individual, discoverable metric {@code
+     * numRecordsOut.<targetJobVertexId>} and appears in {@link #getNumRecordsOutPerTarget()}.
+     */
+    public void registerNumRecordsOutPerTarget(Counter numRecordsOutCounter, String jobVertexId) {
+        this.numRecordsOut.addTargetOnly(numRecordsOutCounter, jobVertexId);
+        counter(MetricNames.ioNumRecordsOutPerTargetName(jobVertexId), numRecordsOutCounter);
+    }
+
     public void registerResultPartitionBytesCounter(
             IntermediateResultPartitionID resultPartitionId,
             ResultPartitionBytesCounter resultPartitionBytesCounter) {
@@ -358,11 +399,27 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
      */
     private static class SumCounter extends SimpleCounter {
         private final List<Counter> internalCounters = new ArrayList<>();
+        private final Map<String, Counter> jobVertexIdToCounter = new HashMap<>();
 
         SumCounter() {}
 
         public void addCounter(Counter toAdd) {
             internalCounters.add(toAdd);
+        }
+
+        public void addCounter(Counter toAdd, String jobVertexId) {
+            internalCounters.add(toAdd);
+            jobVertexIdToCounter.put(jobVertexId, toAdd);
+        }
+
+        /**
+         * Stores the counter for per-target lookup without contributing to the aggregate sum.
+         * Intended for the broadcast fan-out path where the aggregate is already incremented by a
+         * separate task-level counter and summing the per-target counters on top would
+         * double-count.
+         */
+        public void addTargetOnly(Counter toAdd, String jobVertexId) {
+            jobVertexIdToCounter.put(jobVertexId, toAdd);
         }
 
         @Override
@@ -372,6 +429,14 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 sum += counter.getCount();
             }
             return sum;
+        }
+
+        public Map<String, Long> getCounters() {
+            return jobVertexIdToCounter.entrySet().stream()
+                    .collect(
+                            HashMap::new,
+                            (m, e) -> m.put(e.getKey(), e.getValue().getCount()),
+                            HashMap::putAll);
         }
     }
 

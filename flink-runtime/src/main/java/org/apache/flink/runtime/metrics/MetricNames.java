@@ -29,6 +29,19 @@ public class MetricNames {
     public static final String IO_NUM_RECORDS_IN_RATE = IO_NUM_RECORDS_IN + SUFFIX_RATE;
     public static final String IO_NUM_RECORDS_OUT_RATE = IO_NUM_RECORDS_OUT + SUFFIX_RATE;
 
+    /**
+     * Prefix used to expose the per-downstream-target breakdown of {@link #IO_NUM_RECORDS_OUT}. The
+     * full metric name is constructed via {@link #ioNumRecordsOutPerTargetName(String)}. This is
+     * intended to be consumed by tools (e.g. the Kubernetes autoscaler) that need to compute
+     * accurate edge data rates for vertices with multiple downstream outputs.
+     */
+    public static final String IO_NUM_RECORDS_OUT_PER_TARGET_PREFIX = IO_NUM_RECORDS_OUT + ".";
+
+    /** Returns the per-target metric name for the given downstream {@code JobVertexID}. */
+    public static String ioNumRecordsOutPerTargetName(String targetJobVertexId) {
+        return IO_NUM_RECORDS_OUT_PER_TARGET_PREFIX + targetJobVertexId;
+    }
+
     public static final String IO_NUM_BYTES_IN = "numBytesIn";
     public static final String IO_NUM_BYTES_OUT = "numBytesOut";
     public static final String IO_NUM_BYTES_IN_RATE = IO_NUM_BYTES_IN + SUFFIX_RATE;

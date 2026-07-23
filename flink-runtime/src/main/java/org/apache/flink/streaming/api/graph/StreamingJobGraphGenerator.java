@@ -1472,7 +1472,7 @@ public class StreamingJobGraphGenerator {
                     isPersistentDataSet,
                     dataSetId,
                     partitionType,
-                    jobVertexBuildContext.getStreamGraph());
+                    jobVertexBuildContext);
         }
         return outputs;
     }
@@ -1484,7 +1484,8 @@ public class StreamingJobGraphGenerator {
             boolean isPersistentDataSet,
             IntermediateDataSetID dataSetId,
             ResultPartitionType partitionType,
-            StreamGraph streamGraph) {
+            JobVertexBuildContext jobVertexBuildContext) {
+        var streamGraph = jobVertexBuildContext.getStreamGraph();
         int consumerParallelism =
                 streamGraph.getStreamNode(consumerEdge.getTargetId()).getParallelism();
         int consumerMaxParallelism =
@@ -1516,10 +1517,22 @@ public class StreamingJobGraphGenerator {
             }
         }
         if (reusableOutput == null) {
+            // In adaptive / incremental job-graph construction modes (e.g. AdaptiveGraphManager)
+            // the downstream JobVertex may not yet be registered in the build context when this
+            // output is created; it will be added in a later iteration. We tolerate the missing
+            // lookup here and leave targetVertexId transiently null: AdaptiveGraphManager will
+            // patch it via NonChainedOutput#setTargetVertexId (and re-serialize the upstream
+            // StreamConfig) once the downstream vertex is created, before the upstream vertex is
+            // scheduled. In eager construction the lookup is always non-null.
+            JobVertex consumerJobVertex =
+                    jobVertexBuildContext.getJobVertex(consumerEdge.getTargetId());
+            JobVertexID targetVertexId =
+                    consumerJobVertex == null ? null : consumerJobVertex.getID();
             NonChainedOutput output =
                     new NonChainedOutput(
                             consumerEdge.supportsUnalignedCheckpoints(),
                             consumerEdge.getSourceId(),
+                            targetVertexId,
                             consumerParallelism,
                             consumerMaxParallelism,
                             consumerEdge.getBufferTimeout(),

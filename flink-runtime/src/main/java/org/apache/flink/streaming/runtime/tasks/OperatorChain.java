@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
@@ -84,6 +85,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -714,6 +716,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             MailboxExecutorFactory mailboxExecutorFactory,
             boolean shouldAddMetric) {
         List<OutputWithChainingCheck<StreamRecord<T>>> allOutputs = new ArrayList<>(4);
+        Map<OutputWithChainingCheck<StreamRecord<T>>, JobVertexID> outputToTargetNodeId =
+                new IdentityHashMap<>();
 
         // create collectors for the network outputs
         for (NonChainedOutput streamOutput :
@@ -723,6 +727,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     (RecordWriterOutput<T>) recordWriterOutputs.get(streamOutput.getDataSetId());
 
             allOutputs.add(recordWriterOutput);
+            outputToTargetNodeId.put(recordWriterOutput, streamOutput.getTargetNodeId());
         }
 
         // Create collectors for the chained outputs
@@ -744,6 +749,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             shouldAddMetric);
             checkState(output instanceof OutputWithChainingCheck);
             allOutputs.add((OutputWithChainingCheck) output);
+            outputToTargetNodeId.put(
+                    (OutputWithChainingCheck) output,
+                    containingTask.getEnvironment().getJobVertexId());
             // If the operator has multiple downstream chained operators, only one of them should
             // increment the recordsOutCounter for this operator. Set shouldAddMetric to false
             // so that we would skip adding the counter to other downstream operators.
@@ -756,7 +764,22 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             result = allOutputs.get(0);
             // only if this is a single RecordWriterOutput, reuse its numRecordOut for task.
             if (result instanceof RecordWriterOutput) {
-                Counter numRecordsOutCounter = createNumRecordsOutCounter(containingTask);
+                JobVertexID targetNodeId = outputToTargetNodeId.get(result);
+                // Fall back to the non-target counter variant if the downstream target id is
+                // not available for any reason. Missing per-target metadata must never fail
+                // the task wiring — the aggregate numRecordsOut still works, but the per-target
+                // breakdown (numRecordsOut.<targetVertexId>) will not be exposed for this output.
+                final Counter numRecordsOutCounter;
+                if (targetNodeId == null) {
+                    LOG.warn(
+                            "Missing downstream JobVertexID for the single network output of "
+                                    + "task {}; registering an aggregate-only numRecordsOut "
+                                    + "counter (no per-target breakdown for this output).",
+                            containingTask.getName());
+                    numRecordsOutCounter = createNumRecordsOutCounter(containingTask);
+                } else {
+                    numRecordsOutCounter = createNumRecordsOutCounter(containingTask, targetNodeId);
+                }
                 ((RecordWriterOutput<T>) result).setNumRecordsOut(numRecordsOutCounter);
             }
         } else {
@@ -766,7 +789,30 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             OutputWithChainingCheck<StreamRecord<T>>[] allOutputsArray =
                     new OutputWithChainingCheck[allOutputs.size()];
             for (int i = 0; i < allOutputs.size(); i++) {
-                allOutputsArray[i] = allOutputs.get(i);
+                OutputWithChainingCheck<StreamRecord<T>> output = allOutputs.get(i);
+                // For each network output that has a concrete downstream JobVertexID, install a
+                // per-target counter so that broadcast fan-out emits are tracked per edge. The
+                // aggregate task-level numRecordsOut is still driven once per logical emit by the
+                // BroadcastingOutputCollector below, so per-target counters are registered in a
+                // "target-only" mode that does not contribute to the aggregate sum (which would
+                // otherwise double-count).
+                if (output instanceof RecordWriterOutput) {
+                    JobVertexID targetNodeId = outputToTargetNodeId.get(output);
+                    if (targetNodeId != null) {
+                        Counter perTargetCounter =
+                                createPerTargetRecordsOutCounter(containingTask, targetNodeId);
+                        ((RecordWriterOutput<T>) output).setNumRecordsOut(perTargetCounter);
+                    } else {
+                        LOG.warn(
+                                "Missing downstream JobVertexID for one of the network outputs "
+                                        + "of task {} in the multi-output / broadcast fan-out "
+                                        + "path; skipping per-target numRecordsOut registration "
+                                        + "for this output. The aggregate task-level "
+                                        + "numRecordsOut is unaffected.",
+                                containingTask.getName());
+                    }
+                }
+                allOutputsArray[i] = output;
             }
 
             // This is the inverse of creating the normal ChainingOutput.
@@ -799,10 +845,43 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     private static Counter createNumRecordsOutCounter(StreamTask<?, ?> containingTask) {
+        // Registers the task-level numRecordsOut counter without a downstream-target key, so it
+        // contributes only to the aggregate numRecordsOut total and is not exposed as a per-target
+        // metric. Used in two cases:
+        //   1. The multi-output / broadcast fan-out path, where a single task-level counter
+        //      aggregates emits from the BroadcastingOutputCollector.
+        //   2. As the fallback for any single- or multi-output branch when the downstream
+        //      target JobVertexID is unavailable (the caller is expected to log the reason).
         TaskIOMetricGroup taskIOMetricGroup =
                 containingTask.getEnvironment().getMetricGroup().getIOMetricGroup();
         Counter counter = new SimpleCounter();
         taskIOMetricGroup.reuseRecordsOutputCounter(counter);
+        return counter;
+    }
+
+    private static Counter createNumRecordsOutCounter(
+            StreamTask<?, ?> containingTask, JobVertexID targetVertexId) {
+        TaskIOMetricGroup taskIOMetricGroup =
+                containingTask.getEnvironment().getMetricGroup().getIOMetricGroup();
+        Counter counter = new SimpleCounter();
+        taskIOMetricGroup.reuseRecordsOutputCounter(counter, targetVertexId.toHexString());
+        return counter;
+    }
+
+    /**
+     * Creates a per-downstream-target {@code numRecordsOut} counter for the multi-output /
+     * broadcast fan-out path. The counter is exposed as the individual metric {@code
+     * numRecordsOut.<targetVertexId>} and appears in {@link
+     * TaskIOMetricGroup#getNumRecordsOutPerTarget()}, but is <em>not</em> added to the aggregate
+     * {@link MetricNames#IO_NUM_RECORDS_OUT} sum, because in this path the aggregate is already
+     * incremented once per logical emit by the broadcast collector.
+     */
+    private static Counter createPerTargetRecordsOutCounter(
+            StreamTask<?, ?> containingTask, JobVertexID targetVertexId) {
+        TaskIOMetricGroup taskIOMetricGroup =
+                containingTask.getEnvironment().getMetricGroup().getIOMetricGroup();
+        Counter counter = new SimpleCounter();
+        taskIOMetricGroup.registerNumRecordsOutPerTarget(counter, targetVertexId.toHexString());
         return counter;
     }
 

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -376,6 +377,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                 new NonChainedOutput(
                         true,
                         sourceToMainEdge.getSourceId(),
+                        new JobVertexID(),
                         1,
                         1,
                         100,
