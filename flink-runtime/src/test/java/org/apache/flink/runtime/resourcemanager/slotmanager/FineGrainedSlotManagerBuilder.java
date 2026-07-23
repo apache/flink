@@ -20,6 +20,8 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.resourcemanager.health.NoOpNodeHealthManager;
+import org.apache.flink.runtime.resourcemanager.health.NodeHealthManager;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -34,6 +36,7 @@ public class FineGrainedSlotManagerBuilder {
     private final ScheduledExecutor scheduledExecutor;
     private ResourceAllocationStrategy resourceAllocationStrategy =
             TestingResourceAllocationStrategy.newBuilder().build();
+    private NodeHealthManager nodeHealthManager = new NoOpNodeHealthManager();
 
     SlotManagerConfiguration slotManagerConfiguration =
             SlotManagerConfigurationBuilder.newBuilder().build();
@@ -80,6 +83,11 @@ public class FineGrainedSlotManagerBuilder {
         return this;
     }
 
+    public FineGrainedSlotManagerBuilder setNodeHealthManager(NodeHealthManager nodeHealthManager) {
+        this.nodeHealthManager = nodeHealthManager;
+        return this;
+    }
+
     public FineGrainedSlotManager build() {
         return new FineGrainedSlotManager(
                 scheduledExecutor,
@@ -88,6 +96,7 @@ public class FineGrainedSlotManagerBuilder {
                 resourceTracker,
                 taskManagerTracker,
                 slotStatusSyncer,
-                resourceAllocationStrategy);
+                resourceAllocationStrategy,
+                nodeHealthManager);
     }
 }

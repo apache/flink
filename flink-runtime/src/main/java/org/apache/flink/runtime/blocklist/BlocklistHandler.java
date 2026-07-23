@@ -24,13 +24,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.slf4j.Logger;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
  * This class is responsible for managing all {@link BlockedNode}s and performing them on resources.
  */
-public interface BlocklistHandler {
+public interface BlocklistHandler extends BlockedNodeRetriever {
 
     /**
      * Add new blocked node records. If a node (identified by node id) already exists, the newly
@@ -39,21 +38,6 @@ public interface BlocklistHandler {
      * @param newNodes the new blocked node records
      */
     void addNewBlockedNodes(Collection<BlockedNode> newNodes);
-
-    /**
-     * Returns whether the given task manager is blocked (located on blocked nodes).
-     *
-     * @param taskManagerId ID of the task manager to query
-     * @return true if the given task manager is blocked, otherwise false
-     */
-    boolean isBlockedTaskManager(ResourceID taskManagerId);
-
-    /**
-     * Get all blocked node ids.
-     *
-     * @return a set containing all blocked node ids
-     */
-    Set<String> getAllBlockedNodeIds();
 
     /**
      * Register a new blocklist listener.
@@ -68,6 +52,21 @@ public interface BlocklistHandler {
      * @param blocklistListener the listener to deregister
      */
     void deregisterBlocklistListener(BlocklistListener blocklistListener);
+
+    /**
+     * Returns whether the given task manager is blocked (located on blocked nodes).
+     *
+     * @param taskManagerId ID of the task manager to query
+     * @return true if the given task manager is blocked, otherwise false
+     */
+    boolean isBlockedTaskManager(ResourceID taskManagerId);
+
+    /**
+     * Remove nodes from the blocklist by node IDs.
+     *
+     * @param nodeIds the node IDs to remove
+     */
+    void removeTimeoutNodes(Collection<String> nodeIds);
 
     /** Factory to instantiate {@link BlocklistHandler}. */
     interface Factory {

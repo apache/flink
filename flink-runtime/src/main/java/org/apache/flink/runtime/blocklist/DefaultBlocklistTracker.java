@@ -116,6 +116,19 @@ public class DefaultBlocklistTracker implements BlocklistTracker {
         return removedNodes;
     }
 
+    @Override
+    public Collection<BlockedNode> removeBlockedNodes(Collection<String> nodeIds) {
+        checkNotNull(nodeIds);
+        Collection<BlockedNode> removedNodes = new ArrayList<>();
+        for (String nodeId : nodeIds) {
+            BlockedNode removedNode = blockedNodes.remove(nodeId);
+            if (removedNode != null) {
+                removedNodes.add(removedNode);
+            }
+        }
+        return removedNodes;
+    }
+
     private enum AddStatus {
         ADDED,
         MERGED,

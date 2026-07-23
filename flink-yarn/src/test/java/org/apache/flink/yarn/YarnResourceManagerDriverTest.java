@@ -21,6 +21,8 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -455,7 +457,18 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                         });
 
                 final Set<String> blockedNodes = new HashSet<>();
-                setBlockedNodeRetriever(() -> blockedNodes);
+                setBlockedNodeRetriever(
+                        new BlockedNodeRetriever() {
+                            @Override
+                            public Set<String> getAllBlockedNodeIds() {
+                                return blockedNodes;
+                            }
+
+                            @Override
+                            public Collection<BlockedNode> getAllBlockedNodes() {
+                                return Collections.emptyList();
+                            }
+                        });
                 runTest(
                         () -> {
                             blockedNodes.addAll(Arrays.asList("node1", "node2", "node3"));

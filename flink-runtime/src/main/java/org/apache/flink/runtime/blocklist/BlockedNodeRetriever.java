@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.blocklist;
 
+import java.util.Collection;
 import java.util.Set;
 
 /** This class helps to retrieve the blocked nodes. */
@@ -28,4 +29,11 @@ public interface BlockedNodeRetriever {
      * @return a set containing all blocked node ids
      */
     Set<String> getAllBlockedNodeIds();
+
+    /**
+     * Get all blocked nodes with detailed information.
+     *
+     * @return a collection containing all blocked nodes
+     */
+    Collection<BlockedNode> getAllBlockedNodes();
 }

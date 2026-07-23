@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.health.NodeHealthManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceAllocationStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotStatusSyncer;
@@ -57,10 +58,15 @@ public class ResourceManagerRuntimeServices {
             ResourceManagerRuntimeServicesConfiguration configuration,
             HighAvailabilityServices highAvailabilityServices,
             ScheduledExecutor scheduledExecutor,
-            SlotManagerMetricGroup slotManagerMetricGroup) {
+            SlotManagerMetricGroup slotManagerMetricGroup,
+            NodeHealthManager nodeHealthManager) {
 
         final SlotManager slotManager =
-                createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
+                createSlotManager(
+                        configuration,
+                        scheduledExecutor,
+                        slotManagerMetricGroup,
+                        nodeHealthManager);
 
         final JobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(
@@ -72,7 +78,8 @@ public class ResourceManagerRuntimeServices {
     private static SlotManager createSlotManager(
             ResourceManagerRuntimeServicesConfiguration configuration,
             ScheduledExecutor scheduledExecutor,
-            SlotManagerMetricGroup slotManagerMetricGroup) {
+            SlotManagerMetricGroup slotManagerMetricGroup,
+            NodeHealthManager nodeHealthManager) {
         final SlotManagerConfiguration slotManagerConfiguration =
                 configuration.getSlotManagerConfiguration();
         return new FineGrainedSlotManager(
@@ -91,6 +98,7 @@ public class ResourceManagerRuntimeServices {
                         slotManagerConfiguration.getTaskManagerTimeout(),
                         slotManagerConfiguration.getRedundantTaskManagerNum(),
                         slotManagerConfiguration.getMinTotalCpu(),
-                        slotManagerConfiguration.getMinTotalMem()));
+                        slotManagerConfiguration.getMinTotalMem()),
+                nodeHealthManager);
     }
 }
