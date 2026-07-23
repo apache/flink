@@ -23,6 +23,7 @@ import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.util.PbFieldConflictResolver;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -61,6 +62,9 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                 "GenericRowData " + flinkRowDataVar + " = new GenericRowData(" + fieldSize + ")");
         int index = 0;
         PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
+        // Get cached accessor mappings for performance optimization
+        PbFieldConflictResolver.AccessorMappings accessorMappings =
+                PbFieldConflictResolver.getAccessorMappings(descriptor);
         for (String fieldName : rowType.getFieldNames()) {
             int subUid = varUid.getAndIncrement();
             String flinkRowEleVar = "elementDataVar" + subUid;
@@ -84,15 +88,17 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                         isMessageElementNonEmptyCode(
                                 pbMessageVar,
                                 strongCamelFieldName,
-                                PbFormatUtils.isRepeatedType(subType));
+                                elementFd,
+                                PbFormatUtils.isRepeatedType(subType),
+                                accessorMappings);
                 splitAppender.begin("if(" + isMessageElementNonEmptyCode + "){");
             }
             String pbGetMessageElementCode =
                     pbGetMessageElementCode(
                             pbMessageVar,
-                            strongCamelFieldName,
                             elementFd,
-                            PbFormatUtils.isArrayType(subType));
+                            PbFormatUtils.isArrayType(subType),
+                            accessorMappings);
             String code =
                     codegen.codegen(
                             flinkRowEleVar, pbGetMessageElementCode, splitAppender.currentIndent());
@@ -122,25 +128,20 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
     }
 
     private String pbGetMessageElementCode(
-            String message, String fieldName, FieldDescriptor fd, boolean isList) {
-        if (fd.isMapField()) {
-            // map
-            return message + ".get" + fieldName + "Map()";
-        } else if (isList) {
-            // list
-            return message + ".get" + fieldName + "List()";
-        } else {
-            return message + ".get" + fieldName + "()";
-        }
+            String message,
+            FieldDescriptor fd,
+            boolean isList,
+            PbFieldConflictResolver.AccessorMappings mappings) {
+        return message + "." + PbFieldConflictResolver.resolveGetter(fd, isList, mappings) + "()";
     }
 
     private String isMessageElementNonEmptyCode(
-            String message, String fieldName, boolean isListOrMap) {
-        if (isListOrMap) {
-            return message + ".get" + fieldName + "Count() > 0";
-        } else {
-            // proto syntax class do not have hasName() interface
-            return message + ".has" + fieldName + "()";
-        }
+            String message,
+            String fieldName,
+            FieldDescriptor fd,
+            boolean isList,
+            PbFieldConflictResolver.AccessorMappings mappings) {
+        return PbFieldConflictResolver.generatePresenceCheck(
+                message, fd, fieldName, isList, mappings);
     }
 }
