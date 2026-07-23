@@ -37,17 +37,40 @@ import java.util.Collections;
 public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
+    
+    static {
+        // Static initializer - this will log when the class is first loaded
+        String timestamp = java.time.Instant.now().toString();
+        String message = String.format("=== CUSTOM S3FileSystemFactory LOADED [%s] - Hadoop 3.4.2 + Conditional Writes ===", timestamp);
+        System.err.println(message);
+        LOG.error(message);
+        
+        // Also log the JAR location to help with debugging
+        try {
+            String jarLocation = S3FileSystemFactory.class.getProtectionDomain().getCodeSource().getLocation().toString();
+            LOG.error("=== JAR Location: {} ===", jarLocation);
+            System.err.println("=== JAR Location: " + jarLocation + " ===");
+        } catch (Exception e) {
+            LOG.error("=== Could not determine JAR location: {} ===", e.getMessage());
+        }
+    }
 
     private static final String[] FLINK_CONFIG_PREFIXES = {"s3.", "s3a.", "fs.s3a."};
 
     private static final String[][] MIRRORED_CONFIG_KEYS = {
         {"fs.s3a.access-key", "fs.s3a.access.key"},
         {"fs.s3a.secret-key", "fs.s3a.secret.key"},
-        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"}
+        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"},
+        {"fs.s3a.requester-pays-enabled", "fs.s3a.requester.pays.enabled"},
+        {"fs.s3a.create-conditional-enabled", "fs.s3a.create.conditional.enabled"},
+        {"s3a.create-conditional-enabled", "fs.s3a.create.conditional.enabled"}
     };
 
     public S3FileSystemFactory() {
         super("Hadoop s3a file system", createHadoopConfigLoader());
+        
+        // Distinctive log message to confirm our custom JAR is loaded
+        LOG.error("=== CUSTOM S3 FILESYSTEM JAR LOADED - Hadoop 3.4.2 + Conditional Writes ===");
     }
 
     @Override
