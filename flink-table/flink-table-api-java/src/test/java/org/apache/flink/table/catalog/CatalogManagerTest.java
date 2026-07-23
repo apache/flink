@@ -274,7 +274,7 @@ class CatalogManagerTest {
         @Override
         public boolean databaseExists(String databaseName) {
             throw new CatalogException(
-                    "Failed to connect for database '"
+                    "Failed to connect to database '"
                             + databaseName
                             + "' of catalog '"
                             + getName()
