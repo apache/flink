@@ -35,7 +35,7 @@ inputs:
     required: false
     default: ""
   free_disk_space:
-    description: "Runs tools/azure-pipelines/free_disk_space.sh to remove unneeded pre-installed software from the runner (only works for jobs that run directly on the host, not in a container)."
+    description: "Runs tools/ci/free_disk_space.sh to remove unneeded pre-installed software from the runner (only works for jobs that run directly on the host, not in a container)."
     required: false
     default: "false"
 outputs:
@@ -62,7 +62,7 @@ runs:
     - name: "Free up disk space"
       if: ${{ inputs.free_disk_space == 'true' }}
       shell: bash
-      run: ./tools/azure-pipelines/free_disk_space.sh
+      run: ./tools/ci/free_disk_space.sh
 
     - name: "Delete unused binaries"
       if: ${{ inputs.free_disk_space != 'true' }}
