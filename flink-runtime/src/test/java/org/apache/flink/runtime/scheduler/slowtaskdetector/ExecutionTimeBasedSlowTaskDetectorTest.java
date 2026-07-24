@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.NoMainThreadCheckComponentMainThreadExecutor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -264,6 +265,11 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         ev23.setInputBytes(1024);
 
         ev23.getCurrentExecutionAttempt().markFinished();
+        final long currentTimeMillis = System.currentTimeMillis();
+        setStateTimestamp(ev21, ExecutionState.DEPLOYING, currentTimeMillis - 1000);
+        setStateTimestamp(ev22, ExecutionState.DEPLOYING, currentTimeMillis - 1000);
+        setStateTimestamp(ev23, ExecutionState.DEPLOYING, currentTimeMillis - 1);
+        setStateTimestamp(ev23, ExecutionState.FINISHED, currentTimeMillis);
 
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
@@ -501,5 +507,11 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO, ratio);
         configuration.set(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER, multiplier);
         return configuration;
+    }
+
+    private static void setStateTimestamp(
+            ExecutionVertex executionVertex, ExecutionState state, long timestamp) {
+        executionVertex.getCurrentExecutionAttempt().getStateTimestamps()[state.ordinal()] =
+                timestamp;
     }
 }
