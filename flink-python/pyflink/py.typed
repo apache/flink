@@ -15,16 +15,3 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-global-exclude *.py[cod] __pycache__ .DS_Store
-graft deps/bin
-graft deps/conf
-graft deps/log
-recursive-include deps/examples *.py
-include README.md
-include LICENSE
-include NOTICE
-include pyflink/README.txt
-include pyflink/py.typed
-recursive-include pyflink/fn_execution *.pxd
-recursive-include pyflink/fn_execution *.pyx
