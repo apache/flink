@@ -20,31 +20,32 @@ package org.apache.flink.connector.datagen.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Container class for wrapping a {@link DataGenerator with its configuration options}. */
+/** Container class for wrapping a {@link GeneratorFunction} with its configuration options. */
 @Internal
 public class DataGeneratorContainer {
-
-    private final DataGenerator generator;
+    private final GeneratorFunction<Long, ?> generator;
 
     /** Generator config options, for validation. */
     private final Set<ConfigOption<?>> options;
 
-    private DataGeneratorContainer(DataGenerator generator, Set<ConfigOption<?>> options) {
+    private DataGeneratorContainer(
+            GeneratorFunction<Long, ?> generator, Set<ConfigOption<?>> options) {
         this.generator = generator;
         this.options = options;
     }
 
-    public static DataGeneratorContainer of(DataGenerator generator, ConfigOption<?>... options) {
+    public static DataGeneratorContainer of(
+            GeneratorFunction<Long, ?> generator, ConfigOption<?>... options) {
         return new DataGeneratorContainer(generator, new HashSet<>(Arrays.asList(options)));
     }
 
-    public DataGenerator getGenerator() {
+    public GeneratorFunction<Long, ?> getGenerator() {
         return generator;
     }
 
