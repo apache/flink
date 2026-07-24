@@ -40,6 +40,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -58,6 +59,7 @@ import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -163,7 +165,8 @@ public final class PythonBridgeUtils {
         return objs;
     }
 
-    private static Object getPickledBytesFromJavaObject(Object obj, LogicalType dataType)
+    /** Package-private for testing. */
+    static Object getPickledBytesFromJavaObject(Object obj, LogicalType dataType)
             throws IOException {
         Pickler pickler = new Pickler();
         initialize();
@@ -190,6 +193,12 @@ public final class PythonBridgeUtils {
             } else if (dataType instanceof TimestampType) {
                 if (obj instanceof LocalDateTime) {
                     return pickler.dumps(Timestamp.valueOf((LocalDateTime) obj));
+                } else {
+                    return pickler.dumps(obj);
+                }
+            } else if (dataType instanceof LocalZonedTimestampType) {
+                if (obj instanceof Instant) {
+                    return pickler.dumps(Timestamp.from((Instant) obj));
                 } else {
                     return pickler.dumps(obj);
                 }
