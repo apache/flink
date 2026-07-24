@@ -1703,6 +1703,22 @@ aggregate:
       `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
 
       如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
+  - sql: SINGLE_VALUE(expression)
+    description: |
+      Returns a single value of the expression within a group.
+
+      If the group contains more than one distinct value, an exception is thrown at runtime.
+
+      E.g.,
+      ```sql
+      SELECT SINGLE_VALUE(word) AS single_val
+      FROM VALUES ('Hello'), ('Ciao'), ('World')
+      AS WordTable(word)
+      GROUP BY word
+      ```
+
+      This function is typically used in contexts where exactly one value is expected,
+      such as scalar subqueries or planner-generated aggregate expressions.
 
 bitmapagg:
   - sql: BITMAP_AND_AGG(bitmap)
