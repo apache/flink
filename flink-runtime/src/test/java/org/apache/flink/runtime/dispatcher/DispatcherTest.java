@@ -802,8 +802,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         CheckpointStatsTracker checkpointStatsTracker =
                 new DefaultCheckpointStatsTracker(
                         10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
-        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
-        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
+        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress(null);
+        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress(null);
         return checkpointStatsTracker.createSnapshot();
     }
 
