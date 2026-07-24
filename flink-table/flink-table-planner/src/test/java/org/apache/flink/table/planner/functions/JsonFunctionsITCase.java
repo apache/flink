@@ -368,7 +368,43 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
-                                BOOLEAN().notNull()));
+                                BOOLEAN().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("{} dsfsd")
+                        .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
+                                BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                false,
+                                BOOLEAN().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("true randomGarbage")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
+                                BOOLEAN().notNull()
+                        ),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("null, randomGarbage")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
+                                BOOLEAN().notNull()
+                        )
+
+
+        );
+
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {
