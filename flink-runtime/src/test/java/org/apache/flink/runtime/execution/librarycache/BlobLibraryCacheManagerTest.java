@@ -56,11 +56,14 @@ import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountFor
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests for {@link BlobLibraryCacheManager}. */
@@ -148,18 +151,16 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
             try {
                 classLoaderLeaseJob2.getOrResolveClassLoader(keys1, Collections.<URL>emptyList());
-                fail("Should fail with an IllegalStateException");
-            } catch (IllegalStateException e) {
-                // that's what we want
+                fail("Should fail with an IOException");
+            } catch (IOException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("Failed to fetch BLOB"));
             }
 
-            try {
-                classLoaderLeaseJob2.getOrResolveClassLoader(
-                        keys2, Collections.singletonList(new URL("file:///tmp/does-not-exist")));
-                fail("Should fail with an IllegalStateException");
-            } catch (IllegalStateException e) {
-                // that's what we want
-            }
+            final UserCodeClassLoader recreatedClassLoader =
+                    classLoaderLeaseJob2.getOrResolveClassLoader(
+                            keys2,
+                            Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+            assertThat(recreatedClassLoader, not(sameInstance(classLoader2)));
 
             assertEquals(2, libCache.getNumberOfManagedJobs());
             assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
@@ -271,21 +272,15 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                     classLoaderLease2.getOrResolveClassLoader(keys, Collections.emptyList());
             assertThat(classLoader1, sameInstance(classLoader2));
 
-            try {
-                classLoaderLease1.getOrResolveClassLoader(
-                        Collections.emptyList(), Collections.emptyList());
-                fail("Should fail with an IllegalStateException");
-            } catch (IllegalStateException e) {
-                // that's what we want
-            }
+            final UserCodeClassLoader recreatedClassLoader1 =
+                    classLoaderLease1.getOrResolveClassLoader(
+                            Collections.emptyList(), Collections.emptyList());
+            assertThat(recreatedClassLoader1, not(sameInstance(classLoader1)));
 
-            try {
-                classLoaderLease1.getOrResolveClassLoader(
-                        keys, Collections.singletonList(new URL("file:///tmp/does-not-exist")));
-                fail("Should fail with an IllegalStateException");
-            } catch (IllegalStateException e) {
-                // that's what we want
-            }
+            final UserCodeClassLoader recreatedClassLoader2 =
+                    classLoaderLease1.getOrResolveClassLoader(
+                            keys, Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+            assertThat(recreatedClassLoader2, not(sameInstance(recreatedClassLoader1)));
 
             assertEquals(1, libCache.getNumberOfManagedJobs());
             assertEquals(2, libCache.getNumberOfReferenceHolders(jobId));
@@ -615,6 +610,99 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         releaseHookLatch.await();
     }
 
+    @Test
+    public void classloaderIsRecreatedWhenBlobKeysChangeForSameJob() throws Exception {
+        JobID jobId = new JobID();
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        final byte[] content = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+            InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
+
+            PermanentBlobKey key1 = server.putPermanent(jobId, content);
+            PermanentBlobKey key2 = server.putPermanent(jobId, content);
+
+            assertNotEquals(key1, key2);
+            assertArrayEquals(key1.getHash(), key2.getHash());
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId, applicationId);
+
+            final LibraryCacheManager.ClassLoaderLease lease =
+                    libCache.registerClassLoaderLease(jobId, applicationId);
+            final UserCodeClassLoader classLoader1 =
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(key1), Collections.emptyList());
+
+            final UserCodeClassLoader classLoader2 =
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(key2), Collections.emptyList());
+
+            assertThat(classLoader2, not(sameInstance(classLoader1)));
+
+            assertTrue(cache.getFile(jobId, key2).exists());
+
+            lease.release();
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
+    }
+
+    @Test
+    public void classloaderRecreationDoesNotCloseOldClassloader() throws Exception {
+        assumeFalse(wrapsSystemClassLoader);
+        final TestingClassLoader classLoader1 = new TestingClassLoader();
+        final TestingClassLoader classLoader2 = new TestingClassLoader();
+        final TestingClassLoader[] classLoaders = {classLoader1, classLoader2};
+        final int[] callCount = {0};
+
+        final BlobLibraryCacheManager libraryCacheManager =
+                new TestingBlobLibraryCacheManagerBuilder()
+                        .setClassLoaderFactory(
+                                ignored -> {
+                                    int idx = callCount[0]++;
+                                    return classLoaders[Math.min(idx, classLoaders.length - 1)];
+                                })
+                        .build();
+
+        final JobID jobId = new JobID();
+        final LibraryCacheManager.ClassLoaderLease lease =
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId);
+
+        lease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+
+        lease.getOrResolveClassLoader(
+                Collections.emptyList(),
+                Collections.singletonList(new URL("file:///tmp/does-not-exist")));
+
+        assertFalse(
+                "Old classloader should not be closed during re-creation", classLoader1.isClosed());
+
+        lease.release();
+    }
+
     private BlobLibraryCacheManager createSimpleBlobLibraryCacheManager() throws IOException {
         return new TestingBlobLibraryCacheManagerBuilder().build();
     }
@@ -814,9 +902,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
             try {
                 classLoaderLeaseJob2.getOrResolveClassLoader(keys1, Collections.<URL>emptyList());
-                fail("Should fail with an IllegalStateException");
-            } catch (IllegalStateException e) {
-                // that's what we want
+                fail("Should fail with an IOException");
+            } catch (IOException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("Failed to fetch BLOB"));
             }
 
             classLoaderLeaseJob1.release();
