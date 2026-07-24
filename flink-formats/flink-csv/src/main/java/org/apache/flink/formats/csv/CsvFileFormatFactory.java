@@ -58,6 +58,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -69,6 +70,7 @@ import static org.apache.flink.formats.csv.CsvFormatOptions.EMPTY_STRING_AS_NULL
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FAIL_ON_MISSING_COLUMNS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_FIRST_LINE;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_TRAILING_UNMAPPABLE;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
@@ -92,7 +94,9 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return CsvCommons.optionalOptions();
+        Set<ConfigOption<?>> options = new HashSet<>(CsvCommons.optionalOptions());
+        options.add(IGNORE_FIRST_LINE);
+        return options;
     }
 
     @Override
@@ -211,6 +215,8 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         }
 
         options.getOptional(ALLOW_COMMENTS).ifPresent(csvBuilder::setAllowComments);
+
+        options.getOptional(IGNORE_FIRST_LINE).ifPresent(csvBuilder::setSkipFirstDataRow);
 
         options.getOptional(ARRAY_ELEMENT_DELIMITER)
                 .ifPresent(csvBuilder::setArrayElementSeparator);
