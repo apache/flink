@@ -465,7 +465,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
 
         ForStStateDataTransfer stateTransfer =
                 new ForStStateDataTransfer(
-                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getDataTransferThreadNum(),
                         optionsContainer.getFileSystem());
 
         if (enableIncrementalCheckpointing) {

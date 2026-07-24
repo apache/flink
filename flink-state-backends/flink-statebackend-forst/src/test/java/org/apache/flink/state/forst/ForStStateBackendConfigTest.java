@@ -815,6 +815,19 @@ class ForStStateBackendConfigTest {
         }
     }
 
+    @Test
+    public void testConfigureCheckpointTransferThreadNumber() throws Exception {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        Configuration configuration = new Configuration();
+        configuration.setString(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.key(), "10");
+        forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
+
+        try (ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(10, resourceContainer.getDataTransferThreadNum());
+        }
+    }
+
     private void verifySetParameter(Runnable setter) {
         assertThatThrownBy(setter::run).isInstanceOf(IllegalArgumentException.class);
     }
