@@ -407,6 +407,36 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("{} dsfsd")
+                        .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                false,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("true randomGarbage")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("null, randomGarbage")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                false,
                                 BOOLEAN()));
     }
 
