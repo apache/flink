@@ -32,10 +32,13 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
@@ -115,7 +118,9 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.shuffle.ShuffleMasterSnapshotUtil;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -1332,11 +1337,42 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void persistAndRunJob(ExecutionPlan executionPlan) throws Exception {
         executionPlanWriter.putExecutionPlan(executionPlan);
+        notifyJobCreated(executionPlan);
         initJobClientExpiredTime(executionPlan);
         runJob(
                 createJobMasterRunner(executionPlan),
                 ExecutionType.SUBMISSION,
                 executionPlan.getApplicationId().orElse(null));
+    }
+
+    private void notifyJobCreated(ExecutionPlan executionPlan) {
+        if (!(executionPlan instanceof StreamGraph)) {
+            return;
+        }
+        StreamGraph streamGraph = (StreamGraph) executionPlan;
+        List<JobStatusChangedListener> listeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        Thread.currentThread().getContextClassLoader(),
+                        configuration,
+                        getIoExecutor(executionPlan.getJobID()));
+        listeners.forEach(
+                listener -> {
+                    try {
+                        listener.onEvent(
+                                new DefaultJobCreatedEvent(
+                                        executionPlan.getJobID(),
+                                        executionPlan.getName(),
+                                        streamGraph.getLineageGraph(),
+                                        executionPlan
+                                                .getJobConfiguration()
+                                                .get(ExecutionOptions.RUNTIME_MODE)));
+                    } catch (Throwable e) {
+                        log.error(
+                                "Failed to notify job status changed listener {}",
+                                listener.getClass().getName(),
+                                e);
+                    }
+                });
     }
 
     private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {

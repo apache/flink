@@ -163,7 +163,7 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     private transient StateBackend stateBackend;
     private transient CheckpointStorage checkpointStorage;
     private InternalTimeServiceManager.Provider timerServiceProvider;
-    private transient LineageGraph lineageGraph;
+    private LineageGraph lineageGraph;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
     private PipelineOptions.VertexDescriptionMode descriptionMode =
