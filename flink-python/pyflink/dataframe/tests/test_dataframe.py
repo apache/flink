@@ -464,6 +464,17 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
 
 
 class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
+    def test_from_records(self):
+        dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            dataframe.collect(),
+            [Row(1, "Alice"), Row(2, "Bob")],
+        )
+
     def test_basic_functionality(self):
         df = pf.from_dict(
             {
