@@ -202,6 +202,33 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
     }
 
     @Override
+    protected void validateGroupClause(SqlSelect select) {
+        checkGroupByAllEnabled(select);
+        super.validateGroupClause(select);
+    }
+
+    /**
+     * {@code GROUP BY ALL} is parsed and expanded by Calcite's validator. Flink only gates it
+     * behind {@link TableConfigOptions#TABLE_GROUP_BY_ALL_ENABLED}, since Calcite provides no
+     * conformance flag for it; the expansion itself is left to {@code super}.
+     */
+    private void checkGroupByAllEnabled(SqlSelect select) {
+        final SqlNodeList group = select.getGroup();
+        if (group == null || group.size() != 1 || group.get(0).getKind() != SqlKind.GROUP_BY_ALL) {
+            return;
+        }
+        final boolean enabled =
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                        .get(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED);
+        if (!enabled) {
+            throw new ValidationException(
+                    "GROUP BY ALL is not enabled. Set '"
+                            + TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED.key()
+                            + "' to true to enable it.");
+        }
+    }
+
+    @Override
     protected void registerNamespace(
             @Nullable SqlValidatorScope usingScope,
             @Nullable String alias,
