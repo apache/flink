@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.FinishedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.FullyFinishedOperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -78,9 +79,17 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     // ------------------------------------------------------------------------
 
     @Override
-    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    public void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
             throws IOException {
-        serializeMetadata(checkpointMetadata, dos);
+        serializeMetadata(
+                checkpointMetadata,
+                dos,
+                exclusiveDirPath == null
+                        ? SerializationContext.withoutExclusiveDir()
+                        : SerializationContext.withExclusiveDir(exclusiveDirPath));
     }
 
     @Override
@@ -95,7 +104,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     // ------------------------------------------------------------------------
 
     @Override
-    protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos)
+    protected void serializeOperatorState(
+            OperatorState operatorState, DataOutputStream dos, SerializationContext context)
             throws IOException {
         // Operator ID
         dos.writeLong(operatorState.getOperatorID().getLowerPart());
@@ -106,7 +116,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
         dos.writeInt(operatorState.getMaxParallelism());
 
         // Coordinator state
-        serializeStreamStateHandle(operatorState.getCoordinatorState(), dos);
+        serializeStreamStateHandle(operatorState.getCoordinatorState(), dos, context);
 
         // Sub task states
         if (operatorState.isFullyFinished()) {
@@ -119,7 +129,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
                 boolean isFinished = entry.getValue().isFinished();
                 serializeSubtaskIndexAndFinishedState(entry.getKey(), isFinished, dos);
                 if (!isFinished) {
-                    serializeSubtaskState(entry.getValue(), dos);
+                    serializeSubtaskState(entry.getValue(), dos, context);
                 }
             }
         }
@@ -137,9 +147,15 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @Override
-    protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos)
+    protected void serializeSubtaskState(
+            OperatorSubtaskState subtaskState, DataOutputStream dos, SerializationContext context)
             throws IOException {
-        super.serializeSubtaskState(subtaskState, dos);
+        super.serializeSubtaskState(subtaskState, dos, context);
+        // Channel state (unaligned checkpoints) is always written fresh into the current
+        // checkpoint's own storage, so its stream handles never refer to a foreign exclusive
+        // directory. It therefore does not need the exclusive-directory-aware encoding (see
+        // MetadataV2V3SerializerBase#canKeepRelativeEncoding) and keeps using the context-free
+        // serialization path.
         serializeCollection(
                 subtaskState.getInputChannelState(), dos, this::serializeInputStateHandle);
         serializeCollection(
@@ -248,6 +264,11 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     // ------------------------------------------------------------------------
     //  exposed static methods for test cases
     //
+    //  These helpers (de)serialize standalone handles outside any checkpoint,
+    //  so there is no exclusive directory to check relative references
+    //  against: they serialize with SerializationContext.withoutExclusiveDir()
+    //  and deserialize with a null DeserializationContext.
+    //
     //  NOTE: The fact that certain tests directly call these lower level
     //        serialization methods is a problem, because that way the tests
     //        bypass the versioning scheme. Especially tests that test for
@@ -258,7 +279,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public static void serializeStreamStateHandle(
             StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        MetadataV2V3SerializerBase.serializeStreamStateHandle(stateHandle, dos);
+        MetadataV2V3SerializerBase.serializeStreamStateHandle(
+                stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting
@@ -270,7 +292,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public void serializeOperatorStateHandleUtil(
             OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        serializeOperatorStateHandle(stateHandle, dos);
+        serializeOperatorStateHandle(stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting
@@ -282,7 +304,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     @VisibleForTesting
     public void serializeKeyedStateHandleUtil(KeyedStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
-        serializeKeyedStateHandle(stateHandle, dos);
+        serializeKeyedStateHandle(stateHandle, dos, SerializationContext.withoutExclusiveDir());
     }
 
     @VisibleForTesting

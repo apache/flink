@@ -38,6 +38,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.TestTemplate;
@@ -168,7 +169,7 @@ class SavepointDeepCopyTest extends AbstractTestBase {
                 .write(savepointPath2);
         env.execute("create savepoint2");
 
-        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
+        Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath2));
 
         assertThat(stateFiles2)
                 .as("Failed to create savepoint2 from savepoint1 with additional state files")
@@ -177,6 +178,11 @@ class SavepointDeepCopyTest extends AbstractTestBase {
         assertThat(stateFiles1)
                 .as("At least one state file in savepoint1 are not in savepoint2")
                 .isSubsetOf(stateFiles2);
+
+        // Not a cleanup step: deleting savepoint1 before reading savepoint2 proves the deep
+        // copy is self-contained — savepoint2's metadata must reference the copied files, not
+        // the originals in savepoint1.
+        FileUtils.deleteDirectory(new File(savepointPath1));
 
         // Try to fromExistingSavepoint savepoint2 and read the state of "Operator1" (which has not
         // been
