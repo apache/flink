@@ -40,8 +40,9 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -380,7 +381,10 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         try {
             for (int i = 0; i < partitionWriters.length; ++i) {
                 partitionWriters[i] =
-                        PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+                        new ResultPartitionBuilder()
+                                .setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+                                .setNetworkBufferPool(new NetworkBufferPool(10, 128))
+                                .build();
                 partitionWriters[i].setup();
             }
 
@@ -456,9 +460,10 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 assertThat(testHarness.getTaskStateManager().getReportedCheckpointId())
                         .isEqualTo(4);
 
-                // Each result partition should have emitted 2 barriers and 1 EndOfUserRecordsEvent.
+                // Each result partition should have emitted 2 barriers, 1 WatermarkStatus.FINISHED
+                // and 1 EndOfUserRecordsEvent.
                 for (ResultPartition resultPartition : partitionWriters) {
-                    assertThat(resultPartition.getNumberOfQueuedBuffers()).isEqualTo(3);
+                    assertThat(resultPartition.getNumberOfQueuedBuffers()).isEqualTo(4);
                 }
             }
         } finally {
@@ -519,7 +524,10 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             assertThat(output).isEmpty();
             testHarness.waitForTaskCompletion();
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            WatermarkStatus.FINISHED,
+                            Watermark.MAX_WATERMARK,
+                            new EndOfData(StopMode.DRAIN));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {
