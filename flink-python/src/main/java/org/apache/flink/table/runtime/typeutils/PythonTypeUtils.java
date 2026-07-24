@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -47,6 +48,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -156,6 +158,11 @@ public final class PythonTypeUtils {
         @Override
         public TypeSerializer visit(VarBinaryType varBinaryType) {
             return BytePrimitiveArraySerializer.INSTANCE;
+        }
+
+        @Override
+        public TypeSerializer visit(GeographyType geographyType) {
+            return GeographyTypeSerializer.INSTANCE;
         }
 
         @Override
@@ -306,6 +313,14 @@ public final class PythonTypeUtils {
                             FlinkFnApi.Schema.VarBinaryInfo.newBuilder()
                                     .setLength(varBinaryType.getLength()))
                     .setNullable(varBinaryType.isNullable())
+                    .build();
+        }
+
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(GeographyType geographyType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.GEOGRAPHY)
+                    .setNullable(geographyType.isNullable())
                     .build();
         }
 
@@ -626,6 +641,27 @@ public final class PythonTypeUtils {
         }
     }
 
+    /** GeographyData is exchanged with Python as ISO WKB bytes. */
+    public static final class GeographyDataConverter
+            extends DataConverter<GeographyData, GeographyData, byte[]> {
+
+        public static final GeographyDataConverter INSTANCE = new GeographyDataConverter();
+
+        private GeographyDataConverter() {
+            super(GeographyDataFormatConverter.INSTANCE);
+        }
+
+        @Override
+        GeographyData toInternalImpl(byte[] value) {
+            return GeographyData.fromBytes(value);
+        }
+
+        @Override
+        byte[] toExternalImpl(GeographyData value) {
+            return value.toBytes();
+        }
+    }
+
     /**
      * RowData will be converted to the Object Array [RowKind(as Long Object), Field Values(as
      * Object Array)].
@@ -831,6 +867,11 @@ public final class PythonTypeUtils {
         }
 
         @Override
+        public DataConverter visit(GeographyType geographyType) {
+            return GeographyDataConverter.INSTANCE;
+        }
+
+        @Override
         public DataConverter visit(DateType dateType) {
             return new IdentityDataConverter<>(DataFormatConverters.DateConverter.INSTANCE);
         }
@@ -906,6 +947,25 @@ public final class PythonTypeUtils {
             return new IdentityDataConverter<>(
                     DataFormatConverters.getConverterForDataType(
                             TypeConversions.fromLogicalToDataType(logicalType)));
+        }
+    }
+
+    private static final class GeographyDataFormatConverter
+            extends DataFormatConverters.DataFormatConverter<GeographyData, GeographyData> {
+
+        private static final GeographyDataFormatConverter INSTANCE =
+                new GeographyDataFormatConverter();
+
+        private GeographyDataFormatConverter() {}
+
+        @Override
+        GeographyData toInternalImpl(GeographyData value) {
+            return value;
+        }
+
+        @Override
+        GeographyData toExternalImpl(RowData row, int column) {
+            return row.getGeography(column);
         }
     }
 }
