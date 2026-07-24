@@ -1,25 +1,9 @@
-################################################################################
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
-#  distributed with this work for additional information
-#  regarding copyright ownership.  The ASF licenses this file
-#  to you under the Apache License, Version 2.0 (the
-#  "License"); you may not use this file except in compliance
-#  with the License.  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -53,7 +37,7 @@ class UserDefinedFunction(_message.Message):
     window_index: int
     takes_row_as_input: bool
     is_pandas_udf: bool
-    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ...) -> None: ...
+    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: _Optional[bool] = ..., is_pandas_udf: _Optional[bool] = ...) -> None: ...
 
 class AsyncOptions(_message.Message):
     __slots__ = ("max_concurrent_operations", "timeout_ms", "retry_enabled", "retry_max_attempts", "retry_delay_ms")
@@ -67,7 +51,7 @@ class AsyncOptions(_message.Message):
     retry_enabled: bool
     retry_max_attempts: int
     retry_delay_ms: int
-    def __init__(self, max_concurrent_operations: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., retry_enabled: bool = ..., retry_max_attempts: _Optional[int] = ..., retry_delay_ms: _Optional[int] = ...) -> None: ...
+    def __init__(self, max_concurrent_operations: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., retry_enabled: _Optional[bool] = ..., retry_max_attempts: _Optional[int] = ..., retry_delay_ms: _Optional[int] = ...) -> None: ...
 
 class UserDefinedFunctions(_message.Message):
     __slots__ = ("udfs", "metric_enabled", "windows", "profile_enabled", "job_parameters", "async_options", "runtime_context")
@@ -85,7 +69,7 @@ class UserDefinedFunctions(_message.Message):
     job_parameters: _containers.RepeatedCompositeFieldContainer[JobParameter]
     async_options: AsyncOptions
     runtime_context: UserDefinedDataStreamFunction.RuntimeContext
-    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedFunction, _Mapping]]] = ..., metric_enabled: bool = ..., windows: _Optional[_Iterable[_Union[OverWindow, _Mapping]]] = ..., profile_enabled: bool = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., async_options: _Optional[_Union[AsyncOptions, _Mapping]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
+    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedFunction, _Mapping]]] = ..., metric_enabled: _Optional[bool] = ..., windows: _Optional[_Iterable[_Union[OverWindow, _Mapping]]] = ..., profile_enabled: _Optional[bool] = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., async_options: _Optional[_Union[AsyncOptions, _Mapping]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
 
 class OverWindow(_message.Message):
     __slots__ = ("window_type", "lower_boundary", "upper_boundary")
@@ -152,7 +136,7 @@ class UserDefinedAggregateFunction(_message.Message):
     filter_arg: int
     distinct: bool
     takes_row_as_input: bool
-    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., specs: _Optional[_Iterable[_Union[UserDefinedAggregateFunction.DataViewSpec, _Mapping]]] = ..., filter_arg: _Optional[int] = ..., distinct: bool = ..., takes_row_as_input: bool = ...) -> None: ...
+    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., specs: _Optional[_Iterable[_Union[UserDefinedAggregateFunction.DataViewSpec, _Mapping]]] = ..., filter_arg: _Optional[int] = ..., distinct: _Optional[bool] = ..., takes_row_as_input: _Optional[bool] = ...) -> None: ...
 
 class GroupWindow(_message.Message):
     __slots__ = ("window_type", "is_time_window", "window_slide", "window_size", "window_gap", "is_row_time", "time_field_index", "allowedLateness", "namedProperties", "shift_timezone")
@@ -194,7 +178,7 @@ class GroupWindow(_message.Message):
     allowedLateness: int
     namedProperties: _containers.RepeatedScalarFieldContainer[GroupWindow.WindowProperty]
     shift_timezone: str
-    def __init__(self, window_type: _Optional[_Union[GroupWindow.WindowType, str]] = ..., is_time_window: bool = ..., window_slide: _Optional[int] = ..., window_size: _Optional[int] = ..., window_gap: _Optional[int] = ..., is_row_time: bool = ..., time_field_index: _Optional[int] = ..., allowedLateness: _Optional[int] = ..., namedProperties: _Optional[_Iterable[_Union[GroupWindow.WindowProperty, str]]] = ..., shift_timezone: _Optional[str] = ...) -> None: ...
+    def __init__(self, window_type: _Optional[_Union[GroupWindow.WindowType, str]] = ..., is_time_window: _Optional[bool] = ..., window_slide: _Optional[int] = ..., window_size: _Optional[int] = ..., window_gap: _Optional[int] = ..., is_row_time: _Optional[bool] = ..., time_field_index: _Optional[int] = ..., allowedLateness: _Optional[int] = ..., namedProperties: _Optional[_Iterable[_Union[GroupWindow.WindowProperty, str]]] = ..., shift_timezone: _Optional[str] = ...) -> None: ...
 
 class UserDefinedAggregateFunctions(_message.Message):
     __slots__ = ("udfs", "metric_enabled", "grouping", "generate_update_before", "key_type", "index_of_count_star", "state_cleaning_enabled", "state_cache_size", "map_state_read_cache_size", "map_state_write_cache_size", "count_star_inserted", "group_window", "profile_enabled", "job_parameters", "runtime_context")
@@ -228,7 +212,7 @@ class UserDefinedAggregateFunctions(_message.Message):
     profile_enabled: bool
     job_parameters: _containers.RepeatedCompositeFieldContainer[JobParameter]
     runtime_context: UserDefinedDataStreamFunction.RuntimeContext
-    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedAggregateFunction, _Mapping]]] = ..., metric_enabled: bool = ..., grouping: _Optional[_Iterable[int]] = ..., generate_update_before: bool = ..., key_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., index_of_count_star: _Optional[int] = ..., state_cleaning_enabled: bool = ..., state_cache_size: _Optional[int] = ..., map_state_read_cache_size: _Optional[int] = ..., map_state_write_cache_size: _Optional[int] = ..., count_star_inserted: bool = ..., group_window: _Optional[_Union[GroupWindow, _Mapping]] = ..., profile_enabled: bool = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
+    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedAggregateFunction, _Mapping]]] = ..., metric_enabled: _Optional[bool] = ..., grouping: _Optional[_Iterable[int]] = ..., generate_update_before: _Optional[bool] = ..., key_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., index_of_count_star: _Optional[int] = ..., state_cleaning_enabled: _Optional[bool] = ..., state_cache_size: _Optional[int] = ..., map_state_read_cache_size: _Optional[int] = ..., map_state_write_cache_size: _Optional[int] = ..., count_star_inserted: _Optional[bool] = ..., group_window: _Optional[_Union[GroupWindow, _Mapping]] = ..., profile_enabled: _Optional[bool] = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
 
 class Schema(_message.Message):
     __slots__ = ("fields",)
@@ -256,6 +240,7 @@ class Schema(_message.Message):
         LOCAL_ZONED_TIMESTAMP: _ClassVar[Schema.TypeName]
         ZONED_TIMESTAMP: _ClassVar[Schema.TypeName]
         NULL: _ClassVar[Schema.TypeName]
+        GEOGRAPHY: _ClassVar[Schema.TypeName]
     ROW: Schema.TypeName
     TINYINT: Schema.TypeName
     SMALLINT: Schema.TypeName
@@ -278,6 +263,7 @@ class Schema(_message.Message):
     LOCAL_ZONED_TIMESTAMP: Schema.TypeName
     ZONED_TIMESTAMP: Schema.TypeName
     NULL: Schema.TypeName
+    GEOGRAPHY: Schema.TypeName
     class MapInfo(_message.Message):
         __slots__ = ("key_type", "value_type")
         KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -362,7 +348,7 @@ class Schema(_message.Message):
         var_binary_info: Schema.VarBinaryInfo
         char_info: Schema.CharInfo
         var_char_info: Schema.VarCharInfo
-        def __init__(self, type_name: _Optional[_Union[Schema.TypeName, str]] = ..., nullable: bool = ..., collection_element_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., map_info: _Optional[_Union[Schema.MapInfo, _Mapping]] = ..., row_schema: _Optional[_Union[Schema, _Mapping]] = ..., decimal_info: _Optional[_Union[Schema.DecimalInfo, _Mapping]] = ..., time_info: _Optional[_Union[Schema.TimeInfo, _Mapping]] = ..., timestamp_info: _Optional[_Union[Schema.TimestampInfo, _Mapping]] = ..., local_zoned_timestamp_info: _Optional[_Union[Schema.LocalZonedTimestampInfo, _Mapping]] = ..., zoned_timestamp_info: _Optional[_Union[Schema.ZonedTimestampInfo, _Mapping]] = ..., binary_info: _Optional[_Union[Schema.BinaryInfo, _Mapping]] = ..., var_binary_info: _Optional[_Union[Schema.VarBinaryInfo, _Mapping]] = ..., char_info: _Optional[_Union[Schema.CharInfo, _Mapping]] = ..., var_char_info: _Optional[_Union[Schema.VarCharInfo, _Mapping]] = ...) -> None: ...
+        def __init__(self, type_name: _Optional[_Union[Schema.TypeName, str]] = ..., nullable: _Optional[bool] = ..., collection_element_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., map_info: _Optional[_Union[Schema.MapInfo, _Mapping]] = ..., row_schema: _Optional[_Union[Schema, _Mapping]] = ..., decimal_info: _Optional[_Union[Schema.DecimalInfo, _Mapping]] = ..., time_info: _Optional[_Union[Schema.TimeInfo, _Mapping]] = ..., timestamp_info: _Optional[_Union[Schema.TimestampInfo, _Mapping]] = ..., local_zoned_timestamp_info: _Optional[_Union[Schema.LocalZonedTimestampInfo, _Mapping]] = ..., zoned_timestamp_info: _Optional[_Union[Schema.ZonedTimestampInfo, _Mapping]] = ..., binary_info: _Optional[_Union[Schema.BinaryInfo, _Mapping]] = ..., var_binary_info: _Optional[_Union[Schema.VarBinaryInfo, _Mapping]] = ..., char_info: _Optional[_Union[Schema.CharInfo, _Mapping]] = ..., var_char_info: _Optional[_Union[Schema.VarCharInfo, _Mapping]] = ...) -> None: ...
     class Field(_message.Message):
         __slots__ = ("name", "description", "type")
         NAME_FIELD_NUMBER: _ClassVar[int]
@@ -517,7 +503,7 @@ class UserDefinedDataStreamFunction(_message.Message):
         attempt_number: int
         job_parameters: _containers.RepeatedCompositeFieldContainer[JobParameter]
         in_batch_execution_mode: bool
-        def __init__(self, task_name: _Optional[str] = ..., task_name_with_subtasks: _Optional[str] = ..., number_of_parallel_subtasks: _Optional[int] = ..., max_number_of_parallel_subtasks: _Optional[int] = ..., index_of_this_subtask: _Optional[int] = ..., attempt_number: _Optional[int] = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., in_batch_execution_mode: bool = ...) -> None: ...
+        def __init__(self, task_name: _Optional[str] = ..., task_name_with_subtasks: _Optional[str] = ..., number_of_parallel_subtasks: _Optional[int] = ..., max_number_of_parallel_subtasks: _Optional[int] = ..., index_of_this_subtask: _Optional[int] = ..., attempt_number: _Optional[int] = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., in_batch_execution_mode: _Optional[bool] = ...) -> None: ...
     FUNCTION_TYPE_FIELD_NUMBER: _ClassVar[int]
     RUNTIME_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
@@ -538,7 +524,7 @@ class UserDefinedDataStreamFunction(_message.Message):
     state_cache_size: int
     map_state_read_cache_size: int
     map_state_write_cache_size: int
-    def __init__(self, function_type: _Optional[_Union[UserDefinedDataStreamFunction.FunctionType, str]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ..., payload: _Optional[bytes] = ..., metric_enabled: bool = ..., key_type_info: _Optional[_Union[TypeInfo, _Mapping]] = ..., profile_enabled: bool = ..., has_side_output: bool = ..., state_cache_size: _Optional[int] = ..., map_state_read_cache_size: _Optional[int] = ..., map_state_write_cache_size: _Optional[int] = ...) -> None: ...
+    def __init__(self, function_type: _Optional[_Union[UserDefinedDataStreamFunction.FunctionType, str]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ..., payload: _Optional[bytes] = ..., metric_enabled: _Optional[bool] = ..., key_type_info: _Optional[_Union[TypeInfo, _Mapping]] = ..., profile_enabled: _Optional[bool] = ..., has_side_output: _Optional[bool] = ..., state_cache_size: _Optional[int] = ..., map_state_read_cache_size: _Optional[int] = ..., map_state_write_cache_size: _Optional[int] = ...) -> None: ...
 
 class StateDescriptor(_message.Message):
     __slots__ = ("state_name", "state_ttl_config")
@@ -582,7 +568,7 @@ class StateDescriptor(_message.Message):
                 RUN_CLEANUP_FOR_EVERY_RECORD_FIELD_NUMBER: _ClassVar[int]
                 cleanup_size: int
                 run_cleanup_for_every_record: bool
-                def __init__(self, cleanup_size: _Optional[int] = ..., run_cleanup_for_every_record: bool = ...) -> None: ...
+                def __init__(self, cleanup_size: _Optional[int] = ..., run_cleanup_for_every_record: _Optional[bool] = ...) -> None: ...
             class RocksdbCompactFilterCleanupStrategy(_message.Message):
                 __slots__ = ("query_time_after_num_entries",)
                 QUERY_TIME_AFTER_NUM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
@@ -603,7 +589,7 @@ class StateDescriptor(_message.Message):
             STRATEGIES_FIELD_NUMBER: _ClassVar[int]
             is_cleanup_in_background: bool
             strategies: _containers.RepeatedCompositeFieldContainer[StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry]
-            def __init__(self, is_cleanup_in_background: bool = ..., strategies: _Optional[_Iterable[_Union[StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry, _Mapping]]] = ...) -> None: ...
+            def __init__(self, is_cleanup_in_background: _Optional[bool] = ..., strategies: _Optional[_Iterable[_Union[StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry, _Mapping]]] = ...) -> None: ...
         UPDATE_TYPE_FIELD_NUMBER: _ClassVar[int]
         STATE_VISIBILITY_FIELD_NUMBER: _ClassVar[int]
         TTL_TIME_CHARACTERISTIC_FIELD_NUMBER: _ClassVar[int]
@@ -668,4 +654,4 @@ class CoderInfoDescriptor(_message.Message):
     raw_type: CoderInfoDescriptor.RawType
     mode: CoderInfoDescriptor.Mode
     separated_with_end_message: bool
-    def __init__(self, flatten_row_type: _Optional[_Union[CoderInfoDescriptor.FlattenRowType, _Mapping]] = ..., row_type: _Optional[_Union[CoderInfoDescriptor.RowType, _Mapping]] = ..., arrow_type: _Optional[_Union[CoderInfoDescriptor.ArrowType, _Mapping]] = ..., over_window_arrow_type: _Optional[_Union[CoderInfoDescriptor.OverWindowArrowType, _Mapping]] = ..., raw_type: _Optional[_Union[CoderInfoDescriptor.RawType, _Mapping]] = ..., mode: _Optional[_Union[CoderInfoDescriptor.Mode, str]] = ..., separated_with_end_message: bool = ...) -> None: ...
+    def __init__(self, flatten_row_type: _Optional[_Union[CoderInfoDescriptor.FlattenRowType, _Mapping]] = ..., row_type: _Optional[_Union[CoderInfoDescriptor.RowType, _Mapping]] = ..., arrow_type: _Optional[_Union[CoderInfoDescriptor.ArrowType, _Mapping]] = ..., over_window_arrow_type: _Optional[_Union[CoderInfoDescriptor.OverWindowArrowType, _Mapping]] = ..., raw_type: _Optional[_Union[CoderInfoDescriptor.RawType, _Mapping]] = ..., mode: _Optional[_Union[CoderInfoDescriptor.Mode, str]] = ..., separated_with_end_message: _Optional[bool] = ...) -> None: ...

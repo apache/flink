@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -83,6 +84,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -252,6 +254,9 @@ public final class ArrowUtils {
 
     private static ArrowFieldWriter<RowData> createArrowFieldWriterForRow(
             ValueVector vector, LogicalType fieldType) {
+        if (fieldType instanceof GeographyType && vector instanceof VarBinaryVector) {
+            return createGeographyArrowWriterForRow((VarBinaryVector) vector);
+        }
         if (vector instanceof TinyIntVector) {
             return TinyIntWriter.forRow((TinyIntVector) vector);
         } else if (vector instanceof SmallIntVector) {
@@ -329,6 +334,9 @@ public final class ArrowUtils {
 
     private static ArrowFieldWriter<ArrayData> createArrowFieldWriterForArray(
             ValueVector vector, LogicalType fieldType) {
+        if (fieldType instanceof GeographyType && vector instanceof VarBinaryVector) {
+            return createGeographyArrowWriterForArray((VarBinaryVector) vector);
+        }
         if (vector instanceof TinyIntVector) {
             return TinyIntWriter.forArray((TinyIntVector) vector);
         } else if (vector instanceof SmallIntVector) {
@@ -772,6 +780,11 @@ public final class ArrowUtils {
         }
 
         @Override
+        public ArrowType visit(GeographyType geographyType) {
+            return ArrowType.Binary.INSTANCE;
+        }
+
+        @Override
         public ArrowType visit(DecimalType decimalType) {
             return new ArrowType.Decimal(decimalType.getPrecision(), decimalType.getScale());
         }
@@ -873,5 +886,35 @@ public final class ArrowUtils {
             // should not happen, ignore
         }
         return precision;
+    }
+
+    private static ArrowFieldWriter<RowData> createGeographyArrowWriterForRow(
+            VarBinaryVector vector) {
+        return new ArrowFieldWriter<RowData>(vector) {
+            @Override
+            public void doWrite(RowData row, int ordinal) {
+                if (row.isNullAt(ordinal)) {
+                    ((VarBinaryVector) getValueVector()).setNull(getCount());
+                } else {
+                    GeographyData geography = row.getGeography(ordinal);
+                    ((VarBinaryVector) getValueVector()).setSafe(getCount(), geography.toBytes());
+                }
+            }
+        };
+    }
+
+    private static ArrowFieldWriter<ArrayData> createGeographyArrowWriterForArray(
+            VarBinaryVector vector) {
+        return new ArrowFieldWriter<ArrayData>(vector) {
+            @Override
+            public void doWrite(ArrayData array, int ordinal) {
+                if (array.isNullAt(ordinal)) {
+                    ((VarBinaryVector) getValueVector()).setNull(getCount());
+                } else {
+                    GeographyData geography = array.getGeography(ordinal);
+                    ((VarBinaryVector) getValueVector()).setSafe(getCount(), geography.toBytes());
+                }
+            }
+        };
     }
 }
