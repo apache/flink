@@ -19,6 +19,20 @@
 
 # This script aims to test Materialized Table and Kubernetes integration.
 
+ACTION="${1:-run_test}"
+
+if [ "${ACTION}" == "check_exceptions" ]; then
+    source "$(dirname "$0")"/common.sh
+
+    check_logs_for_errors
+    internal_check_logs_for_exceptions "stream_write_exceptions=0"
+    check_logs_for_non_empty_out_files
+    exit "${EXIT_CODE}"
+elif [ "${ACTION}" != "run_test" ]; then
+    echo "ERROR: Action ${ACTION} is unsupported for kubernetes materialized table test. Aborting..."
+    exit 1
+fi
+
 source "$(dirname "$0")"/common_kubernetes.sh
 
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
@@ -196,7 +210,8 @@ session_options="{\"table.catalog-store.kind\": \"file\",
                  \"kubernetes.taskmanager.cpu\": \"0.5\",
                  \"kubernetes.rest-service.exposed.type\": \"NodePort\",
                  \"s3.endpoint\": \"$S3_ENDPOINT\",
-                 \"workflow-scheduler.type\": \"embedded\"}"
+                 \"workflow-scheduler.type\": \"embedded\",
+                 \"client.timeout\": \"5min\"}"
 
 session_handle=$(open_session "$session_options")
 echo "[INFO] Session Handle $session_handle"

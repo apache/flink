@@ -182,7 +182,7 @@ function run_group_3 {
     run_test "Streaming SQL end-to-end test using planner with Scala version" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh scala-planner" "skip_check_exceptions"
     run_test "Sql Jdbc Driver end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_jdbc_driver.sh" "skip_check_exceptions"
     run_test "Run kubernetes SQL application test" "$END_TO_END_DIR/test-scripts/test_kubernetes_sql_application.sh"
-    run_test "Run kubernetes Materialized Table test" "$END_TO_END_DIR/test-scripts/test_kubernetes_materialized_table.sh"
+    run_test "Run kubernetes Materialized Table test" "$END_TO_END_DIR/test-scripts/test_kubernetes_materialized_table.sh" "custom_check_exceptions" "$END_TO_END_DIR/test-scripts/test_kubernetes_materialized_table.sh check_exceptions"
 
     run_test "File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local" "skip_check_exceptions"
     run_test "File Sink s3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh s3" "skip_check_exceptions"
