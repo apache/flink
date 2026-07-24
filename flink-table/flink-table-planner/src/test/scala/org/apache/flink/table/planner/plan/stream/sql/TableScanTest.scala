@@ -62,7 +62,7 @@ class TableScanTest extends TableTestBase {
                      |  a int,
                      |  b varchar,
                      |  c as a + 1,
-                     |  d as to_timestamp(b),
+                     |  d as TO_TIMESTAMP(b),
                      |  e as my_udf(a)
                      |) with (
                      |  'connector' = 'values'
@@ -191,7 +191,7 @@ class TableScanTest extends TableTestBase {
                      |  a int,
                      |  b varchar,
                      |  c as a + 1,
-                     |  d as to_timestamp(b),
+                     |  d as TO_TIMESTAMP(b),
                      |  e as my_udf(a),
                      |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
                      |) with (
@@ -462,7 +462,7 @@ class TableScanTest extends TableTestBase {
                     |  a INT,
                     |  b AS a + 1,
                     |  c STRING,
-                    |  ts as to_timestamp(c),
+                    |  ts as TO_TIMESTAMP(c),
                     |  PRIMARY KEY (id) NOT ENFORCED,
                     |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
                     |) WITH (
@@ -501,7 +501,7 @@ class TableScanTest extends TableTestBase {
                     |  a INT,
                     |  b AS a + 1,
                     |  c STRING,
-                    |  ts as to_timestamp(c),
+                    |  ts as TO_TIMESTAMP(c),
                     |  PRIMARY KEY (id) NOT ENFORCED,
                     |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
                     |) WITH (
@@ -521,7 +521,7 @@ class TableScanTest extends TableTestBase {
                     |  a INT,
                     |  b AS a + 1,
                     |  c STRING,
-                    |  ts as to_timestamp(c),
+                    |  ts as TO_TIMESTAMP(c),
                     |  PRIMARY KEY (id) NOT ENFORCED,
                     |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
                     |) WITH (
