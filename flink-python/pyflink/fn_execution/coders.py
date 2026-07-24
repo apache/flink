@@ -36,8 +36,8 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, create_arrow_schema, TimestampType, ArrayType, \
-    MapType, BinaryType, NullType, CharType
+    LocalZonedTimestampType, RowType, RowField, create_arrow_schema, to_arrow_type, TimestampType, ArrayType, MapType, \
+    MapType, BinaryType,, GeographyType, NullType, CharType
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
@@ -141,6 +141,8 @@ class LengthPrefixBaseCoder(ABC):
             return BinaryType(field_type.binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
             return VarBinaryType(field_type.var_binary_info.length, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.GEOGRAPHY:
+            return GeographyType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
             return DecimalType(field_type.decimal_info.precision,
                                field_type.decimal_info.scale,
