@@ -632,7 +632,11 @@ object GenerateUtils {
       val sortUtil =
         classOf[org.apache.flink.table.runtime.operators.sort.SortUtil].getCanonicalName
       s"$sortUtil.compareBinary($leftTerm, $rightTerm)"
-    case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE |
+    case FLOAT =>
+      s"Float.compare($leftTerm, $rightTerm)"
+    case DOUBLE =>
+      s"Double.compare($leftTerm, $rightTerm)"
+    case TINYINT | SMALLINT | INTEGER | BIGINT | DATE | TIME_WITHOUT_TIME_ZONE |
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP | VARIANT | BITMAP =>
