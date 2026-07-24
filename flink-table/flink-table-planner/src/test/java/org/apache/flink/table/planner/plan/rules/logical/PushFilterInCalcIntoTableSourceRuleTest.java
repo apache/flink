@@ -113,6 +113,41 @@ class PushFilterInCalcIntoTableSourceRuleTest extends PushFilterIntoTableSourceS
     }
 
     @Test
+    void testMixedPhysicalAndMetadataFilterPushDown() {
+        String ddl =
+                "CREATE TABLE MixedPhysMetaTable (\n"
+                        + "  id BIGINT,\n"
+                        + "  m0 INT METADATA\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'id',\n"
+                        + " 'enable-metadata-filter-push-down' = 'true',\n"
+                        + " 'readable-metadata' = 'm0:INT',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'disable-lookup' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT id FROM MixedPhysMetaTable WHERE id > 5 AND m0 > 10");
+    }
+
+    @Test
+    void testMetadataFilterPushdown() {
+        String ddl =
+                "CREATE TABLE MetaTable (\n"
+                        + "  id BIGINT,\n"
+                        + "  m0 INT METADATA\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'enable-metadata-filter-push-down' = 'true',\n"
+                        + " 'readable-metadata' = 'm0:INT',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'disable-lookup' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT id FROM MetaTable WHERE m0 > 10");
+    }
+
+    @Test
     void testFailureToPushFilterIntoSourceWithoutWatermarkPushdown() {
         util.verifyRelPlan("SELECT * FROM WithWatermark WHERE LOWER(name) = 'foo'");
     }
