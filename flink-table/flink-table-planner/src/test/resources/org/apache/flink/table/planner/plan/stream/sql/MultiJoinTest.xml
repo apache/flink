@@ -2100,6 +2100,48 @@ Calc(select=[user_id, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testThreeWayInnerJoinRelPlanNoCommonJoinKeyAllowedBinaryMultiJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.cash = p.price]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- Join(joinType=[InnerJoin], where=[=(cash, price)], select=[user_id, name, cash, order_id, payment_id, price], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey], stateTtlHints=[[[STATE_TTL options:[0s, 0s]]]])
+   :- Exchange(distribution=[hash[cash]])
+   :  +- Calc(select=[user_id, name, cash, order_id])
+   :     +- Join(joinType=[InnerJoin], where=[=(user_id, user_id0)], select=[user_id, name, cash, order_id, user_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey], stateTtlHints=[[[STATE_TTL options:[0s, 0s]]]])
+   :        :- Exchange(distribution=[hash[user_id]])
+   :        :  +- ChangelogNormalize(key=[user_id])
+   :        :     +- Exchange(distribution=[hash[user_id]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, name, cash])
+   :        +- Exchange(distribution=[hash[user_id]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[price]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, price], metadata=[]]], fields=[payment_id, price])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testThreeWayInnerJoinWithSingleTttlHint">
     <Resource name="sql">
       <![CDATA[
