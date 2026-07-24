@@ -18,24 +18,44 @@
 
 package org.apache.flink.fs.s3native;
 
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.PathsCopyingFileSystem.CopyRequest;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Proxy;
+import java.nio.file.Path;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link NativeS3BulkCopyHelper}. */
 class NativeS3BulkCopyHelperTest {
 
-    private static final NativeS3BulkCopyHelper helper = new NativeS3BulkCopyHelper(null, 1, 1);
+    private static final NativeS3BulkCopyHelper helper =
+            new NativeS3BulkCopyHelper(null, 1, 1, 256 * 1024);
 
     // --- URI parsing tests ---
 
@@ -153,7 +173,309 @@ class NativeS3BulkCopyHelperTest {
 
     @Test
     void testEmptyRequestListIsNoOp() throws Exception {
-        NativeS3BulkCopyHelper noOpHelper = new NativeS3BulkCopyHelper(null, 16, 50);
+        NativeS3BulkCopyHelper noOpHelper = new NativeS3BulkCopyHelper(null, 16, 50, 256 * 1024);
         noOpHelper.copyFiles(Collections.emptyList(), null);
+    }
+
+    // --- download buffer size tests ---
+
+    @Test
+    void testDownloadBufferSizeIsExposed() {
+        NativeS3BulkCopyHelper h = new NativeS3BulkCopyHelper(null, 1, 1, 128 * 1024);
+        assertThat(h.getDownloadBufferSize()).isEqualTo(128 * 1024);
+    }
+
+    @Test
+    void testNonPositiveDownloadBufferSizeRejected() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new NativeS3BulkCopyHelper(null, 1, 1, 0));
+    }
+
+    @Test
+    void testCopyFilesCancellationClosesActiveResponseStream(@TempDir Path tempDir)
+            throws Exception {
+        BlockingInputStream blockingStream = new BlockingInputStream();
+        ResponseInputStream<GetObjectResponse> responseStream =
+                new ResponseInputStream<>(GetObjectResponse.builder().build(), blockingStream);
+        NativeS3BulkCopyHelper h =
+                new NativeS3BulkCopyHelper(
+                        asyncClientReturning(CompletableFuture.completedFuture(responseStream)),
+                        1,
+                        1,
+                        1024);
+        CloseableRegistry registry = new CloseableRegistry();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Throwable> copyFailure = new CompletableFuture<>();
+
+        try {
+            executor.submit(
+                    () -> {
+                        try {
+                            h.copyFiles(
+                                    Collections.singletonList(
+                                            CopyRequest.of(
+                                                    new org.apache.flink.core.fs.Path(
+                                                            "s3://bucket/key"),
+                                                    new org.apache.flink.core.fs.Path(
+                                                            tempDir.resolve("out").toUri()),
+                                                    1L)),
+                                    registry);
+                            copyFailure.complete(null);
+                        } catch (Throwable t) {
+                            copyFailure.complete(t);
+                        }
+                    });
+
+            assertThat(blockingStream.awaitReadStarted()).isTrue();
+            registry.close();
+
+            assertThat(copyFailure.get(10, TimeUnit.SECONDS)).isInstanceOf(IOException.class);
+            assertThat(blockingStream.awaitClosed()).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testCopyFilesClosesResponseStreamCompletedAfterCancellation(@TempDir Path tempDir)
+            throws Exception {
+        BlockingInputStream blockingStream = new BlockingInputStream();
+        ResponseInputStream<GetObjectResponse> responseStream =
+                new ResponseInputStream<>(GetObjectResponse.builder().build(), blockingStream);
+        NonCancellingCompletableFuture<ResponseInputStream<GetObjectResponse>> responseFuture =
+                new NonCancellingCompletableFuture<>();
+        CountDownLatch getObjectCalled = new CountDownLatch(1);
+        NativeS3BulkCopyHelper h =
+                new NativeS3BulkCopyHelper(
+                        asyncClientReturning(responseFuture, getObjectCalled), 1, 1, 1024);
+        CloseableRegistry registry = new CloseableRegistry();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Throwable> copyFailure = new CompletableFuture<>();
+
+        try {
+            executor.submit(
+                    () -> {
+                        try {
+                            h.copyFiles(
+                                    Collections.singletonList(
+                                            CopyRequest.of(
+                                                    new org.apache.flink.core.fs.Path(
+                                                            "s3://bucket/key"),
+                                                    new org.apache.flink.core.fs.Path(
+                                                            tempDir.resolve("out").toUri()),
+                                                    1L)),
+                                    registry);
+                            copyFailure.complete(null);
+                        } catch (Throwable t) {
+                            copyFailure.complete(t);
+                        }
+                    });
+
+            assertThat(getObjectCalled.await(10, TimeUnit.SECONDS)).isTrue();
+            registry.close();
+            responseFuture.complete(responseStream);
+
+            assertThat(copyFailure.get(10, TimeUnit.SECONDS)).isInstanceOf(IOException.class);
+            assertThat(blockingStream.awaitClosed()).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testCopyFilesDeletesTemporaryFileWhenRequestFails(@TempDir Path tempDir) {
+        NativeS3BulkCopyHelper h =
+                new NativeS3BulkCopyHelper(
+                        asyncClientReturning(
+                                CompletableFuture.failedFuture(new IOException("boom"))),
+                        1,
+                        1,
+                        1024);
+
+        assertThatThrownBy(
+                        () ->
+                                h.copyFiles(
+                                        Collections.singletonList(
+                                                CopyRequest.of(
+                                                        new org.apache.flink.core.fs.Path(
+                                                                "s3://bucket/key"),
+                                                        new org.apache.flink.core.fs.Path(
+                                                                tempDir.resolve("out").toUri()),
+                                                        1L)),
+                                        new CloseableRegistry()))
+                .isInstanceOf(IOException.class);
+
+        assertThat(tempDir).isEmptyDirectory();
+    }
+
+    @Test
+    void testCopyFilesSupportsShortDestinationFileNames(@TempDir Path tempDir) throws Exception {
+        ResponseInputStream<GetObjectResponse> responseStream =
+                new ResponseInputStream<>(
+                        GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream("data".getBytes()));
+        NativeS3BulkCopyHelper h =
+                new NativeS3BulkCopyHelper(
+                        asyncClientReturning(CompletableFuture.completedFuture(responseStream)),
+                        1,
+                        1,
+                        1024);
+        Path destination = tempDir.resolve("x");
+
+        h.copyFiles(
+                Collections.singletonList(
+                        CopyRequest.of(
+                                new org.apache.flink.core.fs.Path("s3://bucket/key"),
+                                new org.apache.flink.core.fs.Path(destination.toUri()),
+                                4L)),
+                new CloseableRegistry());
+
+        assertThat(destination).hasContent("data");
+    }
+
+    @Test
+    void testCopyFilesFailFastAbortsInFlightStreamsOnFirstFailure(@TempDir Path tempDir)
+            throws Exception {
+        BlockingInputStream blockingStream = new BlockingInputStream();
+        ResponseInputStream<GetObjectResponse> blockingResponse =
+                new ResponseInputStream<>(GetObjectResponse.builder().build(), blockingStream);
+        java.util.concurrent.ConcurrentLinkedQueue<
+                        CompletableFuture<ResponseInputStream<GetObjectResponse>>>
+                responses = new java.util.concurrent.ConcurrentLinkedQueue<>();
+        responses.add(CompletableFuture.completedFuture(blockingResponse));
+        responses.add(CompletableFuture.failedFuture(new IOException("boom")));
+
+        S3AsyncClient client =
+                (S3AsyncClient)
+                        Proxy.newProxyInstance(
+                                S3AsyncClient.class.getClassLoader(),
+                                new Class<?>[] {S3AsyncClient.class},
+                                (proxy, method, args) -> {
+                                    switch (method.getName()) {
+                                        case "getObject":
+                                            return responses.poll();
+                                        case "close":
+                                            return null;
+                                        case "serviceName":
+                                            return "s3";
+                                        case "toString":
+                                            return "test-s3-async-client";
+                                        default:
+                                            throw new UnsupportedOperationException(
+                                                    method.toString());
+                                    }
+                                });
+        NativeS3BulkCopyHelper h = new NativeS3BulkCopyHelper(client, 2, 2, 1024);
+        CloseableRegistry registry = new CloseableRegistry();
+
+        assertThatThrownBy(
+                        () ->
+                                h.copyFiles(
+                                        java.util.Arrays.asList(
+                                                CopyRequest.of(
+                                                        new org.apache.flink.core.fs.Path(
+                                                                "s3://bucket/blocking"),
+                                                        new org.apache.flink.core.fs.Path(
+                                                                tempDir.resolve("a").toUri()),
+                                                        1L),
+                                                CopyRequest.of(
+                                                        new org.apache.flink.core.fs.Path(
+                                                                "s3://bucket/failing"),
+                                                        new org.apache.flink.core.fs.Path(
+                                                                tempDir.resolve("b").toUri()),
+                                                        1L)),
+                                        registry))
+                .isInstanceOf(IOException.class);
+
+        assertThat(blockingStream.awaitClosed()).isTrue();
+    }
+
+    private static S3AsyncClient asyncClientReturning(
+            CompletableFuture<ResponseInputStream<GetObjectResponse>> responseFuture) {
+        return asyncClientReturning(responseFuture, null);
+    }
+
+    private static S3AsyncClient asyncClientReturning(
+            CompletableFuture<ResponseInputStream<GetObjectResponse>> responseFuture,
+            CountDownLatch getObjectCalled) {
+        return (S3AsyncClient)
+                Proxy.newProxyInstance(
+                        S3AsyncClient.class.getClassLoader(),
+                        new Class<?>[] {S3AsyncClient.class},
+                        (proxy, method, args) -> {
+                            if (method.getName().equals("getObject")
+                                    && args != null
+                                    && args.length == 2) {
+                                if (getObjectCalled != null) {
+                                    getObjectCalled.countDown();
+                                }
+                                return responseFuture;
+                            }
+                            if (method.getName().equals("close")) {
+                                return null;
+                            }
+                            if (method.getName().equals("serviceName")) {
+                                return "s3";
+                            }
+                            if (method.getName().equals("toString")) {
+                                return "test-s3-async-client";
+                            }
+                            throw new UnsupportedOperationException(method.toString());
+                        });
+    }
+
+    private static final class NonCancellingCompletableFuture<T> extends CompletableFuture<T> {
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            return false;
+        }
+    }
+
+    private static final class BlockingInputStream extends InputStream {
+        private boolean closed;
+        private boolean readStarted;
+
+        @Override
+        public synchronized int read() throws IOException {
+            byte[] buffer = new byte[1];
+            return read(buffer, 0, 1);
+        }
+
+        @Override
+        public synchronized int read(byte[] b, int off, int len) throws IOException {
+            readStarted = true;
+            notifyAll();
+            while (!closed) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("interrupted", e);
+                }
+            }
+            throw new IOException("closed");
+        }
+
+        @Override
+        public synchronized void close() {
+            closed = true;
+            notifyAll();
+        }
+
+        synchronized boolean awaitReadStarted() throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!readStarted && System.nanoTime() < deadline) {
+                TimeUnit.MILLISECONDS.timedWait(this, 10);
+            }
+            return readStarted;
+        }
+
+        synchronized boolean awaitClosed() throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!closed && System.nanoTime() < deadline) {
+                TimeUnit.MILLISECONDS.timedWait(this, 10);
+            }
+            return closed;
+        }
     }
 }

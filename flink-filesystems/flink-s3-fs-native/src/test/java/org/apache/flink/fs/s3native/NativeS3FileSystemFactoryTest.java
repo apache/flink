@@ -20,19 +20,39 @@ package org.apache.flink.fs.s3native;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link NativeS3FileSystemFactory}. */
 class NativeS3FileSystemFactoryTest {
+
+    private final List<NativeS3FileSystem> createdFileSystems = new ArrayList<>();
+
+    @AfterEach
+    void closeCreatedFileSystems() {
+        for (NativeS3FileSystem fs : createdFileSystems) {
+            try {
+                fs.closeAsync().get(10, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+                // best-effort cleanup of test resources
+            }
+        }
+        createdFileSystems.clear();
+    }
+
     private static Configuration baseConfig() {
         Configuration config = new Configuration();
         config.setString("s3.access-key", "test-access-key");
@@ -42,16 +62,22 @@ class NativeS3FileSystemFactoryTest {
         return config;
     }
 
-    private static NativeS3FileSystem createFs(Configuration config) throws Exception {
+    private NativeS3FileSystem createFs(Configuration config) throws Exception {
         NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
         factory.configure(config);
-        return (NativeS3FileSystem) factory.create(URI.create("s3://test-bucket/"));
+        NativeS3FileSystem fs =
+                (NativeS3FileSystem) factory.create(URI.create("s3://test-bucket/"));
+        createdFileSystems.add(fs);
+        return fs;
     }
 
-    private static NativeS3FileSystem createS3aFs(Configuration config) throws Exception {
+    private NativeS3FileSystem createS3aFs(Configuration config) throws Exception {
         NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
         factory.configure(config);
-        return (NativeS3FileSystem) factory.create(URI.create("s3a://test-bucket/"));
+        NativeS3FileSystem fs =
+                (NativeS3FileSystem) factory.create(URI.create("s3a://test-bucket/"));
+        createdFileSystems.add(fs);
+        return fs;
     }
 
     @Test
@@ -140,6 +166,14 @@ class NativeS3FileSystemFactoryTest {
         assertThat(createFs(config).getClientProvider().isChecksumValidation()).isFalse();
     }
 
+    // --- Bulk copy download buffer ---
+
+    @Test
+    void testBulkCopyDownloadBufferSizeDefaultIs256KB() {
+        assertThat(NativeS3FileSystemFactory.BULK_COPY_DOWNLOAD_BUFFER_SIZE.defaultValue())
+                .isEqualTo(256 * 1024);
+    }
+
     // --- Max connections ---
 
     @Test
@@ -162,6 +196,102 @@ class NativeS3FileSystemFactoryTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("s3.connection.max")
                 .hasMessageContaining("must be a positive integer");
+    }
+
+    @Test
+    void testNonPositiveCrtTargetThroughputThrowsException() {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_TARGET_THROUGHPUT_GBPS, 0.0);
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.crt.target-throughput-gbps")
+                .hasMessageContaining("must be positive");
+
+        config.set(NativeS3FileSystemFactory.CRT_TARGET_THROUGHPUT_GBPS, -1.0);
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.crt.target-throughput-gbps")
+                .hasMessageContaining("must be positive");
+    }
+
+    @Test
+    void testCrtReadAndNativeMemorySettingsArePropagated() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_READ_BUFFER_SIZE, MemorySize.ofMebiBytes(1));
+        config.set(
+                NativeS3FileSystemFactory.CRT_MAX_NATIVE_MEMORY_LIMIT,
+                MemorySize.ofMebiBytes(2048));
+
+        S3ClientProvider provider = createFs(config).getClientProvider();
+
+        assertThat(provider.getCrtReadBufferSizeInBytes())
+                .isEqualTo(MemorySize.ofMebiBytes(1).getBytes());
+        assertThat(provider.getCrtMaxNativeMemoryLimitInBytes())
+                .isEqualTo(MemorySize.ofMebiBytes(2048).getBytes());
+    }
+
+    @Test
+    void testCrtReadBufferSizeDefaultsToNullWhenUnset() throws Exception {
+        S3ClientProvider provider = createFs(baseConfig()).getClientProvider();
+        assertThat(provider.getCrtReadBufferSizeInBytes()).isNull();
+    }
+
+    @Test
+    void testCrtMaxConcurrencyDefaultIs256() throws Exception {
+        assertThat(NativeS3FileSystemFactory.CRT_MAX_CONCURRENCY.defaultValue()).isEqualTo(256);
+        S3ClientProvider provider = createFs(baseConfig()).getClientProvider();
+        assertThat(provider.getCrtMaxConcurrency()).isEqualTo(256);
+    }
+
+    @Test
+    void testCrtMaxConcurrencyIsIndependentOfConnectionMax() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.MAX_CONNECTIONS, 50);
+        config.set(NativeS3FileSystemFactory.CRT_MAX_CONCURRENCY, 512);
+
+        S3ClientProvider provider = createFs(config).getClientProvider();
+
+        assertThat(provider.getMaxConnections()).isEqualTo(50);
+        assertThat(provider.getCrtMaxConcurrency()).isEqualTo(512);
+    }
+
+    @Test
+    void testNonPositiveCrtMaxConcurrencyThrowsException() {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_MAX_CONCURRENCY, 0);
+
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.crt.max-concurrency")
+                .hasMessageContaining("must be a positive integer");
+    }
+
+    @Test
+    void testNonPositiveCrtReadBufferSizeThrowsException() {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_READ_BUFFER_SIZE, MemorySize.ZERO);
+
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.crt.read-buffer-size")
+                .hasMessageContaining("must be positive");
+    }
+
+    @Test
+    void testNonPositiveCrtMaxNativeMemoryLimitThrowsException() {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.CRT_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.CRT_MAX_NATIVE_MEMORY_LIMIT, MemorySize.ZERO);
+
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.crt.max-native-memory-limit")
+                .hasMessageContaining("must be positive");
     }
 
     // --- Max retries ---
@@ -361,12 +491,43 @@ class NativeS3FileSystemFactoryTest {
     }
 
     @Test
+    void testBulkCopyAdvertisesOnlyS3ToLocalCopies() throws Exception {
+        NativeS3FileSystem fs = createFs(baseConfig());
+
+        assertThat(
+                        fs.canCopyPaths(
+                                new org.apache.flink.core.fs.Path("s3://test-bucket/state"),
+                                new org.apache.flink.core.fs.Path("file:///tmp/state")))
+                .isTrue();
+        assertThat(
+                        fs.canCopyPaths(
+                                new org.apache.flink.core.fs.Path("s3://test-bucket/source"),
+                                new org.apache.flink.core.fs.Path("s3://test-bucket/destination")))
+                .isFalse();
+        assertThat(
+                        fs.canCopyPaths(
+                                new org.apache.flink.core.fs.Path("file:///tmp/source"),
+                                new org.apache.flink.core.fs.Path("s3://test-bucket/destination")))
+                .isFalse();
+    }
+
+    @Test
     void testInvalidBulkCopyMaxConcurrentThrowsException() {
         Configuration config = baseConfig();
         config.set(NativeS3FileSystemFactory.BULK_COPY_MAX_CONCURRENT, 0);
         assertThatThrownBy(() -> createFs(config))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("s3.bulk-copy.max-concurrent")
+                .hasMessageContaining("must be a positive integer");
+    }
+
+    @Test
+    void testInvalidBulkCopyDownloadBufferSizeThrowsException() {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.BULK_COPY_DOWNLOAD_BUFFER_SIZE, 0);
+        assertThatThrownBy(() -> createFs(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("s3.bulk-copy.download-buffer-size")
                 .hasMessageContaining("must be a positive integer");
     }
 
