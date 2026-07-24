@@ -165,6 +165,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             if (!conf.contains(CheckpointingOptions.FILE_MERGING_ENABLED)) {
                 randomize(conf, CheckpointingOptions.FILE_MERGING_ENABLED, true);
             }
+            randomize(
+                    conf,
+                    CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT,
+                    CheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue(),
+                    Duration.ofMillis(0));
         }
 
         randomize(
