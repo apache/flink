@@ -490,7 +490,8 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg, skew\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew, p50, p90, p99\"\
+          ."
         required: false
         style: form
         schema:
@@ -1458,7 +1459,8 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg, skew\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew, p50, p90, p99\"\
+          ."
         required: false
         style: form
         schema:
@@ -1771,7 +1773,8 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg, skew\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew, p50, p90, p99\"\
+          ."
         required: false
         style: form
         schema:
@@ -1899,6 +1902,9 @@ components:
       - SUM
       - AVG
       - SKEW
+      - P50
+      - P90
+      - P99
     ApplicationDetails:
       type: object
       properties:
