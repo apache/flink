@@ -2745,6 +2745,143 @@
       "type" : "any"
     }
   }, {
+    "url" : "/jobs/:jobid/metrics/top-n",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "topN",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody",
+      "properties" : {
+        "topCpuConsumers" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:CpuConsumerInfo",
+            "properties" : {
+              "subtaskId" : {
+                "type" : "integer"
+              },
+              "taskName" : {
+                "type" : "string"
+              },
+              "operatorName" : {
+                "type" : "string"
+              },
+              "cpuPercentage" : {
+                "type" : "number"
+              },
+              "taskManagerId" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "topBackpressureOperators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BackpressureOperatorInfo",
+            "properties" : {
+              "operatorId" : {
+                "type" : "string"
+              },
+              "operatorName" : {
+                "type" : "string"
+              },
+              "backpressureRatio" : {
+                "type" : "number"
+              },
+              "subtaskId" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "topGcIntensiveTasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:GcTaskInfo",
+            "properties" : {
+              "taskId" : {
+                "type" : "string"
+              },
+              "taskName" : {
+                "type" : "string"
+              },
+              "gcTimePercentage" : {
+                "type" : "number"
+              },
+              "taskManagerId" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "topBusyOperators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BusyOperatorInfo",
+            "properties" : {
+              "operatorId" : {
+                "type" : "string"
+              },
+              "operatorName" : {
+                "type" : "string"
+              },
+              "busyRatio" : {
+                "type" : "number"
+              },
+              "subtaskId" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "topLaggingSources" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:SourceLagInfo",
+            "properties" : {
+              "vertexId" : {
+                "type" : "string"
+              },
+              "vertexName" : {
+                "type" : "string"
+              },
+              "pendingRecords" : {
+                "type" : "number"
+              },
+              "maxFetchEventTimeLagMs" : {
+                "type" : "number"
+              },
+              "maxEmitEventTimeLagMs" : {
+                "type" : "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/plan",
     "method" : "GET",
     "status-code" : "200 OK",

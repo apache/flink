@@ -3464,6 +3464,174 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
 <table class="rest-api table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/metrics/top-n</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns Top N metrics for a job across five dimensions: backpressured subtasks, busy subtasks, lagging sources, CPU consumers (TaskManager-scoped) and GC-intensive TaskManagers.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>topN</code> (optional): Positive integer (1..100) controlling how many entries are returned for each Top N dimension. Defaults to 5 when omitted.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Request</summary>
+          <pre><code>{}</code></pre>
+        </label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Response</summary>
+          <pre><code>{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody",
+  "properties" : {
+    "topBackpressureOperators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BackpressureOperatorInfo",
+        "properties" : {
+          "backpressureRatio" : {
+            "type" : "number"
+          },
+          "operatorId" : {
+            "type" : "string"
+          },
+          "operatorName" : {
+            "type" : "string"
+          },
+          "subtaskId" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
+    "topBusyOperators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BusyOperatorInfo",
+        "properties" : {
+          "busyRatio" : {
+            "type" : "number"
+          },
+          "operatorId" : {
+            "type" : "string"
+          },
+          "operatorName" : {
+            "type" : "string"
+          },
+          "subtaskId" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
+    "topCpuConsumers" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:CpuConsumerInfo",
+        "properties" : {
+          "cpuPercentage" : {
+            "type" : "number"
+          },
+          "operatorName" : {
+            "type" : "string"
+          },
+          "subtaskId" : {
+            "type" : "integer"
+          },
+          "taskManagerId" : {
+            "type" : "string"
+          },
+          "taskName" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "topGcIntensiveTasks" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:GcTaskInfo",
+        "properties" : {
+          "gcTimePercentage" : {
+            "type" : "number"
+          },
+          "taskId" : {
+            "type" : "string"
+          },
+          "taskManagerId" : {
+            "type" : "string"
+          },
+          "taskName" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "topLaggingSources" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:SourceLagInfo",
+        "properties" : {
+          "maxEmitEventTimeLagMs" : {
+            "type" : "number"
+          },
+          "maxFetchEventTimeLagMs" : {
+            "type" : "number"
+          },
+          "pendingRecords" : {
+            "type" : "number"
+          },
+          "vertexId" : {
+            "type" : "string"
+          },
+          "vertexName" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+        </label>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="rest-api table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/plan</strong></h5></td>
     </tr>
     <tr>

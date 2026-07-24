@@ -1,0 +1,289 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="topn-metrics-container">
+  <!-- ======================================================================
+       Primary triage: per-subtask / per-vertex signals that map directly to
+       actionable Flink problems (stalled operators, overloaded operators,
+       sources falling behind).
+       ====================================================================== -->
+  <div class="topn-metrics-section">
+    <h3
+      class="topn-metrics-title"
+      role="button"
+      tabindex="0"
+      [attr.aria-expanded]="!collapsed.backpressure"
+      (click)="toggle('backpressure')"
+      (keydown.enter)="toggle('backpressure')"
+      (keydown.space)="toggle('backpressure'); $event.preventDefault()"
+    >
+      <span class="topn-metrics-caret" [class.collapsed]="collapsed.backpressure">▾</span>
+      Top N Backpressured Subtasks
+    </h3>
+    <ng-container *ngIf="!collapsed.backpressure">
+      <nz-table
+        #bpTable
+        [nzData]="topBackpressureOperators"
+        [nzShowPagination]="false"
+        [nzSize]="'small'"
+      >
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Operator ID</th>
+            <th>Operator Name</th>
+            <th>Subtask ID</th>
+            <th>Backpressure Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of bpTable.data; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ item.operatorId }}</td>
+            <td>{{ item.operatorName }}</td>
+            <td>{{ item.subtaskId }}</td>
+            <td [class.high-backpressure]="item.backpressureRatio > 0.5">
+              {{ formatPercentage(item.backpressureRatio * 100) }}
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+      <div *ngIf="topBackpressureOperators.length === 0" class="no-data">
+        <p>No backpressure metrics available</p>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="topn-metrics-section">
+    <h3
+      class="topn-metrics-title"
+      role="button"
+      tabindex="0"
+      [attr.aria-expanded]="!collapsed.busy"
+      (click)="toggle('busy')"
+      (keydown.enter)="toggle('busy')"
+      (keydown.space)="toggle('busy'); $event.preventDefault()"
+    >
+      <span class="topn-metrics-caret" [class.collapsed]="collapsed.busy">▾</span>
+      Top N Busy Subtasks
+    </h3>
+    <ng-container *ngIf="!collapsed.busy">
+      <p class="topn-metrics-hint">
+        Per-subtask CPU via
+        <code>busyTimeMsPerSecond</code>
+        . Sustained high values = the operator itself is the bottleneck.
+      </p>
+      <nz-table
+        #busyTable
+        [nzData]="topBusyOperators"
+        [nzShowPagination]="false"
+        [nzSize]="'small'"
+      >
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Operator ID</th>
+            <th>Operator Name</th>
+            <th>Subtask ID</th>
+            <th>Busy Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of busyTable.data; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ item.operatorId }}</td>
+            <td>{{ item.operatorName }}</td>
+            <td>{{ item.subtaskId }}</td>
+            <td [class.high-busy]="item.busyRatio > 0.8">
+              {{ formatPercentage(item.busyRatio * 100) }}
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+      <div *ngIf="topBusyOperators.length === 0" class="no-data">
+        <p>No busy-time metrics available</p>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="topn-metrics-section">
+    <h3
+      class="topn-metrics-title"
+      role="button"
+      tabindex="0"
+      [attr.aria-expanded]="!collapsed.sourceLag"
+      (click)="toggle('sourceLag')"
+      (keydown.enter)="toggle('sourceLag')"
+      (keydown.space)="toggle('sourceLag'); $event.preventDefault()"
+    >
+      <span class="topn-metrics-caret" [class.collapsed]="collapsed.sourceLag">▾</span>
+      Top N Lagging Sources
+    </h3>
+    <ng-container *ngIf="!collapsed.sourceLag">
+      <p class="topn-metrics-hint">
+        FLIP-33 source metrics (Kafka, Pulsar, ...).
+        <em>n/a</em>
+        = not reported by this connector.
+      </p>
+      <nz-table
+        #lagTable
+        [nzData]="topLaggingSources"
+        [nzShowPagination]="false"
+        [nzSize]="'small'"
+      >
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Source Vertex ID</th>
+            <th>Source Vertex Name</th>
+            <th>Pending Records</th>
+            <th>Max Fetch Event-Time Lag</th>
+            <th>Max Emit Event-Time Lag</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of lagTable.data; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ item.vertexId }}</td>
+            <td>{{ item.vertexName }}</td>
+            <td [class.high-lag]="item.pendingRecords !== null && item.pendingRecords > 0">
+              {{ formatLag(item.pendingRecords, 'records') }}
+            </td>
+            <td
+              [class.high-lag]="
+                item.maxFetchEventTimeLagMs !== null && item.maxFetchEventTimeLagMs > 0
+              "
+            >
+              {{ formatLag(item.maxFetchEventTimeLagMs, 'ms') }}
+            </td>
+            <td
+              [class.high-lag]="
+                item.maxEmitEventTimeLagMs !== null && item.maxEmitEventTimeLagMs > 0
+              "
+            >
+              {{ formatLag(item.maxEmitEventTimeLagMs, 'ms') }}
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+      <div *ngIf="topLaggingSources.length === 0" class="no-data">
+        <p>No source lag metrics available</p>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- ======================================================================
+       JVM diagnostics: TaskManager-scoped signals that are useful as a second
+       line of investigation (e.g. confirming a GC pause correlates with a
+       checkpoint timeout). Collapsed by default.
+       ====================================================================== -->
+  <div class="topn-metrics-section topn-metrics-section-jvm">
+    <div class="topn-metrics-jvm-header">JVM diagnostics (auxiliary)</div>
+
+    <div class="topn-metrics-subsection">
+      <h3
+        class="topn-metrics-title"
+        role="button"
+        tabindex="0"
+        [attr.aria-expanded]="!collapsed.cpu"
+        (click)="toggle('cpu')"
+        (keydown.enter)="toggle('cpu')"
+        (keydown.space)="toggle('cpu'); $event.preventDefault()"
+      >
+        <span class="topn-metrics-caret" [class.collapsed]="collapsed.cpu">▾</span>
+        Top N CPU Load TaskManagers
+      </h3>
+      <ng-container *ngIf="!collapsed.cpu">
+        <p class="topn-metrics-hint">
+          Per-TaskManager, not per-operator. For single-operator attribution use Top N Busy Subtasks
+          above.
+        </p>
+        <nz-table
+          #cpuTable
+          [nzData]="topCpuConsumers"
+          [nzShowPagination]="false"
+          [nzSize]="'small'"
+        >
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>TaskManager</th>
+              <th>CPU Usage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of cpuTable.data; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>{{ item.taskManagerId }}</td>
+              <td [class.high-cpu]="item.cpuPercentage > 80">
+                {{ formatPercentage(item.cpuPercentage) }}
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+        <div *ngIf="topCpuConsumers.length === 0" class="no-data">
+          <p>No CPU metrics available</p>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="topn-metrics-subsection">
+      <h3
+        class="topn-metrics-title"
+        role="button"
+        tabindex="0"
+        [attr.aria-expanded]="!collapsed.gc"
+        (click)="toggle('gc')"
+        (keydown.enter)="toggle('gc')"
+        (keydown.space)="toggle('gc'); $event.preventDefault()"
+      >
+        <span class="topn-metrics-caret" [class.collapsed]="collapsed.gc">▾</span>
+        Top N GC Intensive TaskManagers
+      </h3>
+      <ng-container *ngIf="!collapsed.gc">
+        <p class="topn-metrics-hint">Per-TaskManager, cumulative GC milliseconds since start.</p>
+        <nz-table
+          #gcTable
+          [nzData]="topGcIntensiveTasks"
+          [nzShowPagination]="false"
+          [nzSize]="'small'"
+        >
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>TaskManager</th>
+              <th>GC Time (ms)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of gcTable.data; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>{{ item.taskManagerId }}</td>
+              <td [class.high-gc]="item.gcTimePercentage > 30000">
+                {{ item.gcTimePercentage | number: '1.0-0' }}
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+        <div *ngIf="topGcIntensiveTasks.length === 0" class="no-data">
+          <p>No GC metrics available</p>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</div>
