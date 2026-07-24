@@ -220,6 +220,13 @@ public final class DataStructureConverters {
         }
         // special cases
         switch (logicalType.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+                // support enum classes by converting via Enum#name()
+                if (Enum.class.isAssignableFrom(dataType.getConversionClass())) {
+                    return StringEnumConverter.create(dataType);
+                }
+                throw new TableException("Could not find converter for data type: " + dataType);
             case ARRAY:
                 // for subclasses of List
                 if (List.class.isAssignableFrom(dataType.getConversionClass())) {

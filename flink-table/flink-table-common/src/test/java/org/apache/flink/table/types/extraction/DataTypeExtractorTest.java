@@ -474,6 +474,21 @@ class DataTypeExtractorTest {
                                         PojoWithUnderscore.class,
                                         DataTypes.FIELD("int_field", DataTypes.INT()),
                                         DataTypes.FIELD("string_field", DataTypes.STRING()))),
+                TestSpec.forType(SimpleEnum.class)
+                        .expectDataType(DataTypes.STRING().bridgedTo(SimpleEnum.class)),
+                TestSpec.forType(DetailedEnum.class)
+                        .expectDataType(DataTypes.STRING().bridgedTo(DetailedEnum.class)),
+                TestSpec.forType(PojoWithEnum.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        PojoWithEnum.class,
+                                        DataTypes.FIELD(
+                                                "detailedEnumField",
+                                                DataTypes.STRING().bridgedTo(DetailedEnum.class)),
+                                        DataTypes.FIELD(
+                                                "enumField",
+                                                DataTypes.STRING().bridgedTo(SimpleEnum.class)),
+                                        DataTypes.FIELD("name", DataTypes.STRING()))),
                 TestSpec.forType(ColumnList.class).expectDataType(DataTypes.DESCRIPTOR()));
     }
 
@@ -1118,5 +1133,44 @@ class DataTypeExtractorTest {
         public Integer getIntField() {
             return int_field;
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** A simple enum used for {@link PojoWithEnum}. */
+    public enum SimpleEnum {
+        FIRST,
+        SECOND,
+        THIRD
+    }
+
+    /** Enum whose constants have additional fields. */
+    public enum DetailedEnum {
+        FIRST(1, "first"),
+        SECOND(2, "second"),
+        THIRD(3, "third");
+
+        private final int code;
+        private final String label;
+
+        DetailedEnum(int code, String label) {
+            this.code = code;
+            this.label = label;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+    }
+
+    /** POJO with enum fields. */
+    public static class PojoWithEnum {
+        public String name;
+        public SimpleEnum enumField;
+        public DetailedEnum detailedEnumField;
     }
 }
