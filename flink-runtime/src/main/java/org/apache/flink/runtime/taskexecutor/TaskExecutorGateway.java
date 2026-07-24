@@ -224,6 +224,21 @@ public interface TaskExecutorGateway
     void disconnectResourceManager(Exception cause);
 
     /**
+     * Instructs this TaskExecutor to stop acting as a member of the cluster: it will no longer try
+     * to reconnect to the ResourceManager that issued this call, and it proactively fails the tasks
+     * it is currently running for every JobMaster it is connected to, rather than relying on each
+     * JobMaster to independently notice the loss of this TaskExecutor.
+     *
+     * <p>The ResourceManager calls this once it has already decided, via heartbeat timeout or an
+     * explicit voluntary disconnect, that this TaskExecutor is no longer part of the cluster, so
+     * that the TaskExecutor stops producing further side effects for those tasks as soon as
+     * possible.
+     *
+     * @param cause the reason the ResourceManager is fencing off this TaskExecutor
+     */
+    void fenceAndStop(Exception cause);
+
+    /**
      * Frees the slot with the given allocation ID.
      *
      * @param allocationId identifying the slot to free

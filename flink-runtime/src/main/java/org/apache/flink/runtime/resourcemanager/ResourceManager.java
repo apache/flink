@@ -1187,7 +1187,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
             ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
-            // TODO :: suggest failed task executor to stop itself
             slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
             clusterPartitionTracker.processTaskExecutorShutdown(resourceID);
 
@@ -1199,7 +1198,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                             .getJobManagerGateway()
                                             .disconnectTaskManager(resourceID, cause));
 
-            workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+            // Instruct the TaskExecutor to stop itself rather than reconnect: by the time we
+            // get here, the ResourceManager has already unregistered it and told every
+            // JobMaster to fail its tasks, so there is no cluster state left for this
+            // TaskExecutor to rejoin. This is a best-effort notification - if the TaskExecutor
+            // is unreachable (e.g. a genuine network partition), it cannot be delivered, and
+            // the TaskExecutor's own voluntary/graceful-termination path is the only other way
+            // it learns to stop.
+            workerRegistration.getTaskExecutorGateway().fenceAndStop(cause);
         } else {
             log.debug(
                     "No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",
