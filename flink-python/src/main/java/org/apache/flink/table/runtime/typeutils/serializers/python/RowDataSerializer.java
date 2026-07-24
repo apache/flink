@@ -35,11 +35,11 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.areTypesCompatibleAfterNullabilityWidening;
 
 /**
  * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be
@@ -202,10 +202,14 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
             if (!(oldSerializerSnapshot instanceof RowDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
-
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!Arrays.equals(types, oldRowDataSerializerSnapshot.types)) {
+
+            // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
+            // The mask-based python serializer always writes a null bit per field (same as
+            // BinaryRowData's null bitmask), so widening is binary-compatible-as-is.
+            if (!areTypesCompatibleAfterNullabilityWidening(
+                    types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 

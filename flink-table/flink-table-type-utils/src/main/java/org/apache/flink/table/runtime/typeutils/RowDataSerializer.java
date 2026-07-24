@@ -47,6 +47,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.areTypesCompatibleAfterNullabilityWidening;
+
 /** Serializer for {@link RowData}. */
 @Internal
 public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
@@ -387,7 +389,12 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!Arrays.equals(types, oldRowDataSerializerSnapshot.types)) {
+            // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
+            // BinaryRowData always reserves the null bitmask regardless of declared nullability,
+            // so a field written as NOT NULL reads back through a nullable serializer with no
+            // binary layout change — this is why widening is compatible-as-is.
+            if (!areTypesCompatibleAfterNullabilityWidening(
+                    types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
