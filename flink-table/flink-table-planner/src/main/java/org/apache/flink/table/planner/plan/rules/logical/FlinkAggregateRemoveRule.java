@@ -52,11 +52,6 @@ public class FlinkAggregateRemoveRule extends RelOptRule {
 
     // ~ Constructors -----------------------------------------------------------
 
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateRemoveRule(Class<? extends Aggregate> aggregateClass) {
-        this(aggregateClass, RelFactories.LOGICAL_BUILDER);
-    }
-
     /** Creates an FlinkAggregateRemoveRule. */
     public FlinkAggregateRemoveRule(
             Class<? extends Aggregate> aggregateClass, RelBuilderFactory relBuilderFactory) {

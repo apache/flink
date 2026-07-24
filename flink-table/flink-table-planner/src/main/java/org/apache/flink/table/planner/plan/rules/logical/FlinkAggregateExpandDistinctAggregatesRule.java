@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelCollations;
@@ -105,20 +104,6 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
             RelBuilderFactory relBuilderFactory) {
         super(operand(clazz, any()), relBuilderFactory, null);
         this.useGroupingSets = useGroupingSets;
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateExpandDistinctAggregatesRule(
-            Class<? extends LogicalAggregate> clazz,
-            boolean useGroupingSets,
-            RelFactories.JoinFactory joinFactory) {
-        this(clazz, useGroupingSets, RelBuilder.proto(Contexts.of(joinFactory)));
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkAggregateExpandDistinctAggregatesRule(
-            Class<? extends LogicalAggregate> clazz, RelFactories.JoinFactory joinFactory) {
-        this(clazz, false, RelBuilder.proto(Contexts.of(joinFactory)));
     }
 
     // ~ Methods ----------------------------------------------------------------
