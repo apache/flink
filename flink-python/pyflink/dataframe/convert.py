@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Any, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
@@ -25,29 +25,6 @@ from pyflink.util.api_stability_decorators import PublicEvolving
 __all__ = ["from_dict", "from_records"]
 
 _SCALAR_SEQUENCE_TYPES = (str, bytes, bytearray, memoryview)
-
-
-class _SequenceRowIterable:
-    """Produce tuple rows from row-oriented sequence records."""
-
-    def __init__(self, records: Sequence[Sequence[Any]]):
-        self._records = records
-
-    def __iter__(self) -> Iterator[Sequence[Any]]:
-        return (tuple(record) for record in self._records)
-
-
-class _ColumnRowIterable:
-    """Produce tuple rows from column-oriented sequences."""
-
-    def __init__(
-        self, data: Mapping[str, Sequence[Any]], columns: Sequence[str]
-    ):
-        self._data = data
-        self._columns = columns
-
-    def __iter__(self) -> Iterator[Sequence[Any]]:
-        return zip(*(self._data[name] for name in self._columns))
 
 
 def _validate_schema(schema: List[str]) -> None:
@@ -169,7 +146,6 @@ def from_records(
             raise ValueError("schema is required for sequence records")
         columns = schema
         _validate_schema(columns)
-        requires_normalization = False
         for index, record in enumerate(data):
             if not isinstance(record, Sequence) or isinstance(
                 record, _SCALAR_SEQUENCE_TYPES
@@ -178,18 +154,13 @@ def from_records(
                     "each record must be a sequence of values, "
                     "such as a list or tuple; invalid record at index %d" % index
                 )
-            if type(record) not in (list, tuple):
-                requires_normalization = True
             if len(record) != len(columns):
                 raise ValueError(
                     "record at index %d has %d values but schema has %d fields"
                     % (index, len(record), len(columns))
                 )
         sequence_rows = cast(Sequence[Sequence[Any]], data)
-        if requires_normalization:
-            rows = _SequenceRowIterable(sequence_rows)
-        else:
-            rows = sequence_rows
+        rows = [tuple(record) for record in sequence_rows]
     else:
         raise TypeError(
             "each record must be a mapping or a sequence of values, "
@@ -247,6 +218,11 @@ def from_dict(
     lengths = {name: len(data[name]) for name in columns}
     if len(set(lengths.values())) != 1:
         raise ValueError("columns must have equal lengths")
-    if next(iter(lengths.values())) == 0:
+    row_count = next(iter(lengths.values()))
+    if row_count == 0:
         raise ValueError("data must contain at least one row")
-    return _from_rows(_ColumnRowIterable(data, columns), columns)
+    rows = [
+        tuple(data[name][row_index] for name in columns)
+        for row_index in range(row_count)
+    ]
+    return _from_rows(rows, columns)
