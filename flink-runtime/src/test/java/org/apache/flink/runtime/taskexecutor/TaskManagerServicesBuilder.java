@@ -42,6 +42,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.NoOpGroupCache;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.mockito.Mockito.mock;
@@ -68,6 +69,7 @@ public class TaskManagerServicesBuilder {
     private SharedResources sharedResources;
     private long managedMemorySize;
     private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
+    private ExecutorService ioExecutor;
 
     public TaskManagerServicesBuilder() {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -181,6 +183,11 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setIoExecutor(ExecutorService ioExecutor) {
+        this.ioExecutor = ioExecutor;
+        return this;
+    }
+
     public TaskManagerServices build() {
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,
@@ -197,7 +204,7 @@ public class TaskManagerServicesBuilder {
                 taskChangelogStoragesManager,
                 taskChannelStateExecutorFactoryManager,
                 taskEventDispatcher,
-                Executors.newSingleThreadScheduledExecutor(),
+                ioExecutor != null ? ioExecutor : Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
                 sharedResources,
