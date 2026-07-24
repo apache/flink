@@ -201,6 +201,140 @@ Plural works for SQL only.
 
 {{< top >}}
 
+Table Functions
+---------------------------------------
+
+Table functions take zero, one, or more scalar values or tables as input arguments and return one or more rows (structured types) as the result.
+
+### APPLY_WATERMARK
+
+**Syntax:**
+
+```sql
+APPLY_WATERMARK(
+    table_expression,
+    DESCRIPTOR(rowtime_column),
+    watermark_expression
+)
+```
+
+**Description:**
+
+`APPLY_WATERMARK` is a built-in table function that enables flexible watermark assignment on tables, views, and subqueries. It allows users to assign or override watermarks without modifying the DDL definition of catalog tables.
+
+**Parameters:**
+
+- `table_expression`: A table reference, view, or subquery that will have a watermark assigned.
+- `DESCRIPTOR(rowtime_column)`: The name of the rowtime column (must be of type `TIMESTAMP` or `TIMESTAMP_LTZ`).
+- `watermark_expression`: An expression that generates the watermark value based on the rowtime column (must return `TIMESTAMP` or `TIMESTAMP_LTZ`).
+
+**Return Type:**
+
+Returns a table with the same schema as the input table, but with an assigned watermark on the specified rowtime column.
+
+**Behavior:**
+
+- **Validation**: The function validates that the rowtime column exists, is of type `TIMESTAMP` or `TIMESTAMP_LTZ`, and the watermark expression returns a valid timestamp type.
+- **Watermark Override**: If the input table already has a watermark defined in its DDL, `APPLY_WATERMARK` will override it with the new watermark strategy.
+- **Compile-time Checking**: All validations happen at query compilation time, ensuring early error detection.
+
+**Use Cases:**
+
+1. **Assign Watermark to Catalog Tables** - Useful when you don't have permission to modify the catalog table definition:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    catalog_table,
+    DESCRIPTOR(event_time),
+    event_time - INTERVAL '5' SECOND
+);
+```
+
+2. **Override Watermark on Views** - Apply a different watermark strategy without changing the view definition:
+
+```sql
+CREATE VIEW recent_orders AS
+  SELECT * FROM orders
+  WHERE order_time > CURRENT_TIMESTAMP - INTERVAL '1' DAY;
+
+SELECT * FROM APPLY_WATERMARK(
+    recent_orders,
+    DESCRIPTOR(order_time),
+    order_time - INTERVAL '10' SECOND
+);
+```
+
+3. **Watermark Subqueries** - Assign watermarks to filtered or transformed data:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    (SELECT * FROM orders WHERE amount > 100),
+    DESCRIPTOR(order_time),
+    order_time - INTERVAL '3' SECOND
+);
+```
+
+4. **Dynamic Watermark Strategies** - Adjust watermark delays based on runtime conditions:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    orders,
+    DESCRIPTOR(order_time),
+    CASE
+        WHEN order_source = 'mobile' THEN order_time - INTERVAL '15' SECOND
+        WHEN order_source = 'web' THEN order_time - INTERVAL '5' SECOND
+        ELSE order_time - INTERVAL '10' SECOND
+    END
+);
+```
+
+**Example with Window Aggregation:**
+
+```sql
+-- Table without watermark in DDL
+CREATE TABLE events (
+    id INT,
+    event_time TIMESTAMP(3),
+    data STRING
+);
+
+-- Query with watermark and window
+SELECT
+    TUMBLE_START(event_time, INTERVAL '1' MINUTE) AS window_start,
+    COUNT(*) AS cnt
+FROM APPLY_WATERMARK(
+    events,
+    DESCRIPTOR(event_time),
+    event_time - INTERVAL '5' SECOND
+)
+GROUP BY TUMBLE(event_time, INTERVAL '1' MINUTE);
+```
+
+**Comparison with DDL Watermarks:**
+
+| Feature | DDL Watermark | `APPLY_WATERMARK` |
+|---------|---------------|-------------------|
+| **Definition Location** | Table DDL | Query |
+| **Flexibility** | Static per table | Dynamic per query |
+| **Permission Required** | Catalog write access | None |
+| **Applicability** | Base tables only | Tables, views, subqueries |
+| **Override Capability** | No | Yes |
+
+**Limitations:**
+
+- The rowtime column must be of type `TIMESTAMP` or `TIMESTAMP_LTZ`.
+- The watermark expression must return a `TIMESTAMP` or `TIMESTAMP_LTZ` type.
+- The `DESCRIPTOR` keyword is required to specify the column name.
+- Nested `APPLY_WATERMARK` calls are not supported.
+
+**See Also:**
+
+- [CREATE TABLE with WATERMARK]({{< ref "docs/sql/reference/ddl/create" >}}#watermark)
+- [Time and Watermarks]({{< ref "docs/concepts/time" >}})
+- [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}})
+
+{{< top >}}
+
 Column Functions
 ---------------------------------------
 
