@@ -112,7 +112,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
                     miniCluster,
                     jobGraph.getJobID(),
                     findVertexByName(jobGraph, "passA -> Sink: sinkA").getID(),
-                    false);
+                    true);
 
             String savepointPath =
                     miniCluster
