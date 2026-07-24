@@ -277,6 +277,7 @@ For S3-compatible servers (SeaweedFS, LocalStack, Ceph RGW, etc.), set the endpo
 
 ```yaml
 s3.endpoint: http://localhost:8333
+s3.region: us-east-1
 fs.s3.aws.credentials.provider: AnonymousCredentialsProvider
 
 # Required: SeaweedFS serves the S3 API in path-style and does not support
@@ -289,7 +290,9 @@ s3.chunked-encoding.enabled: false
 s3.checksum-validation.enabled: false
 ```
 
-The exact subset of compatibility flags needed depends on the server and version — consult its documentation. The defaults in this filesystem (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) are tuned for AWS S3.
+The AWS SDK requires a region for custom endpoints. Use the server's region, or `us-east-1` if the server ignores it.
+
+Required compatibility flags vary by server and version. Disable checksum validation only if the server does not support it. The defaults (`path-style-access=false`, `chunked-encoding.enabled=true`, `checksum-validation.enabled=true`) target AWS S3.
 
 ## Memory Optimization for Large Files
 
