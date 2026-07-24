@@ -277,6 +277,7 @@ try:
     scripts.append("pyflink/find_flink_home.py")
 
     PACKAGES = ['pyflink',
+                'pyflink.dataframe',
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',

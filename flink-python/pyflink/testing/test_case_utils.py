@@ -155,6 +155,35 @@ class PyFlinkUTTestCase(PyFlinkTestCase):
         self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
+class PyFlinkDataFrameUTTestCase(PyFlinkUTTestCase):
+    """Base class for planner-backed DataFrame interface tests."""
+
+    def setUp(self) -> None:
+        from pyflink.dataframe import get_table_environment, set_table_environment
+
+        super().setUp()
+        previous_environment = get_table_environment()
+        self.addCleanup(set_table_environment, previous_environment)
+        set_table_environment(self.t_env)
+
+    def assert_dataframe_schema(
+        self,
+        dataframe,
+        expected_column_names,
+        expected_column_data_types=None,
+    ):
+        resolved_schema = dataframe._table.get_resolved_schema()
+        self.assertEqual(
+            list(resolved_schema.get_column_names()),
+            expected_column_names,
+        )
+        if expected_column_data_types is not None:
+            self.assertEqual(
+                resolved_schema.get_column_data_types(),
+                expected_column_data_types,
+            )
+
+
 class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
     """
     Base class for table stream tests.
@@ -167,6 +196,27 @@ class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
         cls.env.set_parallelism(2)
         cls.t_env = StreamTableEnvironment.create(cls.env)
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
+
+
+class PyFlinkStreamDataFrameTestCase(PyFlinkStreamTableTestCase):
+    """Base class for DataFrame streaming tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pyflink.dataframe import get_table_environment, set_table_environment
+
+        cls._previous_table_environment = get_table_environment()
+        super(PyFlinkStreamDataFrameTestCase, cls).setUpClass()
+        set_table_environment(cls.t_env)
+
+    @classmethod
+    def tearDownClass(cls):
+        from pyflink.dataframe import set_table_environment
+
+        try:
+            super(PyFlinkStreamDataFrameTestCase, cls).tearDownClass()
+        finally:
+            set_table_environment(cls._previous_table_environment)
 
 
 class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
