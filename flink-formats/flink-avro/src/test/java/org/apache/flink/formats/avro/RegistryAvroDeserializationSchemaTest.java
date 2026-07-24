@@ -118,4 +118,93 @@ class RegistryAvroDeserializationSchemaTest {
         assertThat(simpleRecord.getName().toString()).isEqualTo("someName");
         assertThat(simpleRecord.getOptionalField()).isNull();
     }
+
+    @Test
+    void testNestedRecordWithEnumField() throws IOException {
+        // Writer schema with nested record containing enum field
+        // This pattern is common in CDC tools and schema registries
+        Schema writerSchema =
+                new Schema.Parser()
+                        .parse(
+                                "{\"namespace\": \"example.avro\",\n"
+                                        + " \"type\": \"record\",\n"
+                                        + " \"name\": \"Message\",\n"
+                                        + " \"fields\": [\n"
+                                        + "     {\"name\": \"metadata\", \"type\": {\n"
+                                        + "         \"type\": \"record\",\n"
+                                        + "         \"name\": \"Metadata\",\n"
+                                        + "         \"fields\": [\n"
+                                        + "             {\"name\": \"operation\", \"type\": {\n"
+                                        + "                 \"type\": \"enum\",\n"
+                                        + "                 \"name\": \"Operation\",\n"
+                                        + "                 \"symbols\": [\"INSERT\", \"UPDATE\", \"DELETE\", \"REFRESH\"]\n"
+                                        + "             }},\n"
+                                        + "             {\"name\": \"timestamp\", \"type\": \"string\"}\n"
+                                        + "         ]\n"
+                                        + "     }}\n"
+                                        + "  ]\n"
+                                        + "}");
+
+        // Reader schema with operation as string (simulates Flink DDL with VARCHAR)
+        Schema readerSchema =
+                new Schema.Parser()
+                        .parse(
+                                "{\"namespace\": \"example.avro\",\n"
+                                        + " \"type\": \"record\",\n"
+                                        + " \"name\": \"Message\",\n"
+                                        + " \"fields\": [\n"
+                                        + "     {\"name\": \"metadata\", \"type\": {\n"
+                                        + "         \"type\": \"record\",\n"
+                                        + "         \"name\": \"Metadata\",\n"
+                                        + "         \"fields\": [\n"
+                                        + "             {\"name\": \"operation\", \"type\": \"string\"},\n"
+                                        + "             {\"name\": \"timestamp\", \"type\": \"string\"}\n"
+                                        + "         ]\n"
+                                        + "     }}\n"
+                                        + "  ]\n"
+                                        + "}");
+
+        // Create deserializer with reader schema (enum -> string incompatibility)
+        RegistryAvroDeserializationSchema<GenericRecord> deserializer =
+                new RegistryAvroDeserializationSchema<>(
+                        GenericRecord.class,
+                        readerSchema,
+                        () ->
+                                new SchemaCoder() {
+                                    @Override
+                                    public Schema readSchema(InputStream in) {
+                                        return writerSchema;
+                                    }
+
+                                    @Override
+                                    public void writeSchema(Schema schema, OutputStream out)
+                                            throws IOException {
+                                        // do nothing
+                                    }
+                                });
+
+        // Create test record with enum value
+        GenericData.Record record = new GenericData.Record(writerSchema);
+        Schema metadataSchema = writerSchema.getField("metadata").schema();
+        GenericData.Record metadataRecord = new GenericData.Record(metadataSchema);
+
+        Schema operationEnumSchema = metadataSchema.getField("operation").schema();
+        metadataRecord.put("operation", new GenericData.EnumSymbol(operationEnumSchema, "UPDATE"));
+        metadataRecord.put("timestamp", "2024-01-15T10:30:00Z");
+
+        record.put("metadata", metadataRecord);
+
+        // Deserialize - should succeed with writer schema approach
+        GenericRecord result = deserializer.deserialize(writeRecord(record, writerSchema));
+
+        GenericRecord metadata = (GenericRecord) result.get("metadata");
+        assertThat(metadata.get("operation").toString()).isEqualTo("UPDATE");
+        assertThat(metadata.get("timestamp").toString()).isEqualTo("2024-01-15T10:30:00Z");
+
+        // Verify the operation field is an EnumSymbol that can be converted to string
+        // This is how Flink's AvroToRowDataConverters handles enum -> VARCHAR conversion
+        Object operation = metadata.get("operation");
+        assertThat(operation).isInstanceOf(GenericData.EnumSymbol.class);
+        assertThat(operation.toString()).isEqualTo("UPDATE");
+    }
 }

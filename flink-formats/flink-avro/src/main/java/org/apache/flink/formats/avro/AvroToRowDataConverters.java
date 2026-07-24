@@ -74,8 +74,9 @@ public class AvroToRowDataConverters {
 
     public static AvroToRowDataConverter createRowConverter(
             RowType rowType, boolean legacyTimestampMapping) {
+        final List<RowType.RowField> fields = rowType.getFields();
         final AvroToRowDataConverter[] fieldConverters =
-                rowType.getFields().stream()
+                fields.stream()
                         .map(RowType.RowField::getType)
                         .map(type -> createNullableConverter(type, legacyTimestampMapping))
                         .toArray(AvroToRowDataConverter[]::new);
@@ -84,10 +85,20 @@ public class AvroToRowDataConverters {
         return avroObject -> {
             IndexedRecord record = (IndexedRecord) avroObject;
             GenericRowData row = new GenericRowData(arity);
-            for (int i = 0; i < arity; ++i) {
-                // avro always deserialize successfully even though the type isn't matched
-                // so no need to throw exception about which field can't be deserialized
-                row.setField(i, fieldConverters[i].convert(record.get(i)));
+
+            // Try to access fields by name if possible (for field projection support)
+            if (record instanceof GenericRecord) {
+                GenericRecord genericRecord = (GenericRecord) record;
+                for (int i = 0; i < arity; ++i) {
+                    String fieldName = fields.get(i).getName();
+                    Object fieldValue = genericRecord.get(fieldName);
+                    row.setField(i, fieldConverters[i].convert(fieldValue));
+                }
+            } else {
+                // Fallback to positional access for SpecificRecord
+                for (int i = 0; i < arity; ++i) {
+                    row.setField(i, fieldConverters[i].convert(record.get(i)));
+                }
             }
             return row;
         };
