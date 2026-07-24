@@ -43,19 +43,25 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.state.rocksdb.RocksDBConfigurableOptions;
+import org.apache.flink.state.rocksdb.RocksDBOptions;
+import org.apache.flink.state.rocksdb.RocksDBOptionsFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.DBOptions;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,6 +99,11 @@ class ResumeCheckpointAfterClaimedNativeSavepointITCase {
         config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
         config.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
         config.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, false);
+        // Disable RocksDB auto-compaction so the SSTs inherited from the claimed savepoint are not
+        // compacted away before the first post-restore checkpoint references them.
+        config.set(
+                RocksDBOptions.OPTIONS_FACTORY,
+                DisableAutoCompactionOptionsFactory.class.getName());
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointsDir.toUri().toString());
         config.set(
                 CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION,
@@ -115,12 +126,20 @@ class ResumeCheckpointAfterClaimedNativeSavepointITCase {
             final ClusterClient<?> client = cluster.getClusterClient();
             final MiniCluster miniCluster = cluster.getMiniCluster();
 
-            // Checkpoint once so the savepoint covers a mix of reused and freshly flushed SSTs,
-            // then stop with a NATIVE savepoint.
+            // Take checkpoints until the running job actually has SST files in its shared state, so
+            // the NATIVE savepoint below inherits real SSTs. A checkpoint racing ahead of the first
+            // processed records would flush an empty memtable and produce none, so retry the
+            // checkpoint until SSTs appear.
             final JobGraph initialJob = createJobGraph(config);
             client.submitJob(initialJob).get();
             waitForAllTaskRunning(miniCluster, initialJob.getJobID(), false);
-            miniCluster.triggerCheckpoint(initialJob.getJobID()).get();
+            waitUntilCondition(
+                    () ->
+                            !sharedStateFilePaths(
+                                            miniCluster
+                                                    .triggerCheckpoint(initialJob.getJobID())
+                                                    .get())
+                                    .isEmpty());
             final String savepointPath =
                     client.stopWithSavepoint(
                                     initialJob.getJobID(),
@@ -200,8 +219,9 @@ class ResumeCheckpointAfterClaimedNativeSavepointITCase {
     }
 
     /**
-     * Slows production so the reused savepoint SSTs are not compacted away before the post-restore
-     * checkpoint. Best-effort: if reuse stops happening, the shared-file assertion fails.
+     * Paces the source so checkpoint barriers do not queue behind a large record backlog. Keeping
+     * the reused savepoint SSTs alive is handled deterministically by disabling auto-compaction
+     * (see {@link DisableAutoCompactionOptionsFactory}), not by this throttle.
      */
     private static final class Throttler implements MapFunction<Long, Long> {
 
@@ -233,6 +253,28 @@ class ResumeCheckpointAfterClaimedNativeSavepointITCase {
             long next = Optional.ofNullable(counter.value()).orElse(0L) + value;
             counter.update(next);
             return next;
+        }
+    }
+
+    /**
+     * Disables RocksDB auto-compaction so the SSTs inherited from the claimed savepoint survive
+     * until the first post-restore checkpoint references them. Referenced by class name through
+     * {@link RocksDBOptions#OPTIONS_FACTORY}, so it must stay public with a no-arg constructor.
+     */
+    public static final class DisableAutoCompactionOptionsFactory implements RocksDBOptionsFactory {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public DBOptions createDBOptions(
+                DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            return currentOptions;
+        }
+
+        @Override
+        public ColumnFamilyOptions createColumnOptions(
+                ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            return currentOptions.setDisableAutoCompactions(true);
         }
     }
 }
