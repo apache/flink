@@ -137,7 +137,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.5.7</version>
+			<version>0.6.1</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
