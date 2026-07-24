@@ -21,8 +21,9 @@ import subprocess
 
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.table import ResultKind, ExplainDetail
+from pyflink.table import DataTypes, ResultKind, ExplainDetail
 from pyflink.table import expressions as expr
+from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkTestCase
@@ -121,6 +122,34 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
         self.assertEqual('POINT (1 2)', collected[0][0])
         self.assertEqual(point_wkb, collected[0][1])
         self.assertEqual(point_wkb, collected[0][2])
+
+    def test_geography_from_elements_collect_round_trip(self):
+        point_wkb = bytes([
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+        ])
+
+        table = self.t_env.from_elements(
+            [(point_wkb,)],
+            DataTypes.ROW([DataTypes.FIELD("g", DataTypes.GEOGRAPHY())]))
+        collected = list(table.execute().collect())
+
+        self.assertEqual(1, len(collected))
+        self.assertEqual(point_wkb, collected[0][0])
+
+    def test_geography_python_udf_round_trip(self):
+        point_wkb = bytes([
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+        ])
+
+        geography_identity = udf(lambda geography: geography, result_type=DataTypes.GEOGRAPHY())
+
+        table = self.t_env.from_elements(
+            [(point_wkb,)],
+            DataTypes.ROW([DataTypes.FIELD("g", DataTypes.GEOGRAPHY())]))
+        collected = list(table.select(geography_identity(table.g)).execute().collect())
+
+        self.assertEqual(1, len(collected))
+        self.assertEqual(point_wkb, collected[0][0])
 
 
 class JavaSqlTests(PyFlinkTestCase):
