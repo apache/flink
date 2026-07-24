@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -47,7 +48,12 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -352,7 +358,14 @@ class PekkoUtils {
                                 .collect(Collectors.joining("\",\"", "[\"", "\"]"))
                         : "[]";
 
-        final String sslProtocol = configuration.get(SecurityOptions.SSL_PROTOCOL);
+        final String sslProtocolsString = configuration.get(SecurityOptions.SSL_PROTOCOL);
+        final String[] sslProtocolsArray =
+                Arrays.stream(sslProtocolsString.split(","))
+                        .map(String::trim)
+                        .toArray(String[]::new);
+        final String sslContextProtocol = highestSupportedProtocol(sslProtocolsArray);
+        final String sslEnabledProtocols =
+                Arrays.stream(sslProtocolsArray).collect(Collectors.joining(",", "[", "]"));
 
         final String sslAlgorithmsString = configuration.get(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
@@ -378,7 +391,8 @@ class PekkoUtils {
                 .add("          trust-store = \"" + sslTrustStore + "\"")
                 .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
                 .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
-                .add("          protocol = " + sslProtocol + "")
+                .add("          protocol = " + sslContextProtocol)
+                .add("          enabled-protocols = " + sslEnabledProtocols + "")
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")
                 .add("          require-mutual-authentication = on")
@@ -608,6 +622,51 @@ class PekkoUtils {
 
     private static String booleanToOnOrOff(boolean flag) {
         return flag ? "on" : "off";
+    }
+
+    /**
+     * Returns the highest TLS protocol from {@code configuredProtocols} that is also supported by
+     * the current JVM.
+     *
+     * @throws IllegalArgumentException if none of the configured protocols are supported by the JVM
+     */
+    private static String highestSupportedProtocol(String[] configuredProtocols) {
+        final Set<String> jvmSupported;
+        try {
+            jvmSupported =
+                    new HashSet<>(
+                            Arrays.asList(
+                                    SSLContext.getDefault()
+                                            .getSupportedSSLParameters()
+                                            .getProtocols()));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to query supported TLS protocols from JVM", e);
+        }
+        return Arrays.stream(configuredProtocols)
+                .filter(jvmSupported::contains)
+                .max(Comparator.comparingInt(PekkoUtils::tlsProtocolRank))
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "None of the configured SSL protocols are supported by this JVM: "
+                                                + Arrays.toString(configuredProtocols)));
+    }
+
+    /** Matches {@code TLSv{major}} or {@code TLSv{major}.{minor}}. */
+    private static final Pattern TLS_VERSION_PATTERN = Pattern.compile("TLSv(\\d+)(?:\\.(\\d+))?");
+
+    /**
+     * Returns a numeric rank for a TLS protocol name so that higher versions compare greater.
+     * Unknown / non-TLS protocol strings receive rank {@code -1} and sort below any real version.
+     */
+    private static int tlsProtocolRank(String protocol) {
+        Matcher m = TLS_VERSION_PATTERN.matcher(protocol);
+        if (m.matches()) {
+            int major = Integer.parseInt(m.group(1));
+            int minor = m.group(2) != null ? Integer.parseInt(m.group(2)) : 0;
+            return major * 1000 + minor;
+        }
+        return -1;
     }
 
     private static class ConfigBuilder {
