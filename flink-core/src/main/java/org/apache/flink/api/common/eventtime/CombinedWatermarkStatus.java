@@ -38,6 +38,12 @@ final class CombinedWatermarkStatus {
 
     private boolean idle = false;
 
+    /**
+     * Whether at least one output was ever registered. Used to distinguish the initial empty state
+     * (before any output is registered) from an empty state caused by unregistering all outputs.
+     */
+    private boolean hadOutputs = false;
+
     public long getCombinedWatermark() {
         return combinedWatermark;
     }
@@ -51,6 +57,7 @@ final class CombinedWatermarkStatus {
     }
 
     public void add(PartialWatermark element) {
+        hadOutputs = true;
         partialWatermarks.add(element);
     }
 
@@ -63,8 +70,16 @@ final class CombinedWatermarkStatus {
      * @return true, if the combined watermark changed
      */
     public boolean updateCombinedWatermark() {
-        // if we don't have any outputs, we should not emit
+        // if we don't have any outputs, we should not emit.
         if (partialWatermarks.isEmpty()) {
+            // If all previously registered outputs have been unregistered, an empty set is
+            // semantically equivalent to all outputs being idle. We must mark the combined status
+            // as idle to avoid carrying over a stale idle=false state set by a watermark that was
+            // emitted while the outputs were still active. The initial empty state (before any
+            // output is registered) is left untouched so we don't prematurely propagate idleness.
+            if (hadOutputs) {
+                this.idle = true;
+            }
             return false;
         }
 
