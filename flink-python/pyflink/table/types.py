@@ -2365,6 +2365,8 @@ def to_arrow_type(data_type: DataType):
         return pa.utf8()
     elif isinstance(data_type, BinaryType):
         return pa.binary(data_type.length)
+    elif isinstance(data_type, GeographyType):
+        return pa.binary()
     elif isinstance(data_type, VarBinaryType):
         return pa.binary()
     elif isinstance(data_type, DecimalType):
