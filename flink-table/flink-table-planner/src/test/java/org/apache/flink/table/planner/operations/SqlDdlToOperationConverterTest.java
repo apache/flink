@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.TableDistribution.Kind;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
@@ -656,6 +657,29 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         withDistribution(
                                                 TableDistribution.ofUnknown(
                                                         Collections.singletonList("a"), null)))));
+    }
+
+    @Test
+    void testCreateTableWithConnection() {
+        final String sql =
+                "CREATE TABLE derivedTable(\n"
+                        + "  a INT\n"
+                        + ")\n"
+                        + "USING CONNECTION mycat.mydb.myconn";
+        Operation operation = parseAndConvert(sql);
+        assertThat(operation).isInstanceOf(CreateTableOperation.class);
+        CreateTableOperation op = (CreateTableOperation) operation;
+        assertThat(op.getCatalogTable().getConnection())
+                .hasValue(UnresolvedIdentifier.of("mycat", "mydb", "myconn"));
+    }
+
+    @Test
+    void testCreateTableWithoutConnection() {
+        final String sql = "CREATE TABLE derivedTable(\n" + "  a INT\n" + ")";
+        Operation operation = parseAndConvert(sql);
+        assertThat(operation).isInstanceOf(CreateTableOperation.class);
+        CreateTableOperation op = (CreateTableOperation) operation;
+        assertThat(op.getCatalogTable().getConnection()).isEmpty();
     }
 
     @Test
