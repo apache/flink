@@ -59,10 +59,9 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
         byte[] byteArrayTerm$0 = _myInput.toBytes();
-        if (byteArrayTerm$0.length <= 2) {
-            // If could pad
-            result$1 = java.util.Arrays.copyOf(byteArrayTerm$0, 2);
-            // result$1 = byteArrayTerm$0 // If could not pad
+        if (byteArrayTerm$0.length == 2) {
+            // If could pad, condition is "== 2" instead of "<= 2"
+            result$1 = byteArrayTerm$0;
         } else {
             result$1 = java.util.Arrays.copyOf(byteArrayTerm$0, 2);
         }
@@ -86,24 +85,17 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                     .toString();
         } else {
             final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+            final boolean couldPad = couldPad(targetLogicalType, targetLength);
             final String byteArrayTerm =
                     CodeGenUtils.newName(context.getCodeGeneratorContext(), "byteArrayTerm");
 
             return new CastRuleUtils.CodeWriter()
                     .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))
                     .ifStmt(
-                            arrayLength(byteArrayTerm) + " <= " + targetLength,
-                            thenWriter -> {
-                                if (couldPad(targetLogicalType, targetLength)) {
-                                    trimOrPadByteArray(
-                                            returnVariable,
-                                            targetLength,
-                                            byteArrayTerm,
-                                            thenWriter);
-                                } else {
-                                    thenWriter.assignStmt(returnVariable, byteArrayTerm);
-                                }
-                            },
+                            arrayLength(byteArrayTerm)
+                                    + (couldPad ? " == " : " <= ")
+                                    + targetLength,
+                            thenWriter -> thenWriter.assignStmt(returnVariable, byteArrayTerm),
                             elseWriter ->
                                     trimOrPadByteArray(
                                             returnVariable,
