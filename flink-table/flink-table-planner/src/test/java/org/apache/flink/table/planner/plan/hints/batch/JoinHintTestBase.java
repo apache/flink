@@ -51,9 +51,6 @@ import static scala.runtime.BoxedUnit.UNIT;
  * A test base for join hint.
  *
  * <p>TODO add test to cover legacy table source.
- *
- * <p>Notice: Join hints in sub-query will not be printed in AST, because {@code RexSubQuery} use
- * 'RelOptUtil.toString(rel)' to print node and doesn't print hints about {@code LogicalJoin}.
  */
 public abstract class JoinHintTestBase extends TableTestBase {
 
@@ -841,6 +838,36 @@ public abstract class JoinHintTestBase extends TableTestBase {
                 "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3)";
 
         verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
+    @Test
+    void testJoinHintsInNestedRexSubQuery() {
+        String sql =
+                "select * from T1 where a1 in ("
+                        + "select /*+ %s(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3 "
+                        + "where a2 in ("
+                        + "select /*+ %s(T1) */ a1 from T1 join T3 T4 on T1.a1 = T4.a3))";
+
+        verifyRelPlanByCustom(
+                String.format(
+                        sql,
+                        buildCaseSensitiveStr(getTestSingleJoinHint()),
+                        buildCaseSensitiveStr(getOtherJoinHints().get(0))));
+    }
+
+    @Test
+    void testJoinHintWithDifferentHintsInSiblingSubQueries() {
+        String sql =
+                "select * from T1 WHERE a1 IN "
+                        + "(select /*+ %s(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3) "
+                        + "OR a1 IN "
+                        + "(select /*+ %s(T1) */ a1 from T1 join T3 T4 on T1.a1 = T4.a3)";
+
+        verifyRelPlanByCustom(
+                String.format(
+                        sql,
+                        buildCaseSensitiveStr(getTestSingleJoinHint()),
+                        buildCaseSensitiveStr(getOtherJoinHints().get(0))));
     }
 
     @Test
