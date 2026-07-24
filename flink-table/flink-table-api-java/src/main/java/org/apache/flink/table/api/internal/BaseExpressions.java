@@ -140,6 +140,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
@@ -2523,6 +2524,70 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
         return jsonQuery(
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+
+    public OutType jsonLength() {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
+    }
+
+    /**
+     * Returns the number of elements in a JSON document, or the length of the value at the
+     * specified path if one is provided.
+     *
+     * <p>The input can be a JSON STRING or a VARIANT. Returns {@code NULL} if the argument is
+     * {@code NULL}, the json is invalid, or the path does not locate a value.
+     *
+     * <p>The length is determined as follows:
+     *
+     * <ul>
+     *   <li>Scalar values (number, string, boolean) have length 1.
+     *   <li>Arrays have a length equal to the number of their elements.
+     *   <li>Objects have a length equal to the number of their key-value pairs.
+     * </ul>
+     *
+     * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
+     * JSON_LENGTH} resolves to {@code NULL}.
+     *
+     * <p>JSON_LENGTH also supports input of the VARIANT type; you can pass the output of PARSE_JSON
+     * into JSON_LENGTH.
+     *
+     * <p>Because a {@code NULL} result can mean several different things (the input is not valid
+     * JSON, the path does not match anything, or a wildcard path matched 2 or more nodes), it is
+     * recommended to pair {@code JSON_LENGTH} with a helper function so invalid input is handled
+     * explicitly rather than silently returning {@code NULL}:
+     *
+     * <ul>
+     *   <li>Without a path, guard the call with {@code IS JSON} to separate malformed input from a
+     *       real result.
+     *   <li>With a path, use {@code JSON_EXISTS} to tell "the path is absent" apart from "the path
+     *       matched but was ambiguous / matched 2 or more nodes".
+     * </ul>
+     *
+     * <pre>{@code
+     * // returns the length only for valid JSON, otherwise NULL means "invalid input"
+     * lit("[1,2,3]").isJson().then(lit("[1,2,3]").jsonLength(), nullOf(DataTypes.INT()))
+     *
+     * // pathPresent is true even when jsonLength is NULL because of a multi-match wildcard
+     * lit("{}").jsonExists("$.items[*]")
+     * lit("{}").jsonLength("$.items[*]")
+     * }</pre>
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}') // 2
+     * JSON_LENGTH('[1,2,3,4,5]') // 5
+     * JSON_LENGTH('"hello"') // 1
+     *
+     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.1') // 1
+     * JSON_LENGTH('{"1": [1,2,3], "2": "bye bye"}', '$.1') // 3
+     * JSON_LENGTH('[1,2,3,4,5]', '$[3]') // 1
+     *
+     * JSON_LENGTH('[1,2,3,4,5]', '$[7]') // Null
+     * }</pre>
+     */
+    public OutType jsonLength(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr(), valueLiteral(path)));
     }
 
     /**

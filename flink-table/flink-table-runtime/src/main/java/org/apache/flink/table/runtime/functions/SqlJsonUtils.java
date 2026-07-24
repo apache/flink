@@ -374,6 +374,89 @@ public class SqlJsonUtils {
         }
     }
 
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Integer jsonLength(final JsonValueContext parsedInput) {
+        // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
+        // before parsing.
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+
+        // Whole document: a top-level JSON null literal counts as a scalar (length 1).
+        return jsonLengthValue(parsedInput.obj);
+    }
+
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
+        // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
+        // before parsing.
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+
+        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
+        final boolean isExplicitLaxStrict = matcher.matches();
+        if (isExplicitLaxStrict) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
+                                    + "Use a plain path such as '$.a.b'. To check path existence or handle "
+                                    + "invalid input, use JSON_EXISTS or IS JSON.",
+                            pathSpec));
+        }
+        final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
+        final Object value = context.obj;
+        if (value == null) {
+            if (pathExists(parsedInput.obj, pathSpec)) {
+                // literal null
+                return 1;
+            } else {
+                return null;
+            }
+        }
+
+        if (!JsonPath.isPathDefinite(pathSpec)) {
+            final List<?> matched = (List<?>) value;
+            return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
+        }
+
+        return jsonLengthValue(value);
+    }
+
+    private static int jsonLengthValue(final Object value) {
+        if (value instanceof Map) {
+            return ((Map<?, ?>) value).size();
+        }
+        if (value instanceof List<?>) {
+            return ((List<?>) value).size();
+        }
+        // Scalars, including a JSON null literal, have length 1.
+        return 1;
+    }
+
+    /**
+     * Returns whether {@code pathSpec} matches at least one node in {@code json}, independent of
+     * whether the matched value is a JSON null literal. Uses {@link Option#AS_PATH_LIST} so the
+     * result is the list of matched canonical paths, which is empty iff the path does not exist.
+     */
+    private static boolean pathExists(final Object json, final String pathSpec) {
+        try {
+            final List<String> matched =
+                    JsonPath.parse(
+                                    json,
+                                    Configuration.builder()
+                                            .options(
+                                                    Option.AS_PATH_LIST, Option.SUPPRESS_EXCEPTIONS)
+                                            .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                                            .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                                            .build())
+                            .read(pathSpec);
+            return matched != null && !matched.isEmpty();
+        } catch (InvalidPathException e) {
+            return false;
+        }
+    }
+
     public static Object json(String input) {
         try {
             String trimmed = input.trim();

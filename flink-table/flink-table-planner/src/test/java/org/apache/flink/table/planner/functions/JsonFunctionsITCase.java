@@ -84,6 +84,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         final List<TestSetSpec> testCases = new ArrayList<>();
         testCases.add(jsonExistsSpec());
         testCases.add(jsonValueSpec());
+        testCases.add(jsonLengthSpec());
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonStringSpec());
@@ -96,6 +97,112 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(jsonUnquoteSpecWithInvalidInput());
         testCases.addAll(jsonLocalRefReuseSpec());
         return testCases.stream();
+    }
+
+    private static TestSetSpec jsonLengthSpec() {
+        final String jsonValue = getJsonFromResource("/json/json-exists.json");
+
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_LENGTH)
+                .onFieldsWithData(
+                        jsonValue,
+                        "{\"a\":1,\"b\":2}",
+                        "[1,2,3]",
+                        "\"abc\"",
+                        "null",
+                        "{",
+                        ((String) null),
+                        "$",
+                        "{\"a\":[true, false, null]}",
+                        "{}",
+                        "[]")
+                .andDataTypes(
+                        STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
+                        STRING(), STRING(), STRING(), STRING())
+                // path exists but resolves to a JSON null literal -> scalar, length 1
+                .testSqlResult("JSON_LENGTH(f8, '$.a[2]')", 1, INT().nullable())
+                // missing paths on the same document -> NULL
+                .testSqlResult("JSON_LENGTH(f8, '$.a[9]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '$.b')", null, INT().nullable())
+
+                // SQL NULL input
+                .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
+
+                // whole-document length from the existing resource:
+                .testSqlResult("JSON_LENGTH(f0)", 3, INT().nullable())
+
+                // basic shapes
+                .testSqlResult("JSON_LENGTH(f1)", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f2)", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f3)", 1, INT().nullable())
+
+                // empty containers -> 0
+                .testSqlResult("JSON_LENGTH(f9)", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10)", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f9, '$')", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f10, '$')", 0, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f4)", 1, INT().nullable())
+
+                // (valid) paths
+                .testSqlResult("JSON_LENGTH(f0, '$')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0]')", 2, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
+                // (invalid) path
+                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f7)", null, INT().nullable())
+
+                // invalid JSON -> NULL
+                .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
+
+                // literal (NOT NULL) arguments must still yield a nullable result
+                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
+
+                // missing path: neither mode throws -> both yield NULL
+                .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
+
+                // WILDCARDS matching MULTIPLE nodes -> NULL
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
+
+                // deep-scan `$..url` -> single scalar
+                .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
+                // `$.metadata.references[*].name` -> single scalar)
+                .testSqlResult(
+                        "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
+                // JSON_LENGTH variant support (runtime path, no constant folding)
+                .testSqlResult("JSON_LENGTH(PARSE_JSON(f0))", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]'))", 5, INT().nullable())
+                .testSqlResult("JSON_LENGTH(PARSE_JSON('\"hello\"'))", 1, INT().nullable())
+                .testSqlResult(
+                        "JSON_LENGTH(PARSE_JSON(f0), '$.metadata.tags')", 3, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f0, '$.items[*]')", null, INT().nullable())
+
+                // lax/strict path modes are not supported and are rejected at runtime
+                .testSqlRuntimeError(
+                        "JSON_LENGTH(f0, 'strict $.type')",
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').")
+                .testSqlRuntimeError(
+                        "JSON_LENGTH(f0, 'lax $.type')",
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'lax $.type').")
+                .testTableApiRuntimeError(
+                        $("f0").jsonLength("strict $.type"),
+                        TableRuntimeException.class,
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').");
     }
 
     private static TestSetSpec jsonExistsSpec() {
@@ -175,7 +282,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testTableApiRuntimeError(
                         $("f0").jsonExists("strict $.invalid", JsonExistsOnError.ERROR),
                         TableRuntimeException.class,
-                        "No results for path: $['invalid']");
+                        "No results for path: $['invalid']")
+                .testSqlResult("JSON_EXISTS(f0, '$.items[*]')", false, BOOLEAN())
+                .testSqlResult("JSON_EXISTS(f0, '$.metadata.tags[*]')", true, BOOLEAN());
     }
 
     private static TestSetSpec jsonValueSpec() {

@@ -1223,7 +1223,44 @@ json:
       -- [{"nested_json":{"value":42}}]
       JSON_ARRAY(JSON('{"nested_json": {"value": 42}}'))
       ```
-
+  - sql: JSON_LENGTH(json_doc[, path])
+    table: jsonLength(jsonObject[, path])
+    description: |
+      Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided.
+      
+      The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL, the json is invalid, or the path does not locate a value.
+      eg. 
+        -- 2
+        JSON_LENGTH('{"1": "hello", "2": "bye bye"}')
+      
+        -- 5
+        JSON_LENGTH('[1,2,3,4,5]')
+      
+        -- 1
+        JSON_LENGTH('"hello"')
+      
+        -- 1
+        JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.2')
+      
+        -- NULL
+        JSON_LENGTH('{"1": "hello", "2": "BAD SYNTAX ->"', '$.2')
+      
+      
+      The length is determined as follows:
+      
+        - Scalar values (number, string, boolean): has length 1.
+        - Array: has a length equal to the number of its elements.
+        - Object: has a length equal to the number of its key-value pairs.
+      
+      A wildcard path that matches 2 or more nodes returns NULL.
+      A NULL result is ambiguous - it means invalid JSON, no match, or a multi-match wildcard.
+      
+      Pair JSON_LENGTH with a helper function to handle these cases explicitly:
+        -- IS JSON separates invalid input from a real result
+        SELECT CASE WHEN json_doc IS JSON THEN JSON_LENGTH(json_doc) END;
+      
+        -- JSON_EXISTS separates an absent path from a present one
+        SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
     description: |
@@ -1690,7 +1727,6 @@ bitmapagg:
       `bitmap BITMAP`
       
       Returns a `BIGINT`.
-
 catalog:
   - sql: CURRENT_DATABASE()
     table: currentDatabase()
