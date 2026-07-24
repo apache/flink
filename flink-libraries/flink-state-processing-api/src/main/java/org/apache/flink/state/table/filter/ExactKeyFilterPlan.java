@@ -16,52 +16,48 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.filter;
+package org.apache.flink.state.table.filter;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
-/** A filter that rejects every key. */
-final class EmptyKeyFilter<K> implements SavepointKeyFilter<K> {
+/** A filter that accepts a finite set of keys. */
+final class ExactKeyFilterPlan<K> implements SavepointKeyFilterPlan<K> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
-    @SuppressWarnings("rawtypes")
-    private static final EmptyKeyFilter INSTANCE = new EmptyKeyFilter<>();
+    private final Set<K> keys;
 
-    private EmptyKeyFilter() {}
-
-    @SuppressWarnings("unchecked")
-    static <K> EmptyKeyFilter<K> instance() {
-        return (EmptyKeyFilter<K>) INSTANCE;
+    ExactKeyFilterPlan(Set<K> keys) {
+        this.keys = Set.copyOf(keys);
     }
 
     @Override
     public boolean test(K key) {
-        return false;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return true;
+        return keys.contains(key);
     }
 
     @Override
     public Set<K> getExactKeys() {
-        return Collections.emptySet();
+        return keys;
     }
 
     @Override
-    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
-        return this;
-    }
-
-    private Object readResolve() {
-        return INSTANCE;
+    public SavepointKeyFilterPlan<K> intersect(SavepointKeyFilterPlan<K> other) {
+        if (other.isEmpty()) {
+            return other;
+        }
+        final Set<K> otherKeys = other.getExactKeys();
+        if (otherKeys != null) {
+            final Set<K> intersection = new HashSet<>(keys);
+            intersection.retainAll(otherKeys);
+            return SavepointKeyFilterPlan.exact(intersection);
+        }
+        return SavepointKeyFilterPlan.filterKeys(keys, other);
     }
 
     @Override
     public String toString() {
-        return "EmptyKeyFilter";
+        return "ExactKeyFilterPlan" + keys;
     }
 }
