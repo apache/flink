@@ -32,7 +32,6 @@ import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
 import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
 import org.apache.flink.shaded.com.jayway.jsonpath.Option;
-import org.apache.flink.shaded.com.jayway.jsonpath.PathNotFoundException;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -377,7 +376,8 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput) {
-        // TODO FLINK-39419: A null context can result from a shared parse that was short-circuited before parsing.
+        // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
+        // before parsing.
         if (parsedInput == null || parsedInput.hasException()) {
             return null;
         }
@@ -388,7 +388,8 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
-        // TODO FLINK-39419: A null context can result from a shared parse that was short-circuited before parsing.
+        // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
+        // before parsing.
         if (parsedInput == null || parsedInput.hasException()) {
             return null;
         }
@@ -406,11 +407,10 @@ public class SqlJsonUtils {
         final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
         final Object value = context.obj;
         if (value == null) {
-            if (pathExists(parsedInput.obj, pathSpec)){
-                //literal null
+            if (pathExists(parsedInput.obj, pathSpec)) {
+                // literal null
                 return 1;
-            }
-            else{
+            } else {
                 return null;
             }
         }
