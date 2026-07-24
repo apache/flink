@@ -18,8 +18,10 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, _}
@@ -833,7 +835,14 @@ object StreamTableEnvironment {
    *   The Scala [[StreamExecutionEnvironment]] of the [[TableEnvironment]].
    */
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
-    create(executionEnvironment, EnvironmentSettings.newInstance().build)
+    val settingsBuilder = EnvironmentSettings.newInstance()
+    if (
+      executionEnvironment.getConfiguration.get(ExecutionOptions.RUNTIME_MODE) ==
+        RuntimeExecutionMode.BATCH
+    ) {
+      settingsBuilder.inBatchMode()
+    }
+    create(executionEnvironment, settingsBuilder.build)
   }
 
   /**
