@@ -25,6 +25,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.popCompleted;
 import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.putSuccessfully;
@@ -92,5 +94,55 @@ class UnorderedStreamElementQueueTest {
         assertThat(queue.size()).isZero();
         assertThat(queue.isEmpty()).isTrue();
         assertThat(popCompleted(queue)).isEmpty();
+    }
+
+    /**
+     * Tests that {@link UnorderedStreamElementQueue#isAvailable()} starts true, stays true while
+     * the queue has free capacity, and flips to false once it becomes full; the future returned by
+     * {@link UnorderedStreamElementQueue#getAvailableFuture()} mirrors this state.
+     */
+    @Test
+    void testIsAvailableTogglesWithCapacity() {
+        final UnorderedStreamElementQueue<Integer> queue = new UnorderedStreamElementQueue<>(2);
+
+        assertThat(queue.isAvailable()).isTrue();
+        assertThat(queue.getAvailableFuture().isDone()).isTrue();
+
+        putSuccessfully(queue, new StreamRecord<>(1, 0L));
+        assertThat(queue.isAvailable())
+                .as("queue with one free slot remaining should still be available")
+                .isTrue();
+
+        putSuccessfully(queue, new StreamRecord<>(2, 1L));
+        assertThat(queue.isAvailable()).as("queue at capacity should be unavailable").isFalse();
+        assertThat(queue.getAvailableFuture().isDone()).isFalse();
+    }
+
+    /**
+     * Tests that the future returned by {@link UnorderedStreamElementQueue#getAvailableFuture()}
+     * completes once a slot is freed by emitting a completed element from the head segment, and
+     * that the queue becomes available again.
+     */
+    @Test
+    void testGetAvailableFutureCompletesWhenSlotFreed() {
+        final UnorderedStreamElementQueue<Integer> queue = new UnorderedStreamElementQueue<>(2);
+
+        ResultFuture<Integer> entry1 = putSuccessfully(queue, new StreamRecord<>(1, 0L));
+        putSuccessfully(queue, new StreamRecord<>(2, 1L));
+
+        CompletableFuture<?> availableFuture = queue.getAvailableFuture();
+        assertThat(availableFuture.isDone()).isFalse();
+        assertThat(queue.isAvailable()).isFalse();
+
+        // Completing an entry in the head segment and emitting it frees one slot, which must
+        // complete the future captured while the queue was full.
+        entry1.complete(Collections.singleton(11));
+        assertThat(popCompleted(queue)).containsExactly(new StreamRecord<>(11, 0L));
+
+        assertThat(availableFuture.isDone())
+                .as("availability future should be completed when capacity is freed")
+                .isTrue();
+        assertThat(queue.isAvailable()).isTrue();
+        assertThat(queue.getAvailableFuture().isDone()).isTrue();
     }
 }

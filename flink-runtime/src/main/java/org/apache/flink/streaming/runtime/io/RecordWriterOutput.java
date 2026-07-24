@@ -25,6 +25,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.WatermarkEvent;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -220,6 +221,10 @@ public class RecordWriterOutput<OUT>
 
     public void flush() throws IOException {
         recordWriter.flushAll();
+    }
+
+    public AvailabilityProvider getOutputAvailabilityProvider() {
+        return recordWriter;
     }
 
     @Override

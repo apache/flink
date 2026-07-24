@@ -30,6 +30,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.CompositeAvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
@@ -61,6 +63,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.SupportsSoftBackpressure;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
@@ -153,6 +156,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     protected boolean isClosed;
 
+    private AvailabilityProvider operatorChainAvailabilityProvider = null;
+
     public OperatorChain(
             StreamTask<OUT, OP> containingTask,
             RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
@@ -198,6 +203,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             // we create the chain of operators and grab the collector that leads into the chain
             List<StreamOperatorWrapper<?, ?>> allOpWrappers =
                     new ArrayList<>(chainedConfigs.size());
+            List<AvailabilityProvider> mainAvailProviders = new ArrayList<>();
             this.mainOperatorOutput =
                     createOutputCollector(
                             containingTask,
@@ -207,7 +213,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             recordWriterOutputs,
                             allOpWrappers,
                             containingTask.getMailboxExecutorFactory(),
-                            operatorFactory != null);
+                            operatorFactory != null,
+                            mainAvailProviders);
 
             if (operatorFactory != null) {
                 Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService =
@@ -231,6 +238,22 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                                 configuration,
                                 mainOperatorAndTimeService.f1,
                                 true);
+
+                // Soft-backpressure head absorbs downstream availability.
+                if (mainOperator instanceof SupportsSoftBackpressure) {
+                    SupportsSoftBackpressure head = (SupportsSoftBackpressure) mainOperator;
+                    if (!mainAvailProviders.isEmpty()) {
+                        head.setDownstreamAvailabilityProvider(
+                                CompositeAvailabilityProvider.of(mainAvailProviders));
+                    }
+                    mainAvailProviders = new ArrayList<>();
+                    mainAvailProviders.add(head);
+                }
+
+                if (!mainAvailProviders.isEmpty()) {
+                    operatorChainAvailabilityProvider =
+                            CompositeAvailabilityProvider.of(mainAvailProviders);
+                }
 
                 // add main operator to end of chain
                 allOpWrappers.add(mainOperatorWrapper);
@@ -485,6 +508,10 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return isClosed;
     }
 
+    public AvailabilityProvider getOperatorChainAvailabilityProvider() {
+        return operatorChainAvailabilityProvider;
+    }
+
     /** Wrapper class to access the chained sources and their's outputs. */
     public static class ChainedSource {
         private final WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput;
@@ -712,7 +739,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs,
             List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
             MailboxExecutorFactory mailboxExecutorFactory,
-            boolean shouldAddMetric) {
+            boolean shouldAddMetric,
+            List<AvailabilityProvider> downstreamAvailProviders) {
         List<OutputWithChainingCheck<StreamRecord<T>>> allOutputs = new ArrayList<>(4);
 
         // create collectors for the network outputs
@@ -723,6 +751,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     (RecordWriterOutput<T>) recordWriterOutputs.get(streamOutput.getDataSetId());
 
             allOutputs.add(recordWriterOutput);
+            if (downstreamAvailProviders != null) {
+                downstreamAvailProviders.add(recordWriterOutput.getOutputAvailabilityProvider());
+            }
         }
 
         // Create collectors for the chained outputs
@@ -741,7 +772,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             allOperatorWrappers,
                             outputEdge.getOutputTag(),
                             mailboxExecutorFactory,
-                            shouldAddMetric);
+                            shouldAddMetric,
+                            downstreamAvailProviders);
             checkState(output instanceof OutputWithChainingCheck);
             allOutputs.add((OutputWithChainingCheck) output);
             // If the operator has multiple downstream chained operators, only one of them should
@@ -820,7 +852,10 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
             OutputTag<IN> outputTag,
             MailboxExecutorFactory mailboxExecutorFactory,
-            boolean shouldAddMetricForPrevOperator) {
+            boolean shouldAddMetricForPrevOperator,
+            @Nullable List<AvailabilityProvider> parentDownstreamAvailProviders) {
+        List<AvailabilityProvider> myDownstreamAvailProviders = new ArrayList<>();
+
         // create the output that the operator writes to first. this may recursively create more
         // operators
         WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainedOperatorOutput =
@@ -832,7 +867,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                         recordWriterOutputs,
                         allOperatorWrappers,
                         mailboxExecutorFactory,
-                        true);
+                        true,
+                        myDownstreamAvailProviders);
 
         OneInputStreamOperator<IN, OUT> chainedOperator =
                 createOperator(
@@ -842,6 +878,22 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                         chainedOperatorOutput,
                         allOperatorWrappers,
                         false);
+
+        // Soft-backpressure operator absorbs downstream; only it is surfaced upward.
+        if (chainedOperator instanceof SupportsSoftBackpressure) {
+            SupportsSoftBackpressure op = (SupportsSoftBackpressure) chainedOperator;
+            if (!myDownstreamAvailProviders.isEmpty()) {
+                op.setDownstreamAvailabilityProvider(
+                        CompositeAvailabilityProvider.of(myDownstreamAvailProviders));
+            }
+            if (parentDownstreamAvailProviders != null) {
+                parentDownstreamAvailProviders.add(op);
+            }
+        } else {
+            if (parentDownstreamAvailProviders != null) {
+                parentDownstreamAvailProviders.addAll(myDownstreamAvailProviders);
+            }
+        }
 
         return wrapOperatorIntoOutput(
                 chainedOperator,
