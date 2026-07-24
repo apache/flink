@@ -78,7 +78,7 @@ import static org.apache.parquet.proto.ProtoConstants.METADATA_ENUM_PREFIX;
  * https://github.com/apache/parquet-java/issues/3175.
  *
  * <p>The original source can be found here:
- * https://github.com/apache/parquet-java/blob/apache-parquet-1.15.2/parquet-protobuf/src/main/java/org/apache/parquet/proto/ProtoWriteSupport.java
+ * https://github.com/apache/parquet-java/blob/apache-parquet-1.16.0/parquet-protobuf/src/main/java/org/apache/parquet/proto/ProtoWriteSupport.java
  *
  * <p>Patched code is marked with BEGIN PATCH / END PATCH comments in the source.
  */
