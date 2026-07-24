@@ -186,9 +186,33 @@ jobs:
           path: ${{ env.MAVEN_REPO_FOLDER }}
           key: ${{ steps.job-init.outputs.maven-cache-key }}
 
+  changes:
+    name: "Detect changed test stages"
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      run_e2e: ${{ steps.detect.outputs.run_e2e }}
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: tools
+      - name: "Detect test stages"
+        id: detect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: ./tools/ci/detect_test_stages.sh
+
   test:
     name: "Test (module: ${{ matrix.module }})"
-    needs: compile
+    needs: [compile, changes]
+    # Skip the whole matrix when detection selected no stage (e.g. only e2e tests changed).
+    # Guards against an empty matrix 'include', which errors on some runner versions.
+    if: ${{ needs.changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04
     container:
       image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
@@ -201,22 +225,15 @@ jobs:
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
       GHA_JOB_TIMEOUT: 240
+      # Build the multi-module reactor in parallel (one thread per core) for the test stages only.
+      # maven-utils.sh prepends $MAVEN_ARGS to every run_mvn invocation, so this applies to both the
+      # compile (install) and test (verify) steps in test_controller.sh. It overrides the workflow-level
+      # MAVEN_ARGS, so the maven.repo.local path must be repeated here.
+      MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository -T 1C
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - module: core
-            stringified-module-name: core
-          - module: python
-            stringified-module-name: python
-          - module: table
-            stringified-module-name: table
-          - module: connect
-            stringified-module-name: connect
-          - module: tests
-            stringified-module-name: tests
-          - module: misc
-            stringified-module-name: misc
+        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - name: "Flink Checkout"
@@ -343,7 +360,9 @@ jobs:
 
   e2e:
     name: "E2E (group ${{ matrix.group }})"
-    needs: compile
+    needs: [compile, changes]
+    # Skip e2e when the change is unit/IT test code only (can't affect runtime behaviour).
+    if: ${{ needs.changes.outputs.run_e2e == 'true' }}
     # the end to end tests are not executed in Flink's CI Docker container due to problems when running Docker-in-Docker
     runs-on: ubuntu-24.04
     timeout-minutes: 310
