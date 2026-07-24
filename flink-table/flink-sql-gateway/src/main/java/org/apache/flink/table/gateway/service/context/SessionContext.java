@@ -56,6 +56,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -304,7 +306,7 @@ public class SessionContext {
                 initializeConfiguration(defaultContext, environment, sessionId);
         final MutableURLClassLoader userClassLoader =
                 FlinkUserCodeClassLoaders.create(
-                        defaultContext.getDependencies().toArray(new URL[0]),
+                        getDependencyURLs(defaultContext),
                         SessionContext.class.getClassLoader(),
                         configuration);
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
@@ -316,6 +318,21 @@ public class SessionContext {
                 userClassLoader,
                 initializeSessionState(environment, configuration, resourceManager),
                 new OperationManager(operationExecutorService));
+    }
+
+    private static URL[] getDependencyURLs(DefaultContext defaultContext) {
+        return defaultContext.getDependencies().stream()
+                .map(SessionContext::toURL)
+                .toArray(URL[]::new);
+    }
+
+    private static URL toURL(URI uri) {
+        try {
+            return uri.toURL();
+        } catch (MalformedURLException | IllegalArgumentException e) {
+            throw new SqlGatewayException(
+                    String.format("Failed to convert dependency URI '%s' to URL.", uri), e);
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------------

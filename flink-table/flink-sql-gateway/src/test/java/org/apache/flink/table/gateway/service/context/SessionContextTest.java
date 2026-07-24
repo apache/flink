@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.listener.CatalogListener2;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 
 import org.junit.jupiter.api.AfterAll;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +56,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_CATALOG
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link SessionContext}. */
 class SessionContextTest {
@@ -144,6 +147,50 @@ class SessionContextTest {
         sessionContext.reset("bb");
         assertThat(sessionContext.getSessionConf())
                 .matches((conf) -> !conf.containsKey("aa") && !conf.containsKey("bb"));
+    }
+
+    @Test
+    void testCreateContextWithDependencies(@TempDir Path dependencyDirectory) throws Exception {
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        new Configuration(),
+                        Collections.singletonList(dependencyDirectory.toUri()));
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        SessionContext context =
+                SessionContext.create(
+                        defaultContext, SessionHandle.create(), environment, EXECUTOR_SERVICE);
+        try {
+            assertThat(context.getUserClassloader().getURLs())
+                    .contains(dependencyDirectory.toUri().toURL());
+        } finally {
+            context.close();
+        }
+    }
+
+    @Test
+    void testCreateContextWrapsSchemelessDependencyUri() {
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        new Configuration(), Collections.singletonList(URI.create("foo.jar")));
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        assertThatThrownBy(
+                        () ->
+                                SessionContext.create(
+                                        defaultContext,
+                                        SessionHandle.create(),
+                                        environment,
+                                        EXECUTOR_SERVICE))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessageContaining("Failed to convert dependency URI 'foo.jar' to URL.")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
