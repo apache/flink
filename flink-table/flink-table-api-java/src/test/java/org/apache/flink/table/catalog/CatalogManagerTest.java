@@ -581,6 +581,51 @@ class CatalogManagerTest {
                 .containsEntry("bootstrap.servers", "localhost:9092");
     }
 
+    @Test
+    public void testRenameTemporaryConnection() {
+        CatalogManager catalogManager = createCatalogManager(null);
+        ObjectIdentifier source =
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "conn1");
+        ObjectIdentifier target =
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "conn2");
+        Map<String, String> options =
+                new HashMap<String, String>() {
+                    {
+                        put("type", "default");
+                        put("bootstrap.servers", "localhost:9092");
+                    }
+                };
+        catalogManager.createTemporaryConnection(
+                SensitiveConnection.of(options, null), source, false);
+
+        catalogManager.renameConnection(source, "conn2", false);
+
+        assertThat(catalogManager.getConnection(source)).isEmpty();
+        assertThat(catalogManager.getConnection(target))
+                .hasValueSatisfying(
+                        connection ->
+                                assertThat(connection.getOptions())
+                                        .containsEntry("bootstrap.servers", "localhost:9092"));
+    }
+
+    @Test
+    public void testRenameMissingTemporaryConnectionIfExists() {
+        CatalogManager catalogManager = createCatalogManager(null);
+        ObjectIdentifier source =
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "conn1");
+
+        catalogManager.renameConnection(source, "conn2", true);
+    }
+
     private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {
         CatalogManager.Builder builder =
                 CatalogManager.newBuilder()
