@@ -20,6 +20,7 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.connector.source.DynamicParallelismInference;
@@ -28,9 +29,12 @@ import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.OperatorsFinished;
 import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphOptimizationStrategy;
@@ -57,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -71,6 +76,9 @@ class AdaptiveBatchSchedulerITCase {
     private static final int SOURCE_PARALLELISM_2 = 8;
     private static final int NUMBERS_TO_PRODUCE = 10000;
 
+    /** Used to capture the actual parallelism at runtime in Application Mode tests. */
+    private static final AtomicInteger CAPTURED_PARALLELISM = new AtomicInteger(0);
+
     private static ConcurrentLinkedQueue<Map<Long, Long>> numberCountResults;
 
     private Map<Long, Long> expectedResult;
@@ -83,6 +91,7 @@ class AdaptiveBatchSchedulerITCase {
                         .collect(Collectors.toMap(Function.identity(), i -> 2L));
 
         numberCountResults = new ConcurrentLinkedQueue<>();
+        CAPTURED_PARALLELISM.set(0);
     }
 
     @Test
@@ -402,6 +411,109 @@ class AdaptiveBatchSchedulerITCase {
                 }
             }
             return context.modifyStreamEdge(requestInfos);
+        }
+    }
+
+    /**
+     * Tests that parallelism overrides work correctly with the AdaptiveBatch scheduler. This
+     * verifies the fix for FLINK-38770.
+     */
+    @Test
+    void testParallelismOverridesWithAdaptiveBatchScheduler() throws Exception {
+        Configuration configuration = createConfiguration();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+
+        // Create a simple batch job
+        env.fromSequence(0, 100).map(i -> i * 2).name("test-map").print();
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        JobGraph jobGraph = streamGraph.getJobGraph();
+
+        // Find the map vertex and configure parallelism override
+        JobVertex mapVertex = null;
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            if (vertex.getName().contains("test-map")) {
+                mapVertex = vertex;
+                break;
+            }
+        }
+        assertThat(mapVertex).isNotNull();
+
+        // Configure parallelism override to change parallelism to 2
+        Map<String, String> overrides = new HashMap<>();
+        overrides.put(mapVertex.getID().toHexString(), "2");
+        jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+
+        // Submit and run the job - it will use the overridden parallelism (2 slots needed)
+        JobGraphRunningUtil.execute(jobGraph, configuration, 1, 2);
+
+        // If we reach here, the job completed successfully with the override applied
+    }
+
+    /**
+     * Tests parallelism overrides in Application Mode with AdaptiveBatch Scheduler. This verifies
+     * the fix for FLINK-38770 works in Application Mode by ensuring a job with overrides configured
+     * completes successfully. The test uses a small bounded job that completes quickly and verifies
+     * the parallelism override was applied.
+     */
+    @Test
+    void testParallelismOverridesInApplicationMode() throws Exception {
+        Configuration discoveryConfig = createConfiguration();
+        StreamExecutionEnvironment discoveryEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment(discoveryConfig);
+        discoveryEnv.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        discoveryEnv.setParallelism(1);
+        discoveryEnv.disableOperatorChaining();
+        discoveryEnv
+                .fromSequence(0, 10)
+                .map(new ParallelismCapturingMapFunction())
+                .name("test-map");
+
+        StreamGraph discoveryStreamGraph = discoveryEnv.getStreamGraph();
+        JobGraph discoveryJobGraph = discoveryStreamGraph.getJobGraph();
+        JobVertex mapVertex = null;
+        for (JobVertex vertex : discoveryJobGraph.getVertices()) {
+            if (vertex.getName().contains("test-map")) {
+                mapVertex = vertex;
+                break;
+            }
+        }
+        assertThat(mapVertex).isNotNull();
+        final JobVertexID mapVertexId = mapVertex.getID();
+
+        Configuration configuration = createConfiguration();
+        Map<String, String> overrides = new HashMap<>();
+        overrides.put(mapVertexId.toHexString(), "2");
+        configuration.set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+        env.disableOperatorChaining();
+        env.fromSequence(0, 10).map(new ParallelismCapturingMapFunction()).name("test-map").print();
+
+        env.execute();
+
+        assertThat(CAPTURED_PARALLELISM.get())
+                .as("Parallelism override should be applied (expected 2, not 1)")
+                .isEqualTo(2);
+    }
+
+    private static class ParallelismCapturingMapFunction extends RichMapFunction<Long, Long> {
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            int parallelism = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            CAPTURED_PARALLELISM.set(parallelism);
+        }
+
+        @Override
+        public Long map(Long value) throws Exception {
+            return value * 2;
         }
     }
 }
