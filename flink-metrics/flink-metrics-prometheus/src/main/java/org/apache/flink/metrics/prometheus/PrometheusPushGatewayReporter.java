@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -39,6 +41,8 @@ import java.util.Map;
  */
 @PublicEvolving
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
+    public static final String REPORTER_ID_GROUPING_KEY =
+            "flink_prometheus_push_gateway_reporter_id";
 
     private final PushGateway pushGateway;
     private final String jobName;
@@ -50,6 +54,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     PrometheusPushGatewayReporter(
             URL hostUrl,
             String jobName,
+            boolean metricsGroupingByReporter,
             Map<String, String> groupingKey,
             final boolean deleteOnShutdown,
             @Nullable String username,
@@ -64,7 +69,10 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             this.basicAuthEnabled = false;
         }
         this.jobName = Preconditions.checkNotNull(jobName);
-        this.groupingKey = Preconditions.checkNotNull(groupingKey);
+        this.groupingKey =
+                metricsGroupingByReporter
+                        ? groupWithReporterId(groupingKey)
+                        : new LinkedHashMap<>(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
     }
 
@@ -95,5 +103,21 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             }
         }
         super.close();
+    }
+
+    /**
+     * (FLINK-21309) Put "flink_prometheus_push_gateway_reporter_id" as the last entry of the
+     * grouping keys, so that each taskmanger instance and jobmanager will not collide their metrics
+     * in the PushGateway.
+     */
+    static Map<String, String> groupWithReporterId(Map<String, String> origin) {
+        Preconditions.checkNotNull(origin);
+        Map<String, String> groupingKey = new LinkedHashMap<>(origin);
+        if (origin.containsKey(REPORTER_ID_GROUPING_KEY)) {
+            throw new IllegalArgumentException(
+                    "Grouping keys must not contain the reserved key: " + REPORTER_ID_GROUPING_KEY);
+        }
+        groupingKey.put(REPORTER_ID_GROUPING_KEY, new AbstractID().toString());
+        return groupingKey;
     }
 }

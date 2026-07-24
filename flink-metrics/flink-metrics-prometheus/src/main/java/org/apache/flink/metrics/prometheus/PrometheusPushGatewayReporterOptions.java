@@ -50,7 +50,11 @@ public class PrometheusPushGatewayReporterOptions {
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "Specifies whether a random suffix should be appended to the job name.");
+                            "Specifies whether to suffix `job` label with random unique ids to avoid metric collision among reporters from taskmanagers / jobmanager."
+                                    + " When enabled (default / old way to avoid collision), each taskmanager / jobmanager will append a UUID to the `job` label when reporting to pushgateway."
+                                    + " When disabled, all taskmanagers / jobmanager share the same `job` label as configured, but they group metrics under a random reporter id key so as to avoid collision."
+                                    + " This option will be deprecated in the future as its default behavior does not comply with the best practice of prometheus `job` label."
+                                    + " It is recommended to disable it in order to rely on the reporter id grouping key.");
 
     public static final ConfigOption<Boolean> DELETE_ON_SHUTDOWN =
             ConfigOptions.key("deleteOnShutdown")
