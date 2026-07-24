@@ -101,5 +101,9 @@ public interface LogicalTypeVisitor<R> {
         return visit((LogicalType) bitmapType);
     }
 
+    default R visit(GeographyType geographyType) {
+        return visit((LogicalType) geographyType);
+    }
+
     R visit(LogicalType other);
 }

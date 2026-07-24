@@ -123,6 +123,12 @@ public interface ArrayData {
                 "This ArrayData implementation does not support Bitmap type.");
     }
 
+    /** Returns the geography value at the given position. */
+    default GeographyData getGeography(int pos) {
+        throw new UnsupportedOperationException(
+                "This ArrayData implementation does not support Geography type.");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Conversion Utilities
     // ------------------------------------------------------------------------------------------
@@ -224,6 +230,9 @@ public interface ArrayData {
                 break;
             case BITMAP:
                 elementGetter = ArrayData::getBitmap;
+                break;
+            case GEOGRAPHY:
+                elementGetter = ArrayData::getGeography;
                 break;
             case NULL:
             case SYMBOL:

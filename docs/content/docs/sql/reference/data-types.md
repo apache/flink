@@ -219,6 +219,7 @@ The default planner supports the following set of SQL types:
 | Structured types | Only exposed in user-defined functions yet.        |
 | `VARIANT`        |                                                    |
 | `BITMAP`         |                                                    |
+| `GEOGRAPHY`      | Geography values in OGC:CRS84.                    |
 
 ### Character Strings
 
@@ -1596,6 +1597,47 @@ DataTypes.BITMAP()
 
 {{< /tab >}}
 {{< /tabs >}}
+
+#### `GEOGRAPHY`
+
+Data type of geography data.
+
+`GEOGRAPHY` represents geospatial values in the OGC:CRS84 coordinate reference system.
+The type itself does not define SQL constructors, accessors, or spatial predicate functions.
+Those functions are expected to be added separately.
+
+Flink represents geography payloads as ISO WKB bytes. ISO WKB does not encode CRS or SRID
+metadata, so CRS validation, CRS transformation, and EWKB/SRID handling belong to
+constructors, functions, or connector-specific schema mapping.
+
+The geography type is an extension to the SQL standard.
+
+**Declaration**
+
+{{< tabs "9fef5895-3fa0-4b9b-9f92-9c94ba96ef1a" >}}
+{{< tab "SQL" >}}
+```text
+GEOGRAPHY
+```
+
+{{< /tab >}}
+{{< tab "Java/Scala" >}}
+```java
+DataTypes.GEOGRAPHY()
+```
+
+**Bridging to JVM Types**
+
+| Java Type                                      | Input | Output | Remarks   |
+|:-----------------------------------------------|:-----:|:------:|:----------|
+| `org.apache.flink.table.data.GeographyData`    |   X   |   X    | *Default* |
+
+{{< /tab >}}
+{{< /tabs >}}
+
+`GEOGRAPHY` values cannot be constructed with `CAST` from character or binary string
+types. Likewise, `GEOGRAPHY` values cannot be cast to character or binary string types.
+Use explicit geography functions for those conversions once such functions are available.
 
 #### `RAW`
 

@@ -53,6 +53,11 @@ final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements Extende
         return canonize(new DummyBitmapType());
     }
 
+    @Override
+    public RelDataType createGeographyType() {
+        return canonize(new DummyGeographyType());
+    }
+
     private static class DummyRawType extends RelDataTypeImpl {
 
         private final String className;
@@ -115,6 +120,18 @@ final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements Extende
         @Override
         protected void generateTypeString(StringBuilder sb, boolean withDetail) {
             sb.append("BITMAP");
+        }
+    }
+
+    private static class DummyGeographyType extends RelDataTypeImpl {
+
+        DummyGeographyType() {
+            computeDigest();
+        }
+
+        @Override
+        protected void generateTypeString(StringBuilder sb, boolean withDetail) {
+            sb.append("GEOGRAPHY");
         }
     }
 }

@@ -269,15 +269,21 @@ public class SqlCastFunction extends SqlFunction {
 
     private boolean canCastFrom(RelDataType toType, RelDataType fromType) {
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
+        SqlTypeName toTypeName = toType.getSqlTypeName();
 
         // Cast to Variant is not support at the moment.
         // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
-        if (toType.getSqlTypeName() == SqlTypeName.VARIANT) {
+        if (toTypeName == SqlTypeName.VARIANT) {
             return false;
         }
         // Cast to BITMAP is not supported at the moment.
         if (toType instanceof BitmapRelDataType) {
             return false;
+        }
+        if (toTypeName == SqlTypeName.OTHER) {
+            return LogicalTypeCasts.supportsExplicitCast(
+                    FlinkTypeFactory.toLogicalType(fromType),
+                    FlinkTypeFactory.toLogicalType(toType));
         }
         switch (fromTypeName) {
             case ARRAY:

@@ -21,6 +21,7 @@ package org.apache.flink.table.data.columnar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -150,6 +151,12 @@ public final class ColumnarRowData implements RowData, TypedSetters {
             System.arraycopy(byteArray.data, byteArray.offset, ret, 0, byteArray.len);
             return ret;
         }
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        Bytes byteArray = vectorizedColumnBatch.getByteArray(rowId, pos);
+        return GeographyData.fromBytes(byteArray.data, byteArray.offset, byteArray.len);
     }
 
     @Override
