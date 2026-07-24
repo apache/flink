@@ -20,6 +20,7 @@ import unittest
 
 import pyflink.dataframe as pf
 from pyflink.table import DataTypes
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 
 class DataTypeTests(unittest.TestCase):
@@ -44,6 +45,14 @@ class DataTypeTests(unittest.TestCase):
         self.assertEqual(first_int, second_int)
         self.assertNotEqual(first_int, string)
         self.assertEqual(len({first_int, second_int, string}), 2)
+
+    def test_equality_and_hash_are_public_evolving(self):
+        for method in [pf.DataType.__eq__, pf.DataType.__hash__]:
+            with self.subTest(method=method.__name__):
+                self.assertIn(
+                    PublicEvolving,
+                    getattr(method, "__stability_decorators", set()),
+                )
 
     def test_nullability_modifiers_are_not_exposed(self):
         for data_type in [pf.DataType.int64(), pf.DataType.string()]:

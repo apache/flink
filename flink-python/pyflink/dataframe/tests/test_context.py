@@ -16,16 +16,49 @@
 # limitations under the License.
 ################################################################################
 
+import unittest
+from typing import get_type_hints, Optional
+
 import pyflink.dataframe as pf
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.table import StreamTableEnvironment
+from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
-class TableEnvironmentContextTests(PyFlinkStreamTableTestCase):
-    def tearDown(self):
-        try:
-            super().tearDown()
-        finally:
-            pf.set_table_environment(None)
+class TableEnvironmentContextValidationTests(unittest.TestCase):
+    def test_public_type_hints_are_resolvable(self):
+        self.assertEqual(
+            get_type_hints(pf.set_table_environment),
+            {
+                "t_env": Optional[StreamTableEnvironment],
+                "return": type(None),
+            },
+        )
+        self.assertEqual(
+            get_type_hints(pf.get_table_environment),
+            {"return": Optional[StreamTableEnvironment]},
+        )
+        self.assertEqual(
+            get_type_hints(pf.get_or_create_table_environment),
+            {"return": StreamTableEnvironment},
+        )
+
+    def test_set_environment_rejects_invalid_type_without_changing_state(self):
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
+
+        with self.assertRaisesRegex(
+            TypeError, "t_env must be a StreamTableEnvironment or None"
+        ):
+            pf.set_table_environment(object())
+
+        self.assertIs(pf.get_table_environment(), previous_environment)
+
+
+class TableEnvironmentContextTests(PyFlinkUTTestCase):
+    def setUp(self):
+        super().setUp()
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
 
     def test_set_environment_makes_it_retrievable(self):
         pf.set_table_environment(self.t_env)
@@ -48,6 +81,4 @@ class TableEnvironmentContextTests(PyFlinkStreamTableTestCase):
 
 
 if __name__ == "__main__":
-    import unittest
-
     unittest.main()

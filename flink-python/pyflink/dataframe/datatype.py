@@ -41,11 +41,13 @@ class DataType:
     def __init__(self, table_data_type: TableDataType):
         self._table_data_type = table_data_type
 
+    @PublicEvolving()
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DataType):
             return False
         return self._table_data_type == other._table_data_type
 
+    @PublicEvolving()
     def __hash__(self) -> int:
         return hash(str(self._table_data_type))
 

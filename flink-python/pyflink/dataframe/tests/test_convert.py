@@ -17,17 +17,31 @@
 ################################################################################
 
 import unittest
+from typing import NamedTuple
 
 import pyflink.dataframe as pf
 
 
-class _CapturingEnvironment:
-    def from_elements(self, rows, schema):
-        self.rows = rows
-        return object()
+class _Point(NamedTuple):
+    x: int
+    y: str
+
+
+class _OtherPoint(NamedTuple):
+    x: int
+    z: str
 
 
 class FromRecordsTests(unittest.TestCase):
+    def test_rejects_scalar_sequence_data(self):
+        for data in ["ab", b"ab", bytearray(b"ab"), memoryview(b"ab")]:
+            with self.subTest(data_type=type(data)):
+                with self.assertRaisesRegex(
+                    TypeError,
+                    "data must be a sequence of records, such as a list or tuple",
+                ):
+                    pf.from_records(data, schema=["value"])
+
     def test_rejects_empty_data(self):
         with self.assertRaisesRegex(ValueError, "data must not be empty"):
             pf.from_records([], schema=["id"])
@@ -58,9 +72,32 @@ class FromRecordsTests(unittest.TestCase):
 
     def test_rejects_unsupported_record_type(self):
         with self.assertRaisesRegex(
-            TypeError, "records must be mappings or sequences"
+            TypeError,
+            "each record must be a mapping or a sequence of values, "
+            "such as a list or tuple; invalid record at index 0",
         ):
             pf.from_records([1], schema=["id"])
+
+    def test_rejects_scalar_sequence_records(self):
+        for value in ["ab", b"ab", bytearray(b"ab"), memoryview(b"ab")]:
+            for index, records in [
+                (0, [value]),
+                (1, [(1, 2), value]),
+            ]:
+                with self.subTest(value_type=type(value), index=index):
+                    expected_message = (
+                        "each record must be a mapping or a sequence of values, "
+                        "such as a list or tuple; invalid record at index 0"
+                        if index == 0
+                        else
+                        "each record must be a sequence of values, "
+                        "such as a list or tuple; invalid record at index 1"
+                    )
+                    with self.assertRaisesRegex(
+                        TypeError,
+                        expected_message,
+                    ):
+                        pf.from_records(records, schema=["left", "right"])
 
     def test_rejects_record_with_wrong_arity(self):
         with self.assertRaisesRegex(
@@ -69,10 +106,6 @@ class FromRecordsTests(unittest.TestCase):
             pf.from_records([(1, "Alice"), (2,)], schema=["id", "name"])
 
     def test_rejects_mapping_records_with_different_keys(self):
-        previous_environment = pf.get_table_environment()
-        self.addCleanup(pf.set_table_environment, previous_environment)
-        pf.set_table_environment(_CapturingEnvironment())
-
         records_with_different_keys = [
             [{"a": 1}, {"a": 2, "b": 3}],
             [{"a": 1, "b": 2}, {"a": 3}],
@@ -85,44 +118,44 @@ class FromRecordsTests(unittest.TestCase):
                 ):
                     pf.from_records(records)
 
-    def test_explicit_schema_ignores_unselected_mapping_keys(self):
-        previous_environment = pf.get_table_environment()
-        self.addCleanup(pf.set_table_environment, previous_environment)
-        environment = _CapturingEnvironment()
-        pf.set_table_environment(environment)
+    def test_rejects_mixed_mapping_and_named_tuple_records_with_index(self):
+        invalid_records = [
+            (
+                [{"id": 1}, (2,)],
+                ["id"],
+                "record at index 1 must be a mapping",
+            ),
+            (
+                [_Point(1, "a"), {"x": 2, "y": "b"}],
+                ["x", "y"],
+                "record at index 1 must be a named tuple",
+            ),
+        ]
+        for records, schema, message in invalid_records:
+            with self.subTest(records=records):
+                with self.assertRaisesRegex(TypeError, message):
+                    pf.from_records(records, schema=schema)
 
-        pf.from_records(
-            [
-                {"id": 1, "name": "Alice", "nickname": "Al"},
-                {"id": 2, "name": "Bob"},
-            ],
-            schema=["id", "name"],
-        )
+    def test_rejects_schema_that_renames_named_tuple_fields(self):
+        with self.assertRaisesRegex(
+            ValueError, "record at index 0 is missing schema field 'a'"
+        ):
+            pf.from_records([_Point(1, "a")], schema=["a", "b"])
 
-        self.assertEqual(environment.rows, [(1, "Alice"), (2, "Bob")])
+    def test_rejects_different_inferred_named_tuple_fields(self):
+        with self.assertRaisesRegex(
+            ValueError, "record at index 1 must have the same fields as schema"
+        ):
+            pf.from_records([_Point(1, "a"), _OtherPoint(2, "b")])
 
     def test_rejects_schema_field_missing_from_mapping_records(self):
-        previous_environment = pf.get_table_environment()
-        self.addCleanup(pf.set_table_environment, previous_environment)
-        pf.set_table_environment(_CapturingEnvironment())
-
         with self.assertRaisesRegex(
-            ValueError, "schema field 'name' is not present in records"
+            ValueError, "record at index 1 is missing schema field 'name'"
         ):
-            pf.from_records([{"id": 1}], schema=["id", "name"])
-
-    def test_passes_native_sequence_records_through_without_outer_copy(self):
-        previous_environment = pf.get_table_environment()
-        self.addCleanup(pf.set_table_environment, previous_environment)
-
-        for records in [[(1,), (2,)], ((1,), (2,))]:
-            with self.subTest(record_type=type(records)):
-                environment = _CapturingEnvironment()
-                pf.set_table_environment(environment)
-
-                pf.from_records(records, schema=["id"])
-
-                self.assertIs(environment.rows, records)
+            pf.from_records(
+                [{"id": 1, "name": "Alice"}, {"id": 2}],
+                schema=["id", "name"],
+            )
 
 
 class FromDictTests(unittest.TestCase):
@@ -131,6 +164,16 @@ class FromDictTests(unittest.TestCase):
             with self.subTest(data=data):
                 with self.assertRaisesRegex(TypeError, "data must be a mapping"):
                     pf.from_dict(data)
+
+    def test_rejects_scalar_sequence_column_values(self):
+        for values in ["ab", b"ab", bytearray(b"ab"), memoryview(b"ab")]:
+            with self.subTest(value_type=type(values)):
+                with self.assertRaisesRegex(
+                    TypeError,
+                    "column 'value' values must be a sequence, "
+                    "such as a list or tuple",
+                ):
+                    pf.from_dict({"value": values})
 
     def test_rejects_empty_data(self):
         with self.assertRaisesRegex(ValueError, "data must not be empty"):
