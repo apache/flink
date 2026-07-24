@@ -18,18 +18,24 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.client.program.ProgramAbortException;
 import org.apache.flink.configuration.Configuration;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import py4j.GatewayServer;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link PythonDriver}. */
 class PythonDriverTest {
@@ -43,6 +49,42 @@ class PythonDriverTest {
             throw new RuntimeException("Connect Gateway Server failed");
         } finally {
             gatewayServer.shutdown();
+        }
+    }
+
+    @Test
+    void testCleanupTmpDirWhenPythonClientLaunchFails(@TempDir Path tmpDir) throws IOException {
+        Path entryPointScript = tmpDir.resolve("entrypoint.py");
+        Files.write(entryPointScript, new byte[0]);
+        Path pyflinkTmpDir = tmpDir.resolve("pyflink");
+        String originalTmpDir = System.getProperty("java.io.tmpdir");
+
+        try {
+            System.setProperty("java.io.tmpdir", tmpDir.toString());
+
+            assertThatThrownBy(
+                            () ->
+                                    PythonDriver.main(
+                                            new String[] {
+                                                "-py",
+                                                entryPointScript.toString(),
+                                                "-pyclientexec",
+                                                tmpDir.resolve("missing-python-executable")
+                                                        .toString()
+                                            }))
+                    .isInstanceOf(ProgramAbortException.class);
+
+            if (Files.exists(pyflinkTmpDir)) {
+                try (Stream<Path> remainingTmpDirs = Files.list(pyflinkTmpDir)) {
+                    assertThat(remainingTmpDirs).isEmpty();
+                }
+            }
+        } finally {
+            if (originalTmpDir == null) {
+                System.clearProperty("java.io.tmpdir");
+            } else {
+                System.setProperty("java.io.tmpdir", originalTmpDir);
+            }
         }
     }
 
