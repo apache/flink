@@ -196,6 +196,14 @@ public class RowDataToJsonConverters implements Serializable {
                     return mapper.getNodeFactory()
                             .textNode(SQL_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
                 };
+            case ISO_8601_WITH_OFFSET:
+                return (mapper, reuse, value) -> {
+                    TimestampData timestamp = (TimestampData) value;
+                    return mapper.getNodeFactory()
+                            .textNode(
+                                    ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(
+                                            timestamp.toInstant().atOffset(ZoneOffset.UTC)));
+                };
             default:
                 throw new TableException(
                         "Unsupported timestamp format. Validator should have checked that.");
@@ -220,6 +228,16 @@ public class RowDataToJsonConverters implements Serializable {
                     return mapper.getNodeFactory()
                             .textNode(
                                     SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(
+                                            timestampWithLocalZone
+                                                    .toInstant()
+                                                    .atOffset(ZoneOffset.UTC)));
+                };
+            case ISO_8601_WITH_OFFSET:
+                return (mapper, reuse, value) -> {
+                    TimestampData timestampWithLocalZone = (TimestampData) value;
+                    return mapper.getNodeFactory()
+                            .textNode(
+                                    ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.format(
                                             timestampWithLocalZone
                                                     .toInstant()
                                                     .atOffset(ZoneOffset.UTC)));
