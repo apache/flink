@@ -325,6 +325,14 @@ public final class PythonTypeUtils {
         }
 
         @Override
+        public FlinkFnApi.Schema.FieldType visit(GeographyType geographyType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.GEOGRAPHY)
+                    .setNullable(geographyType.isNullable())
+                    .build();
+        }
+
+        @Override
         public FlinkFnApi.Schema.FieldType visit(CharType charType) {
             return FlinkFnApi.Schema.FieldType.newBuilder()
                     .setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
@@ -947,6 +955,25 @@ public final class PythonTypeUtils {
             return new IdentityDataConverter<>(
                     DataFormatConverters.getConverterForDataType(
                             TypeConversions.fromLogicalToDataType(logicalType)));
+        }
+    }
+
+    private static final class GeographyDataFormatConverter
+            extends DataFormatConverters.DataFormatConverter<GeographyData, GeographyData> {
+
+        private static final GeographyDataFormatConverter INSTANCE =
+                new GeographyDataFormatConverter();
+
+        private GeographyDataFormatConverter() {}
+
+        @Override
+        GeographyData toInternalImpl(GeographyData value) {
+            return value;
+        }
+
+        @Override
+        GeographyData toExternalImpl(RowData row, int column) {
+            return row.getGeography(column);
         }
     }
 }
