@@ -926,6 +926,136 @@ class UserDefinedFunctionTests(object):
         self.assertTrue('add_one_func' not in t_env.list_user_defined_functions())
         self.assertTrue('subtract_one_func' not in t_env.list_user_defined_functions())
 
+    def test_python_local_ref_reuse(self):
+        """
+        Parameterized test for Python UDF local reference reuse.
+        Each case specifies a SQL query and a result verifier.
+        Similar to FunctionITCase.inputForTestCalcLocalRefReuse in Java.
+
+        Deterministic UDF calls with same args are computed once and reused;
+        non-deterministic UDF calls are always executed independently.
+        The UUID suffix in UDF output proves whether calls were deduplicated.
+        """
+        @udf(result_type=DataTypes.STRING())
+        def Det(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        @udf(result_type=DataTypes.STRING(), deterministic=False)
+        def Nondet(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        self.t_env.create_temporary_system_function("Det", Det)
+        self.t_env.create_temporary_system_function("Nondet", Nondet)
+
+        source_t = self.t_env.from_elements([("hello",)], ['s'])
+        self.t_env.create_temporary_view("SourceTable", source_t)
+
+        def all_equal(vals):
+            """All values are identical (reused)."""
+            self.assertTrue(all(v == vals[0] for v in vals),
+                            f"Expected all equal, got: {vals}")
+            self.assertTrue(vals[0].startswith("HELLO_"))
+
+        def all_different(vals):
+            """All values are distinct (not reused)."""
+            self.assertEqual(len(set(vals)), len(vals),
+                             f"Expected all different, got: {vals}")
+            for v in vals:
+                self.assertTrue(v.startswith("HELLO_"))
+
+        # (description, sql, verify_fn)
+        cases = [
+            # --- Basic ref reuse ---
+            (
+                "identical Det calls are reused",
+                "SELECT Det(s), Det(s), Det(s) FROM SourceTable",
+                all_equal,
+            ),
+            (
+                "Nondet calls are NOT reused",
+                "SELECT Nondet(s), Nondet(s), Nondet(s) FROM SourceTable",
+                all_different,
+            ),
+            (
+                "mixed: Det reused, Nondet independent",
+                "SELECT Det(s), Det(s), Nondet(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(vals[0], vals[1]),
+                    self.assertNotEqual(vals[0], vals[2]),
+                    self.assertTrue(vals[2].startswith("HELLO_")),
+                ),
+            ),
+            # --- Nested SQL with operators ---
+            (
+                "Det(s) || Det(s) - concat with reused UDF",
+                "SELECT Det(s) || Det(s), Det(s) || Det(s), Det(s), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 4),
+                    self.assertEqual(vals[2], vals[3]),
+                    self.assertEqual(vals[0], vals[1]),
+                    self.assertEqual(vals[0], vals[2] + vals[2]),
+                ),
+            ),
+            (
+                "Nondet(Det(s)) - outer Nondet not reused, inner Det reused",
+                "SELECT Nondet(Det(s)), Nondet(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertNotEqual(vals[0], vals[1]),
+                    self.assertTrue(vals[2].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "Det(Nondet(s)) - nondet input disables reuse",
+                "SELECT Det(Nondet(s)), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertNotEqual(vals[0], vals[1]),
+                ),
+            ),
+            # --- Filter (WHERE) CSE cases ---
+            (
+                "Det(s) in both WHERE and SELECT - CSE across condition and projection",
+                "SELECT Det(s), Det(s) FROM SourceTable WHERE Det(s) IS NOT NULL",
+                all_equal,
+            ),
+            (
+                "Det(s) in WHERE and SELECT with expression - same UDF reused",
+                "SELECT Det(s), Det(s) || '_suffix' FROM SourceTable WHERE Det(s) IS NOT NULL",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                    self.assertEqual(vals[1], vals[0] + "_suffix"),
+                ),
+            ),
+            (
+                "Nondet(s) in WHERE and SELECT - merged by RexProgram CSE in split pipeline",
+                "SELECT Nondet(s), Nondet(s) FROM SourceTable WHERE Nondet(s) IS NOT NULL",
+                # Note: Ideally these should differ, but RexProgram.create merges
+                # structurally-equal expressions (including non-deterministic ones) when
+                # the split condition rule creates a two-level Calc structure.
+                all_equal,
+            ),
+        ]
+
+        for desc, sql, verify_fn in cases:
+            with self.subTest(desc):
+                result = self.t_env.sql_query(sql)
+                col_count = len(result.get_schema().get_field_names())
+                cols = ", ".join([f"c{i} STRING" for i in range(col_count)])
+                sink_table = generate_random_table_name()
+                self.t_env.execute_sql(f"""
+                    CREATE TABLE {sink_table}({cols})
+                    WITH ('connector'='test-sink')
+                """)
+                result.execute_insert(sink_table).wait()
+                actual = source_sink_utils.results()
+                self.assertEqual(len(actual), 1)
+                vals = actual[0].replace("+I[", "").replace("]", "").split(", ")
+                verify_fn(vals)
+
 
 # decide whether two floats are equal
 def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):

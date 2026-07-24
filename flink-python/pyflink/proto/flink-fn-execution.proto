@@ -39,6 +39,8 @@ message Input {
     UserDefinedFunction udf = 1;
     int32 inputOffset = 2;
     bytes inputConstant = 3;
+    // Reference to a previously computed UDF result (enables cross-subtree CSE).
+    int32 refIndex = 4;
   }
 }
 
