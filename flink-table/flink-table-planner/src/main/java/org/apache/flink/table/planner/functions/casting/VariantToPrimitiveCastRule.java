@@ -164,11 +164,11 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
     }
 
     /**
-     * Converts a numeric variant to the numeric {@code target}. Integer and decimal targets are
-     * range-checked so that an out-of-range value fails {@code CAST} and yields {@code null} for
-     * {@code TRY_CAST}; {@code FLOAT} and {@code DOUBLE} keep lenient IEEE conversion (overflow
-     * becomes infinity). A non-numeric variant raises {@link ClassCastException}, which fails
-     * {@code CAST} and yields {@code null} for {@code TRY_CAST}.
+     * Converts a numeric variant to the numeric {@code target}. Every target is strict: a value
+     * that cannot be represented exactly, whether by integer or decimal overflow or by
+     * floating-point precision loss, fails {@code CAST} and yields {@code null} for {@code
+     * TRY_CAST}. A non-numeric variant raises {@link ClassCastException}, which fails {@code CAST}
+     * and yields {@code null} for {@code TRY_CAST}.
      */
     private static String numericExpression(String inputTerm, LogicalType target) {
         final String number = cast(className(Number.class), methodCall(inputTerm, "get"));
@@ -182,9 +182,9 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             case BIGINT:
                 return staticCall(VariantCastUtils.class, "toLongExact", number);
             case FLOAT:
-                return methodCall(number, "floatValue");
+                return staticCall(VariantCastUtils.class, "toFloatExact", number);
             case DOUBLE:
-                return methodCall(number, "doubleValue");
+                return staticCall(VariantCastUtils.class, "toDoubleExact", number);
             case DECIMAL:
                 final DecimalType decimalType = (DecimalType) target;
                 return staticCall(

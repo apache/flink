@@ -138,10 +138,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> variantCasts() {
-        // A variant is produced with PARSE_JSON so that the source column stays a STRING literal;
-        // there is no VARIANT literal to feed a source column directly. A JSON integer is stored in
-        // the smallest integer type that fits (42 -> TINYINT), and numeric casts are lenient, so it
-        // still widens to INT.
+        // A variant is produced with PARSE_JSON since there is no VARIANT literal. Numeric casts
+        // succeed only when the value is preserved exactly, otherwise CAST fails and TRY_CAST
+        // returns NULL.
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to a primitive")
                         .onFieldsWithData("unused")
@@ -197,12 +196,54 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('3.9') AS INT)",
                                 3,
                                 INT().notNull())
-                        // A value beyond the FLOAT range becomes infinity.
+                        // Floating-point targets are strict. 1e20 needs more mantissa bits than a
+                        // FLOAT can hold, so the FLOAT cast loses precision and fails (TRY_CAST
+                        // returns NULL).
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "1e20").cast(FLOAT()), "lose precision")
                         .testResult(
-                                call("PARSE_JSON", "1e40").cast(FLOAT()),
-                                "CAST(PARSE_JSON('1e40') AS FLOAT)",
-                                Float.POSITIVE_INFINITY,
-                                FLOAT().notNull())
+                                call("PARSE_JSON", "1e20").tryCast(FLOAT()),
+                                "TRY_CAST(PARSE_JSON('1e20') AS FLOAT)",
+                                null,
+                                FLOAT())
+                        // A value beyond the FLOAT range overflows to infinity, which also fails.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "1e40").cast(FLOAT()), "overflowed")
+                        .testResult(
+                                call("PARSE_JSON", "1e40").tryCast(FLOAT()),
+                                "TRY_CAST(PARSE_JSON('1e40') AS FLOAT)",
+                                null,
+                                FLOAT())
+                        // The same 1e20 value is exactly representable as a DOUBLE, so it succeeds.
+                        .testResult(
+                                call("PARSE_JSON", "1e20").cast(DOUBLE()),
+                                "CAST(PARSE_JSON('1e20') AS DOUBLE)",
+                                1e20,
+                                DOUBLE().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "42").cast(DOUBLE()),
+                                "CAST(PARSE_JSON('42') AS DOUBLE)",
+                                42.0d,
+                                DOUBLE().notNull())
+                        // A large integer that a DOUBLE cannot hold exactly loses precision, so the
+                        // cast fails rather than silently rounding (2^53 + 1).
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "9007199254740993").cast(DOUBLE()),
+                                "lose precision")
+                        .testResult(
+                                call("PARSE_JSON", "9007199254740993").tryCast(DOUBLE()),
+                                "TRY_CAST(PARSE_JSON('9007199254740993') AS DOUBLE)",
+                                null,
+                                DOUBLE())
+                        // A decimal that is not exactly representable in binary floating point also
+                        // fails; cast it to DECIMAL first if an approximate DOUBLE is wanted.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "0.1").cast(DOUBLE()), "lose precision")
+                        .testResult(
+                                call("PARSE_JSON", "0.1").tryCast(DOUBLE()),
+                                "TRY_CAST(PARSE_JSON('0.1') AS DOUBLE)",
+                                null,
+                                DOUBLE())
                         // DECIMAL overflow fails CAST and returns NULL for TRY_CAST.
                         .testTableApiRuntimeError(
                                 call("PARSE_JSON", "123.456").cast(DECIMAL(4, 2)), "overflowed")

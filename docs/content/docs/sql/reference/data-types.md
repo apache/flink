@@ -1526,7 +1526,7 @@ particularly useful in dynamic environments where schemas may evolve over time.
 A `VARIANT` stores a single value of one of the following kinds: `NULL`, `BOOLEAN`, `TINYINT`,
 `SMALLINT`, `INT`, `BIGINT`, `FLOAT`, `DOUBLE`, `DECIMAL` (up to precision 38), `STRING`, `DATE`,
 `TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or a nested array or object. `TIMESTAMP` and `TIMESTAMP_LTZ`
-are stored with microsecond precision and `DATE` as a day count. There is no `TIME` kind.
+are stored with microsecond precision.
 
 The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
 
@@ -1549,30 +1549,21 @@ those kinds when built by other producers, such as the programmatic `VariantBuil
 conversions like Avro.
 
 The JSON specification has no `NaN` or infinity literals, so `PARSE_JSON('NaN')`,
-`PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail, and `TRY_PARSE_JSON` returns `NULL`.
+`PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail. `PARSE_JSON('1e400')` fails as well
+because a value outside the `DOUBLE` range cannot be stored as a finite number. In all of these
+cases `TRY_PARSE_JSON` returns `NULL`.
 A `VARIANT` has no dedicated kind for these values. To keep one, store it as a JSON string and cast
 it back out, for example `CAST(CAST(PARSE_JSON('"Infinity"') AS STRING) AS FLOAT)`.
 
 A primitive-valued `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. Numeric
-targets accept any numeric value, so `PARSE_JSON('42')` casts to `INT`, `BIGINT`, or `DOUBLE`. A
+targets accept any wider numeric value, so `PARSE_JSON('42')` casts to `INT`, `BIGINT`, or `DOUBLE`. A
 value outside an integer or `DECIMAL` target's range fails `CAST` and returns `NULL` for
 `TRY_CAST`. Other targets require the stored value to be of the matching kind, and a mismatch is
-handled the same way. Casting a `VARIANT` to `CHAR`/`VARCHAR` extracts the scalar value, so a
+handled the same way. Casting a `VARIANT` to `STRING` extracts the scalar value, so a
 stored string is returned unquoted (for example `foo`). A variant that holds an object, array, or
 binary value is not castable to a string; use `JSON_STRING` for its JSON representation instead
 (there a string stays quoted, for example `"foo"`). A bounded `CHAR(n)`/`VARCHAR(n)` target is length-checked strictly, with no
-padding or truncation: `VARCHAR(n)` accepts up to `n` characters and `CHAR(n)` requires exactly `n`,
-otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
-
-{{< hint info >}}
-Unlike a regular numeric cast, casting a numeric `VARIANT` never overflows. To narrow a 
-`VARIANT`, first cast it to a type that fits the stored value, then apply a 
-regular narrowing cast:
-
-```sql
-CAST(CAST(PARSE_JSON('1000') AS INT) AS TINYINT) -- returns -24 (after overflow)
-```
-{{< /hint >}}
+padding or truncation.
 
 **Declaration**
 

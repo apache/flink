@@ -29,10 +29,11 @@ import java.math.BigInteger;
 /**
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
  *
- * <p>Numeric targets are range-checked and raise {@link TableRuntimeException} on overflow instead
- * of wrapping. Casting to a character string extracts the scalar value (a string stays unquoted); a
- * variant holding an object, array, or binary value is not castable and raises {@link
- * TableRuntimeException} (use {@code JSON_STRING} for its JSON representation).
+ * <p>Numeric targets are strict: a value that cannot be represented exactly, whether by integer or
+ * decimal overflow or by floating-point precision loss, raises {@link TableRuntimeException}
+ * instead of wrapping or rounding. Casting to a character string extracts the scalar value (a
+ * string stays unquoted); a variant holding an object, array, or binary value is not castable and
+ * raises {@link TableRuntimeException} (use {@code JSON_STRING} for its JSON representation).
  */
 @Internal
 public final class VariantCastUtils {
@@ -55,6 +56,28 @@ public final class VariantCastUtils {
         return toIntegralExact(value, Long.MIN_VALUE, Long.MAX_VALUE, "BIGINT");
     }
 
+    public static float toFloatExact(Number value) {
+        final float result = value.floatValue();
+        if (!Float.isFinite(result)) {
+            throw overflow(value, "FLOAT");
+        }
+        if (exactValue(value).compareTo(new BigDecimal(result)) != 0) {
+            throw lossyCast(value, "FLOAT");
+        }
+        return result;
+    }
+
+    public static double toDoubleExact(Number value) {
+        final double result = value.doubleValue();
+        if (!Double.isFinite(result)) {
+            throw overflow(value, "DOUBLE");
+        }
+        if (exactValue(value).compareTo(new BigDecimal(result)) != 0) {
+            throw lossyCast(value, "DOUBLE");
+        }
+        return result;
+    }
+
     public static DecimalData toDecimalExact(Number value, int precision, int scale) {
         final DecimalData decimal =
                 DecimalData.fromBigDecimal(toBigDecimal(value), precision, scale);
@@ -68,14 +91,9 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Casts a {@code VARIANT} to its SQL string value for a {@code CHAR(targetLength)} or {@code
-     * VARCHAR(targetLength)} target. Scalars use their raw value (a string stays unquoted, unlike
-     * {@code JSON_STRING}); a variant holding an object, array, or binary value is not castable and
-     * raises {@link TableRuntimeException}.
-     *
-     * <p>The target length is enforced strictly, with no padding or truncation: a {@code VARCHAR}
-     * value must not be longer than {@code targetLength}, and a {@code CHAR} value must match it
-     * exactly. A value that does not fit raises {@link TableRuntimeException}.
+     * Casts a scalar {@code VARIANT} to its raw string value, enforcing {@code targetLength}
+     * strictly with no padding or truncation ({@code CHAR} requires an exact length, {@code
+     * VARCHAR} an upper bound).
      */
     public static String toStringValue(Variant variant, int targetLength, boolean charTarget) {
         switch (variant.getType()) {
@@ -108,30 +126,50 @@ public final class VariantCastUtils {
         final BigInteger integral = toBigDecimal(value).toBigInteger();
         if (integral.compareTo(BigInteger.valueOf(min)) < 0
                 || integral.compareTo(BigInteger.valueOf(max)) > 0) {
-            throw new TableRuntimeException(
-                    String.format(
-                            "Casting the VARIANT value %s to %s overflowed.", value, targetType));
+            throw overflow(value, targetType);
         }
         return integral.longValue();
     }
 
     private static BigDecimal toBigDecimal(Number value) {
-        return value instanceof BigDecimal ? (BigDecimal) value : convertToBigDecimal(value);
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
+        }
+        if (value instanceof Float || value instanceof Double) {
+            return BigDecimal.valueOf(value.doubleValue());
+        }
+        return BigDecimal.valueOf(value.longValue());
     }
 
-    private static BigDecimal convertToBigDecimal(Number number) {
-        if (number == null) {
-            return null;
+    // The exact mathematical value of a number, used to detect precision loss in floating-point
+    // casts. Unlike toBigDecimal, floats and doubles use their exact binary value rather than the
+    // shortest round-trippable decimal, so 0.1d becomes 0.1000000000000000055..., not 0.1.
+    private static BigDecimal exactValue(Number value) {
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
         }
-        if (number instanceof BigDecimal) {
-            return (BigDecimal) number;
+        if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
         }
-        if (number instanceof BigInteger) {
-            return new BigDecimal((BigInteger) number);
+        if (value instanceof Float || value instanceof Double) {
+            return new BigDecimal(value.doubleValue());
         }
-        if (number instanceof Float || number instanceof Double) {
-            return BigDecimal.valueOf(number.doubleValue());
-        }
-        return BigDecimal.valueOf(number.longValue());
+        return BigDecimal.valueOf(value.longValue());
+    }
+
+    private static TableRuntimeException overflow(Number value, String targetType) {
+        return new TableRuntimeException(
+                String.format("Casting the VARIANT value %s to %s overflowed.", value, targetType));
+    }
+
+    private static TableRuntimeException lossyCast(Number value, String targetType) {
+        return new TableRuntimeException(
+                String.format(
+                        "Casting the VARIANT value %s to %s would lose precision. Cast it to a type "
+                                + "that holds the value exactly first, then narrow if needed.",
+                        value, targetType));
     }
 }
