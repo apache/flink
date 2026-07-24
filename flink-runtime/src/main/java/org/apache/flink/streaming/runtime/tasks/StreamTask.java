@@ -324,6 +324,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private Long finalCheckpointMinId = null;
     private final CompletableFuture<Void> finalCheckpointCompleted = new CompletableFuture<>();
 
+    /**
+     * Non-null when the downstream {@code EndOfData} broadcast has been deferred until the final
+     * checkpoint completes (FLINK-38614); holds the {@link StopMode} to broadcast then.
+     */
+    @Nullable private StopMode deferredEndOfData = null;
+
     private long latestReportCheckpointId = -1;
 
     private long latestAsyncCheckpointStartDelayNanos;
@@ -744,11 +750,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         operatorChain.finishOperators(actionExecutor, mode);
         this.finishedOperators = true;
 
-        for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
-            partitionWriter.notifyEndOfData(mode);
+        if (mode == StopMode.DRAIN && shouldDeferEndOfData()) {
+            // Flushed in notifyCheckpointComplete once the final checkpoint completes
+            // (FLINK-38614).
+            this.deferredEndOfData = mode;
+        } else {
+            broadcastEndOfData(mode);
         }
 
         this.endOfDataReceived = true;
+    }
+
+    private void broadcastEndOfData(StopMode mode) throws IOException {
+        for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
+            partitionWriter.notifyEndOfData(mode);
+        }
+    }
+
+    /**
+     * Whether the downstream {@code EndOfData} broadcast must be deferred until the final
+     * checkpoint completes because an operator in the chain still emits records on that final
+     * {@code notifyCheckpointComplete} (FLINK-38614).
+     */
+    private boolean shouldDeferEndOfData() {
+        return areCheckpointsWithFinishedTasksEnabled()
+                && operatorChain.emitsRecordsOnFinalCheckpoint();
     }
 
     protected void notifyEndOfData() {
@@ -1718,6 +1744,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     && finalCheckpointMinId != null
                     && checkpointId >= finalCheckpointMinId) {
                 finalCheckpointCompleted.complete(null);
+            }
+            // FLINK-38614: once the final checkpoint has completed (above), its records (e.g. sink
+            // committables) have been emitted by operatorChain.notifyCheckpointComplete, so it is
+            // now safe to broadcast the EndOfData deferred in endData. isDone() gates on the final
+            // checkpoint: an intermediate checkpoint completing keeps EndOfData deferred.
+            if (deferredEndOfData != null && finalCheckpointCompleted.isDone()) {
+                broadcastEndOfData(deferredEndOfData);
+                deferredEndOfData = null;
             }
         }
     }
