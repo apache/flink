@@ -377,12 +377,8 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput) {
-        try{
-            if (parsedInput.hasException()) {
-                return null;
-            }
-        }
-        catch(NullPointerException e){
+        // TODO FLINK-39419: A null context can result from a shared parse that was short-circuited before parsing.
+        if (parsedInput == null || parsedInput.hasException()) {
             return null;
         }
 
@@ -392,13 +388,8 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
-        try{
-            if (parsedInput.hasException()) {
-                // invalid input JSON
-                return null;
-            }
-        }
-        catch (NullPointerException e){
+        // TODO FLINK-39419: A null context can result from a shared parse that was short-circuited before parsing.
+        if (parsedInput == null || parsedInput.hasException()) {
             return null;
         }
 
@@ -461,7 +452,7 @@ public class SqlJsonUtils {
                                             .build())
                             .read(pathSpec);
             return matched != null && !matched.isEmpty();
-        } catch (InvalidPathException e ) {
+        } catch (InvalidPathException e) {
             return false;
         }
     }
