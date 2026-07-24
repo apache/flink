@@ -1813,13 +1813,15 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 ",123,123,",
                                 123,
                                 "12345",
-                                ",123,,,123,")
+                                ",123,,,123,",
+                                "123😊👍🏽笑脸")
                         .andDataTypes(
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING(),
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull(),
                                 DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull())
                         .testResult(
@@ -1866,6 +1868,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f6").split(","),
                                 "SPLIT(f6, ',')",
                                 new String[] {"", "123", "", "", "123", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        .testResult(
+                                $("f7").split(""),
+                                "SPLIT(f7, '')",
+                                new String[] {"1", "2", "3", "😊", "👍", "🏽", "笑", "脸"},
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         .testTableApiValidationError(
                                 $("f4").split(","),
