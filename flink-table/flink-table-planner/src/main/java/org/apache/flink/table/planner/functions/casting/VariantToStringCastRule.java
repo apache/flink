@@ -18,15 +18,25 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/** {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+/**
+ * {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ *
+ * <p>Extracts the scalar value (a string stays unquoted). A variant holding an object, array, or
+ * binary value is not castable to a character string and fails; use {@code JSON_STRING} for its
+ * JSON representation.
+ *
+ * <p>The target {@code CHAR}/{@code VARCHAR} length is enforced strictly: a value that does not fit
+ * fails {@code CAST} and yields {@code null} for {@code TRY_CAST}, with no padding or truncation.
+ */
 class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant> {
 
     static final VariantToStringCastRule INSTANCE = new VariantToStringCastRule();
@@ -35,8 +45,14 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.VARIANT)
-                        .target(STRING_TYPE)
+                        .target(LogicalTypeRoot.CHAR)
+                        .target(LogicalTypeRoot.VARCHAR)
                         .build());
+    }
+
+    @Override
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        return true;
     }
 
     @Override
@@ -45,6 +61,11 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return methodCall(inputTerm, "toString");
+        return staticCall(
+                VariantCastUtils.class,
+                "toStringValue",
+                inputTerm,
+                LogicalTypeChecks.getLength(targetLogicalType),
+                targetLogicalType.is(LogicalTypeRoot.CHAR));
     }
 }

@@ -138,10 +138,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> variantCasts() {
-        // A variant is produced with PARSE_JSON so that the source column stays a STRING literal;
-        // there is no VARIANT literal to feed a source column directly. A JSON integer is stored in
-        // the smallest integer type that fits (42 -> TINYINT), and numeric casts are lenient, so it
-        // still widens to INT.
+        // A variant is produced with PARSE_JSON since there is no VARIANT literal. Numeric casts
+        // succeed only when the value is preserved exactly, otherwise CAST fails and TRY_CAST
+        // returns NULL.
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to a primitive")
                         .onFieldsWithData("unused")
@@ -151,47 +150,103 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('42') AS INT)",
                                 42,
                                 INT().notNull())
-                        // Integer overflow wraps around (Java narrowing), like a regular numeric
-                        // cast.
+                        // An integer value outside the target range fails
+                        // CAST and returns NULL for TRY_CAST, instead of wrapping around.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "40000").cast(SMALLINT()), "overflowed")
+                        .testSqlRuntimeError("CAST(PARSE_JSON('40000') AS SMALLINT)", "overflowed")
                         .testResult(
-                                call("PARSE_JSON", "40000").cast(SMALLINT()),
-                                "CAST(PARSE_JSON('40000') AS SMALLINT)",
-                                (short) -25536,
-                                SMALLINT().notNull())
+                                call("PARSE_JSON", "40000").tryCast(SMALLINT()),
+                                "TRY_CAST(PARSE_JSON('40000') AS SMALLINT)",
+                                null,
+                                SMALLINT())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "128").cast(TINYINT()), "overflowed")
                         .testResult(
-                                call("PARSE_JSON", "128").cast(TINYINT()),
-                                "CAST(PARSE_JSON('128') AS TINYINT)",
-                                (byte) -128,
-                                TINYINT().notNull())
+                                call("PARSE_JSON", "128").tryCast(TINYINT()),
+                                "TRY_CAST(PARSE_JSON('128') AS TINYINT)",
+                                null,
+                                TINYINT())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "2147483648").cast(INT()), "overflowed")
                         .testResult(
-                                call("PARSE_JSON", "2147483648").cast(INT()),
-                                "CAST(PARSE_JSON('2147483648') AS INT)",
-                                -2147483648,
-                                INT().notNull())
-                        .testResult(
+                                call("PARSE_JSON", "2147483648").tryCast(INT()),
+                                "TRY_CAST(PARSE_JSON('2147483648') AS INT)",
+                                null,
+                                INT())
+                        .testTableApiRuntimeError(
                                 call("PARSE_JSON", "9223372036854775808").cast(BIGINT()),
-                                "CAST(PARSE_JSON('9223372036854775808') AS BIGINT)",
-                                -9223372036854775808L,
-                                BIGINT().notNull())
-                        // An out-of-range floating point value saturates when cast to an integer,
-                        // and a fractional value is truncated toward zero.
+                                "overflowed")
                         .testResult(
-                                call("PARSE_JSON", "1e20").cast(INT()),
-                                "CAST(PARSE_JSON('1e20') AS INT)",
-                                2147483647,
-                                INT().notNull())
+                                call("PARSE_JSON", "9223372036854775808").tryCast(BIGINT()),
+                                "TRY_CAST(PARSE_JSON('9223372036854775808') AS BIGINT)",
+                                null,
+                                BIGINT())
+                        // An out-of-range floating point value also overflows an integer target,
+                        // while a fractional value in range is truncated toward zero.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "1e20").cast(INT()), "overflowed")
+                        .testResult(
+                                call("PARSE_JSON", "1e20").tryCast(INT()),
+                                "TRY_CAST(PARSE_JSON('1e20') AS INT)",
+                                null,
+                                INT())
                         .testResult(
                                 call("PARSE_JSON", "3.9").cast(INT()),
                                 "CAST(PARSE_JSON('3.9') AS INT)",
                                 3,
                                 INT().notNull())
-                        // A value beyond the FLOAT range becomes infinity.
+                        // Floating-point targets are strict. 1e20 needs more mantissa bits than a
+                        // FLOAT can hold, so the FLOAT cast loses precision and fails (TRY_CAST
+                        // returns NULL).
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "1e20").cast(FLOAT()), "lose precision")
                         .testResult(
-                                call("PARSE_JSON", "1e40").cast(FLOAT()),
-                                "CAST(PARSE_JSON('1e40') AS FLOAT)",
-                                Float.POSITIVE_INFINITY,
-                                FLOAT().notNull())
-                        // DECIMAL overflow yields NULL instead of wrapping; TRY_CAST surfaces it.
+                                call("PARSE_JSON", "1e20").tryCast(FLOAT()),
+                                "TRY_CAST(PARSE_JSON('1e20') AS FLOAT)",
+                                null,
+                                FLOAT())
+                        // A value beyond the FLOAT range overflows to infinity, which also fails.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "1e40").cast(FLOAT()), "overflowed")
+                        .testResult(
+                                call("PARSE_JSON", "1e40").tryCast(FLOAT()),
+                                "TRY_CAST(PARSE_JSON('1e40') AS FLOAT)",
+                                null,
+                                FLOAT())
+                        // The same 1e20 value is exactly representable as a DOUBLE, so it succeeds.
+                        .testResult(
+                                call("PARSE_JSON", "1e20").cast(DOUBLE()),
+                                "CAST(PARSE_JSON('1e20') AS DOUBLE)",
+                                1e20,
+                                DOUBLE().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "42").cast(DOUBLE()),
+                                "CAST(PARSE_JSON('42') AS DOUBLE)",
+                                42.0d,
+                                DOUBLE().notNull())
+                        // A large integer that a DOUBLE cannot hold exactly loses precision, so the
+                        // cast fails rather than silently rounding (2^53 + 1).
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "9007199254740993").cast(DOUBLE()),
+                                "lose precision")
+                        .testResult(
+                                call("PARSE_JSON", "9007199254740993").tryCast(DOUBLE()),
+                                "TRY_CAST(PARSE_JSON('9007199254740993') AS DOUBLE)",
+                                null,
+                                DOUBLE())
+                        // A decimal that is not exactly representable in binary floating point also
+                        // fails; cast it to DECIMAL first if an approximate DOUBLE is wanted.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "0.1").cast(DOUBLE()), "lose precision")
+                        .testResult(
+                                call("PARSE_JSON", "0.1").tryCast(DOUBLE()),
+                                "TRY_CAST(PARSE_JSON('0.1') AS DOUBLE)",
+                                null,
+                                DOUBLE())
+                        // DECIMAL overflow fails CAST and returns NULL for TRY_CAST.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "123.456").cast(DECIMAL(4, 2)), "overflowed")
                         .testResult(
                                 call("PARSE_JSON", "123.456").tryCast(DECIMAL(4, 2)),
                                 "TRY_CAST(PARSE_JSON('123.456') AS DECIMAL(4, 2))",
@@ -207,6 +262,65 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('true') AS BOOLEAN)",
                                 true,
                                 BOOLEAN().notNull())
+                        // CAST returns the raw scalar value (string unquoted)
+                        .testResult(
+                                call("PARSE_JSON", "\"foo\"").cast(STRING()),
+                                "CAST(PARSE_JSON('\"foo\"') AS STRING)",
+                                "foo",
+                                STRING().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "123.456").cast(STRING()),
+                                "CAST(PARSE_JSON('123.456') AS STRING)",
+                                "123.456",
+                                STRING().notNull())
+                        .testResult(
+                                call("PARSE_JSON", "true").cast(STRING()),
+                                "CAST(PARSE_JSON('true') AS STRING)",
+                                "true",
+                                STRING().notNull())
+                        // Objects and arrays are not scalar strings: CAST fails and points to
+                        // JSON_STRING, TRY_CAST returns NULL. Use JSON_STRING for the JSON form.
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[\"a\", \"b\"]").cast(STRING()), "JSON_STRING")
+                        .testResult(
+                                call("PARSE_JSON", "[\"a\", \"b\"]").tryCast(STRING()),
+                                "TRY_CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
+                                null,
+                                STRING())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "{\"a\": 1}").cast(STRING()), "JSON_STRING")
+                        .testResult(
+                                call("PARSE_JSON", "{\"a\": 1}").tryCast(STRING()),
+                                "TRY_CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
+                                null,
+                                STRING())
+                        // Bounded CHAR/VARCHAR is strict on length.
+                        // VARCHAR(n) allows any length up to n;
+                        // CHAR(n) requires the exact length.
+                        .testResult(
+                                call("PARSE_JSON", "\"ab\"").cast(VARCHAR(3)),
+                                "CAST(PARSE_JSON('\"ab\"') AS VARCHAR(3))",
+                                "ab",
+                                VARCHAR(3).notNull())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "\"foobar\"").cast(VARCHAR(3)), "does not fit")
+                        .testResult(
+                                call("PARSE_JSON", "\"foobar\"").tryCast(VARCHAR(3)),
+                                "TRY_CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
+                                null,
+                                VARCHAR(3))
+                        .testResult(
+                                call("PARSE_JSON", "\"abc\"").cast(CHAR(3)),
+                                "CAST(PARSE_JSON('\"abc\"') AS CHAR(3))",
+                                "abc",
+                                CHAR(3).notNull())
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "\"ab\"").cast(CHAR(5)), "does not fit")
+                        .testResult(
+                                call("PARSE_JSON", "\"ab\"").tryCast(CHAR(5)),
+                                "TRY_CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
+                                null,
+                                CHAR(5))
                         // TRY_CAST of a value whose kind does not match the target returns NULL
                         .testResult(
                                 call("PARSE_JSON", "\"foo\"").tryCast(INT()),
@@ -230,12 +344,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 call("TRY_PARSE_JSON", "42").cast(INT()),
                                 "CAST(TRY_PARSE_JSON('42') AS INT)",
                                 42,
-                                INT())
-                        // Casting a VARIANT to a string points the user to JSON_STRING.
-                        .testTableApiValidationError(
-                                call("PARSE_JSON", "42").cast(STRING()),
-                                "Use the JSON_STRING function to convert a VARIANT to its JSON "
-                                        + "string representation."));
+                                INT()));
     }
 
     private static List<TestSetSpec> allTypesBasic() {
