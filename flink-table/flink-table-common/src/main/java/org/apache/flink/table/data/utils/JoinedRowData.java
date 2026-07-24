@@ -21,6 +21,7 @@ package org.apache.flink.table.data.utils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -266,6 +267,15 @@ public class JoinedRowData implements RowData {
             return row1.getBitmap(pos);
         } else {
             return row2.getBitmap(pos - row1.getArity());
+        }
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        if (pos < row1.getArity()) {
+            return row1.getGeography(pos);
+        } else {
+            return row2.getGeography(pos - row1.getArity());
         }
     }
 
