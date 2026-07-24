@@ -35,6 +35,9 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
+		<!-- Align with Beam ${beam.version} optional transitive. -->
+		<opentelemetry.bundled.version>1.51.0</opentelemetry.bundled.version>
+		
 		<arrow.version>19.0.0</arrow.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
@@ -130,6 +133,20 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-core-java</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<!-- Declared optional by Beam; required at runtime for PipelineOptionsFactory. -->
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-api</artifactId>
+			<version>${opentelemetry.bundled.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-context</artifactId>
+			<version>${opentelemetry.bundled.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -668,6 +685,7 @@ under the License.
 									<include>net.razorvine:*</include>
 									<include>net.sf.py4j:*</include>
 									<include>org.apache.beam:*</include>
+									<include>io.opentelemetry:*</include>
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
 									<include>com.google.protobuf:*</include>
