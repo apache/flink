@@ -57,10 +57,10 @@ class GateFilterHandlerTest {
                 createHandler(RecordFilter.acceptAll());
 
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, sourceBuffer, output);
 
-        // deserializeBuffers consumes (recycles) each buffer via the deserializer
-        List<Long> values = deserializeBuffers(result);
+        List<Long> values = readRecordsFromSerializer(output);
         assertThat(values).containsExactly(1L, 2L, 3L);
     }
 
@@ -70,9 +70,11 @@ class GateFilterHandlerTest {
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(rejectAll);
 
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, sourceBuffer, output);
 
-        assertThat(result).isEmpty();
+        // No bytes should be written when all records are filtered out.
+        assertThat(output.length()).isZero();
     }
 
     @Test
@@ -81,29 +83,11 @@ class GateFilterHandlerTest {
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(keepEven);
 
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L, 4L, 5L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, sourceBuffer, output);
 
-        List<Long> values = deserializeBuffers(result);
+        List<Long> values = readRecordsFromSerializer(output);
         assertThat(values).containsExactly(2L, 4L);
-    }
-
-    @Test
-    void testSmallOutputBufferProducesMultipleBuffers() throws Exception {
-        // Use a very small output buffer size so records must span multiple buffers
-        int smallBufferSize = 8;
-        ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
-                createHandler(RecordFilter.acceptAll());
-
-        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result =
-                handler.filterAndRewrite(
-                        0, 0, sourceBuffer, () -> createEmptyBuffer(smallBufferSize));
-
-        // Each Long record needs 4 bytes length + ~9 bytes data > 8-byte buffer
-        assertThat(result.size()).isGreaterThan(1);
-
-        List<Long> values = deserializeBuffers(result);
-        assertThat(values).containsExactly(1L, 2L, 3L);
     }
 
     @Test
@@ -114,9 +98,35 @@ class GateFilterHandlerTest {
         Buffer emptyBuffer = createEmptyBuffer();
         emptyBuffer.setSize(0);
 
-        List<Buffer> result = handler.filterAndRewrite(0, 0, emptyBuffer, this::createEmptyBuffer);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, emptyBuffer, output);
 
-        assertThat(result).isEmpty();
+        // No data written for an empty source buffer.
+        assertThat(output.length()).isZero();
+    }
+
+    @Test
+    void testSourceBufferRecycledOnSuccess() throws Exception {
+        ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
+                createHandler(RecordFilter.acceptAll());
+
+        Buffer sourceBuffer = createBufferWithRecords(1L, 2L);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, sourceBuffer, output);
+
+        assertThat(sourceBuffer.isRecycled()).isTrue();
+    }
+
+    @Test
+    void testSourceBufferRecycledWhenAllRecordsFilteredOut() throws Exception {
+        RecordFilter<Long> rejectAll = record -> false;
+        ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(rejectAll);
+
+        Buffer sourceBuffer = createBufferWithRecords(1L, 2L);
+        DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
+        handler.filterAndRewrite(0, 0, sourceBuffer, output);
+
+        assertThat(sourceBuffer.isRecycled()).isTrue();
     }
 
     // -------------------------------------------------------------------------------------------
@@ -141,23 +151,13 @@ class GateFilterHandlerTest {
     private Buffer createBufferWithRecords(Long... values) throws IOException {
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
-        return serializeRecordsToBuffer(serializer, values);
-    }
-
-    /** Serializes records into a buffer using Flink's length-prefixed format. */
-    private Buffer serializeRecordsToBuffer(
-            StreamElementSerializer<Long> serializer, Long... values) throws IOException {
         DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
 
         for (Long value : values) {
-            // Serialize using the same length-prefixed format as Flink
             DataOutputSerializer recordOutput = new DataOutputSerializer(64);
             serializer.serialize(new StreamRecord<>(value), recordOutput);
             int recordLength = recordOutput.length();
-
-            // Write 4-byte big-endian length prefix
             output.writeInt(recordLength);
-            // Write record bytes
             output.write(recordOutput.getSharedBuffer(), 0, recordLength);
         }
 
@@ -171,43 +171,49 @@ class GateFilterHandlerTest {
     }
 
     private Buffer createEmptyBuffer() {
-        return createEmptyBuffer(BUFFER_SIZE);
-    }
-
-    private Buffer createEmptyBuffer(int size) {
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
         return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
     }
 
-    private List<Long> deserializeBuffers(List<Buffer> buffers) throws IOException {
+    /**
+     * Deserializes the records the handler appended into {@code output}. The body format is
+     * repeated (4B recordLen + N bytes of serialized StreamElement), which the deserializer reads
+     * directly.
+     */
+    private List<Long> readRecordsFromSerializer(DataOutputSerializer output) throws Exception {
+        List<Long> values = new ArrayList<>();
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
+        DeserializationDelegate<StreamElement> delegate =
+                new NonReusingDeserializationDelegate<>(serializer);
+
+        byte[] bodyBytes = output.getCopyOfBuffer();
+        if (bodyBytes.length == 0) {
+            return values;
+        }
+        MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(bodyBytes.length);
+        memSeg.put(0, bodyBytes);
+        NetworkBuffer buf = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE);
+        buf.setSize(bodyBytes.length);
+
         SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>
                 deserializer =
                         new SpillingAdaptiveSpanningRecordDeserializer<>(
                                 new String[] {System.getProperty("java.io.tmpdir")});
-        DeserializationDelegate<StreamElement> delegate =
-                new NonReusingDeserializationDelegate<>(serializer);
+        deserializer.setNextBuffer(buf);
 
-        List<Long> values = new ArrayList<>();
-        for (Buffer buffer : buffers) {
-            deserializer.setNextBuffer(buffer);
-            while (true) {
-                RecordDeserializer.DeserializationResult result =
-                        deserializer.getNextRecord(delegate);
-                if (result.isFullRecord()) {
-                    StreamElement element = delegate.getInstance();
-                    if (element.isRecord()) {
-                        @SuppressWarnings("unchecked")
-                        StreamRecord<Long> record = (StreamRecord<Long>) element;
-                        values.add(record.getValue());
-                    }
-                }
-                if (result.isBufferConsumed()) {
-                    break;
+        RecordDeserializer.DeserializationResult result;
+        do {
+            result = deserializer.getNextRecord(delegate);
+            if (result.isFullRecord()) {
+                StreamElement element = delegate.getInstance();
+                if (element.isRecord()) {
+                    @SuppressWarnings("unchecked")
+                    StreamRecord<Long> record = (StreamRecord<Long>) element;
+                    values.add(record.getValue());
                 }
             }
-        }
+        } while (!result.isBufferConsumed());
         return values;
     }
 }

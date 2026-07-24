@@ -35,7 +35,7 @@ public final class OffsetAwareOutputStream implements Closeable {
 
     private long position;
 
-    OffsetAwareOutputStream(OutputStream currentOut, long position) {
+    public OffsetAwareOutputStream(OutputStream currentOut, long position) {
         this.currentOut = checkNotNull(currentOut);
         this.position = position;
     }
