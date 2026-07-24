@@ -32,7 +32,8 @@ under the License.
 	<name>Flink : Formats : Avro confluent registry</name>
 
 	<properties>
-		<confluent.version>7.5.3</confluent.version>
+		<confluent.version>7.9.8</confluent.version>
+		<kafka.compatibility.version>3.9.2</kafka.compatibility.version>
 	</properties>
 
 	<repositories>
@@ -161,6 +162,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>${kafka.compatibility.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- ArchUnit test dependencies -->

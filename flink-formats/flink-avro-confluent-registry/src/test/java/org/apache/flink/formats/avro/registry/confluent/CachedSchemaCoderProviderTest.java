@@ -112,6 +112,21 @@ class CachedSchemaCoderProviderTest {
         assertThat(bearerAuthCredentialProvider.getBearerToken(null)).isEqualTo(token);
     }
 
+    @Test
+    void testThatOauthBearerAuthIsCompatibleWithKafkaClient39() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("bearer.auth.credentials.source", "OAUTHBEARER");
+        configs.put("bearer.auth.issuer.endpoint.url", "https://issuer.example/token");
+        configs.put("bearer.auth.client.id", "registry-api");
+        configs.put("bearer.auth.client.secret", "secret");
+
+        CachedSchemaCoderProvider provider = initCachedSchemaCoderProvider(configs);
+        BearerAuthCredentialProvider bearerAuthCredentialProvider =
+                getBearerAuthFromProvider(provider);
+
+        assertThat(bearerAuthCredentialProvider).isNotNull();
+    }
+
     private String getAbsolutePath(String path) throws URISyntaxException {
         return CachedSchemaCoderProviderTest.class.getResource(path).toURI().getPath();
     }
