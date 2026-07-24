@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Manager for delegation tokens in a Flink cluster.
@@ -59,6 +61,55 @@ public interface DelegationTokenManager {
      */
     void start(Listener listener) throws Exception;
 
-    /** Stops re-occurring token obtain task. */
+    /**
+     * Stops the re-occurring token obtain task. Implementations also unregister all jobs registered
+     * through {@link #registerJob(JobID, Configuration)}, so nothing leaks across leadership
+     * sessions (a job that is still running re-registers through the normal JobMaster registration
+     * retry). Providers are not stopped here and stay usable for a subsequent {@link
+     * #start(Listener)}. Their teardown happens in {@link #close()}.
+     */
     void stop();
+
+    /**
+     * Terminal teardown of the manager: ends any active obtain session and releases the providers'
+     * resources, exactly once. Called by the component that created the manager at process
+     * shutdown, unlike {@link #stop()}, which may run once per ResourceManager leadership session.
+     * The manager must not be started after close.
+     */
+    default void close() {}
+
+    /**
+     * Requests an immediate, asynchronous token-obtain-and-distribute cycle, bringing the next
+     * cycle forward instead of waiting for the periodic renewal. May be called from any thread. It
+     * is a no-op on a manager constructed without executors (the one-shot obtain path). Concurrent
+     * requests are coalesced and a configurable cooldown may apply, so a call does not necessarily
+     * map to exactly one obtain.
+     *
+     * <p>Backs {@link
+     * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
+     */
+    default void reobtainDelegationTokens() {}
+
+    /**
+     * Called when a job has started. Fans the event out to all loaded {@link
+     * org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure of the job's first
+     * registration, the job is unregistered from all providers and the exception is rethrown so the
+     * caller can reject the registration. A failed re-registration rethrows but keeps the job
+     * registered, so a running job's tokens are not dropped. A provider that needs the new job's
+     * tokens distributed immediately requests it via {@link
+     * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
+     *
+     * @param jobId The job id which just started.
+     * @param jobConfiguration The job's configuration.
+     */
+    default void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {}
+
+    /**
+     * Called when a job is being removed. Fans the event out to all loaded providers. Must be
+     * idempotent. Per-provider failures are caught and logged (one provider's failure does not
+     * abort cleanup of the others), so in practice this does not throw for provider failures.
+     *
+     * @param jobId The job id of the job.
+     */
+    default void unregisterJob(JobID jobId) throws Exception {}
 }

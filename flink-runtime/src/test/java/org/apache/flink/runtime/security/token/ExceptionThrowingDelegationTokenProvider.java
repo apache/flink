@@ -18,15 +18,23 @@
 
 package org.apache.flink.runtime.security.token;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.core.security.token.DelegationTokenManagerCallback;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * An example implementation of {@link DelegationTokenProvider} which throws exception when enabled.
  */
 public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
+
+    /** Key written into the job configuration when {@link #mutateJobConfiguration} is set. */
+    public static final String MUTATED_KEY = "test.mutated.by.provider";
 
     public static volatile ThreadLocal<Boolean> throwInInit =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
@@ -36,13 +44,41 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
             ThreadLocal.withInitial(() -> Boolean.FALSE);
     public static volatile ThreadLocal<Boolean> constructed =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> shouldReobtainOnRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwErrorInRegister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInUnregister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwErrorInUnregister =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> stopped =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Integer> stopCallCount = ThreadLocal.withInitial(() -> 0);
+    public static volatile ThreadLocal<Boolean> mutateJobConfiguration =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Set<JobID>> registeredJobs =
+            ThreadLocal.withInitial(HashSet::new);
 
     public static void reset() {
         throwInInit.set(false);
         throwInUsage.set(false);
         addToken.set(false);
         constructed.set(false);
+        shouldReobtainOnRegister.set(false);
+        throwInRegister.set(false);
+        throwErrorInRegister.set(false);
+        throwInUnregister.set(false);
+        throwErrorInUnregister.set(false);
+        stopped.set(false);
+        stopCallCount.set(0);
+        mutateJobConfiguration.set(false);
+        registeredJobs.get().clear();
     }
+
+    private DelegationTokenManagerCallback callback;
 
     public ExceptionThrowingDelegationTokenProvider() {
         constructed.set(true);
@@ -58,6 +94,12 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         if (throwInInit.get()) {
             throw new IllegalArgumentException();
         }
+    }
+
+    @Override
+    public void init(Configuration configuration, DelegationTokenManagerCallback callback) {
+        this.callback = callback;
+        init(configuration);
     }
 
     @Override
@@ -78,5 +120,39 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
         } else {
             return null;
         }
+    }
+
+    @Override
+    public void registerJob(JobID jobId, Configuration jobConfiguration) {
+        if (throwInRegister.get()) {
+            throw new IllegalArgumentException();
+        }
+        if (mutateJobConfiguration.get()) {
+            jobConfiguration.set(ConfigurationUtils.getBooleanConfigOption(MUTATED_KEY), true);
+        }
+        registeredJobs.get().add(jobId);
+        if (throwErrorInRegister.get()) {
+            throw new NoClassDefFoundError("simulated classpath failure in provider registerJob");
+        }
+        if (shouldReobtainOnRegister.get()) {
+            callback.reobtainDelegationTokens();
+        }
+    }
+
+    @Override
+    public void unregisterJob(JobID jobId) {
+        if (throwInUnregister.get()) {
+            throw new IllegalArgumentException();
+        }
+        if (throwErrorInUnregister.get()) {
+            throw new NoClassDefFoundError("simulated classpath failure in provider unregisterJob");
+        }
+        registeredJobs.get().remove(jobId);
+    }
+
+    @Override
+    public void stop() {
+        stopped.set(true);
+        stopCallCount.set(stopCallCount.get() + 1);
     }
 }
