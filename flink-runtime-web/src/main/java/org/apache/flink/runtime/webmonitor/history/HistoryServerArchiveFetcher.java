@@ -623,7 +623,10 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
         ArchiveEventType archiveEventType =
                 overviewCreated ? ArchiveEventType.OVERVIEW_CREATED : ArchiveEventType.CREATED;
-        archiveMetaInfo.setEventType(archiveEventType);
+        if (detailArchives.isEmpty()) {
+            // otherwise the async task above is now the sole owner of eventType transitions.
+            archiveMetaInfo.setEventType(archiveEventType);
+        }
         return new ArchiveEvent(jobId, archiveEventType);
     }
 
