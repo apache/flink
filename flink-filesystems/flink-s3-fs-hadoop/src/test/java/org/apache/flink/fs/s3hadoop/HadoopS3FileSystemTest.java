@@ -125,6 +125,58 @@ class HadoopS3FileSystemTest {
         assertThat(hadoopConf.get("fs.s3a.s3guard.ddb.table.capacity.read", null)).isEqualTo("10");
     }
 
+    // ------------------------------------------------------------------------
+    //  These tests check the Flink-side default for the S3A input stream type.
+    //  hadoop-aws 3.4 defaults fs.s3a.input.stream.type to the analytics-
+    //  accelerator stream; Flink pins the classic stream unless the user
+    //  configures otherwise.
+    // ------------------------------------------------------------------------
+
+    /** With no user configuration, the classic input stream must be pinned. */
+    @Test
+    void testInputStreamTypeDefaultsToClassic() {
+        org.apache.hadoop.conf.Configuration hadoopConf =
+                loadHadoopConfigWithDefaults(new Configuration());
+
+        assertThat(hadoopConf.get("fs.s3a.input.stream.type", null)).isEqualTo("classic");
+    }
+
+    /** An explicit user-configured stream type must not be overridden. */
+    @Test
+    void testInputStreamTypeUserOverrideWins() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.input.stream.type", "analytics");
+
+        org.apache.hadoop.conf.Configuration hadoopConf = loadHadoopConfigWithDefaults(conf);
+
+        assertThat(hadoopConf.get("fs.s3a.input.stream.type", null)).isEqualTo("analytics");
+    }
+
+    /**
+     * When the legacy prefetch toggle is enabled and no stream type is set, Hadoop selects the
+     * prefetching stream — pinning the classic stream would silently disable that opt-in.
+     */
+    @Test
+    void testInputStreamTypeNotPinnedWhenPrefetchEnabled() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.prefetch.enabled", "true");
+
+        org.apache.hadoop.conf.Configuration hadoopConf = loadHadoopConfigWithDefaults(conf);
+
+        assertThat(hadoopConf.get("fs.s3a.input.stream.type", null)).isNull();
+        assertThat(hadoopConf.get("fs.s3a.prefetch.enabled", null)).isEqualTo("true");
+    }
+
+    private static org.apache.hadoop.conf.Configuration loadHadoopConfigWithDefaults(
+            Configuration flinkConf) {
+        HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+        configLoader.setFlinkConfig(flinkConf);
+
+        org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
+        new S3FileSystemFactory().applyHadoopConfigDefaults(hadoopConf);
+        return hadoopConf;
+    }
+
     private static void checkHadoopAccessKeys(
             Configuration flinkConf, String accessKey, String secretKey) {
         HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
