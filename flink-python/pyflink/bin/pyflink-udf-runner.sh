@@ -16,7 +16,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-python=${python:-python}
+python=${python:-python3}
 
 if [[ "$FLINK_TESTING" = "1" ]]; then
     ACTUAL_FLINK_HOME=`cd $FLINK_HOME; pwd -P`
