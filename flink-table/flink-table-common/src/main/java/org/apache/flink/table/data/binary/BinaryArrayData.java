@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -95,6 +96,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
             case RAW:
             case VARIANT:
             case BITMAP:
+            case GEOGRAPHY:
                 // long and double are 8 bytes;
                 // otherwise it stores the length and offset of the variable-length part for types
                 // such as is string, map, etc.
@@ -267,6 +269,14 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
         int fieldOffset = getElementOffset(pos, 8);
         final long offsetAndSize = BinarySegmentUtils.getLong(segments, fieldOffset);
         return BinarySegmentUtils.readBinary(segments, offset, fieldOffset, offsetAndSize);
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        assertIndexIsValid(pos);
+        int fieldOffset = getElementOffset(pos, 8);
+        final long offsetAndSize = BinarySegmentUtils.getLong(segments, fieldOffset);
+        return BinarySegmentUtils.readGeographyData(segments, offset, fieldOffset, offsetAndSize);
     }
 
     @Override

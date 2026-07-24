@@ -39,6 +39,7 @@ import static org.apache.flink.table.api.DataTypes.BITMAP;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.GEOGRAPHY;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -260,6 +261,62 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "CAST(CreateMultiset(f0) AS BITMAP)",
                                 "Cast function cannot convert value of type VARCHAR(2147483647) MULTISET to type BITMAP"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast STRING to GEOGRAPHY")
+                        .onFieldsWithData("POINT (0 0)")
+                        .andDataTypes(STRING())
+                        .testTableApiValidationError(
+                                $("f0").cast(GEOGRAPHY()),
+                                "Unsupported cast from 'STRING' to 'GEOGRAPHY'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS GEOGRAPHY)",
+                                "Cast function cannot convert value of type VARCHAR(2147483647) to type GEOGRAPHY"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast BYTES to GEOGRAPHY")
+                        .onFieldsWithData(new byte[] {1, 2, 3})
+                        .andDataTypes(BYTES())
+                        .testTableApiValidationError(
+                                $("f0").cast(GEOGRAPHY()),
+                                "Unsupported cast from 'BYTES' to 'GEOGRAPHY'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS GEOGRAPHY)",
+                                "Cast function cannot convert value of type VARBINARY(2147483647) to type GEOGRAPHY"),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "cast VARBINARY to GEOGRAPHY")
+                        .onFieldsWithData(new byte[] {1, 2, 3})
+                        .andDataTypes(VARBINARY(3))
+                        .testTableApiValidationError(
+                                $("f0").cast(GEOGRAPHY()),
+                                "Unsupported cast from 'VARBINARY(3)' to 'GEOGRAPHY'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS GEOGRAPHY)",
+                                "Cast function cannot convert value of type VARBINARY(3) to type GEOGRAPHY"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast GEOGRAPHY to STRING")
+                        .onFieldsWithData((Object) null)
+                        .andDataTypes(GEOGRAPHY())
+                        .testTableApiValidationError(
+                                $("f0").cast(STRING()),
+                                "Unsupported cast from 'GEOGRAPHY' to 'STRING'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS STRING)",
+                                "Cast function cannot convert value of type GEOGRAPHY to type VARCHAR(2147483647)"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast GEOGRAPHY to BYTES")
+                        .onFieldsWithData((Object) null)
+                        .andDataTypes(GEOGRAPHY())
+                        .testTableApiValidationError(
+                                $("f0").cast(BYTES()),
+                                "Unsupported cast from 'GEOGRAPHY' to 'BYTES'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS BYTES)",
+                                "Cast function cannot convert value of type GEOGRAPHY to type VARBINARY(2147483647)"),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "cast GEOGRAPHY to VARBINARY")
+                        .onFieldsWithData((Object) null)
+                        .andDataTypes(GEOGRAPHY())
+                        .testTableApiValidationError(
+                                $("f0").cast(VARBINARY(3)),
+                                "Unsupported cast from 'GEOGRAPHY' to 'VARBINARY(3)'")
+                        .testSqlValidationError(
+                                "CAST(f0 AS VARBINARY(3))",
+                                "Cast function cannot convert value of type GEOGRAPHY to type VARBINARY(3)"),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
                         .onFieldsWithData("2020-11-11T18:08:01.123")
                         .andDataTypes(STRING())

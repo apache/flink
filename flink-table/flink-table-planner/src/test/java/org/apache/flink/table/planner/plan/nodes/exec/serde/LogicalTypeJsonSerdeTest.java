@@ -43,6 +43,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -267,6 +268,7 @@ public class LogicalTypeJsonSerdeTest {
                         new MultisetType(BinaryType.ofEmptyLiteral()),
                         new MultisetType(VarBinaryType.ofEmptyLiteral()),
                         new BitmapType(),
+                        new GeographyType(),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {

@@ -51,5 +51,21 @@ class SchemaTest {
 
             assertThat(newSchema.resolve(new TestSchemaResolver())).isEqualTo(originalSchema);
         }
+
+        @Test
+        void testGeographyColumn() {
+            final Schema schema =
+                    Schema.newBuilder()
+                            .column("location", DataTypes.GEOGRAPHY())
+                            .column("required_location", DataTypes.GEOGRAPHY().notNull())
+                            .build();
+
+            assertThat(schema.resolve(new TestSchemaResolver()))
+                    .isEqualTo(
+                            ResolvedSchema.of(
+                                    Column.physical("location", DataTypes.GEOGRAPHY()),
+                                    Column.physical(
+                                            "required_location", DataTypes.GEOGRAPHY().notNull())));
+        }
     }
 }
