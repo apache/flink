@@ -122,7 +122,7 @@ This behaviour might be too disruptive in some cases (e.g., unstable network env
 If you are willing to take a more aggressive approach, then you can tolerate suspended ZooKeeper connections and only treat lost connections as an error via [high-availability.zookeeper.client.tolerate-suspended-connections]({{< ref "docs/deployment/config" >}}#high-availability-zookeeper-client-tolerate-suspended-connection).
 Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
 
-For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
+For more information take a look at [Curator's error handling](https://curator.apache.org/docs/errors).
 
 <a name="bootstrap-zookeeper" />
 

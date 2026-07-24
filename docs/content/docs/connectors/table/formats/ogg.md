@@ -92,7 +92,7 @@ captured from an Oracle `PRODUCTS` table in JSON format:
 ```
 
 *Note: please refer
-to [Debezium documentation](https://debezium.io/documentation/reference/1.3/connectors/oracle.html#oracle-events)
+to [Debezium documentation](https://debezium.io/documentation/reference/stable/connectors/oracle.html#oracle-events)
 about the meaning of each field.*
 
 The Oracle `PRODUCTS` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON

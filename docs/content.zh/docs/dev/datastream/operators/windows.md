@@ -1107,7 +1107,7 @@ Flink 包含一些内置 trigger。
 * `PurgingTrigger` 接收另一个 trigger 并将它转换成一个会清理数据的 trigger。
 
 如果你需要实现自定义的 trigger，你应该看看这个抽象类
-{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java" name="Trigger" >}} 。
+{{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java" name="Trigger" >}} 。
 请注意，这个 API 仍在发展，所以在之后的 Flink 版本中可能会发生变化。
 
 ## Evictors
