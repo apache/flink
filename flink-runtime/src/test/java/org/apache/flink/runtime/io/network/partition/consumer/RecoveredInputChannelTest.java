@@ -22,7 +22,6 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -110,17 +109,15 @@ class RecoveredInputChannelTest {
 
         TestInputChannel converted = (TestInputChannel) channel.toInputChannel(true);
 
-        // The queued data buffer is handed over through the push interface, the legacy
-        // EndOfInputChannelStateEvent is dropped in translation, and the
-        // EndOfFetchedChannelStateEvent sentinel is appended after the last recovered buffer.
-        assertThat(converted.getRecoveredBuffersSpy()).hasSize(2);
+        // The queued data buffer is handed over through the push interface and the legacy
+        // EndOfInputChannelStateEvent is dropped in translation. The EndOfFetchedChannelStateEvent
+        // sentinel is deliberately NOT appended here: the StreamTask recovery chain appends it via
+        // finishRecoveredBufferDelivery() on the channel IO executor after partitions have been
+        // requested (the sentinel must not become consumable before upstream readiness).
+        assertThat(converted.getRecoveredBuffersSpy()).hasSize(1);
         Buffer data = converted.getRecoveredBuffersSpy().pollFirst();
         assertThat(data.isBuffer()).isTrue();
         assertThat(data.getSize()).isEqualTo(42);
-        Buffer sentinel = converted.getRecoveredBuffersSpy().pollFirst();
-        assertThat(sentinel.isBuffer()).isFalse();
-        assertThat(EventSerializer.fromBuffer(sentinel, getClass().getClassLoader()))
-                .isInstanceOf(EndOfFetchedChannelStateEvent.class);
     }
 
     @Test
