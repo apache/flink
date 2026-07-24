@@ -385,6 +385,22 @@ public class KubernetesConfigOptions {
                             "The user-specified labels that are set to the rest Service. The value should be "
                                     + "in the form of a1:v1,a2:v2");
 
+    public static final ConfigOption<String> REST_SERVICE_PORT_NAME =
+            key("kubernetes.rest-service.port-name")
+                    .stringType()
+                    .defaultValue(Constants.REST_PORT_NAME)
+                    .withDescription(
+                            "The name assigned to the JobManager's rest port on both the "
+                                    + "Kubernetes Service and the JobManager container. "
+                                    + "Some environments enforce port-naming policies (for example, "
+                                    + "service meshes that route by port name); this option lets operators "
+                                    + "align Flink's rest port name with such policies. "
+                                    + "Must be a valid IANA service name (lowercase alphanumeric and '-', "
+                                    + "starting and ending alphanumeric, max 15 characters). "
+                                    + "Defaults to '"
+                                    + Constants.REST_PORT_NAME
+                                    + "' to preserve backward compatibility.");
+
     public static final ConfigOption<Map<String, String>> INTERNAL_SERVICE_ANNOTATIONS =
             key("kubernetes.internal-service.annotations")
                     .mapType()
