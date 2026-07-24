@@ -5038,7 +5038,7 @@
                 "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
                 "properties" : {
                   "cpuCores" : {
-                    "type" : "integer"
+                    "type" : "number"
                   },
                   "physicalMemory" : {
                     "type" : "integer"
@@ -5203,7 +5203,7 @@
           "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
           "properties" : {
             "cpuCores" : {
-              "type" : "integer"
+              "type" : "number"
             },
             "physicalMemory" : {
               "type" : "integer"

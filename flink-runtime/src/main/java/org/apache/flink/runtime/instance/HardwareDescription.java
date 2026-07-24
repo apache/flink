@@ -41,7 +41,7 @@ public final class HardwareDescription implements Serializable {
 
     /** The number of CPU cores available to the JVM on the compute node. */
     @JsonProperty(FIELD_NAME_CPU_CORES)
-    private final int numberOfCPUCores;
+    private final double numberOfCPUCores;
 
     /** The size of physical memory in bytes available on the compute node. */
     @JsonProperty(FIELD_NAME_SIZE_PHYSICAL_MEMORY)
@@ -67,7 +67,7 @@ public final class HardwareDescription implements Serializable {
      */
     @JsonCreator
     public HardwareDescription(
-            @JsonProperty(FIELD_NAME_CPU_CORES) int numberOfCPUCores,
+            @JsonProperty(FIELD_NAME_CPU_CORES) double numberOfCPUCores,
             @JsonProperty(FIELD_NAME_SIZE_PHYSICAL_MEMORY) long sizeOfPhysicalMemory,
             @JsonProperty(FIELD_NAME_SIZE_JVM_HEAP) long sizeOfJvmHeap,
             @JsonProperty(FIELD_NAME_SIZE_MANAGED_MEMORY) long sizeOfManagedMemory) {
@@ -82,7 +82,7 @@ public final class HardwareDescription implements Serializable {
      *
      * @return the number of CPU cores available to the JVM on the compute node
      */
-    public int getNumberOfCPUCores() {
+    public double getNumberOfCPUCores() {
         return this.numberOfCPUCores;
     }
 
@@ -126,7 +126,7 @@ public final class HardwareDescription implements Serializable {
             return false;
         }
         HardwareDescription that = (HardwareDescription) o;
-        return numberOfCPUCores == that.numberOfCPUCores
+        return Double.compare(numberOfCPUCores, that.numberOfCPUCores) == 0
                 && sizeOfPhysicalMemory == that.sizeOfPhysicalMemory
                 && sizeOfJvmHeap == that.sizeOfJvmHeap
                 && sizeOfManagedMemory == that.sizeOfManagedMemory;
@@ -141,7 +141,7 @@ public final class HardwareDescription implements Serializable {
     @Override
     public String toString() {
         return String.format(
-                "cores=%d, physMem=%d, heap=%d, managed=%d",
+                "cores=%.2f, physMem=%d, heap=%d, managed=%d",
                 numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, sizeOfManagedMemory);
     }
 
@@ -150,7 +150,7 @@ public final class HardwareDescription implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public static HardwareDescription extractFromSystem(long managedMemory) {
-        final int numberOfCPUCores = Hardware.getNumberCPUCores();
+        final double numberOfCPUCores = Hardware.getNumberCPUCoresAsDouble();
         final long sizeOfJvmHeap = Runtime.getRuntime().maxMemory();
         final long sizeOfPhysicalMemory = Hardware.getSizeOfPhysicalMemory();
 

@@ -2435,8 +2435,8 @@ components:
       type: object
       properties:
         cpuCores:
-          type: integer
-          format: int32
+          type: number
+          format: double
         freeMemory:
           type: integer
           format: int64
