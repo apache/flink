@@ -16,16 +16,19 @@
   ~ limitations under the License.
   -->
 
-<div class="metric-selector">
+<div class="metric-selector" style="display: inline-block; width: fit-content">
   <span *ngIf="listOfMetricName.length === 0; else elseTemplate">No Available Metric</span>
   <ng-template #elseTemplate>
     Add Metric:
     <nz-select
+      #metricSelect
       nzSize="small"
       [ngModel]="null"
       nzShowSearch
       [nzPlaceHolder]="'Select Metric Name'"
       (ngModelChange)="updateMetric($event)"
+      nzDropdownMatchSelectWidth="false"
+      [nzDropdownStyle]="dropdownStyles"
     >
       <nz-option
         *ngFor="let name of listOfUnselectedMetric"
@@ -33,7 +36,7 @@
         [nzValue]="name"
         nzCustomContent
       >
-        <span [title]="name">{{ name }}</span>
+        <span [title]="name" class="metric-option-text">{{ name }}</span>
       </nz-option>
     </nz-select>
   </ng-template>
