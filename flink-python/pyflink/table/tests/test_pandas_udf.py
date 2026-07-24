@@ -381,6 +381,24 @@ class PandasUDFITTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 
+    def test_geography_type(self):
+        point_wkb = bytes([
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+        ])
+
+        geography_identity = udf(
+            lambda geography: geography,
+            result_type=DataTypes.GEOGRAPHY(),
+            func_type="pandas")
+
+        table = self.t_env.from_elements(
+            [(point_wkb,)],
+            DataTypes.ROW([DataTypes.FIELD("g", DataTypes.GEOGRAPHY())]))
+        collected = list(table.select(geography_identity(table.g)).execute().collect())
+
+        self.assertEqual(1, len(collected))
+        self.assertEqual(point_wkb, collected[0][0])
+
 
 class BatchPandasUDFITTests(PandasUDFITTests,
                             PyFlinkBatchTableTestCase):
