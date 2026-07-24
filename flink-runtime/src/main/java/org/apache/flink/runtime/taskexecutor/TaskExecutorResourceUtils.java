@@ -112,7 +112,6 @@ public class TaskExecutorResourceUtils {
      * This must be consist with {@link
      * org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils#generateDefaultSlotResourceProfile}.
      */
-    @VisibleForTesting
     public static ResourceProfile generateDefaultSlotResourceProfile(
             TaskExecutorResourceSpec taskExecutorResourceSpec, int numberOfSlots) {
         final ResourceProfile.Builder resourceProfileBuilder =
@@ -137,7 +136,6 @@ public class TaskExecutorResourceUtils {
         return resourceProfileBuilder.build();
     }
 
-    @VisibleForTesting
     public static ResourceProfile generateTotalAvailableResourceProfile(
             TaskExecutorResourceSpec taskExecutorResourceSpec) {
         return ResourceProfile.newBuilder()
