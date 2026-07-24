@@ -51,6 +51,12 @@ public enum JoinStrategy {
     LOOKUP("LOOKUP"),
 
     /**
+     * Instructs an outer interval join to emit unmatched outer rows with null padding after a
+     * configurable delay. Only accept key-value hint options.
+     */
+    EARLY_FIRE("EARLY_FIRE"),
+
+    /**
      * Instructs the optimizer to use multi-way join strategy for streaming queries. This hint
      * allows specifying multiple tables to be joined together in a single {@link
      * org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator}.
@@ -89,6 +95,7 @@ public enum JoinStrategy {
             case NEST_LOOP:
                 return options.size() > 0;
             case LOOKUP:
+            case EARLY_FIRE:
                 return null == options || options.size() == 0;
             case MULTI_JOIN:
                 return options.size() > 0;
@@ -100,5 +107,11 @@ public enum JoinStrategy {
         String formalizedHintName = hintName.toUpperCase(Locale.ROOT);
         return isJoinStrategy(formalizedHintName)
                 && JoinStrategy.valueOf(formalizedHintName) == LOOKUP;
+    }
+
+    public static boolean isEarlyFireHint(String hintName) {
+        String formalizedHintName = hintName.toUpperCase(Locale.ROOT);
+        return isJoinStrategy(formalizedHintName)
+                && JoinStrategy.valueOf(formalizedHintName) == EARLY_FIRE;
     }
 }

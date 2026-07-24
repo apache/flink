@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.EarlyFireJoinHintOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -59,10 +60,13 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -91,13 +95,27 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
     public static final String INTERVAL_JOIN_TRANSFORMATION = "interval-join";
 
     public static final String FIELD_NAME_INTERVAL_JOIN_SPEC = "intervalJoinSpec";
+    public static final String FIELD_NAME_EARLY_FIRE_DELAY = "earlyFireDelay";
+    public static final String FIELD_NAME_EARLY_FIRE_TIME_MODE = "earlyFireTimeMode";
 
     @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC)
     private final IntervalJoinSpec intervalJoinSpec;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_EARLY_FIRE_DELAY)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final Long earlyFireDelay;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_EARLY_FIRE_TIME_MODE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final EarlyFireJoinHintOptions.TimeMode earlyFireTimeMode;
+
     public StreamExecIntervalJoin(
             ReadableConfig tableConfig,
             IntervalJoinSpec intervalJoinSpec,
+            @Nullable Long earlyFireDelay,
+            @Nullable EarlyFireJoinHintOptions.TimeMode earlyFireTimeMode,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
             RowType outputType,
@@ -107,6 +125,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 ExecNodeContext.newContext(StreamExecIntervalJoin.class),
                 ExecNodeContext.newPersistedConfig(StreamExecIntervalJoin.class, tableConfig),
                 intervalJoinSpec,
+                earlyFireDelay,
+                earlyFireTimeMode,
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -118,12 +138,17 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC) IntervalJoinSpec intervalJoinSpec,
+            @Nullable @JsonProperty(FIELD_NAME_EARLY_FIRE_DELAY) Long earlyFireDelay,
+            @Nullable @JsonProperty(FIELD_NAME_EARLY_FIRE_TIME_MODE)
+                    EarlyFireJoinHintOptions.TimeMode earlyFireTimeMode,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         this.intervalJoinSpec = Preconditions.checkNotNull(intervalJoinSpec);
+        this.earlyFireDelay = earlyFireDelay;
+        this.earlyFireTimeMode = earlyFireTimeMode;
     }
 
     @Override
