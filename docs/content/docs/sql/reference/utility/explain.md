@@ -31,6 +31,8 @@ under the License.
 
 EXPLAIN statements are used to explain the logical and optimized query plans of a query or an INSERT statement.
 
+In addition to the default plan, Flink supports several `ExplainDetail` variants that augment the output with extra information, including optimizer cost (`ESTIMATED_COST`), per-operator changelog semantics (`CHANGELOG_MODE`), optimizer advice (`PLAN_ADVICE`) and the JSON execution plan (`JSON_EXECUTION_PLAN`). Each detail is opt-in; the default `EXPLAIN` output is unchanged when no detail is requested.
+
 ## Run an EXPLAIN statement
 
 {{< tabs "explain" >}}
@@ -340,12 +342,87 @@ TableSourceScan(..., cumulative cost ={1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 netw
 
 **CHANGELOG_MODE**
 
-Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode (see more details at [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)) of each physical rel node to the ouptput.
+Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode of each physical rel node to the output, as a `changelogMode=[...]` tag. This is only applicable to streaming queries; batch plans ignore the option.
+
+*Inspecting Changelog Mode with EXPLAIN*
+
+A *changelog mode* describes which kinds of row changes a streaming operator (or table) can produce. Flink uses the same four {{< javadoc file="org/apache/flink/types/RowKind.html" name="`RowKind`" >}} values across the whole engine, but renders them with short symbols inside EXPLAIN plans:
+
+| Symbol | `RowKind`       | Meaning                                               |
+|:-------|:----------------|:------------------------------------------------------|
+| `I`    | `INSERT`        | Insertion of a new row.                               |
+| `UB`   | `UPDATE_BEFORE` | The previous image of a row that is being updated.    |
+| `UA`   | `UPDATE_AFTER`  | The new image of a row that has been updated.         |
+| `D`    | `DELETE`        | Deletion of a row (full row payload).                 |
+| `PD`   | `DELETE`        | Partial / key-only delete, emitted when an operator can identify the row to delete by its key alone. |
+
+Knowing the changelog mode of each operator matters for several reasons:
+
+- **Sink compatibility.** A sink that declares only `ChangelogMode.insertOnly()` (e.g. an append-only connector) cannot consume a pipeline whose final operator produces `UB` / `UA` / `D`. Inspecting the plan reveals such mismatches before they surface at runtime.
+- **Retract vs. upsert semantics.** Whether an operator emits `UB,UA` (retract-style updates) or just `UA` (upsert-style updates) determines whether downstream operators need a primary key and changes the amount of state and network traffic.
+- **Debugging non-deterministic updates.** Update messages (`UB`, `UA`, `D`) combined with non-deterministic expressions can produce incorrect results; see [Determinism In Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}) and the `PLAN_ADVICE` detail above for the associated warnings.
+
+*Syntax*
+
+`CHANGELOG_MODE` is an `ExplainDetail`. It can be combined with other details and is available from both SQL and the Table API:
+
+```sql
+-- SQL
+EXPLAIN CHANGELOG_MODE <query_or_insert_or_statement_set>;
+EXPLAIN CHANGELOG_MODE, ESTIMATED_COST <query_or_insert_or_statement_set>;
+```
+
+```java
+// Table API
+table.explain(ExplainDetail.CHANGELOG_MODE);
+tEnv.explainSql("SELECT ...", ExplainDetail.CHANGELOG_MODE);
+```
+
+*Example*
+
+```sql
+CREATE TABLE MyTable1 (a BIGINT, b INT, c VARCHAR)
+WITH ('connector' = 'datagen');
+
+EXPLAIN CHANGELOG_MODE
+SELECT a, COUNT(*) FROM MyTable1 GROUP BY a;
+```
+
+Produces the following `== Optimized Physical Plan ==` section (the *Abstract Syntax Tree* and *Optimized Execution Plan* sections are unchanged and omitted for brevity):
 
 ```text
 == Optimized Physical Plan ==
-GroupAggregate(..., changelogMode=[I,UA,D])
+Calc(select=[EXPR$0], changelogMode=[I,UA])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I])
 ```
+
+*How to read the output*
+
+Reading the `changelogMode=[...]` tag bottom-up lets you see how changelog semantics evolve along the pipeline:
+
+| Observed symbols             | Interpretation                                                                                                           |
+|:-----------------------------|:-------------------------------------------------------------------------------------------------------------------------|
+| `[I]`                        | **Append-only** stream. Compatible with any sink, including insert-only connectors.                                      |
+| `[I,UA]`                     | **Upsert-style updates** (no retractions). Downstream operators must interpret the stream against a unique / primary key. |
+| `[I,UB,UA]` or `[I,UB,UA,D]` | **Retract-style updates** (full changelog). Requires a sink that accepts retractions or an upsert sink with a primary key. |
+| `[I,UA,D]`                   | Upsert updates plus deletes; common for queries with deduplication or certain joins over upsert sources.                  |
+
+The mode is inferred per operator, so different parts of the plan may carry different tags. The tag on the root operator is what the sink has to consume; tags on lower operators explain *where* the updates are introduced (for example, a `GroupAggregate` typically turns an `[I]` input into `[I,UA]` or `[I,UA,D]`).
+
+*Relation to operators and connectors*
+
+- **Operators.** Stateless projections and filters (`Calc`, `Exchange`) usually pass the input mode through unchanged. Stateful operators change the mode: regular `GroupAggregate` / `Rank` / regular `Join` typically introduce `UA` (and `UB` / `D` when required); window aggregations on event time produce append-only `[I]` output; deduplication operators typically produce `[I,UA]`.
+- **Connectors.** Source connectors advertise their changelog mode through `ScanTableSource#getChangelogMode`, and sink connectors declare the modes they can accept through `DynamicTableSink#getChangelogMode`. A plan is only valid if the root operator's mode is a subset of what the sink declares. See [Table to Stream Conversion]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion) for the conceptual background on append, retract and upsert streams.
+
+*Notes*
+
+- The default `EXPLAIN` output does **not** include the `changelogMode=[...]` tag. You must explicitly request `CHANGELOG_MODE` (or combine it with other details such as `ESTIMATED_COST` or `PLAN_ADVICE`).
+- The `JSON_EXECUTION_PLAN` detail prints the transformation graph and does **not** expose changelog modes directly; rely on `CHANGELOG_MODE` for that information.
+- The tag is only attached to streaming physical rel nodes. Batch plans do not carry a changelog mode.
+- When the optimizer cannot infer the changelog mode of a node (rare, usually an internal edge case) the tag is omitted or rendered as `changelogMode=[NONE]`.
 
 **PLAN_ADVICE**
 {{< hint info >}}
