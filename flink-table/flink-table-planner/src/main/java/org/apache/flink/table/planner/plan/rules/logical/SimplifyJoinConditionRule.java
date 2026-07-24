@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
@@ -30,7 +32,8 @@ import org.immutables.value.Value;
 /**
  * Planner rule that apply various simplifying transformations on join condition. e.g. reduce same
  * expressions: a=b AND b=a -> a=b, simplify boolean expressions: x = 1 AND FALSE -> FALSE, simplify
- * cast expressions: CAST('123' as integer) -> 123
+ * cast expressions: CAST('123' as integer) -> 123, collapse expanded IS NOT DISTINCT FROM
+ * expressions: OR(AND(IS NULL(a), IS NULL(b)), a = b) -> IS NOT DISTINCT FROM(a, b)
  */
 @Value.Enclosing
 public class SimplifyJoinConditionRule
@@ -55,6 +58,19 @@ public class SimplifyJoinConditionRule
                         join.getCluster().getRexBuilder(),
                         condition,
                         join.getCluster().getPlanner().getExecutor());
+
+        // After simplification, redundant CASTs may have been removed, making it possible
+        // to collapse expanded IS NOT DISTINCT FROM expressions
+        // (e.g., OR(AND(IS NULL(a), IS NULL(b)), a = b) -> IS NOT DISTINCT FROM(a, b)).
+        // This is needed because MinusToAntiJoinRule generates conditions with makeCast,
+        // which prevents collapseExpandedIsNotDistinctFromExpr from working in RelBuilder.join()
+        // (the CASTs are removed later by RexSimplify, but after collapse has already failed).
+        if (simpleCondExp instanceof RexCall) {
+            simpleCondExp =
+                    RelOptUtil.collapseExpandedIsNotDistinctFromExpr(
+                            (RexCall) simpleCondExp, join.getCluster().getRexBuilder());
+        }
+
         RexNode newCondExp = RexUtil.pullFactors(join.getCluster().getRexBuilder(), simpleCondExp);
 
         if (newCondExp.equals(condition)) {
