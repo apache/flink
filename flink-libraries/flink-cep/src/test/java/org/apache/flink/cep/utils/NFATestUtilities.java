@@ -22,11 +22,11 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Assert;
-
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base method for IT tests of {@link NFA}. It provides utility methods. */
 public class NFATestUtilities {
@@ -39,7 +39,7 @@ public class NFATestUtilities {
     }
 
     public static void comparePatterns(List<List<Event>> actual, List<List<Event>> expected) {
-        Assert.assertEquals(expected.size(), actual.size());
+        assertThat(actual).hasSameSizeAs(expected);
 
         for (List<Event> p : actual) {
             Collections.sort(p, new EventComparator());
@@ -51,7 +51,7 @@ public class NFATestUtilities {
 
         Collections.sort(actual, new ListEventComparator());
         Collections.sort(expected, new ListEventComparator());
-        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        assertThat(actual).isEqualTo(expected);
     }
 
     private static class ListEventComparator implements Comparator<List<Event>> {
