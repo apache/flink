@@ -71,6 +71,7 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     private static final String RESOURCE_NAME = "test";
     private static final Long RESOURCE_AMOUNT = 2L;
     private static final String RESOURCE_CONFIG_KEY = "test.com/test";
+    private static final double TASK_MANAGER_MEMORY_REQUEST_FACTOR = 0.5;
 
     private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
 
@@ -88,6 +89,9 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
         this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
         this.flinkConfig.setString(
                 KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR,
+                TASK_MANAGER_MEMORY_REQUEST_FACTOR);
 
         // Set up external resource configs
         flinkConfig.setString(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), RESOURCE_NAME);
@@ -146,7 +150,9 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
         assertThat(requests.get("cpu").getAmount()).isEqualTo(Double.toString(TASK_MANAGER_CPU));
         assertThat(requests.get("memory").getAmount())
-                .isEqualTo(String.valueOf(TOTAL_PROCESS_MEMORY));
+                .isEqualTo(
+                        Integer.toString(
+                                (int) (TOTAL_PROCESS_MEMORY * TASK_MANAGER_MEMORY_REQUEST_FACTOR)));
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
         assertThat(limits.get("cpu").getAmount())
