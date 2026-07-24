@@ -62,6 +62,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -896,7 +897,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, Duration timeout) {
+            ResourceID taskManagerId, ThreadDumpMode mode, Duration timeout) {
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
@@ -906,7 +907,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             return FutureUtils.completedExceptionally(
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
-            return taskExecutor.getTaskExecutorGateway().requestThreadDump(timeout);
+            return taskExecutor.getTaskExecutorGateway().requestThreadDump(mode, timeout);
         }
     }
 

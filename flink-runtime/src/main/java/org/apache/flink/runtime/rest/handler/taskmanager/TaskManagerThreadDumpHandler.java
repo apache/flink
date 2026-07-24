@@ -23,11 +23,14 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.resourcemanager.AbstractResourceManagerHandler;
+import org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
+import org.apache.flink.runtime.rest.messages.ThreadDumpModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpMessageParameters;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -41,13 +44,16 @@ import java.util.concurrent.CompletableFuture;
 /** Rest handler which serves the thread dump info from a {@link TaskExecutor}. */
 public class TaskManagerThreadDumpHandler
         extends AbstractResourceManagerHandler<
-                RestfulGateway, EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
+                RestfulGateway,
+                EmptyRequestBody,
+                ThreadDumpInfo,
+                TaskManagerThreadDumpMessageParameters> {
 
     public TaskManagerThreadDumpHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Duration timeout,
             Map<String, String> responseHeaders,
-            MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters>
+            MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerThreadDumpMessageParameters>
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
         super(
@@ -64,6 +70,9 @@ public class TaskManagerThreadDumpHandler
             @Nonnull ResourceManagerGateway gateway)
             throws RestHandlerException {
         final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
-        return gateway.requestThreadDump(taskManagerId, timeout);
+        final ThreadDumpMode mode =
+                HandlerRequestUtils.getQueryParameter(
+                        request, ThreadDumpModeQueryParameter.class, null);
+        return gateway.requestThreadDump(taskManagerId, mode, timeout);
     }
 }

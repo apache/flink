@@ -107,6 +107,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -1855,9 +1856,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
-        int stackTraceMaxDepth = configuration.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
-        return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stackTraceMaxDepth));
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, Duration timeout) {
+        final int stackTraceMaxDepth =
+                configuration.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
+        final ThreadDumpMode resolvedMode =
+                ThreadDumpMode.resolve(
+                        mode, configuration.get(ClusterOptions.THREAD_DUMP_DEFAULT_MODE));
+        return CompletableFuture.completedFuture(
+                ThreadDumpInfo.dumpAndCreate(stackTraceMaxDepth, resolvedMode));
     }
 
     @Override

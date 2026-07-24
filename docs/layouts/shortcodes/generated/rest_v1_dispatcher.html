@@ -1384,6 +1384,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td colspan="2">Returns the thread dump of the JobManager.</td>
     </tr>
     <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>mode</code> (optional): Controls how much lock information is collected. Supported values: [LITE, FULL]. When omitted, cluster.thread-dump.default-mode is used.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
       <td colspan="2">
         <label>
           <details>
@@ -7118,6 +7128,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td colspan="2">
         <ul>
 <li><code>taskmanagerid</code> - 32-character hexadecimal string that identifies a task manager.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>mode</code> (optional): Controls how much lock information is collected. Supported values: [LITE, FULL]. When omitted, cluster.thread-dump.default-mode is used.</li>
         </ul>
       </td>
     </tr>

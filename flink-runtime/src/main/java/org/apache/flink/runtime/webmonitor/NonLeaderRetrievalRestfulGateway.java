@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import java.time.Duration;
@@ -125,7 +126,8 @@ public class NonLeaderRetrievalRestfulGateway implements RestfulGateway {
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, Duration timeout) {
         throw new UnsupportedOperationException(MESSAGE);
     }
 }

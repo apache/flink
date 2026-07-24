@@ -41,6 +41,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpMode;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
@@ -306,10 +307,12 @@ public interface TaskExecutorGateway
     /**
      * Requests the thread dump from this TaskManager.
      *
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout for the asynchronous operation
      * @return the {@link ThreadDumpInfo} for this TaskManager.
      */
-    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Duration timeout);
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Sends new delegation tokens to this TaskManager.

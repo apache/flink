@@ -457,6 +457,15 @@ paths:
     get:
       description: Returns the thread dump of the JobManager.
       operationId: getJobManagerThreadDump
+      parameters:
+      - name: mode
+        in: query
+        description: "Controls how much lock information is collected. Supported values:\
+          \ [LITE, FULL]. When omitted, cluster.thread-dump.default-mode is used."
+        required: false
+        style: form
+        schema:
+          $ref: "#/components/schemas/ThreadDumpMode"
       responses:
         "200":
           description: The request was successful.
@@ -1863,6 +1872,14 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/ResourceID"
+      - name: mode
+        in: query
+        description: "Controls how much lock information is collected. Supported values:\
+          \ [LITE, FULL]. When omitted, cluster.thread-dump.default-mode is used."
+        required: false
+        style: form
+        schema:
+          $ref: "#/components/schemas/ThreadDumpMode"
       responses:
         "200":
           description: The request was successful.
@@ -3911,6 +3928,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ThreadInfo"
+    ThreadDumpMode:
+      type: string
+      enum:
+      - LITE
+      - FULL
     ThreadInfo:
       type: object
       properties:

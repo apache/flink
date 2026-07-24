@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,34 +16,22 @@
  * limitations under the License.
  */
 
-:host {
-  position: relative;
-  flex: 1;
+package org.apache.flink.runtime.rest.messages.taskmanager;
 
-  nz-code-editor {
-    position: absolute;
-    inset: 0;
-  }
-}
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.ThreadDumpModeQueryParameter;
 
-.thread-dump-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 32px;
-  z-index: 1;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+import java.util.Collection;
+import java.util.Collections;
 
-  flink-addon-compact {
-    position: static;
-    top: auto;
-    right: auto;
-  }
-}
+/** Message parameters for the TaskManager thread-dump REST handler. */
+public class TaskManagerThreadDumpMessageParameters extends TaskManagerMessageParameters {
 
-.thread-dump-mode-group {
-  .thread-dump-mode-warn {
-    margin-left: 4px;
-  }
+    public final ThreadDumpModeQueryParameter modeQueryParameter =
+            new ThreadDumpModeQueryParameter();
+
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singleton(modeQueryParameter);
+    }
 }
