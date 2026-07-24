@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MdcOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -58,11 +59,14 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.JobMdcRegistry;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -74,7 +78,9 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -104,6 +110,11 @@ class TaskExecutorSubmissionTest {
         this.testInfo = testInfo;
     }
 
+    @AfterEach
+    void clearJobMdcRegistry() {
+        JobMdcRegistry.clear();
+    }
+
     /**
      * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
      */
@@ -130,6 +141,41 @@ class TaskExecutorSubmissionTest {
             tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 
             taskRunningFuture.get();
+        }
+    }
+
+    /** Tests that a successful task submission registers the job's MDC context. */
+    @Test
+    void testJobMdcContextRegisteredOnSubmitTask() throws Exception {
+        final ExecutionAttemptID eid = createExecutionAttemptId();
+
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", "mdc-key-1");
+        keyMapping.put("job.key-2", "mdc-key-2");
+        final Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        jobConfiguration.setString("job.key-1", "val-1");
+        jobConfiguration.setString("job.key-2", "val-2");
+
+        final TaskDeploymentDescriptor tdd =
+                createTestTaskDeploymentDescriptor(
+                        "test task", eid, FutureCompletingInvokable.class, jobConfiguration);
+
+        try (TaskSubmissionTestEnvironment env =
+                new TaskSubmissionTestEnvironment.Builder(jobId)
+                        .setSlotSize(1)
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
+            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+            TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
+            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+
+            assertThat(JobMdcRegistry.lookup(jobId))
+                    .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                    .containsEntry("mdc-key-1", "val-1")
+                    .containsEntry("mdc-key-2", "val-2")
+                    .hasSize(3);
         }
     }
 
@@ -697,6 +743,41 @@ class TaskExecutorSubmissionTest {
             List<ResultPartitionDeploymentDescriptor> producedPartitions,
             List<InputGateDeploymentDescriptor> inputGates)
             throws IOException {
+        return createTestTaskDeploymentDescriptor(
+                taskName,
+                eid,
+                abstractInvokable,
+                maxNumberOfSubtasks,
+                producedPartitions,
+                inputGates,
+                new Configuration());
+    }
+
+    private TaskDeploymentDescriptor createTestTaskDeploymentDescriptor(
+            String taskName,
+            ExecutionAttemptID eid,
+            Class<? extends AbstractInvokable> abstractInvokable,
+            Configuration jobConfiguration)
+            throws IOException {
+        return createTestTaskDeploymentDescriptor(
+                taskName,
+                eid,
+                abstractInvokable,
+                1,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                jobConfiguration);
+    }
+
+    private TaskDeploymentDescriptor createTestTaskDeploymentDescriptor(
+            String taskName,
+            ExecutionAttemptID eid,
+            Class<? extends AbstractInvokable> abstractInvokable,
+            int maxNumberOfSubtasks,
+            List<ResultPartitionDeploymentDescriptor> producedPartitions,
+            List<InputGateDeploymentDescriptor> inputGates,
+            Configuration jobConfiguration)
+            throws IOException {
         Preconditions.checkNotNull(producedPartitions);
         Preconditions.checkNotNull(inputGates);
         return createTaskDeploymentDescriptor(
@@ -707,7 +788,7 @@ class TaskExecutorSubmissionTest {
                 taskName,
                 maxNumberOfSubtasks,
                 1,
-                new Configuration(),
+                jobConfiguration,
                 new Configuration(),
                 abstractInvokable.getName(),
                 producedPartitions,

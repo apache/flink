@@ -19,10 +19,13 @@
 package org.apache.flink.util;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MdcOptions;
 
 import org.slf4j.MDC;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -31,7 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** Utility class to manage common Flink attributes in {@link MDC} (only {@link JobID} ATM). */
+/** Utility class to manage common Flink attributes in {@link MDC}. */
 public class MdcUtils {
 
     public static final String JOB_ID = "flink-job-id";
@@ -103,6 +106,14 @@ public class MdcUtils {
         return new MdcAwareExecutorService<>(delegate, asContextData(jobID));
     }
 
+    /** Wraps the given {@link ExecutorService} into one with a copy of the current context. */
+    public static ExecutorService propagate(ExecutorService delegate) {
+        checkArgument(!(delegate instanceof MdcAwareExecutorService));
+        final Map<String, String> context = MDC.getCopyOfContextMap();
+        return new MdcAwareExecutorService<>(
+                delegate, context != null ? context : Collections.emptyMap());
+    }
+
     /**
      * Wrap the given {@link ScheduledExecutorService} so that the given {@link JobID} is added
      * before it executes any submitted commands and removed afterward.
@@ -112,7 +123,38 @@ public class MdcUtils {
         return new MdcAwareScheduledExecutorService(ses, asContextData(jobID));
     }
 
+    /**
+     * Build MDC context for a job. Consults the {@link JobMdcRegistry} for enriched context
+     * registered where the job {@link Configuration} is available; falls back to the plain job ID
+     * entry.
+     */
     public static Map<String, String> asContextData(JobID jobID) {
+        final Map<String, String> registered = JobMdcRegistry.lookup(jobID);
+        if (registered != null) {
+            return registered;
+        }
         return Collections.singletonMap(JOB_ID, jobID.toHexString());
+    }
+
+    /**
+     * Build MDC context from a job ID and job configuration, enriching with context entries
+     * configured via {@link MdcOptions#JOB_CONFIGURATION_TO_MDC_KEYS}.
+     */
+    public static Map<String, String> asContextData(
+            final JobID jobID, final Configuration jobConfiguration) {
+        final Map<String, String> mdcKeyMapping =
+                jobConfiguration.get(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS);
+        final Map<String, String> context = new HashMap<>();
+        for (Map.Entry<String, String> entry : mdcKeyMapping.entrySet()) {
+            final String value = jobConfiguration.getString(entry.getKey(), null);
+            if (value != null && !value.isBlank()) {
+                context.put(entry.getValue(), value);
+            }
+        }
+        if (context.isEmpty()) {
+            return Collections.singletonMap(JOB_ID, jobID.toHexString());
+        }
+        context.put(JOB_ID, jobID.toHexString());
+        return Collections.unmodifiableMap(context);
     }
 }
