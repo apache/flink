@@ -1471,7 +1471,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskManagerConfiguration
                         .getConfiguration()
                         .get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
-        return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth));
+        return CompletableFuture.supplyAsync(
+                () -> ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth), ioExecutor);
     }
 
     @Override

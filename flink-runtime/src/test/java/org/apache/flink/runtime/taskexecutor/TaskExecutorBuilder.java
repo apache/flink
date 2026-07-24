@@ -94,6 +94,11 @@ public class TaskExecutorBuilder {
         return this;
     }
 
+    public TaskExecutorBuilder setTaskManagerServices(TaskManagerServices taskManagerServices) {
+        this.taskManagerServices = taskManagerServices;
+        return this;
+    }
+
     public TaskExecutor build() throws Exception {
 
         final TaskExecutorBlobService resolvedTaskExecutorBlobService;
