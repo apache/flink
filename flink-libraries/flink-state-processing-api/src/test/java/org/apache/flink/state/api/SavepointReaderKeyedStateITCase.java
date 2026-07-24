@@ -38,8 +38,7 @@ import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.testing.CollectingSink;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,8 +51,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for reading state. */
-public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
-        extends SavepointTestBase {
+abstract class SavepointReaderKeyedStateITCase<B extends StateBackend> extends SavepointTestBase {
     private static final String uid = "stateful-operator";
 
     private static ValueStateDescriptor<Integer> valueState =
@@ -67,7 +65,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     protected abstract Tuple2<Configuration, B> getStateBackendTuple();
 
     @Test
-    public void testUserKeyedStateReader() throws Exception {
+    void testUserKeyedStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -85,12 +83,13 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         Set<Pojo> expected = new HashSet<>(elements);
 
-        Assert.assertEquals(
-                "Unexpected results from keyed state", expected, new HashSet<>(results));
+        assertThat(new HashSet<>(results))
+                .as("Unexpected results from keyed state")
+                .isEqualTo(expected);
     }
 
     @Test
-    public void testReadKeyedStateWithExactFilter() throws Exception {
+    void testReadKeyedStateWithExactFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -109,7 +108,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithMultiKeyExactFilter() throws Exception {
+    void testReadKeyedStateWithMultiKeyExactFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -128,7 +127,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithInclusiveRangeFilter() throws Exception {
+    void testReadKeyedStateWithInclusiveRangeFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -148,7 +147,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithInclusiveLowerExclusiveUpperRangeFilter() throws Exception {
+    void testReadKeyedStateWithInclusiveLowerExclusiveUpperRangeFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -168,7 +167,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithExclusiveLowerInclusiveUpperRangeFilter() throws Exception {
+    void testReadKeyedStateWithExclusiveLowerInclusiveUpperRangeFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -188,7 +187,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithExclusiveRangeFilter() throws Exception {
+    void testReadKeyedStateWithExclusiveRangeFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -208,7 +207,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     @Test
-    public void testReadKeyedStateWithEmptyFilter() throws Exception {
+    void testReadKeyedStateWithEmptyFilter() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);

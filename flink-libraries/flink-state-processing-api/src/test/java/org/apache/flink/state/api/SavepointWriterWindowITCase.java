@@ -45,14 +45,16 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindow
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,8 +67,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Test for writing savepoints to the {@code WindowOperator}. */
 @SuppressWarnings("unchecked")
-@RunWith(Parameterized.class)
-public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+class SavepointWriterWindowITCase extends AbstractTestBase {
 
     private static final String UID = "uid";
 
@@ -113,7 +115,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                             new EmbeddedRocksDBStateBackend(),
                             new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb")));
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "{0}")
     public static Collection<Object[]> data() {
         List<Object[]> parameterList = new ArrayList<>();
         for (Tuple3<String, StateBackend, Configuration> stateBackend : STATE_BACKENDS) {
@@ -133,29 +135,24 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
         return parameterList;
     }
 
-    private final WindowBootstrap windowBootstrap;
-
-    private final WindowStream windowStream;
-
-    private final StateBackend stateBackend;
-
-    private final Configuration configuration;
-
     @SuppressWarnings("unused")
-    public SavepointWriterWindowITCase(
-            String ignore,
-            WindowBootstrap windowBootstrap,
-            WindowStream windowStream,
-            StateBackend stateBackend,
-            Configuration configuration) {
-        this.windowBootstrap = windowBootstrap;
-        this.windowStream = windowStream;
-        this.stateBackend = stateBackend;
-        this.configuration = configuration;
-    }
+    @Parameter
+    public String ignore;
 
-    @Test
-    public void testTumbleWindow() throws Exception {
+    @Parameter(1)
+    public WindowBootstrap windowBootstrap;
+
+    @Parameter(2)
+    public WindowStream windowStream;
+
+    @Parameter(3)
+    public StateBackend stateBackend;
+
+    @Parameter(4)
+    public Configuration configuration;
+
+    @TestTemplate
+    void testTumbleWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -198,8 +195,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                 .containsAll(STANDARD_MATCHER);
     }
 
-    @Test
-    public void testTumbleWindowWithEvictor() throws Exception {
+    @TestTemplate
+    void testTumbleWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -244,8 +241,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                 .containsAll(EVICTOR_MATCHER);
     }
 
-    @Test
-    public void testSlideWindow() throws Exception {
+    @TestTemplate
+    void testSlideWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -291,8 +288,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                 .containsAll(STANDARD_MATCHER);
     }
 
-    @Test
-    public void testSlideWindowWithEvictor() throws Exception {
+    @TestTemplate
+    void testSlideWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);

@@ -32,15 +32,16 @@ import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,26 +55,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.isIn;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test the savepoint deep copy. */
-@RunWith(value = Parameterized.class)
-public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+class SavepointDeepCopyTest extends AbstractTestBase {
 
     private static final MemorySize FILE_STATE_SIZE_THRESHOLD = new MemorySize(1);
 
     private static final String TEXT = "The quick brown fox jumps over the lazy dog";
     private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
 
-    private final StateBackend backend;
+    @Parameter public StateBackend backend;
 
-    public SavepointDeepCopyTest(StateBackend backend) throws Exception {
-        this.backend = backend;
-    }
-
-    @Parameterized.Parameters(name = "State Backend: {0}")
+    @Parameters(name = "State Backend: {0}")
     public static Collection<StateBackend> data() {
         return Arrays.asList(new HashMapStateBackend(), new EmbeddedRocksDBStateBackend());
     }
@@ -132,8 +127,8 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
      *
      * @throws Exception throw exceptions when anything goes wrong
      */
-    @Test
-    public void testSavepointDeepCopy() throws Exception {
+    @TestTemplate
+    void testSavepointDeepCopy() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -156,9 +151,9 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
 
         Set<String> stateFiles1 = getFileNamesInDirectory(Paths.get(savepointPath1));
 
-        Assert.assertTrue(
-                "Failed to bootstrap savepoint1 with additional state files",
-                stateFiles1.size() > 1);
+        assertThat(stateFiles1)
+                .as("Failed to bootstrap savepoint1 with additional state files")
+                .hasSizeGreaterThan(1);
 
         // create savepoint2 from savepoint1 created above
         File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
@@ -175,14 +170,13 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
 
         Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
 
-        Assert.assertTrue(
-                "Failed to create savepoint2 from savepoint1 with additional state files",
-                stateFiles2.size() > 1);
+        assertThat(stateFiles2)
+                .as("Failed to create savepoint2 from savepoint1 with additional state files")
+                .hasSizeGreaterThan(1);
 
-        assertThat(
-                "At least one state file in savepoint1 are not in savepoint2",
-                stateFiles1,
-                everyItem(isIn(stateFiles2)));
+        assertThat(stateFiles1)
+                .as("At least one state file in savepoint1 are not in savepoint2")
+                .isSubsetOf(stateFiles2);
 
         // Try to fromExistingSavepoint savepoint2 and read the state of "Operator1" (which has not
         // been
@@ -197,10 +191,9 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
                         .size();
 
         long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
-        Assert.assertEquals(
-                "Unexpected number of keys in the state of Operator1",
-                expectedKeyNum,
-                actuallyKeyNum);
+        assertThat(actuallyKeyNum)
+                .as("Unexpected number of keys in the state of Operator1")
+                .isEqualTo(expectedKeyNum);
     }
 
     private static Set<String> getFileNamesInDirectory(Path path) throws IOException {

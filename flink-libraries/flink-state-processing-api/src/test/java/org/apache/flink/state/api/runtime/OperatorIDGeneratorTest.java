@@ -25,27 +25,28 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.stream.StreamSupport;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test that {@code OperatorIDGenerator} creates ids from uids exactly the same as the job graph
  * generator.
  */
-public class OperatorIDGeneratorTest {
+class OperatorIDGeneratorTest {
     private static final String UID = "uid";
 
     private static final String OPERATOR_NAME = "operator";
 
     @Test
-    public void testOperatorIdMatchesUid() {
+    void testOperatorIdMatchesUid() {
         OperatorID expectedId = getOperatorID();
 
         OperatorID generatedId = OperatorIDGenerator.fromUid(UID);
 
-        Assert.assertEquals(expectedId, generatedId);
+        assertThat(generatedId).isEqualTo(expectedId);
     }
 
     private static OperatorID getOperatorID() {
