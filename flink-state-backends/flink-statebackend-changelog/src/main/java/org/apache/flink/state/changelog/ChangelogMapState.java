@@ -33,6 +33,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
@@ -77,8 +78,12 @@ class ChangelogMapState<K, N, UK, UV>
             public UV setValue(UV value) {
                 UV oldValue = entry.setValue(value);
                 try {
-                    changeLogger.valueElementAddedOrUpdated(
-                            getWriter(entry.getKey(), entry.getValue()), ns);
+                    if (value == null) {
+                        changeLogger.valueAdded(Collections.singletonMap(entry.getKey(), null), ns);
+                    } else {
+                        changeLogger.valueElementAddedOrUpdated(
+                                getWriter(entry.getKey(), entry.getValue()), ns);
+                    }
                 } catch (IOException e) {
                     ExceptionUtils.rethrow(e);
                 }
@@ -105,7 +110,11 @@ class ChangelogMapState<K, N, UK, UV>
     @Override
     public void put(UK key, UV value) throws Exception {
         delegatedState.put(key, value);
-        changeLogger.valueElementAddedOrUpdated(getWriter(key, value), getCurrentNamespace());
+        if (value == null) {
+            changeLogger.valueAdded(Collections.singletonMap(key, null), getCurrentNamespace());
+        } else {
+            changeLogger.valueElementAddedOrUpdated(getWriter(key, value), getCurrentNamespace());
+        }
     }
 
     @Override
