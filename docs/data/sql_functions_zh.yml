@@ -1801,14 +1801,6 @@ bitmapagg:
         - Array: has a length equal to the number of its elements.
         - Object: has a length equal to the number of its key-value pairs.
       
-        The path argument uses the form:                                                                                                                                                                         
-      
-          path  ::= '$' ( '.' `field` | '[' `index` ']' )*                                                                                                                                                     
-          field ::= a key in a JSON object                                                                                                                                                                     
-          index ::= a zero-based position in a JSON array                                                                                                                                                      
-      
-        For example: `$.author.address` or `$.metadata.tags[0]`.
-      
       A wildcard path that matches 2 or more nodes returns NULL.
       A NULL result is ambiguous - it means invalid JSON, no match, or a multi-match wildcard.
       
