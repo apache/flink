@@ -152,9 +152,16 @@ public class AsyncCodeGenerator {
             index++;
         }
 
+        // The async scalar call generated above registers the shared UdfMetrics handle when metrics
+        // are enabled; pass it into the per-invocation delegating future, which does the timing and
+        // exception counting. Null (feature off) yields the original two-argument construction.
+        String udfMetricsTerm = ctx.getSingleUdfMetricsTerm();
+        String metricsCtorArg = udfMetricsTerm == null ? "" : ", " + udfMetricsTerm;
+
         Map<String, String> values = new HashMap<>();
         values.put("delegatingFutureTerm", delegatingFutureTerm);
         values.put("delegatingFutureType", DelegatingAsyncResultFuture.class.getCanonicalName());
+        values.put("metricsCtorArg", metricsCtorArg);
         values.put("collectorTerm", collectorTerm);
         values.put("typeTerm", GenericRowData.class.getCanonicalName());
         values.put("recordTerm", recordTerm);
@@ -169,7 +176,7 @@ public class AsyncCodeGenerator {
                         "\n",
                         new String[] {
                             "final ${delegatingFutureType} ${delegatingFutureTerm} ",
-                            "    = new ${delegatingFutureType}(${collectorTerm}, ${fieldCount});",
+                            "    = new ${delegatingFutureType}(${collectorTerm}, ${fieldCount}${metricsCtorArg});",
                             "final org.apache.flink.types.RowKind rowKind = ${inputTerm}.getRowKind();\n",
                             "try {",
                             // Ensure that metadata setup come first so that we know that they're
