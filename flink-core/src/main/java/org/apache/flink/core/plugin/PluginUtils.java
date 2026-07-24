@@ -24,16 +24,24 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Utility functions for the plugin mechanism. */
 public final class PluginUtils {
+
+    private static final AtomicReference<PluginManager> INSTANCE = new AtomicReference<>();
 
     private PluginUtils() {
         throw new AssertionError("Singleton class.");
     }
 
     public static PluginManager createPluginManagerFromRootFolder(Configuration configuration) {
-        return createPluginManagerFromRootFolder(PluginConfig.fromConfiguration(configuration));
+        return INSTANCE.updateAndGet(
+                existing ->
+                        existing != null
+                                ? existing
+                                : createPluginManagerFromRootFolder(
+                                        PluginConfig.fromConfiguration(configuration)));
     }
 
     private static PluginManager createPluginManagerFromRootFolder(PluginConfig pluginConfig) {
