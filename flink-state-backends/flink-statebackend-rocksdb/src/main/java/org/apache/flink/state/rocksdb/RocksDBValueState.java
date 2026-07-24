@@ -30,6 +30,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * {@link ValueState} implementation that stores state in RocksDB.
@@ -99,11 +100,11 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
         }
 
         try {
-            backend.db.put(
-                    columnFamily,
-                    writeOptions,
-                    serializeCurrentKeyWithGroupAndNamespace(),
-                    serializeValue(value));
+            // Key still uses byte[] (SerializedCompositeKeyBuilder already copies)
+            // Value uses ByteBuffer to avoid additional copy
+            byte[] keyBytes = serializeCurrentKeyWithGroupAndNamespace();
+            ByteBuffer valueBuffer = serializeValueToByteBuffer(value);
+            backend.db.put(columnFamily, writeOptions, ByteBuffer.wrap(keyBytes), valueBuffer);
         } catch (RocksDBException e) {
             throw new IOException("Error while adding data to RocksDB", e);
         }
