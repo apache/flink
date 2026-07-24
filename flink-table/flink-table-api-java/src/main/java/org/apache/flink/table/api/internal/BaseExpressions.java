@@ -2547,8 +2547,8 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
      * JSON_LENGTH} resolves to {@code NULL}.
      *
-     * <p>JSON_LENGTH also supports input of the VARIANT type; you can pass the output of
-     * PARSE_JSON into JSON_LENGTH.
+     * <p>JSON_LENGTH also supports input of the VARIANT type; you can pass the output of PARSE_JSON
+     * into JSON_LENGTH.
      *
      * <p>Because a {@code NULL} result can mean several different things (the input is not valid
      * JSON, the path does not match anything, or a wildcard path matched 2 or more nodes), it is
