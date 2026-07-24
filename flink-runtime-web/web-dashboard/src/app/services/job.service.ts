@@ -18,7 +18,7 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, forkJoin, mergeMap, Observable } from 'rxjs';
+import { EMPTY, forkJoin, mergeMap, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import {
@@ -184,6 +184,23 @@ export class JobService {
     return this.httpClient.get<CheckpointSubTask>(
       `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
+  }
+
+  public loadCheckpointAllSubtaskDetails(
+    jobId: string,
+    checkPointId: number,
+    vertexIds: string[]
+  ): Observable<Record<string, CheckpointSubTask | null>> {
+    if (vertexIds.length === 0) {
+      return of({} as Record<string, CheckpointSubTask | null>);
+    }
+    const requests = vertexIds.map(vid =>
+      this.loadCheckpointSubtaskDetails(jobId, checkPointId, vid).pipe(
+        catchError(() => of<CheckpointSubTask | null>(null)),
+        map(result => ({ [vid]: result }))
+      )
+    );
+    return forkJoin(requests).pipe(map(parts => Object.assign({}, ...parts)));
   }
 
   public loadRescalesOverview(jobId: string): Observable<RescalesOverview> {
