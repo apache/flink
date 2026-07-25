@@ -64,7 +64,7 @@ env:
 
   MAVEN_REPO_FOLDER: /root/.m2/repository
   MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
-  # required by tools/azure-pipelines/cache_docker_images.sh
+  # required by tools/ci/cache_docker_images.sh
   DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
 
 jobs:
@@ -113,7 +113,7 @@ jobs:
       - name: "Collect build artifacts"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: |
-          ./tools/azure-pipelines/create_build_artifact.sh
+          ./tools/ci/create_build_artifact.sh
 
       - name: "Upload artifacts to make them available in downstream jobs"
         uses: actions/upload-artifact@v7
@@ -172,7 +172,7 @@ jobs:
       - name: "Unpack build artifact"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh
+          ./tools/ci/unpack_build_artifact.sh
 
       - name: "Test"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
@@ -261,7 +261,7 @@ jobs:
       - name: "Unpack build artifact"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: |
-          ./tools/azure-pipelines/unpack_build_artifact.sh
+          ./tools/ci/unpack_build_artifact.sh
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
@@ -274,7 +274,7 @@ jobs:
       - name: "Load Docker images if not present in cache, yet"
         if: ${{ !cancelled() && steps.docker-cache.outputs.cache-hit != 'true' }}
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh load
+        run: ./tools/ci/cache_docker_images.sh load
 
       - name: "Create non-root user for test execution"
         run: |
@@ -304,7 +304,7 @@ jobs:
           DOCKER_HOST: unix:///var/run/docker.sock
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
-          runuser -u flink -- bash -c '${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
+          runuser -u flink -- bash -c '${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/ci/uploading_watchdog.sh \
               ./tools/ci/test_controller.sh ${{ matrix.module }}'
 
       - name: "Post-build Disk Info"
@@ -332,7 +332,7 @@ jobs:
       - name: "Save Docker images to cache"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh save
+        run: ./tools/ci/cache_docker_images.sh save
 
       - name: "Save Maven package cache"
         if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}
@@ -412,7 +412,7 @@ jobs:
           path: ${{ env.FLINK_ARTIFACT_DIR }}
 
       - name: "Unpack build artifact"
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh
+        run: ./tools/ci/unpack_build_artifact.sh
 
       # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
       # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
@@ -444,7 +444,7 @@ jobs:
 
       - name: "Load Docker images if not present in Cache, yet"
         if: ${{ !cancelled() && steps.docker-cache.outputs.cache-hit != 'true' }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh load
+        run: ./tools/ci/cache_docker_images.sh load
 
       - name: "Build Flink"
         uses: "./.github/actions/run_mvn"
@@ -460,7 +460,7 @@ jobs:
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
-          ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
+          ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target PROFILE="$PROFILE -Pgithub-actions" ./tools/ci/uploading_watchdog.sh \
             flink-end-to-end-tests/run-nightly-tests.sh ${{ matrix.group }}
 
       - name: "Upload Logs"
@@ -472,7 +472,7 @@ jobs:
 
       - name: "Save Docker images to Cache"
         if: ${{ !cancelled() && (failure() || steps.docker-cache.outputs.cache-hit != 'true') }}
-        run: ./tools/azure-pipelines/cache_docker_images.sh save
+        run: ./tools/ci/cache_docker_images.sh save
 
       - name: "Save Maven package cache"
         if: ${{ !cancelled() && steps.job-init.outputs.maven-cache-hit != 'true' }}

@@ -37,7 +37,7 @@ jobs:
 
   steps:
   # if on Azure, free up disk space
-  - script: ./tools/azure-pipelines/free_disk_space.sh
+  - script: ./tools/ci/free_disk_space.sh
     target: host
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
@@ -69,7 +69,7 @@ jobs:
   # Compile
   - script: |
       ${{parameters.environment}} ./tools/ci/compile_ci.sh || exit $?
-      ./tools/azure-pipelines/create_build_artifact.sh
+      ./tools/ci/create_build_artifact.sh
     displayName: Compile
 
   # upload artifacts for next stage
@@ -103,7 +103,7 @@ jobs:
         module: misc
   steps:
   # if on Azure, free up disk space
-  - script: ./tools/azure-pipelines/free_disk_space.sh
+  - script: ./tools/ci/free_disk_space.sh
     target: host
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
@@ -121,7 +121,7 @@ jobs:
       path: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
 
-  - script: ./tools/azure-pipelines/unpack_build_artifact.sh
+  - script: ./tools/ci/unpack_build_artifact.sh
     displayName: "Unpack Build artifact"
 
   - task: Cache@2
@@ -142,7 +142,7 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache docker images
 
-  - script: ./tools/azure-pipelines/cache_docker_images.sh load
+  - script: ./tools/ci/cache_docker_images.sh load
     displayName: Restore docker images
     condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
     continueOnError: true
@@ -156,7 +156,7 @@ jobs:
     displayName: Set coredump pattern
 
   # Test
-  - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
+  - script: ${{parameters.environment}} ./tools/ci/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -176,7 +176,7 @@ jobs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
-  - script: ./tools/azure-pipelines/cache_docker_images.sh save
+  - script: ./tools/ci/cache_docker_images.sh save
     displayName: Save docker images
     condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
     continueOnError: true

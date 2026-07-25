@@ -58,7 +58,7 @@ fi
 
 source "${HERE}/../ci/controller_utils.sh"
 
-source ./tools/azure-pipelines/debug_files_utils.sh
+source ./tools/ci/debug_files_utils.sh
 prepare_debug_files "${temporary_folder}" "${job_name}"
 export FLINK_LOG_DIR="$DEBUG_FILES_OUTPUT_DIR/flink-logs"
 mkdir $FLINK_LOG_DIR || { echo "FAILURE: cannot create log directory '${FLINK_LOG_DIR}'." ; exit 1; }

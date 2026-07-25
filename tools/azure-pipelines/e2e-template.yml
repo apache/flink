@@ -45,7 +45,7 @@ jobs:
         fi
       displayName: Check if Docs only PR
     # free up disk space before running anything caching related. Caching has proven to fail in the past, due to lacking disk space.
-    - script: ./tools/azure-pipelines/free_disk_space.sh
+    - script: ./tools/ci/free_disk_space.sh
       target: host
       displayName: Free up disk space
     - task: UsePythonVersion@0
@@ -101,7 +101,7 @@ jobs:
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
       displayName: Cache docker images
-    - script: ./tools/azure-pipelines/cache_docker_images.sh load
+    - script: ./tools/ci/cache_docker_images.sh load
       displayName: Restore docker images
       condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
       continueOnError: true
@@ -131,7 +131,7 @@ jobs:
     - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/ci/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -145,7 +145,7 @@ jobs:
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
         artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
-    - script: ./tools/azure-pipelines/cache_docker_images.sh save
+    - script: ./tools/ci/cache_docker_images.sh save
       displayName: Save docker images
       condition: and(not(eq(variables['SKIP'], '1')), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
       continueOnError: true
