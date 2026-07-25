@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.EarlyFireJoinHintOptions;
 import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
@@ -36,6 +37,9 @@ import org.apache.calcite.util.Litmus;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * A collection of Flink style {@link HintStrategy}s.
@@ -134,6 +138,11 @@ public abstract class FlinkHintStrategies {
                                         HintPredicates.or(
                                                 HintPredicates.JOIN, HintPredicates.AGGREGATE))
                                 .optionChecker(STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        JoinStrategy.EARLY_FIRE.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(EARLY_FIRE_KV_OPTION_CHECKER)
                                 .build())
                 .build();
     }
@@ -250,6 +259,55 @@ public abstract class FlinkHintStrategies {
                             LookupJoinHintOptions.MAX_ATTEMPTS.key(),
                             maxAttempts);
                 }
+                return true;
+            };
+
+    private static final HintOptionChecker EARLY_FIRE_KV_OPTION_CHECKER =
+            (earlyFireHint, litmus) -> {
+                litmus.check(
+                        earlyFireHint.listOptions.size() == 0,
+                        "Invalid list options in EARLY_FIRE hint, only support key-value options.");
+
+                Configuration conf = Configuration.fromMap(earlyFireHint.kvOptions);
+                ImmutableSet<ConfigOption> requiredKeys =
+                        EarlyFireJoinHintOptions.getRequiredOptions();
+                litmus.check(
+                        requiredKeys.stream().allMatch(conf::contains),
+                        "Invalid EARLY_FIRE hint: incomplete required option(s): {}",
+                        requiredKeys);
+
+                ImmutableSet<ConfigOption> supportedKeys =
+                        EarlyFireJoinHintOptions.getSupportedOptions();
+                Set<String> supportedKeyNames =
+                        supportedKeys.stream().map(ConfigOption::key).collect(Collectors.toSet());
+                Set<String> unknownKeys =
+                        earlyFireHint.kvOptions.keySet().stream()
+                                .filter(key -> !supportedKeyNames.contains(key))
+                                .collect(Collectors.toCollection(TreeSet::new));
+                litmus.check(
+                        unknownKeys.isEmpty(),
+                        "Unsupported EARLY_FIRE hint option(s) {}, supported options are {}.",
+                        unknownKeys,
+                        new TreeSet<>(supportedKeyNames));
+                litmus.check(
+                        earlyFireHint.kvOptions.size() <= supportedKeys.size(),
+                        "Too many EARLY_FIRE hint options {} beyond max number of supported options {}",
+                        earlyFireHint.kvOptions.size(),
+                        supportedKeys.size());
+
+                try {
+                    // try to validate all hint options by parsing them
+                    supportedKeys.forEach(conf::get);
+                } catch (IllegalArgumentException e) {
+                    litmus.fail("Invalid EARLY_FIRE hint options: {}", e.getMessage());
+                }
+
+                Duration delay = conf.get(EarlyFireJoinHintOptions.DELAY);
+                litmus.check(
+                        null != delay && delay.toMillis() > 0,
+                        "Invalid EARLY_FIRE hint option: {} value should be at least 1 millisecond but was {}",
+                        EarlyFireJoinHintOptions.DELAY.key(),
+                        delay);
                 return true;
             };
 
