@@ -1491,7 +1491,7 @@ def _infer_type(obj):
     elif isinstance(obj, list):
         for v in obj:
             if v is not None:
-                return ArrayType(_infer_type(obj[0]))
+                return ArrayType(_infer_type(v))
         else:
             return ArrayType(NullType())
     elif isinstance(obj, array):
