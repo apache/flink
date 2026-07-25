@@ -71,91 +71,108 @@ class FromRecordsTests(unittest.TestCase):
             pf.from_records([(1,)])
 
     def test_rejects_unsupported_record_type(self):
-        with self.assertRaisesRegex(
-            TypeError,
-            "each record must be a mapping or a sequence of values, "
-            "such as a list or tuple; invalid record at index 0",
-        ):
+        with self.assertRaises(TypeError) as error:
             pf.from_records([1], schema=["id"])
+        self.assertEqual(str(error.exception), "invalid record at index 0")
+        self.assertEqual(
+            str(error.exception.__cause__),
+            "record must be a mapping or a sequence of values, "
+            "such as a list or tuple",
+        )
 
     def test_rejects_scalar_sequence_records(self):
         for value in ["ab", b"ab", bytearray(b"ab"), memoryview(b"ab")]:
-            for index, records in [
-                (0, [value]),
-                (1, [(1, 2), value]),
+            for index, records, cause in [
+                (
+                    0,
+                    [value],
+                    "record must be a mapping or a sequence of values, "
+                    "such as a list or tuple",
+                ),
+                (1, [(1, 2), value], "record must be a sequence"),
             ]:
                 with self.subTest(value_type=type(value), index=index):
-                    expected_message = (
-                        "each record must be a mapping or a sequence of values, "
-                        "such as a list or tuple; invalid record at index 0"
-                        if index == 0
-                        else
-                        "each record must be a sequence of values, "
-                        "such as a list or tuple; invalid record at index 1"
-                    )
-                    with self.assertRaisesRegex(
-                        TypeError,
-                        expected_message,
-                    ):
+                    with self.assertRaises(TypeError) as error:
                         pf.from_records(records, schema=["left", "right"])
+                    self.assertEqual(
+                        str(error.exception), f"invalid record at index {index}"
+                    )
+                    self.assertEqual(str(error.exception.__cause__), cause)
 
     def test_rejects_record_with_wrong_arity(self):
-        with self.assertRaisesRegex(
-            ValueError, "record at index 1 has 1 values but schema has 2 fields"
-        ):
+        with self.assertRaises(ValueError) as error:
             pf.from_records([(1, "Alice"), (2,)], schema=["id", "name"])
+        self.assertEqual(str(error.exception), "invalid record at index 1")
+        self.assertEqual(
+            str(error.exception.__cause__),
+            "record has 1 values but schema has 2 fields",
+        )
 
     def test_rejects_mapping_records_with_different_keys(self):
         records_with_different_keys = [
-            [{"a": 1}, {"a": 2, "b": 3}],
-            [{"a": 1, "b": 2}, {"a": 3}],
+            (
+                [{"a": 1}, {"a": 2, "b": 3}],
+                "record has fields not present in schema: ['b']",
+            ),
+            (
+                [{"a": 1, "b": 2}, {"a": 3}],
+                "record is missing schema field 'b'",
+            ),
         ]
-        for records in records_with_different_keys:
+        for records, cause in records_with_different_keys:
             with self.subTest(records=records):
-                with self.assertRaisesRegex(
-                    ValueError,
-                    "record at index 1 must have the same fields as schema",
-                ):
+                with self.assertRaises(ValueError) as error:
                     pf.from_records(records)
+                self.assertEqual(str(error.exception), "invalid record at index 1")
+                self.assertEqual(str(error.exception.__cause__), cause)
 
     def test_rejects_mixed_mapping_and_named_tuple_records_with_index(self):
         invalid_records = [
             (
                 [{"id": 1}, (2,)],
                 ["id"],
-                "record at index 1 must be a mapping",
+                "record must be a mapping",
             ),
             (
                 [_Point(1, "a"), {"x": 2, "y": "b"}],
                 ["x", "y"],
-                "record at index 1 must be a named tuple",
+                "record must be a named tuple",
             ),
         ]
-        for records, schema, message in invalid_records:
+        for records, schema, cause in invalid_records:
             with self.subTest(records=records):
-                with self.assertRaisesRegex(TypeError, message):
+                with self.assertRaises(TypeError) as error:
                     pf.from_records(records, schema=schema)
+                self.assertEqual(str(error.exception), "invalid record at index 1")
+                self.assertEqual(str(error.exception.__cause__), cause)
 
     def test_rejects_schema_that_renames_named_tuple_fields(self):
-        with self.assertRaisesRegex(
-            ValueError, "record at index 0 is missing schema field 'a'"
-        ):
+        with self.assertRaises(ValueError) as error:
             pf.from_records([_Point(1, "a")], schema=["a", "b"])
+        self.assertEqual(str(error.exception), "invalid record at index 0")
+        self.assertEqual(
+            str(error.exception.__cause__), "record is missing schema field 'a'"
+        )
 
     def test_rejects_different_inferred_named_tuple_fields(self):
-        with self.assertRaisesRegex(
-            ValueError, "record at index 1 must have the same fields as schema"
-        ):
+        with self.assertRaises(ValueError) as error:
             pf.from_records([_Point(1, "a"), _OtherPoint(2, "b")])
+        self.assertEqual(str(error.exception), "invalid record at index 1")
+        self.assertEqual(
+            str(error.exception.__cause__),
+            "record is missing schema field 'y'",
+        )
 
     def test_rejects_schema_field_missing_from_mapping_records(self):
-        with self.assertRaisesRegex(
-            ValueError, "record at index 1 is missing schema field 'name'"
-        ):
+        with self.assertRaises(ValueError) as error:
             pf.from_records(
                 [{"id": 1, "name": "Alice"}, {"id": 2}],
                 schema=["id", "name"],
             )
+        self.assertEqual(str(error.exception), "invalid record at index 1")
+        self.assertEqual(
+            str(error.exception.__cause__), "record is missing schema field 'name'"
+        )
 
 
 class FromDictTests(unittest.TestCase):

@@ -17,7 +17,17 @@
 ################################################################################
 
 from enum import Enum
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    Any,
+    Collection,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
@@ -45,7 +55,58 @@ class _RecordType(Enum):
             record, _SCALAR_SEQUENCE_TYPES
         ):
             return cls.SEQUENCE
-        raise TypeError
+        raise TypeError(
+            "record must be a mapping or a sequence of values, "
+            "such as a list or tuple"
+        )
+
+    def validate(self, record: Any) -> None:
+        try:
+            record_type = self.from_record(record)
+        except TypeError:
+            record_type = None
+
+        if record_type is self:
+            return
+        # Treat named tuples as tuples when validating sequence records.
+        if self is _RecordType.SEQUENCE and record_type is _RecordType.NAMED_TUPLE:
+            return
+
+        raise TypeError(f"record must be a {self.value.replace('_', ' ')}")
+
+    def field_names(self, record: Any) -> Collection[str]:
+        if self is _RecordType.NAMED_TUPLE:
+            return cast(Tuple[str, ...], getattr(record, "_fields"))
+        if self is _RecordType.MAPPING:
+            return cast(Mapping[str, Any], record).keys()
+        raise TypeError("sequence records do not have named fields")
+
+    def normalize_record(
+        self,
+        record: Any,
+        schema: List[str],
+        require_exact_fields: bool,
+    ) -> Tuple[Any, ...]:
+        if self is _RecordType.SEQUENCE:
+            row = tuple(record)
+            if require_exact_fields and len(row) != len(schema):
+                raise ValueError(
+                    f"record has {len(row)} values but schema has {len(schema)} fields"
+                )
+            return row
+        record_fields = self.field_names(record)
+        for name in schema:
+            if name not in record_fields:
+                raise ValueError(f"record is missing schema field {name!r}")
+        if require_exact_fields and len(record_fields) != len(schema):
+            extra_fields = [name for name in record_fields if name not in schema]
+            raise ValueError(
+                f"record has fields not present in schema: {extra_fields!r}"
+            )
+        if self is _RecordType.MAPPING:
+            field_values = cast(Mapping[str, Any], record)
+            return tuple(field_values[name] for name in schema)
+        return tuple(getattr(record, name) for name in schema)
 
 
 def _validate_schema(schema: List[str]) -> None:
@@ -57,51 +118,6 @@ def _validate_schema(schema: List[str]) -> None:
         raise ValueError("schema field names must not be empty")
     if len(set(schema)) != len(schema):
         raise ValueError("schema field names must be unique")
-
-
-def _validate_record_type(
-    record: Any, expected_record_type: _RecordType, index: int
-) -> None:
-    try:
-        record_type = _RecordType.from_record(record)
-    except TypeError:
-        record_type = None
-
-    if record_type is expected_record_type:
-        return
-    # Treat named tuples as tuples when validating sequence records.
-    if (
-        expected_record_type is _RecordType.SEQUENCE
-        and record_type is _RecordType.NAMED_TUPLE
-    ):
-        return
-    if expected_record_type is _RecordType.NAMED_TUPLE:
-        raise TypeError("record at index %d must be a named tuple" % index)
-    if expected_record_type is _RecordType.MAPPING:
-        raise TypeError("record at index %d must be a mapping" % index)
-    if expected_record_type is _RecordType.SEQUENCE:
-        raise TypeError(
-            "each record must be a sequence of values, "
-            "such as a list or tuple; invalid record at index %d" % index
-        )
-    raise AssertionError("unsupported expected record type")
-
-
-def _to_field_mapping(
-    record: Any, expected_record_type: _RecordType, index: int
-) -> Mapping[str, Any]:
-    _validate_record_type(record, expected_record_type, index)
-    if expected_record_type is _RecordType.NAMED_TUPLE:
-        fields = cast(Tuple[str, ...], getattr(record, "_fields"))
-        return dict(zip(fields, record))
-    if expected_record_type is _RecordType.MAPPING:
-        return cast(Mapping[str, Any], record)
-    raise TypeError("sequence records do not have named fields")
-
-
-def _from_rows(rows: Iterable[Sequence[Any]], columns: Sequence[str]) -> DataFrame:
-    table = get_or_create_table_environment().from_elements(rows, list(columns))
-    return DataFrame(table)
 
 
 @PublicEvolving()
@@ -158,51 +174,39 @@ def from_records(
         raise ValueError("data must not be empty")
 
     first_record = data[0]
-    rows: Iterable[Sequence[Any]]
     try:
         expected_record_type = _RecordType.from_record(first_record)
-    except TypeError:
-        raise TypeError(
-            "each record must be a mapping or a sequence of values, "
-            "such as a list or tuple; invalid record at index 0"
-        ) from None
-    if expected_record_type in (_RecordType.MAPPING, _RecordType.NAMED_TUPLE):
-        first_record_fields = _to_field_mapping(first_record, expected_record_type, 0)
-        columns = list(first_record_fields.keys()) if schema is None else schema
-        _validate_schema(columns)
-        expected_fields = set(columns)
-        field_rows: List[Sequence[Any]] = []
-        for index, record in enumerate(data):
-            record_fields = _to_field_mapping(record, expected_record_type, index)
-            if schema is None and set(record_fields.keys()) != expected_fields:
-                raise ValueError(
-                    "record at index %d must have the same fields as schema" % index
-                )
-            if schema is not None:
-                for name in columns:
-                    if name not in record_fields:
-                        raise ValueError(
-                            "record at index %d is missing schema field %r"
-                            % (index, name)
-                        )
-            field_rows.append(tuple(record_fields[name] for name in columns))
-        rows = field_rows
-    else:
+    except TypeError as error:
+        raise TypeError("invalid record at index 0") from error
+
+    if expected_record_type is _RecordType.SEQUENCE:
         if schema is None:
             raise ValueError("schema is required for sequence records")
-        columns = schema
-        _validate_schema(columns)
-        for index, record in enumerate(data):
-            _validate_record_type(record, expected_record_type, index)
-            if len(record) != len(columns):
-                raise ValueError(
-                    "record at index %d has %d values but schema has %d fields"
-                    % (index, len(record), len(columns))
-                )
-        sequence_rows = cast(Sequence[Sequence[Any]], data)
-        rows = [tuple(record) for record in sequence_rows]
+        require_exact_fields = True
+    elif schema is None:
+        schema = list(expected_record_type.field_names(first_record))
+        require_exact_fields = True
+    else:
+        require_exact_fields = False
 
-    return _from_rows(rows, columns)
+    _validate_schema(schema)
+    rows: List[Sequence[Any]] = []
+    for index, record in enumerate(data):
+        try:
+            if index > 0:
+                expected_record_type.validate(record)
+            row = expected_record_type.normalize_record(
+                record, schema, require_exact_fields
+            )
+        except TypeError as error:
+            raise TypeError(f"invalid record at index {index}") from error
+        except ValueError as error:
+            raise ValueError(f"invalid record at index {index}") from error
+        rows.append(row)
+
+    return DataFrame(
+        get_or_create_table_environment().from_elements(rows, schema)
+    )
 
 
 @PublicEvolving()
@@ -237,27 +241,30 @@ def from_dict(
         raise TypeError("data must be a mapping")
     if not data:
         raise ValueError("data must not be empty")
-    columns = list(data.keys()) if schema is None else schema
-    _validate_schema(columns)
-    for name in columns:
+    if schema is None:
+        schema = list(data.keys())
+    _validate_schema(schema)
+    for name in schema:
         if name not in data:
-            raise ValueError("column %r is not present in data" % name)
+            raise ValueError(f"column {name!r} is not present in data")
         values = data[name]
         if not isinstance(values, Sequence) or isinstance(
             values, _SCALAR_SEQUENCE_TYPES
         ):
             raise TypeError(
-                "column %r values must be a sequence, "
-                "such as a list or tuple" % name
+                f"column {name!r} values must be a sequence, "
+                "such as a list or tuple"
             )
-    lengths = {name: len(data[name]) for name in columns}
+    lengths = {name: len(data[name]) for name in schema}
     if len(set(lengths.values())) != 1:
         raise ValueError("columns must have equal lengths")
     row_count = next(iter(lengths.values()))
     if row_count == 0:
         raise ValueError("data must contain at least one row")
     rows = [
-        tuple(data[name][row_index] for name in columns)
+        tuple(data[name][row_index] for name in schema)
         for row_index in range(row_count)
     ]
-    return _from_rows(rows, columns)
+    return DataFrame(
+        get_or_create_table_environment().from_elements(rows, schema)
+    )
