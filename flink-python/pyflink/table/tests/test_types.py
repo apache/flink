@@ -209,6 +209,11 @@ class TypesTests(PyFlinkTestCase):
         # third column is varchar
         self.assertTrue(isinstance(schema.fields[2].data_type, VarCharType))
 
+    def test_infer_array_type_with_leading_none(self):
+        data_type = _infer_type([None, 1])
+        self.assertTrue(isinstance(data_type, ArrayType))
+        self.assertTrue(isinstance(data_type.element_type, BigIntType))
+
     def test_infer_schema_not_enough_names(self):
         schema = _infer_schema_from_data([["a", "b"]], ["col1"])
         self.assertTrue(schema.names, ['col1', '_2'])
