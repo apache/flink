@@ -369,6 +369,11 @@ public class CepOperator<IN, KEY, OUT>
 
         // STEP 4
         updateNFA(nfa);
+
+        // In order to remove dangling partial matches.
+        if (nfa.getPartialMatches().size() == 1 && nfa.getCompletedMatches().isEmpty()) {
+            computationStates.clear();
+        }
     }
 
     private Stream<IN> sort(Collection<IN> elements) {
@@ -549,6 +554,12 @@ public class CepOperator<IN, KEY, OUT>
     boolean hasNonEmptyPQ(KEY key) throws Exception {
         setCurrentKey(key);
         return !elementQueueState.isEmpty();
+    }
+
+    @VisibleForTesting
+    boolean hasNonEmptyNFAState(KEY key) throws Exception {
+        setCurrentKey(key);
+        return computationStates.value() != null;
     }
 
     @VisibleForTesting
