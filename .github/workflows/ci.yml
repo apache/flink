@@ -30,6 +30,7 @@ on:
       - '.gitignore'
       - '.gitattributes'
       - 'azure-pipelines.yml'
+      - 'tools/azure-pipelines/**'
   workflow_dispatch:
 
 concurrency:
