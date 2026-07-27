@@ -166,15 +166,15 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
 
     /**
      * When positional {@code GROUP BY} is enabled, an out-of-range ordinal is otherwise reported by
-     * Calcite with a message that mentions {@code ORDER BY} (the two clauses share Calcite's ordinal
-     * resolution). Pre-check bare integer literals here so we can raise a clear, {@code
+     * Calcite with a message that mentions {@code ORDER BY} (the two clauses share Calcite's
+     * ordinal resolution). Pre-check bare integer literals here so we can raise a clear, {@code
      * GROUP BY}-specific error. The ordinal resolution itself is still left to Calcite; this only
      * improves the message for the out-of-range case.
      *
      * <p>Only top-level integer-literal positions (e.g. {@code GROUP BY 5}) are checked. Ordinals
      * nested inside {@code GROUPING SETS} / {@code ROLLUP} / {@code CUBE} fall through to Calcite's
-     * own (less specific) message; those are far rarer and not worth duplicating Calcite's recursion
-     * for.
+     * own (less specific) message; those are far rarer and not worth duplicating Calcite's
+     * recursion for.
      */
     private void checkGroupByOrdinalInRange(SqlSelect select) {
         if (!getConformance().isGroupByOrdinal()) {
