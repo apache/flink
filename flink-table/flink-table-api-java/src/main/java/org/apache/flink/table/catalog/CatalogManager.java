@@ -2173,8 +2173,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                         objectIdentifier.getDatabaseName(),
                         newConnectionName);
         CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
-        if (temporaryConnection != null) {
-            if (getConnection(newIdentifier).isPresent()) {
+        if (temporaryConnection != null && getConnection(newIdentifier).isPresent()) {
                 throw new ValidationException(
                         String.format(
                                 "Connection with identifier '%s' already exists.",
