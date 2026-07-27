@@ -15,11 +15,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.opentelemetry:opentelemetry-api:1.62.0
 - io.opentelemetry:opentelemetry-common:1.62.0
 - io.opentelemetry:opentelemetry-context:1.62.0
-- org.apache.arrow:arrow-format:19.0.0
-- org.apache.arrow:arrow-memory-core:19.0.0
-- org.apache.arrow:arrow-memory-netty:19.0.0
-- org.apache.arrow:arrow-memory-netty-buffer-patch:19.0.0
-- org.apache.arrow:arrow-vector:19.0.0
+- org.apache.arrow:arrow-format:25.0.1
+- org.apache.arrow:arrow-memory-core:25.0.1
+- org.apache.arrow:arrow-memory-netty:25.0.1
+- org.apache.arrow:arrow-memory-netty-buffer-patch:25.0.1
+- org.apache.arrow:arrow-vector:25.0.1
 - org.apache.beam:beam-model-fn-execution:2.75.0
 - org.apache.beam:beam-model-job-management:2.75.0
 - org.apache.beam:beam-model-pipeline:2.75.0
