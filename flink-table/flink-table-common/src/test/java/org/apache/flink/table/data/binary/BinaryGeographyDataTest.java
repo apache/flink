@@ -133,6 +133,31 @@ class BinaryGeographyDataTest {
     }
 
     @Test
+    void testBinaryRowDataDoesNotEagerlyValidateMalformedPayload() {
+        final byte[] malformedPointWkb = incompletePointWkb();
+        final GeographyData geography = binaryRowWithGeography(malformedPointWkb).getGeography(0);
+
+        assertThat(geography.toBytes()).isEqualTo(malformedPointWkb);
+        assertThat(geography.subtypeId()).isEqualTo(GeographyData.POINT);
+    }
+
+    @Test
+    void testBinaryArrayDataDoesNotEagerlyValidateMalformedPayload() {
+        final byte[] malformedPointWkb = incompletePointWkb();
+        final GeographyData geography = binaryArrayWithGeography(malformedPointWkb).getGeography(0);
+
+        assertThat(geography.toBytes()).isEqualTo(malformedPointWkb);
+        assertThat(geography.subtypeId()).isEqualTo(GeographyData.POINT);
+    }
+
+    @Test
+    void testExplicitConstructionStillRejectsMalformedPayload() {
+        assertThatThrownBy(() -> GeographyData.fromBytes(incompletePointWkb()))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Incomplete POINT coordinates");
+    }
+
+    @Test
     void testByteRangeCopiesOnlySelectedPayload() {
         final byte[] bytes = concat(bytes(42), POINT_WKB, bytes(99));
         final BinaryGeographyData geography =
@@ -245,6 +270,25 @@ class BinaryGeographyDataTest {
         final BinaryRowData row = new BinaryRowData(1);
         row.pointTo(segment, 0, rowBytes.length);
         return row;
+    }
+
+    private static BinaryArrayData binaryArrayWithGeography(byte[] wkb) {
+        final int headerLength = BinaryArrayData.calculateHeaderInBytes(1);
+        final int variableOffset = headerLength + 8;
+        final int paddedLength = ((wkb.length + 7) / 8) * 8;
+        final byte[] arrayBytes = new byte[variableOffset + paddedLength];
+        final MemorySegment segment = MemorySegmentFactory.wrap(arrayBytes);
+        segment.putInt(0, 1);
+        segment.putLong(headerLength, ((long) variableOffset << 32) | wkb.length);
+        segment.put(variableOffset, wkb, 0, wkb.length);
+
+        final BinaryArrayData array = new BinaryArrayData();
+        array.pointTo(segment, 0, arrayBytes.length);
+        return array;
+    }
+
+    private static byte[] incompletePointWkb() {
+        return concat(header(LITTLE_ENDIAN, GeographyData.POINT), bytes(1, 2, 3));
     }
 
     private static byte[] pointWkb(int byteOrder) {

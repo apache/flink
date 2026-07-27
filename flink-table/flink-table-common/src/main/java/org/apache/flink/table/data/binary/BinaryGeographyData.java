@@ -41,15 +41,18 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
     private static final int WKB_POINT_COORDINATE_SIZE = 16;
     private static final int BIG_ENDIAN = 0;
     private static final int LITTLE_ENDIAN = 1;
+    private static final int UNKNOWN_SUBTYPE_ID = 0;
 
-    private final int subtypeId;
+    private int subtypeId = UNKNOWN_SUBTYPE_ID;
 
     private BinaryGeographyData(MemorySegment[] segments, int offset, int sizeInBytes) {
         super(segments, offset, sizeInBytes);
-        this.subtypeId = readSubtypeId(segments, offset, sizeInBytes);
     }
 
-    /** Creates a {@link BinaryGeographyData} instance from the given address and length. */
+    /**
+     * Creates a {@link BinaryGeographyData} instance from the given address and length without
+     * validating the full ISO WKB payload.
+     */
     public static BinaryGeographyData fromAddress(
             MemorySegment[] segments, int offset, int numBytes) {
         return new BinaryGeographyData(segments, offset, numBytes);
@@ -60,12 +63,16 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
         return bytes == null ? null : fromBytes(bytes, 0, bytes.length);
     }
 
-    /** Creates a {@link BinaryGeographyData} instance from the given ISO WKB byte range. */
+    /**
+     * Creates a {@link BinaryGeographyData} instance from the given ISO WKB byte range after
+     * validating the full payload.
+     */
     public static BinaryGeographyData fromBytes(byte[] bytes, int offset, int numBytes) {
         if (bytes == null) {
             return null;
         }
         checkRange(bytes, offset, numBytes);
+        validatePayload(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
         byte[] copy = Arrays.copyOfRange(bytes, offset, offset + numBytes);
         return fromAddress(new MemorySegment[] {MemorySegmentFactory.wrap(copy)}, 0, copy.length);
     }
@@ -77,6 +84,9 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
 
     @Override
     public int subtypeId() {
+        if (subtypeId == UNKNOWN_SUBTYPE_ID) {
+            subtypeId = readSubtypeId(segments, offset, sizeInBytes);
+        }
         return subtypeId;
     }
 
@@ -94,22 +104,31 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
         }
     }
 
-    private static int readSubtypeId(MemorySegment[] segments, int offset, int sizeInBytes) {
+    private static void validatePayload(MemorySegment[] segments, int offset, int sizeInBytes) {
         final long endOffset = (long) offset + sizeInBytes;
         final GeometryHeader header = readHeader(segments, offset, endOffset);
-        final long consumedOffset = validateGeometry(segments, offset, endOffset);
+        final long consumedOffset = validateGeometry(segments, offset, endOffset, header);
         if (consumedOffset != endOffset) {
             throw new TableRuntimeException(
                     String.format(
                             "Malformed ISO WKB payload. Found %d trailing byte(s).",
                             endOffset - consumedOffset));
         }
-        return header.subtypeId;
+    }
+
+    private static int readSubtypeId(MemorySegment[] segments, int offset, int sizeInBytes) {
+        final long endOffset = (long) offset + sizeInBytes;
+        return readHeader(segments, offset, endOffset).subtypeId;
     }
 
     private static long validateGeometry(
             MemorySegment[] segments, long geometryOffset, long endOffset) {
         final GeometryHeader header = readHeader(segments, geometryOffset, endOffset);
+        return validateGeometry(segments, geometryOffset, endOffset, header);
+    }
+
+    private static long validateGeometry(
+            MemorySegment[] segments, long geometryOffset, long endOffset, GeometryHeader header) {
         long cursor = geometryOffset + MIN_WKB_HEADER_SIZE;
 
         switch (header.subtypeId) {
