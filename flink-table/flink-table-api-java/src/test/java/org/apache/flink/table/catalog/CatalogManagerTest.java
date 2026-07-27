@@ -558,12 +558,7 @@ class CatalogManagerTest {
                         catalogManager.getCurrentDatabase(),
                         "conn2");
         Map<String, String> options =
-                new HashMap<String, String>() {
-                    {
-                        put("type", "default");
-                        put("bootstrap.servers", "localhost:9092");
-                    }
-                };
+                Map.of("type", "default", "bootstrap.servers", "localhost:9092");
         catalogManager.createTemporaryConnection(
                 SensitiveConnection.of(options, null), source, false);
 

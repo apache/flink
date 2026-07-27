@@ -2130,12 +2130,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                         objectIdentifier.getDatabaseName(),
                         newConnectionName);
         CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
-        if (temporaryConnection != null && getConnection(newIdentifier).isPresent()) {
-                throw new ValidationException(
-                        String.format(
-                                "Connection with identifier '%s' already exists.",
-                                newIdentifier.asSummaryString()));
-            }
+        if (temporaryConnection != null) {
+            checkConnectionNotExists(newIdentifier);
             temporaryConnections.remove(objectIdentifier);
             temporaryConnections.put(newIdentifier, temporaryConnection);
             return;
@@ -2150,12 +2146,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             "Connection with identifier '%s' does not exist.",
                             objectIdentifier.asSummaryString()));
         }
-        if (getConnection(newIdentifier).isPresent()) {
-            throw new ValidationException(
-                    String.format(
-                            "Connection with identifier '%s' already exists.",
-                            newIdentifier.asSummaryString()));
-        }
+        checkConnectionNotExists(newIdentifier);
 
         execute(
                 (catalog, path) ->
@@ -2163,6 +2154,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 objectIdentifier,
                 ignoreIfNotExists,
                 "RenameConnection");
+    }
+
+    private void checkConnectionNotExists(ObjectIdentifier objectIdentifier) {
+        if (getConnection(objectIdentifier).isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' already exists.",
+                            objectIdentifier.asSummaryString()));
+        }
     }
 
     /**
