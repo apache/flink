@@ -1949,9 +1949,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             } catch (ConnectionNotExistException | UnsupportedOperationException e) {
                 return Optional.empty();
             }
-        } else {
-            return Optional.empty();
         }
+        return Optional.empty();
     }
 
     /**
