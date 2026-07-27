@@ -199,6 +199,57 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
     }
 
     @Override
+    protected void validateOrderList(SqlSelect select) {
+        checkOrderByAllEnabled(select);
+        super.validateOrderList(select);
+    }
+
+    /**
+     * {@code ORDER BY ALL} is parsed and expanded by Calcite's validator (see {@code
+     * SqlValidatorImpl#rewriteOrderByAll}, invoked from {@code validateOrderList}). Flink only gates
+     * it behind {@link TableConfigOptions#TABLE_ORDER_BY_ALL_ENABLED}, since Calcite provides no
+     * conformance flag for it; the expansion itself is left to {@code super}.
+     */
+    private void checkOrderByAllEnabled(SqlSelect select) {
+        if (!isOrderByAll(select)) {
+            return;
+        }
+        final boolean enabled =
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                        .get(TableConfigOptions.TABLE_ORDER_BY_ALL_ENABLED);
+        if (!enabled) {
+            throw new ValidationException(
+                    "ORDER BY ALL is not enabled. Set '"
+                            + TableConfigOptions.TABLE_ORDER_BY_ALL_ENABLED.key()
+                            + "' to true to enable it.");
+        }
+    }
+
+    /**
+     * Detects the {@code ORDER BY ALL} marker exactly as Calcite's {@code rewriteOrderByAll} does:
+     * the order list holds a single element, {@code ORDER_BY_ALL}, optionally wrapped by a trailing
+     * {@code DESC} and/or {@code NULLS FIRST}/{@code NULLS LAST} that applies to every sort key.
+     */
+    private static boolean isOrderByAll(SqlSelect select) {
+        final SqlNodeList orderList = select.getOrderList();
+        if (orderList == null || orderList.size() != 1) {
+            return false;
+        }
+        SqlNode node = orderList.get(0);
+        while (node instanceof SqlCall) {
+            final SqlKind kind = node.getKind();
+            if (kind == SqlKind.NULLS_FIRST
+                    || kind == SqlKind.NULLS_LAST
+                    || kind == SqlKind.DESCENDING) {
+                node = ((SqlCall) node).operand(0);
+            } else {
+                break;
+            }
+        }
+        return node.getKind() == SqlKind.ORDER_BY_ALL;
+    }
+
+    @Override
     protected void registerNamespace(
             @Nullable SqlValidatorScope usingScope,
             @Nullable String alias,
