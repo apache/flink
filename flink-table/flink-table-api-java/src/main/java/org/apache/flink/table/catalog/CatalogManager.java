@@ -1926,9 +1926,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     /**
      * Get a connection from the catalog with contextual metadata.
-     *
-     * @param objectIdentifier The fully qualified path of the connection.
-     * @return The requested connection wrapped in Optional.
      */
     public Optional<ContextResolvedConnection> getResolvedConnection(
             ObjectIdentifier objectIdentifier) {
