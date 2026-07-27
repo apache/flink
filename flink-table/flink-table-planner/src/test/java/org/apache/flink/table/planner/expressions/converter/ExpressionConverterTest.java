@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -53,15 +52,9 @@ import java.util.UUID;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ExpressionConverter}. */
 class ExpressionConverterTest {
-
-    private static final byte[] POINT_WKB =
-            new byte[] {
-                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
-            };
 
     private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
     private final ExpressionConverter converter =
