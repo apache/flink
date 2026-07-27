@@ -2262,7 +2262,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonUnquote")(self)
 
-    def json_length(self, path = None) -> 'Expression':
+    def json_length(self, path=None) -> 'Expression':
         """
         Returns the number of elements in a JSON document, or the length of the value at the
         specified path if one is provided.
