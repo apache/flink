@@ -43,7 +43,8 @@ from pyflink.util.api_stability_decorators import Deprecated, PublicEvolving
 from pyflink.util.java_utils import to_jarray
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
-__all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
+__all__ = ['Table', 'PartitionedTable', 'GroupedTable', 'GroupWindowedTable',
+           'OverWindowedTable', 'WindowGroupedTable']
 
 
 @PublicEvolving()
@@ -155,6 +156,46 @@ class Table(object):
         gateway = get_gateway()
         extra_fields = to_jarray(gateway.jvm.String, fields)
         return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
+
+    def partition_by(self, *fields: Expression) -> 'PartitionedTable':
+        """
+        Partitions this table for a subsequent process table function call.
+
+        :param fields: Partitioning expressions.
+        :return: A partitioned table for configuring and invoking a process table function.
+
+        .. versionadded:: 2.4.0
+        """
+        return PartitionedTable(
+            self._j_table.partitionBy(to_expression_jarray(fields)), self._t_env)
+
+    def as_argument(self, name: str) -> Expression:
+        """
+        Converts this table into a named table argument for a process table function call.
+
+        :param name: Name of the table argument declared by the function.
+        :return: A named table argument.
+
+        .. versionadded:: 2.4.0
+        """
+        return Expression(self._j_table.asArgument(name))
+
+    def process(self, path: str, *arguments: Expression) -> 'Table':
+        """
+        Calls a registered process table function with this table as its first table argument.
+
+        :param path: Path of the registered process table function.
+        :param arguments: Additional named arguments of the function.
+        :return: The result table.
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(path, str):
+            raise TypeError("Process table functions must be called by a registered name.")
+        gateway = get_gateway()
+        j_arguments = to_jarray(
+            gateway.jvm.Object, [_get_java_expression(argument) for argument in arguments])
+        return Table(self._j_table.process(path, j_arguments), self._t_env)
 
     def filter(self, predicate: Expression[bool]) -> 'Table':
         """
@@ -1284,6 +1325,53 @@ class Table(object):
                  proper change operation semantics.
         """
         return Table(self._j_table.fromChangelog(to_expression_jarray(arguments)), self._t_env)
+
+
+@PublicEvolving()
+class PartitionedTable(object):
+    """
+    A table argument with partitioning and optional ordering metadata for process table functions.
+
+    .. versionadded:: 2.4.0
+    """
+
+    def __init__(self, j_partitioned_table, t_env):
+        self._j_partitioned_table = j_partitioned_table
+        self._t_env = t_env
+
+    def order_by(self, *fields: Expression) -> 'PartitionedTable':
+        """
+        Defines the ordering of rows within each partition.
+
+        :param fields: Ordering expressions.
+        :return: A partitioned table with ordering metadata.
+        """
+        return PartitionedTable(
+            self._j_partitioned_table.orderBy(to_expression_jarray(fields)), self._t_env)
+
+    def as_argument(self, name: str) -> Expression:
+        """
+        Converts this partitioned table into a named table argument.
+
+        :param name: Name of the table argument declared by the function.
+        :return: A named table argument.
+        """
+        return Expression(self._j_partitioned_table.asArgument(name))
+
+    def process(self, path: str, *arguments: Expression) -> Table:
+        """
+        Calls a registered process table function with this partitioned table.
+
+        :param path: Path of the registered process table function.
+        :param arguments: Additional named arguments of the function.
+        :return: The result table.
+        """
+        if not isinstance(path, str):
+            raise TypeError("Process table functions must be called by a registered name.")
+        gateway = get_gateway()
+        j_arguments = to_jarray(
+            gateway.jvm.Object, [_get_java_expression(argument) for argument in arguments])
+        return Table(self._j_partitioned_table.process(path, j_arguments), self._t_env)
 
 
 @PublicEvolving()
