@@ -23,7 +23,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlFactory;
@@ -43,16 +42,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.api.Expressions.array;
 import static org.apache.flink.table.api.Expressions.lit;
-import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.nullOf;
-import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResolvedExpression#asSerializableString(SqlFactory)}. */
@@ -268,10 +262,5 @@ public class LiteralExpressionsSerializationITCase {
                                 maxDayDuration,
                                 defaultPeriod,
                                 derivedLargePeriod));
-    }
-
-    private static void assertGeography(Object value) {
-        assertThat(value).isInstanceOf(GeographyData.class);
-        assertThat(((GeographyData) value).toBytes()).isEqualTo(POINT_WKB);
     }
 }
