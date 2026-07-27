@@ -20,7 +20,7 @@ import unittest
 from typing import get_type_hints, Optional
 
 import pyflink.dataframe as pf
-from pyflink.table import StreamTableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
@@ -29,17 +29,17 @@ class TableEnvironmentContextValidationTests(unittest.TestCase):
         self.assertEqual(
             get_type_hints(pf.set_table_environment),
             {
-                "t_env": Optional[StreamTableEnvironment],
+                "t_env": Optional[TableEnvironment],
                 "return": type(None),
             },
         )
         self.assertEqual(
             get_type_hints(pf.get_table_environment),
-            {"return": Optional[StreamTableEnvironment]},
+            {"return": Optional[TableEnvironment]},
         )
         self.assertEqual(
             get_type_hints(pf.get_or_create_table_environment),
-            {"return": StreamTableEnvironment},
+            {"return": TableEnvironment},
         )
 
     def test_set_environment_rejects_invalid_type_without_changing_state(self):
@@ -47,7 +47,7 @@ class TableEnvironmentContextValidationTests(unittest.TestCase):
         self.addCleanup(pf.set_table_environment, previous_environment)
 
         with self.assertRaisesRegex(
-            TypeError, "t_env must be a StreamTableEnvironment or None"
+            TypeError, "t_env must be a TableEnvironment or None"
         ):
             pf.set_table_environment(object())
 
@@ -64,6 +64,15 @@ class TableEnvironmentContextTests(PyFlinkUTTestCase):
         pf.set_table_environment(self.t_env)
 
         self.assertIs(pf.get_table_environment(), self.t_env)
+
+    def test_set_batch_table_environment_makes_it_retrievable(self):
+        batch_environment = TableEnvironment.create(
+            EnvironmentSettings.in_batch_mode()
+        )
+
+        pf.set_table_environment(batch_environment)
+
+        self.assertIs(pf.get_table_environment(), batch_environment)
 
     def test_set_none_clears_the_environment(self):
         pf.set_table_environment(self.t_env)

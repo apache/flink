@@ -22,10 +22,15 @@ from typing import NamedTuple
 import pyflink.dataframe as pf
 from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
-from pyflink.table import DataTypes as TableDataTypes
+from pyflink.table import (
+    DataTypes as TableDataTypes,
+    EnvironmentSettings,
+    TableEnvironment,
+)
 from pyflink.table.expression import Expression
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
+    PyFlinkITTestCase,
     PyFlinkStreamDataFrameTestCase,
 )
 
@@ -547,6 +552,23 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             result.collect(),
             [Row("Alice", 1, 31, 31, 2, "x", 3, 1 << 40, "y", None, None, 3)],
         )
+
+
+class DataFrameBatchITTests(PyFlinkITTestCase):
+    def setUp(self):
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_from_records_with_batch_table_environment(self):
+        pf.set_table_environment(self.t_env)
+
+        result = pf.from_records(
+            [(1, "Alice"), (2, "Bob")],
+            schema=["id", "name"],
+        ).filter(pf.col("id") > 1)
+
+        self.assertEqual(result.collect(), [Row(2, "Bob")])
 
 
 if __name__ == "__main__":

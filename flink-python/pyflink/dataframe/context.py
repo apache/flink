@@ -18,7 +18,7 @@
 
 from typing import Optional
 
-from pyflink.table import StreamTableEnvironment
+from pyflink.table import StreamTableEnvironment, TableEnvironment
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
@@ -27,16 +27,16 @@ __all__ = [
     "get_or_create_table_environment",
 ]
 
-_global_table_environment: Optional[StreamTableEnvironment] = None
+_global_table_environment: Optional[TableEnvironment] = None
 
 
 @PublicEvolving()
-def set_table_environment(t_env: Optional[StreamTableEnvironment]) -> None:
+def set_table_environment(t_env: Optional[TableEnvironment]) -> None:
     """
     Set the environment used by DataFrame operations.
 
     :param t_env: Environment to use, or ``None`` to clear it.
-    :raises TypeError: If ``t_env`` is neither a :class:`StreamTableEnvironment` nor ``None``.
+    :raises TypeError: If ``t_env`` is neither a :class:`TableEnvironment` nor ``None``.
 
     Example::
 
@@ -48,13 +48,13 @@ def set_table_environment(t_env: Optional[StreamTableEnvironment]) -> None:
     .. versionadded:: 2.4.0
     """
     global _global_table_environment
-    if t_env is not None and not isinstance(t_env, StreamTableEnvironment):
-        raise TypeError("t_env must be a StreamTableEnvironment or None")
+    if t_env is not None and not isinstance(t_env, TableEnvironment):
+        raise TypeError("t_env must be a TableEnvironment or None")
     _global_table_environment = t_env
 
 
 @PublicEvolving()
-def get_table_environment() -> Optional[StreamTableEnvironment]:
+def get_table_environment() -> Optional[TableEnvironment]:
     """
     Return the environment used by DataFrame operations, if one is configured.
 
@@ -73,7 +73,7 @@ def get_table_environment() -> Optional[StreamTableEnvironment]:
 
 
 @PublicEvolving()
-def get_or_create_table_environment() -> StreamTableEnvironment:
+def get_or_create_table_environment() -> TableEnvironment:
     """
     Return the configured environment, creating one when necessary.
 
