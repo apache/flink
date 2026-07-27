@@ -2185,8 +2185,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return;
         }
 
-        Optional<CatalogConnection> existingOpt = getConnection(objectIdentifier);
-        if (!existingOpt.isPresent()) {
+        if (getConnection(objectIdentifier).isEmpty()) {
             if (ignoreIfNotExists) {
                 return;
             }
