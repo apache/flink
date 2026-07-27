@@ -63,7 +63,7 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
     isNull$290 = isNull$289;
     if (!isNull$290) {
         byte[] deserializedByteArray$76 = result$289.toBytes(typeSerializer$292);
-        if (deserializedByteArray$76.length <= 3) {
+        if (deserializedByteArray$76.length == 3) {
             result$291 = deserializedByteArray$76;
         } else {
             result$291 = java.util.Arrays.copyOf(deserializedByteArray$76, 3);
@@ -83,14 +83,14 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+        final boolean couldPad = couldPad(targetLogicalType, targetLength);
 
         // Get serializer for RAW type
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
         final String deserializedByteArrayTerm =
                 CodeGenUtils.newName(context.getCodeGeneratorContext(), "deserializedByteArray");
 
-        if (context.legacyBehaviour()
-                || !(couldTrim(targetLength) || (couldPad(targetLogicalType, targetLength)))) {
+        if (context.legacyBehaviour() || !(couldTrim(targetLength) || couldPad)) {
             return new CastRuleUtils.CodeWriter()
                     .assignStmt(returnVariable, methodCall(inputTerm, "toBytes", typeSerializer))
                     .toString();
@@ -101,19 +101,12 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
                             deserializedByteArrayTerm,
                             methodCall(inputTerm, "toBytes", typeSerializer))
                     .ifStmt(
-                            arrayLength(deserializedByteArrayTerm) + " <= " + targetLength,
-                            thenWriter -> {
-                                if (couldPad(targetLogicalType, targetLength)) {
-                                    trimOrPadByteArray(
-                                            returnVariable,
-                                            targetLength,
-                                            deserializedByteArrayTerm,
-                                            thenWriter);
-                                } else {
+                            arrayLength(deserializedByteArrayTerm)
+                                    + (couldPad ? " == " : " <= ")
+                                    + targetLength,
+                            thenWriter ->
                                     thenWriter.assignStmt(
-                                            returnVariable, deserializedByteArrayTerm);
-                                }
-                            },
+                                            returnVariable, deserializedByteArrayTerm),
                             elseWriter ->
                                     trimOrPadByteArray(
                                             returnVariable,
