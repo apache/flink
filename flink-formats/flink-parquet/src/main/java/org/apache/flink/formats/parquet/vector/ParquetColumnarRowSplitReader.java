@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.formats.parquet.ParquetInputFile;
+import org.apache.flink.formats.parquet.utils.GeoParquetMetadataUtil;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
 import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
@@ -145,6 +146,10 @@ public class ParquetColumnarRowSplitReader implements Closeable {
         this.rowsReturned = 0;
 
         checkSchema();
+        GeoParquetMetadataUtil.validateGeoParquetMetadata(
+                reader.getFooter().getFileMetaData().getKeyValueMetaData(),
+                requestedSchema,
+                selectedTypes);
 
         this.writableVectors = createWritableVectors();
         this.columnarBatch = generator.generate(createReadableVectors());
