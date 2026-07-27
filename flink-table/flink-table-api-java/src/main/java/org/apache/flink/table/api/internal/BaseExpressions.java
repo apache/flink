@@ -2526,6 +2526,26 @@ public abstract class BaseExpressions<InType, OutType> {
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
     }
 
+    /**
+     * Returns the number of elements in a JSON document.
+     *
+     * <p>The result is returned as a {@link DataTypes#INT()}.
+     *
+     * <p>See also {@link #jsonLength(String)} for determining the length of the value at a given
+     * path.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"1\": \"hello\", \"2\": \"bye bye\"}").jsonLength() // 2
+     * lit("[1,2,3,4,5]").jsonLength() // 5
+     * lit("\"hello\"").jsonLength() // 1
+     * nullOf(DataTypes.STRING()).jsonLength() // null
+     * lit("invalid").jsonLength() // null
+     * }</pre>
+     *
+     * @return The number of elements in the JSON document.
+     */
     public OutType jsonLength() {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
     }
@@ -2575,16 +2595,15 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>Examples:
      *
      * <pre>{@code
-     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}') // 2
-     * JSON_LENGTH('[1,2,3,4,5]') // 5
-     * JSON_LENGTH('"hello"') // 1
+     * lit("{\"1\": \"hello\", \"2\": \"bye bye\"}").jsonLength("$.1") // 1
+     * lit("{\"1\": [1,2,3], \"2\": \"bye bye\"}").jsonLength("$.1") // 3
+     * lit("[1,2,3,4,5]").jsonLength("$[3]") // 1
      *
-     * JSON_LENGTH('{"1": "hello", "2": "bye bye"}', '$.1') // 1
-     * JSON_LENGTH('{"1": [1,2,3], "2": "bye bye"}', '$.1') // 3
-     * JSON_LENGTH('[1,2,3,4,5]', '$[3]') // 1
-     *
-     * JSON_LENGTH('[1,2,3,4,5]', '$[7]') // Null
+     * lit("[1,2,3,4,5]").jsonLength("$[7]") // null
      * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @return The number of elements in the value located at the given path.
      */
     public OutType jsonLength(String path) {
         return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr(), valueLiteral(path)));

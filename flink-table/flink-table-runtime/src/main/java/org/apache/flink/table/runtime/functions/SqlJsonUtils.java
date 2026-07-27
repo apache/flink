@@ -378,7 +378,7 @@ public class SqlJsonUtils {
     public static Integer jsonLength(final JsonValueContext parsedInput) {
         // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
         // before parsing.
-        if (parsedInput == null || parsedInput.hasException()) {
+        if (parsedInput.hasException()) {
             return null;
         }
 
@@ -390,9 +390,13 @@ public class SqlJsonUtils {
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
         // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
         // before parsing.
-        if (parsedInput == null || parsedInput.hasException()) {
+        if (parsedInput.hasException()) {
             return null;
         }
+        else if (pathSpec.isEmpty()){
+            throw new TableRuntimeException("Path can not be Empty");
+        }
+
 
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
         final boolean isExplicitLaxStrict = matcher.matches();
