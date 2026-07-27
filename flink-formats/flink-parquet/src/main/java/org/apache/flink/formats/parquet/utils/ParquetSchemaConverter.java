@@ -83,7 +83,6 @@ public class ParquetSchemaConverter {
                         .named(name);
             case GEOGRAPHY:
                 return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition)
-                        .as(LogicalTypeAnnotation.geographyType())
                         .named(name);
             case DECIMAL:
                 int precision = ((DecimalType) type).getPrecision();
