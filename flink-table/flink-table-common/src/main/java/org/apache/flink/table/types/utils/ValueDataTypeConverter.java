@@ -218,11 +218,11 @@ public final class ValueDataTypeConverter {
     }
 
     private static int yearPrecision(long years) {
-        return String.valueOf(years).length();
+        return String.valueOf(Math.abs(years)).length();
     }
 
     private static int dayPrecision(long days) {
-        return String.valueOf(days).length();
+        return String.valueOf(Math.abs(days)).length();
     }
 
     private ValueDataTypeConverter() {

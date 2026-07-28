@@ -414,7 +414,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             YearMonthIntervalType type, Period period) {
         final long totalMonths = period.toTotalMonths();
         final long years = totalMonths / 12;
-        final long months = totalMonths % 12;
+        final int months = (int) (totalMonths % 12);
         final int yearPrecision = type.getYearPrecision();
         return String.format("INTERVAL '%d-%d' YEAR(%d) TO MONTH", years, months, yearPrecision);
     }
@@ -426,9 +426,9 @@ public final class ValueLiteralExpression implements ResolvedExpression {
     private static String formatDayTimeIntervalLiteral(
             DayTimeIntervalType type, Duration duration) {
         final long days = duration.toDays();
-        final long hours = duration.toHours() % 24;
-        final long minutes = duration.toMinutes() % 60;
-        final long seconds = duration.getSeconds() % 60;
+        final int hours = duration.toHoursPart();
+        final int minutes = duration.toMinutesPart();
+        final int seconds = duration.toSecondsPart();
         final int dayPrecision = type.getDayPrecision();
         final int fractionalPrecision = type.getFractionalPrecision();
         final String fraction = formatFractionalSeconds(duration.getNano(), fractionalPrecision);
