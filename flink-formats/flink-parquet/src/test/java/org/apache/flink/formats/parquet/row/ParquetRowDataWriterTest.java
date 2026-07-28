@@ -31,7 +31,6 @@ import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.functions.scalar.GeographyConversionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -289,15 +288,38 @@ class ParquetRowDataWriterTest {
         Path path = new Path(folder.toString(), UUID.randomUUID().toString());
         Configuration conf = new Configuration();
 
-        byte[] lineStringWkb = geographyBytes("LINESTRING (0 0, 1 1, 2 1)");
-        byte[] polygonWkb = geographyBytes("POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))");
-        byte[] multiPointWkb = geographyBytes("MULTIPOINT ((1 1), (2 2))");
-        byte[] multiLineStringWkb = geographyBytes("MULTILINESTRING ((0 0, 1 1), (2 2, 3 3))");
+        byte[] lineStringWkb =
+                bytesFromHex(
+                        "01020000000300000000000000000000000000000000000000000000000000F03F"
+                                + "000000000000F03F0000000000000040000000000000F03F");
+        byte[] polygonWkb =
+                bytesFromHex(
+                        "010300000001000000050000000000000000000000000000000000000000000000"
+                                + "00000000000000000000000F03F000000000000F03F000000000000F03F"
+                                + "000000000000F03F000000000000000000000000000000000000000000000000");
+        byte[] multiPointWkb =
+                bytesFromHex(
+                        "0104000000020000000101000000000000000000F03F000000000000F03F"
+                                + "010100000000000000000000400000000000000040");
+        byte[] multiLineStringWkb =
+                bytesFromHex(
+                        "010500000002000000010200000002000000000000000000000000000000000000"
+                                + "000000000000000F03F000000000000F03F010200000002000000000000"
+                                + "0000000040000000000000004000000000000008400000000000000840");
         byte[] multiPolygonWkb =
-                geographyBytes(
-                        "MULTIPOLYGON (((0 0, 0 1, 1 1, 1 0, 0 0)), ((2 2, 2 3, 3 3, 3 2, 2 2)))");
+                bytesFromHex(
+                        "010600000002000000010300000001000000050000000000000000000000000000"
+                                + "000000000000000000000000000000000000000000F03F000000000000F03F"
+                                + "000000000000F03F000000000000F03F00000000000000000000000000000000"
+                                + "00000000000000000103000000010000000500000000000000000000040000000"
+                                + "00000000040000000000000004000000000000008400000000000000840000000"
+                                + "0000000840000000000000084000000000000000400000000000000040000000"
+                                + "0000000040");
         byte[] geometryCollectionWkb =
-                geographyBytes("GEOMETRYCOLLECTION (POINT (1 2), LINESTRING (0 0, 1 1))");
+                bytesFromHex(
+                        "0107000000020000000101000000000000000000F03F0000000000000040"
+                                + "010200000002000000000000000000000000000000000000000000000000"
+                                + "0000F03F000000000000F03F");
 
         List<RowData> rows = new ArrayList<>();
         rows.add(
@@ -454,8 +476,12 @@ class ParquetRowDataWriterTest {
         }
     }
 
-    private static byte[] geographyBytes(String wkt) {
-        return GeographyConversionUtils.fromWkt(wkt).toBytes();
+    private static byte[] bytesFromHex(String hex) {
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        }
+        return bytes;
     }
 
     private void innerTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
