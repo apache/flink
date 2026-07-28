@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.secret.GenericInMemorySecretStore;
 
 import org.junit.jupiter.api.Test;
 
@@ -101,6 +104,37 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThatThrownBy(() -> tEnv().executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void testAlterTemporaryConnectionRenameToExistingPermanentConnectionRejected() {
+        TableEnvironment tableEnv = tableEnvWithSecretStore();
+        tableEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+        tableEnv.executeSql("CREATE CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void testAlterPermanentConnectionRenameToExistingTemporaryConnectionRejected() {
+        TableEnvironment tableEnv = tableEnvWithSecretStore();
+        tableEnv.executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')");
+        tableEnv.executeSql("CREATE TEMPORARY CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("already exists");
+    }
+
+    private TableEnvironment tableEnvWithSecretStore() {
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance()
+                        .inBatchMode()
+                        .withSecretStore(new GenericInMemorySecretStore())
+                        .build();
+        return TableEnvironment.create(settings);
     }
 
     private CatalogManager catalogManager() {
