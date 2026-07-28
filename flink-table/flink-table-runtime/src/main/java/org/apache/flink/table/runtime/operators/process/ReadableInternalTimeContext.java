@@ -32,13 +32,13 @@ import static org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
  * {@link StaticArgumentTrait#PASS_COLUMNS_THROUGH}.
  */
 @Internal
-class ReadableInternalTimeContext implements ProcessTableFunction.TimeContext<Long> {
+public class ReadableInternalTimeContext implements ProcessTableFunction.TimeContext<Long> {
 
     protected long tableWatermark;
     protected long currentWatermark;
     protected @Nullable Long time;
 
-    void setTime(long tableWatermark, long currentWatermark, @Nullable Long time) {
+    public void setTime(long tableWatermark, long currentWatermark, @Nullable Long time) {
         this.tableWatermark = tableWatermark;
         this.currentWatermark = currentWatermark;
         this.time = time;

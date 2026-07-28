@@ -87,6 +87,54 @@ class UserDefinedFunctions(_message.Message):
     runtime_context: UserDefinedDataStreamFunction.RuntimeContext
     def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedFunction, _Mapping]]] = ..., metric_enabled: bool = ..., windows: _Optional[_Iterable[_Union[OverWindow, _Mapping]]] = ..., profile_enabled: bool = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., async_options: _Optional[_Union[AsyncOptions, _Mapping]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
 
+class UserDefinedProcessTableFunction(_message.Message):
+    __slots__ = ("payload", "arguments", "states", "key_type", "has_on_timer", "metric_enabled", "profile_enabled", "state_cache_size", "map_state_read_cache_size", "map_state_write_cache_size", "job_parameters", "runtime_context")
+    class Argument(_message.Message):
+        __slots__ = ("name", "type", "is_table", "traits")
+        NAME_FIELD_NUMBER: _ClassVar[int]
+        TYPE_FIELD_NUMBER: _ClassVar[int]
+        IS_TABLE_FIELD_NUMBER: _ClassVar[int]
+        TRAITS_FIELD_NUMBER: _ClassVar[int]
+        name: str
+        type: Schema.FieldType
+        is_table: bool
+        traits: _containers.RepeatedScalarFieldContainer[str]
+        def __init__(self, name: _Optional[str] = ..., type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., is_table: bool = ..., traits: _Optional[_Iterable[str]] = ...) -> None: ...
+    class State(_message.Message):
+        __slots__ = ("name", "type", "ttl_millis")
+        NAME_FIELD_NUMBER: _ClassVar[int]
+        TYPE_FIELD_NUMBER: _ClassVar[int]
+        TTL_MILLIS_FIELD_NUMBER: _ClassVar[int]
+        name: str
+        type: Schema.FieldType
+        ttl_millis: int
+        def __init__(self, name: _Optional[str] = ..., type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., ttl_millis: _Optional[int] = ...) -> None: ...
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    ARGUMENTS_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
+    KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    HAS_ON_TIMER_FIELD_NUMBER: _ClassVar[int]
+    METRIC_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    STATE_CACHE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    MAP_STATE_READ_CACHE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    MAP_STATE_WRITE_CACHE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    JOB_PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    payload: bytes
+    arguments: _containers.RepeatedCompositeFieldContainer[UserDefinedProcessTableFunction.Argument]
+    states: _containers.RepeatedCompositeFieldContainer[UserDefinedProcessTableFunction.State]
+    key_type: Schema.FieldType
+    has_on_timer: bool
+    metric_enabled: bool
+    profile_enabled: bool
+    state_cache_size: int
+    map_state_read_cache_size: int
+    map_state_write_cache_size: int
+    job_parameters: _containers.RepeatedCompositeFieldContainer[JobParameter]
+    runtime_context: UserDefinedDataStreamFunction.RuntimeContext
+    def __init__(self, payload: _Optional[bytes] = ..., arguments: _Optional[_Iterable[_Union[UserDefinedProcessTableFunction.Argument, _Mapping]]] = ..., states: _Optional[_Iterable[_Union[UserDefinedProcessTableFunction.State, _Mapping]]] = ..., key_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ..., has_on_timer: bool = ..., metric_enabled: bool = ..., profile_enabled: bool = ..., state_cache_size: _Optional[int] = ..., map_state_read_cache_size: _Optional[int] = ..., map_state_write_cache_size: _Optional[int] = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., runtime_context: _Optional[_Union[UserDefinedDataStreamFunction.RuntimeContext, _Mapping]] = ...) -> None: ...
+
 class OverWindow(_message.Message):
     __slots__ = ("window_type", "lower_boundary", "upper_boundary")
     class WindowType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):

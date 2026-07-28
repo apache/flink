@@ -47,7 +47,7 @@ class CountWithTimeout(ProcessTableFunction):
         yield Row(memory.count)
 
 
-class ProcessTableFunctionDefinitionTests(PyFlinkTestCase):
+class UdptfTests(PyFlinkTestCase):
 
     @staticmethod
     def _result_type():
