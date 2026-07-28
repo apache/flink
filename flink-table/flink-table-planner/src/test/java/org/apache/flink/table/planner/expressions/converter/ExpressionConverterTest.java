@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.expressions.converter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -28,6 +30,7 @@ import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -50,9 +53,15 @@ import java.util.UUID;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ExpressionConverter}. */
 class ExpressionConverterTest {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
 
     private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
     private final ExpressionConverter converter =
@@ -252,5 +261,40 @@ class ExpressionConverterTest {
                         BuiltInFunctionDefinitions.CAST,
                         List.of(input, typeLiteral(targetType)),
                         outputType));
+    }
+
+    @Test
+    void testGeographyLiteralUsesConstructorCall() {
+        RexNode rex =
+                converter.visit(
+                        valueLiteral(
+                                GeographyData.fromBytes(POINT_WKB),
+                                DataTypes.GEOGRAPHY().notNull()));
+
+        assertThat(rex).isInstanceOf(RexCall.class);
+        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.OTHER);
+        assertThat(rex.getType().isNullable()).isFalse();
+
+        RexCall call = (RexCall) rex;
+        assertThat(call.getOperator().getName()).isEqualTo("ST_GEOGFROMWKB");
+        assertThat(((RexLiteral) call.getOperands().get(0)).getValueAs(byte[].class))
+                .isEqualTo(POINT_WKB);
+    }
+
+    @Test
+    void testNullableGeographyLiteral() {
+        RexNode rex = converter.visit(valueLiteral(null, DataTypes.GEOGRAPHY()));
+
+        assertThat(rex).isInstanceOf(RexLiteral.class);
+        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.OTHER);
+        assertThat(rex.getType().isNullable()).isTrue();
+        assertThat(((RexLiteral) rex).getValue()).isNull();
+    }
+
+    @Test
+    void testInvalidGeographyLiteralFailsValidation() {
+        assertThatThrownBy(() -> valueLiteral("POINT (1 2)", DataTypes.GEOGRAPHY().notNull()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("does not support a value literal");
     }
 }
