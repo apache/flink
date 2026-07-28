@@ -104,7 +104,6 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
                             "Malformed ISO WKB payload. Found %d trailing byte(s).",
                             endOffset - consumedOffset));
         }
-        return header.subtypeId;
     }
 
     private static long validateGeometry(
