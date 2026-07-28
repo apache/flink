@@ -24,9 +24,8 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestTimerService;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,10 +35,10 @@ import static org.apache.flink.cep.utils.NFATestHarness.forPattern;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 
 /** Tests for accessing time properties from {@link IterativeCondition}. */
-public class NFAIterativeConditionTimeContextTest extends TestLogger {
+class NFAIterativeConditionTimeContextTest {
 
     @Test
-    public void testEventTimestamp() throws Exception {
+    void testEventTimestamp() throws Exception {
         final Event event = event().withId(1).build();
         final long timestamp = 3;
 
@@ -64,7 +63,7 @@ public class NFAIterativeConditionTimeContextTest extends TestLogger {
     }
 
     @Test
-    public void testCurrentProcessingTime() throws Exception {
+    void testCurrentProcessingTime() throws Exception {
         final Event event1 = event().withId(1).build();
         final Event event2 = event().withId(2).build();
 

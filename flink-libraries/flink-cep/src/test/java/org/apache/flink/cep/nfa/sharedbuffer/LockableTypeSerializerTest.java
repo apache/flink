@@ -21,32 +21,34 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.cep.nfa.sharedbuffer.Lockable.LockableTypeSerializer}. */
-public class LockableTypeSerializerTest {
+class LockableTypeSerializerTest {
 
     /** This tests that {@link Lockable.LockableTypeSerializer#duplicate()} works as expected. */
     @Test
-    public void testDuplicate() {
+    void testDuplicate() {
         IntSerializer nonDuplicatingInnerSerializer = IntSerializer.INSTANCE;
-        Assert.assertSame(nonDuplicatingInnerSerializer, nonDuplicatingInnerSerializer.duplicate());
+        assertThat(nonDuplicatingInnerSerializer.duplicate())
+                .isSameAs(nonDuplicatingInnerSerializer);
         Lockable.LockableTypeSerializer<Integer> candidateTestShallowDuplicate =
                 new Lockable.LockableTypeSerializer<>(nonDuplicatingInnerSerializer);
-        Assert.assertSame(candidateTestShallowDuplicate, candidateTestShallowDuplicate.duplicate());
+        assertThat(candidateTestShallowDuplicate.duplicate())
+                .isSameAs(candidateTestShallowDuplicate);
 
         TestDuplicateSerializer duplicatingInnerSerializer = new TestDuplicateSerializer();
-        Assert.assertNotSame(duplicatingInnerSerializer, duplicatingInnerSerializer.duplicate());
+        assertThat(duplicatingInnerSerializer.duplicate()).isNotSameAs(duplicatingInnerSerializer);
 
         Lockable.LockableTypeSerializer<Integer> candidateTestDeepDuplicate =
                 new Lockable.LockableTypeSerializer<>(duplicatingInnerSerializer);
 
         Lockable.LockableTypeSerializer<Integer> deepDuplicate =
                 candidateTestDeepDuplicate.duplicate();
-        Assert.assertNotSame(candidateTestDeepDuplicate, deepDuplicate);
-        Assert.assertNotSame(
-                candidateTestDeepDuplicate.getElementSerializer(),
-                deepDuplicate.getElementSerializer());
+        assertThat(deepDuplicate).isNotSameAs(candidateTestDeepDuplicate);
+        assertThat(deepDuplicate.getElementSerializer())
+                .isNotSameAs(candidateTestDeepDuplicate.getElementSerializer());
     }
 }
