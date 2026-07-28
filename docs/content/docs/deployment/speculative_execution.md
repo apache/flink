@@ -92,7 +92,7 @@ This means the SplitEnumerator should be aware of the attempt which sends the ev
 will happen when the job manager receives a source event from the tasks and lead to job failures.
 
 No extra change is required for other sources to work with speculative execution, including 
-{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction sources" >}}, 
+{{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/source/legacy/SourceFunction.java" name="SourceFunction sources" >}}, 
 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java" name="InputFormat sources" >}}, 
 and {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="new sources" >}}. 
 All the source connectors offered by Apache Flink can work with speculative execution.
@@ -105,7 +105,7 @@ public interface SupportsConcurrentExecutionAttempts {}
 ```
 The {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}} 
 works for {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} 
-, {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/sink/SinkFunction.java" name="SinkFunction" >}} 
+, {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/sink/legacy/SinkFunction.java" name="SinkFunction" >}} 
 and {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java" name="OutputFormat" >}}.
 
 {{< hint info >}}
@@ -116,7 +116,7 @@ That means if the Sink does not support speculative execution, the task containi
 {{< hint info >}}
 For the {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} implementation, 
 Flink disables speculative execution for {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Committer.java" name="Committer" >}}(
-including the operators extended by {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPreCommitTopology.java" name="WithPreCommitTopology" >}} and {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPostCommitTopology.java" name="WithPostCommitTopology" >}}).
+including the operators extended by {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreCommitTopology.java" name="SupportsPreCommitTopology" >}} and {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPostCommitTopology.java" name="SupportsPostCommitTopology" >}}).
 Because the concurrent committing may cause some unexpected problems if the user is not experienced with it. 
 And the committer is very unlikely to be the bottleneck of the batch job.
 {{< /hint >}}

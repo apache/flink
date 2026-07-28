@@ -123,7 +123,7 @@ repositories {
 }
 // NOTE: We cannot use "compileOnly" or "shadow" configurations since then we could not run code
 // in the IDE or with "gradle run". We also cannot exclude transitive dependencies from the
-// shadowJar yet (see https://github.com/johnrengelman/shadow/issues/159).
+// shadowJar yet (see https://github.com/GradleUp/shadow/issues/159).
 // -> Explicitly define the // libraries we want to be included in the "flinkShadowJar" configuration!
 configurations {
     flinkShadowJar // dependencies which go into the shadowJar

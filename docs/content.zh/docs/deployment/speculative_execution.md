@@ -78,7 +78,7 @@ public interface SupportsHandleExecutionAttemptSourceEvent {
 这意味着 SplitEnumerator 需要知道是哪个执行实例发出了这个事件。否则，JobManager 会在收到 SourceEvent 的时候报错从而导致作业失败。
 
 除此之外的 Source 不需要额外的改动就可以进行预测执行，包括 
-{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction Source" >}}, 
+{{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/source/legacy/SourceFunction.java" name="SourceFunction Source" >}}, 
 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java" name="InputFormat Source" >}}, 
 和 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="新版 Source" >}}.
 Apache Flink 官方提供的 Source 都支持预测执行。
@@ -91,7 +91,7 @@ public interface SupportsConcurrentExecutionAttempts {}
 ```
 接口 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/SupportsConcurrentExecutionAttempts.java" name="SupportsConcurrentExecutionAttempts" >}}
 适用于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}}
-，{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/sink/SinkFunction.java" name="SinkFunction" >}}
+，{{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/functions/sink/legacy/SinkFunction.java" name="SinkFunction" >}}
 以及 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java" name="OutputFormat" >}}。
 
 {{< hint info >}}
@@ -101,7 +101,7 @@ public interface SupportsConcurrentExecutionAttempts {}
 {{< hint info >}}
 对于 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} 实现, 
 Flink 会关闭 {{< gh_link file="/flink-core/src/main/java/org/apache/flink/api/connector/sink2/Committer.java" name="Committer" >}} 的预测执行，
-（包括被 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPreCommitTopology.java" name="WithPreCommitTopology" >}} 和 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/connector/sink2/WithPostCommitTopology.java" name="WithPostCommitTopology" >}} 扩展的算子）。
+（包括被 {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreCommitTopology.java" name="SupportsPreCommitTopology" >}} 和 {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPostCommitTopology.java" name="SupportsPostCommitTopology" >}} 扩展的算子）。
 因为如果用户对并行提交理解不深的话，这里可能会引起意料之外的问题。另外一个原因是提交的部分往往不是批作业的瓶颈所在。
 {{< /hint >}}
 
