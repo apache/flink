@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -36,6 +38,7 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModelProviderFactory;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkContext;
@@ -141,6 +144,10 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                             .collect(Collectors.toList()));
         }
 
+        if (type.getTypeRoot() == LogicalTypeRoot.GEOGRAPHY) {
+            return convertGeographyLiteral(valueLiteral);
+        }
+
         Object value;
         switch (type.getTypeRoot()) {
             case DECIMAL:
@@ -218,6 +225,28 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                 // cases the type will be simply pushed down into the RexLiteral, see
                 // RexBuilder#makeCast.
                 true);
+    }
+
+    private RexNode convertGeographyLiteral(ValueLiteralExpression valueLiteral) {
+        final GeographyData geography =
+                valueLiteral
+                        .getValueAs(GeographyData.class)
+                        .orElseThrow(
+                                () ->
+                                        new TableException(
+                                                String.format(
+                                                        "GEOGRAPHY literals require values of class '%s' but found '%s'.",
+                                                        GeographyData.class.getName(),
+                                                        extractValue(valueLiteral, Object.class)
+                                                                .getClass()
+                                                                .getName())));
+        return visit(
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.ST_GEOGFROMWKB,
+                        List.of(
+                                new ValueLiteralExpression(
+                                        geography.toBytes(), DataTypes.BYTES().notNull())),
+                        valueLiteral.getOutputDataType()));
     }
 
     @Override
