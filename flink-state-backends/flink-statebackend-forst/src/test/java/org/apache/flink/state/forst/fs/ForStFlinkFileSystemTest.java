@@ -506,7 +506,7 @@ public class ForStFlinkFileSystemTest {
         assertThat(fileSystem.getMappingEntry(notOwnedPath).getFileOwnership())
                 .isEqualTo(FileOwnership.NOT_OWNED);
 
-        // Now the JM is deleting the physical object.
+        // Now the JM is deleting the physical object
         fileSystem.getDelegateFS().delete(notOwnedSource, false);
 
         FileStatus[] statuses = fileSystem.listStatus(remotePath);
@@ -539,7 +539,7 @@ public class ForStFlinkFileSystemTest {
         MappingEntry entry = fileSystem.getMappingEntry(dbOwnedPath);
         assertThat(entry.getFileOwnership()).isEqualTo(FileOwnership.SHAREABLE_OWNED_BY_DB);
 
-        // Delete the physical object out from under the DB-owned entry.
+        // Delete the physical object out from under the DB-owned entry
         fileSystem.getDelegateFS().delete(entry.getSourcePath(), false);
 
         assertThatThrownBy(() -> fileSystem.listStatus(remotePath))
