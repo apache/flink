@@ -85,6 +85,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          sparse-checkout: |
+            docs
+            tools/ci/docs.sh
 
       - name: "Build docs and check for broken links"
         run: ./tools/ci/docs.sh
