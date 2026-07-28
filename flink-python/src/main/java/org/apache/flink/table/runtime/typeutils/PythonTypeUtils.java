@@ -648,7 +648,7 @@ public final class PythonTypeUtils {
         public static final GeographyDataConverter INSTANCE = new GeographyDataConverter();
 
         private GeographyDataConverter() {
-            super(GeographyDataFormatConverter.INSTANCE);
+            super(DataFormatConverters.GeographyConverter.INSTANCE);
         }
 
         @Override
@@ -947,25 +947,6 @@ public final class PythonTypeUtils {
             return new IdentityDataConverter<>(
                     DataFormatConverters.getConverterForDataType(
                             TypeConversions.fromLogicalToDataType(logicalType)));
-        }
-    }
-
-    private static final class GeographyDataFormatConverter
-            extends DataFormatConverters.DataFormatConverter<GeographyData, GeographyData> {
-
-        private static final GeographyDataFormatConverter INSTANCE =
-                new GeographyDataFormatConverter();
-
-        private GeographyDataFormatConverter() {}
-
-        @Override
-        GeographyData toInternalImpl(GeographyData value) {
-            return value;
-        }
-
-        @Override
-        GeographyData toExternalImpl(RowData row, int column) {
-            return row.getGeography(column);
         }
     }
 }
