@@ -33,8 +33,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecove
 import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecoverableWriter;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -47,7 +46,6 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for the {@code Bucket}. */
 class BucketTest {
@@ -66,11 +64,11 @@ class BucketTest {
         bucketUnderTest.write("test-element", 0L);
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state).is(matching(hasActiveInProgressFile()));
+        assertThat(state).is(hasActiveInProgressFile());
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
         assertThat(recoverableWriter)
-                .is(matching(hasCalledDiscard(0))); // it did not discard as this is still valid.
+                .is(hasCalledDiscard(0)); // it did not discard as this is still valid.
     }
 
     @Test
@@ -85,7 +83,7 @@ class BucketTest {
         bucketUnderTest.write("test-element", 0L);
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state).is(matching(hasActiveInProgressFile()));
+        assertThat(state).is(hasActiveInProgressFile());
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
 
@@ -93,8 +91,7 @@ class BucketTest {
         bucketUnderTest.onReceptionOfCheckpoint(2L);
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(2L);
-        assertThat(recoverableWriter)
-                .is(matching(hasCalledDiscard(2))); // that is for checkpoints 0 and 1
+        assertThat(recoverableWriter).is(hasCalledDiscard(2)); // that is for checkpoints 0 and 1
     }
 
     @Test
@@ -107,14 +104,13 @@ class BucketTest {
                 createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state).is(matching(hasNoActiveInProgressFile()));
+        assertThat(state).is(hasNoActiveInProgressFile());
 
         bucketUnderTest.onReceptionOfCheckpoint(1L);
         bucketUnderTest.onReceptionOfCheckpoint(2L);
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(2L);
-        assertThat(recoverableWriter)
-                .is(matching(hasCalledDiscard(0))); // we have no in-progress file.
+        assertThat(recoverableWriter).is(hasCalledDiscard(0)); // we have no in-progress file.
     }
 
     @Test
@@ -128,9 +124,9 @@ class BucketTest {
 
         bucketUnderTest.write("test-element", 0L);
         final BucketState<String> state0 = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state0).is(matching(hasActiveInProgressFile()));
+        assertThat(state0).is(hasActiveInProgressFile());
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
-        assertThat(recoverableWriter).is(matching(hasCalledDiscard(0)));
+        assertThat(recoverableWriter).is(hasCalledDiscard(0));
 
         final File newOutDir = TempDirUtils.newFolder(tempFolder);
         final Path newPath = new Path(newOutDir.toURI());
@@ -139,9 +135,9 @@ class BucketTest {
                 restoreBucket(
                         newRecoverableWriter, 0, 0, state0, OutputFileConfig.builder().build());
         final BucketState<String> state1 = bucketAfterResume.onReceptionOfCheckpoint(1L);
-        assertThat(state1).is(matching(hasActiveInProgressFile()));
+        assertThat(state1).is(hasActiveInProgressFile());
         bucketAfterResume.onSuccessfulCompletionOfCheckpoint(1L);
-        assertThat(newRecoverableWriter).is(matching(hasCalledDiscard(1)));
+        assertThat(newRecoverableWriter).is(hasCalledDiscard(1));
     }
 
     // --------------------------- Checking Restore ---------------------------
@@ -152,8 +148,8 @@ class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(nonResumableWriter);
 
-        assertThat(nonResumableWriter).is(matching(hasMethodCallCountersEqualTo(1, 0, 1)));
-        assertThat(bucket).is(matching(hasNullInProgressFile(true)));
+        assertThat(nonResumableWriter).is(hasMethodCallCountersEqualTo(1, 0, 1));
+        assertThat(bucket).is(hasNullInProgressFile(true));
     }
 
     @Test
@@ -162,8 +158,8 @@ class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(resumableWriter);
 
-        assertThat(resumableWriter).is(matching(hasMethodCallCountersEqualTo(1, 1, 0)));
-        assertThat(bucket).is(matching(hasNullInProgressFile(false)));
+        assertThat(resumableWriter).is(hasMethodCallCountersEqualTo(1, 1, 0));
+        assertThat(bucket).is(hasNullInProgressFile(false));
     }
 
     @Test
@@ -174,108 +170,54 @@ class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyPendingParts(writer, expectedRecoverForCommitCounter);
 
-        assertThat(writer)
-                .is(matching(hasMethodCallCountersEqualTo(0, 0, expectedRecoverForCommitCounter)));
-        assertThat(bucket).is(matching(hasNullInProgressFile(true)));
+        assertThat(writer).is(hasMethodCallCountersEqualTo(0, 0, expectedRecoverForCommitCounter));
+        assertThat(bucket).is(hasNullInProgressFile(true));
     }
 
-    // ------------------------------- Matchers --------------------------------
+    // ------------------------------- Conditions --------------------------------
 
-    private static TypeSafeMatcher<TestRecoverableWriter> hasCalledDiscard(int times) {
-        return new TypeSafeMatcher<TestRecoverableWriter>() {
-            @Override
-            protected boolean matchesSafely(TestRecoverableWriter writer) {
-                return writer.getCleanupCallCounter() == times;
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText(
-                                "the TestRecoverableWriter to have called discardRecoverableState() ")
-                        .appendValue(times)
-                        .appendText(" times.");
-            }
-        };
+    private static Condition<TestRecoverableWriter> hasCalledDiscard(int times) {
+        return new Condition<>(
+                writer -> writer != null && writer.getCleanupCallCounter() == times,
+                "the TestRecoverableWriter to have called discardRecoverableState() %d times.",
+                times);
     }
 
-    private static TypeSafeMatcher<BucketState<String>> hasActiveInProgressFile() {
-        return new TypeSafeMatcher<BucketState<String>>() {
-            @Override
-            protected boolean matchesSafely(BucketState<String> state) {
-                return state.getInProgressFileRecoverable() != null;
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText("a BucketState with active in-progress file.");
-            }
-        };
+    private static Condition<BucketState<String>> hasActiveInProgressFile() {
+        return new Condition<>(
+                state -> state != null && state.getInProgressFileRecoverable() != null,
+                "a BucketState with active in-progress file.");
     }
 
-    private static TypeSafeMatcher<BucketState<String>> hasNoActiveInProgressFile() {
-        return new TypeSafeMatcher<BucketState<String>>() {
-            @Override
-            protected boolean matchesSafely(BucketState<String> state) {
-                return state.getInProgressFileRecoverable() == null;
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText("a BucketState with no active in-progress file.");
-            }
-        };
+    private static Condition<BucketState<String>> hasNoActiveInProgressFile() {
+        return new Condition<>(
+                state -> state != null && state.getInProgressFileRecoverable() == null,
+                "a BucketState with no active in-progress file.");
     }
 
-    private static TypeSafeMatcher<Bucket<String, String>> hasNullInProgressFile(
-            final boolean isNull) {
-
-        return new TypeSafeMatcher<Bucket<String, String>>() {
-            @Override
-            protected boolean matchesSafely(Bucket<String, String> bucket) {
-                final InProgressFileWriter<String, String> inProgressPart =
-                        bucket.getInProgressPart();
-                return isNull == (inProgressPart == null);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a Bucket with its inProgressPart being ")
-                        .appendText(isNull ? " null." : " not null.");
-            }
-        };
+    private static Condition<Bucket<String, String>> hasNullInProgressFile(final boolean isNull) {
+        return new Condition<>(
+                bucket -> bucket != null && isNull == (bucket.getInProgressPart() == null),
+                "a Bucket with its inProgressPart being %s",
+                isNull ? "null." : "not null.");
     }
 
-    private static TypeSafeMatcher<BaseStubWriter> hasMethodCallCountersEqualTo(
+    private static Condition<BaseStubWriter> hasMethodCallCountersEqualTo(
             final int supportsResumeCalls,
             final int recoverCalls,
             final int recoverForCommitCalls) {
 
-        return new TypeSafeMatcher<BaseStubWriter>() {
-            @Override
-            protected boolean matchesSafely(BaseStubWriter writer) {
-                return writer.getSupportsResumeCallCounter() == supportsResumeCalls
-                        && writer.getRecoverCallCounter() == recoverCalls
-                        && writer.getRecoverForCommitCallCounter() == recoverForCommitCalls;
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a Writer where:")
-                        .appendText(" supportsResume was called ")
-                        .appendValue(supportsResumeCalls)
-                        .appendText(" times,")
-                        .appendText(" recover was called ")
-                        .appendValue(recoverCalls)
-                        .appendText(" times,")
-                        .appendText(" and recoverForCommit was called ")
-                        .appendValue(recoverForCommitCalls)
-                        .appendText(" times.")
-                        .appendText("'");
-            }
-        };
+        return new Condition<>(
+                writer ->
+                        writer != null
+                                && writer.getSupportsResumeCallCounter() == supportsResumeCalls
+                                && writer.getRecoverCallCounter() == recoverCalls
+                                && writer.getRecoverForCommitCallCounter() == recoverForCommitCalls,
+                "a Writer where: supportsResume was called %d times, recover was called %d times, "
+                        + "and recoverForCommit was called %d times.",
+                supportsResumeCalls,
+                recoverCalls,
+                recoverForCommitCalls);
     }
 
     // ------------------------------- Mock Classes --------------------------------

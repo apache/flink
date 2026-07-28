@@ -29,19 +29,18 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentMatcher;
 
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Test checkpoint cancellation barrier. */
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
@@ -180,7 +179,8 @@ class StreamTaskCancellationBarrierTest {
     }
 
     /** A validation matcher for checkpoint exception against failure reason. */
-    private static class CheckpointExceptionMatcher extends BaseMatcher<CheckpointException> {
+    private static class CheckpointExceptionMatcher
+            implements ArgumentMatcher<CheckpointException> {
 
         private final CheckpointFailureReason failureReason;
 
@@ -189,15 +189,15 @@ class StreamTaskCancellationBarrierTest {
         }
 
         @Override
-        public boolean matches(Object o) {
-            return o != null
-                    && o.getClass() == CheckpointException.class
-                    && ((CheckpointException) o).getCheckpointFailureReason().equals(failureReason);
+        public boolean matches(CheckpointException exception) {
+            return exception != null
+                    && exception.getClass() == CheckpointException.class
+                    && exception.getCheckpointFailureReason().equals(failureReason);
         }
 
         @Override
-        public void describeTo(Description description) {
-            description.appendText("CheckpointException - reason = " + failureReason);
+        public String toString() {
+            return "CheckpointException - reason = " + failureReason;
         }
     }
 }

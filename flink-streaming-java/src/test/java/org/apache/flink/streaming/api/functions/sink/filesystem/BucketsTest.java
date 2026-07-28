@@ -31,8 +31,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -45,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link Buckets}. */
 class BucketsTest {
@@ -69,15 +67,15 @@ class BucketsTest {
         buckets.snapshotState(0L, bucketStateContainer, partCounterContainer);
 
         assertThat(buckets.getActiveBuckets().get("test1"))
-                .is(matching(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1")));
+                .is(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1"));
 
         buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 2L));
         buckets.snapshotState(1L, bucketStateContainer, partCounterContainer);
 
         assertThat(buckets.getActiveBuckets().get("test1"))
-                .is(matching(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1")));
+                .is(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1"));
         assertThat(buckets.getActiveBuckets().get("test2"))
-                .is(matching(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test2")));
+                .is(hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test2"));
 
         Buckets<String, String> restoredBuckets =
                 restoreBuckets(
@@ -94,27 +92,19 @@ class BucketsTest {
         assertThat(activeBuckets).isEmpty();
     }
 
-    private static TypeSafeMatcher<Bucket<String, String>>
-            hasSinglePartFileToBeCommittedOnCheckpointAck(
-                    final Path testTmpPath, final String bucketId) {
-        return new TypeSafeMatcher<Bucket<String, String>>() {
-            @Override
-            protected boolean matchesSafely(Bucket<String, String> bucket) {
-                return bucket.getBucketId().equals(bucketId)
-                        && bucket.getBucketPath().equals(new Path(testTmpPath, bucketId))
-                        && bucket.getInProgressPart() == null
-                        && bucket.getPendingFileRecoverablesForCurrentCheckpoint().isEmpty()
-                        && bucket.getPendingFileRecoverablesPerCheckpoint().size() == 1;
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a Bucket with a single pending part file @ ")
-                        .appendValue(new Path(testTmpPath, bucketId))
-                        .appendText("'");
-            }
-        };
+    private static Condition<Bucket<String, String>> hasSinglePartFileToBeCommittedOnCheckpointAck(
+            final Path testTmpPath, final String bucketId) {
+        final Path bucketPath = new Path(testTmpPath, bucketId);
+        return new Condition<>(
+                bucket ->
+                        bucket != null
+                                && bucket.getBucketId().equals(bucketId)
+                                && bucket.getBucketPath().equals(bucketPath)
+                                && bucket.getInProgressPart() == null
+                                && bucket.getPendingFileRecoverablesForCurrentCheckpoint().isEmpty()
+                                && bucket.getPendingFileRecoverablesPerCheckpoint().size() == 1,
+                "a Bucket with a single pending part file @ %s",
+                bucketPath);
     }
 
     @Test

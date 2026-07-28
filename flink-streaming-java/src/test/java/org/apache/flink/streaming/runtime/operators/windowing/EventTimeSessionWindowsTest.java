@@ -31,20 +31,21 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link EventTimeSessionWindows}. */
 class EventTimeSessionWindowsTest {
@@ -109,20 +110,13 @@ class EventTimeSessionWindowsTest {
 
         verify(callback, times(1))
                 .merge(
-                        (Collection<TimeWindow>)
-                                argThat(
-                                        containsInAnyOrder(
-                                                new TimeWindow(0, 1),
-                                                new TimeWindow(1, 2),
-                                                new TimeWindow(2, 3))),
+                        containsInAnyOrder(
+                                new TimeWindow(0, 1), new TimeWindow(1, 2), new TimeWindow(2, 3)),
                         eq(new TimeWindow(0, 3)));
 
         verify(callback, times(1))
                 .merge(
-                        (Collection<TimeWindow>)
-                                argThat(
-                                        containsInAnyOrder(
-                                                new TimeWindow(4, 5), new TimeWindow(5, 6))),
+                        containsInAnyOrder(new TimeWindow(4, 5), new TimeWindow(5, 6)),
                         eq(new TimeWindow(4, 6)));
 
         verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
@@ -145,18 +139,12 @@ class EventTimeSessionWindowsTest {
 
         verify(callback, times(1))
                 .merge(
-                        (Collection<TimeWindow>)
-                                argThat(
-                                        containsInAnyOrder(
-                                                new TimeWindow(1, 1), new TimeWindow(0, 2))),
+                        containsInAnyOrder(new TimeWindow(1, 1), new TimeWindow(0, 2)),
                         eq(new TimeWindow(0, 2)));
 
         verify(callback, times(1))
                 .merge(
-                        (Collection<TimeWindow>)
-                                argThat(
-                                        containsInAnyOrder(
-                                                new TimeWindow(5, 6), new TimeWindow(4, 7))),
+                        containsInAnyOrder(new TimeWindow(5, 6), new TimeWindow(4, 7)),
                         eq(new TimeWindow(4, 7)));
 
         verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
@@ -211,5 +199,25 @@ class EventTimeSessionWindowsTest {
 
         assertThat(assigner).isNotNull();
         assertThat(assigner.isEventTime()).isTrue();
+    }
+
+    /**
+     * Matches a collection containing exactly the expected windows, in any order, counting
+     * duplicates.
+     */
+    private static Collection<TimeWindow> containsInAnyOrder(TimeWindow... windows) {
+        return argThat(
+                actual -> {
+                    if (actual == null) {
+                        return false;
+                    }
+                    final List<TimeWindow> remaining = new ArrayList<>(actual);
+                    for (TimeWindow window : windows) {
+                        if (!remaining.remove(window)) {
+                            return false;
+                        }
+                    }
+                    return remaining.isEmpty();
+                });
     }
 }

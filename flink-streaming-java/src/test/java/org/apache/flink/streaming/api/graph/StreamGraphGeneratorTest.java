@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -80,11 +79,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.Condition;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.hamcrest.Description;
-import org.hamcrest.FeatureMatcher;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -100,8 +96,6 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.equalTo;
 
 /**
  * Tests for {@link StreamGraphGenerator}. This only tests correct translation of split/select,
@@ -378,22 +372,17 @@ class StreamGraphGeneratorTest {
         assertThat(streamGraph.getStreamNodes().size()).isEqualTo(7);
 
         // forward
-        assertThat(edge(streamGraph, source1, map1))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, source1, map1)).is(supportsUnalignedCheckpoints(false));
         // shuffle
-        assertThat(edge(streamGraph, source2, map2))
-                .is(matching(supportsUnalignedCheckpoints(true)));
+        assertThat(edge(streamGraph, source2, map2)).is(supportsUnalignedCheckpoints(true));
         // broadcast, but other channel is forwarded
-        assertThat(edge(streamGraph, map1, joined))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, map1, joined)).is(supportsUnalignedCheckpoints(false));
         // forward
-        assertThat(edge(streamGraph, map2, joined))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, map2, joined)).is(supportsUnalignedCheckpoints(false));
         // shuffle
-        assertThat(edge(streamGraph, joined, map3))
-                .is(matching(supportsUnalignedCheckpoints(true)));
+        assertThat(edge(streamGraph, joined, map3)).is(supportsUnalignedCheckpoints(true));
         // rescale
-        assertThat(edge(streamGraph, map3, map4)).is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, map3, map4)).is(supportsUnalignedCheckpoints(false));
     }
 
     @Test
@@ -427,14 +416,11 @@ class StreamGraphGeneratorTest {
         assertThat(streamGraph.getStreamNodes().size()).isEqualTo(4);
 
         // single broadcast
-        assertThat(edge(streamGraph, source1, map1))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, source1, map1)).is(supportsUnalignedCheckpoints(false));
         // keyed, connected with broadcast
-        assertThat(edge(streamGraph, source2, joined))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, source2, joined)).is(supportsUnalignedCheckpoints(false));
         // broadcast, connected with keyed
-        assertThat(edge(streamGraph, map1, joined))
-                .is(matching(supportsUnalignedCheckpoints(false)));
+        assertThat(edge(streamGraph, map1, joined)).is(supportsUnalignedCheckpoints(false));
     }
 
     private static StreamEdge edge(
@@ -444,16 +430,11 @@ class StreamGraphGeneratorTest {
         return streamEdges.get(0);
     }
 
-    private static Matcher<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
-        return new FeatureMatcher<StreamEdge, Boolean>(
-                equalTo(enabled),
-                "supports unaligned checkpoint",
-                "supports unaligned checkpoint") {
-            @Override
-            protected Boolean featureValueOf(StreamEdge actual) {
-                return actual.supportsUnalignedCheckpoints();
-            }
-        };
+    private static Condition<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
+        return new Condition<>(
+                edge -> edge != null && edge.supportsUnalignedCheckpoints() == enabled,
+                "supports unaligned checkpoint: %s",
+                enabled);
     }
 
     /**
@@ -1199,24 +1180,6 @@ class StreamGraphGeneratorTest {
 
         public Long map2(Long value) throws Exception {
             return value;
-        }
-    }
-
-    private static class EqualsResourceSpecMatcher extends TypeSafeMatcher<ResourceSpec> {
-        private final ResourceSpec resources;
-
-        EqualsResourceSpecMatcher(ResourceSpec resources) {
-            this.resources = resources;
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText("expected resource spec ").appendValue(resources);
-        }
-
-        @Override
-        protected boolean matchesSafely(ResourceSpec item) {
-            return resources.lessThanOrEqual(item) && item.lessThanOrEqual(resources);
         }
     }
 

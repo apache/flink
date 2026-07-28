@@ -44,29 +44,27 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.IterableUtils;
 
-import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.collection.IsMapContaining.hasEntry;
-import static org.hamcrest.core.AllOf.allOf;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link InternalWindowFunction}. */
 class InternalWindowFunctionTest {
@@ -301,12 +299,7 @@ class InternalWindowFunctionTest {
                 mock(InternalWindowFunction.InternalWindowContext.class);
 
         windowFunction.process(42L, w, ctx, 23L, c);
-        verify(mock)
-                .apply(
-                        eq(42L),
-                        eq(w),
-                        (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
-                        eq(c));
+        verify(mock).apply(eq(42L), eq(w), containsExactly(23L), eq(c));
 
         // check close
         windowFunction.close();
@@ -349,11 +342,7 @@ class InternalWindowFunctionTest {
                 mock(InternalWindowFunction.InternalWindowContext.class);
 
         windowFunction.process(((byte) 0), w, ctx, 23L, c);
-        verify(mock)
-                .apply(
-                        eq(w),
-                        (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
-                        eq(c));
+        verify(mock).apply(eq(w), containsExactly(23L), eq(c));
 
         // check close
         windowFunction.close();
@@ -397,10 +386,7 @@ class InternalWindowFunctionTest {
 
         windowFunction.process(((byte) 0), w, ctx, 23L, c);
         verify(mock)
-                .process(
-                        (ProcessAllWindowFunctionMock.Context) any(),
-                        (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
-                        eq(c));
+                .process((ProcessAllWindowFunctionMock.Context) any(), containsExactly(23L), eq(c));
 
         // check close
         windowFunction.close();
@@ -460,7 +446,7 @@ class InternalWindowFunctionTest {
                 .process(
                         eq(42L),
                         (ProcessWindowFunctionMock.Context) any(),
-                        (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
+                        containsExactly(23L),
                         eq(c));
 
         windowFunction.process(42L, w, ctx, 23L, c);
@@ -561,16 +547,7 @@ class InternalWindowFunctionTest {
                             }
                         })
                 .when(mock)
-                .process(
-                        eq(42L),
-                        any(),
-                        (Iterable)
-                                argThat(
-                                        contains(
-                                                allOf(
-                                                        hasEntry(is(23L), is(23L)),
-                                                        hasEntry(is(24L), is(24L))))),
-                        eq(c));
+                .process(eq(42L), any(), containsSingleMapWithEntries(23L, 24L), eq(c));
 
         windowFunction.process(42L, w, ctx, args, c);
         verify(ctx).currentProcessingTime();
@@ -656,20 +633,40 @@ class InternalWindowFunctionTest {
                 mock(InternalWindowFunction.InternalWindowContext.class);
 
         windowFunction.process(((byte) 0), w, ctx, args, c);
-        verify(mock)
-                .process(
-                        any(),
-                        (Iterable)
-                                argThat(
-                                        contains(
-                                                allOf(
-                                                        hasEntry(is(23L), is(23L)),
-                                                        hasEntry(is(24L), is(24L))))),
-                        eq(c));
+        verify(mock).process(any(), containsSingleMapWithEntries(23L, 24L), eq(c));
 
         // check close
         windowFunction.close();
         verify(mock).close();
+    }
+
+    /** Matches an {@link Iterable} containing exactly the expected elements, in order. */
+    private static Iterable<Long> containsExactly(Long... expected) {
+        return argThat(actual -> actual != null && toList(actual).equals(Arrays.asList(expected)));
+    }
+
+    /**
+     * Matches an {@link Iterable} containing a single map that has an entry mapping each expected
+     * key to itself. Extra entries are allowed, matching the {@code hasEntry} semantics this
+     * replaced.
+     */
+    private static Iterable<Map<Long, Long>> containsSingleMapWithEntries(Long... expectedKeys) {
+        return argThat(
+                actual -> {
+                    if (actual == null) {
+                        return false;
+                    }
+                    final List<Map<Long, Long>> maps = toList(actual);
+                    if (maps.size() != 1 || maps.get(0) == null) {
+                        return false;
+                    }
+                    final Map<Long, Long> map = maps.get(0);
+                    return Arrays.stream(expectedKeys).allMatch(key -> key.equals(map.get(key)));
+                });
+    }
+
+    private static <T> List<T> toList(Iterable<T> iterable) {
+        return IterableUtils.toStream(iterable).collect(Collectors.toList());
     }
 
     private static class ProcessWindowFunctionMock
