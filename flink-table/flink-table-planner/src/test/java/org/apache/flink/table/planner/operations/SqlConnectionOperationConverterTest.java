@@ -25,12 +25,14 @@ import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowConnectionsOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
-import org.apache.flink.table.operations.utils.LikeType;
-import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -125,44 +127,27 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
                 .hasMessageContaining("Connection property list can not be empty.");
     }
 
-    @Test
-    void testShowConnections() {
-        Operation operation = parse("SHOW CONNECTIONS");
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowConnectionsTest")
+    void testShowConnections(String sql, String expectedDatabaseName, String expectedSummary) {
+        Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
-        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS");
+        ShowConnectionsOperation showConnectionsOperation = (ShowConnectionsOperation) operation;
+        assertThat(showConnectionsOperation.getDatabaseName()).isEqualTo(expectedDatabaseName);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
     }
 
-    @Test
-    void testShowConnectionsWithDatabase() {
-        Operation operation = parse("SHOW CONNECTIONS FROM db1");
-        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
-        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS FROM builtin.db1");
-    }
-
-    @Test
-    void testShowConnectionsWithCatalogAndDatabase() {
-        Operation operation = parse("SHOW CONNECTIONS IN cat1.db1");
-        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
-        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS IN cat1.db1");
-    }
-
-    @Test
-    void testShowConnectionsLike() {
-        Operation operation = parse("SHOW CONNECTIONS LIKE '%conn%'");
-        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
-        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS LIKE '%conn%'");
-    }
-
-    @Test
-    void testShowConnectionsNotLike() {
-        Operation operation = parse("SHOW CONNECTIONS NOT LIKE 'tmp_%'");
-        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
-        assertThat(operation)
-                .isEqualTo(
-                        new ShowConnectionsOperation(
-                                "builtin",
-                                "default",
-                                ShowLikeOperator.of(LikeType.NOT_LIKE, "tmp_%")));
-        assertThat(operation.asSummaryString()).isEqualTo("SHOW CONNECTIONS NOT LIKE 'tmp_%'");
+    private static Stream<Arguments> inputForShowConnectionsTest() {
+        return Stream.of(
+                Arguments.of("SHOW CONNECTIONS", "default", "SHOW CONNECTIONS"),
+                Arguments.of(
+                        "SHOW CONNECTIONS FROM db1", "db1", "SHOW CONNECTIONS FROM builtin.db1"),
+                Arguments.of("SHOW CONNECTIONS IN cat1.db1", "db1", "SHOW CONNECTIONS IN cat1.db1"),
+                Arguments.of(
+                        "SHOW CONNECTIONS LIKE '%conn%'",
+                        "default", "SHOW CONNECTIONS LIKE '%conn%'"),
+                Arguments.of(
+                        "SHOW CONNECTIONS NOT LIKE 'tmp_%'",
+                        "default", "SHOW CONNECTIONS NOT LIKE 'tmp_%'"));
     }
 }
