@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint.metadata;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.Versioned;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
+
+import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -48,7 +52,21 @@ public interface MetadataSerializer extends Versioned {
     /**
      * Serializes a savepoint or checkpoint metadata to an output stream.
      *
+     * <p>Implementations check every relative file reference against {@code exclusiveDirPath}:
+     * references to files inside that directory keep the relative encoding, references to files
+     * anywhere else (e.g. a savepoint SST reused by the first incremental checkpoint after a
+     * CLAIM-mode restore) are persisted with their absolute path, because the relative form would
+     * be resolved against the wrong directory on recovery. See {@link Checkpoints} for what the
+     * exclusive directory is.
+     *
+     * @param exclusiveDirPath the directory that will contain the metadata file (the checkpoint's
+     *     exclusive directory), or {@code null} to keep every relative reference relative
+     *     regardless of where its file lives
      * @throws IOException Serialization failures are forwarded
      */
-    void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos) throws IOException;
+    void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
+            throws IOException;
 }

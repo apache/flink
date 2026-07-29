@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.Path;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -26,7 +29,7 @@ import java.io.IOException;
  * An output stream for checkpoint metadata.
  *
  * <p>This stream is similar to the {@link CheckpointStateOutputStream}, but for metadata files
- * rather thancdata files.
+ * rather than data files.
  *
  * <p>This stream always creates a file, regardless of the amount of data written.
  */
@@ -40,6 +43,27 @@ public abstract class CheckpointMetadataOutputStream extends FSDataOutputStream 
      */
     public abstract CompletedCheckpointStorageLocation closeAndFinalizeCheckpoint()
             throws IOException;
+
+    /**
+     * Returns the exclusive directory of the checkpoint/savepoint whose metadata is written through
+     * this stream, or {@code null} if it is unknown (e.g. for storage that does not lay out state
+     * in an exclusive directory).
+     *
+     * <p>This is used while serializing the metadata to keep relative file references
+     * self-consistent (see {@code MetadataV2V3SerializerBase}).
+     *
+     * <p>Implementations whose state files can be referenced through {@code
+     * RelativeFileStateHandle}s (in particular any storage laying out state in a per-checkpoint
+     * exclusive directory) must override this method. Returning {@code null} keeps every relative
+     * handle relative unconditionally, which is correct as long as every relative handle points
+     * into the directory the metadata is written to; a relative handle pointing elsewhere would be
+     * resolved against the wrong directory on recovery, making the checkpoint unrestorable. For
+     * storage without an exclusive directory layout, returning {@code null} is the right choice.
+     */
+    @Nullable
+    public Path getExclusiveCheckpointDir() {
+        return null;
+    }
 
     /**
      * This method should close the stream, if has not been closed before. If this method actually
