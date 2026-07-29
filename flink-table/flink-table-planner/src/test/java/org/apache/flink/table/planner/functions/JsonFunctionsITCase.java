@@ -101,8 +101,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     private static TestSetSpec jsonExistsSpec() {
         final String jsonValue = getJsonFromResource("/json/json-exists.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_EXISTS)
-                .onFieldsWithData(jsonValue)
-                .andDataTypes(STRING())
+                .onFieldsWithData(jsonValue, "{\"a\":1} x")
+                .andDataTypes(STRING(), STRING())
 
                 // NULL
                 .testResult(
@@ -175,14 +175,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testTableApiRuntimeError(
                         $("f0").jsonExists("strict $.invalid", JsonExistsOnError.ERROR),
                         TableRuntimeException.class,
-                        "No results for path: $['invalid']");
+                        "No results for path: $['invalid']")
+
+                // Trailing garbage after a valid JSON value
+                .testResult($("f1").jsonExists("$.a"), "JSON_EXISTS(f1, '$.a')", false, BOOLEAN());
     }
 
     private static TestSetSpec jsonValueSpec() {
         final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
-                .onFieldsWithData(jsonValue)
-                .andDataTypes(STRING())
+                .onFieldsWithData(jsonValue, "{\"a\":1} x")
+                .andDataTypes(STRING(), STRING())
 
                 // NULL and invalid types
                 .testResult(
@@ -294,6 +297,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)",
                         "right",
                         STRING())
+
+                // Trailing garbage after a valid JSON value
+                .testResult($("f1").jsonValue("$.a"), "JSON_VALUE(f1, '$.a')", null, STRING())
 
                 // Multiple JSON_VALUE calls on the same input should reuse parsed JSON
                 .testSqlResult(
@@ -408,36 +414,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "f0 IS JSON OBJECT",
                                 true,
                                 BOOLEAN()),
+                // Trailing garbage after a valid JSON value
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
-                        .onFieldsWithData("{} dsfsd")
+                        .onFieldsWithData("{\"a\":1} x")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN())
-                        .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                false,
-                                BOOLEAN())
-                        .testResult(
-                                $("f0").isJson(JsonType.OBJECT),
-                                "f0 IS JSON OBJECT",
-                                false,
-                                BOOLEAN()),
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
-                        .onFieldsWithData("true randomGarbage")
-                        .andDataTypes(STRING())
-                        .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                false,
-                                BOOLEAN()),
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
-                        .onFieldsWithData("null, randomGarbage")
-                        .andDataTypes(STRING())
-                        .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                false,
-                                BOOLEAN()));
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN()));
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {
@@ -662,7 +643,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 TableRuntimeException.class,
-                                "No results for path"));
+                                "No results for path"),
+                // Trailing garbage after a valid JSON value. The path must select an object,
+                // because a scalar would return NULL even if the trailing garbage was accepted.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData("{\"a\":{\"b\":1}} x")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.a"), "JSON_QUERY(f0, '$.a')", null, STRING()));
     }
 
     private static List<TestSetSpec> jsonStringSpec() {
@@ -788,7 +776,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f0")),
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
-                                STRING().notNull()));
+                                STRING().notNull()),
+                // Trailing garbage after a valid JSON value. JSON_STRING serializes its argument
+                // instead of parsing it, so the garbage is kept as part of the string.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData("{\"a\":1} x")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                jsonString($("f0")),
+                                "JSON_STRING(f0)",
+                                "\"{\\\"a\\\":1} x\"",
+                                STRING()));
     }
 
     private static List<TestSetSpec> parseJsonSpec() {
@@ -1214,7 +1212,19 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonObject(JsonOnNull.NULL, "testRow", $("f0")),
                                 "JSON_OBJECT(KEY 'testRow' VALUE f0 NULL ON NULL)",
                                 "{\"testRow\":{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}}",
-                                STRING().notNull()));
+                                STRING().notNull()),
+                // Trailing garbage after a valid JSON value
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
+                        .onFieldsWithData("{\"a\":1} x")
+                        .andDataTypes(STRING())
+                        .testSqlRuntimeError(
+                                "JSON_OBJECT(KEY 'K' VALUE JSON(f0))",
+                                TableRuntimeException.class,
+                                "Invalid JSON string in JSON(value) function")
+                        .testTableApiRuntimeError(
+                                jsonObject(JsonOnNull.NULL, "K", json($("f0"))),
+                                TableRuntimeException.class,
+                                "Invalid JSON string in JSON(value) function"));
     }
 
     private static List<TestSetSpec> jsonQuoteSpec() {
@@ -1286,7 +1296,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "\"\\u2260 will be escaped\"",
                                 STRING().notNull())
                         .testResult(
-                                $("f8").jsonQuote(), "JSON_QUOTE(f8)", null, STRING().nullable()));
+                                $("f8").jsonQuote(), "JSON_QUOTE(f8)", null, STRING().nullable()),
+                // Trailing garbage after a valid JSON value. JSON_QUOTE only escapes its input, so
+                // the garbage is preserved.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUOTE)
+                        .onFieldsWithData("{\"a\":1} x")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").jsonQuote(),
+                                "JSON_QUOTE(f0)",
+                                "\"{\\\"a\\\":1} x\"",
+                                STRING()));
     }
 
     private static List<TestSetSpec> jsonUnquoteSpecWithValidInput() {
@@ -1508,7 +1528,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f10").jsonQuote(),
                                 "JSON_UNQUOTE(f10)",
                                 null,
-                                STRING().nullable()));
+                                STRING().nullable()),
+                // Trailing garbage after a valid JSON value. The leading '"abc"' must not be
+                // unquoted on its own, the input is passed through unchanged.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
+                        .onFieldsWithData("\"abc\" \"def\"")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").jsonUnquote(),
+                                "JSON_UNQUOTE(f0)",
+                                "\"abc\" \"def\"",
+                                STRING()));
     }
 
     private static List<TestSetSpec> jsonArraySpec() {
@@ -1651,7 +1681,19 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonArray(JsonOnNull.NULL, $("f0")),
                                 "JSON_ARRAY(f0 NULL ON NULL)",
                                 "[{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}]",
-                                STRING().notNull()));
+                                STRING().notNull()),
+                // Trailing garbage after a valid JSON value
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
+                        .onFieldsWithData("{\"a\":1} x")
+                        .andDataTypes(STRING())
+                        .testSqlRuntimeError(
+                                "JSON_ARRAY(JSON(f0))",
+                                TableRuntimeException.class,
+                                "Invalid JSON string in JSON(value) function")
+                        .testTableApiRuntimeError(
+                                jsonArray(JsonOnNull.NULL, json($("f0"))),
+                                TableRuntimeException.class,
+                                "Invalid JSON string in JSON(value) function"));
     }
 
     /** Pins the local-ref / common-sub-expression handling for JSON construction calls. */

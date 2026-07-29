@@ -159,6 +159,18 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of(1, "{\"A\":1,\"B\":3}", 3),
                                         Row.of(2, "{\"A\":2,\"C\":5}", 5))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("Trailing Garbage After A Valid JSON Value")
+                        .withSource(
+                                ROW(STRING(), STRING()),
+                                Collections.singletonList(Row.ofKind(INSERT, "A", "{\"a\":1} x")))
+                        .testResult(
+                                source -> "SELECT JSON_OBJECTAGG(f0 VALUE f1) FROM " + source,
+                                TableApiAggSpec.select(
+                                        jsonObjectAgg(JsonOnNull.NULL, $("f0"), $("f1"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("{\"A\":\"{\\\"a\\\":1} x\"}"))),
 
                 // JSON_ARRAYAGG
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
@@ -338,6 +350,19 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                                 + source
                                                 + " GROUP BY TUMBLE(f1, INTERVAL '5' SECOND)",
                                 ROW(VARCHAR(2000).notNull()),
-                                Arrays.asList(Row.of("[\"A\",\"B\"]"), Row.of("[\"C\"]"))));
+                                Arrays.asList(Row.of("[\"A\",\"B\"]"), Row.of("[\"C\"]"))),
+
+                // Trailing garbage after a valid JSON value
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Trailing Garbage After A Valid JSON Value")
+                        .withSource(
+                                ROW(STRING()),
+                                Collections.singletonList(Row.ofKind(INSERT, "{\"a\":1} x")))
+                        .testResult(
+                                source -> "SELECT JSON_ARRAYAGG(f0) FROM " + source,
+                                TableApiAggSpec.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
+                                ROW(VARCHAR(2000).notNull()),
+                                ROW(STRING().notNull()),
+                                Collections.singletonList(Row.of("[\"{\\\"a\\\":1} x\"]"))));
     }
 }
