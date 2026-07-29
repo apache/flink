@@ -101,7 +101,6 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
 
-
     def test_geography_sql_wkb_bytes_round_trip(self):
         point_wkb = bytes([
             1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
