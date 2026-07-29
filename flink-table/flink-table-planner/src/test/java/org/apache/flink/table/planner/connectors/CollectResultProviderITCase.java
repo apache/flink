@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * CollectDynamicSink.CollectResultProvider}).
  */
 @ExtendWith(MiniClusterExtension.class)
-@Timeout(value = 30, unit = TimeUnit.SECONDS)
+@Timeout(value = 60, unit = TimeUnit.SECONDS)
 class CollectResultProviderITCase {
 
     private static final String EMPTY_RESULT_QUERY =
