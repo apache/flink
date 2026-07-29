@@ -140,7 +140,9 @@ public class RowDataToAvroConverters {
                             @Override
                             public Object convert(Schema schema, Object object) {
                                 if (schema.getType() == Schema.Type.ENUM) {
-                                    return new GenericData.EnumSymbol(schema, object.toString());
+                                    // Returning a plain string here would fail later on inside the
+                                    // datum writer, with no hint at the offending field or value.
+                                    return convertToEnumSymbol(schema, object.toString());
                                 }
                                 return new Utf8(object.toString());
                             }
@@ -297,6 +299,26 @@ public class RowDataToAvroConverters {
                 return record;
             }
         };
+    }
+
+    private static GenericData.EnumSymbol convertToEnumSymbol(Schema enumSchema, String symbol) {
+        if (enumSchema.hasEnumSymbol(symbol)) {
+            return new GenericData.EnumSymbol(enumSchema, symbol);
+        }
+        // Mirror Avro's own schema resolution, which maps an unknown symbol onto the declared
+        // default rather than failing.
+        final String fallback = enumSchema.getEnumDefault();
+        if (fallback != null) {
+            return new GenericData.EnumSymbol(enumSchema, fallback);
+        }
+        throw new IllegalArgumentException(
+                String.format(
+                        "Cannot serialize '%s' as Avro enum '%s'. Allowed symbols are [%s]. "
+                                + "Declare a default symbol on the enum to map unknown values onto "
+                                + "it instead of failing.",
+                        symbol,
+                        enumSchema.getFullName(),
+                        String.join(", ", enumSchema.getEnumSymbols())));
     }
 
     private static RowDataToAvroConverter createArrayConverter(
