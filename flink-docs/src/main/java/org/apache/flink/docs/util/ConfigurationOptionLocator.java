@@ -69,6 +69,9 @@ public class ConfigurationOptionLocator {
                         "flink-state-backends/flink-statebackend-rocksdb",
                         "org.apache.flink.state.rocksdb"),
                 new OptionsClassLocation(
+                        "flink-state-backends/flink-statebackend-rocksdb",
+                        "org.apache.flink.state.rocksdb.sstmerge"),
+                new OptionsClassLocation(
                         "flink-state-backends/flink-statebackend-forst",
                         "org.apache.flink.state.forst"),
                 new OptionsClassLocation(
@@ -130,6 +133,11 @@ public class ConfigurationOptionLocator {
     public ConfigurationOptionLocator(OptionsClassLocation[] locations, String pathPrefix) {
         this.locations = locations;
         this.pathPrefix = pathPrefix;
+    }
+
+    @VisibleForTesting
+    static OptionsClassLocation[] getLocations() {
+        return LOCATIONS;
     }
 
     public void discoverOptionsAndApply(
