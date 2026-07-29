@@ -64,7 +64,7 @@ public class LiteralExpressionsSerializationITCase {
                 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
             };
 
-    private static final String POINT_WKB_HEX = "0101000000000000000000F03F0000000000000040";
+    private static final String POINT_WKB_HEX = "0101000000000000000000f03f0000000000000040";
 
     @Test
     void testGeographySqlSerialization() {

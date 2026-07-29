@@ -195,6 +195,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>4.7</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- ArchUnit test dependencies -->
 		<dependency>
@@ -240,6 +246,12 @@ under the License.
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jsonpath</artifactId>
+			<version>${flink.shaded.jsonpath.version}-${flink.shaded.version}</version>
 			<scope>test</scope>
 		</dependency>
 
