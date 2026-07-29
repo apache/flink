@@ -675,6 +675,7 @@ def from_proto(field_type):
         type_name.DOUBLE: DoubleCoder(),
         type_name.BINARY: BinaryCoder(),
         type_name.VARBINARY: BinaryCoder(),
+        type_name.GEOGRAPHY: BinaryCoder(),
         type_name.CHAR: CharCoder(),
         type_name.VARCHAR: CharCoder(),
         type_name.DATE: DateCoder(),
