@@ -724,9 +724,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "This is a \t test \n with special characters: \b \f \r A"
     )
     testSqlApi("JSON_UNQUOTE('\"\"')", "")
-    testSqlApi("JSON_UNQUOTE('\"\"\"')", "\"")
     testSqlApi("JSON_UNQUOTE('[]')", "[]")
-    testSqlApi("JSON_UNQUOTE('\"\"\\ufffa\"')", "\"\ufffa")
     testSqlApi("JSON_UNQUOTE('{\"key\":1}')", "{\"key\":1}")
     testSqlApi("JSON_UNQUOTE('true')", "true")
   }
@@ -747,6 +745,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testJsonUnquoteWithInvalidInput(): Unit = {
     testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}')", "\"[1, 2, 3}")
     testSqlApi("JSON_UNQUOTE('\"')", "\"")
+    // Quoted, but not a valid JSON string literal: the leading '""' is followed by a
+    // trailing token, so the input is passed through instead of being unquoted.
+    testSqlApi("JSON_UNQUOTE('\"\"\"')", "\"\"\"")
+    testSqlApi("JSON_UNQUOTE('\"\"\\ufffa\"')", "\"\"\\ufffa\"")
     testSqlApi("JSON_UNQUOTE('[}')", "[}")
     testSqlApi("JSON_UNQUOTE('1\"')", "1\"")
     testSqlApi("JSON_UNQUOTE('[')", "[")
