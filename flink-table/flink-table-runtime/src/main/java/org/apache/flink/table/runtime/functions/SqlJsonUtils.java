@@ -32,6 +32,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
 import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
 import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.PathNotFoundException;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -77,6 +78,20 @@ public class SqlJsonUtils {
             new JacksonJsonProvider(MAPPER);
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
             new JacksonMappingProvider(MAPPER);
+
+    /**
+     * Configuration for JSON_LENGTH, which evaluates plain paths only and therefore does not need
+     * the 'lax'/'strict' path mode handling of {@link #jsonApiCommonSyntax}. Exceptions are left
+     * unsuppressed so that a path resolving to a JSON null literal (returns {@code null}) stays
+     * distinguishable from a path that does not exist (throws {@link PathNotFoundException}).
+     * {@link Configuration} is immutable, so a single instance is shared across all calls.
+     */
+    private static final Configuration JSON_PATH_LENGTH_CONFIG =
+            Configuration.builder()
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
+
     private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
@@ -390,13 +405,11 @@ public class SqlJsonUtils {
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
         // TODO FLINK-40233: A null context can result from a shared parse that was short-circuited
         // before parsing.
-        if (parsedInput.hasException()) {
+        // An empty path is ruled out up front because JsonPath rejects it with an
+        // IllegalArgumentException instead of the InvalidPathException caught below.
+        if (parsedInput.hasException() || pathSpec.isEmpty()) {
             return null;
         }
-        else if (pathSpec.isEmpty()){
-            throw new TableRuntimeException("Path can not be Empty");
-        }
-
 
         final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
         final boolean isExplicitLaxStrict = matcher.matches();
@@ -408,15 +421,17 @@ public class SqlJsonUtils {
                                     + "invalid input, use JSON_EXISTS or IS JSON.",
                             pathSpec));
         }
-        final JsonPathContext context = jsonApiCommonSyntax(parsedInput, pathSpec);
-        final Object value = context.obj;
-        if (value == null) {
-            if (pathExists(parsedInput.obj, pathSpec)) {
-                // literal null
-                return 1;
-            } else {
-                return null;
-            }
+        // JsonPath rejects a null root document, so a whole document that is a JSON null literal
+        // has to be resolved here. Only the root path matches it, as a scalar of length 1.
+        if (parsedInput.obj == null) {
+            return "$".equals(pathSpec) ? 1 : null;
+        }
+        final Object value;
+        try {
+            value = JsonPath.parse(parsedInput.obj, JSON_PATH_LENGTH_CONFIG).read(pathSpec);
+        } catch (InvalidPathException e) {
+            // The path does not exist, or is not a valid path at all.
+            return null;
         }
 
         if (!JsonPath.isPathDefinite(pathSpec)) {
@@ -424,6 +439,8 @@ public class SqlJsonUtils {
             return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
         }
 
+        // A definite path that read without throwing but produced null matched a JSON null
+        // literal, which jsonLengthValue counts as a scalar.
         return jsonLengthValue(value);
     }
 
@@ -436,29 +453,6 @@ public class SqlJsonUtils {
         }
         // Scalars, including a JSON null literal, have length 1.
         return 1;
-    }
-
-    /**
-     * Returns whether {@code pathSpec} matches at least one node in {@code json}, independent of
-     * whether the matched value is a JSON null literal. Uses {@link Option#AS_PATH_LIST} so the
-     * result is the list of matched canonical paths, which is empty iff the path does not exist.
-     */
-    private static boolean pathExists(final Object json, final String pathSpec) {
-        try {
-            final List<String> matched =
-                    JsonPath.parse(
-                                    json,
-                                    Configuration.builder()
-                                            .options(
-                                                    Option.AS_PATH_LIST, Option.SUPPRESS_EXCEPTIONS)
-                                            .jsonProvider(JSON_PATH_JSON_PROVIDER)
-                                            .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
-                                            .build())
-                            .read(pathSpec);
-            return matched != null && !matched.isEmpty();
-        } catch (InvalidPathException e) {
-            return false;
-        }
     }
 
     public static Object json(String input) {

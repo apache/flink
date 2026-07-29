@@ -2540,8 +2540,8 @@ public abstract class BaseExpressions<InType, OutType> {
      * lit("{\"1\": \"hello\", \"2\": \"bye bye\"}").jsonLength() // 2
      * lit("[1,2,3,4,5]").jsonLength() // 5
      * lit("\"hello\"").jsonLength() // 1
-     * nullOf(DataTypes.STRING()).jsonLength() // null
-     * lit("invalid").jsonLength() // null
+     * nullOf(DataTypes.STRING()).jsonLength() // NULL
+     * lit("invalid").jsonLength() // NULL
      * }</pre>
      *
      * @return The number of elements in the JSON document.
@@ -2555,7 +2555,11 @@ public abstract class BaseExpressions<InType, OutType> {
      * specified path if one is provided.
      *
      * <p>The input can be a JSON STRING or a VARIANT. Returns {@code NULL} if the argument is
-     * {@code NULL}, the json is invalid, or the path does not locate a value.
+     * {@code NULL}, the json is invalid, or the path is empty, malformed or does not locate a
+     * value.
+     *
+     * <p>The path must be a plain path literal such as {@code '$.a.b'}. A path carrying a {@code
+     * 'lax'}/{@code 'strict'} path mode prefix raises an error.
      *
      * <p>The length is determined as follows:
      *
@@ -2599,7 +2603,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * lit("{\"1\": [1,2,3], \"2\": \"bye bye\"}").jsonLength("$.1") // 3
      * lit("[1,2,3,4,5]").jsonLength("$[3]") // 1
      *
-     * lit("[1,2,3,4,5]").jsonLength("$[7]") // null
+     * lit("[1,2,3,4,5]").jsonLength("$[7]") // NULL
      * }</pre>
      *
      * @param path JSON path to search for.

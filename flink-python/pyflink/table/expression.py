@@ -2268,7 +2268,10 @@ class Expression(Generic[T]):
         specified path if one is provided.
 
         The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
-        the json is invalid, or the path does not locate a value.
+        the json is invalid, or the path is empty, malformed or does not locate a value.
+
+        The path must be a plain path literal such as '$.a.b'. A path carrying a
+        'lax'/'strict' path mode prefix raises an error.
 
         The length is determined as follows:
 
@@ -2314,6 +2317,7 @@ class Expression(Generic[T]):
 
             >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
             >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
+            >>> lit('[1,2,3,4,5]').json_length('$.[') # None
         """
         if path is None:
             return _unary_op("jsonLength")(self)

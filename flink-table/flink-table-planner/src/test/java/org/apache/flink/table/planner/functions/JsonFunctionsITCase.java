@@ -124,6 +124,22 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult("JSON_LENGTH(f8, '$.a[9]')", null, INT().nullable())
                 .testSqlResult("JSON_LENGTH(f8, '$.b')", null, INT().nullable())
 
+                // whole document is a JSON null literal: the root path matches it as a scalar,
+                // anything else does not exist
+                .testSqlResult("JSON_LENGTH(f4, '$')", 1, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f4, '$.a')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f4, '$[0]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f4, '$.*')", null, INT().nullable())
+
+                // malformed, blank and empty paths -> NULL
+                .testSqlResult("JSON_LENGTH(f8, '$[')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '$.[]')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '   ')", null, INT().nullable())
+                .testSqlResult("JSON_LENGTH(f8, '')", null, INT().nullable())
+
+                // the root path on a scalar document behaves like the no-path overload
+                .testSqlResult("JSON_LENGTH(f3, '$')", 1, INT().nullable())
+
                 // SQL NULL input
                 .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
 
