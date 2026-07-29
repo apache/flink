@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -273,6 +274,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             case BINARY:
             case VARBINARY:
                 return String.format("X'%s'", StringUtils.byteToHexString((byte[]) value));
+            case GEOGRAPHY:
+                return String.format(
+                        "ST_GEOGFROMWKB(X'%s')",
+                        StringUtils.byteToHexString(
+                                getValueAs(GeographyData.class).get().toBytes()));
             case DATE:
                 return String.format("DATE '%s'", getValueAs(LocalDate.class).get());
             case TIME_WITHOUT_TIME_ZONE:
