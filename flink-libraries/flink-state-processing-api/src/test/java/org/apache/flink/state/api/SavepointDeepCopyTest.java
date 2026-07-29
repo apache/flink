@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
@@ -183,6 +184,11 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
                 "At least one state file in savepoint1 are not in savepoint2",
                 stateFiles1,
                 everyItem(isIn(stateFiles2)));
+
+        // Not a cleanup step: deleting savepoint1 before reading savepoint2 proves the deep
+        // copy is self-contained — savepoint2's metadata must reference the copied files, not
+        // the originals in savepoint1.
+        FileUtils.deleteDirectory(new File(savepointPath1));
 
         // Try to fromExistingSavepoint savepoint2 and read the state of "Operator1" (which has not
         // been
