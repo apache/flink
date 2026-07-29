@@ -43,6 +43,7 @@ public class CalcRestoreTest extends RestoreTestBase {
                 CalcTestPrograms.CALC_UDF_SIMPLE,
                 CalcTestPrograms.CALC_UDF_COMPLEX,
                 CalcTestPrograms.CALC_CURRENT_TIMESTAMP,
-                CalcTestPrograms.COALESCE);
+                CalcTestPrograms.COALESCE,
+                CalcTestPrograms.CALC_VARIANT);
     }
 }

@@ -1,0 +1,126 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "s",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "v",
+              "dataType" : "VARIANT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`s` VARCHAR(2147483647), `v` VARIANT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[s, v])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "internalName" : "$PARSE_JSON$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "VARIANT"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$TRY_PARSE_JSON$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "VARIANT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$ITEM$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "VARIANT"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "k",
+        "type" : "CHAR(1) NOT NULL"
+      } ],
+      "type" : "VARIANT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` VARIANT, `EXPR$1` VARIANT, `EXPR$2` VARIANT>",
+    "description" : "Calc(select=[PARSE_JSON(s) AS EXPR$0, TRY_PARSE_JSON(s) AS EXPR$1, ITEM(v, 'k') AS EXPR$2])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "parsed",
+              "dataType" : "VARIANT"
+            }, {
+              "name" : "try_parsed",
+              "dataType" : "VARIANT"
+            }, {
+              "name" : "field",
+              "dataType" : "VARIANT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` VARIANT, `EXPR$1` VARIANT, `EXPR$2` VARIANT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[EXPR$0, EXPR$1, EXPR$2])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
