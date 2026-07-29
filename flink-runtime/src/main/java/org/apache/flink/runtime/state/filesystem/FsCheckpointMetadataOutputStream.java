@@ -93,6 +93,11 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
         outputStreamWrapper.getOutput().sync();
     }
 
+    @Override
+    public Path getExclusiveCheckpointDir() {
+        return exclusiveCheckpointDir;
+    }
+
     // ------------------------------------------------------------------------
     //  Closing
     // ------------------------------------------------------------------------
