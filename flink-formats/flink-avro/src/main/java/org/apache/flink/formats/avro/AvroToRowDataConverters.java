@@ -146,7 +146,7 @@ public class AvroToRowDataConverters {
             case ARRAY:
                 return createArrayConverter((ArrayType) type, legacyTimestampMapping);
             case ROW:
-                return createRowConverter((RowType) type);
+                return createRowConverter((RowType) type, legacyTimestampMapping);
             case MAP:
             case MULTISET:
                 return createMapConverter(type, legacyTimestampMapping);
