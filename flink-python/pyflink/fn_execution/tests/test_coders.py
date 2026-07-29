@@ -25,8 +25,9 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, \
     RowCoder, LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, \
-    TimeWindowCoder, CountWindowCoder, InstantCoder
+    TimeWindowCoder, CountWindowCoder, InstantCoder, from_proto
 from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -77,6 +78,11 @@ class CodersTest(PyFlinkTestCase):
     def test_binary_coder(self):
         coder = BinaryCoder()
         self.check_coder(coder, b'pyflink')
+
+    def test_geography_coder_from_proto(self):
+        field_type = flink_fn_execution_pb2.Schema.FieldType(
+            type_name=flink_fn_execution_pb2.Schema.GEOGRAPHY)
+        self.check_coder(from_proto(field_type), b'geography')
 
     def test_char_coder(self):
         coder = CharCoder()
