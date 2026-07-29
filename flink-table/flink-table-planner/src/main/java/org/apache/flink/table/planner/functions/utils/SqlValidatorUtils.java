@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.utils;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.plan.schema.GeographyRelDataType;
 import org.apache.flink.types.Either;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -158,7 +159,8 @@ public class SqlValidatorUtils {
             } else {
                 elementType = oddType;
             }
-            if (operandTypes.get(i).equalsSansFieldNames(elementType)) {
+            if (operandTypes.get(i).equalsSansFieldNames(elementType)
+                    || elementType instanceof GeographyRelDataType) {
                 continue;
             }
             call.setOperand(i, castTo(operands.get(i), elementType));
