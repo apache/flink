@@ -29,6 +29,8 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,6 +38,8 @@ import java.time.LocalDateTime;
 
 /** {@link TableTestProgram}s for testing {@link StreamExecCalc} and {@link BatchExecCalc}. */
 public class CalcTestPrograms {
+
+    private static final VariantBuilder VARIANT_BUILDER = Variant.newBuilder();
 
     // --------------------------------------------------------------------------------------------
     // With restore data
@@ -234,6 +238,37 @@ public class CalcTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT extract(year from current_timestamp) / a FROM t")
+                    .build();
+
+    public static final TableTestProgram CALC_VARIANT =
+            TableTestProgram.of("calc-variant", "validates calc node with VARIANT type")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("s STRING", "v VARIANT")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    "{\"a\":1}",
+                                                    VARIANT_BUILDER
+                                                            .object()
+                                                            .add("k", VARIANT_BUILDER.of(1))
+                                                            .build()))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    "{\"a\":2}",
+                                                    VARIANT_BUILDER
+                                                            .object()
+                                                            .add("k", VARIANT_BUILDER.of(2))
+                                                            .build()))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "parsed VARIANT", "try_parsed VARIANT", "field VARIANT")
+                                    .consumedBeforeRestore("+I[{\"a\":1}, {\"a\":1}, 1]")
+                                    .consumedAfterRestore("+I[{\"a\":2}, {\"a\":2}, 2]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT PARSE_JSON(s), TRY_PARSE_JSON(s), v['k'] FROM t")
                     .build();
 
     // --------------------------------------------------------------------------------------------

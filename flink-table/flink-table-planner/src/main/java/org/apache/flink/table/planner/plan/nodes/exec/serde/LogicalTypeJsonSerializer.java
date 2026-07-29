@@ -238,6 +238,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                         serializeCatalogObjects);
                 break;
             case SYMBOL:
+            case VARIANT:
                 // type root is enough
                 break;
             case RAW:
@@ -544,6 +545,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                 case NULL:
                 case DESCRIPTOR:
                 case BITMAP:
+                case VARIANT:
                     return true;
                 default:
                     // fall back to generic serialization

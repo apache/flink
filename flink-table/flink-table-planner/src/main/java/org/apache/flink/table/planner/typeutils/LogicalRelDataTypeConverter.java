@@ -59,6 +59,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
@@ -462,6 +463,11 @@ public final class LogicalRelDataTypeConverter {
         }
 
         @Override
+        public RelDataType visit(VariantType variantType) {
+            return relDataTypeFactory.createSqlType(SqlTypeName.VARIANT);
+        }
+
+        @Override
         public RelDataType visit(BitmapType bitmapType) {
             return new BitmapRelDataType(bitmapType);
         }
@@ -588,6 +594,8 @@ public final class LogicalRelDataTypeConverter {
                                 .collect(Collectors.toList()));
             case COLUMN_LIST:
                 return new DescriptorType(false);
+            case VARIANT:
+                return new VariantType(false);
             case STRUCTURED:
             case OTHER:
                 if (relDataType instanceof StructuredRelDataType) {
