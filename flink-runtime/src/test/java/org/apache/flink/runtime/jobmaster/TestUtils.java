@@ -58,7 +58,7 @@ public class TestUtils {
                 new CheckpointMetadata(savepointId, operatorStates, Collections.emptyList());
 
         try (FileOutputStream fileOutputStream = new FileOutputStream(savepointFile)) {
-            Checkpoints.storeCheckpointMetadata(savepoint, fileOutputStream);
+            Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(savepoint, fileOutputStream);
         }
 
         return savepointFile;
