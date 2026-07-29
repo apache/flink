@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -71,6 +72,7 @@ public class MockStreamConfig extends StreamConfig {
                     new NonChainedOutput(
                             true,
                             sourceVertex.getId(),
+                            new JobVertexID(),
                             1,
                             1,
                             100,

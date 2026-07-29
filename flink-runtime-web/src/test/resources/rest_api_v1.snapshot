@@ -1437,6 +1437,12 @@
                   },
                   "accumulated-busy-time" : {
                     "type" : "number"
+                  },
+                  "write-records-per-target" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "integer"
+                    }
                   }
                 }
               }
@@ -3945,6 +3951,12 @@
                   },
                   "accumulated-busy-time" : {
                     "type" : "number"
+                  },
+                  "write-records-per-target" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "integer"
+                    }
                   }
                 }
               },
@@ -4405,6 +4417,12 @@
             },
             "accumulated-busy-time" : {
               "type" : "number"
+            },
+            "write-records-per-target" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "integer"
+              }
             }
           }
         },
@@ -4514,6 +4532,12 @@
             },
             "accumulated-busy-time" : {
               "type" : "number"
+            },
+            "write-records-per-target" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "integer"
+              }
             }
           }
         },
@@ -4769,6 +4793,12 @@
                   },
                   "accumulated-busy-time" : {
                     "type" : "number"
+                  },
+                  "write-records-per-target" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "integer"
+                    }
                   }
                 }
               },

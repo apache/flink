@@ -28,6 +28,10 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * This class is a mutable version of the {@link IOMetrics} class that allows adding up IO-related
  * metrics.
@@ -48,6 +52,7 @@ public class MutableIOMetrics extends IOMetrics {
 
     public MutableIOMetrics() {
         super(0, 0, 0, 0, 0, 0, 0);
+        this.numRecordsOutPerTarget = new HashMap<>();
     }
 
     public boolean isNumBytesInComplete() {
@@ -64,6 +69,10 @@ public class MutableIOMetrics extends IOMetrics {
 
     public boolean isNumRecordsOutComplete() {
         return numRecordsOutComplete;
+    }
+
+    public Map<String, Long> getNumRecordsOutPerTargetMutable() {
+        return numRecordsOutPerTarget == null ? Collections.emptyMap() : numRecordsOutPerTarget;
     }
 
     /**
@@ -95,6 +104,11 @@ public class MutableIOMetrics extends IOMetrics {
                     this.accumulateBusyTime = Double.NaN;
                 } else {
                     this.accumulateBusyTime += ioMetrics.getAccumulateBusyTime();
+                }
+                // Aggregate the per-downstream-target breakdown across subtasks.
+                for (Map.Entry<String, Long> entry :
+                        ioMetrics.getNumRecordsOutPerTarget().entrySet()) {
+                    this.numRecordsOutPerTarget.merge(entry.getKey(), entry.getValue(), Long::sum);
                 }
             }
         } else { // execAttempt is still running, use MetricQueryService instead
@@ -137,6 +151,26 @@ public class MutableIOMetrics extends IOMetrics {
                     } else {
                         this.numRecordsOut +=
                                 Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
+                    }
+
+                    // Aggregate the per-downstream-target breakdown. The metric store carries one
+                    // entry per target, named "numRecordsOut.<targetJobVertexId>".
+                    for (Map.Entry<String, String> metricEntry : metrics.metrics.entrySet()) {
+                        String name = metricEntry.getKey();
+                        if (name.startsWith(MetricNames.IO_NUM_RECORDS_OUT_PER_TARGET_PREFIX)) {
+                            String targetId =
+                                    name.substring(
+                                            MetricNames.IO_NUM_RECORDS_OUT_PER_TARGET_PREFIX
+                                                    .length());
+                            try {
+                                this.numRecordsOutPerTarget.merge(
+                                        targetId,
+                                        Long.parseLong(metricEntry.getValue()),
+                                        Long::sum);
+                            } catch (NumberFormatException ignored) {
+                                // Malformed value — skip this subtask for this target.
+                            }
+                        }
                     }
 
                     if (metrics.getMetric(MetricNames.ACC_TASK_BACK_PRESSURED_TIME) != null) {

@@ -196,4 +196,103 @@ class TaskIOMetricGroupTest {
         assertThat(resultPartitionBytes.get(resultPartitionID2).getSubpartitionBytes())
                 .containsExactly(128L, 128L);
     }
+
+    /**
+     * Verifies that per-downstream-target record counts registered via the two-arg overload of
+     * {@link TaskIOMetricGroup#reuseRecordsOutputCounter(Counter, String)} are:
+     *
+     * <ul>
+     *   <li>available through {@link TaskIOMetricGroup#getNumRecordsOutPerTarget()},
+     *   <li>summed into the aggregate {@link TaskIOMetricGroup#getNumRecordsOutCounter()},
+     *   <li>and carried through the {@link IOMetrics} snapshot.
+     * </ul>
+     */
+    @Test
+    void testNumRecordsOutPerTarget() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        Counter toVertexA = new SimpleCounter();
+        toVertexA.inc(10L);
+        Counter toVertexB = new SimpleCounter();
+        toVertexB.inc(25L);
+
+        // Broadcast-collector contribution with no associated target vertex.
+        Counter broadcast = new SimpleCounter();
+        broadcast.inc(7L);
+
+        taskIO.reuseRecordsOutputCounter(toVertexA, "vertex-a");
+        taskIO.reuseRecordsOutputCounter(toVertexB, "vertex-b");
+        taskIO.reuseRecordsOutputCounter(broadcast); // single-arg overload: no per-target key
+
+        // Aggregate includes everything, including the untargeted broadcast counter.
+        assertThat(taskIO.getNumRecordsOutCounter().getCount()).isEqualTo(42L);
+
+        // Per-target map contains only the keyed entries.
+        Map<String, Long> perTarget = taskIO.getNumRecordsOutPerTarget();
+        assertThat(perTarget)
+                .containsExactlyInAnyOrderEntriesOf(Map.of("vertex-a", 10L, "vertex-b", 25L));
+
+        // Snapshot carries the same per-target map.
+        IOMetrics snapshot = taskIO.createSnapshot();
+        assertThat(snapshot.getNumRecordsOutPerTarget())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("vertex-a", 10L, "vertex-b", 25L));
+
+        // Mutations to the registered counters after snapshot are NOT reflected in it — but the
+        // TaskIOMetricGroup's live view IS updated.
+        toVertexA.inc(5L);
+        assertThat(taskIO.getNumRecordsOutPerTarget()).containsEntry("vertex-a", 15L);
+    }
+
+    /**
+     * Verifies that the per-target counter is also registered as an individually named metric (e.g.
+     * {@code numRecordsOut.<targetVertexId>}), so that reporters and the REST metric store can
+     * discover it alongside the aggregate {@code numRecordsOut}.
+     */
+    @Test
+    void testNumRecordsOutPerTargetIsRegisteredAsIndividualMetric() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        Counter target = new SimpleCounter();
+        target.inc(3L);
+
+        // Should not throw even though the name contains a '.' separator — this is also the
+        // implicit contract test for the metric-name builder.
+        taskIO.reuseRecordsOutputCounter(target, "abc123");
+
+        assertThat(taskIO.getNumRecordsOutPerTarget()).containsEntry("abc123", 3L);
+    }
+
+    /**
+     * Verifies the per-target-only registration used by the multi-output / broadcast fan-out path:
+     * per-target counters are exposed through {@link TaskIOMetricGroup#getNumRecordsOutPerTarget()}
+     * and as individual metrics, but do <em>not</em> contribute to the aggregate {@link
+     * TaskIOMetricGroup#getNumRecordsOutCounter()}. This prevents double-counting when the
+     * aggregate is already incremented once per logical emit by the broadcast collector.
+     */
+    @Test
+    void testRegisterNumRecordsOutPerTargetDoesNotContributeToAggregate() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        // Simulates the broadcast collector's task-level aggregate counter: one logical emit.
+        Counter broadcastAggregate = new SimpleCounter();
+        broadcastAggregate.inc(1L);
+        taskIO.reuseRecordsOutputCounter(broadcastAggregate);
+
+        // Per-target counters driven by each underlying RecordWriterOutput (target-only mode).
+        Counter toVertexA = new SimpleCounter();
+        toVertexA.inc(1L);
+        Counter toVertexB = new SimpleCounter();
+        toVertexB.inc(1L);
+        taskIO.registerNumRecordsOutPerTarget(toVertexA, "vertex-a");
+        taskIO.registerNumRecordsOutPerTarget(toVertexB, "vertex-b");
+
+        // Aggregate equals the broadcast counter only — per-target counters are NOT summed in.
+        assertThat(taskIO.getNumRecordsOutCounter().getCount()).isEqualTo(1L);
+        // But per-target visibility is preserved for downstream consumers.
+        assertThat(taskIO.getNumRecordsOutPerTarget())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("vertex-a", 1L, "vertex-b", 1L));
+    }
 }

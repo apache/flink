@@ -246,7 +246,8 @@ public class JobDetailsHandler
                         counts.isNumRecordsOutComplete(),
                         counts.getAccumulateBackPressuredTime(),
                         counts.getAccumulateIdleTime(),
-                        counts.getAccumulateBusyTime());
+                        counts.getAccumulateBusyTime(),
+                        counts.getNumRecordsOutPerTargetMutable());
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),

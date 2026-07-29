@@ -225,7 +225,8 @@ public class JobVertexTaskManagersHandler
                                 current.isNumRecordsOutComplete(),
                                 current.getAccumulateBackPressuredTime(),
                                 current.getAccumulateIdleTime(),
-                                current.getAccumulateBusyTime()));
+                                current.getAccumulateBusyTime(),
+                                current.getNumRecordsOutPerTargetMutable()));
             }
 
             long duration;
@@ -259,7 +260,8 @@ public class JobVertexTaskManagersHandler
                             counts.isNumRecordsOutComplete(),
                             counts.getAccumulateBackPressuredTime(),
                             counts.getAccumulateIdleTime(),
-                            counts.getAccumulateBusyTime());
+                            counts.getAccumulateBusyTime(),
+                            counts.getNumRecordsOutPerTargetMutable());
 
             Map<ExecutionState, Integer> statusCounts =
                     CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);

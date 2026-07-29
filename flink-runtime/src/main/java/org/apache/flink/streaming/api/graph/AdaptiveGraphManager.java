@@ -133,6 +133,24 @@ public class AdaptiveGraphManager
 
     private final Map<Integer, JobVertexID> streamNodeIdsToJobVertexMap;
 
+    /**
+     * Caches the {@link StreamConfig} of each already-created upstream vertex so that, when a
+     * downstream vertex is finally created in a later iteration, we can patch the now-known
+     * downstream {@link JobVertexID} back into the upstream's {@link NonChainedOutput}s and
+     * re-serialize them. Keyed by the upstream vertex's start-node id.
+     */
+    private final Map<Integer, StreamConfig> startNodeIdToVertexConfigMap = new HashMap<>();
+
+    /**
+     * Caches the operator-level {@link StreamConfig} for every stream node whose config has been
+     * built so far, keyed by the upstream stream-node id that produces a non-chained output. This
+     * is the config whose {@link StreamConfig#OP_NONCHAINED_OUTPUTS OP_NONCHAINED_OUTPUTS} list is
+     * read at runtime by {@code OperatorChain}; it must be re-serialized together with the
+     * vertex-level list when a {@link NonChainedOutput}'s target id is patched in a later adaptive
+     * iteration.
+     */
+    private final Map<Integer, StreamConfig> streamNodeIdToOperatorConfigMap = new HashMap<>();
+
     // Records the ID of the job vertex that has completed execution.
     private final Set<JobVertexID> finishedJobVertices;
 
@@ -330,6 +348,18 @@ public class AdaptiveGraphManager
 
         setAllOperatorNonChainedOutputsConfigs(opIntermediateOutputs, jobVertexBuildContext);
 
+        // Cache the operator-level StreamConfig of every stream node built in this iteration so
+        // that a later iteration can re-serialize OP_NONCHAINED_OUTPUTS after patching in the
+        // now-known downstream JobVertexID.
+        for (OperatorChainInfo chainInfo : jobVertexBuildContext.getChainInfosInOrder().values()) {
+            chainInfo
+                    .getOperatorInfos()
+                    .forEach(
+                            (streamNodeId, operatorInfo) ->
+                                    streamNodeIdToOperatorConfigMap.put(
+                                            streamNodeId, operatorInfo.getVertexConfig()));
+        }
+
         setAllVertexNonChainedOutputsConfigs(opIntermediateOutputs, jobVertexBuildContext);
 
         connectToFinishedUpStreamVertex(jobVertexBuildContext);
@@ -420,6 +450,11 @@ public class AdaptiveGraphManager
             intermediateDataSetIdToProducerMap.put(output.getDataSetId(), edge.getSourceId());
         }
         config.setVertexNonChainedOutputs(new ArrayList<>(transitiveOutputs));
+        // Remember this upstream's StreamConfig so that later, when a downstream vertex
+        // referenced by one of the above outputs is finally created, we can patch the
+        // now-known downstream JobVertexID back into the (still cached) NonChainedOutput
+        // and re-serialize this config's VERTEX_NONCHAINED_OUTPUTS key.
+        startNodeIdToVertexConfigMap.put(startNodeId, config);
     }
 
     /**
@@ -429,7 +464,18 @@ public class AdaptiveGraphManager
      */
     private void connectToFinishedUpStreamVertex(JobVertexBuildContext jobVertexBuildContext) {
         Map<Integer, OperatorChainInfo> chainInfos = jobVertexBuildContext.getChainInfosInOrder();
+        // Track upstream start-node ids whose cached NonChainedOutputs were mutated so that we
+        // re-serialize the upstream's VERTEX_NONCHAINED_OUTPUTS only once per upstream vertex.
+        final Set<Integer> upstreamsToReserialize = new HashSet<>();
+        // Track upstream operator stream-node ids (producers of patched outputs) so we can
+        // re-serialize their OP_NONCHAINED_OUTPUTS once. Runtime OperatorChain reads from this
+        // operator-level list, so refreshing only the vertex-level list is not sufficient.
+        final Set<Integer> upstreamOperatorsToReserialize = new HashSet<>();
         for (OperatorChainInfo chainInfo : chainInfos.values()) {
+            JobVertex downstreamVertex =
+                    jobVertexBuildContext.getJobVertex(chainInfo.getStartNodeId());
+            JobVertexID downstreamVertexId =
+                    downstreamVertex == null ? null : downstreamVertex.getID();
             List<StreamEdge> transitiveInEdges = chainInfo.getTransitiveInEdges();
             for (StreamEdge transitiveInEdge : transitiveInEdges) {
                 NonChainedOutput output =
@@ -437,12 +483,38 @@ public class AdaptiveGraphManager
                                 .get(transitiveInEdge.getSourceId())
                                 .get(transitiveInEdge);
                 Integer sourceStartNodeId = getStartNodeId(transitiveInEdge.getSourceId());
+                // Patch the now-known downstream JobVertexID into the cached NonChainedOutput
+                // that was created in an earlier iteration when the downstream vertex did not
+                // yet exist (its target id was left null). Record the upstream vertex and the
+                // producing operator so we can re-serialize both persisted copies once below.
+                if (downstreamVertexId != null && output.getTargetNodeId() == null) {
+                    output.setTargetVertexId(downstreamVertexId);
+                    upstreamsToReserialize.add(sourceStartNodeId);
+                    upstreamOperatorsToReserialize.add(transitiveInEdge.getSourceId());
+                }
                 connect(
                         sourceStartNodeId,
                         transitiveInEdge,
                         output,
                         startNodeToJobVertexMap,
                         jobVertexBuildContext);
+            }
+        }
+        // Refresh the persisted bytes of the upstream vertex configs whose cached outputs were
+        // mutated above, so that VERTEX_NONCHAINED_OUTPUTS reflects the patched target ids.
+        for (Integer upstreamStartNodeId : upstreamsToReserialize) {
+            StreamConfig upstreamConfig = startNodeIdToVertexConfigMap.get(upstreamStartNodeId);
+            if (upstreamConfig != null) {
+                upstreamConfig.reserializeVertexNonChainedOutputs();
+            }
+        }
+        // Same for OP_NONCHAINED_OUTPUTS on the producing operator's config, which is what
+        // OperatorChain actually reads at runtime when wiring per-target numRecordsOut counters.
+        for (Integer upstreamOperatorStreamNodeId : upstreamOperatorsToReserialize) {
+            StreamConfig upstreamOperatorConfig =
+                    streamNodeIdToOperatorConfigMap.get(upstreamOperatorStreamNodeId);
+            if (upstreamOperatorConfig != null) {
+                upstreamOperatorConfig.reserializeOperatorNonChainedOutputs();
             }
         }
     }

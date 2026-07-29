@@ -99,16 +99,12 @@ public class RecordWriterOutput<OUT>
 
     @Override
     public void collect(StreamRecord<OUT> record) {
-        if (collectAndCheckIfChained(record)) {
-            numRecordsOut.inc();
-        }
+        collectAndCheckIfChained(record);
     }
 
     @Override
     public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-        if (collectAndCheckIfChained(outputTag, record)) {
-            numRecordsOut.inc();
-        }
+        collectAndCheckIfChained(outputTag, record);
     }
 
     @Override
@@ -119,6 +115,7 @@ public class RecordWriterOutput<OUT>
         }
 
         pushToRecordWriter(record);
+        numRecordsOut.inc();
         return true;
     }
 
@@ -131,6 +128,7 @@ public class RecordWriterOutput<OUT>
         }
 
         pushToRecordWriter(record);
+        numRecordsOut.inc();
         return true;
     }
 

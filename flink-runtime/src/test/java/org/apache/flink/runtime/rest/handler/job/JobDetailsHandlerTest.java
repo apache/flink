@@ -22,8 +22,18 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionHistory;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -38,6 +48,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -54,6 +65,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link JobDetailsHandler}. */
@@ -119,5 +131,137 @@ class JobDetailsHandlerTest {
                         new ExecutionGraphInfo((ArchivedExecutionGraph) archivedExecutionGraph));
         assertThat(jobDetailsInfo.getStreamGraphJson())
                 .isEqualTo(new JobPlanInfo.RawJson(expectedStreamGraphJson).toString());
+    }
+
+    /**
+     * Verifies that {@link JobDetailsHandler} aggregates the per-downstream-target {@code
+     * numRecordsOut} map across subtasks of the same job vertex. Uses the terminal (archived) path,
+     * which consumes {@link IOMetrics#getNumRecordsOutPerTarget()} directly without the {@link
+     * MetricFetcher}.
+     */
+    @Test
+    void testJobDetailsAggregatesPerTargetWriteRecords() throws Exception {
+        final String targetA = "abcdef0123456789abcdef0123456789";
+        final String targetB = "0123456789abcdef0123456789abcdef";
+
+        final Map<String, Long> subtask0PerTarget = new HashMap<>();
+        subtask0PerTarget.put(targetA, 3L);
+        subtask0PerTarget.put(targetB, 1L);
+        final IOMetrics ioMetrics0 =
+                new IOMetrics(0L, 0L, 0L, 4L, 0L, 0.0, 0L, null, subtask0PerTarget);
+
+        final Map<String, Long> subtask1PerTarget = new HashMap<>();
+        subtask1PerTarget.put(targetA, 2L);
+        subtask1PerTarget.put(targetB, 4L);
+        final IOMetrics ioMetrics1 =
+                new IOMetrics(0L, 0L, 0L, 6L, 0L, 0.0, 0L, null, subtask1PerTarget);
+
+        final JobVertexID jobVertexId = new JobVertexID();
+        final ArchivedExecutionJobVertex archivedJobVertex =
+                buildJobVertexWithSubtaskIOMetrics(jobVertexId, ioMetrics0, ioMetrics1);
+
+        final AccessExecutionGraph graphWithVertex =
+                buildGraphWithSingleVertex(archivedJobVertex, jobVertexId);
+
+        final HandlerRequest<EmptyRequestBody> request = createRequest(graphWithVertex.getJobID());
+        final JobDetailsInfo jobDetailsInfo =
+                jobDetailsHandler.handleRequest(
+                        request, new ExecutionGraphInfo((ArchivedExecutionGraph) graphWithVertex));
+
+        final JobDetailsInfo.JobVertexDetailsInfo vertexInfo =
+                jobDetailsInfo.getJobVertexInfos().iterator().next();
+        final IOMetricsInfo metrics = vertexInfo.getJobVertexMetrics();
+
+        assertThat(metrics.getRecordsWritten()).isEqualTo(10L);
+        assertThat(metrics.getRecordsWrittenPerTarget())
+                .containsEntry(targetA, 5L)
+                .containsEntry(targetB, 5L)
+                .hasSize(2);
+    }
+
+    /**
+     * Verifies that a job vertex whose subtasks report no per-target breakdown (legacy {@link
+     * IOMetrics} constructors) surfaces an empty {@code write-records-per-target} map rather than
+     * {@code null}.
+     */
+    @Test
+    void testJobDetailsBackCompatNoPerTarget() throws Exception {
+        final IOMetrics legacy0 = new IOMetrics(0L, 0L, 0L, 5L, 0L, 0.0, 0L);
+        final IOMetrics legacy1 = new IOMetrics(0L, 0L, 0L, 7L, 0L, 0.0, 0L);
+
+        final JobVertexID jobVertexId = new JobVertexID();
+        final ArchivedExecutionJobVertex archivedJobVertex =
+                buildJobVertexWithSubtaskIOMetrics(jobVertexId, legacy0, legacy1);
+
+        final AccessExecutionGraph graphWithVertex =
+                buildGraphWithSingleVertex(archivedJobVertex, jobVertexId);
+
+        final HandlerRequest<EmptyRequestBody> request = createRequest(graphWithVertex.getJobID());
+        final JobDetailsInfo jobDetailsInfo =
+                jobDetailsHandler.handleRequest(
+                        request, new ExecutionGraphInfo((ArchivedExecutionGraph) graphWithVertex));
+
+        final IOMetricsInfo metrics =
+                jobDetailsInfo.getJobVertexInfos().iterator().next().getJobVertexMetrics();
+
+        assertThat(metrics.getRecordsWritten()).isEqualTo(12L);
+        assertThat(metrics.getRecordsWrittenPerTarget()).isNotNull().isEmpty();
+    }
+
+    private static ArchivedExecutionJobVertex buildJobVertexWithSubtaskIOMetrics(
+            JobVertexID jobVertexId, IOMetrics ioMetrics0, IOMetrics ioMetrics1) {
+        final StringifiedAccumulatorResult[] emptyAccumulators =
+                new StringifiedAccumulatorResult[0];
+        final ArchivedExecutionVertex subtask0 =
+                new ArchivedExecutionVertex(
+                        0,
+                        "subtask-0",
+                        new ArchivedExecution(
+                                emptyAccumulators,
+                                ioMetrics0,
+                                createExecutionAttemptId(jobVertexId, 0, 0),
+                                ExecutionState.FINISHED,
+                                null,
+                                null,
+                                null,
+                                new long[ExecutionState.values().length],
+                                new long[ExecutionState.values().length]),
+                        new ExecutionHistory(0));
+        final ArchivedExecutionVertex subtask1 =
+                new ArchivedExecutionVertex(
+                        1,
+                        "subtask-1",
+                        new ArchivedExecution(
+                                emptyAccumulators,
+                                ioMetrics1,
+                                createExecutionAttemptId(jobVertexId, 1, 0),
+                                ExecutionState.FINISHED,
+                                null,
+                                null,
+                                null,
+                                new long[ExecutionState.values().length],
+                                new long[ExecutionState.values().length]),
+                        new ExecutionHistory(0));
+        return new ArchivedExecutionJobVertex(
+                new ArchivedExecutionVertex[] {subtask0, subtask1},
+                jobVertexId,
+                "test-vertex",
+                2,
+                2,
+                new SlotSharingGroup(),
+                ResourceProfile.UNKNOWN,
+                emptyAccumulators);
+    }
+
+    private AccessExecutionGraph buildGraphWithSingleVertex(
+            ArchivedExecutionJobVertex archivedJobVertex, JobVertexID jobVertexId) {
+        final Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
+        tasks.put(jobVertexId, archivedJobVertex);
+        final ArchivedExecutionConfig archivedExecutionConfig =
+                new ArchivedExecutionConfigBuilder().build();
+        return new ArchivedExecutionGraphBuilder()
+                .setArchivedExecutionConfig(archivedExecutionConfig)
+                .setTasks(tasks)
+                .build();
     }
 }

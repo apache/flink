@@ -229,7 +229,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                         ioMetrics.isNumRecordsOutComplete(),
                         ioMetrics.getAccumulateBackPressuredTime(),
                         ioMetrics.getAccumulateIdleTime(),
-                        ioMetrics.getAccumulateBusyTime());
+                        ioMetrics.getAccumulateBusyTime(),
+                        ioMetrics.getNumRecordsOutPerTargetMutable());
 
         return new SubtaskExecutionAttemptDetailsInfo(
                 execution.getParallelSubtaskIndex(),
