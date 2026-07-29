@@ -83,8 +83,7 @@ public final class ValueDataTypeConverter {
             convertedDataType =
                     convertToLocalZonedTimestampType(((java.time.Instant) value).getNano());
         } else if (value instanceof java.time.Period) {
-            convertedDataType =
-                    convertToYearMonthIntervalType(((java.time.Period) value).getYears());
+            convertedDataType = convertToYearMonthIntervalType((java.time.Period) value);
         } else if (value instanceof java.time.Duration) {
             final java.time.Duration duration = (java.time.Duration) value;
             convertedDataType = convertToDayTimeIntervalType(duration.toDays(), duration.getNano());
@@ -156,7 +155,8 @@ public final class ValueDataTypeConverter {
         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(fractionalSecondPrecision(nanos));
     }
 
-    private static DataType convertToYearMonthIntervalType(int years) {
+    private static DataType convertToYearMonthIntervalType(java.time.Period period) {
+        final long years = period.toTotalMonths() / 12;
         return DataTypes.INTERVAL(DataTypes.YEAR(yearPrecision(years)), DataTypes.MONTH());
     }
 
@@ -217,12 +217,12 @@ public final class ValueDataTypeConverter {
         return String.format("%09d", nanos).replaceAll("0+$", "").length();
     }
 
-    private static int yearPrecision(int years) {
-        return String.valueOf(years).length();
+    private static int yearPrecision(long years) {
+        return String.valueOf(Math.abs(years)).length();
     }
 
     private static int dayPrecision(long days) {
-        return String.valueOf(days).length();
+        return String.valueOf(Math.abs(days)).length();
     }
 
     private ValueDataTypeConverter() {
