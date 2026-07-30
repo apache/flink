@@ -38,9 +38,6 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonArrayAggAggFunction;
 import org.apache.calcite.sql.fun.SqlJsonObjectAggAggFunction;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.util.mapping.MappingType;
-import org.apache.calcite.util.mapping.Mappings;
-import org.apache.calcite.util.mapping.Mappings.TargetMapping;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
@@ -106,12 +103,9 @@ public class WrapJsonAggFunctionArgumentsRule
         Map<Integer, Integer> wrapIndicesMap = new HashMap<>();
         for (int i = 0; i < aggCallList.size(); i++) {
             AggregateCall currentCall = aggCallList.get(i);
-            if (currentCall.getAggregation() instanceof SqlJsonObjectAggAggFunction) {
-                // For JSON_OBJECTAGG we only need to wrap its second (= value) argument
-                final int valueIndex = currentCall.getArgList().get(1);
-                wrapIndicesMap.put(i, valueIndex);
-            } else if (currentCall.getAggregation() instanceof SqlJsonArrayAggAggFunction) {
-                final int valueIndex = currentCall.getArgList().get(0);
+            if (isJsonAggregation(currentCall)) {
+                final int valueIndex =
+                        currentCall.getArgList().get(getValueArgPosition(currentCall));
                 wrapIndicesMap.put(i, valueIndex);
             }
         }
@@ -126,14 +120,13 @@ public class WrapJsonAggFunctionArgumentsRule
                 valueIndicesAfterProjection);
 
         List<AggregateCall> newWrappedArgCallList = new ArrayList<>(aggCallList);
-        final int newInputCount = inputCount + valueIndicesAfterProjection.size();
         for (Integer jsonAggCallIndex : wrapIndicesMap.keySet()) {
-            final TargetMapping argsMapping =
-                    Mappings.create(MappingType.BIJECTION, newInputCount, newInputCount);
-            Integer valueIndex = wrapIndicesMap.get(jsonAggCallIndex);
-            argsMapping.set(valueIndex, valueIndicesAfterProjection.get(valueIndex));
-            final AggregateCall newAggregateCall =
-                    newWrappedArgCallList.get(jsonAggCallIndex).transform(argsMapping);
+            final AggregateCall aggregateCall = newWrappedArgCallList.get(jsonAggCallIndex);
+            final List<Integer> newArgList = new ArrayList<>(aggregateCall.getArgList());
+            final int valueArgPosition = getValueArgPosition(aggregateCall);
+            final Integer valueIndex = wrapIndicesMap.get(jsonAggCallIndex);
+            newArgList.set(valueArgPosition, valueIndicesAfterProjection.get(valueIndex));
+            final AggregateCall newAggregateCall = aggregateCall.withArgList(newArgList);
             newWrappedArgCallList.set(jsonAggCallIndex, newAggregateCall);
         }
 
@@ -176,6 +169,12 @@ public class WrapJsonAggFunctionArgumentsRule
         final SqlAggFunction aggregation = aggCall.getAggregation();
         return aggregation instanceof SqlJsonObjectAggAggFunction
                 || aggregation instanceof SqlJsonArrayAggAggFunction;
+    }
+
+    private static int getValueArgPosition(AggregateCall jsonAggCall) {
+        // AggregateCall argument positions are zero-based: JSON_OBJECTAGG has (key, value),
+        // whereas JSON_ARRAYAGG has only (value).
+        return jsonAggCall.getAggregation() instanceof SqlJsonObjectAggAggFunction ? 1 : 0;
     }
 
     // ---------------------------------------------------------------------------------------------

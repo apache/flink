@@ -718,7 +718,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NU
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$1])
+GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
       +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
@@ -740,7 +740,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$1])
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
@@ -763,7 +763,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NU
       <![CDATA[
 SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$1) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$1])
+   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$1])
       +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
          +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
 ]]>
@@ -786,7 +786,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$1) AS EXPR$1])
 +- Sort(orderBy=[assignedWindow$ ASC])
    +- Exchange(distribution=[single])
-      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$1])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_COUNT(*) AS count1$0, Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS EXPR$1])
          +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
             +- Sort(orderBy=[rt ASC])
                +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
@@ -809,7 +809,7 @@ LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
       +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[5 s])])
@@ -835,7 +835,7 @@ LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
       <![CDATA[
 SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$0])
       +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
          +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[5 s])])
             +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1, rt], metadata=[]]], fields=[f1, rt])
@@ -855,7 +855,7 @@ LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
       +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
@@ -877,7 +877,7 @@ LogicalProject(EXPR$0=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)])
@@ -900,7 +900,7 @@ LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
       <![CDATA[
 SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f1) AS EXPR$0])
       +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
          +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
 ]]>
@@ -923,7 +923,7 @@ LogicalProject(EXPR$0=[$1])
 SortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
 +- Sort(orderBy=[assignedWindow$ ASC])
    +- Exchange(distribution=[single])
-      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f2, $f2) AS EXPR$0])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, rt, 5000)], select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS EXPR$0])
          +- Calc(select=[rt, f1, JSON_STRING(f1) AS $f2])
             +- Sort(orderBy=[rt ASC])
                +- TableSourceScan(table=[[default_catalog, default_database, T, project=[rt, f1], metadata=[]]], fields=[rt, f1])
