@@ -29,7 +29,7 @@ from functools import reduce
 from threading import RLock
 
 from py4j.java_gateway import get_java_class
-from typing import List, Union
+from typing import List, Protocol, Union
 
 from pyflink.common.types import _create_row
 from pyflink.util.api_stability_decorators import PublicEvolving
@@ -121,6 +121,14 @@ class DataType(object):
         Converts an internal SQL object into a native Python object.
         """
         return obj
+
+
+class _SupportsToTableDataType(Protocol):
+    def _to_table_data_type(self) -> DataType:
+        ...
+
+
+_TableDataTypeLike = Union[DataType, _SupportsToTableDataType]
 
 
 class AtomicType(DataType):
@@ -1216,7 +1224,8 @@ class RowType(DataType):
             raise TypeError('RowType keys should be strings, integers or slices')
 
     def __repr__(self):
-        return "RowType(%s)" % ",".join(repr(field) for field in self)
+        fields = ",".join(repr(field) for field in self)
+        return f"RowType({fields}, {str(self._nullable).lower()})"
 
     def field_names(self):
         """
@@ -1709,7 +1718,8 @@ def _from_java_data_type(j_data_type):
         elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TimestampType):
-            data_type = DataTypes.TIMESTAMP(precision=3, nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
@@ -1729,7 +1739,8 @@ def _from_java_data_type(j_data_type):
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
         elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
-            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
+            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(
+                precision=logical_type.getPrecision(), nullable=logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
                 is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)
@@ -1759,6 +1770,8 @@ def _from_java_data_type(j_data_type):
                                 % type_info)
         elif is_instance_of(logical_type, gateway.jvm.RawType):
             data_type = RawType()
+        elif is_instance_of(logical_type, gateway.jvm.NullType):
+            data_type = DataTypes.NULL()
         else:
             raise TypeError("Unsupported type: %s, it is not supported yet in current python type"
                             " system" % j_data_type)
@@ -1821,10 +1834,15 @@ def _from_java_data_type(j_data_type):
         TypeError("Unsupported data type: %s" % j_data_type)
 
 
-def _to_java_data_type(data_type: DataType):
+def _to_java_data_type(data_type: _TableDataTypeLike):
     """
     Converts the specified Python DataType to Java DataType.
     """
+    if not isinstance(data_type, DataType):
+        to_table_data_type = getattr(data_type, "_to_table_data_type", None)
+        if callable(to_table_data_type):
+            data_type = to_table_data_type()
+
     gateway = get_gateway()
     JDataTypes = gateway.jvm.org.apache.flink.table.api.DataTypes
 
