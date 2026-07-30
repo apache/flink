@@ -18,15 +18,31 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
-/** {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
+/**
+ * {@link LogicalTypeRoot#VARIANT} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
+ *
+ * <p>Renders the scalar value the way a regular SQL cast of the stored kind would, so a boolean
+ * becomes {@code TRUE}, a timestamp uses the SQL format, and a {@code TIMESTAMP_LTZ} is shifted
+ * into the session time zone and a binary value is read as UTF-8. A variant holding an object or
+ * array has no scalar rendering and fails; use {@code JSON_STRING} for its JSON representation.
+ *
+ * <p>A binary value that is not well-formed UTF-8 fails instead of decoding to {@code U+FFFD}. Cast
+ * it to {@code BYTES} to inspect the raw value, or wrap that in {@code MAKE_VALID_UTF8} to accept
+ * the lenient decode explicitly.
+ *
+ * <p>The target {@code CHAR}/{@code VARCHAR} length is enforced strictly: a value that does not fit
+ * fails {@code CAST} and yields {@code null} for {@code TRY_CAST}, with no padding or truncation.
+ */
 class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant> {
 
     static final VariantToStringCastRule INSTANCE = new VariantToStringCastRule();
@@ -35,8 +51,36 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.VARIANT)
-                        .target(STRING_TYPE)
+                        .target(LogicalTypeRoot.CHAR)
+                        .target(LogicalTypeRoot.VARCHAR)
                         .build());
+    }
+
+    @Override
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        return true;
+    }
+
+    /**
+     * Treats a variant that stores a JSON {@code null} as a {@code NULL} input, so it casts to SQL
+     * {@code NULL} instead of the text {@code null}. Only applied for a nullable target: a {@code
+     * NOT NULL} result cannot carry {@code NULL}, so a null-valued variant then fails.
+     */
+    @Override
+    public CastCodeBlock generateCodeBlock(
+            CodeGeneratorCastRule.Context context,
+            String inputTerm,
+            String inputIsNullTerm,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType) {
+        if (!targetLogicalType.isNullable()) {
+            return super.generateCodeBlock(
+                    context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+        }
+        final String isNullTerm =
+                "(" + inputIsNullTerm + " || " + methodCall(inputTerm, "isNull") + ")";
+        return super.generateCodeBlock(
+                context, inputTerm, isNullTerm, inputLogicalType, targetLogicalType);
     }
 
     @Override
@@ -45,6 +89,12 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return methodCall(inputTerm, "toString");
+        return staticCall(
+                VariantCastUtils.class,
+                "toStringValue",
+                inputTerm,
+                context.getSessionTimeZoneTerm(),
+                LogicalTypeChecks.getLength(targetLogicalType),
+                targetLogicalType.is(LogicalTypeRoot.CHAR));
     }
 }
