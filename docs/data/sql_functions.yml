@@ -1267,6 +1267,62 @@ json:
       
         -- JSON_EXISTS separates an absent path from a present one
         SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
+  - sql: JSON_TYPE(jsonValue)
+    table: jsonType(jsonValue)
+    description: |
+      Returns a string value indicating the type of jsonValue. Returns `NULL` if jsonValue is
+      `NULL` or is not valid JSON.
+
+      The possible results are `OBJECT`, `ARRAY`, `STRING`, `INTEGER`, `LONG`, `FLOAT`, `DOUBLE`,
+      `BOOLEAN` and `DATE`, plus the string `'NULL'` for the JSON null literal.
+
+      Because JSON cannot express a date and has a single number type, `DATE` and `FLOAT` are
+      inferred from the value itself: `DATE` for a string in the `yyyy-MM-dd` form, and `FLOAT`
+      for a number that is exactly representable in 32 bits. Note that this inference applies to
+      `JSON_TYPE` only; `JSON_VALUE` still returns a date as a string.
+
+      `DATE` requires exactly the ISO-8601 `yyyy-MM-dd` form, the same form the `json` format uses
+      to read a `DATE` column. Nothing else counts, which makes it stricter than
+      `CAST(x AS DATE)`: forms only `CAST` accepts, such as `2015-1-1`, `2015-01` and `2015`, are
+      reported as `STRING`.
+
+      Date-times are also reported as `STRING`, in every form. There is no timestamp flag to
+      return, and reporting `DATE` for a value carrying a time of day would be misleading.
+
+      ```sql
+      -- OBJECT
+      SELECT JSON_TYPE('{"a": true}')
+
+      -- ARRAY
+      SELECT JSON_TYPE('[1, 2]')
+
+      -- the JSON null literal, returned as the string 'NULL'
+      SELECT JSON_TYPE('null')
+
+      -- STRING
+      SELECT JSON_TYPE('"Hello, World!"')
+
+      -- INTEGER
+      SELECT JSON_TYPE('66')
+
+      -- LONG
+      SELECT JSON_TYPE('4294967296')
+
+      -- FLOAT, since 1.5 is exact in 32 bits
+      SELECT JSON_TYPE('1.5')
+
+      -- DOUBLE, since 11.1 is not
+      SELECT JSON_TYPE('11.1')
+
+      -- DATE
+      SELECT JSON_TYPE('"2015-01-01"')
+
+      -- STRING, since 2015-02-30 is not a valid date
+      SELECT JSON_TYPE('"2015-02-30"')
+
+      -- NULL, since 68s is not valid JSON
+      SELECT JSON_TYPE('68s')
+      ```
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])

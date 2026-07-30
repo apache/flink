@@ -327,6 +327,7 @@ JSON functions
     Expression.json_quote
     Expression.json_unquote
     Expression.json_length
+    Expression.json_type
 
 value modification functions
 ----------------------------

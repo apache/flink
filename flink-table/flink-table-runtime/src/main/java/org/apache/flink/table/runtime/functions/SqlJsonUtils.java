@@ -49,6 +49,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Json
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -75,6 +79,15 @@ public class SqlJsonUtils {
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
+
+    /**
+     * Length of the {@code yyyy-MM-dd} shape a string must have to be reported as {@code DATE} by
+     * {@link #jsonType}. The year is deliberately fixed at four digits: signed extended years such
+     * as {@code +10000-01-01} are valid ISO-8601 and the JSON format's {@code DATE} reader accepts
+     * them, but in JSON they are far more likely to be a product code than a date.
+     */
+    private static final int YYYY_MM_DD_LENGTH = 10;
+
     private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER =
             new JacksonJsonProvider(MAPPER);
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
@@ -524,6 +537,107 @@ public class SqlJsonUtils {
 
     private static Object dejsonize(String input) {
         return JSON_PATH_JSON_PROVIDER.parse(input);
+    }
+
+    /**
+     * Returns an upper-case flag describing the type of the parsed JSON value, mirroring Calcite's
+     * {@code JsonFunctions.jsonType}.
+     *
+     * <p>JSON's grammar cannot express a date, and it has a single number rule with no width, so
+     * {@code DATE} and {@code FLOAT} cannot be read off the Java type the parser produces: a date
+     * arrives as a {@link String}, and every non-integral number arrives as a {@link BigDecimal}
+     * (the shared mapper enables {@code USE_BIG_DECIMAL_FOR_FLOATS}). Both flags are therefore
+     * inferred from the value itself, which is a deliberate Flink extension beyond Calcite:
+     *
+     * <ul>
+     *   <li>{@code DATE} for a string that is exactly a {@code yyyy-MM-dd} calendar date, e.g.
+     *       {@code "2015-01-01"}, which is the form the JSON format uses to read a {@code DATE}
+     *       column. Nothing else counts. This is stricter than {@code CAST(x AS DATE)}, which also
+     *       coerces {@code 2015-1-1}, {@code 2015-01} and {@code 2015}; those are
+     *       recognition-unsafe here, since {@code "2015"} is a perfectly ordinary string.
+     *       Date-times stay {@code STRING} in every spelling: there is no timestamp flag to return,
+     *       and answering {@code DATE} for a value carrying a time of day would be worse than
+     *       saying nothing. Flink has no single date-time spelling to defer to either — {@code
+     *       CAST}/{@code TO_TIMESTAMP} accept only a space separator, the JSON format accepts a
+     *       space or a {@code T} depending on its {@code timestamp-format.standard} option, and
+     *       variants use {@code T} — so recognition would have to depend on a per-table option this
+     *       function cannot see.
+     *   <li>{@code FLOAT} for a number that is exactly representable in 32 bits, e.g. {@code 1.5};
+     *       anything needing more precision, such as {@code 11.1}, stays {@code DOUBLE}.
+     * </ul>
+     *
+     * <p>Note that these flags describe an inferred type that the other JSON functions do not
+     * share: {@code JSON_VALUE} still returns {@code "2015-01-01"} as a string.
+     */
+    public static String jsonType(final JsonValueContext parsedInput) {
+        // The parsed context is shared with JSON_VALUE / JSON_QUERY over the same input, and those
+        // assign it only inside their own args-not-null guard. A NULL path argument in a preceding
+        // call therefore leaves it null here even though the input itself was fine. Report NULL
+        // instead of failing, which is how those functions already degrade in the same situation
+        // (their NPE is swallowed by jsonApiCommonSyntax and falls through to ON ERROR -> NULL).
+        // A follow-up fixes the sharing for all JSON functions.
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+        final Object val = parsedInput.obj;
+        if (val instanceof Integer) {
+            return "INTEGER";
+        } else if (val instanceof String) {
+            return isYyyyMmDdDate((String) val) ? "DATE" : "STRING";
+        } else if (val instanceof BigDecimal) {
+            return isExactFloat((BigDecimal) val) ? "FLOAT" : "DOUBLE";
+        } else if (val instanceof Double) {
+            return "DOUBLE";
+        } else if (val instanceof Long || val instanceof BigInteger) {
+            return "LONG";
+        } else if (val instanceof Boolean) {
+            return "BOOLEAN";
+        } else if (val instanceof Map) {
+            return "OBJECT";
+        } else if (val instanceof Collection) {
+            return "ARRAY";
+        } else if (val == null) {
+            return "NULL";
+        }
+        return null;
+    }
+
+    /**
+     * Returns whether the given string is a {@code yyyy-MM-dd} date. {@link LocalDate} does the
+     * actual validation, and is what rejects impossible dates such as {@code 2015-02-30}.
+     *
+     * <p>The length check is not an optimisation: {@code ISO_LOCAL_DATE} accepts signed extended
+     * years, so it is the only thing rejecting {@code +10000-01-01} and {@code -0001-01-01}. See
+     * {@link #YYYY_MM_DD_LENGTH}. The separator check is one, and a worthwhile one: this runs for
+     * every string value the function sees, most of which are not dates, and a string of the right
+     * length but the wrong shape would otherwise be rejected by throwing a {@link
+     * DateTimeParseException} and filling in its stack trace.
+     */
+    private static boolean isYyyyMmDdDate(final String value) {
+        if (value.length() != YYYY_MM_DD_LENGTH
+                || value.charAt(4) != '-'
+                || value.charAt(7) != '-') {
+            return false;
+        }
+        try {
+            LocalDate.parse(value);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    /** Returns whether the given decimal is exactly representable as a 32-bit float. */
+    private static boolean isExactFloat(final BigDecimal value) {
+        final float asFloat = value.floatValue();
+        // Values too large for 32 bits saturate to an infinity, which BigDecimal cannot represent.
+        if (!Float.isFinite(asFloat)) {
+            return false;
+        }
+        // Widening to double is lossless, so BigDecimal(double) yields the float's exact value.
+        // Float.toString must not be used here: it returns the shortest string that round-trips to
+        // the same float, so it would reproduce the input literal and report everything as FLOAT.
+        return new BigDecimal((double) asFloat).compareTo(value) == 0;
     }
 
     /**

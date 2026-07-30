@@ -143,6 +143,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_E
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_TYPE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
@@ -2505,6 +2506,54 @@ public abstract class BaseExpressions<InType, OutType> {
             JsonQueryOnEmptyOrError onEmpty,
             JsonQueryOnEmptyOrError onError) {
         return jsonQuery(path, DataTypes.STRING(), wrappingBehavior, onEmpty, onError);
+    }
+
+    /**
+     * Returns a string value indicating the type of the input.
+     *
+     * <p>Potential outputs are as following
+     *
+     * <ul>
+     *   <li>INTEGER
+     *   <li>STRING
+     *   <li>FLOAT
+     *   <li>DOUBLE
+     *   <li>LONG
+     *   <li>BOOLEAN
+     *   <li>DATE
+     *   <li>OBJECT
+     *   <li>ARRAY
+     *   <li>NULL, for the JSON null literal
+     * </ul>
+     *
+     * <p>Because JSON cannot express a date and has a single number type, DATE is inferred from
+     * strings in the form {@code "yyyy-MM-dd"} such as {@code "2015-01-01"}, and FLOAT from numbers
+     * exactly representable in 32 bits such as {@code 1.5}. Date-times are reported as STRING,
+     * since there is no timestamp flag. This inference applies to {@code jsonType()} only; {@code
+     * jsonValue()} still returns a date as a string.
+     *
+     * <p>Returns NULL if the input is NULL or is not valid JSON.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"a\": true}").jsonType() // "OBJECT"
+     * lit("[1, 2]").jsonType() // "ARRAY"
+     * lit("null").jsonType() // "NULL"
+     * lit("\"Hello, World!\"").jsonType() // "STRING"
+     * lit("66").jsonType() // "INTEGER"
+     *
+     * lit("1.5").jsonType() // "FLOAT", exact in 32 bits
+     * lit("11.1").jsonType() // "DOUBLE", not exact in 32 bits
+     *
+     * lit("\"2015-01-01\"").jsonType() // "DATE"
+     * lit("\"2015-02-30\"").jsonType() // "STRING", not a valid date
+     *
+     * lit("68s").jsonType() // null, not valid JSON
+     * }</pre>
+     */
+    public OutType jsonType() {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr()));
     }
 
     /**

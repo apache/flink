@@ -92,6 +92,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonSpec());
         testCases.addAll(jsonArraySpec());
+        testCases.addAll(jsonTypeSpec());
         testCases.addAll(jsonQuoteSpec());
         testCases.addAll(jsonUnquoteSpecWithValidInput());
         testCases.addAll(jsonUnquoteSpecWithInvalidInput());
@@ -1411,6 +1412,163 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_OBJECT(KEY 'testRow' VALUE f0 NULL ON NULL)",
                                 "{\"testRow\":{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> jsonTypeSpec() {
+        return List.of(
+                // Flags that follow directly from the parsed Java type.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{\"a\": true}", "[1, 2]", "null", "true", "66")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "OBJECT", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "ARRAY", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "NULL", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "BOOLEAN", STRING().nullable())
+                        .testResult(
+                                $("f4").jsonType(),
+                                "JSON_TYPE(f4)",
+                                "INTEGER",
+                                STRING().nullable()),
+
+                // FLOAT is inferred for numbers exactly representable in 32 bits; everything
+                // needing more precision stays DOUBLE.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("1.5", "1.0", "1e2", "11.1", "1e40", "0.1")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "FLOAT", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "FLOAT", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "FLOAT", STRING().nullable())
+                        // Calcite's own tested assertion, kept intact by the exactness rule.
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "DOUBLE", STRING().nullable())
+                        // Saturates to an infinity, which must not blow up.
+                        .testResult(
+                                $("f4").jsonType(), "JSON_TYPE(f4)", "DOUBLE", STRING().nullable())
+                        .testResult(
+                                $("f5").jsonType(), "JSON_TYPE(f5)", "DOUBLE", STRING().nullable()),
+
+                // Integral values beyond int/long range.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("4294967296", "99999999999999999999")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "LONG", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "LONG", STRING().nullable()),
+
+                // DATE requires exactly yyyy-MM-dd, and must be a real calendar date. Near-misses
+                // stay STRING.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "\"2015-01-01\"",
+                                "\"2016-02-29\"",
+                                "\"2015-02-30\"",
+                                "\"2015-01-01T10:00:00\"",
+                                "\"hello\"",
+                                "\"\"")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "DATE", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "DATE", STRING().nullable())
+                        // Impossible day of month: the pre-filter alone would say DATE.
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "STRING", STRING().nullable())
+                        // No timestamp flag exists, so date-times are left as STRING. This is the
+                        // T-separated form the json format reads in ISO_8601 mode; the
+                        // space-separated form it reads in SQL mode is covered by the spec below.
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f4").jsonType(), "JSON_TYPE(f4)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f5").jsonType(), "JSON_TYPE(f5)", "STRING", STRING().nullable()),
+
+                // Forms that CAST coerces to a DATE or TIMESTAMP but that yyyy-MM-dd does not
+                // accept. Treating these as dates would make every 4-digit numeric string a DATE.
+                // f3 is also the date-time form the json format reads in its default SQL mode.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "\"2015-1-1\"",
+                                "\"2015-01\"",
+                                "\"2015\"",
+                                "\"2015-01-01 09:30:00\"",
+                                "\"2015/01/01\"",
+                                "\"20150101\"")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f4").jsonType(), "JSON_TYPE(f4)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f5").jsonType(), "JSON_TYPE(f5)", "STRING", STRING().nullable()),
+
+                // The year is exactly four digits. Signed extended years are valid ISO-8601 and the
+                // json format's DATE reader takes them, but here they are far more likely to be a
+                // product code than a date.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("\"+10000-01-01\"", "\"-0001-01-01\"", "\"10000-01-01\"")
+                        .andDataTypes(STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "STRING", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "STRING", STRING().nullable()),
+
+                // A SQL NULL input yields a SQL NULL, not the 'NULL' flag; so does invalid JSON.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{", "")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                nullOf(STRING()).jsonType(),
+                                "JSON_TYPE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable())
+                        .testResult($("f0").jsonType(), "JSON_TYPE(f0)", null, STRING().nullable())
+                        .testResult($("f1").jsonType(), "JSON_TYPE(f1)", null, STRING().nullable()),
+
+                // The argument must be a character string, and there must be exactly one of them.
+                // A non-string is rejected rather than coerced: only CHARACTER_STRING casts
+                // implicitly to VARCHAR, so JSON_TYPE(1) never reaches the runtime. These pin the
+                // rendered signature, which is what changes if the input type strategy is widened.
+                // Arity has no Table API case: jsonType() takes no parameters, so the compiler
+                // enforces it.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(1, "{}")
+                        .andDataTypes(INT(), STRING())
+                        .testTableApiValidationError(
+                                $("f0").jsonType(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "JSON_TYPE(f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "JSON_TYPE(f1, f1)",
+                                "No match found for function signature "
+                                        + "JSON_TYPE(<CHARACTER>, <CHARACTER>).\n"
+                                        + "Supported signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "JSON_TYPE()",
+                                "No match found for function signature JSON_TYPE().\n"
+                                        + "Supported signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)"));
     }
 
     private static List<TestSetSpec> jsonQuoteSpec() {

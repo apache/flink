@@ -3104,6 +3104,17 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_TYPE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_TYPE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    // Nullable rather than nullableIfArgs: a non-null but unparseable input also
+                    // yields NULL.
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
+                    .runtimeProvided()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Variant functions
     // --------------------------------------------------------------------------------------------
