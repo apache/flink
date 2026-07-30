@@ -74,6 +74,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+<<<<<<< Updated upstream
+=======
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+>>>>>>> Stashed changes
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -251,8 +256,27 @@ class SpeculativeExecutionTest {
     void testCancelOtherScheduledCurrentExecutionsWhenAnyExecutionFinished() {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
+<<<<<<< Updated upstream
         final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
+=======
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling(false);
+
+        // Scheduling started asynchronously (waitForDeployment=false), so the execution vertex
+        // may not exist yet. Capture it from the successful check itself instead of discarding
+        // it and querying again below - a second, independent query can otherwise race with the
+        // scheduler thread still populating the execution graph and observe a null element.
+        final AtomicReference<ExecutionVertex> evRef = new AtomicReference<>();
+        CommonTestUtils.waitUntilIgnoringExceptions(
+                () -> {
+                    evRef.set(getOnlyExecutionVertex(scheduler));
+                    return evRef.get() != null;
+                },
+                Duration.ofSeconds(1),
+                Duration.ofMillis(10),
+                "Failed to get the execution vertex.");
+        final ExecutionVertex ev = evRef.get();
+>>>>>>> Stashed changes
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
         testExecutionSlotAllocator.completePendingRequest(attempt1.getAttemptId());
