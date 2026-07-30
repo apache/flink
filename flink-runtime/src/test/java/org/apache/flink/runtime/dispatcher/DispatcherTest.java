@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MdcOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -105,6 +106,7 @@ import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.JobMdcRegistry;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -133,8 +135,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -202,6 +206,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @After
     public void tearDown() throws Exception {
+        JobMdcRegistry.clear();
         if (dispatcher != null) {
             RpcUtils.terminateRpcEndpoint(dispatcher);
         }
@@ -563,6 +568,47 @@ public class DispatcherTest extends AbstractDispatcherTest {
         FlinkAssertions.assertThatFuture(cancelFuture)
                 .eventuallyFails()
                 .withCauseOfType(FlinkJobTerminatedWithoutCancellationException.class);
+    }
+
+    @Test
+    public void testJobMdcContextRegisteredOnSubmissionAndClearedOnTermination() throws Exception {
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", "mdc-key-1");
+        keyMapping.put("job.key-2", "mdc-key-2");
+        jobGraph.getJobConfiguration().set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        jobGraph.getJobConfiguration().setString("job.key-1", "val-1");
+        jobGraph.getJobConfiguration().setString("job.key-2", "val-2");
+
+        final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new FinishingJobManagerRunnerFactory(resultFuture, () -> {}));
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        assertThat(JobMdcRegistry.lookup(jobId))
+                .containsEntry("mdc-key-1", "val-1")
+                .containsEntry("mdc-key-2", "val-2");
+
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                new ArchivedExecutionGraphBuilder()
+                                        .setJobID(jobId)
+                                        .setState(JobStatus.FINISHED)
+                                        .build())));
+        mockApplicationFinished();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
+
+        // the unregistration callback is an independent dependent of the termination future,
+        // so poll instead of asserting immediately
+        CommonTestUtils.waitUntilCondition(() -> JobMdcRegistry.lookup(jobId) == null);
     }
 
     @Test
