@@ -40,9 +40,10 @@ from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, 
     MapType, BinaryType, GeographyType, NullType, CharType
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
-           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder', 'InstantCoder',
-           'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder',
+           'GeographyCoder', 'CharCoder', 'DateCoder', 'TimeCoder', 'TimestampCoder',
+           'LocalZonedTimestampCoder', 'InstantCoder', 'GenericArrayCoder',
+           'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
            'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
            'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
 
@@ -490,6 +491,15 @@ class BinaryCoder(FieldCoder):
         return coder_impl.BinaryCoderImpl()
 
 
+class GeographyCoder(FieldCoder):
+    """
+    Coder for GEOGRAPHY values represented as WKB bytes.
+    """
+
+    def get_impl(self):
+        return coder_impl.GeographyCoderImpl()
+
+
 class CharCoder(FieldCoder):
     """
     Coder for Character String.
@@ -687,7 +697,7 @@ def from_proto(field_type):
         type_name.DOUBLE: DoubleCoder(),
         type_name.BINARY: BinaryCoder(),
         type_name.VARBINARY: BinaryCoder(),
-        type_name.GEOGRAPHY: BinaryCoder(),
+        type_name.GEOGRAPHY: GeographyCoder(),
         type_name.CHAR: CharCoder(),
         type_name.VARCHAR: CharCoder(),
         type_name.DATE: DateCoder(),
