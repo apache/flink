@@ -42,19 +42,20 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * {{{
  * // members (declared once)
  * SqlJsonUtils.JsonValueContext jsonParsed$0;
+ * BinaryStringData jsonParsedInput$1;
  *
- * private SqlJsonUtils.JsonValueContext parseJson$1(Object in) {
- *   if (jsonParsed$0 == null) {
+ * // parses once per input value and reuses the result for the same input
+ * private SqlJsonUtils.JsonValueContext parseJson$2(BinaryStringData in) {
+ *   if (in != jsonParsedInput$1) {
+ *     jsonParsedInput$1 = in;
  *     jsonParsed$0 = SqlJsonUtils.jsonParse(in.toString());
  *   }
  *   return jsonParsed$0;
  * }
  *
- * // in processElement, reset once per record
- * jsonParsed$0 = null;
  * // whichever call runs first parses, the other ones reuse the result
- * Object rawResult$2 = SqlJsonUtils.jsonValue(parseJson$1(field$0), "$.type", ...);
- * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$1(field$0), "$.age", ...);
+ * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
+ * Object rawResult$4 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.age", ...);
  * }}}
  */
 class JsonValueCallGen extends CallGenerator {

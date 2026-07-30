@@ -54,23 +54,24 @@ object JsonParseReuse {
       case Some(expr) => expr
       case None =>
         val varName = CodeGenUtils.newName(ctx, "jsonParsed")
+        val lastInputName = CodeGenUtils.newName(ctx, "jsonParsedInput")
         val methodName = CodeGenUtils.newName(ctx, "parseJson")
         val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
+        val inputType = CodeGenUtils.BINARY_STRING
         ctx.addReusableMember(s"$typeName $varName;")
+        ctx.addReusableMember(s"$inputType $lastInputName;")
 
-        // null means not parsed yet - jsonParse never returns null for a non-null input
+        // keyed on the immutable input so it re-parses on change; no per-record reset needed
         ctx.addReusableMember(
           s"""
-             |private $typeName $methodName(Object in) {
-             |  if ($varName == null) {
+             |private $typeName $methodName($inputType in) {
+             |  if (in != $lastInputName) {
+             |    $lastInputName = in;
              |    $varName = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}(in.toString());
              |  }
              |  return $varName;
              |}
              |""".stripMargin)
-
-        // reset once per record so a call outside a not-taken branch never reuses a stale parse
-        ctx.addReusablePerRecordStatement(s"$varName = null;")
 
         val parsed =
           GeneratedExpression(s"$methodName(${input.resultTerm})", "false", "", null)
