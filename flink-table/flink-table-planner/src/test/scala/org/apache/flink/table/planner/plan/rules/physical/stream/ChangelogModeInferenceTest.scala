@@ -88,6 +88,26 @@ class ChangelogModeInferenceTest extends TableTestBase {
                     |  'changelog-mode' = 'I,UA,UB,D'
                     |)
       """.stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE upsertSource (
+                    |  id INT PRIMARY KEY NOT ENFORCED,
+                    |  payload STRING
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE changelogSink (
+                    |  id INT,
+                    |  payload STRING
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)
+                    |""".stripMargin)
   }
 
   @Test
@@ -581,6 +601,20 @@ class ChangelogModeInferenceTest extends TableTestBase {
                     |""".stripMargin)
     util.verifyRelPlanInsert(
       "INSERT INTO keyless_upsert_sink_no_key SELECT rate FROM DeduplicatedView",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testChangelogNormalizeDoesNotInferDeleteWithoutFilterOrInputDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "INSERT INTO changelogSink SELECT * FROM upsertSource",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testChangelogNormalizeInfersDeleteWithFilterWithoutInputDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "INSERT INTO changelogSink SELECT * FROM upsertSource WHERE payload <> 'x'",
       ExplainDetail.CHANGELOG_MODE)
   }
 }
