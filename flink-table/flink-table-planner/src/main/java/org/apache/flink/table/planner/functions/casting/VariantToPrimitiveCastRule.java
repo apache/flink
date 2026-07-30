@@ -18,33 +18,30 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.functions.casting.CastRuleUtils.CodeWriter;
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
+import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.ternaryOperator;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /**
  * {@link LogicalTypeRoot#VARIANT} to primitive type cast rule.
  *
- * <p>Numeric targets are lenient and follow regular numeric cast semantics; other targets require
- * the stored value to match the target kind. On a mismatch {@code CAST} fails and {@code TRY_CAST}
- * returns {@code null}.
+ * <p>A cast succeeds only when the target holds the stored value without altering it, otherwise it
+ * fails {@code CAST} and yields {@code null} for {@code TRY_CAST}. An integer widens or narrows as
+ * long as it stays in range, a {@code DECIMAL} has to fit the precision and scale without rounding,
+ * and a timestamp has to fit the target precision. {@code FLOAT} and {@code DOUBLE} are approximate
+ * by definition, so they take any numeric kind and reject only a magnitude out of range. Changing
+ * the kind itself is not implicit, so a decimal is not read as an integer and a {@code TIMESTAMP}
+ * is not read as a {@code TIMESTAMP_LTZ}.
  *
  * <p>{@code CHARACTER_STRING} is handled by {@link VariantToStringCastRule}; {@code TIME} has no
  * variant counterpart and is unsupported.
@@ -128,14 +125,49 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             case SMALLINT:
             case INTEGER:
             case BIGINT:
+                writer.assignStmt(
+                        returnVariable,
+                        cast(
+                                primitiveTypeTermForType(targetLogicalType),
+                                staticCall(
+                                        VariantCastUtils.class,
+                                        "toIntegral",
+                                        inputTerm,
+                                        // A long literal needs the suffix to compile, since
+                                        // Long.MIN_VALUE does not fit an int literal.
+                                        integralMin(targetLogicalType) + "L",
+                                        integralMax(targetLogicalType) + "L",
+                                        strLiteral(targetLogicalType.getTypeRoot().name()))));
+                break;
             case FLOAT:
+                writer.assignStmt(
+                        returnVariable, staticCall(VariantCastUtils.class, "toFloat", inputTerm));
+                break;
             case DOUBLE:
+                writer.assignStmt(
+                        returnVariable, staticCall(VariantCastUtils.class, "toDouble", inputTerm));
+                break;
             case DECIMAL:
-                writer.assignStmt(returnVariable, numericExpression(inputTerm, targetLogicalType));
+                final DecimalType decimalType = (DecimalType) targetLogicalType;
+                writer.assignStmt(
+                        returnVariable,
+                        staticCall(
+                                VariantCastUtils.class,
+                                "toDecimal",
+                                inputTerm,
+                                decimalType.getPrecision(),
+                                decimalType.getScale()));
                 break;
             case BINARY:
             case VARBINARY:
-                generateToBytes(context, inputTerm, returnVariable, targetLogicalType, writer);
+                writer.assignStmt(
+                        returnVariable,
+                        staticCall(
+                                VariantCastUtils.class,
+                                "toBytes",
+                                inputTerm,
+                                LogicalTypeChecks.getLength(targetLogicalType),
+                                targetLogicalType.is(LogicalTypeRoot.BINARY)));
                 break;
             case DATE:
                 writer.assignStmt(
@@ -146,17 +178,19 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                 writer.assignStmt(
                         returnVariable,
                         staticCall(
-                                TimestampData.class,
-                                "fromLocalDateTime",
-                                methodCall(inputTerm, "getDateTime")));
+                                VariantCastUtils.class,
+                                "toTimestamp",
+                                inputTerm,
+                                LogicalTypeChecks.getPrecision(targetLogicalType)));
                 break;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 writer.assignStmt(
                         returnVariable,
                         staticCall(
-                                TimestampData.class,
-                                "fromInstant",
-                                methodCall(inputTerm, "getInstant")));
+                                VariantCastUtils.class,
+                                "toTimestampLtz",
+                                inputTerm,
+                                LogicalTypeChecks.getPrecision(targetLogicalType)));
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -165,73 +199,29 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
         return writer.toString();
     }
 
-    /**
-     * Converts a numeric variant to the numeric {@code target} via the matching {@link Number}
-     * accessor, mirroring regular numeric cast semantics. A non-numeric variant raises {@link
-     * ClassCastException}, failing {@code CAST} and yielding {@code null} for {@code TRY_CAST}.
-     */
-    private static String numericExpression(String inputTerm, LogicalType target) {
-        final String number = cast(className(Number.class), methodCall(inputTerm, "get"));
-        if (!target.is(LogicalTypeRoot.DECIMAL)) {
-            return methodCall(number, numberAccessor(target));
-        }
-        final DecimalType decimalType = (DecimalType) target;
-        return staticCall(
-                DecimalData.class,
-                "fromBigDecimal",
-                constructorCall(BigDecimal.class, methodCall(number, "toString")),
-                decimalType.getPrecision(),
-                decimalType.getScale());
-    }
-
-    private static String numberAccessor(LogicalType target) {
+    private static long integralMin(LogicalType target) {
         switch (target.getTypeRoot()) {
             case TINYINT:
-                return "byteValue";
+                return Byte.MIN_VALUE;
             case SMALLINT:
-                return "shortValue";
+                return Short.MIN_VALUE;
             case INTEGER:
-                return "intValue";
-            case BIGINT:
-                return "longValue";
-            case FLOAT:
-                return "floatValue";
-            case DOUBLE:
-                return "doubleValue";
+                return Integer.MIN_VALUE;
             default:
-                throw new IllegalArgumentException(
-                        "Unsupported numeric target for casting from VARIANT: " + target);
+                return Long.MIN_VALUE;
         }
     }
 
-    private static void generateToBytes(
-            CodeGeneratorCastRule.Context context,
-            String inputTerm,
-            String returnVariable,
-            LogicalType targetLogicalType,
-            CodeWriter writer) {
-        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
-        // Read the bytes once to avoid decoding the variant twice.
-        final String bytesTerm = newName(context.getCodeGeneratorContext(), "variantBytes");
-        writer.declStmt("byte[]", bytesTerm, methodCall(inputTerm, "getBytes"));
-        if (BinaryToBinaryCastRule.couldPad(targetLogicalType, targetLength)) {
-            // BINARY(n): pad or trim to the exact target length.
-            writer.assignStmt(
-                    returnVariable,
-                    ternaryOperator(
-                            arrayLength(bytesTerm) + " == " + targetLength,
-                            bytesTerm,
-                            staticCall(Arrays.class, "copyOf", bytesTerm, targetLength)));
-        } else if (BinaryToBinaryCastRule.couldTrim(targetLength)) {
-            // VARBINARY(n): trim only when longer than the target length.
-            writer.assignStmt(
-                    returnVariable,
-                    ternaryOperator(
-                            arrayLength(bytesTerm) + " <= " + targetLength,
-                            bytesTerm,
-                            staticCall(Arrays.class, "copyOf", bytesTerm, targetLength)));
-        } else {
-            writer.assignStmt(returnVariable, bytesTerm);
+    private static long integralMax(LogicalType target) {
+        switch (target.getTypeRoot()) {
+            case TINYINT:
+                return Byte.MAX_VALUE;
+            case SMALLINT:
+                return Short.MAX_VALUE;
+            case INTEGER:
+                return Integer.MAX_VALUE;
+            default:
+                return Long.MAX_VALUE;
         }
     }
 }

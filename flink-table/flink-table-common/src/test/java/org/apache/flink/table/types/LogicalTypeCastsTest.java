@@ -270,6 +270,7 @@ class LogicalTypeCastsTest {
                 // variant to scalar is explicit only
                 Arguments.of(new VariantType(), new BooleanType(), false, true),
                 Arguments.of(new VariantType(), new TinyIntType(), false, true),
+                Arguments.of(new VariantType(), new SmallIntType(), false, true),
                 Arguments.of(new VariantType(), new IntType(), false, true),
                 Arguments.of(new VariantType(), new BigIntType(), false, true),
                 Arguments.of(new VariantType(), new DoubleType(), false, true),
@@ -284,11 +285,12 @@ class LogicalTypeCastsTest {
                         new VarBinaryType(VarBinaryType.MAX_LENGTH),
                         false,
                         true),
+                Arguments.of(new VariantType(), new CharType(), false, true),
+                Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, true),
                 // variant identity cast is implicit
                 Arguments.of(new VariantType(), new VariantType(), true, true),
-                // TIME, character strings and constructed targets are not castable from variant
+                // TIME and constructed targets are not castable from variant
                 Arguments.of(new VariantType(), new TimeType(), false, false),
-                Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, false),
                 Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false),
                 Arguments.of(new VariantType(), new RowType(List.of()), false, false),
                 Arguments.of(
