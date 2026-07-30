@@ -119,7 +119,6 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.JobMdcRegistry;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.Preconditions;
@@ -573,7 +572,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         initJobClientExpiredTime(recoveredJob);
 
         final JobID jobId = recoveredJob.getJobID();
-        JobMdcRegistry.registerOrClear(jobId, recoveredJob.getJobConfiguration());
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             if (wrapIntoApplication) {
                 internalSubmitApplication(new SingleJobApplication(recoveredJob, true)).get();
@@ -583,7 +581,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     ExecutionType.RECOVERY,
                     recoveredJob.getApplicationId().orElse(null));
         } catch (Throwable throwable) {
-            JobMdcRegistry.unregister(recoveredJob.getJobID());
             onFatalError(
                     new DispatcherException(
                             String.format("Could not start recovered job %s.", jobId), throwable));
@@ -837,9 +834,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
         final JobID jobID = executionPlan.getJobID();
-        try (MdcCloseable ignored =
-                MdcUtils.withContext(
-                        MdcUtils.asContextData(jobID, executionPlan.getJobConfiguration()))) {
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
             log.info("Received job submission '{}' ({}).", executionPlan.getName(), jobID);
         }
         return isInGloballyTerminalState(jobID)
@@ -1281,7 +1276,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         final String jobName = executionPlan.getName();
         final ApplicationID applicationId = executionPlan.getApplicationId().orElse(null);
 
-        JobMdcRegistry.registerOrClear(jobId, executionPlan.getJobConfiguration());
         log.info(
                 "Submitting job '{}' ({}) with associated application ({}).",
                 jobName,
@@ -1327,7 +1321,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                         ExceptionUtils.stripCompletionException(
                                                 terminationThrowable);
                                 log.error("Failed to submit job {}.", jobId, strippedThrowable);
-                                JobMdcRegistry.unregister(jobId);
                                 throw new CompletionException(
                                         new JobSubmissionException(
                                                 jobId, "Failed to submit job.", strippedThrowable));
@@ -1444,8 +1437,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobTerminationFuture,
                 (thread, throwable) -> fatalErrorHandler.onFatalError(throwable));
         registerJobManagerRunnerTerminationFuture(jobId, jobTerminationFuture);
-        jobTerminationFuture.whenComplete(
-                (ignored, ignoredThrowable) -> JobMdcRegistry.unregister(jobId));
     }
 
     @Nullable
