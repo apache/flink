@@ -75,6 +75,35 @@ public final class DeletesByKeyPrograms {
                     .runSql("INSERT INTO sink_t SELECT id, name, `value` FROM source_t")
                     .build();
 
+    public static final TableTestProgram
+            INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_NOT_NULL_SINK =
+                    TableTestProgram.of(
+                                    "select-delete-on-key-to-not-null-sink",
+                                    "No ChangelogNormalize: validates that key-only deletes can contain null"
+                                            + " non-key fields when writing to a sink with NOT NULL constraints")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("source_t")
+                                            .addSchema(
+                                                    "id INT PRIMARY KEY NOT ENFORCED",
+                                                    "name STRING")
+                                            .addOption("changelog-mode", "I,UA,D")
+                                            .addOption("source.produces-delete-by-key", "true")
+                                            .producedValues(
+                                                    Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                                    Row.ofKind(RowKind.DELETE, 1, null))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(
+                                                    "id INT PRIMARY KEY NOT ENFORCED",
+                                                    "name STRING NOT NULL")
+                                            .addOption("changelog-mode", "I,UA,D")
+                                            .addOption("sink.supports-delete-by-key", "true")
+                                            .consumedValues("+I[1, Alice]", "-D[1, null]")
+                                            .build())
+                            .runSql("INSERT INTO sink_t SELECT id, name FROM source_t")
+                            .build();
+
     public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION =
             TableTestProgram.of(
                             "select-delete-on-key-to-delete-on-key-with-projection",
