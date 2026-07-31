@@ -57,6 +57,7 @@ import java.util.function.Function;
 public abstract class SqlAlterMaterializedTableSchemaConverter<
                 T extends SqlAlterMaterializedTableSchema>
         extends AbstractAlterMaterializedTableConverter<T> {
+
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
@@ -69,9 +70,10 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
     @Override
     protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
             T alterTableSchema, ConvertContext context) {
+
         return oldTable -> {
             MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
-                    oldTable, alterTableSchema, context);
+                    oldTable, alterTableSchema, context, alterTableSchema.getOperator().getName());
 
             SchemaConverter converter = createSchemaConverter(oldTable, context);
             converter.updateColumn(alterTableSchema.getColumnPositions().getList());
