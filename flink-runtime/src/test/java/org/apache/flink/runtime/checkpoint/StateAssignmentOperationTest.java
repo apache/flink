@@ -553,6 +553,71 @@ class StateAssignmentOperationTest {
                                                 RESCALING))));
     }
 
+    @Test
+    void testChannelStateAssignmentUsesResultIdForDuplicateJobVertexConnections()
+            throws JobException, JobExecutionException {
+        int oldParallelism = 3;
+        int newParallelism = 2;
+        JobVertex upstream = createJobVertex(new OperatorID(), newParallelism);
+        JobVertex downstream = createJobVertex(new OperatorID(), newParallelism);
+        OperatorID upstreamOperator = upstream.getOperatorIDs().get(0).getGeneratedOperatorID();
+        OperatorID downstreamOperator = downstream.getOperatorIDs().get(0).getGeneratedOperatorID();
+        Random random = new Random();
+
+        OperatorState upstreamState = new OperatorState(upstreamOperator, oldParallelism, MAX_P);
+        OperatorState downstreamState =
+                new OperatorState(downstreamOperator, oldParallelism, MAX_P);
+        for (int i = 0; i < oldParallelism; i++) {
+            upstreamState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<>(
+                                            asList(
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 0, random),
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 1, random))))
+                            .build());
+            downstreamState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setInputChannelState(
+                                    new StateObjectCollection<>(
+                                            asList(
+                                                    createNewInputChannelStateHandle(10, 0, random),
+                                                    createNewInputChannelStateHandle(
+                                                            10, 1, random))))
+                            .build());
+        }
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        states.put(upstreamOperator, upstreamState);
+        states.put(downstreamOperator, downstreamState);
+
+        connectVertices(upstream, downstream, RANGE, RANGE);
+        connectVertices(upstream, downstream, ROUND_ROBIN, ROUND_ROBIN);
+
+        Map<OperatorID, ExecutionJobVertex> vertices = toExecutionVertices(upstream, downstream);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        InflightDataRescalingDescriptor outputDescriptor =
+                getAssignedState(vertices.get(upstreamOperator), upstreamOperator, 0)
+                        .getOutputRescalingDescriptor();
+        InflightDataRescalingDescriptor inputDescriptor =
+                getAssignedState(vertices.get(downstreamOperator), downstreamOperator, 0)
+                        .getInputRescalingDescriptor();
+        assertThat(outputDescriptor.getChannelMapping(0))
+                .isEqualTo(RANGE.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(outputDescriptor.getChannelMapping(1))
+                .isEqualTo(ROUND_ROBIN.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(inputDescriptor.getChannelMapping(0))
+                .isEqualTo(RANGE.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(inputDescriptor.getChannelMapping(1))
+                .isEqualTo(ROUND_ROBIN.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+    }
+
     private InflightDataGateOrPartitionRescalingDescriptor gate(
             int[] oldIndices,
             RescaleMappings rescaleMapping,
