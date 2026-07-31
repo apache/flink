@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -28,9 +29,12 @@ import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.util.MdcUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -126,6 +130,24 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
             Supplier<SplitReader<E, SplitT>> splitReaderFactory,
             Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
+        this(splitReaderFactory, configuration, splitFinishedHook, null);
+    }
+
+    /**
+     * Create a split fetcher manager.
+     *
+     * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param configuration the configuration of this fetcher manager.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers.
+     * @param jobInfo the job this fetcher manager belongs to, or {@code null} if unknown. When
+     *     provided, fetcher threads carry the job id in their MDC ({@value MdcUtils#JOB_ID}) and
+     *     thread names, making their logs and thread dumps attributable to the job.
+     */
+    public SplitFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration,
+            Consumer<Collection<String>> splitFinishedHook,
+            @Nullable JobInfo jobInfo) {
         this.elementsQueue =
                 new FutureCompletingBlockingQueue<>(
                         configuration.get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY));
@@ -153,10 +175,33 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         // Create the executor with a thread factory that fails the source reader if one of
         // the fetcher thread exits abnormally.
         final String taskThreadName = Thread.currentThread().getName();
-        this.executors =
-                Executors.newCachedThreadPool(
-                        r -> new Thread(r, THREAD_NAME_PREFIX + taskThreadName));
+        final String fetcherThreadName = createFetcherThreadName(taskThreadName, jobInfo);
+        if (jobInfo != null) {
+            // MDC is thread-local and not inherited, so seed the job id into each pool thread.
+            final Map<String, String> jobMdcContext = MdcUtils.asContextData(jobInfo.getJobId());
+            this.executors =
+                    Executors.newCachedThreadPool(
+                            r ->
+                                    new Thread(
+                                            MdcUtils.wrapRunnable(jobMdcContext, r),
+                                            fetcherThreadName));
+        } else {
+            this.executors = Executors.newCachedThreadPool(r -> new Thread(r, fetcherThreadName));
+        }
         this.closed = false;
+    }
+
+    /**
+     * Builds the name shared by all fetcher threads of this manager. When the job is known, a
+     * {@link MdcUtils#jobThreadNameSuffix(JobInfo) job suffix} is appended so fetcher threads of
+     * different jobs are distinguishable on a shared TaskManager.
+     */
+    private static String createFetcherThreadName(
+            String taskThreadName, @Nullable JobInfo jobInfo) {
+        if (jobInfo == null) {
+            return THREAD_NAME_PREFIX + taskThreadName;
+        }
+        return THREAD_NAME_PREFIX + taskThreadName + MdcUtils.jobThreadNameSuffix(jobInfo);
     }
 
     public abstract void addSplits(List<SplitT> splitsToAdd);
