@@ -266,15 +266,6 @@ class TaskStateAssignment {
                                 instanceID,
                                 inputOperatorID,
                                 getUpstreamAssignments(),
-                                (gateIndex, assignment, recompute) -> {
-                                    int assignmentIndex =
-                                            assignment.findResultPartitionIndex(
-                                                    executionJobVertex
-                                                            .getInputs()
-                                                            .get(gateIndex)
-                                                            .getId());
-                                    return assignment.getOutputMapping(assignmentIndex, recompute);
-                                },
                                 inputSubtaskMappings,
                                 this::getInputMapping,
                                 true))
@@ -317,13 +308,6 @@ class TaskStateAssignment {
                 instanceID,
                 outputOperatorID,
                 getDownstreamAssignments(),
-                (partitionIndex, downstreamAssignment, recompute) -> {
-                    int assignmentIndex =
-                            downstreamAssignment.findInputGateIndex(
-                                    executionJobVertex.getProducedDataSets()[partitionIndex]
-                                            .getId());
-                    return downstreamAssignment.getInputMapping(assignmentIndex, recompute);
-                },
                 outputSubtaskMappings,
                 this::getOutputMapping,
                 false);
@@ -354,7 +338,6 @@ class TaskStateAssignment {
             OperatorInstanceID instanceID,
             OperatorID expectedOperatorID,
             TaskStateAssignment[] connectedAssignments,
-            MappingRetriever mappingRetriever,
             Map<Integer, SubtasksRescaleMapping> subtaskGateOrPartitionMappings,
             Function<Integer, SubtasksRescaleMapping> subtaskMappingCalculator,
             boolean isInput) {
@@ -366,8 +349,8 @@ class TaskStateAssignment {
                 IntStream.range(0, connectedAssignments.length)
                         .mapToObj(
                                 index ->
-                                        mappingRetriever.get(
-                                                index, connectedAssignments[index], false))
+                                        getConnectedMapping(
+                                                isInput, index, connectedAssignments[index], false))
                         .toArray(SubtasksRescaleMapping[]::new);
 
         // no state on input and output, especially for any aligned checkpoint
@@ -380,7 +363,6 @@ class TaskStateAssignment {
                 createGateOrPartitionRescalingDescriptors(
                         instanceID,
                         connectedAssignments,
-                        mappingRetriever,
                         subtaskGateOrPartitionMappings,
                         subtaskMappingCalculator,
                         rescaledChannelsMappings,
@@ -400,7 +382,6 @@ class TaskStateAssignment {
             createGateOrPartitionRescalingDescriptors(
                     OperatorInstanceID instanceID,
                     TaskStateAssignment[] connectedAssignments,
-                    MappingRetriever mappingRetriever,
                     Map<Integer, SubtasksRescaleMapping> subtaskGateOrPartitionMappings,
                     Function<Integer, SubtasksRescaleMapping> subtaskMappingCalculator,
                     SubtasksRescaleMapping[] rescaledChannelsMappings,
@@ -417,7 +398,8 @@ class TaskStateAssignment {
                                     Optional.ofNullable(rescaledChannelsMappings[partition])
                                             .orElseGet(
                                                     () ->
-                                                            mappingRetriever.get(
+                                                            getConnectedMapping(
+                                                                    isInput,
                                                                     partition,
                                                                     connectedAssignment,
                                                                     true));
@@ -489,12 +471,39 @@ class TaskStateAssignment {
         }
     }
 
+    private SubtasksRescaleMapping getOutputMapping(
+            IntermediateDataSetID resultId, boolean recompute) {
+        return getOutputMapping(findResultPartitionIndex(resultId), recompute);
+    }
+
     private SubtasksRescaleMapping getInputMapping(int assignmentIndex, boolean recompute) {
         SubtasksRescaleMapping mapping = inputSubtaskMappings.get(assignmentIndex);
         if (recompute && mapping == null) {
             return getInputMapping(assignmentIndex);
         } else {
             return mapping;
+        }
+    }
+
+    private SubtasksRescaleMapping getInputMapping(
+            IntermediateDataSetID resultId, boolean recompute) {
+        return getInputMapping(findInputGateIndex(resultId), recompute);
+    }
+
+    /**
+     * Resolves the mapping on {@code connectedAssignment} that corresponds to {@code index} on
+     * {@code this} assignment, disambiguating by {@link IntermediateDataSetID} rather than by
+     * array position (multiple edges can connect the same pair of job vertices).
+     */
+    private SubtasksRescaleMapping getConnectedMapping(
+            boolean isInput, int index, TaskStateAssignment connectedAssignment, boolean recompute) {
+        if (isInput) {
+            IntermediateDataSetID resultId = executionJobVertex.getInputs().get(index).getId();
+            return connectedAssignment.getOutputMapping(resultId, recompute);
+        } else {
+            IntermediateDataSetID resultId =
+                    executionJobVertex.getProducedDataSets()[index].getId();
+            return connectedAssignment.getInputMapping(resultId, recompute);
         }
     }
 
@@ -717,11 +726,5 @@ class TaskStateAssignment {
         public boolean isMayHaveAmbiguousSubtasks() {
             return mayHaveAmbiguousSubtasks;
         }
-    }
-
-    @FunctionalInterface
-    private interface MappingRetriever {
-        SubtasksRescaleMapping get(
-                int connectedIndex, TaskStateAssignment connectedAssignment, boolean recompute);
     }
 }
