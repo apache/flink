@@ -94,9 +94,10 @@ export class JobService {
   }
 
   public loadJob(jobId: string): Observable<JobDetailCorrect> {
-    return this.httpClient
-      .get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`)
-      .pipe(map(job => this.convertJob(job)));
+    return this.httpClient.get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`).pipe(
+      map(job => this.convertJob(job)),
+      catchError(() => EMPTY)
+    );
   }
 
   public loadAccumulators(jobId: string, vertexId: string): Observable<JobAccumulators> {
