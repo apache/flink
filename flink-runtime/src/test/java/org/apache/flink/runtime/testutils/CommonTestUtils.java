@@ -345,12 +345,25 @@ public class CommonTestUtils {
     /** Wait for one checkpoint with in-flight buffers. */
     public static String waitForCheckpointWithInflightBuffers(JobID jobID, MiniCluster miniCluster)
             throws Exception {
+        return waitForCheckpointWithInflightBuffers(jobID, miniCluster, 1);
+    }
+
+    /**
+     * Wait for at least {@code minCompletedCheckpoints} completed checkpoints and return the latest
+     * checkpoint with in-flight buffers.
+     */
+    public static String waitForCheckpointWithInflightBuffers(
+            JobID jobID, MiniCluster miniCluster, long minCompletedCheckpoints) throws Exception {
         CompletableFuture<String> checkpointPath = new CompletableFuture<>();
         waitForCheckpoints(
                 jobID,
                 miniCluster,
                 checkpointStatsSnapshot -> {
                     if (checkpointStatsSnapshot == null) {
+                        return false;
+                    }
+                    if (checkpointStatsSnapshot.getCounts().getNumberOfCompletedCheckpoints()
+                            < minCompletedCheckpoints) {
                         return false;
                     }
                     CompletedCheckpointStats latestCompletedCheckpoint =
