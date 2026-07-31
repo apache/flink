@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -230,11 +229,6 @@ class TaskStateAssignment {
         return downstreamAssignments;
     }
 
-    private static int getAssignmentIndex(
-            TaskStateAssignment[] assignments, TaskStateAssignment assignment) {
-        return Arrays.asList(assignments).indexOf(assignment);
-    }
-
     public TaskStateAssignment[] getUpstreamAssignments() {
         if (upstreamAssignments == null) {
             upstreamAssignments =
@@ -272,10 +266,13 @@ class TaskStateAssignment {
                                 instanceID,
                                 inputOperatorID,
                                 getUpstreamAssignments(),
-                                (assignment, recompute) -> {
+                                (gateIndex, assignment, recompute) -> {
                                     int assignmentIndex =
-                                            getAssignmentIndex(
-                                                    assignment.getDownstreamAssignments(), this);
+                                            assignment.findResultPartitionIndex(
+                                                    executionJobVertex
+                                                            .getInputs()
+                                                            .get(gateIndex)
+                                                            .getId());
                                     return assignment.getOutputMapping(assignmentIndex, recompute);
                                 },
                                 inputSubtaskMappings,
@@ -320,9 +317,11 @@ class TaskStateAssignment {
                 instanceID,
                 outputOperatorID,
                 getDownstreamAssignments(),
-                (downstreamAssignment, recompute) -> {
+                (partitionIndex, downstreamAssignment, recompute) -> {
                     int assignmentIndex =
-                            getAssignmentIndex(downstreamAssignment.getUpstreamAssignments(), this);
+                            downstreamAssignment.findInputGateIndex(
+                                    executionJobVertex.getProducedDataSets()[partitionIndex]
+                                            .getId());
                     return downstreamAssignment.getInputMapping(assignmentIndex, recompute);
                 },
                 outputSubtaskMappings,
@@ -355,7 +354,7 @@ class TaskStateAssignment {
             OperatorInstanceID instanceID,
             OperatorID expectedOperatorID,
             TaskStateAssignment[] connectedAssignments,
-            BiFunction<TaskStateAssignment, Boolean, SubtasksRescaleMapping> mappingRetriever,
+            MappingRetriever mappingRetriever,
             Map<Integer, SubtasksRescaleMapping> subtaskGateOrPartitionMappings,
             Function<Integer, SubtasksRescaleMapping> subtaskMappingCalculator,
             boolean isInput) {
@@ -364,8 +363,11 @@ class TaskStateAssignment {
         }
 
         SubtasksRescaleMapping[] rescaledChannelsMappings =
-                Arrays.stream(connectedAssignments)
-                        .map(assignment -> mappingRetriever.apply(assignment, false))
+                IntStream.range(0, connectedAssignments.length)
+                        .mapToObj(
+                                index ->
+                                        mappingRetriever.get(
+                                                index, connectedAssignments[index], false))
                         .toArray(SubtasksRescaleMapping[]::new);
 
         // no state on input and output, especially for any aligned checkpoint
@@ -378,7 +380,7 @@ class TaskStateAssignment {
                 createGateOrPartitionRescalingDescriptors(
                         instanceID,
                         connectedAssignments,
-                        assignment -> mappingRetriever.apply(assignment, true),
+                        mappingRetriever,
                         subtaskGateOrPartitionMappings,
                         subtaskMappingCalculator,
                         rescaledChannelsMappings,
@@ -398,7 +400,7 @@ class TaskStateAssignment {
             createGateOrPartitionRescalingDescriptors(
                     OperatorInstanceID instanceID,
                     TaskStateAssignment[] connectedAssignments,
-                    Function<TaskStateAssignment, SubtasksRescaleMapping> mappingCalculator,
+                    MappingRetriever mappingRetriever,
                     Map<Integer, SubtasksRescaleMapping> subtaskGateOrPartitionMappings,
                     Function<Integer, SubtasksRescaleMapping> subtaskMappingCalculator,
                     SubtasksRescaleMapping[] rescaledChannelsMappings,
@@ -415,8 +417,10 @@ class TaskStateAssignment {
                                     Optional.ofNullable(rescaledChannelsMappings[partition])
                                             .orElseGet(
                                                     () ->
-                                                            mappingCalculator.apply(
-                                                                    connectedAssignment));
+                                                            mappingRetriever.get(
+                                                                    partition,
+                                                                    connectedAssignment,
+                                                                    true));
                             SubtasksRescaleMapping subtaskMapping =
                                     Optional.ofNullable(
                                                     subtaskGateOrPartitionMappings.get(partition))
@@ -547,12 +551,8 @@ class TaskStateAssignment {
         if (upstreamAssignment != null && upstreamAssignment.hasOutputState()) {
             IntermediateResult inputResult = executionJobVertex.getInputs().get(gateIndex);
             IntermediateDataSetID resultId = inputResult.getId();
-            IntermediateResult[] producedDataSets = inputResult.getProducer().getProducedDataSets();
-            for (int i = 0; i < producedDataSets.length; i++) {
-                if (producedDataSets[i].getId().equals(resultId)) {
-                    return upstreamAssignment.outputStatePartitions.contains(i);
-                }
-            }
+            return upstreamAssignment.outputStatePartitions.contains(
+                    upstreamAssignment.findResultPartitionIndex(resultId));
         }
 
         return false;
@@ -571,12 +571,8 @@ class TaskStateAssignment {
             IntermediateResult producedResult =
                     executionJobVertex.getProducedDataSets()[partitionIndex];
             IntermediateDataSetID resultId = producedResult.getId();
-            List<IntermediateResult> inputs = downstreamAssignment.executionJobVertex.getInputs();
-            for (int i = 0; i < inputs.size(); i++) {
-                if (inputs.get(i).getId().equals(resultId)) {
-                    return downstreamAssignment.inputStateGates.contains(i);
-                }
-            }
+            return downstreamAssignment.inputStateGates.contains(
+                    downstreamAssignment.findInputGateIndex(resultId));
         }
         return false;
     }
@@ -642,15 +638,35 @@ class TaskStateAssignment {
 
         IntermediateResult producedResult =
                 executionJobVertex.getProducedDataSets()[partitionIndex];
-        IntermediateDataSetID resultId = producedResult.getId();
-        List<IntermediateResult> inputs = downstreamAssignment.executionJobVertex.getInputs();
+        return downstreamAssignment.findInputGateIndex(producedResult.getId());
+    }
+
+    private int findInputGateIndex(IntermediateDataSetID resultId) {
+        List<IntermediateResult> inputs = executionJobVertex.getInputs();
         for (int i = 0; i < inputs.size(); i++) {
             if (inputs.get(i).getId().equals(resultId)) {
                 return i;
             }
         }
         throw new IllegalArgumentException(
-                "No channel rescaler found during rescaling of channel state");
+                "No input gate found for intermediate data set "
+                        + resultId
+                        + " in "
+                        + executionJobVertex.getName());
+    }
+
+    private int findResultPartitionIndex(IntermediateDataSetID resultId) {
+        IntermediateResult[] producedDataSets = executionJobVertex.getProducedDataSets();
+        for (int i = 0; i < producedDataSets.length; i++) {
+            if (producedDataSets[i].getId().equals(resultId)) {
+                return i;
+            }
+        }
+        throw new IllegalArgumentException(
+                "No result partition found for intermediate data set "
+                        + resultId
+                        + " in "
+                        + executionJobVertex.getName());
     }
 
     @Override
@@ -701,5 +717,11 @@ class TaskStateAssignment {
         public boolean isMayHaveAmbiguousSubtasks() {
             return mayHaveAmbiguousSubtasks;
         }
+    }
+
+    @FunctionalInterface
+    private interface MappingRetriever {
+        SubtasksRescaleMapping get(
+                int connectedIndex, TaskStateAssignment connectedAssignment, boolean recompute);
     }
 }
