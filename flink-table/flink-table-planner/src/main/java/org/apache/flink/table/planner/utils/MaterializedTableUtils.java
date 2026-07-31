@@ -73,8 +73,8 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 public class MaterializedTableUtils {
 
     private static final String PERSISTED_COLUMN_NOT_USED_IN_QUERY =
-            "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                    + "Invalid schema change. All persisted (physical and metadata) columns "
+            "Failed to execute %s statement.\n"
+                    + "Invalid schema. All persisted (physical and metadata) columns "
                     + "in the schema part need to be present in the query part.\n"
                     + "However, %s column `%s` could not be found in the query.";
 
@@ -563,52 +563,51 @@ public class MaterializedTableUtils {
     public static void validatePersistedColumnsUsedByQuery(
             CatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
-            ConvertContext context) {
+            ConvertContext context,
+            String operationName) {
         final SqlNodeList sqlNodeList = alterTableSchema.getColumnPositions();
         if (sqlNodeList.isEmpty()) {
             return;
         }
 
         final ResolvedSchema querySchema = getQueryOperationResolvedSchema(oldTable, context);
-        validatePersistedColumnsUsedByQuery(sqlNodeList, querySchema);
+        validatePersistedColumnsUsedByQuery(sqlNodeList, querySchema, operationName);
     }
 
     public static void validatePersistedColumnsUsedByQuery(
-            SqlNodeList columnPositions, ResolvedSchema querySchema) {
+            SqlNodeList columnPositions, ResolvedSchema querySchema, String operationName) {
         final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
         for (SqlNode column : columnPositions) {
-            throwIfPersistedColumnNotUsedByQuery(column, querySchemaColumnNames);
+            throwIfPersistedColumnNotUsedByQuery(column, querySchemaColumnNames, operationName);
         }
     }
 
     private static void throwIfPersistedColumnNotUsedByQuery(
-            SqlNode column, Set<String> querySchemaColumnNames) {
+            SqlNode column, Set<String> querySchemaColumnNames, String operationName) {
         if (column instanceof SqlRegularColumn) {
             String columnName = ((SqlRegularColumn) column).getName().getSimple();
             if (!querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException("physical", columnName);
+                throwPersistedColumnNotUsedException(operationName, "physical", columnName);
             }
         } else if (column instanceof SqlMetadataColumn) {
             SqlMetadataColumn metadataColumn = (SqlMetadataColumn) column;
             String columnName = metadataColumn.getName().getSimple();
             if (!metadataColumn.isVirtual() && !querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException("metadata persisted", columnName);
+                throwPersistedColumnNotUsedException(
+                        operationName, "metadata persisted", columnName);
             }
         } else if (column instanceof SqlTableColumnPosition) {
             throwIfPersistedColumnNotUsedByQuery(
-                    ((SqlTableColumnPosition) column).getColumn(), querySchemaColumnNames);
+                    ((SqlTableColumnPosition) column).getColumn(),
+                    querySchemaColumnNames,
+                    operationName);
         }
     }
 
-    private static List<Column> getPersistedColumns(ResolvedSchema schema) {
-        return schema.getColumns().stream()
-                .filter(Column::isPersisted)
-                .collect(Collectors.toList());
-    }
-
-    private static void throwPersistedColumnNotUsedException(String type, String columnName) {
+    private static void throwPersistedColumnNotUsedException(
+            String operationName, String type, String columnName) {
         throw new ValidationException(
-                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, type, columnName));
+                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, operationName, type, columnName));
     }
 
     private static void validateIntervalValuePositive(
