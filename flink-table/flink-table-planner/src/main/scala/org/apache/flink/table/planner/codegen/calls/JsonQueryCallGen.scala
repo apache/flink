@@ -21,7 +21,6 @@ import org.apache.flink.table.api.{JsonQueryOnEmptyOrError, JsonQueryWrapper, Js
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING, GENERIC_ARRAY}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
-import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.functions.SqlJsonUtils.JsonQueryReturnType
 import org.apache.flink.table.types.logical.{ArrayType, LogicalType, LogicalTypeRoot}
 
@@ -41,14 +40,22 @@ import org.apache.calcite.sql.SqlJsonEmptyOrError
  * }}}
  * generates code similar to:
  * {{{
- * // member variable (declared once)
+ * // members (declared once)
  * SqlJsonUtils.JsonValueContext jsonParsed$0;
+ * BinaryStringData jsonParsedInput$1;
  *
- * // in processElement (parse emitted only by the first function)
- * jsonParsed$0 = SqlJsonUtils.jsonParse(field$0.toString());
- * Object rawResult$1 = SqlJsonUtils.jsonValue(jsonParsed$0, "$.type", ...);
- * // second call reuses jsonParsed$123 without re-parsing
- * Object rawResult$2 = SqlJsonUtils.jsonQuery(jsonParsed$0, "$.address", ...);
+ * // parses once per input value and reuses the result for the same input
+ * private SqlJsonUtils.JsonValueContext parseJson$2(BinaryStringData in) {
+ *   if (in != jsonParsedInput$1) {
+ *     jsonParsedInput$1 = in;
+ *     jsonParsed$0 = SqlJsonUtils.jsonParse(in.toString());
+ *   }
+ *   return jsonParsed$0;
+ * }
+ *
+ * // whichever call runs first parses, the other ones reuse the result
+ * Object rawResult$3 = SqlJsonUtils.jsonValue(parseJson$2(field$0), "$.type", ...);
+ * Object rawResult$4 = SqlJsonUtils.jsonQuery(parseJson$2(field$0), "$.address", ...);
  * }}}
  */
 class JsonQueryCallGen extends CallGenerator {
@@ -56,6 +63,8 @@ class JsonQueryCallGen extends CallGenerator {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
+
+    val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
 
     generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
       argTerms =>
@@ -68,26 +77,8 @@ class JsonQueryCallGen extends CallGenerator {
           } else {
             JsonQueryReturnType.STRING
           }
-          val inputTerm = s"${argTerms.head}.toString()"
-
-          val (varName, parseCode) =
-            ctx.getReusableInputUnboxingExprs(inputTerm, Int.MinValue) match {
-              case Some(expr) => (expr.resultTerm, "")
-              case None =>
-                val newVarName = CodeGenUtils.newName(ctx, "jsonParsed")
-                val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
-                ctx.addReusableMember(s"$typeName $newVarName;")
-                ctx.addReusableInputUnboxingExprs(
-                  inputTerm,
-                  Int.MinValue,
-                  GeneratedExpression(newVarName, "false", "", null))
-                val assign =
-                  s"$newVarName = ${qualifyMethod(BuiltInMethods.JSON_PARSE)}($inputTerm);"
-                (newVarName, assign)
-            }
-
           val terms = Seq(
-            varName,
+            parsed.resultTerm,
             s"${argTerms(1)}.toString()",
             qualifyEnum(jsonQueryReturnType),
             qualifyEnum(wrapperBehavior),
@@ -97,7 +88,6 @@ class JsonQueryCallGen extends CallGenerator {
 
           val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
           val call = s"""
-                        |$parseCode
                         |Object $rawResultTerm =
                         |    ${qualifyMethod(BuiltInMethods.JSON_QUERY_PARSED)}(${terms
                          .mkString(", ")});
