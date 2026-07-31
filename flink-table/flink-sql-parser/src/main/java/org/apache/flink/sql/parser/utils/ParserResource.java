@@ -54,6 +54,10 @@ public interface ParserResource {
     Resources.ExInst<ParseException> explainCreateOrReplaceStatementUnsupported();
 
     @Resources.BaseMessage(
+            "Unsupported ALTER MATERIALIZED TABLE statement for EXPLAIN. The statement must define a query using the AS clause.")
+    Resources.ExInst<ParseException> explainAlterMaterializedTableUnsupported();
+
+    @Resources.BaseMessage(
             "Columns identifiers without types in the schema are supported on CTAS/RTAS statements only.")
     Resources.ExInst<ParseException> columnsIdentifiersUnsupported();
 

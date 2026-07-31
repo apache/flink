@@ -29,7 +29,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class OverviewService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   public loadOverview(): Observable<Overview> {
     return this.httpClient.get<Overview>(`${this.configService.BASE_URL}/overview`).pipe(catchError(() => EMPTY));

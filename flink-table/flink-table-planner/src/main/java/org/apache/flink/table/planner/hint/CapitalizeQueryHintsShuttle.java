@@ -46,7 +46,8 @@ public class CapitalizeQueryHintsShuttle extends QueryHintsRelShuttle {
 
                                     changed.set(true);
                                     if (JoinStrategy.isJoinStrategy(capitalHintName)) {
-                                        if (JoinStrategy.isLookupHint(hint.hintName)) {
+                                        if (JoinStrategy.isLookupHint(hint.hintName)
+                                                || JoinStrategy.isEarlyFireHint(hint.hintName)) {
                                             return RelHint.builder(capitalHintName)
                                                     .hintOptions(hint.kvOptions)
                                                     .inheritPath(hint.inheritPath)

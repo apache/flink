@@ -139,7 +139,8 @@ object FlinkStreamRuleSets {
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
-          WrapJsonAggFunctionArgumentsRule.INSTANCE,
+          WrapJsonAggFunctionArgumentsRule.AGGREGATE_INSTANCE,
+          WrapJsonAggFunctionArgumentsRule.WINDOW_AGGREGATE_INSTANCE,
           // prune COUNT(*) input to project a constant before aggregation
           PruneCountStarInputRule.INSTANCE
         )
@@ -191,11 +192,11 @@ object FlinkStreamRuleSets {
 
   /** RuleSet to prune empty results rules */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    FlinkPruneEmptyRules.UNION_INSTANCE,
-    PruneEmptyRules.INTERSECT_INSTANCE,
-    FlinkPruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
+    PruneEmptyRules.UNION_INSTANCE,
+    PruneEmptyRules.INTERSECT_INSTANCE,
+    PruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
@@ -402,6 +403,12 @@ object FlinkStreamRuleSets {
     PushFilterInCalcIntoTableSourceScanRule.INSTANCE,
     // Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
+    // Rewrites a join over a SNAPSHOT table function call into a dedicated
+    // FlinkLogicalLateralSnapshotJoin for the LATERAL SNAPSHOT operator.
+    LogicalJoinToLateralSnapshotJoinRule.INSTANCE,
+    // Rejects SNAPSHOT scans that survived the rewrite above, i.e. SNAPSHOT calls used outside a
+    // LATERAL context. Must run after LogicalJoinToLateralSnapshotJoinRule.
+    ForbidSnapshotOutsideLateralRule.INSTANCE,
     // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from the result (projection).
@@ -509,6 +516,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalMultiJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
     StreamPhysicalTemporalJoinRule.INSTANCE,
+    StreamPhysicalLateralSnapshotJoinRule.INSTANCE,
     StreamPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     StreamPhysicalWindowJoinRule.INSTANCE,

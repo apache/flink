@@ -88,6 +88,7 @@ object OverAggregateUtil {
         windowGroup.isRows,
         windowGroup.lowerBound,
         windowGroup.upperBound,
+        windowGroup.exclude,
         windowGroup.orderKeys,
         newAggCalls)
     }

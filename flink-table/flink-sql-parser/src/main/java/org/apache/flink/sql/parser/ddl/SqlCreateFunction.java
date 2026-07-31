@@ -20,9 +20,11 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -40,7 +42,26 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateFunction extends SqlCreateObject {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE FUNCTION", SqlKind.CREATE_FUNCTION);
+            new SqlSpecialOperator("CREATE FUNCTION", SqlKind.CREATE_FUNCTION) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    String language =
+                            operands[4] instanceof SqlCharStringLiteral
+                                    ? ((SqlCharStringLiteral) operands[4]).getValueAs(String.class)
+                                    : null;
+                    return new SqlCreateFunction(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlCharStringLiteral) operands[1],
+                            language,
+                            ((SqlLiteral) operands[5]).booleanValue(),
+                            ((SqlLiteral) operands[6]).booleanValue(),
+                            ((SqlLiteral) operands[7]).booleanValue(),
+                            (SqlNodeList) operands[2],
+                            (SqlNodeList) operands[3]);
+                }
+            };
 
     private final SqlCharStringLiteral functionClassName;
     private final String functionLanguage;
@@ -76,7 +97,17 @@ public class SqlCreateFunction extends SqlCreateObject {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, functionClassName, resourceInfos);
+        return ImmutableNullableList.of(
+                name,
+                functionClassName,
+                resourceInfos,
+                properties,
+                functionLanguage == null
+                        ? SqlLiteral.createNull(SqlParserPos.ZERO)
+                        : SqlLiteral.createCharString(functionLanguage, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isTemporary(), SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isSystemFunction, SqlParserPos.ZERO));
     }
 
     public boolean isSystemFunction() {

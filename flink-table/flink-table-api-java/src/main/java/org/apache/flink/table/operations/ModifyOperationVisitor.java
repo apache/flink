@@ -19,6 +19,9 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.operations.materializedtable.ConvertTableToMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 
 /**
  * Class that implements visitor pattern. It allows type safe logic on top of tree of {@link
@@ -39,4 +42,10 @@ public interface ModifyOperationVisitor<T> {
     T visit(CreateTableASOperation ctas);
 
     T visit(ReplaceTableAsOperation rtas);
+
+    T visit(CreateMaterializedTableOperation createMaterializedTableOperation);
+
+    T visit(AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation);
+
+    T visit(ConvertTableToMaterializedTableOperation convertTableToMaterializedTableOperation);
 }

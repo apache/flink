@@ -127,7 +127,7 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
 }
 
 final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
-  override def invoke(value: T) {
+  override def invoke(value: T): Unit = {
     localResults += value.toString
   }
 

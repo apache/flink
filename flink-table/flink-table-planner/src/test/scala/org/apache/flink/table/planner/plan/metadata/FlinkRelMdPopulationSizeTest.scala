@@ -77,7 +77,7 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(8)))
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(9)))
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(10)))
-    assertEquals(16.43, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(11)), 1e-2)
+    assertEquals(20.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(11)), 1e-2)
 
     assertEquals(50.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(0, 1)))
     assertEquals(31.24, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(1, 8)), 1e-2)
@@ -113,7 +113,7 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(8)))
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(9)))
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(10)))
-    assertEquals(11.22, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(11)), 1e-2)
+    assertEquals(20.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(11)), 1e-2)
 
     assertEquals(50.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(0, 1)))
     assertEquals(19.64, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(1, 8)), 1e-2)

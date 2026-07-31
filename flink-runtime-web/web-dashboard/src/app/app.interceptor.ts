@@ -41,7 +41,7 @@ export class AppInterceptor implements HttpInterceptor {
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Error response from below url should be ignored
     const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
-    const ignoreErrorMessage = ['File not found.'];
+    const ignoreErrorMessage = ['File not found.', 'Resource not found.'];
     const option: NzNotificationDataOptions = {
       nzDuration: 0,
       nzStyle: { width: 'auto', 'white-space': 'pre-wrap' }

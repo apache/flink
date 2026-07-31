@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl.table;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -38,6 +43,20 @@ import static java.util.Objects.requireNonNull;
  * name=value]*).
  */
 public class SqlAlterTableOptions extends SqlAlterTable {
+
+    private static final SqlSpecialOperator OPTIONS_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE OPTIONS", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterTableOptions(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[2],
+                            (SqlNodeList) operands[1],
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     private final SqlNodeList propertyList;
 
@@ -68,8 +87,17 @@ public class SqlAlterTableOptions extends SqlAlterTable {
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return OPTIONS_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableIdentifier, propertyList);
+        return ImmutableNullableList.of(
+                tableIdentifier,
+                propertyList,
+                partitionSpec,
+                SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     public Map<String, String> getProperties() {

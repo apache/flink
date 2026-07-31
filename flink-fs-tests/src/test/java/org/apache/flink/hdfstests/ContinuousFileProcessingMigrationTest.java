@@ -21,7 +21,6 @@ package org.apache.flink.hdfstests;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -41,17 +40,16 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -62,33 +60,30 @@ import java.util.Collection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 /** Tests that verify the migration from previous Flink version snapshots. */
-@RunWith(Parameterized.class)
-public class ContinuousFileProcessingMigrationTest implements MigrationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
     private static final int LINES_PER_FILE = 10;
 
     private static final long INTERVAL = 100;
 
-    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
+    @Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
 
-    private final FlinkVersion testMigrateVersion;
+    @Parameter private FlinkVersion testMigrateVersion;
 
-    public ContinuousFileProcessingMigrationTest(FlinkVersion testMigrateVersion) {
-        this.testMigrateVersion = testMigrateVersion;
-    }
-
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @BeforeClass
-    public static void verifyOS() {
-        Assume.assumeTrue(
-                "HDFS cluster cannot be start on Windows without extensions.",
-                !OperatingSystem.isWindows());
+    @BeforeAll
+    static void verifyOS() {
+        assumeThat(OperatingSystem.isWindows())
+                .as("HDFS cluster cannot be started on Windows without extensions.")
+                .isFalse();
     }
 
     @SnapshotsGenerator
@@ -138,15 +133,12 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
                         + "-snapshot");
     }
 
-    @Test
-    public void testReaderRestore() throws Exception {
-        File testFolder = tempFolder.newFolder();
-
+    @TestTemplate
+    void testReaderRestore(@TempDir File testFolder) throws Exception {
         final OneShotLatch latch = new OneShotLatch();
 
         BlockingFileInputFormat format =
                 new BlockingFileInputFormat(latch, new Path(testFolder.getAbsolutePath()));
-        TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
                 createHarness(format);
@@ -182,17 +174,19 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
         // compare if the results contain what they should contain and also if
         // they are the same, as they should.
 
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+        assertThat(testHarness.getOutput())
+                .contains(
+                        new StreamRecord<>(split1),
+                        new StreamRecord<>(split2),
+                        new StreamRecord<>(split3),
+                        new StreamRecord<>(split4));
     }
 
     @SnapshotsGenerator
     public void writeMonitoringSourceSnapshot(FlinkVersion flinkGenerateSavepointVersion)
             throws Exception {
 
-        File testFolder = tempFolder.newFolder();
+        File testFolder = Files.createTempDirectory("tmpDirPrefix").toFile();
 
         long fileModTime = Long.MIN_VALUE;
         for (int i = 0; i < 1; i++) {
@@ -266,10 +260,8 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testMonitoringSourceRestore() throws Exception {
-
-        File testFolder = tempFolder.newFolder();
+    @TestTemplate
+    void testMonitoringSourceRestore(@TempDir File testFolder) throws Exception {
 
         TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
@@ -292,8 +284,8 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        Assert.assertEquals(
-                fileNameAndModTime.f1.longValue(), monitoringFunction.getGlobalModificationTime());
+        assertThat(monitoringFunction.getGlobalModificationTime())
+                .isEqualTo(fileNameAndModTime.f1.longValue());
     }
 
     private Tuple2<String, Long> getResourceFilename(FlinkVersion version) throws IOException {
@@ -387,7 +379,7 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
             File base, String fileName, int fileIdx, String sampleLine) throws IOException {
 
         File file = new File(base, fileName + fileIdx);
-        Assert.assertFalse(file.exists());
+        assertThat(file).doesNotExist();
 
         File tmp = new File(base, "." + fileName + fileIdx);
         FileOutputStream stream = new FileOutputStream(tmp);
@@ -401,7 +393,7 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
         FileUtils.moveFile(tmp, file);
 
-        Assert.assertTrue("No result file present", file.exists());
+        assertThat(file).as("No result file present").exists();
         return new Tuple2<>(file, str.toString());
     }
 

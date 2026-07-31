@@ -35,6 +35,7 @@ import org.apache.calcite.rel.metadata.RelMdCollation;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexWindowExclusion;
 import org.apache.calcite.sql.SqlRankFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -117,6 +118,12 @@ public class FlinkLogicalOverAggregate extends Window implements FlinkLogicalRel
 
             window.groups.forEach(
                     group -> {
+                        if (group.exclude != RexWindowExclusion.EXCLUDE_NO_OTHER) {
+                            throw new ValidationException(
+                                    "Frame exclusion '"
+                                            + group.exclude
+                                            + "' is not supported in over windows.");
+                        }
                         final int orderKeySize = group.orderKeys.getFieldCollations().size();
                         group.aggCalls.forEach(
                                 winAggCall -> {

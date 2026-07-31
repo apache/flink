@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.HistoryServerOptions;
@@ -30,23 +31,21 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
-import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,8 +55,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.HistoryServerOptions.HistoryServerArchiveLoadMode.LAZY;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher.ArchiveEventType.PENDING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -69,11 +75,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Removes existing archives from these directories and the cache according to {@link
  * ArchiveRetainedStrategy} and {@link HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS}.
+ *
+ * @param <Entry> the type of entries returned by the underlying {@link ArchiveStorage}.
  */
-class HistoryServerArchiveFetcher {
+public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     /** Possible archive operations in history-server. */
     public enum ArchiveEventType {
+        /** Archive is pending to be processed. */
+        PENDING,
+        /** Overview content is currently parsing. */
+        OVERVIEW_PARSING,
+        /** Overview content of archive was parsed and created in history server successfully. */
+        OVERVIEW_CREATED,
+        /** Detail content of archive is currently parsing. */
+        DETAIL_PARSING,
         /** Archive was found in one refresh location and created in history server. */
         CREATED,
         /** Archive was deleted from one of refresh locations and deleted from history server. */
@@ -104,8 +120,9 @@ class HistoryServerArchiveFetcher {
     protected static final String JSON_FILE_ENDING = ".json";
     protected static final String JOBS_SUBDIR = "jobs";
     protected static final String JOB_OVERVIEWS_SUBDIR = "overviews";
+    protected static final String JOBS_KEY_PREFIX = JOBS_SUBDIR + "/";
+    protected static final String JOB_OVERVIEWS_KEY_PREFIX = JOB_OVERVIEWS_SUBDIR + "/";
 
-    protected final JsonFactory jacksonFactory = new JsonFactory();
     protected final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     protected final List<HistoryServer.RefreshLocation> refreshDirs;
@@ -116,16 +133,26 @@ class HistoryServerArchiveFetcher {
     /** Cache of all available archives identified by their id. */
     protected final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
 
-    protected final File webDir;
-    protected final File webJobDir;
-    protected final File webOverviewDir;
+    protected final ArchiveStorage<Entry> archiveStorage;
+
+    /** Executor for loading archives. */
+    private final ExecutorService commonFetchExecutor;
+
+    private final ExecutorService individualFetchExecutor;
+    private final Map<String, Future<?>> commonFetchTasks;
+    private final Map<String, Future<?>> individualFetchTasks;
+    private final ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
 
     HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
             File webDir,
             Consumer<ArchiveEvent> archiveEventListener,
             boolean cleanupExpiredArchives,
-            ArchiveRetainedStrategy retainedStrategy)
+            ArchiveRetainedStrategy retainedStrategy,
+            ArchiveStorage<Entry> archiveStorage,
+            ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
+            int lazyFetchExecutorCommonPoolSize,
+            int lazyFetchExecutorIndividualPoolSize)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
@@ -135,11 +162,19 @@ class HistoryServerArchiveFetcher {
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
         }
-        this.webDir = checkNotNull(webDir);
-        this.webJobDir = new File(webDir, JOBS_SUBDIR);
-        Files.createDirectories(webJobDir.toPath());
-        this.webOverviewDir = new File(webDir, JOB_OVERVIEWS_SUBDIR);
-        Files.createDirectories(webOverviewDir.toPath());
+        checkNotNull(webDir);
+        this.archiveStorage = archiveStorage;
+        this.archiveMetaInfoCache = archiveMetaInfoCache;
+        this.commonFetchExecutor =
+                Executors.newFixedThreadPool(
+                        lazyFetchExecutorCommonPoolSize,
+                        new ExecutorThreadFactory("HistoryServer-commonFetchExecutor"));
+        this.individualFetchExecutor =
+                Executors.newFixedThreadPool(
+                        lazyFetchExecutorIndividualPoolSize,
+                        new ExecutorThreadFactory("HistoryServer-individualFetchExecutor"));
+        this.commonFetchTasks = new ConcurrentHashMap<>();
+        this.individualFetchTasks = new ConcurrentHashMap<>();
         updateJobOverview();
 
         if (LOG.isInfoEnabled()) {
@@ -149,9 +184,15 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    void fetchArchives() {
+    void fetchArchives(HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode) {
+        LOG.debug("Starting archive fetching.");
+        scanArchives(archiveLoadMode, true);
+    }
+
+    void scanArchives(
+            HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode, boolean fetch) {
+        LOG.debug("Starting archive fetching.");
         try {
-            LOG.debug("Starting archive fetching.");
             List<ArchiveEvent> events = new ArrayList<>();
             Map<Path, Set<String>> archivesToRemove = new HashMap<>();
             cachedArchivesPerRefreshDirectory.forEach(
@@ -188,28 +229,18 @@ class HistoryServerArchiveFetcher {
                         continue;
                     }
 
-                    if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
-                        LOG.trace(
-                                "Ignoring archive {} because it was already fetched.", archivePath);
-                    } else {
-                        LOG.info("Processing archive {}.", archivePath);
-                        try {
-                            events.addAll(processArchive(archiveId, archivePath, refreshDir));
-                            cachedArchivesPerRefreshDirectory.get(refreshDir).add(archiveId);
-                            LOG.info("Processing archive {} finished.", archivePath);
-                        } catch (IOException e) {
-                            LOG.error(
-                                    "Failure while fetching/processing archive {}.", archiveId, e);
-                            deleteCachedArchives(archiveId, refreshDir);
-                        }
+                    if (fetch) {
+                        fetchArchive(refreshDir, archiveId, archivePath, archiveLoadMode, events);
                     }
                 }
             }
 
+            // clean local
             if (archivesToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredArchives(archivesToRemove));
             }
+            // clean remote and local
             if (!archivesBeyondRetainedLimit.isEmpty()) {
                 events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
             }
@@ -217,9 +248,35 @@ class HistoryServerArchiveFetcher {
                 updateOverview();
             }
             events.forEach(archiveEventListener);
-            LOG.debug("Finished archive fetching.");
+            LOG.debug("Finished archive scan.");
         } catch (Exception e) {
             LOG.error("Critical failure while fetching/processing archives.", e);
+        }
+    }
+
+    private void fetchArchive(
+            Path refreshDir,
+            String archiveId,
+            Path archivePath,
+            HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode,
+            List<ArchiveEvent> events)
+            throws Exception {
+        if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
+            LOG.trace("Ignoring archive {} because it was already fetched.", archivePath);
+        } else {
+            LOG.info("Processing archive {}.", archivePath);
+            try {
+                List<ArchiveEvent> processArchiveEvents =
+                        LAZY.equals(archiveLoadMode)
+                                ? lazyProcessArchive(archiveId, archivePath, refreshDir)
+                                : processArchive(archiveId, archivePath, refreshDir);
+                events.addAll(processArchiveEvents);
+                cachedArchivesPerRefreshDirectory.get(refreshDir).add(archiveId);
+                LOG.info("Processing archive {} finished.", archivePath);
+            } catch (Exception e) {
+                LOG.error("Failure while fetching/processing archive {}.", archiveId, e);
+                deleteCachedArchives(archiveId, refreshDir);
+            }
         }
     }
 
@@ -263,7 +320,7 @@ class HistoryServerArchiveFetcher {
     }
 
     List<ArchiveEvent> processArchive(String archiveId, Path archivePath, Path refreshDir)
-            throws IOException {
+            throws Exception {
         return Collections.singletonList(processJobArchive(archiveId, archivePath));
     }
 
@@ -272,45 +329,23 @@ class HistoryServerArchiveFetcher {
             String path = archive.getPath();
             String json = archive.getJson();
 
-            File target;
+            String key;
             if (path.equals(JobsOverviewHeaders.URL)) {
-                target = new File(webOverviewDir, jobId + JSON_FILE_ENDING);
+                key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
             } else if (path.equals("/joboverview")) { // legacy path
                 LOG.debug("Migrating legacy archive {}", jobArchive);
                 json = convertLegacyJobOverview(json);
-                target = new File(webOverviewDir, jobId + JSON_FILE_ENDING);
+                key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
             } else {
-                // this implicitly writes into webJobDir
-                target = new File(webDir, path + JSON_FILE_ENDING);
+                // this implicitly writes into webJobDir; strip the leading '/' from the
+                // REST path so that the key is a relative sub-path under the storage root
+                key = path.substring(1) + JSON_FILE_ENDING;
             }
 
-            writeTargetFile(target, json);
+            archiveStorage.putArchiveContent(key, json);
         }
 
         return new ArchiveEvent(jobId, ArchiveEventType.CREATED);
-    }
-
-    void writeTargetFile(File target, String json) throws IOException {
-        java.nio.file.Path parent = target.getParentFile().toPath();
-
-        try {
-            Files.createDirectories(parent);
-        } catch (FileAlreadyExistsException ignored) {
-            // there may be left-over directories from the previous attempt
-        }
-
-        java.nio.file.Path targetPath = target.toPath();
-
-        // We overwrite existing files since this may be another attempt
-        // at fetching this archive.
-        // Existing files may be incomplete/corrupt.
-        Files.deleteIfExists(targetPath);
-
-        Files.createFile(target.toPath());
-        try (FileWriter fw = new FileWriter(target)) {
-            fw.write(json);
-            fw.flush();
-        }
     }
 
     List<ArchiveEvent> cleanupArchivesBeyondRetainedLimit(Map<Path, Set<Path>> archivesToRemove) {
@@ -344,8 +379,10 @@ class HistoryServerArchiveFetcher {
                 (refreshDir, archives) -> {
                     cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archives);
                     archives.forEach(
-                            archiveId ->
-                                    deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir)));
+                            archiveId -> {
+                                cleanUpLazyFetchTask(archiveId);
+                                deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir));
+                            });
                 });
 
         return deleteLog;
@@ -357,27 +394,28 @@ class HistoryServerArchiveFetcher {
     }
 
     ArchiveEvent deleteJobFiles(String jobId) {
-        // Make sure we do not include this job in the overview
+        // Delete job overview file in overviews directory
         try {
-            Files.deleteIfExists(new File(webOverviewDir, jobId + JSON_FILE_ENDING).toPath());
+            archiveStorage.delete(JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING);
         } catch (IOException ioe) {
             LOG.warn("Could not delete file from overview directory.", ioe);
         }
 
-        // Clean up job files we may have created
-        File jobDirectory = new File(webJobDir, jobId);
+        // Delete job details directory in jobs directory, jobs/job-id/
         try {
-            FileUtils.deleteDirectory(jobDirectory);
+            archiveStorage.deleteEntriesByPrefix(JOBS_KEY_PREFIX + jobId + "/");
         } catch (IOException ioe) {
             LOG.warn("Could not clean up job directory.", ioe);
         }
 
+        // Delete job overview file in jobs directory, jobs/job-id.json
         try {
-            Files.deleteIfExists(new File(webJobDir, jobId + JSON_FILE_ENDING).toPath());
+            archiveStorage.delete(JOBS_KEY_PREFIX + jobId + JSON_FILE_ENDING);
         } catch (IOException ioe) {
             LOG.warn("Could not delete file from job directory.", ioe);
         }
 
+        archiveMetaInfoCache.remove(jobId);
         return new ArchiveEvent(jobId, ArchiveEventType.DELETED);
     }
 
@@ -464,21 +502,213 @@ class HistoryServerArchiveFetcher {
      * <p>For the display in the HistoryServer WebFrontend we have to combine these overviews.
      */
     void updateJobOverview() {
-        try (JsonGenerator gen =
-                jacksonFactory.createGenerator(
-                        HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
-            File[] overviews = new File(webOverviewDir.getPath()).listFiles();
-            if (overviews != null) {
-                Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
-                for (File overview : overviews) {
-                    MultipleJobsDetails subJobs =
-                            mapper.readValue(overview, MultipleJobsDetails.class);
-                    allJobs.addAll(subJobs.getJobs());
+        try {
+            Collection<JobDetails> allJobs = new ArrayList<>();
+            List<Entry> overviews = archiveStorage.getEntriesByPrefix(JOB_OVERVIEWS_KEY_PREFIX);
+            for (Entry overview : overviews) {
+                MultipleJobsDetails subJobs;
+                // We treated File as a special case, mainly as a performance trade-off to avoid the
+                // overhead of loading the archive into string.
+                if (overview instanceof File) {
+                    subJobs = mapper.readValue((File) overview, MultipleJobsDetails.class);
+                } else {
+                    subJobs =
+                            mapper.readValue(
+                                    archiveStorage.readArchiveContent(overview),
+                                    MultipleJobsDetails.class);
                 }
-                mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
+                allJobs.addAll(subJobs.getJobs());
             }
-        } catch (IOException ioe) {
-            LOG.error("Failed to update job overview.", ioe);
+            String overviewWithJobs = mapper.writeValueAsString(new MultipleJobsDetails(allJobs));
+            archiveStorage.putArchiveContent(
+                    JobsOverviewHeaders.URL.substring(1) + JSON_FILE_ENDING, overviewWithJobs);
+        } catch (Exception e) {
+            LOG.error("Failed to update job overview.", e);
         }
+    }
+
+    // -------------------------------- Lazy Load ----------------------------------------
+    List<ArchiveEvent> lazyProcessArchive(String archiveId, Path archivePath, Path refreshDir)
+            throws Exception {
+        return Collections.singletonList(lazyProcessJobArchive(archiveId, archivePath, false));
+    }
+
+    ArchiveEvent lazyProcessJobArchive(String jobId, Path jobArchive, boolean individual)
+            throws Exception {
+        final ArchiveMetaInfo archiveMetaInfo = new ArchiveMetaInfo(jobId, PENDING, jobArchive);
+        ArchiveMetaInfo existing = archiveMetaInfoCache.putIfAbsent(jobId, archiveMetaInfo);
+        if (existing != null) {
+            return new ArchiveEvent(jobId, existing.getEventType());
+        }
+        archiveMetaInfo.setEventType(ArchiveEventType.OVERVIEW_PARSING);
+
+        ExecutorService fetchExecutor;
+        Map<String, Future<?>> fetchTasks;
+        if (individual) {
+            fetchExecutor = individualFetchExecutor;
+            fetchTasks = individualFetchTasks;
+        } else {
+            fetchExecutor = commonFetchExecutor;
+            fetchTasks = commonFetchTasks;
+        }
+
+        archiveMetaInfo.setEventType(ArchiveEventType.OVERVIEW_PARSING);
+
+        Collection<ArchivedJson> archivedJsons = FsJsonArchivist.readArchivedJsons(jobArchive);
+        List<ArchivedJson> detailArchives = new ArrayList<>();
+        boolean overviewCreated = false;
+
+        for (ArchivedJson archive : archivedJsons) {
+            String path = archive.getPath();
+            String json = archive.getJson();
+
+            if (path.equals(JobsOverviewHeaders.URL)) {
+                String key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
+                archiveStorage.putArchiveContent(key, json);
+                overviewCreated = true;
+            } else if (path.equals("/joboverview")) { // legacy path
+                LOG.debug("Migrating legacy archive {}", jobArchive);
+                json = convertLegacyJobOverview(json);
+                String key = JOB_OVERVIEWS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
+                archiveStorage.putArchiveContent(key, json);
+                overviewCreated = true;
+            } else if (path.equals("/jobs/" + jobId)) {
+                String key = JOBS_KEY_PREFIX + jobId + JSON_FILE_ENDING;
+                archiveStorage.putArchiveContent(key, json);
+            } else {
+                detailArchives.add(archive);
+            }
+        }
+
+        if (!overviewCreated && detailArchives.isEmpty()) {
+            archiveMetaInfoCache.remove(jobId);
+            throw new RuntimeException("Archive of job " + jobId + " is empty");
+        }
+
+        if (!detailArchives.isEmpty()) {
+            Future<?> future =
+                    fetchExecutor.submit(
+                            () -> {
+                                try {
+                                    archiveMetaInfo.setEventType(ArchiveEventType.DETAIL_PARSING);
+                                    for (ArchivedJson archive : detailArchives) {
+                                        String path = archive.getPath();
+                                        String json = archive.getJson();
+                                        // this implicitly writes into webJobDir; strip the leading
+                                        // '/' from the
+                                        // REST path so that the key is a relative sub-path under
+                                        // the storage root
+                                        String key = path.substring(1) + JSON_FILE_ENDING;
+                                        try {
+                                            archiveStorage.putArchiveContent(key, json);
+                                        } catch (IOException e) {
+                                            LOG.error(
+                                                    "Failed to write detail archive file for job {}, path {}.",
+                                                    jobId,
+                                                    path,
+                                                    e);
+                                        }
+                                    }
+                                    archiveMetaInfo.setEventType(ArchiveEventType.CREATED);
+                                    if (individual) {
+                                        updateOverview();
+                                    }
+                                    LOG.debug("Async detail parsing for job {} finished.", jobId);
+                                } finally {
+                                    fetchTasks.remove(jobId);
+                                }
+                            });
+            fetchTasks.put(jobId, future);
+        }
+
+        ArchiveEventType archiveEventType =
+                overviewCreated ? ArchiveEventType.OVERVIEW_CREATED : ArchiveEventType.CREATED;
+        if (detailArchives.isEmpty()) {
+            // otherwise the async task above is now the sole owner of eventType transitions.
+            archiveMetaInfo.setEventType(archiveEventType);
+        }
+        return new ArchiveEvent(jobId, archiveEventType);
+    }
+
+    void lazyFetchArchiveProactively(String jobId, @Nullable Path archivePath) throws Exception {
+        resetWhenTriggerLazyFetch(jobId);
+
+        if (archivePath != null) {
+            lazyProcessJobArchive(jobId, archivePath, true);
+            return;
+        }
+
+        for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
+            archivePath = new Path(refreshDir.getPath(), jobId);
+            if (refreshDir.getFs().exists(archivePath)) {
+                lazyProcessJobArchive(jobId, archivePath, true);
+            }
+        }
+    }
+
+    void cleanUpArchives(HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode) {
+        LOG.debug("Starting archive cleanup.");
+        scanArchives(archiveLoadMode, false);
+    }
+
+    boolean needLazyLoadIndividually(String jobId) {
+        ArchiveMetaInfo archiveMetaInfo = archiveMetaInfoCache.get(jobId);
+        if (archiveMetaInfo == null) {
+            return true;
+        }
+
+        switch (archiveMetaInfo.getEventType()) {
+            case PENDING:
+            case OVERVIEW_PARSING:
+            case OVERVIEW_CREATED:
+                return commonFetchTasks.containsKey(jobId)
+                        && !individualFetchTasks.containsKey(jobId);
+            default:
+                return false;
+        }
+    }
+
+    void cleanUpLazyFetchTask(String jobId) {
+        Future<?> commonFetchTask = commonFetchTasks.get(jobId);
+        if (commonFetchTask != null) {
+            commonFetchTask.cancel(true);
+            commonFetchTasks.remove(jobId);
+        }
+        Future<?> individualFetchTask = individualFetchTasks.get(jobId);
+        if (individualFetchTask != null) {
+            individualFetchTask.cancel(true);
+            individualFetchTasks.remove(jobId);
+        }
+    }
+
+    @Override
+    public void close() {
+        ExecutorUtils.gracefulShutdown(1L, TimeUnit.SECONDS, commonFetchExecutor);
+        ExecutorUtils.gracefulShutdown(1L, TimeUnit.SECONDS, individualFetchExecutor);
+    }
+
+    @VisibleForTesting
+    Future<?> getCommonFetchTask(String jobId) {
+        return commonFetchTasks.get(jobId);
+    }
+
+    void resetWhenTriggerLazyFetch(String jobId) {
+        archiveMetaInfoCache.remove(jobId);
+        cleanUpLazyFetchTask(jobId);
+    }
+
+    void waitLazyFetchArchiveFinished(String jobId) throws Exception {
+        Future<?> commonFetchTask = commonFetchTasks.get(jobId);
+        if (commonFetchTask != null) {
+            commonFetchTask.get();
+        }
+        Future<?> individualFetchTask = individualFetchTasks.get(jobId);
+        if (individualFetchTask != null) {
+            individualFetchTask.get();
+        }
+    }
+
+    ArchiveMetaInfo getArchiveMetaInfo(String jobId) {
+        return archiveMetaInfoCache.get(jobId);
     }
 }

@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
@@ -249,9 +250,23 @@ public abstract class AbstractStreamOperatorV2<OUT>
                 && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
             LOG.info("Interruptible timers enabled for {}", getClass().getSimpleName());
+            InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+            boolean emitIntermediateWatermarks =
+                    runtimeContext
+                            .getJobConfiguration()
+                            .get(
+                                    CheckpointingOptions
+                                            .UNALIGNED_INTERRUPTIBLE_TIMERS_EMIT_INTERMEDIATE_WATERMARKS);
+            if (emitIntermediateWatermarks) {
+                timeServiceManager.configureIntermediateWatermarkInterval(
+                        Duration.ofMillis(getExecutionConfig().getAutoWatermarkInterval()));
+            }
             watermarkProcessor =
                     new MailboxWatermarkProcessor(
-                            output, mailboxExecutor, getTimeServiceManager().get());
+                            output,
+                            mailboxExecutor,
+                            timeServiceManager,
+                            emitIntermediateWatermarks);
         }
     }
 

@@ -68,6 +68,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -365,6 +366,12 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
             } else {
                 throw new TableException("This should not happen.");
             }
+        }
+
+        @Override
+        public Pattern<RowData, RowData> visitNodeAndFieldIndex(
+                RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override

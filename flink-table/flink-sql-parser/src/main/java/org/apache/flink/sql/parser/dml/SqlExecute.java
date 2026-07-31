@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.dml;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSelect;
@@ -51,7 +52,13 @@ import java.util.List;
 public class SqlExecute extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("Execute", SqlKind.OTHER);
+            new SqlSpecialOperator("Execute", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlExecute(operands[0], pos);
+                }
+            };
 
     private SqlNode statement;
 

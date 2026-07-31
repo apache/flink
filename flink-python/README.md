@@ -14,13 +14,13 @@ Depending on the level of abstraction you need, there are two different APIs tha
 
 The PyFlink Table API allows you to write powerful relational queries in a way that is similar to
 using SQL or working with tabular data in Python. You can find more information about it via the tutorial
-[https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/)
+[https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/table_api_tutorial.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/table_api_tutorial.html)
 
 The PyFlink DataStream API gives you lower-level control over the core building blocks of Flink,
 state and time, to build more complex stream processing use cases.
-Tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/)
+Tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/datastream_tutorial.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/datastream_tutorial.html)
 
-You can find more information via the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/)
+You can find more information via the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/overview.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/overview.html)
 
 The auto-generated Python docs can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/](https://nightlies.apache.org/flink/flink-docs-stable/api/python/)
 

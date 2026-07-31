@@ -21,12 +21,12 @@ import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalTableAggregate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
-import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
@@ -35,8 +35,9 @@ import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import java.util
+import java.util.stream.Collectors
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.language.postfixOps
 
 class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
@@ -60,8 +61,12 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     relBuilder.push(inputAgg)
 
     // project `age` field and corresponding output type
-    val projection = List(relBuilder.field("age"))
-    val ageFieldType = inputAgg.getRowType.getFieldList.filter(x => x.getName.equals("age"))
+    val projection = java.util.List.of[RexInputRef](relBuilder.field("age"))
+    val ageFieldType =
+      inputAgg.getRowType.getFieldList
+        .stream()
+        .filter(x => x.getName.equals("age"))
+        .collect(Collectors.toList[RelDataTypeField]())
     val outputType = new RelRecordType(ageFieldType)
 
     // select age from (select id, age, count() from student by id, age) where ...
@@ -250,7 +255,7 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
       projectWithMaxAgg,
       ImmutableBitSet.of(0),
       null,
-      Seq(tableAggCall)
+      Seq(tableAggCall).toList.asJava
     )
     assertEquals(null, mq.getRelModifiedMonotonicity(tableAggregate))
   }
@@ -480,6 +485,24 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       new RelModifiedMonotonicity(Array(NOT_MONOTONIC, CONSTANT, CONSTANT)),
       mq.getRelModifiedMonotonicity(streamRowTimeDeduplicateLastRow))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnRankNotConvertibleToDeduplicate(): Unit = {
+    // A Top-1 ROW_NUMBER whose ORDER BY is not a single time attribute is logically a
+    // deduplication but cannot be converted to a Deduplicate operator (see
+    // RankUtil.canConvertToDeduplicate). It is a regular Top-1 Rank that retracts and re-emits the
+    // kept row when a new winner arrives, so it must NOT be reported as all-CONSTANT (insert-only).
+    // Instead it falls through to the generic Rank monotonicity logic, which derives the order-by
+    // field from the input monotonicity and the sort direction (CONSTANT input + ASC => DECREASING,
+    // CONSTANT input + DESC => INCREASING). Guards against the FLINK-34702 dispatch regression.
+    assertEquals(
+      new RelModifiedMonotonicity(Array(DECREASING, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamTop1RankOnNonTimeAttribute))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(INCREASING, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamTop1RankOnMultipleColumns))
   }
 
   @Test

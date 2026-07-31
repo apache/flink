@@ -121,10 +121,9 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     public void markIdle() {
         maybeMarkSplitStart();
         if (isPaused()) {
-            // If a split is marked idle, it has no records to emit.
-            // hence it shouldn't be considered paused anymore
             markNotPaused();
-            LOG.warn("[{}] Split marked idle while still paused", splitId);
+            // This is benign: idleness takes over paused state if they race
+            LOG.info("[{}] Split marked idle while still paused", splitId);
         }
         this.idleTimePerSecond.markStart();
     }

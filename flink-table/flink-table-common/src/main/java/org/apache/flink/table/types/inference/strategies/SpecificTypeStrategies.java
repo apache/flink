@@ -206,6 +206,10 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY =
             FromChangelogTypeStrategy.OUTPUT_TYPE_STRATEGY;
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#SNAPSHOT}. */
+    public static final TypeStrategy LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY =
+            LateralSnapshotTypeStrategy.OUTPUT_TYPE_STRATEGY;
+
     private SpecificTypeStrategies() {
         // no instantiation
     }

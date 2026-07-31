@@ -57,13 +57,11 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockRestoreOperation;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,8 +71,10 @@ import java.util.concurrent.RunnableFuture;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for the multi-state key iterator. */
-public class MultiStateKeyIteratorTest {
+class MultiStateKeyIteratorTest {
     private static final List<ValueStateDescriptor<Integer>> descriptors;
 
     static {
@@ -161,7 +161,7 @@ public class MultiStateKeyIteratorTest {
     }
 
     @Test
-    public void testIteratorPullsKeyFromAllDescriptors() throws Exception {
+    void testIteratorPullsKeyFromAllDescriptors() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
 
         setKey(keyedStateBackend, descriptors.get(0), 1);
@@ -176,12 +176,11 @@ public class MultiStateKeyIteratorTest {
             keys.add(iterator.next());
         }
 
-        Assert.assertEquals("Unexpected number of keys", 2, keys.size());
-        Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
+        assertThat(keys).containsExactly(1, 2);
     }
 
     @Test
-    public void testIteratorSkipsEmptyDescriptors() throws Exception {
+    void testIteratorSkipsEmptyDescriptors() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
 
         List<ValueStateDescriptor<Integer>> threeDescriptors = new ArrayList<>(3);
@@ -206,13 +205,12 @@ public class MultiStateKeyIteratorTest {
             keys.add(iterator.next());
         }
 
-        Assert.assertEquals("Unexpected number of keys", 2, keys.size());
-        Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
+        assertThat(keys).containsExactly(1, 2);
     }
 
     /** Test for lazy enumeration of inner iterators. */
     @Test
-    public void testIteratorPullsSingleKeyFromAllDescriptors() throws AssertionError {
+    void testIteratorPullsSingleKeyFromAllDescriptors() throws AssertionError {
         CountingKeysKeyedStateBackend keyedStateBackend =
                 createCountingKeysKeyedStateBackend(100_000_000);
         MultiStateKeyIterator<Integer> testedIterator =
@@ -220,10 +218,9 @@ public class MultiStateKeyIteratorTest {
 
         testedIterator.hasNext();
 
-        Assert.assertEquals(
-                "Unexpected number of keys enumerated",
-                1,
-                keyedStateBackend.numberOfKeysEnumerated);
+        assertThat(keyedStateBackend.numberOfKeysEnumerated)
+                .as("Unexpected number of keys enumerated")
+                .isOne();
     }
 
     /**

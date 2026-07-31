@@ -389,14 +389,28 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                             labelValues,
                             histogram.getCount()));
             final HistogramStatistics statistics = histogram.getStatistics();
+            addQuantileSample(labelValues, samples, "0.0", statistics.getMin());
             for (final Double quantile : QUANTILES) {
-                samples.add(
-                        new MetricFamilySamples.Sample(
-                                metricName,
-                                labelNamesWithQuantile,
-                                addToList(labelValues, quantile.toString()),
-                                statistics.getQuantile(quantile)));
+                addQuantileSample(
+                        labelValues,
+                        samples,
+                        quantile.toString(),
+                        statistics.getQuantile(quantile));
             }
+            addQuantileSample(labelValues, samples, "1.0", statistics.getMax());
+        }
+
+        private void addQuantileSample(
+                final List<String> labelValues,
+                final List<MetricFamilySamples.Sample> samples,
+                final String quantile,
+                final double value) {
+            samples.add(
+                    new MetricFamilySamples.Sample(
+                            metricName,
+                            labelNamesWithQuantile,
+                            addToList(labelValues, quantile),
+                            value));
         }
     }
 

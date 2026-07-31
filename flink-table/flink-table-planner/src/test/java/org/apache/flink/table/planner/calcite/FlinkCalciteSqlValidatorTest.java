@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 
 import org.junit.jupiter.api.Test;
@@ -137,5 +141,33 @@ class FlinkCalciteSqlValidatorTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
+    }
+
+    @Test
+    void testMixedPositionalAndNamedArguments() {
+        plannerMocks
+                .getFunctionCatalog()
+                .registerTemporarySystemFunction("myFunc", new NamedArgsScalarFunction(), false);
+
+        assertDoesNotThrow(() -> plannerMocks.getParser().parse("SELECT myFunc(1, 2) FROM t1"));
+        assertDoesNotThrow(
+                () -> plannerMocks.getParser().parse("SELECT myFunc(in1 => 1, in2 => 2) FROM t1"));
+        assertThatThrownBy(
+                        () -> plannerMocks.getParser().parse("SELECT myFunc(1, in2 => 2) FROM t1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot mix positional and named arguments");
+    }
+
+    /** Scalar function with named arguments for the mixed-argument validation test. */
+    public static class NamedArgsScalarFunction extends ScalarFunction {
+        @FunctionHint(
+                output = @DataTypeHint("INT"),
+                arguments = {
+                    @ArgumentHint(name = "in1", type = @DataTypeHint("INT")),
+                    @ArgumentHint(name = "in2", type = @DataTypeHint("INT"))
+                })
+        public Integer eval(Integer in1, Integer in2) {
+            return null;
+        }
     }
 }

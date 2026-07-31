@@ -24,11 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalD
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType}
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
 
@@ -70,7 +69,11 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     relBuilder.push(scan1)
     val expr4 = relBuilder.call(LESS_THAN, relBuilder.field(4), relBuilder.literal(170.0))
     val calc =
-      createLogicalCalc(scan1, logicalProject.getRowType, logicalProject.getProjects, List(expr4))
+      createLogicalCalc(
+        scan1,
+        logicalProject.getRowType,
+        logicalProject.getProjects,
+        java.util.List.of[RexNode](expr4))
     assertEquals(
       FlinkRelDistribution.hash(Array(6), requireStrict = false),
       mq.flinkDistribution(calc))
@@ -80,7 +83,7 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       createDataStreamScan(ImmutableList.of("student"), flinkLogicalTraits.replace(distribution01))
     relBuilder.push(scan2)
     // projects: $0==1, $0, $1, true, 2.1, 2
-    val projects1 = List(
+    val projects1 = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       relBuilder.field(1),
@@ -92,13 +95,14 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     relBuilder.push(scan2)
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     // calc => projects + filter: $0 <= 2
-    val calc1 = createLogicalCalc(scan2, outputRowType, projects1, List(expr1))
+    val calc1 =
+      createLogicalCalc(scan2, outputRowType, projects1, java.util.List.of[RexNode](expr1))
     assertEquals(
       FlinkRelDistribution.hash(Array(1, 2), requireStrict = false),
       mq.flinkDistribution(calc1))
 
     // projects: $0==1, $0, 2.1, true, 2.1, 2
-    val projects2 = List(
+    val projects2 = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
@@ -106,7 +110,7 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
       makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true)
     )
-    val calc2 = createLogicalCalc(scan2, outputRowType, projects2, List())
+    val calc2 = createLogicalCalc(scan2, outputRowType, projects2, java.util.List.of())
     assertEquals(FlinkRelDistribution.ANY, mq.flinkDistribution(calc2))
   }
 

@@ -85,7 +85,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                 NetworkSequenceViewReader reader;
                 reader =
                         new CreditBasedSequenceNumberingViewReader(
-                                request.receiverId, request.credit, outboundQueue);
+                                request.receiverId,
+                                request.credit,
+                                request.needsRecovery,
+                                outboundQueue);
 
                 reader.requestSubpartitionViewOrRegisterListener(
                         partitionProvider, request.partitionId, request.queueIndexSet);

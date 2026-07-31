@@ -25,15 +25,9 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,11 +41,6 @@ import static org.mockito.Mockito.verify;
  * only when the execution graph reaches the successful final state.
  */
 class FinalizeOnMasterTest {
-    private static final Logger LOG = LoggerFactory.getLogger(FinalizeOnMasterTest.class);
-
-    @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
 
     @Test
     void testFinalizeIsCalledUponSuccess() throws Exception {
@@ -63,19 +52,16 @@ class FinalizeOnMasterTest {
         vertex2.setInvokableClass(NoOpInvokable.class);
         vertex2.setParallelism(2);
 
+        // Use a direct future executor so the asynchronous deployment callbacks complete inline
+        // before the manual state transitions below, avoiding the FLINK-38536 race.
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex1, vertex2),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                        EXECUTOR_RESOURCE.getExecutor());
+                        new DirectScheduledExecutorService());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
-        if (!eg.getState().equals(JobStatus.RUNNING)) {
-            ErrorInfo ei = eg.getFailureInfo();
-            LOG.info("Unexpected state found: Exception as string " + ei.getExceptionAsString());
-            LOG.info("Unexpected state found: ErrorInfo as string " + ei);
-        }
         assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
@@ -96,11 +82,13 @@ class FinalizeOnMasterTest {
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(1);
 
+        // Use a direct future executor so the asynchronous deployment callbacks complete inline
+        // before the manual state transitions below, avoiding the FLINK-38536 race.
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                        EXECUTOR_RESOURCE.getExecutor());
+                        new DirectScheduledExecutorService());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();

@@ -3138,14 +3138,23 @@ SqlNode SqlRichExplain() :
         stmt = RichSqlInsert()
         |
         stmt = SqlCreate()
+        |
+        stmt = SqlAlterMaterializedTable()
     )
     {
         if ((stmt instanceof SqlCreate)
                 && !(stmt instanceof SqlCreateTableAs)
-                && !(stmt instanceof SqlReplaceTableAs)) {
+                && !(stmt instanceof SqlReplaceTableAs)
+                && !(stmt instanceof SqlCreateOrAlterMaterializedTable)) {
             throw SqlUtil.newContextException(
                 getPos(),
                 ParserResource.RESOURCE.explainCreateOrReplaceStatementUnsupported());
+        }
+
+        if ((stmt instanceof SqlAlterMaterializedTable) && !(stmt instanceof SqlAlterMaterializedTableAsQuery)) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainAlterMaterializedTableUnsupported());
         }
 
         return new SqlRichExplain(getPos(), stmt, explainDetails);

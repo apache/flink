@@ -357,9 +357,7 @@ object RankUtil {
     !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
   }
 
-  private def sortOnTimeAttributeOnly(
-      sortCollation: RelCollation,
-      inputRowType: RelDataType): Boolean = {
+  def sortOnTimeAttributeOnly(sortCollation: RelCollation, inputRowType: RelDataType): Boolean = {
     if (sortCollation.getFieldCollations.size() != 1) {
       return false
     }

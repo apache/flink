@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
@@ -38,6 +39,17 @@ public class KeyedMultiInputStreamOperatorTestHarness<KEY, OUT>
     public KeyedMultiInputStreamOperatorTestHarness(
             StreamOperatorFactory<OUT> operator, TypeInformation<KEY> keyType) throws Exception {
         this(operator, 1, 1, 0);
+        config.setStateKeySerializer(
+                keyType.createSerializer(executionConfig.getSerializerConfig()));
+        config.serializeAllConfigs();
+    }
+
+    public KeyedMultiInputStreamOperatorTestHarness(
+            StreamOperatorFactory<OUT> operator,
+            TypeInformation<KEY> keyType,
+            MockEnvironment environment)
+            throws Exception {
+        super(operator, environment);
         config.setStateKeySerializer(
                 keyType.createSerializer(executionConfig.getSerializerConfig()));
         config.serializeAllConfigs();

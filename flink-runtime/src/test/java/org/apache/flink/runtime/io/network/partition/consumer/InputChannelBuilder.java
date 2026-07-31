@@ -34,7 +34,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayDeque;
+import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
@@ -56,6 +56,8 @@ public class InputChannelBuilder {
     private int maxBackoff = 0;
     private int partitionRequestListenerTimeout = 0;
     private int networkBuffersPerChannel = 2;
+    private boolean needsRecovery = false;
+    private CountDownLatch upstreamReady = new CountDownLatch(1);
     private InputChannelMetrics metrics =
             InputChannelTestUtils.newUnregisteredInputChannelMetrics();
 
@@ -115,6 +117,16 @@ public class InputChannelBuilder {
         return this;
     }
 
+    public InputChannelBuilder setNeedsRecovery(boolean needsRecovery) {
+        this.needsRecovery = needsRecovery;
+        return this;
+    }
+
+    public InputChannelBuilder setUpstreamReady(CountDownLatch upstreamReady) {
+        this.upstreamReady = upstreamReady;
+        return this;
+    }
+
     public InputChannelBuilder setMetrics(InputChannelMetrics metrics) {
         this.metrics = metrics;
         return this;
@@ -166,7 +178,9 @@ public class InputChannelBuilder {
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
                 stateWriter,
-                new ArrayDeque<>());
+                networkBuffersPerChannel,
+                needsRecovery,
+                upstreamReady);
     }
 
     public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
@@ -184,7 +198,8 @@ public class InputChannelBuilder {
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
                 stateWriter,
-                new ArrayDeque<>());
+                needsRecovery,
+                upstreamReady);
     }
 
     public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {

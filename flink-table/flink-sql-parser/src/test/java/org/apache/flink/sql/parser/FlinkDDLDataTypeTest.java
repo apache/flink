@@ -546,7 +546,11 @@ class FlinkDDLDataTypeTest {
             SqlNodeList columns = sqlCreateTable.getColumnList();
             assertThat(columns.size()).isEqualTo(1);
             SqlDataTypeSpec dataTypeSpec = ((SqlRegularColumn) columns.get(0)).getType();
-            SqlWriter sqlWriter = new SqlPrettyWriter(factory.createSqlDialect(), false);
+            SqlWriter sqlWriter =
+                    new SqlPrettyWriter(
+                            SqlPrettyWriter.config()
+                                    .withDialect(factory.createSqlDialect())
+                                    .withAlwaysUseParentheses(false));
             dataTypeSpec.unparse(sqlWriter, 0, 0);
             // SqlDataTypeSpec does not take care of the nullable attribute unparse,
             // So we unparse nullable attribute specifically, this unparsing logic should

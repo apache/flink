@@ -105,6 +105,28 @@ Calc(select=[a, b, c], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCreateTableLikeWithWatermarkReferencingMetadataColumn">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO SinkTable SELECT `ts`, `opts` FROM LikeSourceWithWatermark]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.SinkTable], fields=[ts, opts])
++- LogicalProject(ts=[$0], opts=[$1])
+   +- LogicalWatermarkAssigner(rowtime=[opts], watermark=[-($1, 5000:INTERVAL SECOND)])
+      +- LogicalProject(ts=[$0], opts=[CAST($1):TIMESTAMP(3) *ROWTIME*])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LikeSourceWithWatermark, metadata=[opts]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.SinkTable], fields=[ts, opts])
++- WatermarkAssigner(rowtime=[opts], watermark=[(opts - 5000:INTERVAL SECOND)])
+   +- Calc(select=[ts, CAST(opts AS TIMESTAMP(3) *ROWTIME*) AS opts])
+      +- TableSourceScan(table=[[default_catalog, default_database, LikeSourceWithWatermark, metadata=[opts]]], fields=[ts, opts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDDLTableScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM src WHERE a > 1]]>

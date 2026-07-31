@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets.SIMPLIFY_COALESCE_RULES
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
@@ -139,7 +138,8 @@ object FlinkBatchRuleSets {
         // vector search rule.
         ConstantVectorSearchCallToCorrelateRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
-        WrapJsonAggFunctionArgumentsRule.INSTANCE,
+        WrapJsonAggFunctionArgumentsRule.AGGREGATE_INSTANCE,
+        WrapJsonAggFunctionArgumentsRule.WINDOW_AGGREGATE_INSTANCE,
         // prune COUNT(*) input to project a constant before aggregation
         PruneCountStarInputRule.INSTANCE
       )).asJava)
@@ -195,11 +195,11 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to prune empty results rules */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    FlinkPruneEmptyRules.UNION_INSTANCE,
-    PruneEmptyRules.INTERSECT_INSTANCE,
-    FlinkPruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
+    PruneEmptyRules.UNION_INSTANCE,
+    PruneEmptyRules.INTERSECT_INSTANCE,
+    PruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
@@ -418,7 +418,13 @@ object FlinkBatchRuleSets {
     // Avoid having async calls in multiple projections in a single calc.
     AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
     // remove output of rank number when it is not used by successor calc
-    RedundantRankNumberColumnRemoveRule.INSTANCE
+    RedundantRankNumberColumnRemoveRule.INSTANCE,
+    // Rewrites a join over a LATERAL SNAPSHOT table function call into a dedicated
+    // FlinkLogicalLateralSnapshotJoin
+    LogicalJoinToLateralSnapshotJoinRule.INSTANCE,
+    // Rejects SNAPSHOT scans that survived the rewrite above, i.e. SNAPSHOT calls used outside a
+    // LATERAL context. Must run after LogicalJoinToLateralSnapshotJoinRule.
+    ForbidSnapshotOutsideLateralRule.INSTANCE
   )
 
   /** RuleSet to do physical optimize for batch */
@@ -459,6 +465,9 @@ object FlinkBatchRuleSets {
     BatchPhysicalPythonWindowAggregateRule.INSTANCE,
     // window tvf
     BatchPhysicalWindowTableFunctionRule.INSTANCE,
+    // Converts a LATERAL SNAPSHOT join into a (shuffle hash) batch join with the SNAPSHOT input as
+    // build side
+    BatchPhysicalLateralSnapshotJoinRule.INSTANCE,
     // join
     BatchPhysicalHashJoinRule.INSTANCE,
     BatchPhysicalSortMergeJoinRule.INSTANCE,

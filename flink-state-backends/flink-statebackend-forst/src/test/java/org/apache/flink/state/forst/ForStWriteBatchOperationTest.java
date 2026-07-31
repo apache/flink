@@ -244,6 +244,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
                     byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
                     assertArrayEquals(
                             valueBytes, bunchPutRequest.buildSerializedValue(en.getValue()));
+                    assertThat(mapState1.deserializeValue(valueBytes)).isEqualTo(en.getValue());
                 }
             } else {
                 byte[] keyBytes = request.buildSerializedKey();

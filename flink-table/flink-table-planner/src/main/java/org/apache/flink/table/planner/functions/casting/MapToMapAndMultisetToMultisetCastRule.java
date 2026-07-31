@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -85,23 +86,27 @@ class MapToMapAndMultisetToMultisetCastRule
     float result$2;
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        java.util.Map map$838 = new java.util.HashMap();
-        for (int i$841 = 0; i$841 < _myInput.size(); i$841++) {
-            java.lang.Float key$839 = null;
-            java.lang.Integer value$840 = null;
-            if (!_myInput.keyArray().isNullAt(i$841)) {
-                result$2 = ((float)(_myInput.keyArray().getInt(i$841)));
-                key$839 = result$2;
+        int size$2 = _myInput.size();
+        org.apache.flink.table.data.ArrayData keyArray$0 = _myInput.keyArray();
+        org.apache.flink.table.data.ArrayData valueArray$1 = _myInput.valueArray();
+        java.util.Map map$3 = new java.util.HashMap(size$2);
+        for (int i$6 = 0; i$6 < size$2; i$6++) {
+            java.lang.Float key$4 = null;
+            java.lang.Integer value$5 = null;
+            if (!keyArray$0.isNullAt(i$6)) {
+                result$2 = ((float)(keyArray$0.getInt(i$6)));
+                key$4 = result$2;
             }
-            value$840 = _myInput.valueArray().getInt(i$841);
-            map$838.put(key$839, value$840);
+            if (!valueArray$1.isNullAt(i$6)) {
+                value$5 = valueArray$1.getInt(i$6);
+            }
+            map$3.put(key$4, value$5);
         }
-        result$1 = new org.apache.flink.table.data.GenericMapData(map$838);
+        result$1 = new org.apache.flink.table.data.GenericMapData(map$3);
         isNull$0 = result$1 == null;
     } else {
         result$1 = null;
     }
-    return result$1;
 
      */
     @Override
@@ -132,23 +137,25 @@ class MapToMapAndMultisetToMultisetCastRule
 
         final String innerTargetKeyTypeTerm = boxedTypeTermForType(innerTargetKeyType);
         final String innerTargetValueTypeTerm = boxedTypeTermForType(innerTargetValueType);
-        final String keyArrayTerm = methodCall(inputTerm, "keyArray");
-        final String valueArrayTerm = methodCall(inputTerm, "valueArray");
-        final String size = methodCall(inputTerm, "size");
+        final String keyArray = newName(codeGeneratorContext, "keyArray");
+        final String valueArray = newName(codeGeneratorContext, "valueArray");
+        final String size = newName(codeGeneratorContext, "size");
         final String map = newName(codeGeneratorContext, "map");
         final String key = newName(codeGeneratorContext, "key");
         final String value = newName(codeGeneratorContext, "value");
 
         return new CastRuleUtils.CodeWriter()
-                .declStmt(className(Map.class), map, constructorCall(HashMap.class))
+                .declStmt(int.class, size, methodCall(inputTerm, "size"))
+                .declStmt(ArrayData.class, keyArray, methodCall(inputTerm, "keyArray"))
+                .declStmt(ArrayData.class, valueArray, methodCall(inputTerm, "valueArray"))
+                .declStmt(className(Map.class), map, constructorCall(HashMap.class, size))
                 .forStmt(
                         size,
                         (index, codeWriter) -> {
                             final CastCodeBlock keyCodeBlock =
                                     CastRuleProvider.generateAlwaysNonNullCodeBlock(
                                             context,
-                                            rowFieldReadAccess(
-                                                    index, keyArrayTerm, innerInputKeyType),
+                                            rowFieldReadAccess(index, keyArray, innerInputKeyType),
                                             innerInputKeyType,
                                             innerTargetKeyType);
                             assert keyCodeBlock != null;
@@ -157,7 +164,7 @@ class MapToMapAndMultisetToMultisetCastRule
                                     CastRuleProvider.generateAlwaysNonNullCodeBlock(
                                             context,
                                             rowFieldReadAccess(
-                                                    index, valueArrayTerm, innerInputValueType),
+                                                    index, valueArray, innerInputValueType),
                                             innerInputValueType,
                                             innerTargetValueType);
                             assert valueCodeBlock != null;
@@ -165,39 +172,53 @@ class MapToMapAndMultisetToMultisetCastRule
                             codeWriter
                                     .declStmt(innerTargetKeyTypeTerm, key, null)
                                     .declStmt(innerTargetValueTypeTerm, value, null);
-                            if (innerTargetKeyType.isNullable()) {
-                                codeWriter.ifStmt(
-                                        "!" + methodCall(keyArrayTerm, "isNullAt", index),
-                                        thenWriter ->
-                                                thenWriter
-                                                        .append(keyCodeBlock)
-                                                        .assignStmt(
-                                                                key, keyCodeBlock.getReturnTerm()));
-                            } else {
-                                codeWriter
-                                        .append(keyCodeBlock)
-                                        .assignStmt(key, keyCodeBlock.getReturnTerm());
-                            }
+                            iterateOverElements(
+                                    index,
+                                    codeWriter,
+                                    keyArray,
+                                    keyCodeBlock,
+                                    key,
+                                    !innerTargetKeyType.isNullable());
 
-                            if (inputLogicalType.is(LogicalTypeRoot.MAP)
-                                    && innerTargetValueType.isNullable()) {
-                                codeWriter.ifStmt(
-                                        "!" + methodCall(valueArrayTerm, "isNullAt", index),
-                                        thenWriter ->
-                                                thenWriter
-                                                        .append(valueCodeBlock)
-                                                        .assignStmt(
-                                                                value,
-                                                                valueCodeBlock.getReturnTerm()));
-                            } else {
-                                codeWriter
-                                        .append(valueCodeBlock)
-                                        .assignStmt(value, valueCodeBlock.getReturnTerm());
-                            }
+                            iterateOverElements(
+                                    index,
+                                    codeWriter,
+                                    valueArray,
+                                    valueCodeBlock,
+                                    value,
+                                    !inputLogicalType.is(LogicalTypeRoot.MAP)
+                                            || !innerTargetValueType.isNullable());
                             codeWriter.stmt(methodCall(map, "put", key, value));
                         },
                         codeGeneratorContext)
                 .assignStmt(returnVariable, constructorCall(GenericMapData.class, map))
                 .toString();
+    }
+
+    private static void iterateOverElements(
+            String index,
+            CastRuleUtils.CodeWriter codeWriter,
+            String keyArray,
+            CastCodeBlock keyCodeBlock,
+            String key,
+            boolean throwIfNull) {
+        if (throwIfNull) {
+            codeWriter.ifStmt(
+                    "!" + methodCall(keyArray, "isNullAt", index),
+                    thenWriter ->
+                            thenWriter
+                                    .append(keyCodeBlock)
+                                    .assignStmt(key, keyCodeBlock.getReturnTerm()),
+                    elseWriter ->
+                            elseWriter.throwStmt(
+                                    "new org.apache.flink.table.api.TableRuntimeException(\"Target is not nullable but a NULL was found.\")"));
+        } else {
+            codeWriter.ifStmt(
+                    "!" + methodCall(keyArray, "isNullAt", index),
+                    thenWriter ->
+                            thenWriter
+                                    .append(keyCodeBlock)
+                                    .assignStmt(key, keyCodeBlock.getReturnTerm()));
+        }
     }
 }

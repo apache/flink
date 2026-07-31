@@ -20,12 +20,11 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
 
@@ -106,7 +105,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), null))
-    assertEquals(17.13, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), null), 1e-2)
+    assertEquals(20.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), null), 1e-2)
 
     // id > 10
     val expr1 = relBuilder
@@ -125,7 +124,10 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr1))
-    assertEquals(17.13, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr1), 1e-2)
+    assertEquals(
+      16.464466094067262,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr1),
+      1e-2)
 
     // age > 15 and class = 5
     val expr2 = relBuilder
@@ -147,7 +149,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr2))
-    assertEquals(17.13, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr2), 1e-2)
+    assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr2), 1e-2)
 
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0, 1), expr2))
   }
@@ -187,7 +189,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       logicalProject.getRowType,
       logicalProject.getProjects,
-      List(expr1))
+      java.util.List.of[RexNode](expr1))
 
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), null))
     assertEquals(25.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), null))
@@ -201,7 +203,10 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), null))
-    assertEquals(11.22, mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), null), 1e-2)
+    assertEquals(
+      16.464466094067262,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), null),
+      1e-2)
 
     // class = 5
     relBuilder.push(calc)
@@ -218,7 +223,10 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), expr2))
-    assertEquals(11.22, mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), expr2), 1e-2)
+    assertEquals(
+      10.257214207425065,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), expr2),
+      1e-2)
   }
 
   @Test

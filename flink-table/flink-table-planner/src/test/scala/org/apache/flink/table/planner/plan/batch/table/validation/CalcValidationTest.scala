@@ -50,7 +50,7 @@ class CalcValidationTest extends TableTestBase {
   }
 
   @Test
-  def testSelectInvalidField() {
+  def testSelectInvalidField(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -60,7 +60,7 @@ class CalcValidationTest extends TableTestBase {
   }
 
   @Test
-  def testSelectAmbiguousFieldNames() {
+  def testSelectAmbiguousFieldNames(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -70,7 +70,7 @@ class CalcValidationTest extends TableTestBase {
   }
 
   @Test
-  def testFilterInvalidField() {
+  def testFilterInvalidField(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 

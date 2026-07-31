@@ -242,6 +242,7 @@ The `OR ALTER` clause provides create-or-update semantics:
 
 - **If the materialized table does not exist**: Creates a new materialized table with the specified options
 - **If the materialized table exists**: Modifies the query definition (behaves like `ALTER MATERIALIZED TABLE AS`)
+- **If a regular table with the same name exists**: Converts it in place into a materialized table, when enabled (see [Converting a Table to a Materialized Table](#converting-a-table-to-a-materialized-table))
 
 This is particularly useful in declarative deployment scenarios where you want to define the desired state without checking if the materialized table already exists.
 
@@ -259,6 +260,128 @@ The operation updates the materialized table similarly to [ALTER MATERIALIZED TA
 3. Starts a new refresh job from the beginning
 
 See [ALTER MATERIALIZED TABLE AS](#as-select_statement-1) for more details.
+
+## Converting a Table to a Materialized Table
+
+This lets you adopt a materialized table on top of a table that already exists, without dropping and recreating it.
+
+`CREATE OR ALTER MATERIALIZED TABLE` can convert an existing regular table into a materialized table in place. The catalog object keeps its identity and underlying storage. Its kind becomes materialized table, and its schema, options, query definition, freshness, and refresh mode are taken from the conversion statement, exactly as for a newly created materialized table. After the conversion, a refresh job is launched just as it is for a newly created materialized table.
+
+**Enabling conversion**
+
+Conversion is disabled by default. It is a one-way operation: it permanently turns a regular table into a materialized table and cannot be undone, because there is no operation that converts a materialized table back into a regular table. Keeping it off by default also preserves source compatibility. A `CREATE OR ALTER MATERIALIZED TABLE` that happens to name an existing regular table keeps its previous behavior of being rejected, so no existing workflow silently changes meaning until you opt in.
+
+When conversion is disabled, `CREATE OR ALTER MATERIALIZED TABLE` against a regular table is rejected. To enable it, set:
+
+```yaml
+table.materialized-table.conversion-from-table.enabled: true
+```
+
+The option is read at planning time from the session's root configuration, so it must be set when the `TableEnvironment` session is initialized. Set it in the cluster configuration file `config.yaml`, or in the configuration used to create the session. Changing it afterwards with a session-level `SET` statement has no effect.
+
+**Schema**
+
+The schema comes from the `CREATE OR ALTER MATERIALIZED TABLE` statement and its query, exactly as for a brand-new materialized table. Nothing is taken from the source table. These are the same rules `CREATE MATERIALIZED TABLE` already uses.
+
+The examples below read from a source table `orders` and convert an existing regular table `user_spending`:
+
+```sql
+-- Source table the query reads from
+CREATE TABLE orders (
+    user_id BIGINT NOT NULL,
+    amount BIGINT,
+    order_time TIMESTAMP(3)
+) WITH (
+    'connector' = '...'
+);
+
+-- The existing regular table to convert. It has a primary key and a watermark,
+-- which the conversion does not carry over.
+CREATE TABLE user_spending (
+    user_id BIGINT NOT NULL,
+    total_amount BIGINT,
+    last_order TIMESTAMP(3),
+    PRIMARY KEY (user_id) NOT ENFORCED,
+    WATERMARK FOR last_order AS last_order - INTERVAL '5' SECOND
+) WITH (
+    'connector' = '...'
+);
+```
+
+With no column list, the schema is exactly the query output:
+
+```sql
+CREATE OR ALTER MATERIALIZED TABLE user_spending
+    AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+-- columns: user_id, total_amount
+-- the source's last_order column, primary key, and watermark are not carried over
+```
+
+To keep a primary key or watermark, re-declare it in the conversion statement:
+
+```sql
+CREATE OR ALTER MATERIALIZED TABLE user_spending (
+    PRIMARY KEY (user_id) NOT ENFORCED,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) AS SELECT user_id, order_time FROM orders;
+-- columns: user_id, order_time (primary key: user_id, watermark on order_time)
+```
+
+If you declare columns, every persisted column must be produced by the query. Types do not have to match exactly: the query type just needs to be safely castable to the declared type, for example `INT` to `BIGINT`.
+
+```sql
+-- OK: both declared columns are produced by the query
+CREATE OR ALTER MATERIALIZED TABLE user_spending (user_id BIGINT, total_amount BIGINT)
+    AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+-- columns: user_id, total_amount
+
+-- Error: `note` is not produced by the query
+CREATE OR ALTER MATERIALIZED TABLE user_spending (user_id BIGINT, total_amount BIGINT, note STRING)
+    AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+
+-- Error: BIGINT cannot be implicitly cast to BOOLEAN
+CREATE OR ALTER MATERIALIZED TABLE user_spending (user_id BIGINT, total_amount BOOLEAN)
+    AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+```
+
+A list of names only, without types, reorders the query columns. The names must be the query's columns and the count must match:
+
+```sql
+-- query produces (user_id, total_amount); store them in the order (total_amount, user_id)
+CREATE OR ALTER MATERIALIZED TABLE user_spending (total_amount, user_id)
+    AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+-- columns: total_amount, user_id
+```
+
+You can also declare a primary key, a watermark, computed columns, and metadata columns, just like in any materialized table. Computed columns and `VIRTUAL` metadata columns are not stored, so they do not need to be in the query. Columns you declare that the query does not produce appear before the query's columns. The source table's own primary key and watermark are **not** carried over, so declare them again if you want them.
+
+```sql
+CREATE OR ALTER MATERIALIZED TABLE user_spending (
+    total_doubled AS total_amount * 2,   -- computed column, not stored
+    PRIMARY KEY (user_id) NOT ENFORCED
+) AS SELECT user_id, SUM(amount) AS total_amount FROM orders GROUP BY user_id;
+-- columns: total_doubled, user_id, total_amount (primary key: user_id)
+```
+
+Because the schema, primary key, and watermark all come from the statement and its query, not from the existing table, the result is fully defined by the DDL. The same statement always produces the same materialized table. Running it again after the conversion matches the now-existing materialized table and produces the same result.
+
+**Using the converted table**
+
+The conversion is one-way and cannot be undone. You can still use the result like a regular table: suspend it to stop the refresh job, then query it.
+
+```sql
+-- Suspend the materialized table to stop the refresh job
+ALTER MATERIALIZED TABLE user_spending SUSPEND;
+
+-- Use the materialized table as a regular table
+SELECT * FROM user_spending;
+```
+
+
+<span class="label label-danger">Note</span>
+- The catalog must support in-place conversion; catalogs that do not implement it reject the statement.
+- Converting a view into a materialized table is not supported.
+- If the refresh job (continuous mode) or refresh workflow (full mode) cannot be started, the conversion is **not** rolled back: the table is left as a materialized table in `SUSPENDED` status. Fix the underlying issue and `RESUME` it.
 
 ## 示例
 

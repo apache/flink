@@ -70,13 +70,24 @@ public class BufferManager implements BufferListener, BufferRecycler {
     @GuardedBy("bufferQueue")
     private int numRequiredBuffers;
 
+    /**
+     * Gates credit announcements while a recovery drain borrows this channel's buffers. Kept under
+     * {@code bufferQueue} to avoid inverting the queue/recovered-buffer lock order.
+     */
+    @GuardedBy("bufferQueue")
+    private boolean notifyAvailable;
+
     public BufferManager(
-            MemorySegmentProvider globalPool, InputChannel inputChannel, int numRequiredBuffers) {
+            MemorySegmentProvider globalPool,
+            InputChannel inputChannel,
+            int numRequiredBuffers,
+            boolean notifyInitiallyEnabled) {
 
         this.globalPool = checkNotNull(globalPool);
         this.inputChannel = checkNotNull(inputChannel);
         checkArgument(numRequiredBuffers >= 0);
         this.numRequiredBuffers = numRequiredBuffers;
+        this.notifyAvailable = notifyInitiallyEnabled;
     }
 
     // ------------------------------------------------------------------------
@@ -158,23 +169,22 @@ public class BufferManager implements BufferListener, BufferRecycler {
 
     /**
      * Requests floating buffers from the buffer pool based on the given required amount, and
-     * returns the actual requested amount. If the required amount is not fully satisfied, it will
-     * register as a listener.
+     * returns the number of buffers that may be announced to the producer as credit. During
+     * recovery, requested buffers are queued but announced only by {@link #enableNotify()}.
      */
     int requestFloatingBuffers(int numRequired) {
-        int numRequestedBuffers = 0;
         synchronized (bufferQueue) {
             // Similar to notifyBufferAvailable(), make sure that we never add a buffer after
             // channel
             // released all buffers via releaseAllResources().
             if (inputChannel.isReleased()) {
-                return numRequestedBuffers;
+                return 0;
             }
 
             numRequiredBuffers = numRequired;
-            numRequestedBuffers = tryRequestBuffers();
+            int numRequestedBuffers = tryRequestBuffers();
+            return notifyAvailable ? numRequestedBuffers : 0;
         }
-        return numRequestedBuffers;
     }
 
     private int tryRequestBuffers() {
@@ -209,6 +219,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
     @Override
     public void recycle(MemorySegment segment) {
         @Nullable Buffer releasedFloatingBuffer = null;
+        boolean announceCredit = false;
         synchronized (bufferQueue) {
             try {
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
@@ -226,11 +237,12 @@ public class BufferManager implements BufferListener, BufferRecycler {
             } finally {
                 bufferQueue.notifyAll();
             }
+            announceCredit = releasedFloatingBuffer == null && notifyAvailable;
         }
 
         if (releasedFloatingBuffer != null) {
             releasedFloatingBuffer.recycleBuffer();
-        } else {
+        } else if (announceCredit) {
             try {
                 inputChannel.notifyBufferAvailable(1);
             } catch (Throwable t) {
@@ -344,6 +356,9 @@ public class BufferManager implements BufferListener, BufferRecycler {
                 isBufferUsed = true;
                 numBuffers += 1 + tryRequestBuffers();
                 bufferQueue.notifyAll();
+                if (!notifyAvailable) {
+                    numBuffers = 0;
+                }
             }
 
             inputChannel.notifyBufferAvailable(numBuffers);
@@ -357,6 +372,19 @@ public class BufferManager implements BufferListener, BufferRecycler {
     @Override
     public void notifyBufferDestroyed() {
         // Nothing to do actually.
+    }
+
+    /**
+     * Opens the recovery credit gate and announces the queued buffers atomically with respect to
+     * concurrent recycle/floating-buffer callbacks.
+     */
+    void enableNotify() throws IOException {
+        int available;
+        synchronized (bufferQueue) {
+            notifyAvailable = true;
+            available = bufferQueue.getAvailableBufferSize();
+        }
+        inputChannel.notifyBufferAvailable(available);
     }
 
     // ------------------------------------------------------------------------

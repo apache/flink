@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableRetractArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractRowSemanticFunction;
@@ -75,6 +76,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -95,6 +97,11 @@ class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql("CREATE VIEW t_type_diff AS SELECT 'Bob' AS name, TRUE AS isValid");
         util.tableEnv()
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
+
+        util.addTemporarySystemFunction("upsertPtf", UpdatingUpsertFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_upsert AS SELECT * FROM upsertPtf(r => TABLE t_updating PARTITION BY name)");
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t_watermarked (name STRING, score INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
@@ -108,6 +115,10 @@ class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE TABLE t_full_delete_sink (`name` STRING PRIMARY KEY NOT ENFORCED, `name0` STRING, `count` BIGINT, `mode` STRING) "
                                 + "WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_no_pk_sink (`name` STRING, `name0` STRING, `count` BIGINT, `mode` STRING) "
+                                + "WITH ('connector' = 'values', 'sink-insert-only' = 'false')");
     }
 
     @Test
@@ -274,6 +285,63 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testOnTimeArgRejectedForDisabledPtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM f(r => TABLE t_watermarked, i => 1, "
+                                                + "on_time => DESCRIPTOR(ts));"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
+    }
+
+    @Test
+    void testUidArgRejectedForDisabledPtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsScalarFunction.class);
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1, uid => 'my-uid');"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'uid' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
+    }
+
+    @Test
+    void testSystemArgRejectedByNameBeforeTypeCheck() {
+        // System arguments are rejected by name, rather than a type mismatch.
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM f(r => TABLE t, i => 1, on_time => 1);"))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
+    }
+
+    @Test
+    void testSystemArgRejectedForDisabledPtfViaTableApi() {
+        // The same enforcement applies to the Table API path, which resolves calls via
+        // ResolveCallByArgumentsRule instead of the SQL validator.
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.tableEnv()
+                                        .fromCall(
+                                                "f",
+                                                util.tableEnv().from("t").asArgument("r"),
+                                                lit(1).asArgument("i"),
+                                                lit("my-uid").asArgument("uid")))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'uid' argument is not supported because function "
+                                        + "'f' does not use system arguments."));
+    }
+
+    @Test
     void testUidPipelineSplitIntoTwoFunctions() {
         util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyExecPlan(
@@ -349,6 +417,11 @@ class ProcessTableFunctionTest extends TableTestBase {
 
     private static Stream<ErrorSpec> errorSpecs() {
         return Stream.of(
+                ErrorSpec.ofSelect(
+                        "mixed positional and named arguments",
+                        ScalarArgsFunction.class,
+                        "SELECT * FROM f(1, b => true)",
+                        "Cannot mix positional and named arguments when calling function 'f'"),
                 ErrorSpec.ofSelect(
                         "invalid uid",
                         ScalarArgsFunction.class,
@@ -513,6 +586,44 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name, on_time => DESCRIPTOR(ts))",
                         "Time operations using the `on_time` argument are currently not supported for "
                                 + "PTFs that consume or produce updates."),
+                ErrorSpec.ofInsertInto(
+                        "upsert output into sink without primary key",
+                        UpdatingUpsertFunction.class,
+                        "INSERT INTO t_no_pk_sink SELECT * FROM f(r => TABLE t_updating PARTITION BY name)",
+                        "There is a changelog mismatch between two operators. "
+                                + "One produces an upsert changelog (UPDATE_AFTER without UPDATE_BEFORE). "
+                                + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
+                                + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
+                                + "The conflict is at:\n"
+                                + "Sink(expectedChangelogMode=[I,UB,UA,D])\n"
+                                + "  +- ProcessTableFunction(changelogMode=[I,UA,D])"),
+                ErrorSpec.ofSelect(
+                        "upsert conflict that does not surface at a sink",
+                        UpdatingUpsertFunction.class,
+                        "SELECT name, SUM(`count`) OVER (PARTITION BY name ORDER BY name) "
+                                + "FROM f(r => TABLE t_updating PARTITION BY name)",
+                        "Can't generate a valid execution plan for the given query because of a "
+                                + "changelog mismatch"),
+                ErrorSpec.ofSelect(
+                        // t_upsert produces an upsert changelog.
+                        // the table argument for f requires a retract changelog
+                        "retract requirement on an upsert table arg",
+                        SetSemanticTableRetractArgFunction.class,
+                        "SELECT * FROM f(r => TABLE t_upsert PARTITION BY name)",
+                        "Can't generate a valid execution plan for the given query because of a "
+                                + "changelog mismatch"),
+                ErrorSpec.ofInsertInto(
+                        "upsert conflict buried below a calc",
+                        UpdatingUpsertFunction.class,
+                        "INSERT INTO t_no_pk_sink SELECT name, name0, `count`, mode "
+                                + "FROM f(r => TABLE t_updating PARTITION BY name) WHERE name0 <> ''",
+                        "There is a changelog mismatch between two operators. "
+                                + "One produces an upsert changelog (UPDATE_AFTER without UPDATE_BEFORE). "
+                                + "The other requires a retract changelog (UPDATE_BEFORE and UPDATE_AFTER), for example a sink without a primary key. "
+                                + "In such cases, ensure that the sink is able to digest upserts where the PRIMARY KEY serves as the upsert key, or make the input produce UPDATE_BEFORE.\n\n"
+                                + "The conflict is at:\n"
+                                + "Sink(expectedChangelogMode=[I,UB,UA,D])\n"
+                                + "  +- Calc(changelogMode=[I,UA,D])"),
                 ErrorSpec.ofSelect(
                         "no pass-through for multiple table args",
                         InvalidPassThroughTables.class,

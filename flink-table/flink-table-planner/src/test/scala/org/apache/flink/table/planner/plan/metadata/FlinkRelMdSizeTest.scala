@@ -20,8 +20,6 @@ package org.apache.flink.table.planner.plan.metadata
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-import scala.collection.JavaConversions._
-
 class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
 
   @Test
@@ -45,47 +43,47 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       .foreach {
         scan =>
           assertEquals(
-            Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
-            mq.getAverageColumnSizes(scan).toList)
+            java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+            mq.getAverageColumnSizes(scan))
       }
 
     Array(empLogicalScan, empBatchScan, empStreamScan).foreach {
       scan =>
         assertEquals(
-          Seq(4.0, 12.0, 12.0, 4.0, 12.0, 8.0, 8.0, 4.0),
-          mq.getAverageColumnSizes(scan).toList)
+          java.util.List.of(4.0, 12.0, 12.0, 4.0, 12.0, 8.0, 8.0, 4.0),
+          mq.getAverageColumnSizes(scan))
     }
   }
 
   @Test
   def testAverageColumnSizeOnValues(): Unit = {
     assertEquals(
-      Seq(6.25, 1.0, 9.25, 12.0, 9.25, 8.0, 1.0, 3.75),
-      mq.getAverageColumnSizes(logicalValues).toList)
+      java.util.List.of(6.25, 1.0, 9.25, 12.0, 9.25, 8.0, 1.0, 3.75),
+      mq.getAverageColumnSizes(logicalValues))
     assertEquals(
-      Seq(8.0, 1.0, 12.0, 12.0, 12.0, 8.0, 4.0, 12.0),
-      mq.getAverageColumnSizes(emptyValues).toList)
+      java.util.List.of(8.0, 1.0, 12.0, 12.0, 12.0, 8.0, 4.0, 12.0),
+      mq.getAverageColumnSizes(emptyValues))
   }
 
   @Test
   def testAverageColumnSizeOnProject(): Unit = {
     assertEquals(
-      Seq(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
-      mq.getAverageColumnSizes(logicalProject).toList)
+      java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(logicalProject))
   }
 
   @Test
   def testAverageColumnSizeOnFilter(): Unit = {
     assertEquals(
-      Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
-      mq.getAverageColumnSizes(logicalFilter).toList)
+      java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+      mq.getAverageColumnSizes(logicalFilter))
   }
 
   @Test
   def testAverageColumnSizeOnCalc(): Unit = {
     assertEquals(
-      Seq(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
-      mq.getAverageColumnSizes(logicalCalc).toList)
+      java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 8.0, 8.0, 4.0, 1.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(logicalCalc))
   }
 
   @Test
@@ -93,8 +91,8 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
     Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach {
       expand =>
         assertEquals(
-          Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
-          mq.getAverageColumnSizes(expand).toList)
+          java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
+          mq.getAverageColumnSizes(expand))
     }
   }
 
@@ -103,8 +101,8 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
     Array(batchExchange, streamExchange).foreach {
       exchange =>
         assertEquals(
-          Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
-          mq.getAverageColumnSizes(exchange).toList)
+          java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+          mq.getAverageColumnSizes(exchange))
     }
   }
 
@@ -113,12 +111,12 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
     Array(logicalRank, flinkLogicalRank, batchGlobalRank, streamRank).foreach {
       rank =>
         assertEquals(
-          Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
-          mq.getAverageColumnSizes(rank).toList)
+          java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0, 8.0),
+          mq.getAverageColumnSizes(rank))
     }
     assertEquals(
-      Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
-      mq.getAverageColumnSizes(batchLocalRank).toList)
+      java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+      mq.getAverageColumnSizes(batchLocalRank))
   }
 
   @Test
@@ -140,7 +138,9 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       streamLimit
     ).foreach {
       sort =>
-        assertEquals(Seq(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0), mq.getAverageColumnSizes(sort).toList)
+        assertEquals(
+          java.util.List.of(8.0, 7.2, 8.0, 4.0, 8.0, 1.0, 4.0),
+          mq.getAverageColumnSizes(sort))
     }
   }
 
@@ -153,7 +153,8 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       batchGlobalAggWithoutLocal,
       streamGlobalAggWithLocal,
       streamGlobalAggWithoutLocal).foreach {
-      agg => assertEquals(Seq(4.0, 8.0, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg).toList)
+      agg =>
+        assertEquals(java.util.List.of(4.0, 8.0, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg))
     }
 
     Array(
@@ -161,7 +162,8 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       flinkLogicalAggWithAuxGroup,
       batchGlobalAggWithLocalWithAuxGroup,
       batchGlobalAggWithoutLocalWithAuxGroup).foreach {
-      agg => assertEquals(Seq(8.0, 7.2, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg).toList)
+      agg =>
+        assertEquals(java.util.List.of(8.0, 7.2, 8.0, 8.0, 8.0, 8.0), mq.getAverageColumnSizes(agg))
     }
   }
 
@@ -172,9 +174,14 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       flinkLogicalWindowAgg,
       batchGlobalWindowAggWithoutLocalAgg,
       batchGlobalWindowAggWithLocalAgg).foreach {
-      agg => assertEquals(Seq(4d, 32d, 8d, 12d, 12d, 12d, 12d), mq.getAverageColumnSizes(agg).toSeq)
+      agg =>
+        assertEquals(
+          java.util.List.of(4d, 32d, 8d, 12d, 12d, 12d, 12d),
+          mq.getAverageColumnSizes(agg))
     }
-    assertEquals(Seq(4.0, 32.0, 8.0, 8.0), mq.getAverageColumnSizes(batchLocalWindowAgg).toSeq)
+    assertEquals(
+      java.util.List.of(4.0, 32.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(batchLocalWindowAgg))
 
     Array(
       logicalWindowAggWithAuxGroup,
@@ -182,11 +189,14 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup
     ).foreach {
-      agg => assertEquals(Seq(8d, 4d, 8d, 12d, 12d, 12d, 12d), mq.getAverageColumnSizes(agg).toSeq)
+      agg =>
+        assertEquals(
+          java.util.List.of(8d, 4d, 8d, 12d, 12d, 12d, 12d),
+          mq.getAverageColumnSizes(agg))
     }
     assertEquals(
-      Seq(8d, 8d, 4d, 8d),
-      mq.getAverageColumnSizes(batchLocalWindowAggWithAuxGroup).toSeq)
+      java.util.List.of(8d, 8d, 4d, 8d),
+      mq.getAverageColumnSizes(batchLocalWindowAggWithAuxGroup))
   }
 
   @Test
@@ -194,19 +204,19 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
     Array(flinkLogicalOverAgg, batchOverAgg).foreach {
       agg =>
         assertEquals(
-          Seq(8.0, 7.2, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0),
-          mq.getAverageColumnSizes(agg).toList)
+          java.util.List.of(8.0, 7.2, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0),
+          mq.getAverageColumnSizes(agg))
     }
     assertEquals(
-      Seq(8.0, 12.0, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0),
-      mq.getAverageColumnSizes(streamOverAgg).toList)
+      java.util.List.of(8.0, 12.0, 8.0, 4.0, 4.0, 8.0, 8.0, 8.0),
+      mq.getAverageColumnSizes(streamOverAgg))
   }
 
   @Test
   def testAverageColumnSizeOnJoin(): Unit = {
     assertEquals(
-      Seq(4.0, 8.0, 12.0, 88.8, 4.0, 8.0, 8.0, 4.0, 8.0),
-      mq.getAverageColumnSizes(logicalInnerJoinOnUniqueKeys).toList)
+      java.util.List.of(4.0, 8.0, 12.0, 88.8, 4.0, 8.0, 8.0, 4.0, 8.0),
+      mq.getAverageColumnSizes(logicalInnerJoinOnUniqueKeys))
     Array(
       logicalInnerJoinOnDisjointKeys,
       logicalLeftJoinNotOnUniqueKeys,
@@ -214,39 +224,45 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       logicalFullJoinWithoutEquiCond).foreach {
       join =>
         assertEquals(
-          Seq(4.0, 8.0, 12.0, 88.8, 4.0, 4.0, 8.0, 12.0, 10.52, 4.0),
-          mq.getAverageColumnSizes(join).toList)
+          java.util.List.of(4.0, 8.0, 12.0, 88.8, 4.0, 4.0, 8.0, 12.0, 10.52, 4.0),
+          mq.getAverageColumnSizes(join))
     }
 
     Array(logicalSemiJoinOnUniqueKeys, logicalAntiJoinNotOnUniqueKeys).foreach {
-      join => assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(join).toList)
+      join =>
+        assertEquals(java.util.List.of(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(join))
     }
   }
 
   @Test
   def testAverageColumnSizeOnUnion(): Unit = {
     Array(logicalUnion, logicalUnionAll).foreach {
-      union => assertEquals(Seq(4.0, 8.0, 12.0, 49.66, 4.0), mq.getAverageColumnSizes(union).toList)
+      union =>
+        assertEquals(java.util.List.of(4.0, 8.0, 12.0, 49.66, 4.0), mq.getAverageColumnSizes(union))
     }
   }
 
   @Test
   def testAverageColumnSizeOnIntersect(): Unit = {
     Array(logicalIntersect, logicalIntersectAll).foreach {
-      union => assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union).toList)
+      union =>
+        assertEquals(java.util.List.of(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union))
     }
   }
 
   @Test
   def testAverageColumnSizeOnMinus(): Unit = {
     Array(logicalMinus, logicalMinusAll).foreach {
-      union => assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union).toList)
+      union =>
+        assertEquals(java.util.List.of(4.0, 8.0, 12.0, 88.8, 4.0), mq.getAverageColumnSizes(union))
     }
   }
 
   @Test
   def testAverageColumnSizeOnDefault(): Unit = {
-    assertEquals(Seq(8.0, 12.0, 8.0, 4.0, 8.0, 12.0, 4.0), mq.getAverageColumnSizes(testRel).toList)
+    assertEquals(
+      java.util.List.of(8.0, 12.0, 8.0, 4.0, 8.0, 12.0, 4.0),
+      mq.getAverageColumnSizes(testRel))
   }
 
 }

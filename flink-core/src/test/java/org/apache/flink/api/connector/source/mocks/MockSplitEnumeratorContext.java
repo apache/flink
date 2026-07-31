@@ -18,6 +18,9 @@ limitations under the License.
 
 package org.apache.flink.api.connector.source.mocks;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -66,6 +69,8 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
 
     private final int parallelism;
 
+    private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "mock-job");
+
     public MockSplitEnumeratorContext(int parallelism) {
         this.sentSourceEvent = new HashMap<>();
         this.registeredReaders = new ConcurrentHashMap<>();
@@ -81,6 +86,11 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
         this.mainExecutor = getExecutor(mainThreadFactory);
         this.stoppedAcceptAsyncCalls = new AtomicBoolean(false);
         this.subtaskHasNoMoreSplits = new boolean[parallelism];
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 
     @Override

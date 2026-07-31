@@ -43,6 +43,16 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public SelectAliasLookup isSelectAlias() {
+        return SqlConformanceEnum.DEFAULT.isSelectAlias();
+    }
+
+    @Override
+    public boolean isNonStrictGroupBy() {
+        return false;
+    }
+
+    @Override
     public boolean isGroupByOrdinal() {
         return false;
     }
@@ -65,6 +75,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     @Override
     public boolean isSortByAliasObscures() {
         return false;
+    }
+
+    @Override
+    public boolean isSupportedDualTable() {
+        return SqlConformanceEnum.DEFAULT.isSupportedDualTable();
     }
 
     @Override
@@ -98,11 +113,6 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
-    public boolean isRegexReplaceCaptureGroupDollarIndexed() {
-        return true;
-    }
-
-    @Override
     public boolean isApplyAllowed() {
         return false;
     }
@@ -119,6 +129,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean allowNiladicParentheses() {
+        return true;
+    }
+
+    @Override
+    public boolean allowNiladicConstantWithoutParentheses() {
         return true;
     }
 
@@ -175,6 +190,16 @@ public enum FlinkSqlConformance implements SqlConformance {
     @Override
     public boolean allowLenientCoercion() {
         return SqlConformanceEnum.DEFAULT.allowLenientCoercion();
+    }
+
+    @Override
+    public boolean checkedArithmetic() {
+        return SqlConformanceEnum.DEFAULT.checkedArithmetic();
+    }
+
+    @Override
+    public boolean supportsUnsignedTypes() {
+        return false;
     }
 
     @Override

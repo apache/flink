@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.getUnsupportedCastHint;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 
 /**
@@ -69,6 +70,15 @@ class CastInputTypeStrategy implements InputTypeStrategy {
             return Optional.of(argumentDataTypes);
         }
         if (!supportsExplicitCast(fromType, toType)) {
+            final Optional<String> hint = getUnsupportedCastHint(fromType, toType);
+            if (hint.isPresent()) {
+                return callContext.fail(
+                        throwOnFailure,
+                        "Unsupported cast from '%s' to '%s'. %s",
+                        fromType,
+                        toType,
+                        hint.get());
+            }
             return callContext.fail(
                     throwOnFailure, "Unsupported cast from '%s' to '%s'.", fromType, toType);
         }

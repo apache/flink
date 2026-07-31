@@ -33,7 +33,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -91,10 +93,15 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
     }
 
     public static ApplicationExceptionsInfoWithHistory fromApplicationExceptionHistory(
-            Collection<ApplicationExceptionHistoryEntry> exceptions) {
+            Collection<ApplicationExceptionHistoryEntry> exceptions, int maxSize) {
+        // reverse so the newest entries are returned first when truncating by maxSize,
+        // matching JobExceptionsHandler#createJobExceptionHistory semantics
+        final List<ApplicationExceptionHistoryEntry> reversed = new ArrayList<>(exceptions);
+        Collections.reverse(reversed);
         return new ApplicationExceptionsInfoWithHistory(
                 new ApplicationExceptionHistory(
-                        exceptions.stream()
+                        reversed.stream()
+                                .limit(maxSize)
                                 .map(
                                         exception ->
                                                 new ApplicationExceptionInfo(

@@ -59,15 +59,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     private static final Logger LOG = LoggerFactory.getLogger(RecoveredInputChannel.class);
 
     private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
-    private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
+    private final CompletableFuture<Void> stateConsumedFuture = new CompletableFuture<>();
     protected final BufferManager bufferManager;
-
-    /**
-     * Future that completes when recovered buffers have been filtered for this channel. This
-     * completes before stateConsumedFuture, enabling earlier RUNNING state transition when
-     * unaligned checkpoint during recovery is enabled.
-     */
-    private final CompletableFuture<Void> bufferFilteringCompleteFuture = new CompletableFuture<>();
 
     @GuardedBy("receivedBuffers")
     private boolean isReleased;
@@ -105,7 +98,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 numBytesIn,
                 numBuffersIn);
 
-        bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+        bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0, true);
         this.networkBuffersPerChannel = networkBuffersPerChannel;
     }
 
@@ -115,23 +108,54 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         this.channelStateWriter = checkNotNull(channelStateWriter);
     }
 
-    public final InputChannel toInputChannel() throws IOException {
-        Preconditions.checkState(
-                bufferFilteringCompleteFuture.isDone(), "buffer filtering is not complete");
-        if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
-            Preconditions.checkState(
-                    stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+    public final InputChannel toInputChannel(boolean needsRecovery) throws IOException {
+        if (needsRecovery) {
+            return toInputChannelInRecovery();
+        }
+        synchronized (receivedBuffers) {
+            Preconditions.checkState(receivedBuffers.isEmpty(), "Received buffer should be empty.");
         }
 
-        // Extract remaining buffers before conversion.
-        // These buffers have been filtered but not yet consumed by the Task.
-        final ArrayDeque<Buffer> remainingBuffers;
+        final InputChannel inputChannel = toInputChannelInternal(needsRecovery);
+        inputChannel.setup();
+        inputChannel.checkpointStopped(lastStoppedCheckpointId);
+        return inputChannel;
+    }
+
+    /**
+     * FLINK-38544 transitional: removed when the spilling backend lands. Creates the physical
+     * channel in recovery state and synchronously hands every queued recovered data buffer over
+     * through the push interface. The legacy {@link EndOfInputChannelStateEvent} in the queue is
+     * dropped in translation; the {@link EndOfFetchedChannelStateEvent} sentinel takes its place
+     * but is deliberately NOT appended here: the StreamTask recovery chain appends it via {@link
+     * RecoverableInputChannel#finishRecoveredBufferDelivery()} on the channel IO executor after
+     * partitions have been requested. That call waits for upstream readiness, which (a) cannot
+     * happen on the mailbox thread that is still converting channels (partitions are requested only
+     * after conversion) and (b) must happen before the sentinel becomes consumable -- otherwise the
+     * consume path could flip the channel out of recovery and poll it before its upstream
+     * connection exists.
+     */
+    private InputChannel toInputChannelInRecovery() throws IOException {
+        final Buffer[] remainingBuffers;
         synchronized (receivedBuffers) {
-            remainingBuffers = new ArrayDeque<>(receivedBuffers);
+            remainingBuffers = receivedBuffers.toArray(new Buffer[0]);
             receivedBuffers.clear();
         }
 
-        final InputChannel inputChannel = toInputChannelInternal(remainingBuffers);
+        final InputChannel inputChannel = toInputChannelInternal(true);
+        inputChannel.setup();
+        final RecoverableInputChannel recoverableChannel = (RecoverableInputChannel) inputChannel;
+        for (int i = 0; i < remainingBuffers.length; i++) {
+            final Buffer buffer = remainingBuffers[i];
+            if (isEndOfInputChannelStateEvent(buffer)) {
+                Preconditions.checkState(
+                        i == remainingBuffers.length - 1,
+                        "EndOfInputChannelStateEvent must be the last recovered buffer.");
+                buffer.recycleBuffer();
+            } else {
+                recoverableChannel.onRecoveredStateBuffer(buffer);
+            }
+        }
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
     }
@@ -142,34 +166,21 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     /**
-     * Creates the physical InputChannel from this recovered channel.
-     *
-     * @param remainingBuffers buffers that have been filtered but not yet consumed by the Task.
-     *     These buffers will be migrated to the new physical channel.
-     * @return the physical InputChannel (LocalInputChannel or RemoteInputChannel)
+     * Creates the physical {@link InputChannel}; {@code needsRecovery} controls whether it starts
+     * in recovery.
      */
-    protected abstract InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
+    protected abstract InputChannel toInputChannelInternal(boolean needsRecovery)
             throws IOException;
 
-    /**
-     * Returns the future that completes when buffer filtering is complete. This future completes
-     * before stateConsumedFuture, at the point when finishReadRecoveredState() is called.
-     */
-    CompletableFuture<Void> getBufferFilteringCompleteFuture() {
-        return bufferFilteringCompleteFuture;
-    }
-
-    CompletableFuture<?> getStateConsumedFuture() {
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
         return stateConsumedFuture;
     }
 
     public void onRecoveredStateBuffer(Buffer buffer) {
         boolean recycleBuffer = true;
         NetworkActionsLogger.traceRecover(
-                "InputChannelRecoveredStateHandler#recover",
-                buffer,
-                inputGate.getOwningTaskName(),
-                channelInfo);
+                "NoSpillingHandler#recover", buffer, inputGate.getOwningTaskName(), channelInfo);
         try {
             final boolean wasEmpty;
             synchronized (receivedBuffers) {
@@ -195,21 +206,9 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        // Adding the event and completing the future must be atomic under receivedBuffers lock.
-        // Without this, either ordering has a race:
-        // - event first: task thread consumes EndOfInputChannelStateEvent, which completes
-        //   stateConsumedFuture. When checkpointing during recovery is disabled,
-        //   stateConsumedFuture triggers requestPartitions -> toInputChannel(), which
-        //   fails because bufferFilteringCompleteFuture is not yet done.
-        // - future first: toInputChannel() extracts buffers before the event is added,
-        //   losing the EndOfInputChannelStateEvent.
-        // Both toInputChannel() and getNextRecoveredStateBuffer() synchronize on
-        // receivedBuffers, so holding the same lock here guarantees
-        // bufferFilteringCompleteFuture is always done before stateConsumedFuture.
         synchronized (receivedBuffers) {
             onRecoveredStateBuffer(
                     EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
-            bufferFilteringCompleteFuture.complete(null);
         }
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
@@ -229,8 +228,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         if (next == null) {
             return null;
         } else if (isEndOfInputChannelStateEvent(next)) {
-            Preconditions.checkState(
-                    bufferFilteringCompleteFuture.isDone(), "buffer filtering is not complete");
             stateConsumedFuture.complete(null);
             return null;
         } else {
@@ -307,7 +304,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    void releaseAllResources() throws IOException {
+    public void releaseAllResources() throws IOException {
         ArrayDeque<Buffer> releasedBuffers = new ArrayDeque<>();
         boolean shouldRelease = false;
 
@@ -332,13 +329,22 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    public Buffer requestBufferBlocking() throws InterruptedException, IOException {
+    /**
+     * Requests a buffer for reading recovered state. {@code checkpointingDuringRecoveryEnabled} is
+     * threaded from the job configuration by the caller now that the gate-level recovery flags are
+     * gone; when set, the allocation may fall back to unpooled heap buffers.
+     *
+     * <p>FLINK-38544 transitional: removed when the spilling backend lands (together with the heap
+     * fallback below, which disk spilling supersedes).
+     */
+    public Buffer requestBufferBlocking(boolean checkpointingDuringRecoveryEnabled)
+            throws InterruptedException, IOException {
         // not in setup to avoid assigning buffers unnecessarily if there is no state
         if (!exclusiveBuffersAssigned) {
             bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
             exclusiveBuffersAssigned = true;
         }
-        if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
+        if (!checkpointingDuringRecoveryEnabled) {
             // When checkpoint-during-recovery is not enabled, the original blocking allocation
             // is used as-is — no heap buffer fallback, no behavior change from the legacy path.
             return bufferManager.requestBufferBlocking();

@@ -18,11 +18,9 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
-import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
@@ -325,31 +323,13 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
-        final OrcBulkWriterFactory<RowData> writer =
+        final OrcBulkWriterFactory<RowData> writerFactory =
                 new OrcBulkWriterFactory<>(
                         new RowDataVectorizer(schema, fieldTypes),
                         writerProps,
                         new Configuration());
 
-        StreamingFileSink<RowData> sink =
-                StreamingFileSink.forBulkFormat(
-                                new org.apache.flink.core.fs.Path(outDir.toURI()), writer)
-                        .withBucketCheckInterval(10000)
-                        .build();
-
-        try (OneInputStreamOperatorTestHarness<RowData, Object> testHarness =
-                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
-
-            testHarness.setup();
-            testHarness.open();
-
-            int time = 0;
-            for (final RowData record : data) {
-                testHarness.processElement(record, ++time);
-            }
-            testHarness.snapshot(1, ++time);
-            testHarness.notifyOfCompletedCheckpoint(1);
-        }
+        OrcBulkWriterTestUtil.writeRecordsToFile(new File(outDir, "part-0-0"), writerFactory, data);
         return outDir.getAbsolutePath();
     }
 

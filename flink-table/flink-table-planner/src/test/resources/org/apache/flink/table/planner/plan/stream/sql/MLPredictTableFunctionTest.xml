@@ -869,7 +869,7 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, c0
   <TestCase name="testInputTableIsInsertOnlyStream">
     <Resource name="sql">
       <![CDATA[SELECT *
-FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))]]>
+FROM ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

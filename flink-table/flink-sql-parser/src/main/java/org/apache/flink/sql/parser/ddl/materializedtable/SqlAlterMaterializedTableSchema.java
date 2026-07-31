@@ -26,9 +26,14 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -36,6 +41,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -140,6 +146,29 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
             super(pos, materializedTableName, columnList, constraints, sqlWatermark);
         }
 
+        private static final SqlSpecialOperator ADD_SCHEMA_OPERATOR =
+                new SqlSpecialOperator("ALTER MATERIALIZED TABLE ADD", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        List<SqlTableConstraint> constraints = new ArrayList<>();
+                        for (SqlNode c : (SqlNodeList) operands[2]) {
+                            constraints.add((SqlTableConstraint) c);
+                        }
+                        return new SqlAlterMaterializedTableAddSchema(
+                                pos,
+                                (SqlIdentifier) operands[0],
+                                (SqlNodeList) operands[1],
+                                constraints,
+                                (SqlWatermark) operands[3]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return ADD_SCHEMA_OPERATOR;
+        }
+
         @Override
         protected String getAlterOperation() {
             return "ADD";
@@ -174,6 +203,29 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
                 List<SqlTableConstraint> constraints,
                 @Nullable SqlWatermark sqlWatermark) {
             super(pos, materializedTableName, columnList, constraints, sqlWatermark);
+        }
+
+        private static final SqlSpecialOperator MODIFY_SCHEMA_OPERATOR =
+                new SqlSpecialOperator("ALTER MATERIALIZED TABLE MODIFY", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        List<SqlTableConstraint> constraints = new ArrayList<>();
+                        for (SqlNode c : (SqlNodeList) operands[2]) {
+                            constraints.add((SqlTableConstraint) c);
+                        }
+                        return new SqlAlterMaterializedTableModifySchema(
+                                pos,
+                                (SqlIdentifier) operands[0],
+                                (SqlNodeList) operands[1],
+                                constraints,
+                                (SqlWatermark) operands[3]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return MODIFY_SCHEMA_OPERATOR;
         }
 
         @Override
@@ -215,6 +267,22 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
             super(pos, materializedTableName);
         }
 
+        private static final SqlSpecialOperator DROP_WATERMARK_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE DROP WATERMARK", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableDropWatermark(
+                                pos, (SqlIdentifier) operands[0]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return DROP_WATERMARK_OPERATOR;
+        }
+
         @Override
         public List<SqlNode> getOperandList() {
             return List.of(name);
@@ -236,6 +304,27 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
             super(pos, materializedTableName);
         }
 
+        private static final SqlSpecialOperator DROP_PRIMARY_KEY_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE DROP PRIMARY KEY", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableDropPrimaryKey(
+                                pos, (SqlIdentifier) operands[0]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return DROP_PRIMARY_KEY_OPERATOR;
+        }
+
+        @Override
+        public List<SqlNode> getOperandList() {
+            return List.of(name);
+        }
+
         @Override
         public void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec) {
             writer.keyword("PRIMARY KEY");
@@ -254,6 +343,27 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
                 SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier constraintName) {
             super(pos, tableName);
             this.constraintName = constraintName;
+        }
+
+        private static final SqlSpecialOperator DROP_CONSTRAINT_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE DROP CONSTRAINT", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableDropConstraint(
+                                pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return DROP_CONSTRAINT_OPERATOR;
+        }
+
+        @Override
+        public List<SqlNode> getOperandList() {
+            return List.of(name, constraintName);
         }
 
         public SqlIdentifier getConstraintName() {
@@ -293,6 +403,22 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
 
         public SqlNodeList getColumnList() {
             return columnList;
+        }
+
+        private static final SqlSpecialOperator DROP_COLUMN_OPERATOR =
+                new SqlSpecialOperator(
+                        "ALTER MATERIALIZED TABLE DROP COLUMN", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterMaterializedTableDropColumn(
+                                pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                    }
+                };
+
+        @Override
+        public SqlOperator getOperator() {
+            return DROP_COLUMN_OPERATOR;
         }
 
         @Override

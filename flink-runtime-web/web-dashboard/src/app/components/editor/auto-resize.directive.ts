@@ -29,7 +29,10 @@ export class AutoResizeDirective implements OnDestroy, OnInit {
   private destroy$ = new Subject<void>();
   hiddenMinimap = false;
 
-  constructor(private elementRef: ElementRef<HTMLElement>, private nzCodeEditorComponent: NzCodeEditorComponent) {}
+  constructor(
+    private elementRef: ElementRef<HTMLElement>,
+    private nzCodeEditorComponent: NzCodeEditorComponent
+  ) {}
 
   public ngOnInit(): void {
     this.createResizeObserver()

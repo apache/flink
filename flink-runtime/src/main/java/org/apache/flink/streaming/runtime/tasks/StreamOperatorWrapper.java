@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 
 import javax.annotation.Nonnull;
 
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class handles the finish, endInput and other related logic of a {@link StreamOperator}. It
@@ -55,7 +57,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<ProcessingTimeService> processingTimeService;
 
-    private final MailboxExecutor mailboxExecutor;
+    private final MailboxExecutorImpl mailboxExecutor;
 
     private final boolean isHead;
 
@@ -73,7 +75,11 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
         this.wrapped = checkNotNull(wrapped);
         this.processingTimeService = checkNotNull(processingTimeService);
-        this.mailboxExecutor = checkNotNull(mailboxExecutor);
+        checkState(
+                mailboxExecutor instanceof MailboxExecutorImpl,
+                "The mailbox executor must be a MailboxExecutorImpl, so that deferrable mails"
+                        + " can be executed when finishing the operator (FLINK-39481).");
+        this.mailboxExecutor = (MailboxExecutorImpl) mailboxExecutor;
         this.isHead = isHead;
     }
 
@@ -183,7 +189,9 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
         // run the mailbox processing loop until all operations are finished
         while (!finishedFuture.isDone()) {
-            while (mailboxExecutor.tryYield()) {}
+            // FLINK-39481: also execute deferrable mails, so that a deferred watermark
+            // continuation completes and forwards the watermark before EndOfData is sent
+            while (mailboxExecutor.tryYieldIgnoringDeferrable()) {}
 
             // we wait a little bit to avoid unnecessary CPU occupation due to empty loops,
             // such as when all mails of the operator have been processed but the closed future

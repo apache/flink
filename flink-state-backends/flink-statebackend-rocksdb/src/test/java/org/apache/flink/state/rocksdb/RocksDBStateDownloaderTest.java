@@ -50,6 +50,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -230,9 +231,176 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         Assert.assertFalse(closeableRegistry.isClosed());
     }
 
+    /**
+     * Tests that when a single download fails, the root cause exception is surfaced directly
+     * without being wrapped in a merged "N downloads failed" message.
+     */
+    @Test
+    public void testSingleDownloadFailureSurfacedDirectly() throws Exception {
+        IOException rootCause = new IOException("file not found on remote storage");
+        StreamStateHandle failingHandle = new ThrowingStateHandle(rootCause);
+
+        IncrementalRemoteKeyedStateHandle stateHandle =
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        1L,
+                        singletonList(HandleAndLocalPath.of(failingHandle, "state")),
+                        emptyList(),
+                        failingHandle);
+
+        try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(1)) {
+            downloader.transferAllStateDataToDirectory(
+                    singletonList(
+                            new StateHandleDownloadSpec(
+                                    stateHandle, temporaryFolder.newFolder().toPath())),
+                    new CloseableRegistry());
+            fail("Expected IOException");
+        } catch (IOException e) {
+            assertEquals(rootCause, e.getCause());
+            Assert.assertFalse(
+                    "Single failure should not produce a merged message, got: " + e.getMessage(),
+                    e.getMessage() != null && e.getMessage().contains("downloads failed"));
+        }
+    }
+
+    /**
+     * Tests that when one download fails among many parallel ones, the root cause IOException is
+     * visible in the error rather than being buried under cascade ClosedChannelExceptions.
+     *
+     * <p>Before the fix, the error always showed ClosedChannelException (a cascade artifact) and
+     * the real cause (e.g. FileNotFoundException for a missing state file) was lost.
+     */
+    @Test
+    public void testRootCauseVisibleAmongCascadeFailures() throws Exception {
+        int numRemoteHandles = 3;
+        int numSubHandles = 6;
+        byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
+        List<StateHandleDownloadSpec> downloadRequests = new ArrayList<>(numRemoteHandles);
+        for (int i = 0; i < numRemoteHandles; ++i) {
+            downloadRequests.add(
+                    createDownloadRequestForContent(
+                            temporaryFolder.newFolder().toPath(), contents[i], i));
+        }
+
+        IOException rootCause = new IOException("state file missing from remote storage");
+        downloadRequests
+                .get(0)
+                .getStateHandle()
+                .getSharedState()
+                .add(HandleAndLocalPath.of(new ThrowingStateHandle(rootCause), "error-handle"));
+
+        try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(5)) {
+            downloader.transferAllStateDataToDirectory(downloadRequests, new CloseableRegistry());
+            fail("Expected IOException");
+        } catch (IOException e) {
+            boolean rootCauseVisible =
+                    (e.getCause() != null
+                                    && rootCause.getMessage().equals(e.getCause().getMessage()))
+                            || (e.getMessage() != null
+                                    && e.getMessage().contains(rootCause.getMessage()))
+                            || ExceptionUtils.findThrowable(
+                                            e, t -> rootCause.getMessage().equals(t.getMessage()))
+                                    .isPresent();
+            Assert.assertTrue(
+                    "Root cause '"
+                            + rootCause.getMessage()
+                            + "' should be visible in exception, got: "
+                            + e,
+                    rootCauseVisible);
+        }
+    }
+
+    /**
+     * Tests that when multiple downloads fail with distinct exceptions simultaneously, all distinct
+     * errors appear in the merged error message. A {@link CyclicBarrier} ensures all threads reach
+     * their failure point before any registry closure, so each failure is captured independently.
+     */
+    @Test
+    public void testMultipleDistinctFailuresMergedInMessage() throws Exception {
+        int n = 3;
+        CyclicBarrier barrier = new CyclicBarrier(n);
+        IOException causeA = new IOException("error-A: bucket not accessible");
+        IOException causeB = new IOException("error-B: file not found");
+        IOException causeC = new IOException("error-C: read timeout");
+
+        List<HandleAndLocalPath> handles = new ArrayList<>();
+        handles.add(HandleAndLocalPath.of(new BarrierThrowingStateHandle(barrier, causeA), "s1"));
+        handles.add(HandleAndLocalPath.of(new BarrierThrowingStateHandle(barrier, causeB), "s2"));
+        handles.add(HandleAndLocalPath.of(new BarrierThrowingStateHandle(barrier, causeC), "s3"));
+
+        IncrementalRemoteKeyedStateHandle stateHandle =
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        1L,
+                        handles,
+                        emptyList(),
+                        handles.get(0).getHandle());
+
+        try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(n)) {
+            downloader.transferAllStateDataToDirectory(
+                    singletonList(
+                            new StateHandleDownloadSpec(
+                                    stateHandle, temporaryFolder.newFolder().toPath())),
+                    new CloseableRegistry());
+            fail("Expected IOException");
+        } catch (IOException e) {
+            Assert.assertTrue(
+                    "Expected merged error message, got: " + e.getMessage(),
+                    e.getMessage() != null
+                            && e.getMessage().contains("downloads failed with distinct errors"));
+            Assert.assertTrue(
+                    "Expected causeA in message", e.getMessage().contains(causeA.getMessage()));
+            Assert.assertTrue(
+                    "Expected causeB in message", e.getMessage().contains(causeB.getMessage()));
+            Assert.assertTrue(
+                    "Expected causeC in message", e.getMessage().contains(causeC.getMessage()));
+        }
+    }
+
     private void assertStateContentEqual(byte[] expected, Path path) throws IOException {
         byte[] actual = Files.readAllBytes(Paths.get(path.toUri()));
         assertArrayEquals(expected, actual);
+    }
+
+    /**
+     * A {@link StreamStateHandle} that synchronizes all N threads at a {@link CyclicBarrier} before
+     * throwing, ensuring all failures happen before any registry closure.
+     */
+    private static class BarrierThrowingStateHandle implements TestStreamStateHandle {
+        private static final long serialVersionUID = 1L;
+
+        private final CyclicBarrier barrier;
+        private final IOException exception;
+
+        private BarrierThrowingStateHandle(CyclicBarrier barrier, IOException exception) {
+            this.barrier = barrier;
+            this.exception = exception;
+        }
+
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            try {
+                barrier.await(30, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new IOException("Barrier interrupted", e);
+            }
+            throw exception;
+        }
+
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
     }
 
     private static class SpecifiedException extends IOException {

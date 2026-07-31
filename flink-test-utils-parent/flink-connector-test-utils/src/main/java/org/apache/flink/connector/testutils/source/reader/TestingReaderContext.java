@@ -18,6 +18,9 @@
 
 package org.apache.flink.connector.testutils.source.reader;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +39,8 @@ public class TestingReaderContext implements SourceReaderContext {
 
     private final Configuration config;
 
+    private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "test-job");
+
     private final ArrayList<SourceEvent> sentEvents = new ArrayList<>();
 
     private int numSplitRequests;
@@ -50,6 +55,11 @@ public class TestingReaderContext implements SourceReaderContext {
     }
 
     // ------------------------------------------------------------------------
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
 
     @Override
     public SourceReaderMetricGroup metricGroup() {

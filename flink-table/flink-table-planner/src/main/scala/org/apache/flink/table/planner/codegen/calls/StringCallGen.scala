@@ -560,16 +560,6 @@ object StringCallGen {
     }
   }
 
-  def generateKeyValue(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      returnType: LogicalType): GeneratedExpression = {
-    val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNullable(ctx, returnType, operands) {
-      terms => s"$className.keyValue(${terms.mkString(",")})"
-    }
-  }
-
   def generateHashCode(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],

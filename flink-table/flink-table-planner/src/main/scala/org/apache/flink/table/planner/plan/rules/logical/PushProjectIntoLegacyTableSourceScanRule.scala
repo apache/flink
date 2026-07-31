@@ -55,7 +55,7 @@ class PushProjectIntoLegacyTableSourceScanRule
     }
   }
 
-  override def onMatch(call: RelOptRuleCall) {
+  override def onMatch(call: RelOptRuleCall): Unit = {
     val project: LogicalProject = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
 

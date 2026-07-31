@@ -952,6 +952,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Testing function that is itself non-deterministic (isDeterministic() = false). Used to verify
+     * that Concern 1 (PTF own non-determinism) is caught by the NDU visitor when downstream
+     * requires deterministic output columns.
+     */
+    public static class NonDeterministicUpdatingRetractFunction extends UpdatingRetractFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
+
     /** Testing function. */
     public static class UpdatingUpsertFullDeletesFunction
             extends ChangelogProcessTableFunctionBase {
@@ -991,6 +1003,15 @@ public class ProcessTableFunctionTestUtils {
         @Override
         public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
             return ChangelogMode.all();
+        }
+    }
+
+    /** Row-semantic counterpart of {@link NonDeterministicUpdatingRetractFunction}. */
+    public static class NonDeterministicUpdatingRetractRowSemanticFunction
+            extends UpdatingRetractRowSemanticFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
         }
     }
 
@@ -1160,6 +1181,13 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Forces implicit casts on the input. */
+    public static class ImplicitCastingFunction extends AppendProcessTableFunctionBase {
+        public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) CastingPojo p, long b) {
+            collectObjects(p, b);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------
@@ -1218,5 +1246,23 @@ public class ProcessTableFunctionTestUtils {
 
     private static String toModeSummary(ChangelogMode mode) {
         return MODE_SUMMARY.get(mode.toString());
+    }
+
+    /** POJO expecting BIGINT. */
+    public static class CastingPojo {
+        public String s;
+        public long b;
+        public @DataTypeHint("ROW<b BIGINT, t TIMESTAMP(6)>") Row r;
+
+        public CastingPojo(String s, long b, Row r) {
+            this.s = s;
+            this.b = b;
+            this.r = r;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("CastingPojo(s='%s', b=%s, r=%s)", s, b, r);
+        }
     }
 }

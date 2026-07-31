@@ -61,7 +61,7 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 /** Test base for testing convert sql statement to operation. */
 class SqlNodeToOperationConversionTestBase {
     private final boolean isStreamingMode = false;
-    private final TableConfig tableConfig = TableConfig.getDefault();
+    protected final TableConfig tableConfig = TableConfig.getDefault();
     protected final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
     protected final CatalogManager catalogManager =
             CatalogManagerMocks.preparedCatalogManager()

@@ -42,7 +42,11 @@ export class NavigationComponent implements OnInit, OnDestroy {
     this.router.navigate([path], { relativeTo: this.activatedRoute }).then();
   }
 
-  constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private activatedRoute: ActivatedRoute,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.router.events

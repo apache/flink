@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.util.Preconditions;
@@ -144,7 +145,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
             ConfigOptions.key("s3.bulk-copy.enabled")
                     .booleanType()
                     .defaultValue(true)
-                    .withDescription("Enable bulk copy operations using S3TransferManager");
+                    .withDescription("Enable bulk copy operations for S3-to-local downloads");
 
     public static final ConfigOption<Integer> MAX_CONNECTIONS =
             ConfigOptions.key("s3.connection.max")
@@ -152,7 +153,9 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .defaultValue(50)
                     .withDescription(
                             "Maximum number of HTTP connections in the S3 client connection pool. "
-                                    + "Applies to both the sync client (Apache HTTP) and the async client (Netty). "
+                                    + "Applies to the sync (Apache) and async (Netty) clients. "
+                                    + "When s3.crt.enabled is true, the CRT clients use "
+                                    + "'s3.crt.max-concurrency' instead of this option. "
                                     + "Must be at least as large as 's3.bulk-copy.max-concurrent'.");
 
     public static final ConfigOption<Integer> BULK_COPY_MAX_CONCURRENT =
@@ -160,6 +163,15 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .intType()
                     .defaultValue(16)
                     .withDescription("Maximum number of concurrent copy operations");
+
+    public static final ConfigOption<Integer> BULK_COPY_DOWNLOAD_BUFFER_SIZE =
+            ConfigOptions.key("s3.bulk-copy.download-buffer-size")
+                    .intType()
+                    .defaultValue(256 * 1024) // 256KB default
+                    .withDescription(
+                            "Buffer size in bytes used when writing files downloaded via bulk copy "
+                                    + "to the local filesystem. Bounds the per-thread temporary "
+                                    + "direct buffers the JDK caches for channel writes");
 
     public static final ConfigOption<Boolean> USE_ASYNC_OPERATIONS =
             ConfigOptions.key("s3.async.enabled")
@@ -321,6 +333,69 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "When not set, the default chain is used: delegation tokens -> "
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
+    public static final ConfigOption<Boolean> CRT_ENABLED =
+            ConfigOptions.key("s3.crt.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enable AWS Common Runtime (CRT) HTTP transport. "
+                                    + "When true, uses AwsCrtHttpClient for sync S3 operations and "
+                                    + "S3AsyncClient.crtBuilder() for async/transfer operations, "
+                                    + "providing higher throughput for large S3 transfers. "
+                                    + "Requires the aws-crt JAR in the plugin directory. "
+                                    + "The pure-Java aws-crt-client classes are bundled in the fat JAR; "
+                                    + "only aws-crt is external because its JNI classes cannot be shaded.");
+
+    public static final ConfigOption<Double> CRT_TARGET_THROUGHPUT_GBPS =
+            ConfigOptions.key("s3.crt.target-throughput-gbps")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Soft target throughput in Gbps for the CRT-based S3 async client. "
+                                    + "Only used when s3.crt.enabled is true. "
+                                    + "This is a hint to the CRT runtime, not a hard cap: actual throughput "
+                                    + "may exceed this value, and the runtime uses it to size its internal "
+                                    + "worker pool and tune parallelism, so there is no separate Flink-level "
+                                    + "knob for concurrent CRT transfer threads. "
+                                    + "When unset, the AWS CRT runtime applies its own internal default. "
+                                    + "Set this only when you want to override that — e.g. pick a value "
+                                    + "matching the network bandwidth available to a single TaskManager.");
+
+    public static final ConfigOption<MemorySize> CRT_MAX_NATIVE_MEMORY_LIMIT =
+            ConfigOptions.key("s3.crt.max-native-memory-limit")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum native memory the CRT-based S3 async client may use. "
+                                    + "Only used when s3.crt.enabled is true. "
+                                    + "When unset, the AWS CRT runtime applies its own internal limit.");
+
+    public static final ConfigOption<MemorySize> CRT_READ_BUFFER_SIZE =
+            ConfigOptions.key("s3.crt.read-buffer-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Read buffer size for the CRT HTTP transport (applied to both the sync "
+                                    + "AwsCrtHttpClient and the async CRT client's initial read buffer). "
+                                    + "Only used when s3.crt.enabled is true. This is decoupled from "
+                                    + "'s3.read.buffer.size' so that lowering the streaming read buffer "
+                                    + "does not shrink CRT's native transfer buffers and regress throughput. "
+                                    + "When unset, the AWS CRT runtime applies its own (larger) default.");
+
+    public static final ConfigOption<Integer> CRT_MAX_CONCURRENCY =
+            ConfigOptions.key("s3.crt.max-concurrency")
+                    .intType()
+                    .defaultValue(256)
+                    .withDescription(
+                            "Maximum number of concurrent requests the CRT HTTP transport may have "
+                                    + "in flight (applied to both the sync AwsCrtHttpClient and the "
+                                    + "async CRT client). Only used when s3.crt.enabled is true. This "
+                                    + "is decoupled from 's3.connection.max' because the CRT client "
+                                    + "fans a single logical transfer out into many concurrent "
+                                    + "part-sized requests; reusing the smaller sync connection-pool "
+                                    + "size here causes 'failed to acquire a connection' timeouts "
+                                    + "under parallel checkpoint upload/restore. Defaults to 256.");
+
     @Nullable private Configuration flinkConfig;
     @Nullable private BucketConfigProvider bucketConfigProvider;
 
@@ -462,7 +537,63 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                 MAX_CONNECTIONS.key(),
                 maxConnections);
 
-        S3ClientProvider clientProvider =
+        final boolean crtEnabled = config.get(CRT_ENABLED);
+
+        // CRT-only options. Validated only when CRT is enabled (mirroring the bulk-copy gating
+        // below); when CRT is disabled these options are ignored. Unset optional values fall back
+        // to the CRT runtime's own defaults.
+        final Double crtTargetThroughputGbps =
+                config.getOptional(CRT_TARGET_THROUGHPUT_GBPS).orElse(null);
+        final MemorySize crtMaxNativeMemoryLimit =
+                config.getOptional(CRT_MAX_NATIVE_MEMORY_LIMIT).orElse(null);
+        final MemorySize crtReadBufferSize = config.getOptional(CRT_READ_BUFFER_SIZE).orElse(null);
+        final int crtMaxConcurrency = config.get(CRT_MAX_CONCURRENCY);
+        if (crtEnabled) {
+            if (crtTargetThroughputGbps != null) {
+                Preconditions.checkArgument(
+                        crtTargetThroughputGbps > 0,
+                        "'%s' must be positive, but was %s",
+                        CRT_TARGET_THROUGHPUT_GBPS.key(),
+                        crtTargetThroughputGbps);
+            }
+            if (crtMaxNativeMemoryLimit != null) {
+                Preconditions.checkArgument(
+                        crtMaxNativeMemoryLimit.getBytes() > 0,
+                        "'%s' must be positive, but was %s",
+                        CRT_MAX_NATIVE_MEMORY_LIMIT.key(),
+                        crtMaxNativeMemoryLimit);
+            }
+            if (crtReadBufferSize != null) {
+                Preconditions.checkArgument(
+                        crtReadBufferSize.getBytes() > 0,
+                        "'%s' must be positive, but was %s",
+                        CRT_READ_BUFFER_SIZE.key(),
+                        crtReadBufferSize);
+            }
+            Preconditions.checkArgument(
+                    crtMaxConcurrency > 0,
+                    "'%s' must be a positive integer, but was %s",
+                    CRT_MAX_CONCURRENCY.key(),
+                    crtMaxConcurrency);
+        }
+
+        final boolean bulkCopyEnabled = config.get(BULK_COPY_ENABLED);
+        final int bulkCopyMaxConcurrent = config.get(BULK_COPY_MAX_CONCURRENT);
+        final int bulkCopyDownloadBufferSize = config.get(BULK_COPY_DOWNLOAD_BUFFER_SIZE);
+        if (bulkCopyEnabled) {
+            Preconditions.checkArgument(
+                    bulkCopyMaxConcurrent > 0,
+                    "'%s' must be a positive integer, but was %s",
+                    BULK_COPY_MAX_CONCURRENT.key(),
+                    bulkCopyMaxConcurrent);
+            Preconditions.checkArgument(
+                    bulkCopyDownloadBufferSize > 0,
+                    "'%s' must be a positive integer, but was %s",
+                    BULK_COPY_DOWNLOAD_BUFFER_SIZE.key(),
+                    bulkCopyDownloadBufferSize);
+        }
+
+        S3ClientProvider.Builder clientProviderBuilder =
                 S3ClientProvider.builder()
                         .accessKey(accessKey)
                         .secretKey(secretKey)
@@ -486,21 +617,30 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .retryMaxBackoff(config.get(RETRY_MAX_BACKOFF))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
-                        .build();
+                        .useCrt(crtEnabled);
+
+        if (crtEnabled) {
+            clientProviderBuilder
+                    .crtTargetThroughputGbps(crtTargetThroughputGbps)
+                    .crtReadBufferSizeInBytes(
+                            crtReadBufferSize == null ? null : crtReadBufferSize.getBytes())
+                    .crtMaxConcurrency(crtMaxConcurrency)
+                    .crtMaxNativeMemoryLimitInBytes(
+                            crtMaxNativeMemoryLimit == null
+                                    ? null
+                                    : crtMaxNativeMemoryLimit.getBytes())
+                    .crtMinPartSizeInBytes(config.get(PART_UPLOAD_MIN_SIZE));
+        }
+        S3ClientProvider clientProvider = clientProviderBuilder.build();
 
         NativeS3BulkCopyHelper bulkCopyHelper = null;
-        if (config.get(BULK_COPY_ENABLED)) {
-            final int bulkCopyMaxConcurrent = config.get(BULK_COPY_MAX_CONCURRENT);
-            Preconditions.checkArgument(
-                    bulkCopyMaxConcurrent > 0,
-                    "'%s' must be a positive integer, but was %s",
-                    BULK_COPY_MAX_CONCURRENT.key(),
-                    bulkCopyMaxConcurrent);
+        if (bulkCopyEnabled) {
             bulkCopyHelper =
                     new NativeS3BulkCopyHelper(
-                            clientProvider.getTransferManager(),
+                            clientProvider.getAsyncClient(),
                             bulkCopyMaxConcurrent,
-                            maxConnections);
+                            maxConnections,
+                            bulkCopyDownloadBufferSize);
         }
 
         return new NativeS3FileSystem(

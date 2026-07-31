@@ -155,6 +155,30 @@ class PrometheusReporterTaskScopeTest {
                                     addToArray(LABEL_VALUES_2, "" + quantile)))
                     .isEqualTo(quantile);
         }
+        assertThat(
+                        reporter.registry.getSampleValue(
+                                getLogicalScope(METRIC_NAME),
+                                labelNamesWithQuantile,
+                                addToArray(LABEL_VALUES_1, "0.0")))
+                .isEqualTo(histogram1.getStatistics().getMin());
+        assertThat(
+                        reporter.registry.getSampleValue(
+                                getLogicalScope(METRIC_NAME),
+                                labelNamesWithQuantile,
+                                addToArray(LABEL_VALUES_1, "1.0")))
+                .isEqualTo(histogram1.getStatistics().getMax());
+        assertThat(
+                        reporter.registry.getSampleValue(
+                                getLogicalScope(METRIC_NAME),
+                                labelNamesWithQuantile,
+                                addToArray(LABEL_VALUES_2, "0.0")))
+                .isEqualTo(histogram2.getStatistics().getMin());
+        assertThat(
+                        reporter.registry.getSampleValue(
+                                getLogicalScope(METRIC_NAME),
+                                labelNamesWithQuantile,
+                                addToArray(LABEL_VALUES_2, "1.0")))
+                .isEqualTo(histogram2.getStatistics().getMax());
     }
 
     @Test

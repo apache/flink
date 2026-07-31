@@ -517,12 +517,10 @@ LogicalProject(a=[$0], c=[$2], c0=[$9])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c, c0])
-+- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
-   :- Exchange(distribution=[keep_input_as_is[hash[a]]])
-   :  +- Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c])(reuse_id=[1])
-   :     +- Exchange(distribution=[hash[a]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=1}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])
+Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c, CAST('1' AS VARCHAR(2147483647)) AS c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=1}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
       +- Reused(reference_id=[1])
 ]]>
@@ -767,10 +765,10 @@ LogicalProject(a=[$0], b=[$1], c=[$9])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c])
-+- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], build=[left])
+Calc(select=[a, CAST(2 AS BIGINT) AS b, c])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, c], build=[left])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, CAST(2 AS BIGINT) AS b], where=[(b = 2)])
+   :  +- Calc(select=[a], where=[(b = 2)])
    :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c], where=[(b = 3)])
@@ -801,10 +799,10 @@ LogicalProject(a=[$0], b=[$1], c=[$10])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c])
-+- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, a0, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Calc(select=[a, CAST(2 AS BIGINT) AS b, c])
++- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, CAST(2 AS BIGINT) AS b], where=[(b = 2)])
+   :  +- Calc(select=[a], where=[(b = 2)])
    :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, nested_s], metadata=[], watermark=[-(TO_TIMESTAMP(c, nested_s), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[]]], fields=[a, b, c, nested_s])(reuse_id=[1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c], where=[(b = 3)])
@@ -1196,8 +1194,8 @@ LogicalProject(a=[$0], c=[$2], c0=[$9])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c, c0])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])\n:- Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- Calc(select=[a, CAST('2' AS VARCHAR(2147483647)) AS c])\n   +- [#2] Exchange(distribution=[hash[a]])\n])
+Calc(select=[a, CAST('1' AS VARCHAR(2147483647)) AS c, CAST('2' AS VARCHAR(2147483647)) AS c0])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, partitions=[{c=1}], project=[a], metadata=[]]], fields=[a], hints=[[[OPTIONS options:{partition-list=c:1;c:2}]]])
    +- Exchange(distribution=[hash[a]])

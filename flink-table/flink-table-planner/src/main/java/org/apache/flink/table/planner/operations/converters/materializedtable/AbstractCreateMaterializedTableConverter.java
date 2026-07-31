@@ -80,6 +80,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
         ResolvedSchema getMergedQuerySchema();
 
+        PlannerQueryOperation getAsQueryOperation();
+
         RefreshMode getMergedRefreshMode();
 
         LogicalRefreshMode getMergedLogicalRefreshMode();
@@ -121,16 +123,13 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
                         .get(MaterializedTableConfigOptions.MATERIALIZED_TABLE_DEFAULT_START_MODE));
     }
 
-    protected final ResolvedSchema getQueryResolvedSchema(
+    protected final PlannerQueryOperation getAsQueryOperation(
             T sqlCreateMaterializedTable, ConvertContext context) {
-        SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
-        SqlNode validateQuery = context.getSqlValidator().validate(selectQuery);
-
-        PlannerQueryOperation queryOperation =
-                new PlannerQueryOperation(
-                        context.toRelRoot(validateQuery).project(),
-                        () -> context.toQuotedSqlString(validateQuery));
-        return queryOperation.getResolvedSchema();
+        final SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
+        final SqlNode validateQuery = context.getSqlValidator().validate(selectQuery);
+        return new PlannerQueryOperation(
+                context.toRelRoot(validateQuery).project(),
+                () -> context.toQuotedSqlString(validateQuery));
     }
 
     protected final LogicalRefreshMode getDerivedLogicalRefreshMode(T sqlCreateMaterializedTable) {
@@ -167,8 +166,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     }
 
     protected final ResolvedCatalogMaterializedTable getResolvedCatalogMaterializedTable(
-            T sqlCreateMaterializedTable, ConvertContext context) {
-        final MergeContext mergeContext = getMergeContext(sqlCreateMaterializedTable, context);
+            MergeContext mergeContext, T sqlCreateMaterializedTable, ConvertContext context) {
         final List<String> partitionKeys = mergeContext.getMergedPartitionKeys();
         final Schema schema = mergeContext.getMergedSchema();
         final ResolvedSchema querySchema = mergeContext.getMergedQuerySchema();

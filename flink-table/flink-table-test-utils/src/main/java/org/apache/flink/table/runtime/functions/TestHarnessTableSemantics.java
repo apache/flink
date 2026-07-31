@@ -33,16 +33,25 @@ class TestHarnessTableSemantics implements TableSemantics {
     private final DataType dataType;
     private final int[] partitionByColumns;
     private final List<int[]> upsertKeyColumns;
+    private final int timeColumnIndex;
 
     TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns) {
-        this(dataType, partitionByColumns, Collections.emptyList());
+        this(dataType, partitionByColumns, Collections.emptyList(), -1);
+    }
+
+    TestHarnessTableSemantics(DataType dataType, int[] partitionByColumns, int timeColumnIndex) {
+        this(dataType, partitionByColumns, Collections.emptyList(), timeColumnIndex);
     }
 
     TestHarnessTableSemantics(
-            DataType dataType, int[] partitionByColumns, List<int[]> upsertKeyColumns) {
+            DataType dataType,
+            int[] partitionByColumns,
+            List<int[]> upsertKeyColumns,
+            int timeColumnIndex) {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.upsertKeyColumns = upsertKeyColumns;
+        this.timeColumnIndex = timeColumnIndex;
     }
 
     @Override
@@ -67,7 +76,7 @@ class TestHarnessTableSemantics implements TableSemantics {
 
     @Override
     public int timeColumn() {
-        return -1;
+        return timeColumnIndex;
     }
 
     @Override

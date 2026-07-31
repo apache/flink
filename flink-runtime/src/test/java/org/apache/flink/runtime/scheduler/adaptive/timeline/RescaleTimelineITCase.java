@@ -57,9 +57,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -77,6 +75,8 @@ class RescaleTimelineITCase {
     private static final int NUMBER_TASK_MANAGERS = 2;
     private static final int PARALLELISM = NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS;
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    // Matches the default poll interval of the CommonTestUtils#waitUntilCondition it replaced.
+    private static final long RETRY_INTERVAL_MILLIS = 100L;
 
     @Parameter private Configuration configuration;
     private MiniClusterResource miniClusterResource;
@@ -269,6 +269,17 @@ class RescaleTimelineITCase {
 
     @TestTemplate
     void testRescaleTerminatedByJobFinished() throws Exception {
+        // This case only asserts on the recorded rescale history; skip the disabled-history
+        // parameter before the cluster rebuild below so it does not pay for an unused cluster.
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
+        // With the short shared cooldown the DefaultStateTransitionManager re-enters Idling on a
+        // wall-clock timer and terminates the in-progress rescale with
+        // NO_RESOURCES_OR_PARALLELISMS_CHANGE before the job finishes; goToFinished then finds it
+        // already terminated and its JOB_FINISHED stamp is ignored, so waiting cannot win.
+        // Widen the cooldown to keep the rescale in-progress until the job finishes.
+        rebuildClusterWithExecutingTimeouts(Duration.ofSeconds(60), Duration.ofSeconds(60));
+
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
 
@@ -278,16 +289,23 @@ class RescaleTimelineITCase {
 
         updateJobResourceRequirements(miniCluster, jobGraph, 1, PARALLELISM * 2);
 
+        // The upper bound (PARALLELISM * 2) exceeds the available slots, so this rescale is only
+        // recorded in the history without changing the parallelism. Wait until it is recorded
+        // before unblocking, otherwise on a slow machine the task can finish first and the size-2
+        // condition below times out.
+        waitUntilConditionWithTimeout(
+                () -> getRescaleHistory(miniCluster, jobGraph).size() == 2, 10000);
+
         OnceBlockingNoOpInvokable.unblock();
 
-        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+        // Generous budget: on a loaded CI leg the unblock-to-finish window can itself exceed 10s.
         waitUntilConditionWithTimeout(
                 () -> {
                     List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
                     return hasRescaleHistoryMetCondition(
                             rescaleHistory, 2, TerminatedReason.JOB_FINISHED);
                 },
-                10000);
+                60000);
     }
 
     @TestTemplate
@@ -343,6 +361,16 @@ class RescaleTimelineITCase {
 
     @TestTemplate
     void testRescaleTerminatedByNoResourcesOrNoParallelismsChange() throws Exception {
+        // This case only asserts on the recorded rescale history; skip the disabled-history
+        // parameter before the cluster rebuild below so it does not pay for an unused cluster.
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
+        // NO_RESOURCES_OR_PARALLELISMS_CHANGE is only stamped when the update RPC is processed
+        // during Cooldown and the manager re-enters Idling. Unlike the sibling
+        // testRescaleTerminatedByResourceRequirementsUpdated, this case must wait out the whole
+        // cooldown, so it cannot reuse 60s: 10s outlasts the RPC yet stays within the 60s budget.
+        rebuildClusterWithExecutingTimeouts(Duration.ofSeconds(10), Duration.ofMillis(50));
+
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
         miniCluster.submitJob(jobGraph).join();
@@ -350,7 +378,6 @@ class RescaleTimelineITCase {
 
         updateJobResourceRequirements(miniCluster, jobGraph, 1, PARALLELISM * 2);
 
-        assumeThat(enabledRescaleHistory(configuration)).isTrue();
         waitUntilConditionWithTimeout(
                 () -> {
                     List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
@@ -359,7 +386,7 @@ class RescaleTimelineITCase {
                             2,
                             TerminatedReason.NO_RESOURCES_OR_PARALLELISMS_CHANGE);
                 },
-                20000);
+                60000);
     }
 
     @TestTemplate
@@ -384,6 +411,17 @@ class RescaleTimelineITCase {
 
     @TestTemplate
     void testRescaleTerminatedByResourceRequirementsUpdated() throws Exception {
+        // This case only asserts on the recorded rescale history; skip the disabled-history
+        // parameter before the cluster rebuild below so it does not pay for an unused cluster.
+        assumeThat(enabledRescaleHistory(configuration)).isTrue();
+
+        // The second update only terminates the first rescale with RESOURCE_REQUIREMENTS_UPDATED
+        // while that rescale is still in-progress; once it is terminated, updateRescale is a no-op.
+        // With the short shared cooldown the manager re-enters Idling and terminates it on a
+        // wall-clock timer first, so waiting cannot win the race. Widening cooldown and
+        // stabilization to 60s keeps the rescale in-progress far longer than the RPC round trip.
+        rebuildClusterWithExecutingTimeouts(Duration.ofSeconds(60), Duration.ofSeconds(60));
+
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
         miniCluster.submitJob(jobGraph).join();
@@ -539,7 +577,11 @@ class RescaleTimelineITCase {
 
         miniCluster.terminateTaskManager(0);
 
-        waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
+        // Wait for the failover to complete before snapshotting: the merge that re-stamps the
+        // trigger cause to RECOVERABLE_FAILOVER runs before the job is RUNNING again at the
+        // reduced parallelism (one TaskManager left).
+        waitForVertexParallelismReachedAndJobRunning(
+                jobGraph, JOB_VERTEX_ID, NUMBER_SLOTS_PER_TASK_MANAGER);
 
         final ExecutionGraphInfo executionGraphInfo =
                 miniCluster.getExecutionGraphInfo(jobGraph.getJobID()).join();
@@ -649,15 +691,21 @@ class RescaleTimelineITCase {
     private void waitUntilConditionWithTimeout(
             SupplierWithException<Boolean, Exception> condition, long timeoutMillis)
             throws Exception {
-        CompletableFuture.runAsync(
-                        () -> {
-                            try {
-                                CommonTestUtils.waitUntilCondition(condition);
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
-                .get(timeoutMillis, TimeUnit.MILLISECONDS);
+        // Poll synchronously via waitUtil. The previous CompletableFuture#runAsync + get(timeout)
+        // wrapper hangs on JDK 11: on a ForkJoinPool worker (JUnit's executor) timedGet
+        // help-executes the unbounded poll loop inline on the waiting thread, so the timeout
+        // never fires.
+        org.apache.flink.core.testutils.CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        return condition.get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                Duration.ofMillis(timeoutMillis),
+                Duration.ofMillis(RETRY_INTERVAL_MILLIS),
+                "Condition was not met within " + timeoutMillis + " ms.");
     }
 
     private void waitForVertexParallelismReachedAndJobRunning(
@@ -681,6 +729,30 @@ class RescaleTimelineITCase {
                 () ->
                         miniClusterResource.getMiniCluster().getJobStatus(jobGraph.getJobID()).get()
                                 == JobStatus.RUNNING);
+    }
+
+    /**
+     * Rebuilds the shared fixture cluster in place with the given executing-phase cooldown and
+     * resource-stabilization timeouts. Rebuilding in place rather than starting a second cluster
+     * keeps a single cluster running so the {@link AfterEach} teardown still applies.
+     */
+    private void rebuildClusterWithExecutingTimeouts(
+            Duration cooldown, Duration resourceStabilizationTimeout) throws Exception {
+        miniClusterResource.after();
+        final Configuration testConfiguration = new Configuration(configuration);
+        testConfiguration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING, cooldown);
+        testConfiguration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                resourceStabilizationTimeout);
+        miniClusterResource =
+                new MiniClusterResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(testConfiguration)
+                                .setNumberSlotsPerTaskManager(NUMBER_SLOTS_PER_TASK_MANAGER)
+                                .setNumberTaskManagers(NUMBER_TASK_MANAGERS)
+                                .build());
+        miniClusterResource.before();
     }
 
     private void updateJobResourceRequirements(

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -157,7 +158,9 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     @AfterEach
     protected void afterEach() throws Exception {
         if (testHarness != null) {
+            MockEnvironment environment = testHarness.getEnvironment();
             testHarness.close();
+            environment.close();
         }
     }
 
@@ -404,7 +407,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         this.joinAttributeMap);
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
-                new KeyedMultiInputStreamOperatorTestHarness<>(factory, partitionKeyTypeInfo);
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        factory, partitionKeyTypeInfo, createMockEnvironment());
 
         setupKeySelectorsForTestHarness(harness);
 

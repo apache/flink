@@ -188,7 +188,19 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
   def getRelModifiedMonotonicity(rel: Rank, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     rel match {
-      case physicalRank: StreamPhysicalRank if RankUtil.isDeduplication(rel) =>
+      // Only ranks that can be converted to a Deduplicate operator are handled here, mirroring the
+      // pre-FLINK-34702 behavior when a dedicated StreamPhysicalDeduplicate node carried these
+      // invariants. This is the same condition as RankUtil.canConvertToDeduplicate(FlinkLogicalRank):
+      // a Top-1 ROW_NUMBER without rank number output, sorted on a single time attribute. We inline
+      // it rather than calling canConvertToDeduplicate(StreamPhysicalRank) because the latter reads
+      // the ModifyKindSetTrait, which is still undefined at the time this metadata is computed.
+      // Any other rank (multi-column or non-time-attribute ORDER BY, i.e. a real Top-1 Rank that
+      // retracts and re-emits the kept row) falls through to the generic logic below.
+      case physicalRank: StreamPhysicalRank
+          if RankUtil.isDeduplication(rel) &&
+            RankUtil.sortOnTimeAttributeOnly(
+              physicalRank.orderKey,
+              physicalRank.getInput.getRowType) =>
         getPhysicalRankModifiedMonotonicity(physicalRank, mq)
 
       case _ =>
@@ -249,8 +261,9 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   private def getPhysicalRankModifiedMonotonicity(
       rank: StreamPhysicalRank,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    // Can't use RankUtil.canConvertToDeduplicate directly because modifyKindSetTrait is undefined.
     if (allAppend(mq, rank.getInput)) {
+      // A LastRow (ORDER BY time DESC) or rowtime deduplication retracts and re-emits the kept row
+      // when a new winner arrives, hence generates updates; only FirstRow on proctime is append-only.
       if (RankUtil.keepLastDeduplicateRow(rank.orderKey) || rank.sortOnRowTime) {
         val mono = new RelModifiedMonotonicity(
           Array.fill(rank.getRowType.getFieldCount)(NOT_MONOTONIC))

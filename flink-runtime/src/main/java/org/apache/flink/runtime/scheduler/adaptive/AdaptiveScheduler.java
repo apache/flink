@@ -314,7 +314,9 @@ public class AdaptiveScheduler
                             SCHEDULER_RESCALE_TRIGGER_MAX_DELAY,
                             maximumDelayForRescaleTriggerDefault),
                     rescaleOnFailedCheckpointsCount,
-                    configuration.get(WebOptions.MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE));
+                    configuration.get(WebOptions.MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE),
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED));
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -326,6 +328,7 @@ public class AdaptiveScheduler
         private final Duration maximumDelayForTriggeringRescale;
         private final int rescaleOnFailedCheckpointCount;
         private final int rescaleHistoryMax;
+        private final boolean activeCheckpointTriggerEnabled;
 
         private Settings(
                 SchedulerExecutionMode executionMode,
@@ -336,7 +339,8 @@ public class AdaptiveScheduler
                 Duration executingResourceStabilizationTimeout,
                 Duration maximumDelayForTriggeringRescale,
                 int rescaleOnFailedCheckpointCount,
-                int rescaleHistoryMax) {
+                int rescaleHistoryMax,
+                boolean activeCheckpointTriggerEnabled) {
             this.executionMode = executionMode;
             this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
             this.submissionResourceStabilizationTimeout = submissionResourceStabilizationTimeout;
@@ -346,6 +350,7 @@ public class AdaptiveScheduler
             this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
             this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
             this.rescaleHistoryMax = rescaleHistoryMax;
+            this.activeCheckpointTriggerEnabled = activeCheckpointTriggerEnabled;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -382,6 +387,10 @@ public class AdaptiveScheduler
 
         public int getRescaleHistoryMax() {
             return rescaleHistoryMax;
+        }
+
+        public boolean isActiveCheckpointTriggerEnabled() {
+            return activeCheckpointTriggerEnabled;
         }
 
         public JobRescaleConfigInfo toJobRescaleConfigInfo() {
@@ -1311,7 +1320,8 @@ public class AdaptiveScheduler
                         userCodeClassLoader,
                         failureCollection,
                         this::createExecutingStateTransitionManager,
-                        settings.getRescaleOnFailedCheckpointCount()));
+                        settings.getRescaleOnFailedCheckpointCount(),
+                        settings.isActiveCheckpointTriggerEnabled()));
     }
 
     private StateTransitionManager createExecutingStateTransitionManager(

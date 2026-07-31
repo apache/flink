@@ -19,15 +19,18 @@
 package org.apache.flink.sql.parser.dql;
 
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -39,7 +42,18 @@ import java.util.Set;
 public class SqlRichExplain extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("EXPLAIN", SqlKind.EXPLAIN);
+            new SqlSpecialOperator("EXPLAIN", SqlKind.EXPLAIN) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    Set<String> explainDetails = new LinkedHashSet<>();
+                    for (SqlNode detail : (SqlNodeList) operands[1]) {
+                        explainDetails.add(
+                                ((SqlCharStringLiteral) detail).getValueAs(String.class));
+                    }
+                    return new SqlRichExplain(pos, operands[0], explainDetails);
+                }
+            };
 
     private SqlNode statement;
     private final Set<String> explainDetails;
@@ -65,7 +79,11 @@ public class SqlRichExplain extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(statement);
+        SqlNodeList details = new SqlNodeList(SqlParserPos.ZERO);
+        for (String detail : explainDetails) {
+            details.add(SqlLiteral.createCharString(detail, SqlParserPos.ZERO));
+        }
+        return List.of(statement, details);
     }
 
     public Set<String> getExplainDetails() {

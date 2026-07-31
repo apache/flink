@@ -94,4 +94,10 @@ class SortMergeJoinTest extends JoinTestBase {
       .isInstanceOf[TableException]
   }
 
+  @Test
+  override def testInnerJoinWithJoinConditionPushDown(): Unit = {
+    assertThatThrownBy(() => super.testInnerJoinWithJoinConditionPushDown())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
+  }
 }

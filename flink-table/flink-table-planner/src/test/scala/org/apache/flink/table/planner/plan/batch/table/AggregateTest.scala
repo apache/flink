@@ -73,4 +73,42 @@ class AggregateTest extends TableTestBase {
 
     util.verifyExecPlan(resultTable)
   }
+
+  @Test
+  def testOrderByThenGlobalAggregate(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, String)]("MyTable", 'a, 'b)
+    val resultTable = sourceTable.orderBy('b.asc).select('a.max)
+
+    util.verifyRelPlan(resultTable)
+  }
+
+  @Test
+  def testOrderByWithFetchThenGlobalAggregate(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, String)]("MyTable", 'a, 'b)
+    val resultTable = sourceTable.orderBy('b.asc).fetch(10).select('a.max)
+
+    util.verifyRelPlan(resultTable)
+  }
+
+  @Test
+  def testOrderByExprWithFetchThenGlobalAggregate(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, String)]("MyTable", 'a, 'b)
+    val resultTable = sourceTable.orderBy(('a + 1).asc).fetch(10).select('a.max)
+
+    util.verifyRelPlan(resultTable)
+  }
+
+  @Test
+  def testGroupAggregateWithHaving(): Unit = {
+    // Filter on an aggregate result (HAVING semantics).
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, String)]("MyTable", 'a, 'b)
+    val resultTable = sourceTable.groupBy('b).select('b, 'a.sum.as("s")).where('s > 3)
+
+    util.verifyRelPlan(resultTable)
+  }
+
 }

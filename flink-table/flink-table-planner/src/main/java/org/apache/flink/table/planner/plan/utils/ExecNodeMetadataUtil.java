@@ -69,6 +69,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWind
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIncrementalGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIntervalJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacySink;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
@@ -149,6 +150,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecIncrementalGroupAggregate.class);
                     add(StreamExecIntervalJoin.class);
                     add(StreamExecJoin.class);
+                    add(StreamExecLateralSnapshotJoin.class);
                     add(StreamExecLimit.class);
                     add(StreamExecLocalGroupAggregate.class);
                     add(StreamExecLocalWindowAggregate.class);

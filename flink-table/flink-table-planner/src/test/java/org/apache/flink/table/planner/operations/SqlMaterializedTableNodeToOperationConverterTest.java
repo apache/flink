@@ -43,6 +43,7 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
@@ -51,6 +52,8 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.utils.TableFunc0;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -193,6 +196,21 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         createMaterializedTableInCatalog(
                 sqlWithNonPersistedLast, "base_mtbl_with_non_persisted_last");
+    }
+
+    @Test
+    void testCreateMaterializedTableAsSelectWithSetSemanticTablePtf() {
+        functionCatalog.registerTemporarySystemFunction("f", new SetSemanticTableFunction(), false);
+        final String sql =
+                "CREATE MATERIALIZED TABLE mt_ptf\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem',\n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "AS SELECT * FROM f(r => TABLE t1 PARTITION BY a, i => 1)";
+
+        final Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
     }
 
     @Test
@@ -755,6 +773,46 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .build();
 
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
+    }
+
+    @Test
+    void testExplainCreateOrAlterMaterializedTable() {
+        final Operation operation =
+                parse("EXPLAIN CREATE OR ALTER MATERIALIZED TABLE myTable123 AS SELECT 123");
+
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+        assertThat(((ExplainOperation) operation).getChild())
+                .isInstanceOf(CreateMaterializedTableOperation.class);
+    }
+
+    @Test
+    void testExplainCreateMaterializedTable() {
+        final Operation operation =
+                parse("EXPLAIN CREATE MATERIALIZED TABLE myTable123 AS SELECT 123");
+
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+        assertThat(((ExplainOperation) operation).getChild())
+                .isInstanceOf(CreateMaterializedTableOperation.class);
+    }
+
+    @Test
+    void testExplainFullAlterMaterializedTable() {
+        // base_mtbl exists so the ALTER path is taken
+        final Operation operation =
+                parse("EXPLAIN CREATE OR ALTER MATERIALIZED TABLE base_mtbl AS SELECT 123");
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+        assertThat(((ExplainOperation) operation).getChild())
+                .isInstanceOf(FullAlterMaterializedTableOperation.class);
+    }
+
+    @Test
+    void testExplainAlterMaterializedTable() {
+        final Operation operation =
+                parse("EXPLAIN ALTER MATERIALIZED TABLE base_mtbl AS SELECT 123");
+
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+        assertThat(((ExplainOperation) operation).getChild())
+                .isInstanceOf(AlterMaterializedTableChangeOperation.class);
     }
 
     private static Collection<TestSpec> testDataForCreateAlterMaterializedTableFailedCase() {

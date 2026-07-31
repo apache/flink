@@ -151,6 +151,8 @@ class PrometheusReporterTest {
                                     + quantile
                                     + "\n");
         }
+        assertThat(response).contains(summaryName + "{" + DIMENSIONS + ",quantile=\"0.0\",} 7.0\n");
+        assertThat(response).contains(summaryName + "{" + DIMENSIONS + ",quantile=\"1.0\",} 6.0\n");
     }
 
     /**

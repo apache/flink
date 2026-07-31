@@ -13,12 +13,13 @@ You can run all tests by executing
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-nightly-tests.sh
 ```
 
-where \<flink dir\> is a Flink distribution directory.
+where \<flink dir\> is a Flink distribution directory, e.g. `build-target` after building Flink
+from source, or the directory of an unpacked release.
 
 You can also run tests individually via
 
 ```
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh arg1 arg2
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/your_test.sh arg1 arg2
 ```
 
 **NOTICE**: Please _DON'T_ run the scripts with explicit command like ```sh run-nightly-tests.sh``` since ```#!/usr/bin/env bash``` is specified as the header of the scripts to assure flexibility on different systems.
@@ -28,6 +29,40 @@ $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh a
 ### Kubernetes test
 
 Kubernetes test (test_kubernetes_embedded_job.sh) assumes a running minikube cluster.
+
+### Testing against S3
+
+A number of tests exercise Flink's S3 file systems. They use one of two mechanisms.
+
+Tests that source `common_s3.sh` run against a real S3 bucket and are silently skipped unless the
+following environment variables are set (`AWS_REGION` defaults to `us-east-1`):
+
+```
+export IT_CASE_S3_BUCKET=<bucket>
+export IT_CASE_S3_ACCESS_KEY=<access-key>
+export IT_CASE_S3_SECRET_KEY=<secret-key>
+```
+
+The tests requiring these credentials are:
+
+```
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop_with_provider
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh presto
+```
+
+`test_kubernetes_materialized_table.sh` also reads these variables but additionally requires a
+running Kubernetes cluster.
+
+Tests that source `common_s3_seaweedfs.sh` instead start a local
+[SeaweedFS](https://github.com/seaweedfs/seaweedfs) S3 gateway in Docker. They need a running
+Docker daemon but no AWS credentials:
+
+```
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh skip flink-end-to-end-tests/test-scripts/test_file_sink.sh s3
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop_seaweedfs
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh presto_seaweedfs_read
+```
 
 
 ## Writing Tests

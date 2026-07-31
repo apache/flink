@@ -508,6 +508,39 @@ class MergeTableLikeUtilTest {
     }
 
     @Test
+    void mergeWatermarkReferencingInheritedMetadataColumn() {
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("timestamp", DataTypes.TIMESTAMP(3))
+                        .columnByMetadata("opts", DataTypes.TIMESTAMP(3), true)
+                        .watermark("timestamp", "timestamp")
+                        .build();
+
+        List<SqlWatermark> derivedWatermarkSpecs =
+                List.of(
+                        new SqlWatermark(
+                                SqlParserPos.ZERO,
+                                identifier("opts"),
+                                boundedStrategy("opts", "5")));
+
+        Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
+        mergingStrategies.put(FeatureOption.WATERMARKS, MergingStrategy.EXCLUDING);
+
+        Schema mergedSchema =
+                util.mergeTables(
+                        mergingStrategies, sourceSchema, List.of(), derivedWatermarkSpecs, null);
+
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("timestamp", DataTypes.TIMESTAMP(3))
+                        .columnByMetadata("opts", DataTypes.TIMESTAMP(3), true)
+                        .watermark("opts", "`opts` - INTERVAL '5' SECOND")
+                        .build();
+
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
+    }
+
+    @Test
     void mergeIncludingWatermarksFailsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()

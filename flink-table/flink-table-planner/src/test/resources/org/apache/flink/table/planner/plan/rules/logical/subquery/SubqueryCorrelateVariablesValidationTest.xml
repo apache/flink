@@ -146,7 +146,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(min_t1d=[$10])
-+- LogicalJoin(condition=[=($3, $9)], joinType=[left])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($3, $9)], joinType=[left])
    :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])

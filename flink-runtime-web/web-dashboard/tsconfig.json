@@ -4,13 +4,8 @@
     "baseUrl": "./",
     "downlevelIteration": true,
     "paths": {
-      "*": [
-        "./src/@types/*"
-      ],
-      "@flink-runtime-web/*": [
-        "./src/app/*",
-        "./src/environments/*"
-      ]
+      "*": ["./src/@types/*"],
+      "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
     },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
@@ -20,13 +15,7 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "es2022",
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-    "lib": [
-      "es2018",
-      "dom"
-    ],
+    "typeRoots": ["node_modules/@types"],
     "noUnusedParameters": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,

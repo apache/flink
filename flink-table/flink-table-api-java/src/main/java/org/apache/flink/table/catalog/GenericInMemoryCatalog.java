@@ -264,6 +264,23 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         }
     }
 
+    @Override
+    public void convertTableToMaterializedTable(
+            ObjectPath tablePath,
+            CatalogTable originalTable,
+            CatalogMaterializedTable materializedTable,
+            List<TableChange> tableChanges)
+            throws TableNotExistException {
+        checkNotNull(tablePath);
+        checkNotNull(materializedTable);
+
+        final CatalogBaseTable existing = tables.get(tablePath);
+        if (existing == null) {
+            throw new TableNotExistException(getName(), tablePath);
+        }
+        tables.put(tablePath, materializedTable.copy());
+    }
+
     // ------ tables and views ------
 
     @Override

@@ -39,7 +39,7 @@ resources:
   # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
+    image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -121,12 +121,12 @@ stages:
           jdk: 17
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_hadoop313
+          stage_name: cron_hadoop343
           test_pool_definition:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-24.04'
-          environment: PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"
+          environment: PROFILE="-Dflink.hadoop.version=3.4.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 17

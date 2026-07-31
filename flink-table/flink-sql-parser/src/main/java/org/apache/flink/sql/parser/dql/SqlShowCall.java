@@ -21,10 +21,12 @@ package org.apache.flink.sql.parser.dql;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,9 +61,33 @@ public abstract class SqlShowCall extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Objects.isNull(sqlIdentifier)
-                ? Collections.emptyList()
-                : Collections.singletonList(sqlIdentifier);
+        // Fixed layout so that deep-copy via operator.createCall can faithfully reconstruct the
+        // subclass: [identifier, preposition, likeType, likeLiteral, notLike].
+        return ImmutableNullableList.of(
+                sqlIdentifier,
+                stringToOperand(preposition),
+                stringToOperand(likeType),
+                likeLiteral,
+                SqlLiteral.createBoolean(notLike, SqlParserPos.ZERO));
+    }
+
+    /** Encodes a nullable {@code String} field as an operand for {@link #getOperandList()}. */
+    protected static SqlNode stringToOperand(String value) {
+        return value == null
+                ? SqlLiteral.createNull(SqlParserPos.ZERO)
+                : SqlLiteral.createCharString(value, SqlParserPos.ZERO);
+    }
+
+    /** Decodes a {@code String} field previously encoded by {@link #stringToOperand(String)}. */
+    protected static String operandToString(SqlNode operand) {
+        return operand instanceof SqlCharStringLiteral
+                ? ((SqlCharStringLiteral) operand).getValueAs(String.class)
+                : null;
+    }
+
+    /** Decodes a {@code boolean} field encoded as a {@link SqlLiteral}. */
+    protected static boolean operandToBoolean(SqlNode operand) {
+        return ((SqlLiteral) operand).booleanValue();
     }
 
     @Override

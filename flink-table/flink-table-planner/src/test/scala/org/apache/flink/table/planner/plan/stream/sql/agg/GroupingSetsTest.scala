@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 import java.sql.Date
@@ -407,9 +407,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
         |FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
       """.stripMargin
-    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .hasMessageContaining("GROUPING SETS are currently not supported")
-      .isInstanceOf[TableException]
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test

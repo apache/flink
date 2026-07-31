@@ -23,10 +23,14 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointBarrier;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -37,6 +41,7 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
@@ -72,6 +77,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +86,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -2079,15 +2086,9 @@ class RemoteInputChannelTest {
         // given: RemoteInputChannel with recovered buffers migrated from RecoveredInputChannel
         SingleInputGate inputGate = createSingleInputGate(1);
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
-
         ConnectionID connectionId =
-                new ConnectionID(
-                        org.apache.flink.runtime.clusterframework.types.ResourceID.generate(),
-                        new java.net.InetSocketAddress("localhost", 0),
-                        0);
+                new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
+        CountDownLatch upstreamReady = new CountDownLatch(1);
         RemoteInputChannel channel =
                 new RemoteInputChannel(
                         inputGate,
@@ -2104,9 +2105,15 @@ class RemoteInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         ChannelStateWriter.NO_OP,
-                        recoveredBuffers);
+                        true,
+                        upstreamReady);
 
         inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(10));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(20));
+        upstreamReady.countDown();
+        channel.finishRecoveredBufferDelivery();
 
         // then: Can read recovered buffers even before requestSubpartitions()
         Optional<BufferAndAvailability> first = channel.getNextBuffer();
@@ -2117,6 +2124,499 @@ class RemoteInputChannelTest {
         Optional<BufferAndAvailability> second = channel.getNextBuffer();
         assertThat(second).isPresent();
         assertThat(second.get().buffer().getSize()).isEqualTo(20);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // RecoverableInputChannel push-based recovery tests
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    void testOnRecoveredStateBufferEnqueues() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(11);
+        Buffer b2 = TestBufferFactory.createBuffer(22);
+        channel.onRecoveredStateBuffer(b1);
+        channel.onRecoveredStateBuffer(b2);
+
+        Optional<BufferAndAvailability> first = channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getSize()).isEqualTo(11);
+        Optional<BufferAndAvailability> second = channel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().buffer().getSize()).isEqualTo(22);
+    }
+
+    @Test
+    void testRecoveredBuffersConsumedBeforeStashedEventsThenSentinelFlipsRecovery()
+            throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        CountDownLatch upstreamReady = new CountDownLatch(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .setUpstreamReady(upstreamReady)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        // Recovered buffer arrives via the drain; an ordinary upstream event arrives via onBuffer
+        // while still in recovery and must be stashed (events carry no credit).
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(11));
+        // backlog=-1: events carry no backlog, and this channel has no floating-buffer pool wired.
+        channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), 0, -1, 0);
+        upstreamReady.countDown();
+        channel.finishRecoveredBufferDelivery();
+
+        // Recovered buffer is consumed first.
+        Optional<BufferAndAvailability> recovered = channel.getNextBuffer();
+        assertThat(recovered).isPresent();
+        assertThat(recovered.get().buffer().getSize()).isEqualTo(11);
+
+        // Then the sentinel; the stashed event is not yet visible (still in recovery).
+        Optional<BufferAndAvailability> sentinel = channel.getNextBuffer();
+        assertThat(sentinel).isPresent();
+        assertThat(EventSerializer.fromBuffer(sentinel.get().buffer(), getClass().getClassLoader()))
+                .isInstanceOf(EndOfFetchedChannelStateEvent.class);
+
+        // The gate consumes the sentinel externally: flips out of recovery and unstashes the event.
+        channel.onRecoveredStateConsumed();
+        Optional<BufferAndAvailability> stashed = channel.getNextBuffer();
+        assertThat(stashed).isPresent();
+        assertThat(EventSerializer.fromBuffer(stashed.get().buffer(), getClass().getClassLoader()))
+                .isInstanceOf(EndOfPartitionEvent.class);
+    }
+
+    @Test
+    void testOnBufferRejectsLiveDataBufferDuringRecovery() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        assertThatThrownBy(() -> channel.onBuffer(TestBufferFactory.createBuffer(1), 0, 0, 0))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Received live data buffer during recovery");
+    }
+
+    @Test
+    void testOnRecoveredStateBufferOnReleasedChannelIsSilentlyRecycled() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+        channel.releaseAllResources();
+
+        Buffer b = TestBufferFactory.createBuffer(33);
+        channel.onRecoveredStateBuffer(b);
+
+        assertThat(b.isRecycled()).isTrue();
+    }
+
+    @Test
+    void testOnRecoveredStateBufferNotifiesChannelNonEmptyOnEmptyToNonEmptyTransition()
+            throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        CompletableFuture<?> availability = inputGate.getAvailableFuture();
+        assertThat(availability).isNotDone();
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        assertThat(availability).isDone();
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagFalseQueueEmptyReturnsEmpty() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        // Force in-recovery + empty queue: push then poll a buffer, then push another while
+        // delaying finish. After the consumer drains the staged buffer, queue=empty and
+        // flag=false (no finishRecoveredBufferDelivery called yet). getNextBuffer must return
+        // empty.
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.getNextBuffer();
+        // Simulate an explicit recovery context where the producer signals "not done yet".
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(2));
+        channel.getNextBuffer();
+        // The boundary case "flag=false (drain still running) + queue empty" should return empty.
+        // To set this state explicitly, we deliberately do not call finishReadRecoveredState.
+        Optional<BufferAndAvailability> result = channel.getNextBuffer();
+        assertThat(result).isNotPresent();
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagFalseQueueNonEmptyPolls() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(7));
+
+        Optional<BufferAndAvailability> r = channel.getNextBuffer();
+        assertThat(r).isPresent();
+        assertThat(r.get().buffer().getSize()).isEqualTo(7);
+    }
+
+    @Test
+    void testInRecoveryBoundaryFlagTrueQueueNonEmptyPolls() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        CountDownLatch upstreamReady = new CountDownLatch(1);
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(ChannelStateWriter.NO_OP)
+                        .setNeedsRecovery(true)
+                        .setUpstreamReady(upstreamReady)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(8));
+        upstreamReady.countDown();
+        channel.finishRecoveredBufferDelivery();
+
+        Optional<BufferAndAvailability> r = channel.getNextBuffer();
+        assertThat(r).isPresent();
+        assertThat(r.get().buffer().getSize()).isEqualTo(8);
+    }
+
+    @Test
+    void testFinishWithNoRecoveredBuffersEmitsSentinelThenFallsToMasterPath() throws Exception {
+        // Wire a real network pool so requestSubpartitions() can succeed and the master path can
+        // poll receivedBuffers.
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+        final CountDownLatch upstreamReady = new CountDownLatch(1);
+        try {
+            SingleInputGate inputGate =
+                    new SingleInputGateBuilder()
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                            .setSegmentProvider(networkBufferPool)
+                            .setChannelFactory(
+                                    (builder, gate) ->
+                                            builder.setNeedsRecovery(true)
+                                                    .setUpstreamReady(upstreamReady)
+                                                    .buildRemoteChannel(gate))
+                            .build();
+            inputGate.setup();
+            RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+            upstreamReady.countDown();
+            // Even with no recovered buffers, finish appends the EndOfFetchedChannelStateEvent
+            // sentinel so the consume path can flip out of recovery in order.
+            channel.finishRecoveredBufferDelivery();
+            inputGate.requestPartitions();
+
+            Optional<BufferAndAvailability> sentinel = channel.getNextBuffer();
+            assertThat(sentinel).isPresent();
+            assertThat(
+                            EventSerializer.fromBuffer(
+                                    sentinel.get().buffer(), getClass().getClassLoader()))
+                    .isInstanceOf(EndOfFetchedChannelStateEvent.class);
+
+            // Consuming the sentinel (done externally by the gate) flips the channel out of
+            // recovery; afterwards the master path is taken and there is no more queued data.
+            channel.onRecoveredStateConsumed();
+            assertThat(channel.getNextBuffer()).isNotPresent();
+        } finally {
+            networkBufferPool.destroy();
+        }
+    }
+
+    @Test
+    void testMoreAvailableNoneWhenLastRecoveredBufferAndDrainNotFinished() throws Exception {
+        // While the channel is in recovery and the drain has not finished, the last currently
+        // queued recovered buffer must report NONE as its next data type: no live data can enter
+        // receivedBuffers (the upstream has no credit), so there is nothing else to expose yet.
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+        try {
+            SingleInputGate inputGate =
+                    new SingleInputGateBuilder()
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                            .setSegmentProvider(networkBufferPool)
+                            .setChannelFactory(
+                                    (builder, gate) ->
+                                            builder.setNeedsRecovery(true).buildRemoteChannel(gate))
+                            .build();
+            inputGate.setup();
+            RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+
+            channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(11));
+
+            Optional<BufferAndAvailability> recoveredBuf = channel.getNextBuffer();
+            assertThat(recoveredBuf).isPresent();
+            assertThat(recoveredBuf.get().buffer().getSize()).isEqualTo(11);
+            // Drain not finished and queue now empty: nothing more is available yet.
+            assertThat(recoveredBuf.get().moreAvailable()).isFalse();
+        } finally {
+            networkBufferPool.destroy();
+        }
+    }
+
+    @Test
+    void testPriorityEventDuringRecoveryViaAddPriorityBuffer() throws Exception {
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+        try {
+            SingleInputGate inputGate =
+                    new SingleInputGateBuilder()
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                            .setSegmentProvider(networkBufferPool)
+                            .setChannelFactory(
+                                    (builder, gate) ->
+                                            builder.setNeedsRecovery(true).buildRemoteChannel(gate))
+                            .build();
+            inputGate.setup();
+            RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+
+            channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(11));
+
+            CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, UNALIGNED);
+            channel.onBuffer(toBuffer(barrier, true), 0, 0, 0);
+
+            Optional<BufferAndAvailability> first = channel.getNextBuffer();
+            assertThat(first).isPresent();
+            assertThat(first.get().buffer().getDataType().hasPriority()).isTrue();
+
+            Optional<BufferAndAvailability> second = channel.getNextBuffer();
+            assertThat(second).isPresent();
+            assertThat(second.get().buffer().getSize()).isEqualTo(11);
+        } finally {
+            networkBufferPool.destroy();
+        }
+    }
+
+    @Test
+    void testCheckpointStartedScansRecoveredBuffersUpToBarrier() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        Buffer b2 = TestBufferFactory.createBuffer(2);
+        Buffer b3 = TestBufferFactory.createBuffer(3);
+        channel.onRecoveredStateBuffer(b1);
+        channel.onRecoveredStateBuffer(b2);
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(b3);
+
+        stateWriter.start(1L, UNALIGNED);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED));
+
+        List<Buffer> persisted = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persisted).hasSize(2);
+        assertThat(persisted.stream().mapToInt(Buffer::getSize).toArray()).containsExactly(1, 2);
+    }
+
+    @Test
+    void testCheckpointStartedDeclinesWhenRecoveryBarrierIsMissing() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        channel.onRecoveredStateBuffer(b1);
+        int refCntBefore = b1.refCnt();
+
+        stateWriter.start(1L, UNALIGNED);
+
+        // The snapshot protocol guarantees a RecoveryCheckpointBarrier sentinel is present while
+        // the channel is in recovery, so a missing sentinel is a protocol violation: the checkpoint
+        // is declined and the recovered buffer is neither dropped nor persisted.
+        assertThatThrownBy(
+                        () -> channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED)))
+                .isInstanceOfSatisfying(
+                        CheckpointException.class,
+                        e ->
+                                assertThat(e.getCheckpointFailureReason())
+                                        .isEqualTo(CheckpointFailureReason.CHECKPOINT_DECLINED))
+                .cause()
+                .hasMessageContaining("Missing RecoveryCheckpointBarrier");
+        assertThat(b1.refCnt()).isEqualTo(refCntBefore);
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).isEmpty();
+    }
+
+    @Test
+    void testCheckpointStartedRetainsPreBarrierBuffers() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        Buffer b1 = TestBufferFactory.createBuffer(1);
+        channel.onRecoveredStateBuffer(b1);
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+
+        int before = b1.refCnt();
+        stateWriter.start(1L, UNALIGNED);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED));
+        // After retainBuffer the buffer remains live for both the queue read and the writer copy.
+        assertThat(b1.refCnt()).isGreaterThanOrEqualTo(before);
+    }
+
+    @Test
+    void testCheckpointStartedRemovesSentinel() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(2));
+
+        stateWriter.start(1L, UNALIGNED);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED));
+
+        Optional<BufferAndAvailability> head = channel.getNextBuffer();
+        assertThat(head).isPresent();
+        Optional<BufferAndAvailability> nextHead = channel.getNextBuffer();
+        assertThat(nextHead).isPresent();
+        assertThat(nextHead.get().buffer().getSize()).isEqualTo(2);
+    }
+
+    @Test
+    void testCheckpointStartedNestedCpIds() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .setNeedsRecovery(true)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+        channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(2));
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(new RecoveryCheckpointBarrier(2L), false));
+
+        stateWriter.start(1L, UNALIGNED);
+        channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED));
+
+        List<Buffer> persisted1 = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persisted1).hasSize(1);
+        assertThat(persisted1.get(0).getSize()).isEqualTo(1);
+    }
+
+    @Test
+    void testCheckpointStartedNotInRecoveryUsesMasterPath() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        RemoteInputChannel channel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(stateWriter)
+                        .buildRemoteChannel(inputGate);
+        inputGate.setInputChannels(channel);
+        channel.requestSubpartitions();
+        stateWriter.start(7L, UNALIGNED);
+        channel.checkpointStarted(new CheckpointBarrier(7L, 0L, UNALIGNED));
+
+        assertThat(stateWriter.getAddedInput().get(channel.getChannelInfo())).isNullOrEmpty();
+    }
+
+    @Test
+    void testReceivedBuffersHasNoLiveDataBufferDetectsLiveData() throws Exception {
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+        try {
+            SingleInputGate inputGate =
+                    new SingleInputGateBuilder()
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                            .setSegmentProvider(networkBufferPool)
+                            .setChannelFactory(
+                                    (builder, gate) ->
+                                            builder.setNeedsRecovery(true).buildRemoteChannel(gate))
+                            .build();
+            inputGate.setup();
+            RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+
+            channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+            // During recovery the upstream has no credit and can only send events. A live data
+            // buffer is a protocol violation that onBuffer must reject at the entry point.
+            assertThatThrownBy(() -> channel.onBuffer(TestBufferFactory.createBuffer(1), 0, 0, 0))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Received live data buffer during recovery");
+        } finally {
+            networkBufferPool.destroy();
+        }
+    }
+
+    @Test
+    void testReceivedBuffersHasNoLiveDataBufferAcceptsPriorityOnly() throws Exception {
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+        try {
+            RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+            SingleInputGate inputGate =
+                    new SingleInputGateBuilder()
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                            .setSegmentProvider(networkBufferPool)
+                            .setChannelFactory(
+                                    (builder, gate) ->
+                                            builder.setStateWriter(stateWriter)
+                                                    .setNeedsRecovery(true)
+                                                    .buildRemoteChannel(gate))
+                            .build();
+            inputGate.setup();
+            RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+
+            channel.onRecoveredStateBuffer(TestBufferFactory.createBuffer(1));
+            // Mirror what snapshotAndInsertBarriers does: push the
+            // RecoveryCheckpointBarrier sentinel so collectPreRecoveryBarrier finds it.
+            channel.onRecoveredStateBuffer(
+                    EventSerializer.toBuffer(new RecoveryCheckpointBarrier(1L), false));
+            // Priority event in receivedBuffers is OK (!isBuffer()).
+            CheckpointBarrier priorityBarrier = new CheckpointBarrier(1L, 0L, UNALIGNED);
+            channel.onBuffer(toBuffer(priorityBarrier, true), 0, 0, 0);
+
+            stateWriter.start(1L, UNALIGNED);
+            channel.checkpointStarted(new CheckpointBarrier(1L, 0L, UNALIGNED));
+        } finally {
+            networkBufferPool.destroy();
+        }
     }
 
     private static final class TestBufferPool extends NoOpBufferPool {

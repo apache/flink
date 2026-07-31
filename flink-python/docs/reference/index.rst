@@ -23,6 +23,7 @@ API Reference
 .. toctree::
     :maxdepth: 2
 
+    pyflink.dataframe/index
     pyflink.table/index
     pyflink.datastream/index
     pyflink.common/index

@@ -69,6 +69,12 @@
             <td>The local time zone defines current session time zone id. It is used when converting to/from &lt;code&gt;TIMESTAMP WITH LOCAL TIME ZONE&lt;/code&gt;. Internally, timestamps with local time zone are always represented in the UTC time zone. However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), the session time zone is used during conversion. The input of option is either a full name such as "America/Los_Angeles", or a custom timezone id such as "GMT-08:00".</td>
         </tr>
         <tr>
+            <td><h5>table.materialized-table.conversion-from-table.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, executing a CREATE OR ALTER MATERIALIZED TABLE on an existing regular table converts it in place to a materialized table, preserving identity and storage. The option is read at planning time from the session's root configuration, so it must be set when the TableEnvironment session is initialized (for example in the cluster configuration file config.yaml, or in the configuration used to create the session); a session-level SET statement has no effect. When disabled (the default), CREATE OR ALTER MATERIALIZED TABLE against a regular table is rejected.</td>
+        </tr>
+        <tr>
             <td><h5>table.plan.compile.catalog-objects</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ALL</td>
             <td><p>Enum</p></td>

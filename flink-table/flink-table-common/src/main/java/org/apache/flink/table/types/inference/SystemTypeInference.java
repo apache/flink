@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -124,6 +125,33 @@ public class SystemTypeInference {
 
     public static boolean isInvalidUidForProcessTableFunction(String uid) {
         return !UID_FORMAT.test(uid);
+    }
+
+    /**
+     * Rejects the implicit system arguments ({@code on_time}, {@code uid}) for a function that
+     * disables them via {@link TypeInference#disableSystemArguments()}.
+     *
+     * <p>The system arguments are not part of such a function's signature. Enforcing this from
+     * every translation path (SQL operand checking and Table API call resolution) rejects them
+     * consistently, regardless of whether the function is processed by the generic PTF rule or a
+     * dedicated optimizer rule (e.g. ML_PREDICT, LATERAL SNAPSHOT).
+     */
+    public static void checkNoSystemArguments(
+            boolean sysArgsDisabled,
+            Collection<String> suppliedArgumentNames,
+            String functionName) {
+        if (!sysArgsDisabled) {
+            return;
+        }
+        for (StaticArgument systemArg : PROCESS_TABLE_FUNCTION_SYSTEM_ARGS) {
+            if (suppliedArgumentNames.contains(systemArg.getName())) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid function call. The '%s' argument is not supported "
+                                        + "because function '%s' does not use system arguments.",
+                                systemArg.getName(), functionName));
+            }
+        }
     }
 
     // --------------------------------------------------------------------------------------------

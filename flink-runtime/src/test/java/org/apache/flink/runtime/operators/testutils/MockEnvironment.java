@@ -179,13 +179,14 @@ public class MockEnvironment implements Environment, AutoCloseable {
             TaskManagerRuntimeInfo taskManagerRuntimeInfo,
             MemoryManager memManager,
             ExternalResourceInfoProvider externalResourceInfoProvider,
-            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
+            Configuration jobConfiguration) {
 
         this.jobInfo = new JobInfoImpl(jobID, jobName);
         this.jobVertexID = jobVertexID;
         this.jobType = jobType;
         this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subtaskIndex, parallelism, 0);
-        this.jobConfiguration = new Configuration();
+        this.jobConfiguration = jobConfiguration;
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
         this.outputs = new LinkedList<ResultPartitionWriter>();

@@ -1523,6 +1523,12 @@ without requiring upfront schema definition. For example, if a new field is adde
 can be directly incorporated into the `VARIANT` data without modifying the table schema. This is 
 particularly useful in dynamic environments where schemas may evolve over time.
 
+A primitive-valued `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. Numeric 
+targets are lenient: a variant holding any numeric value casts to any numeric type, so a JSON integer 
+such as `PARSE_JSON('42')` casts to `INT` or `BIGINT`. Other targets require the stored value to be of 
+the matching kind. When the value cannot be converted, `CAST` fails the job and `TRY_CAST` returns 
+`NULL`. Use the `JSON_STRING` function to obtain the JSON string representation of a `VARIANT`.
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
@@ -1738,7 +1744,7 @@ The matrix below describes the supported cast pairs, where "Y" means supported, 
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 Notes:

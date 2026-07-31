@@ -25,6 +25,7 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.forstdb.BlockBasedTableConfig;
@@ -43,10 +44,9 @@ import org.forstdb.RocksDB;
 import org.forstdb.TableFormatConfig;
 import org.forstdb.WriteBufferManager;
 import org.forstdb.WriteOptions;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,35 +55,33 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests to guard {@link ForStResourceContainer}. */
-public class ForStResourceContainerTest {
+class ForStResourceContainerTest {
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir static java.nio.file.Path tmpFolder;
 
-    @BeforeClass
-    public static void ensureForStNativeLibraryLoaded() throws IOException {
-        NativeLibraryLoader.getInstance().loadLibrary(TMP_FOLDER.newFolder().getAbsolutePath());
+    @BeforeAll
+    static void ensureForStNativeLibraryLoaded(@TempDir java.nio.file.Path libDir)
+            throws IOException {
+        NativeLibraryLoader.getInstance().loadLibrary(libDir.toFile().getAbsolutePath());
     }
 
     // ------------------------------------------------------------------------
 
     @Test
-    public void testFreeDBOptionsAfterClose() throws Exception {
+    void testFreeDBOptionsAfterClose() throws Exception {
         ForStResourceContainer container = new ForStResourceContainer();
         DBOptions dbOptions = container.getDbOptions();
-        assertThat(dbOptions.isOwningHandle(), is(true));
+        assertThat(dbOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(dbOptions.isOwningHandle(), is(false));
+        assertThat(dbOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeMultipleDBOptionsAfterClose() throws Exception {
+    void testFreeMultipleDBOptionsAfterClose() throws Exception {
         ForStResourceContainer container = new ForStResourceContainer();
         final int optionNumber = 20;
         ArrayList<DBOptions> dbOptions = new ArrayList<>(optionNumber);
@@ -92,7 +90,7 @@ public class ForStResourceContainerTest {
         }
         container.close();
         for (DBOptions dbOption : dbOptions) {
-            assertThat(dbOption.isOwningHandle(), is(false));
+            assertThat(dbOption.isOwningHandle()).isFalse();
         }
     }
 
@@ -103,13 +101,13 @@ public class ForStResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testSharedResourcesAfterClose() throws Exception {
+    void testSharedResourcesAfterClose() throws Exception {
         OpaqueMemoryResource<ForStSharedResources> sharedResources = getSharedResources();
         ForStResourceContainer container = new ForStResourceContainer(null, sharedResources);
         container.close();
         ForStSharedResources forStSharedResources = sharedResources.getResourceHandle();
-        assertThat(forStSharedResources.getCache().isOwningHandle(), is(false));
-        assertThat(forStSharedResources.getWriteBufferManager().isOwningHandle(), is(false));
+        assertThat(forStSharedResources.getCache().isOwningHandle()).isFalse();
+        assertThat(forStSharedResources.getWriteBufferManager().isOwningHandle()).isFalse();
     }
 
     /**
@@ -120,7 +118,7 @@ public class ForStResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testGetDbOptionsWithSharedResources() throws Exception {
+    void testGetDbOptionsWithSharedResources() throws Exception {
         final int optionNumber = 20;
         OpaqueMemoryResource<ForStSharedResources> sharedResources = getSharedResources();
         ForStResourceContainer container = new ForStResourceContainer(null, sharedResources);
@@ -130,10 +128,9 @@ public class ForStResourceContainerTest {
             WriteBufferManager writeBufferManager = getWriteBufferManager(dbOptions);
             writeBufferManagers.add(writeBufferManager);
         }
-        assertThat(writeBufferManagers.size(), is(1));
-        assertThat(
-                writeBufferManagers.iterator().next(),
-                is(sharedResources.getResourceHandle().getWriteBufferManager()));
+        assertThat(writeBufferManagers).hasSize(1);
+        assertThat(writeBufferManagers.iterator().next())
+                .isEqualTo(sharedResources.getResourceHandle().getWriteBufferManager());
         container.close();
     }
 
@@ -145,7 +142,7 @@ public class ForStResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testGetColumnFamilyOptionsWithSharedResources() throws Exception {
+    void testGetColumnFamilyOptionsWithSharedResources() throws Exception {
         final int optionNumber = 20;
         OpaqueMemoryResource<ForStSharedResources> sharedResources = getSharedResources();
         ForStResourceContainer container = new ForStResourceContainer(null, sharedResources);
@@ -155,8 +152,9 @@ public class ForStResourceContainerTest {
             Cache cache = getBlockCache(columnOptions);
             caches.add(cache);
         }
-        assertThat(caches.size(), is(1));
-        assertThat(caches.iterator().next(), is(sharedResources.getResourceHandle().getCache()));
+        assertThat(caches).hasSize(1);
+        assertThat(caches.iterator().next())
+                .isEqualTo(sharedResources.getResourceHandle().getCache());
         container.close();
     }
 
@@ -210,16 +208,16 @@ public class ForStResourceContainerTest {
     }
 
     @Test
-    public void testFreeColumnOptionsAfterClose() throws Exception {
+    void testFreeColumnOptionsAfterClose() throws Exception {
         ForStResourceContainer container = new ForStResourceContainer();
         ColumnFamilyOptions columnFamilyOptions = container.getColumnOptions();
-        assertThat(columnFamilyOptions.isOwningHandle(), is(true));
+        assertThat(columnFamilyOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(columnFamilyOptions.isOwningHandle(), is(false));
+        assertThat(columnFamilyOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeMultipleColumnOptionsAfterClose() throws Exception {
+    void testFreeMultipleColumnOptionsAfterClose() throws Exception {
         ForStResourceContainer container = new ForStResourceContainer();
         final int optionNumber = 20;
         ArrayList<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(optionNumber);
@@ -228,12 +226,12 @@ public class ForStResourceContainerTest {
         }
         container.close();
         for (ColumnFamilyOptions columnFamilyOption : columnFamilyOptions) {
-            assertThat(columnFamilyOption.isOwningHandle(), is(false));
+            assertThat(columnFamilyOption.isOwningHandle()).isFalse();
         }
     }
 
     @Test
-    public void testFreeSharedResourcesAfterClose() throws Exception {
+    void testFreeSharedResourcesAfterClose() throws Exception {
         LRUCache cache = new LRUCache(1024L);
         WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
         ForStSharedResources sharedResources = new ForStSharedResources(cache, wbm, 1024L, false);
@@ -244,24 +242,24 @@ public class ForStResourceContainerTest {
         ForStResourceContainer container = new ForStResourceContainer(null, opaqueResource);
 
         container.close();
-        assertThat(cache.isOwningHandle(), is(false));
-        assertThat(wbm.isOwningHandle(), is(false));
+        assertThat(cache.isOwningHandle()).isFalse();
+        assertThat(wbm.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeWriteReadOptionsAfterClose() throws Exception {
+    void testFreeWriteReadOptionsAfterClose() throws Exception {
         ForStResourceContainer container = new ForStResourceContainer();
         WriteOptions writeOptions = container.getWriteOptions();
         ReadOptions readOptions = container.getReadOptions();
-        assertThat(writeOptions.isOwningHandle(), is(true));
-        assertThat(readOptions.isOwningHandle(), is(true));
+        assertThat(writeOptions.isOwningHandle()).isTrue();
+        assertThat(readOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(writeOptions.isOwningHandle(), is(false));
-        assertThat(readOptions.isOwningHandle(), is(false));
+        assertThat(writeOptions.isOwningHandle()).isFalse();
+        assertThat(readOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testGetColumnFamilyOptionsWithPartitionedIndex() throws Exception {
+    void testGetColumnFamilyOptionsWithPartitionedIndex() throws Exception {
         LRUCache cache = new LRUCache(1024L);
         WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
         ForStSharedResources sharedResources = new ForStSharedResources(cache, wbm, 1024L, true);
@@ -298,20 +296,22 @@ public class ForStResourceContainerTest {
             ColumnFamilyOptions columnOptions = container.getColumnOptions();
             BlockBasedTableConfig actual =
                     (BlockBasedTableConfig) columnOptions.tableFormatConfig();
-            assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
-            assertThat(actual.partitionFilters(), is(true));
-            assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertFalse(actual.filterPolicy() == blockBasedFilter);
+            assertThat(actual.indexType()).isEqualTo(IndexType.kTwoLevelIndexSearch);
+            assertThat(actual.partitionFilters()).isTrue();
+            assertThat(actual.pinTopLevelIndexAndFilter()).isTrue();
+            assertThat(actual.filterPolicy()).isNotSameAs(blockBasedFilter);
         }
-        assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
+        assertThat(blockBasedFilter.isOwningHandle())
+                .as("Block based filter is left unclosed.")
+                .isFalse();
     }
 
     @Test
-    public void testDirectoryResources() throws Exception {
-        Path localJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+    void testDirectoryResources() throws Exception {
+        Path localJobPath = new Path(TempDirUtils.newFolder(tmpFolder).getPath());
         Path localBasePath = new Path(localJobPath, "base");
         localBasePath.getFileSystem().mkdirs(localBasePath);
-        Path remoteJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path remoteJobPath = new Path(TempDirUtils.newFolder(tmpFolder).getPath());
         Path remoteBasePath = new Path(remoteJobPath, "base");
         remoteBasePath.getFileSystem().mkdirs(remoteBasePath);
         try (final ForStResourceContainer optionsContainer =
@@ -323,7 +323,7 @@ public class ForStResourceContainerTest {
                                 localJobPath, localBasePath, remoteJobPath, remoteBasePath),
                         null,
                         new FsCheckpointStorageAccess(
-                                new Path(TMP_FOLDER.newFolder().getPath()),
+                                new Path(TempDirUtils.newFolder(tmpFolder).getPath()),
                                 null,
                                 new JobID(),
                                 1024,
@@ -331,25 +331,25 @@ public class ForStResourceContainerTest {
                         null,
                         false)) {
             optionsContainer.prepareDirectories();
-            assertTrue(new File(localBasePath.getPath()).exists());
-            assertTrue(new File(remoteBasePath.getPath()).exists());
-            assertTrue(optionsContainer.getDbOptions().getEnv() instanceof FlinkEnv);
+            assertThat(new File(localBasePath.getPath())).exists();
+            assertThat(new File(remoteBasePath.getPath())).exists();
+            assertThat(optionsContainer.getDbOptions().getEnv()).isInstanceOf(FlinkEnv.class);
 
             optionsContainer.clearDirectories();
-            assertFalse(new File(localBasePath.getPath()).exists());
+            assertThat(new File(localBasePath.getPath())).doesNotExist();
 
-            assertTrue(new File(remoteBasePath.getPath()).exists());
+            assertThat(new File(remoteBasePath.getPath())).exists();
             optionsContainer.forceClearRemoteDirectories();
 
             // Do not delete remote directory because it is not created by ForStResourceContainer
-            assertTrue(new File(remoteBasePath.getPath()).exists());
+            assertThat(new File(remoteBasePath.getPath())).exists();
         }
     }
 
     @Test
-    public void testFileSystemInit() throws Exception {
-        Path localBasePath = new Path(TMP_FOLDER.newFolder().getPath());
-        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+    void testFileSystemInit() throws Exception {
+        Path localBasePath = new Path(TempDirUtils.newFolder(tmpFolder).getPath());
+        Path remoteBasePath = new Path(TempDirUtils.newFolder(tmpFolder).getPath());
         ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
         ArrayList<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
         columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));

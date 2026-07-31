@@ -21,6 +21,7 @@ import org.apache.flink.sql.parser.SqlParseUtils;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -36,7 +37,13 @@ import static java.util.Objects.requireNonNull;
 public class SqlTableOption extends SqlCall {
     /** Use this operator only if you don't have a better one. */
     protected static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("TableOption", SqlKind.OTHER);
+            new SqlSpecialOperator("TableOption", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlTableOption(operands[0], operands[1], pos);
+                }
+            };
 
     private final SqlNode key;
     private final SqlNode value;

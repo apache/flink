@@ -35,6 +35,7 @@ import {
   ApplicationModuleConfig
 } from '@flink-runtime-web/pages/application/application.config';
 import { ApplicationService, StatusService } from '@flink-runtime-web/services';
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
@@ -47,6 +48,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NgIf,
+    NzButtonModule,
     NzPopconfirmModule,
     NzDescriptionsModule,
     NzDividerModule,

@@ -246,6 +246,43 @@ class CatalogManagerTest {
     }
 
     @Test
+    void testSchemaExistsSwallowsCatalogExceptionFromDatabaseExists() {
+        CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .defaultCatalog("broken", new UnreachableCatalog("broken"))
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .build())
+                        .build();
+        assertThat(catalogManager.schemaExists("broken", "default")).isFalse();
+    }
+
+    /**
+     * A catalog whose {@link #databaseExists(String)} always fails, simulating a connectivity
+     * problem with an unreachable destination.
+     */
+    private static class UnreachableCatalog extends GenericInMemoryCatalog {
+        UnreachableCatalog(String name) {
+            super(name, "default");
+        }
+
+        @Override
+        public boolean databaseExists(String databaseName) {
+            throw new CatalogException(
+                    "Failed to connect to database '"
+                            + databaseName
+                            + "' of catalog '"
+                            + getName()
+                            + "'.");
+        }
+    }
+
+    @Test
     public void testDropCurrentDatabase() throws Exception {
         CatalogManager catalogManager = createCatalogManager(null);
 

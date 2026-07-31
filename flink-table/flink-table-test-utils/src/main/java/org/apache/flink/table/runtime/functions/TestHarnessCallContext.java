@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +41,7 @@ class TestHarnessCallContext implements CallContext {
     List<DataType> argumentDataTypes;
     FunctionDefinition functionDefinition;
     Map<Integer, TableSemantics> tableSemantics;
+    Map<Integer, Object> argumentValues = new HashMap<>();
     String name;
 
     @Override
@@ -54,7 +56,7 @@ class TestHarnessCallContext implements CallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        return false;
+        return argumentValues.containsKey(pos);
     }
 
     @Override
@@ -63,7 +65,12 @@ class TestHarnessCallContext implements CallContext {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        Object value = argumentValues.get(pos);
+        if (value != null && clazz.isInstance(value)) {
+            return Optional.of((T) value);
+        }
         return Optional.empty();
     }
 

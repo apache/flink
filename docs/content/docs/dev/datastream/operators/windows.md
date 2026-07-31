@@ -1133,7 +1133,7 @@ Flink comes with a few built-in triggers.
 * The `PurgingTrigger` takes as argument another trigger and transforms it into a purging one.
 
 If you need to implement a custom trigger, you should check out the abstract
-{{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java" name="Trigger" >}} class.
+{{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java" name="Trigger" >}} class.
 Please note that the API is still evolving and might change in future versions of Flink.
 
 ## Evictors

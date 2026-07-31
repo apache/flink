@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
 
@@ -126,7 +125,7 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       studentLogicalScan.getRowType,
       relBuilder.fields(),
-      List(expr1))
+      java.util.List.of[RexNode](expr1))
     assertEquals(0.0, mq.getColumnNullCount(calc2, 0))
     assertEquals(0.0, mq.getColumnNullCount(calc2, 1))
     assertNull(mq.getColumnNullCount(calc2, 2))
@@ -141,7 +140,7 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       studentLogicalScan.getRowType,
       relBuilder.fields(),
-      List(expr2))
+      java.util.List.of[RexNode](expr2))
     assertEquals(0.0, mq.getColumnNullCount(calc3, 0))
     assertEquals(0.0, mq.getColumnNullCount(calc3, 1))
     assertNull(mq.getColumnNullCount(calc3, 2))
@@ -156,7 +155,7 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       logicalProject.getRowType,
       logicalProject.getProjects,
-      List(expr1))
+      java.util.List.of[RexNode](expr1))
     assertEquals(0.0, mq.getColumnNullCount(calc4, 0))
     assertEquals(0.0, mq.getColumnNullCount(calc4, 1))
     assertNull(mq.getColumnNullCount(calc4, 2))
@@ -175,7 +174,7 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       logicalProject.getRowType,
       logicalProject.getProjects,
-      List(expr2))
+      java.util.List.of[RexNode](expr2))
     assertEquals(0.0, mq.getColumnNullCount(calc5, 0))
     assertEquals(0.0, mq.getColumnNullCount(calc5, 1))
     assertNull(mq.getColumnNullCount(calc5, 2))

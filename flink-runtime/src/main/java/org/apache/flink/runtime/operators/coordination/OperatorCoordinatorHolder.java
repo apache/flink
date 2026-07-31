@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -500,6 +502,10 @@ public class OperatorCoordinatorHolder
             final SubtaskAccess.SubtaskAccessFactory taskAccesses =
                     new ExecutionSubtaskAccess.ExecutionJobVertexSubtaskAccess(jobVertex, opId);
 
+            final JobInfo jobInfo =
+                    new JobInfoImpl(
+                            jobVertex.getGraph().getJobID(), jobVertex.getGraph().getJobName());
+
             return create(
                     opId,
                     provider,
@@ -511,6 +517,7 @@ public class OperatorCoordinatorHolder
                     taskAccesses,
                     supportsConcurrentExecutionAttempts,
                     taskInformation,
+                    jobInfo,
                     metricGroup);
         }
     }
@@ -527,6 +534,7 @@ public class OperatorCoordinatorHolder
             final SubtaskAccess.SubtaskAccessFactory taskAccesses,
             final boolean supportsConcurrentExecutionAttempts,
             final TaskInformation taskInformation,
+            final JobInfo jobInfo,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws Exception {
         final MetricGroup parentMetricGroup =
@@ -537,7 +545,7 @@ public class OperatorCoordinatorHolder
                         operatorName);
         final LazyInitializedCoordinatorContext context =
                 new LazyInitializedCoordinatorContext(
-                        jobManagerJobMetricGroup.jobId(),
+                        jobInfo,
                         opId,
                         operatorName,
                         userCodeClassLoader,
@@ -576,7 +584,7 @@ public class OperatorCoordinatorHolder
         private static final Logger LOG =
                 LoggerFactory.getLogger(LazyInitializedCoordinatorContext.class);
 
-        private final JobID jobID;
+        private final JobInfo jobInfo;
         private final OperatorID operatorId;
         private final String operatorName;
         private final ClassLoader userCodeClassLoader;
@@ -592,7 +600,7 @@ public class OperatorCoordinatorHolder
         private volatile boolean failed;
 
         public LazyInitializedCoordinatorContext(
-                JobID jobID,
+                JobInfo jobInfo,
                 final OperatorID operatorId,
                 final String operatorName,
                 final ClassLoader userCodeClassLoader,
@@ -600,7 +608,7 @@ public class OperatorCoordinatorHolder
                 final CoordinatorStore coordinatorStore,
                 final boolean supportsConcurrentExecutionAttempts,
                 final OperatorCoordinatorMetricGroup metricGroup) {
-            this.jobID = jobID;
+            this.jobInfo = checkNotNull(jobInfo);
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
             this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -641,7 +649,12 @@ public class OperatorCoordinatorHolder
 
         @Override
         public JobID getJobID() {
-            return jobID;
+            return jobInfo.getJobId();
+        }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return jobInfo;
         }
 
         @Override

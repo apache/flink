@@ -20,8 +20,10 @@ package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.SqlDropObject;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -34,7 +36,16 @@ import java.util.List;
 public class SqlDropMaterializedTable extends SqlDropObject {
 
     private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP MATERIALIZED TABLE", SqlKind.DROP_TABLE);
+            new SqlSpecialOperator("DROP MATERIALIZED TABLE", SqlKind.DROP_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDropMaterializedTable(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue());
+                }
+            };
 
     public SqlDropMaterializedTable(
             SqlParserPos pos, SqlIdentifier tableIdentifier, boolean ifExists) {
@@ -43,7 +54,7 @@ public class SqlDropMaterializedTable extends SqlDropObject {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(name);
+        return List.of(name, SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO));
     }
 
     @Override

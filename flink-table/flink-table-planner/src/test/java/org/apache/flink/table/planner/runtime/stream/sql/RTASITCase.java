@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.types.AbstractDataType;
@@ -251,6 +252,28 @@ class RTASITCase extends StreamingTestBase {
                         new String[] {"a", "c"},
                         new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
         verifyCatalogTable(expectCatalogTable, getCatalogTable("not_exist_target"));
+    }
+
+    @Test
+    void testReplaceTableAsSelectOverSetSemanticPtf() throws Exception {
+        tEnv().createTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        tEnv().executeSql(
+                        "REPLACE TABLE target WITH ('connector' = 'values', 'bounded' = 'true') AS "
+                                + "SELECT * FROM f(r => TABLE source PARTITION BY a, i => 1)")
+                .await();
+
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target"))
+                .containsExactlyInAnyOrder(
+                        "+I[1, {+I[1, 1, Hi], 1}]",
+                        "+I[2, {+I[2, 2, Hello], 1}]",
+                        "+I[3, {+I[3, 2, Hello world], 1}]");
+
+        // The partition key `a` is passed through and the PTF appends its `out` column.
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "out"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
     private CatalogTable getExpectCatalogTable(

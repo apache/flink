@@ -32,7 +32,7 @@ import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Sub-class of [[Sink]] that is a relational expression which writes out data of input node into a
@@ -64,7 +64,7 @@ class FlinkLogicalSink(
     new FlinkLogicalSink(
       cluster,
       traitSet,
-      inputs.head,
+      inputs.asScala.head,
       hints,
       contextResolvedTable,
       tableSink,

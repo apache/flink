@@ -40,7 +40,17 @@ import java.util.List;
 public class SqlTableColumnPosition extends SqlCall {
 
     private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("SqlTableColumnPosition", SqlKind.OTHER);
+            new SqlSpecialOperator("SqlTableColumnPosition", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlTableColumnPosition(
+                            pos,
+                            (SqlTableColumn) operands[0],
+                            (SqlLiteral) operands[1],
+                            (SqlIdentifier) operands[2]);
+                }
+            };
 
     private final SqlTableColumn column;
     @Nullable private final SqlLiteral positionSpec;

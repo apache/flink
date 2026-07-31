@@ -101,7 +101,8 @@ public class SqlNodeConvertUtils {
         return OptionalInt.empty();
     }
 
-    static PlannerQueryOperation toQueryOperation(SqlNode validated, ConvertContext context) {
+    public static PlannerQueryOperation toQueryOperation(
+            SqlNode validated, ConvertContext context) {
         // transform to a relational tree
         RelRoot relational = context.toRelRoot(validated);
         return new PlannerQueryOperation(

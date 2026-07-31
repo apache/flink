@@ -233,12 +233,16 @@ object CodeGenUtils {
       value match {
         case JFloat.NEGATIVE_INFINITY => "java.lang.Float.NEGATIVE_INFINITY"
         case JFloat.POSITIVE_INFINITY => "java.lang.Float.POSITIVE_INFINITY"
+        // NaN is not equal to itself, so it can't be matched by value like the infinities above.
+        case f: JFloat if f.isNaN => "java.lang.Float.NaN"
         case _ => value.toString + "f"
       }
     case _: JDouble =>
       value match {
         case JDouble.NEGATIVE_INFINITY => "java.lang.Double.NEGATIVE_INFINITY"
         case JDouble.POSITIVE_INFINITY => "java.lang.Double.POSITIVE_INFINITY"
+        // NaN is not equal to itself, so it can't be matched by value like the infinities above.
+        case d: JDouble if d.isNaN => "java.lang.Double.NaN"
         case _ => value.toString + "d"
       }
     case sd: StringData =>

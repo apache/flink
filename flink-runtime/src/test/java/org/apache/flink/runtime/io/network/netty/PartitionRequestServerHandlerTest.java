@@ -81,7 +81,7 @@ class PartitionRequestServerHandlerTest {
         // Creates and registers the view to netty.
         NetworkSequenceViewReader viewReader =
                 new CreditBasedSequenceNumberingViewReader(
-                        inputChannelID, 2, partitionRequestQueue);
+                        inputChannelID, 2, false, partitionRequestQueue);
         viewReader.notifySubpartitionsCreated(resultPartition, new ResultSubpartitionIndexSet(0));
         partitionRequestQueue.notifyReaderCreated(viewReader);
 
@@ -149,7 +149,7 @@ class PartitionRequestServerHandlerTest {
 
         TestViewReader(
                 InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
-            super(receiverId, initialCredit, requestQueue);
+            super(receiverId, initialCredit, false, requestQueue);
         }
 
         @Override

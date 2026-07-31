@@ -87,6 +87,10 @@ class ValueDataTypeConverterTest {
                         DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH())
                                 .bridgedTo(Period.class)),
                 of(
+                        Period.ofMonths(470),
+                        DataTypes.INTERVAL(DataTypes.YEAR(2), DataTypes.MONTH())
+                                .bridgedTo(Period.class)),
+                of(
                         Duration.ofMillis(1100),
                         DataTypes.INTERVAL(DataTypes.DAY(1), DataTypes.SECOND(1))
                                 .bridgedTo(Duration.class)),

@@ -21,13 +21,12 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
 import org.apache.calcite.util.ImmutableBitSet
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
@@ -86,7 +85,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // a <= 2 and b > 10
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     val expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(1), relBuilder.literal(10d))
-    val filter1 = relBuilder.filter(List(expr1, expr2)).build()
+    val filter1 = relBuilder.filter(java.util.List.of(expr1, expr2)).build()
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(filter1, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(0, 1), mq.getUniqueGroups(filter1, ImmutableBitSet.of(0, 1)))
 
@@ -95,7 +94,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // a <= 2 and b > 10
     val expr3 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     val expr4 = relBuilder.call(GREATER_THAN, relBuilder.field(1), relBuilder.literal(10d))
-    val filter2 = relBuilder.filter(List(expr3, expr4)).build()
+    val filter2 = relBuilder.filter(java.util.List.of(expr3, expr4)).build()
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(filter2, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(filter2, ImmutableBitSet.of(0, 1)))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(filter2, ImmutableBitSet.of(0, 1, 2)))
@@ -107,7 +106,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     relBuilder.scan("MyTable4")
     // a, b, c
     val proj1 = relBuilder
-      .project(List(relBuilder.field(0), relBuilder.field(1), relBuilder.field(2)))
+      .project(java.util.List.of(relBuilder.field(0), relBuilder.field(1), relBuilder.field(2)))
       .build()
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj1, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj1, ImmutableBitSet.of(0, 1)))
@@ -119,7 +118,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // a + b, b * 2, 1
     val proj2 = relBuilder
       .project(
-        List(
+        java.util.List.of(
           relBuilder.call(PLUS, relBuilder.field(0), relBuilder.field(1)),
           relBuilder.call(MULTIPLY, relBuilder.field(1), relBuilder.literal(2)),
           relBuilder.literal(1)
@@ -135,7 +134,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // a, b * 2, c, 1, 2
     val proj3 = relBuilder
       .project(
-        List(
+        java.util.List.of(
           relBuilder.field(0),
           relBuilder.call(MULTIPLY, relBuilder.field(1), relBuilder.literal(2)),
           relBuilder.field(2),
@@ -156,8 +155,8 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     relBuilder.scan("MyTable4")
     // a, a as a1, $2
     val proj4 = relBuilder
-      .project(
-        List(relBuilder.field(0), relBuilder.alias(relBuilder.field(0), "a1"), relBuilder.field(2)))
+      .project(java.util.List
+        .of(relBuilder.field(0), relBuilder.alias(relBuilder.field(0), "a1"), relBuilder.field(2)))
       .build()
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj4, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj4, ImmutableBitSet.of(0, 1)))
@@ -167,7 +166,8 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     relBuilder.clear()
     relBuilder.scan("MyTable4")
     // true, 1
-    val proj5 = relBuilder.project(List(relBuilder.literal(true), relBuilder.literal(1))).build()
+    val proj5 =
+      relBuilder.project(java.util.List.of(relBuilder.literal(true), relBuilder.literal(1))).build()
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj5, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(1), mq.getUniqueGroups(proj5, ImmutableBitSet.of(1)))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(proj5, ImmutableBitSet.of(0, 1)))
@@ -179,7 +179,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     // project: a, b * 2, c, 1, 2
     // filter: a > 1
     relBuilder.push(ts)
-    val projects = List(
+    val projects = java.util.List.of(
       relBuilder.field(0),
       relBuilder.call(MULTIPLY, relBuilder.field(1), relBuilder.literal(2)),
       relBuilder.field(2),
@@ -188,7 +188,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     )
     val condition = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     val outputRowType = relBuilder.push(ts).project(projects).build().getRowType
-    val calc = createLogicalCalc(ts, outputRowType, projects, List(condition))
+    val calc = createLogicalCalc(ts, outputRowType, projects, java.util.List.of[RexNode](condition))
 
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(calc, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(1), mq.getUniqueGroups(calc, ImmutableBitSet.of(1)))

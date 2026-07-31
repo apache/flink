@@ -70,7 +70,7 @@ class LookupJoinITCase extends BatchTestBase {
     rowOf(44, null, "Hello world"))
 
   @BeforeEach
-  override def before() {
+  override def before(): Unit = {
     super.before()
     TestValuesTableFactory.RESOURCE_COUNTER.set(0)
     FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)

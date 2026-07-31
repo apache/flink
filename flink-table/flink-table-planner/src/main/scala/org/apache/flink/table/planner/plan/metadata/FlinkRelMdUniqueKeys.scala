@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner._
@@ -27,8 +28,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalL
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.RankType
+import org.apache.flink.table.types.logical.LogicalTypeFamily
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 import org.apache.flink.types.RowKind
 
@@ -36,7 +39,6 @@ import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
@@ -126,19 +128,15 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       projects: JList[RexNode],
       input: RelNode,
       mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getProjectUniqueKeys(
-      projects,
-      input.getCluster.getTypeFactory,
-      () => mq.getUniqueKeys(input, ignoreNulls),
-      ignoreNulls)
-  }
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] =
+    getProjectUniqueKeys(projects, input, () => mq.getUniqueKeys(input, ignoreNulls), ignoreNulls)
 
   def getProjectUniqueKeys(
       projects: JList[RexNode],
-      typeFactory: RelDataTypeFactory,
+      input: RelNode,
       getInputUniqueKeys: () => util.Set[ImmutableBitSet],
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    val typeFactory = input.getCluster.getTypeFactory
     // LogicalProject maps a set of rows to a different set;
     // Without knowledge of the mapping function(whether it
     // preserves uniqueness), it is only safe to derive uniqueness
@@ -175,7 +173,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
             }
           // rename or key-preserving cast (fidelity or injective)
           case a: RexCall
-              if (a.getKind.equals(SqlKind.AS) || isKeyPreservingCast(a)) &&
+              if (a.getKind.equals(SqlKind.AS) ||
+                isKeyPreservingCast(a, legacyBytesToStringCast(input))) &&
                 a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
@@ -219,15 +218,30 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
    *
    * An injective cast is one where each distinct input maps to a distinct output, ensuring that
    * unique keys remain unique after the cast.
+   *
+   * In legacy bytes-to-string mode, invalid UTF-8 is replaced by U+FFFD, so distinct byte arrays
+   * can map to the same string. A BINARY/VARBINARY -> CHAR/VARCHAR cast is therefore not injective
+   * under that mode.
    */
-  private def isKeyPreservingCast(call: RexCall): Boolean = {
+  private def isKeyPreservingCast(call: RexCall, legacyBytesToStringCast: Boolean): Boolean = {
     if (call.getKind != SqlKind.CAST) {
       return false
     }
     val originalType = FlinkTypeFactory.toLogicalType(call.getOperands.get(0).getType)
     val newType = FlinkTypeFactory.toLogicalType(call.getType)
+    if (
+      legacyBytesToStringCast && originalType.is(LogicalTypeFamily.BINARY_STRING) &&
+      newType.is(LogicalTypeFamily.CHARACTER_STRING)
+    ) {
+      return false
+    }
     LogicalTypeCasts.supportsInjectiveCast(originalType, newType)
   }
+
+  // Can be removed together with the legacyBytesToStringCast parameter once
+  // TABLE_EXEC_LEGACY_BYTES_TO_STRING_CAST is dropped.
+  private def legacyBytesToStringCast(input: RelNode): Boolean =
+    unwrapTableConfig(input).get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_BYTES_TO_STRING_CAST)
 
   def getUniqueKeys(
       rel: Expand,

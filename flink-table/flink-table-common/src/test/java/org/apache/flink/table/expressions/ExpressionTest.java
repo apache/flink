@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -293,6 +295,16 @@ class ExpressionTest {
                 .isEqualTo(expected);
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("intervalLiteralTestCases")
+    void testIntervalAsSerializableString(
+            String caseName, Object value, DataType dataType, String expected) {
+        assertThat(
+                        new ValueLiteralExpression(value, dataType)
+                                .asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo(expected);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static Expression createExpressionTree(Integer nestedValue) {
@@ -364,5 +376,119 @@ class ExpressionTest {
                         Instant.ofEpochSecond(-9223372036L, 0),
                         9,
                         "TO_TIMESTAMP_LTZ(-9223372036000000000, 9)"));
+    }
+
+    private static Stream<Arguments> intervalLiteralTestCases() {
+        return Stream.of(
+                Arguments.of(
+                        "YEAR_TO_MONTH maximum",
+                        Period.of(9999, 11, 0),
+                        DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH()).notNull(),
+                        "INTERVAL '9999-11' YEAR(4) TO MONTH"),
+                Arguments.of(
+                        "YEAR_TO_MONTH default precision",
+                        Period.ofMonths(470),
+                        DataTypes.INTERVAL(DataTypes.YEAR(), DataTypes.MONTH()).notNull(),
+                        "INTERVAL '39-2' YEAR(2) TO MONTH"),
+                Arguments.of(
+                        "YEAR with months not dropped",
+                        Period.of(5, 3, 0),
+                        DataTypes.INTERVAL(DataTypes.YEAR()).notNull(),
+                        "INTERVAL '5-3' YEAR(2) TO MONTH"),
+                Arguments.of(
+                        "YEAR only whole years",
+                        Period.ofYears(120),
+                        DataTypes.INTERVAL(DataTypes.YEAR(3)).notNull(),
+                        "INTERVAL '120-0' YEAR(3) TO MONTH"),
+                Arguments.of(
+                        "MONTH only",
+                        Period.ofMonths(50),
+                        DataTypes.INTERVAL(DataTypes.MONTH()).notNull(),
+                        "INTERVAL '4-2' YEAR(2) TO MONTH"),
+                Arguments.of(
+                        "DAY(3) three-digit value",
+                        Duration.ofDays(100),
+                        DataTypes.INTERVAL(DataTypes.DAY(3)).notNull(),
+                        "INTERVAL '100 00:00:00.000000' DAY(3) TO SECOND(6)"),
+                Arguments.of(
+                        "DAY_TO_HOUR",
+                        Duration.ofDays(5).plusHours(7),
+                        DataTypes.INTERVAL(DataTypes.DAY(2), DataTypes.HOUR()).notNull(),
+                        "INTERVAL '5 07:00:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "DAY_TO_MINUTE",
+                        Duration.ofDays(5).plusHours(7).plusMinutes(8),
+                        DataTypes.INTERVAL(DataTypes.DAY(2), DataTypes.MINUTE()).notNull(),
+                        "INTERVAL '5 07:08:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "DAY_TO_SECOND fractional padding",
+                        Duration.ofDays(1).plusMillis(5),
+                        DataTypes.INTERVAL(DataTypes.DAY(2), DataTypes.SECOND(3)).notNull(),
+                        "INTERVAL '1 00:00:00.005' DAY(2) TO SECOND(3)"),
+                Arguments.of(
+                        "DAY_TO_SECOND nanosecond precision (string only; sub-ms not round-trippable)",
+                        Duration.ofDays(99).plusSeconds(34).plusNanos(999_000_001),
+                        DataTypes.INTERVAL(DataTypes.DAY(2), DataTypes.SECOND(9)).notNull(),
+                        "INTERVAL '99 00:00:34.999000001' DAY(2) TO SECOND(9)"),
+                Arguments.of(
+                        "DAY_TO_SECOND zero fractional precision",
+                        Duration.ofDays(1).plusSeconds(30),
+                        DataTypes.INTERVAL(DataTypes.DAY(2), DataTypes.SECOND(0)).notNull(),
+                        "INTERVAL '1 00:00:30' DAY(2) TO SECOND(0)"),
+                Arguments.of(
+                        "HOUR only preserves whole value",
+                        Duration.ofHours(30),
+                        DataTypes.INTERVAL(DataTypes.HOUR()).notNull(),
+                        "INTERVAL '1 06:00:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "HOUR with minutes not dropped",
+                        Duration.ofHours(5).plusMinutes(30),
+                        DataTypes.INTERVAL(DataTypes.HOUR()).notNull(),
+                        "INTERVAL '0 05:30:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "HOUR_TO_MINUTE",
+                        Duration.ofHours(30).plusMinutes(15),
+                        DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.MINUTE()).notNull(),
+                        "INTERVAL '1 06:15:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "HOUR_TO_SECOND",
+                        Duration.ofHours(30).plusMinutes(15).plusSeconds(20).plusNanos(500_000_000),
+                        DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.SECOND(6)).notNull(),
+                        "INTERVAL '1 06:15:20.500000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "MINUTE only",
+                        Duration.ofMinutes(45),
+                        DataTypes.INTERVAL(DataTypes.MINUTE()).notNull(),
+                        "INTERVAL '0 00:45:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "MINUTE >= 100 (0 days, fits DAY(2))",
+                        Duration.ofMinutes(100),
+                        DataTypes.INTERVAL(DataTypes.MINUTE()).notNull(),
+                        "INTERVAL '0 01:40:00.000000' DAY(2) TO SECOND(6)"),
+                Arguments.of(
+                        "MINUTE_TO_SECOND",
+                        Duration.ofMinutes(45).plusSeconds(45).plusMillis(120),
+                        DataTypes.INTERVAL(DataTypes.MINUTE(), DataTypes.SECOND(2)).notNull(),
+                        "INTERVAL '0 00:45:45.12' DAY(2) TO SECOND(2)"),
+                Arguments.of(
+                        "SECOND standalone",
+                        Duration.ofSeconds(45).plusMillis(750),
+                        DataTypes.INTERVAL(DataTypes.SECOND(4)).notNull(),
+                        "INTERVAL '0 00:00:45.7500' DAY(2) TO SECOND(4)"),
+                Arguments.of(
+                        "SECOND >= 100 (0 days, fits DAY(2))",
+                        Duration.ofSeconds(150),
+                        DataTypes.INTERVAL(DataTypes.SECOND(3)).notNull(),
+                        "INTERVAL '0 00:02:30.000' DAY(2) TO SECOND(3)"),
+                Arguments.of(
+                        "Large day value under its natural DAY(3) type (= 10000 hours)",
+                        Duration.ofDays(416).plusHours(16),
+                        DataTypes.INTERVAL(DataTypes.DAY(3), DataTypes.HOUR()).notNull(),
+                        "INTERVAL '416 16:00:00.000000' DAY(3) TO SECOND(6)"),
+                Arguments.of(
+                        "DAY maximum precision",
+                        Duration.ofDays(999_999),
+                        DataTypes.INTERVAL(DataTypes.DAY(6)).notNull(),
+                        "INTERVAL '999999 00:00:00.000000' DAY(6) TO SECOND(6)"));
     }
 }

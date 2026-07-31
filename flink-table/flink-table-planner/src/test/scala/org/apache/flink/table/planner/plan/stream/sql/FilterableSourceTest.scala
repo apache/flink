@@ -103,7 +103,7 @@ class FilterableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testComputedColumnPushdownAcrossWatermark() {
+  def testComputedColumnPushdownAcrossWatermark(): Unit = {
     val ddl =
       """
         |CREATE TABLE WithWatermark (

@@ -21,10 +21,12 @@ package org.apache.flink.fs.s3native.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -83,7 +85,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize)
             throws IOException {
-        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L);
+        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L, null);
     }
 
     public NativeS3RecoverableFsDataOutputStream(
@@ -93,7 +95,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize,
             List<PartETag> existingParts,
-            long numBytesInParts)
+            long numBytesInParts,
+            @Nullable File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -106,14 +109,27 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.currentPartSize = 0;
         this.closed = false;
 
-        createNewTempFile();
+        if (incompleteTailFile != null) {
+            resumeFromIncompleteTail(incompleteTailFile);
+        } else {
+            createNewTempFile();
+        }
+    }
+
+    private void resumeFromIncompleteTail(File tailFile) throws IOException {
+        if (!tailFile.exists()) {
+            throw new IOException("Incomplete-tail file does not exist: " + tailFile);
+        }
+        currentTempFile = tailFile;
+        currentPartSize = tailFile.length();
+        // Append mode so subsequent writes land after the recovered bytes.
+        currentFileStream = new FileOutputStream(currentTempFile, true);
+        currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
     }
 
     private void createNewTempFile() throws IOException {
         File tmpDir = new File(localTmpDir);
-        if (!tmpDir.exists()) {
-            tmpDir.mkdirs();
-        }
+        Files.createDirectories(tmpDir.toPath());
 
         currentTempFile = new File(tmpDir, "s3-part-" + UUID.randomUUID());
         currentFileStream = new FileOutputStream(currentTempFile);
@@ -181,30 +197,18 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     private void uploadCurrentPart() throws IOException {
         currentOutputStream.close();
 
-        int partNumber = nextPartNumber++;
-        try {
-            NativeS3ObjectOperations.UploadPartResult result =
-                    s3AccessHelper.uploadPart(
-                            key, uploadId, partNumber, currentTempFile, currentPartSize);
+        // Do not delete the temp file if uploadPart fails: propagate the original exception
+        // unmasked and let close() perform cleanup. nextPartNumber is only advanced on success so a
+        // failed attempt does not leave a gap in the part sequence.
+        NativeS3ObjectOperations.UploadPartResult result =
+                s3AccessHelper.uploadPart(
+                        key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
 
-            completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
-            numBytesInParts += currentPartSize;
-        } finally {
-            // Always delete the temp file, even if uploadPart() fails. This matters most on the
-            // closeForCommit() path: it sets closed = true before calling uploadCurrentPart(), so a
-            // failed upload there would otherwise orphan the temp file in the shared io.tmp.dirs --
-            // the later close() no-ops on its "if (!closed)" guard and never reclaims it. Catch and
-            // log any delete failure here so it cannot mask the original upload IOException.
-            try {
-                Files.deleteIfExists(currentTempFile.toPath());
-            } catch (IOException deleteError) {
-                LOG.warn(
-                        "Failed to delete temp file {} for key={}",
-                        currentTempFile,
-                        key,
-                        deleteError);
-            }
-        }
+        nextPartNumber++;
+        completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
+        numBytesInParts += currentPartSize;
+
+        Files.delete(currentTempFile.toPath());
     }
 
     @Override
@@ -215,19 +219,19 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 throw new IOException("Stream is already closed");
             }
 
-            closed = true;
             currentOutputStream.close();
 
             if (currentPartSize > 0) {
                 uploadCurrentPart();
             } else {
-                Files.deleteIfExists(currentTempFile.toPath());
+                Files.delete(currentTempFile.toPath());
             }
 
             NativeS3Recoverable recoverable =
                     new NativeS3Recoverable(
                             key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
 
+            closed = true;
             return new NativeS3Committer(s3AccessHelper, recoverable);
         } finally {
             unlock();
@@ -268,11 +272,20 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         try {
             if (!closed) {
                 closed = true;
+                IOException cleanupException = null;
                 if (currentOutputStream != null) {
-                    currentOutputStream.close();
+                    try {
+                        currentOutputStream.close();
+                    } catch (IOException e) {
+                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
+                    }
                 }
-                if (currentTempFile != null) {
-                    Files.deleteIfExists(currentTempFile.toPath());
+                if (currentTempFile != null && currentTempFile.exists()) {
+                    try {
+                        Files.delete(currentTempFile.toPath());
+                    } catch (IOException e) {
+                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
+                    }
                 }
 
                 try {
@@ -284,6 +297,9 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                             key,
                             uploadId,
                             e);
+                }
+                if (cleanupException != null) {
+                    throw cleanupException;
                 }
             }
         } finally {

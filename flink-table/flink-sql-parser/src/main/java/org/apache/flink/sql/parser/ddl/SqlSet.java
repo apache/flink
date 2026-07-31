@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.SqlParseUtils;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -40,7 +41,17 @@ import java.util.Objects;
 @Internal
 public class SqlSet extends SqlCall {
 
-    public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SET", SqlKind.OTHER);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SET", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    if (operands.length == 0 || operands[0] == null) {
+                        return new SqlSet(pos);
+                    }
+                    return new SqlSet(pos, operands[0], operands[1]);
+                }
+            };
 
     @Nullable private final SqlNode key;
     @Nullable private final SqlNode value;

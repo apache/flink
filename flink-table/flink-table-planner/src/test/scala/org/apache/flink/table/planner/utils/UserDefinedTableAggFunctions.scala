@@ -88,7 +88,7 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
     }
   }
 
-  def accumulate(acc: Top3Accum, v: JInt) {
+  def accumulate(acc: Top3Accum, v: JInt): Unit = {
     if (acc.size == 0) {
       acc.size = 1
       acc.smallest = v
@@ -183,7 +183,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
     }
   }
 
-  def accumulate(acc: Top3WithMapViewAccum, v: Int) {
+  def accumulate(acc: Top3WithMapViewAccum, v: Int): Unit = {
     if (acc.size == 0) {
       acc.size = 1
       acc.smallest = v
@@ -230,11 +230,11 @@ class Top3WithRetractInput
     acc
   }
 
-  def accumulate(acc: Top3WithRetractInputAcc, v: JInt) {
+  def accumulate(acc: Top3WithRetractInputAcc, v: JInt): Unit = {
     acc.data.append(v)
   }
 
-  def retract(acc: Top3WithRetractInputAcc, v: JInt) {
+  def retract(acc: Top3WithRetractInputAcc, v: JInt): Unit = {
     acc.data.remove(acc.data.indexOf(v))
   }
 

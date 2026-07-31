@@ -38,6 +38,7 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.fun.SqlJsonQueryFunction;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
@@ -66,6 +67,8 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         final SqlOperator operator = call.getOperator();
         if (operator == FlinkSqlOperatorTable.TRY_CAST) {
             return this::convertTryCast;
+        } else if (operator instanceof SqlJsonQueryFunction) {
+            return this::convertJsonQuery;
         } else if (operator instanceof SqlTableFunction) {
             return this::convertTableArgs;
         } else if (call instanceof SqlModelCall) {
@@ -78,6 +81,25 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
     private RexNode convertModelCall(SqlRexContext cx, final SqlCall call) {
         SqlModelCall modelCall = (SqlModelCall) call;
         return modelCall.getModel().toRex(cx);
+    }
+
+    private RexNode convertJsonQuery(SqlRexContext cx, SqlCall call) {
+        List<SqlNode> operands = new ArrayList<>();
+        for (SqlNode operand : call.getOperandList()) {
+            if (!(operand instanceof SqlDataTypeSpec)) {
+                operands.add(operand);
+            }
+        }
+        SqlCall strippedCall = call.getOperator().createCall(call.getParserPosition(), operands);
+        final List<RexNode> exprs = new ArrayList<>();
+        for (SqlNode operand : strippedCall.getOperandList()) {
+            exprs.add(cx.convertExpression(operand));
+        }
+        RelDataType returnType = cx.getValidator().getValidatedNodeTypeIfKnown(call);
+        if (returnType == null) {
+            returnType = cx.getRexBuilder().deriveReturnType(call.getOperator(), exprs);
+        }
+        return cx.getRexBuilder().makeCall(returnType, call.getOperator(), exprs);
     }
 
     // Slightly modified version of StandardConvertletTable::convertCast

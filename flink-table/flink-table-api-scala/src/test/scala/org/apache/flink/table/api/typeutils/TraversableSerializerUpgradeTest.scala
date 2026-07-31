@@ -28,7 +28,6 @@ import org.apache.flink.table.api.typeutils.TraversableSerializerUpgradeTest.Typ
 import org.apache.flink.test.util.MigrationTest
 
 import org.assertj.core.api.Condition
-import org.junit.jupiter.api.Disabled
 
 import java.util
 import java.util.Objects
@@ -37,7 +36,6 @@ import java.util.function.Supplier
 import scala.collection.{mutable, BitSet, LinearSeq}
 
 /** A [[TypeSerializerUpgradeTestBase]] for [[TraversableSerializer]]. */
-@Disabled("FLINK-36334")
 class TraversableSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[TraversableOnce[_], TraversableOnce[_]] {
 
@@ -71,10 +69,10 @@ class TraversableSerializerUpgradeTest
         classOf[MapSerializerVerifier]))
     testSpecifications.add(
       new TestSpecification[mutable.ListBuffer[Int], mutable.ListBuffer[Int]](
-        "traversable-serializer-mutable-list",
+        "traversable-serializer-list-buffer",
         migrationVersion,
-        classOf[MutableListSerializerSetup],
-        classOf[MutableListSerializerVerifier]))
+        classOf[ListBufferSerializerSetup],
+        classOf[ListBufferSerializerVerifier]))
     testSpecifications.add(
       new TestSpecification[Seq[Int], Seq[Int]](
         "traversable-serializer-seq",
@@ -130,7 +128,7 @@ object TraversableSerializerUpgradeTest {
     val mapTypeInfo = implicitly[TypeInformation[Map[String, Int]]]
     val setTypeInfo = implicitly[TypeInformation[Set[Int]]]
     val bitsetTypeInfo = implicitly[TypeInformation[BitSet]]
-    val mutableListTypeInfo =
+    val listBufferTypeInfo =
       implicitly[TypeInformation[mutable.ListBuffer[Int]]]
     val seqTupleTypeInfo = implicitly[TypeInformation[Seq[(Int, String)]]]
     val seqPojoTypeInfo = implicitly[TypeInformation[Seq[Pojo]]]
@@ -224,18 +222,18 @@ object TraversableSerializerUpgradeTest {
       TypeSerializerConditions.isCompatibleAsIs[Map[String, Int]]()
   }
 
-  final class MutableListSerializerSetup
+  final class ListBufferSerializerSetup
     extends TypeSerializerUpgradeTestBase.PreUpgradeSetup[mutable.ListBuffer[Int]] {
     override def createPriorSerializer: TypeSerializer[mutable.ListBuffer[Int]] =
-      new TypeSerializerSupplier(mutableListTypeInfo).get()
+      new TypeSerializerSupplier(listBufferTypeInfo).get()
 
     override def createTestData: mutable.ListBuffer[Int] = mutable.ListBuffer(1, 2, 3)
   }
 
-  final class MutableListSerializerVerifier
+  final class ListBufferSerializerVerifier
     extends TypeSerializerUpgradeTestBase.UpgradeVerifier[mutable.ListBuffer[Int]] {
     override def createUpgradedSerializer: TypeSerializer[mutable.ListBuffer[Int]] =
-      new TypeSerializerSupplier(mutableListTypeInfo).get()
+      new TypeSerializerSupplier(listBufferTypeInfo).get()
 
     override def testDataCondition: Condition[mutable.ListBuffer[Int]] =
       new Condition[mutable.ListBuffer[Int]](

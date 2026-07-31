@@ -70,7 +70,10 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
       .call(this.zoomController.transform, transform);
   }
 
-  constructor(private readonly el: ElementRef, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly el: ElementRef,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
     this.svgSelect = select(this.svgContainer.nativeElement);

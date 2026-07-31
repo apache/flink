@@ -335,7 +335,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testUserDefinedScalarFunction() {
+  def testUserDefinedScalarFunction(): Unit = {
     val table = BatchTableEnvUtil.fromElements(tEnv, "a", "b", "c")
     val result = table.select(HashCode($"f0"))
     val results = executeQuery(result)
@@ -344,7 +344,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testNumericAutocastInArithmetic() {
+  def testNumericAutocastInArithmetic(): Unit = {
     val table = BatchTableEnvUtil
       .fromElements(tEnv, (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1))
       .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
@@ -355,7 +355,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testNumericAutocastInComparison() {
+  def testNumericAutocastInComparison(): Unit = {
     val table = BatchTableEnvUtil
       .fromCollection(
         tEnv,

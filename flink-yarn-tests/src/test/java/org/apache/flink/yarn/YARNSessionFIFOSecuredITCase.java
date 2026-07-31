@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.HadoopSecurityContext;
@@ -46,6 +47,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -193,12 +196,23 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
     private static void verifyResultContainsKerberosKeytab(
             ApplicationId applicationId, String viewAcls, String modifyAcls) throws Exception {
         final String[] mustHave = {"Login successful for user", "using keytab file"};
-        final boolean jobManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "jobmanager.log");
-        final boolean taskManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "taskmanager.log");
-
-        assertThat(jobManagerRunsWithKerberos && taskManagerRunsWithKerberos).isTrue();
+        // The application has been killed by now, so all container output is flushed. A
+        // short-lived TaskManager's startup login line can still be briefly unreadable right
+        // after teardown (FLINK-17662), so poll each log instead of reading it once.
+        for (final String logFile : new String[] {"jobmanager.log", "taskmanager.log"}) {
+            log.info("Waiting until {} contains the Kerberos keytab login", logFile);
+            CommonTestUtils.waitUtil(
+                    () -> verifyStringsInNamedLogFiles(mustHave, applicationId, logFile),
+                    Duration.ofSeconds(60),
+                    Duration.ofMillis(500),
+                    "Kerberos keytab login "
+                            + Arrays.toString(mustHave)
+                            + " not found in "
+                            + logFile
+                            + " for application "
+                            + applicationId
+                            + " within the timeout; inspect the uploaded container logs.");
+        }
 
         final List<String> amRMTokens =
                 Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());

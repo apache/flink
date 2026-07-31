@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
@@ -35,6 +40,28 @@ import java.util.List;
 
 /** ALTER TABLE DDL to add partitions to a table. */
 public class SqlAddPartitions extends SqlAlterTable {
+
+    private static final SqlSpecialOperator ADD_PARTITION_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE ADD PARTITION", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlNodeList> partSpecs = new ArrayList<>();
+                    for (SqlNode spec : (SqlNodeList) operands[2]) {
+                        partSpecs.add((SqlNodeList) spec);
+                    }
+                    List<SqlNodeList> partProps = new ArrayList<>();
+                    for (SqlNode prop : (SqlNodeList) operands[3]) {
+                        partProps.add((SqlNodeList) prop);
+                    }
+                    return new SqlAddPartitions(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue(),
+                            partSpecs,
+                            partProps);
+                }
+            };
 
     private final boolean ifPartitionNotExists;
     private final List<SqlNodeList> partSpecs;
@@ -68,14 +95,19 @@ public class SqlAddPartitions extends SqlAlterTable {
         return partProps;
     }
 
+    @Override
+    public SqlOperator getOperator() {
+        return ADD_PARTITION_OPERATOR;
+    }
+
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        List<SqlNode> operands = new ArrayList<>();
-        operands.add(tableIdentifier);
-        operands.addAll(partSpecs);
-        operands.addAll(partProps);
-        return operands;
+        return List.of(
+                tableIdentifier,
+                SqlLiteral.createBoolean(ifPartitionNotExists, SqlParserPos.ZERO),
+                new SqlNodeList(partSpecs, SqlParserPos.ZERO),
+                new SqlNodeList(partProps, SqlParserPos.ZERO));
     }
 
     @Override

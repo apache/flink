@@ -87,6 +87,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonStringSpec());
+        testCases.addAll(parseJsonSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonSpec());
         testCases.addAll(jsonArraySpec());
@@ -316,59 +317,97 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData((String) null)
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
+                        // IS [NOT] JSON follows SQL three-valued logic and returns NULL for a NULL
+                        // input, see FLINK-39943. This holds for every JSON type and for both the
+                        // IS JSON and IS NOT JSON forms.
+                        .testResult($("f0").isJson(), "f0 IS JSON", null, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE).not(),
+                                "f0 IS NOT JSON VALUE",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR),
+                                "f0 IS JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR).not(),
+                                "f0 IS NOT JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY), "f0 IS JSON ARRAY", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY).not(),
+                                "f0 IS NOT JSON ARRAY",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT).not(),
+                                "f0 IS NOT JSON OBJECT",
+                                null,
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("a")
                         .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", true, BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        // A non-nullable input yields a non-nullable BOOLEAN result.
+                        .onFieldsWithData("a")
+                        .andDataTypes(STRING().notNull())
                         .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("\"a\"")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 true,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 false,
-                                BOOLEAN().notNull()),
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("{}")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
-                                BOOLEAN().notNull()));
+                                BOOLEAN()));
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {
@@ -720,6 +759,45 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> parseJsonSpec() {
+        // The bulk of parsing behavior is covered by BinaryVariantInternalBuilderTest.
+        return List.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1,\"b\":[2,3]}", "1e400")
+                        .andDataTypes(STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString(call("PARSE_JSON", $("f0"))),
+                                "JSON_STRING(PARSE_JSON(f0))",
+                                "{\"a\":1,\"b\":[2,3]}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(call("PARSE_JSON", nullOf(STRING()))),
+                                "JSON_STRING(PARSE_JSON(CAST(NULL AS STRING)))",
+                                null,
+                                STRING().nullable())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", $("f1")),
+                                TableRuntimeException.class,
+                                "Failed to parse json string"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1}", "1e400")
+                        .andDataTypes(STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f0"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f0))",
+                                "{\"a\":1}",
+                                STRING())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f1"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f1))",
+                                null,
+                                STRING()));
     }
 
     private static List<TestSetSpec> jsonSpec() {

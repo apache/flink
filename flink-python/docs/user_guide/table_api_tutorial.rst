@@ -281,7 +281,7 @@ The complete code so far:
            .execute_insert('sink') \
            .wait()
        # remove .wait if submitting to a remote cluster, refer to
-       # https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/faq/#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
+       # https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/faq.html#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
        # for more details
 
 

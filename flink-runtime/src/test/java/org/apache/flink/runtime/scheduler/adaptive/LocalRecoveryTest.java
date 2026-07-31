@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setAllExecutionsToRunning;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForAllTasksDeploymentDescriptorsCreated;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForAllTasksRunning;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCheckpointInProgress;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCompletedCheckpoint;
@@ -103,11 +104,6 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
 
         // Transition job and all subtasks to RUNNING state.
         waitForJobStatusRunning(scheduler);
-        runInMainThread(() -> setAllExecutionsToRunning(scheduler));
-        // Wait for all task executions to actually reach RUNNING state before triggering
-        // checkpoint.
-        // In slower CI environments, state transitions may not complete immediately, causing
-        // checkpoint triggers to be rejected if tasks are still in DEPLOYING/INITIALIZING state.
         final ExecutionGraph executionGraph =
                 scheduler
                         .getState()
@@ -115,6 +111,16 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
                         .map(StateWithExecutionGraph::getExecutionGraph)
                         .orElseThrow(
                                 () -> new IllegalStateException("ExecutionGraph not available"));
+
+        // Forcing RUNNING while the asynchronous descriptor creation is still in flight fails the
+        // deployment and restarts the job, so the checkpoint below would never register.
+        waitForAllTasksDeploymentDescriptorsCreated(executionGraph);
+
+        runInMainThread(() -> setAllExecutionsToRunning(scheduler));
+        // Wait for all task executions to actually reach RUNNING state before triggering
+        // checkpoint.
+        // In slower CI environments, state transitions may not complete immediately, causing
+        // checkpoint triggers to be rejected if tasks are still in DEPLOYING/INITIALIZING state.
         waitForAllTasksRunning(executionGraph);
 
         // Trigger a checkpoint

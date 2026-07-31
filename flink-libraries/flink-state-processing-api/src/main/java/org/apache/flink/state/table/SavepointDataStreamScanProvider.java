@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.SavepointReader;
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.ProviderContext;
@@ -53,6 +54,7 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
     private final TypeInformation keyTypeInfo;
     private final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections;
     private final RowType rowType;
+    @Nullable private final SavepointKeyFilter keyFilter;
 
     public SavepointDataStreamScanProvider(
             @Nullable final String stateBackendType,
@@ -61,12 +63,31 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
             final TypeInformation keyTypeInfo,
             final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections,
             RowType rowType) {
+        this(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                keyTypeInfo,
+                keyValueProjections,
+                rowType,
+                null);
+    }
+
+    public SavepointDataStreamScanProvider(
+            @Nullable final String stateBackendType,
+            final String statePath,
+            final OperatorIdentifier operatorIdentifier,
+            final TypeInformation keyTypeInfo,
+            final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections,
+            RowType rowType,
+            @Nullable SavepointKeyFilter keyFilter) {
         this.stateBackendType = stateBackendType;
         this.statePath = statePath;
         this.operatorIdentifier = operatorIdentifier;
         this.keyTypeInfo = keyTypeInfo;
         this.keyValueProjections = keyValueProjections;
         this.rowType = rowType;
+        this.keyFilter = keyFilter;
     }
 
     @Override
@@ -133,7 +154,8 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
                     operatorIdentifier,
                     new KeyedStateReader(rowType, keyValueProjections),
                     keyTypeInfo,
-                    outTypeInfo);
+                    outTypeInfo,
+                    keyFilter);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

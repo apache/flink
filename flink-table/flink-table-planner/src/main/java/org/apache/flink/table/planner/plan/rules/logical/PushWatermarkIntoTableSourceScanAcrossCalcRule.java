@@ -94,7 +94,7 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
                                 rowtimeExpr.getType().getSqlTypeName()
                                         == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE),
                         rowtimeExpr,
-                        null);
+                        builder.makeLiteral(false));
         RexNode newWatermarkExpr =
                 watermarkAssigner
                         .watermarkExpr()

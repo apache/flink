@@ -18,14 +18,9 @@
 
 package org.apache.flink.orc.writer;
 
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RecordVectorizer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
-import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.Test;
@@ -35,6 +30,8 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for the ORC BulkWriter implementation. */
 class OrcBulkWriterTest {
@@ -48,31 +45,17 @@ class OrcBulkWriterTest {
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
-        final OrcBulkWriterFactory<Record> writer =
+        final OrcBulkWriterFactory<Record> writerFactory =
                 new OrcBulkWriterFactory<>(
                         new RecordVectorizer(schema), writerProps, new Configuration());
 
-        StreamingFileSink<Record> sink =
-                StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
-                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .withBucketCheckInterval(10000)
-                        .build();
+        // Mimic a single bucket directory so the shared OrcBulkWriterTestUtil.validate applies.
+        final File bucketDir = new File(outDir, "test");
+        assertThat(bucketDir.mkdirs()).isTrue();
 
-        try (OneInputStreamOperatorTestHarness<Record, Object> testHarness =
-                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
+        OrcBulkWriterTestUtil.writeRecordsToFile(
+                new File(bucketDir, "part-0-0"), writerFactory, input);
 
-            testHarness.setup();
-            testHarness.open();
-
-            int time = 0;
-            for (final Record record : input) {
-                testHarness.processElement(record, ++time);
-            }
-
-            testHarness.snapshot(1, ++time);
-            testHarness.notifyOfCompletedCheckpoint(1);
-
-            OrcBulkWriterTestUtil.validate(outDir, input);
-        }
+        OrcBulkWriterTestUtil.validate(outDir, input);
     }
 }

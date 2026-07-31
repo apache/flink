@@ -130,7 +130,7 @@ class SplitFetcherManagerTest {
 
         waitUntil(
                 () -> findThread(SplitFetcherManager.THREAD_NAME_PREFIX).size() == 2,
-                Duration.ofSeconds(30),
+                Duration.ofSeconds(60),
                 "The element queue draining thread should have started.");
         for (Thread t : findThread(SplitFetcherManager.THREAD_NAME_PREFIX)) {
             waitUntil(

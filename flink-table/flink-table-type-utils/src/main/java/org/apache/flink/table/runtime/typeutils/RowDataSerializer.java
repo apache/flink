@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,6 +41,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -51,6 +54,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
     private BinaryRowDataSerializer binarySerializer;
     private final LogicalType[] types;
+    private final @Nullable String[] fieldNames;
     private final TypeSerializer[] fieldSerializers;
     private final RowData.FieldGetter[] fieldGetters;
 
@@ -62,7 +66,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
                 rowType.getChildren().toArray(new LogicalType[0]),
                 rowType.getChildren().stream()
                         .map(InternalSerializers::create)
-                        .toArray(TypeSerializer[]::new));
+                        .toArray(TypeSerializer[]::new),
+                rowType.getFieldNames().toArray(new String[0]));
     }
 
     public RowDataSerializer(LogicalType... types) {
@@ -74,7 +79,15 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     }
 
     public RowDataSerializer(LogicalType[] types, TypeSerializer<?>[] fieldSerializers) {
+        this(types, fieldSerializers, null);
+    }
+
+    private RowDataSerializer(
+            LogicalType[] types,
+            TypeSerializer<?>[] fieldSerializers,
+            @Nullable String[] fieldNames) {
         this.types = types;
+        this.fieldNames = fieldNames;
         this.fieldSerializers = fieldSerializers;
         this.binarySerializer = new BinaryRowDataSerializer(types.length);
         this.fieldGetters =
@@ -83,13 +96,24 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
                         .toArray(RowData.FieldGetter[]::new);
     }
 
+    @VisibleForTesting
+    @Nullable
+    String[] getFieldNames() {
+        return fieldNames;
+    }
+
+    @VisibleForTesting
+    TypeSerializer[] fieldSerializers() {
+        return fieldSerializers;
+    }
+
     @Override
     public TypeSerializer<RowData> duplicate() {
         TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
         for (int i = 0; i < fieldSerializers.length; i++) {
             duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
         }
-        return new RowDataSerializer(types, duplicateFieldSerializers);
+        return new RowDataSerializer(types, duplicateFieldSerializers, fieldNames);
     }
 
     @Override
@@ -274,14 +298,15 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
     @Override
     public TypeSerializerSnapshot<RowData> snapshotConfiguration() {
-        return new RowDataSerializerSnapshot(types, fieldSerializers);
+        return new RowDataSerializerSnapshot(types, fieldSerializers, fieldNames);
     }
 
     /** {@link TypeSerializerSnapshot} for {@link BinaryRowDataSerializer}. */
     public static final class RowDataSerializerSnapshot implements TypeSerializerSnapshot<RowData> {
-        private static final int CURRENT_VERSION = 3;
+        private static final int CURRENT_VERSION = 4;
 
         private LogicalType[] types;
+        private @Nullable String[] fieldNames;
         private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
         @SuppressWarnings("unused")
@@ -289,8 +314,10 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             // this constructor is used when restoring from a checkpoint/savepoint.
         }
 
-        RowDataSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
+        RowDataSerializerSnapshot(
+                LogicalType[] types, TypeSerializer[] serializers, @Nullable String[] fieldNames) {
             this.types = types;
+            this.fieldNames = fieldNames;
             this.nestedSerializersSnapshotDelegate =
                     new NestedSerializersSnapshotDelegate(serializers);
         }
@@ -308,6 +335,14 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
                 InstantiationUtil.serializeObject(stream, previousType);
             }
             nestedSerializersSnapshotDelegate.writeNestedSerializerSnapshots(out);
+            // A false flag means no field names (null); the count is not stored because it always
+            // equals the number of fields.
+            out.writeBoolean(fieldNames != null);
+            if (fieldNames != null) {
+                for (String fieldName : fieldNames) {
+                    out.writeUTF(fieldName);
+                }
+            }
         }
 
         @Override
@@ -327,12 +362,20 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             this.nestedSerializersSnapshotDelegate =
                     NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(
                             in, userCodeClassLoader);
+            if (readVersion >= 4 && in.readBoolean()) {
+                fieldNames = new String[types.length];
+                for (int i = 0; i < types.length; i++) {
+                    fieldNames[i] = in.readUTF();
+                }
+            }
         }
 
         @Override
         public RowDataSerializer restoreSerializer() {
             return new RowDataSerializer(
-                    types, nestedSerializersSnapshotDelegate.getRestoredNestedSerializers());
+                    types,
+                    nestedSerializersSnapshotDelegate.getRestoredNestedSerializers(),
+                    fieldNames);
         }
 
         @Override

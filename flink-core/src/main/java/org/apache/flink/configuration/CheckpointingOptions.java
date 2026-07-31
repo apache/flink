@@ -611,6 +611,31 @@ public class CheckpointingOptions {
                                     + " For this feature to be enabled, it must be also supported by the operator."
                                     + " Currently this is supported by all TableStreamOperators and CepOperator.");
 
+    /**
+     * Controls whether an intermediate watermark is emitted while a watermark advance is
+     * interrupted before completing, for unaligned checkpoints with interruptible timers enabled
+     * (see {@link #ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS}). Has no effect unless interruptible
+     * timers are enabled. The emission interval is governed by {@link
+     * PipelineOptions#AUTO_WATERMARK_INTERVAL}, the same as regular periodic watermark generation,
+     * since both have comparable performance implications.
+     */
+    @Experimental
+    public static final ConfigOption<Boolean>
+            UNALIGNED_INTERRUPTIBLE_TIMERS_EMIT_INTERMEDIATE_WATERMARKS =
+                    ConfigOptions.key(
+                                    "execution.checkpointing.unaligned.interruptible-timers.emit-intermediate-watermarks")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "When unaligned checkpoints with interruptible timers are enabled (see"
+                                            + " 'execution.checkpointing.unaligned.interruptible-timers.enabled') and"
+                                            + " firing the timers due for a watermark advance is interrupted before"
+                                            + " completing, an intermediate watermark reflecting the progress made so"
+                                            + " far is emitted downstream, at most as often as configured by"
+                                            + " 'pipeline.auto-watermark-interval'. This keeps downstream operators"
+                                            + " from stalling on watermark progress during a long-running catch-up."
+                                            + " Set to false to disable intermediate watermark emission.");
+
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
             ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish")
                     .booleanType()

@@ -81,7 +81,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testInvalidUdAggArgs() {
+  def testInvalidUdAggArgs(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -93,7 +93,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testGroupingInvalidUdAggArgs() {
+  def testGroupingInvalidUdAggArgs(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -108,7 +108,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testGroupingNestedUdAgg() {
+  def testGroupingNestedUdAgg(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -123,7 +123,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testAggregationOnNonExistingFieldJava() {
+  def testAggregationOnNonExistingFieldJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -132,7 +132,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testNonWorkingAggregationDataTypesJava() {
+  def testNonWorkingAggregationDataTypesJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
@@ -141,7 +141,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testNoNestedAggregationsJava() {
+  def testNoNestedAggregationsJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
@@ -150,7 +150,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testNoDeeplyNestedAggregationsJava() {
+  def testNoDeeplyNestedAggregationsJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Long, String)]("Table2", 'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
@@ -160,7 +160,7 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test
   @throws[Exception]
-  def testGroupingOnNonExistentFieldJava() {
+  def testGroupingOnNonExistentFieldJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -170,7 +170,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testGroupingInvalidSelectionJava() {
+  def testGroupingInvalidSelectionJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -183,7 +183,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testUnknownUdAggJava() {
+  def testUnknownUdAggJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -193,7 +193,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testGroupingUnknownUdAggJava() {
+  def testGroupingUnknownUdAggJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -206,7 +206,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testInvalidUdAggArgsJava() {
+  def testInvalidUdAggArgsJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
@@ -219,7 +219,7 @@ class AggregateValidationTest extends TableTestBase {
   }
 
   @Test
-  def testGroupingInvalidUdAggArgsJava() {
+  def testGroupingInvalidUdAggArgsJava(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 

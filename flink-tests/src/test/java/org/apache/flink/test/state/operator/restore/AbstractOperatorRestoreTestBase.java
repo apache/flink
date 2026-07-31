@@ -19,6 +19,7 @@
 package org.apache.flink.test.state.operator.restore;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
@@ -63,6 +64,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -187,15 +189,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
 
         clusterClient.submitJob(jobToMigrate).get();
 
-        CompletableFuture<JobStatus> jobRunningFuture =
-                FutureUtils.retrySuccessfulWithDelay(
-                        () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Duration.ofMillis(50),
-                        deadline,
-                        (jobStatus) -> jobStatus == JobStatus.RUNNING,
-                        scheduledExecutor);
-        assertThat(jobRunningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
-                .isEqualTo(JobStatus.RUNNING);
+        waitForJobStatus(clusterClient, jobToMigrate.getJobID(), deadline, JobStatus.RUNNING);
 
         // Trigger savepoint
         String savepointPath = null;
@@ -224,15 +218,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
 
         assertThat(savepointPath).as("Could not take savepoint.").isNotNull();
 
-        CompletableFuture<JobStatus> jobCanceledFuture =
-                FutureUtils.retrySuccessfulWithDelay(
-                        () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Duration.ofMillis(50),
-                        deadline,
-                        (jobStatus) -> jobStatus == JobStatus.CANCELED,
-                        scheduledExecutor);
-        assertThat(jobCanceledFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
-                .isEqualTo(JobStatus.CANCELED);
+        waitForJobStatus(clusterClient, jobToMigrate.getJobID(), deadline, JobStatus.CANCELED);
 
         return savepointPath;
     }
@@ -247,15 +233,43 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
 
         clusterClient.submitJob(jobToRestore).get();
 
-        CompletableFuture<JobStatus> jobStatusFuture =
+        waitForJobStatus(clusterClient, jobToRestore.getJobID(), deadline, JobStatus.FINISHED);
+    }
+
+    /**
+     * Waits until the job reaches {@code targetStatus}, failing fast if the job reaches a globally
+     * terminal state that is not the target (for example {@code FAILED} when waiting for {@code
+     * FINISHED}) instead of retrying until the deadline.
+     */
+    private void waitForJobStatus(
+            ClusterClient<?> clusterClient, JobID jobId, Deadline deadline, JobStatus targetStatus)
+            throws Exception {
+        final CompletableFuture<JobStatus> statusFuture =
                 FutureUtils.retrySuccessfulWithDelay(
-                        () -> clusterClient.getJobStatus(jobToRestore.getJobID()),
+                        () ->
+                                clusterClient
+                                        .getJobStatus(jobId)
+                                        .thenApply(
+                                                jobStatus -> {
+                                                    if (jobStatus != targetStatus
+                                                            && jobStatus
+                                                                    .isGloballyTerminalState()) {
+                                                        throw new CompletionException(
+                                                                new IllegalStateException(
+                                                                        String.format(
+                                                                                "Job %s reached terminal state %s while waiting for %s.",
+                                                                                jobId,
+                                                                                jobStatus,
+                                                                                targetStatus)));
+                                                    }
+                                                    return jobStatus;
+                                                }),
                         Duration.ofMillis(50),
                         deadline,
-                        (jobStatus) -> jobStatus == JobStatus.FINISHED,
+                        jobStatus -> jobStatus == targetStatus,
                         scheduledExecutor);
-        assertThat(jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
-                .isEqualTo(JobStatus.FINISHED);
+        assertThat(statusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                .isEqualTo(targetStatus);
     }
 
     private JobGraph createJobGraph(ExecutionMode mode) {

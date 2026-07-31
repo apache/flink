@@ -22,12 +22,15 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -47,7 +50,10 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -62,6 +68,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkTypeFactory}. */
 @Execution(ExecutionMode.CONCURRENT)
@@ -135,6 +142,47 @@ class FlinkTypeFactoryTest {
                         FlinkTypeFactory.toLogicalType(
                                 typeFactory.createFieldTypeFromLogicalType(logicalType.copy(true))))
                 .isEqualTo(logicalType.copy(true));
+    }
+
+    @Test
+    void testDayTimeIntervalLeadingPrecisionUpToMaxIsSupported() {
+        FlinkTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+
+        RelDataType intervalType =
+                typeFactory.createSqlIntervalType(
+                        new SqlIntervalQualifier(
+                                TimeUnit.DAY,
+                                DayTimeIntervalType.MAX_DAY_PRECISION,
+                                TimeUnit.SECOND,
+                                RelDataType.PRECISION_NOT_SPECIFIED,
+                                SqlParserPos.ZERO));
+
+        assertThat(FlinkTypeFactory.toLogicalType(intervalType))
+                .isEqualTo(DataTypes.INTERVAL(DataTypes.SECOND(3)).notNull().getLogicalType());
+    }
+
+    @Test
+    void testDayTimeIntervalLeadingPrecisionAboveMaxIsRejected() {
+        FlinkTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+
+        RelDataType intervalType =
+                typeFactory.createSqlIntervalType(
+                        new SqlIntervalQualifier(
+                                TimeUnit.DAY,
+                                DayTimeIntervalType.MAX_DAY_PRECISION + 1,
+                                TimeUnit.SECOND,
+                                RelDataType.PRECISION_NOT_SPECIFIED,
+                                SqlParserPos.ZERO));
+
+        assertThatThrownBy(() -> FlinkTypeFactory.toLogicalType(intervalType))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "DAY_INTERVAL_TYPES precision is not supported: "
+                                + (DayTimeIntervalType.MAX_DAY_PRECISION + 1));
     }
 
     @Test

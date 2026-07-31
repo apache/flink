@@ -18,8 +18,13 @@
 
 package org.apache.flink.sql.parser.ddl.view;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -31,12 +36,28 @@ import java.util.List;
 /** ALTER DDL to rename a view. */
 public class SqlAlterViewRename extends SqlAlterView {
 
+    private static final SqlSpecialOperator RENAME_OPERATOR =
+            new SqlSpecialOperator("ALTER VIEW RENAME", SqlKind.ALTER_VIEW) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterViewRename(
+                            pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1]);
+                }
+            };
+
     private final SqlIdentifier newViewIdentifier;
 
     public SqlAlterViewRename(
             SqlParserPos pos, SqlIdentifier viewIdentifier, SqlIdentifier newViewIdentifier) {
         super(pos, viewIdentifier);
         this.newViewIdentifier = newViewIdentifier;
+    }
+
+    @Nonnull
+    @Override
+    public SqlOperator getOperator() {
+        return RENAME_OPERATOR;
     }
 
     @Nonnull

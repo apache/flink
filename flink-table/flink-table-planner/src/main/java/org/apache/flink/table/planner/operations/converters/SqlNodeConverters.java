@@ -90,6 +90,7 @@ public class SqlNodeConverters {
         register(new SqlShowProcedureConverter());
 
         registerCatalogConverters();
+        registerConnectionConverters();
         registerMaterializedTableConverters();
         registerModelConverters();
         registerTableConverters();
@@ -136,6 +137,10 @@ public class SqlNodeConverters {
         register(new SqlDescribeCatalogConverter());
         register(new SqlShowCatalogsConverter());
         register(new SqlShowCreateCatalogConverter());
+    }
+
+    private static void registerConnectionConverters() {
+        register(new SqlCreateConnectionConverter());
     }
 
     private static void registerMaterializedTableConverters() {

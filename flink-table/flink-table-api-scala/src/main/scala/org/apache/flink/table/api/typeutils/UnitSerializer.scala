@@ -29,7 +29,7 @@ import java.util.function.Supplier
 @SerialVersionUID(5413377487955047394L)
 class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
-  def isImmutableType(): Boolean = true
+  def isImmutableType: Boolean = true
 
   def createInstance(): Unit = ()
 
@@ -37,9 +37,9 @@ class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
   def copy(from: Unit, reuse: Unit): Unit = ()
 
-  def getLength(): Int = 1
+  def getLength: Int = 1
 
-  def serialize(record: Unit, target: DataOutputView) {
+  def serialize(record: Unit, target: DataOutputView): Unit = {
     target.write(0)
   }
 

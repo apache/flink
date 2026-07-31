@@ -468,7 +468,7 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
    * @param revenue
    *   The revenue for the ad
    */
-  def accumulate(acc: Array[JTuple2[JInt, JFloat]], adId: Int, revenue: Float) {
+  def accumulate(acc: Array[JTuple2[JInt, JFloat]], adId: Int, revenue: Float): Unit = {
 
     var i = 9
     var skipped = 0

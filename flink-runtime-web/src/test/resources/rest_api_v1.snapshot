@@ -180,7 +180,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "maxExceptions",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "object",

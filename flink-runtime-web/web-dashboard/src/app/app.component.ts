@@ -81,5 +81,8 @@ export class AppComponent {
     this.cdr.markForCheck();
   }
 
-  constructor(public statusService: StatusService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    public statusService: StatusService,
+    private cdr: ChangeDetectorRef
+  ) {}
 }

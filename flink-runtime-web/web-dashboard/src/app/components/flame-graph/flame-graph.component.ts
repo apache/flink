@@ -19,11 +19,9 @@
 import { Component, ChangeDetectionStrategy, ElementRef, Input, ViewChild } from '@angular/core';
 
 import { FlameGraphType, JobFlameGraphNode } from '@flink-runtime-web/interfaces';
-import * as _d3 from 'd3';
-import { flamegraph, offCpuColorMapper } from 'd3-flame-graph';
+import flamegraph, { colorMapper, tooltip } from 'd3-flame-graph';
 import { format } from 'd3-format';
 import { select } from 'd3-selection';
-import _d3Tip from 'd3-tip';
 
 @Component({
   selector: 'flink-flame-graph',
@@ -40,21 +38,14 @@ export class FlameGraphComponent {
       const element = this.flameGraphContainer.nativeElement;
       const chart = flamegraph().width(element.clientWidth);
 
-      const d3 = { ..._d3, tip: _d3Tip };
-
-      const tip = d3
-        .tip()
-        .direction('s')
-        .offset([8, 0])
-        .attr('class', 'd3-flame-graph-tip')
-        .html(function (d: { data: { name: string; value: string }; x1: number; x0: number }) {
-          return `${d.data.name} (${format('.3f')(100 * (d.x1 - d.x0))}%, ${d.data.value} samples)`;
-        });
+      const tip = tooltip
+        .defaultFlamegraphTooltip()
+        .html(d => `${d.data.name} (${format('.3f')(100 * (d.x1 - d.x0))}%, ${d.data.value} samples)`);
 
       chart.tooltip(tip);
 
       if (this.graphType == FlameGraphType.OFF_CPU) {
-        chart.setColorMapper(offCpuColorMapper);
+        chart.setColorMapper(colorMapper.offCpuColorMapper);
       }
 
       select(element).selectAll('*').remove();

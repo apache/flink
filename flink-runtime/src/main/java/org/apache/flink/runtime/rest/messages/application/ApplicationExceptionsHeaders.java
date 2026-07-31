@@ -22,7 +22,6 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.application.ApplicationExceptionsHandler;
 import org.apache.flink.runtime.rest.messages.ApplicationExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.ApplicationIDPathParameter;
-import org.apache.flink.runtime.rest.messages.ApplicationMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
@@ -33,7 +32,7 @@ public class ApplicationExceptionsHeaders
         implements RuntimeMessageHeaders<
                 EmptyRequestBody,
                 ApplicationExceptionsInfoWithHistory,
-                ApplicationMessageParameters> {
+                ApplicationExceptionsMessageParameters> {
 
     private static final ApplicationExceptionsHeaders INSTANCE = new ApplicationExceptionsHeaders();
 
@@ -58,8 +57,8 @@ public class ApplicationExceptionsHeaders
     }
 
     @Override
-    public ApplicationMessageParameters getUnresolvedMessageParameters() {
-        return new ApplicationMessageParameters();
+    public ApplicationExceptionsMessageParameters getUnresolvedMessageParameters() {
+        return new ApplicationExceptionsMessageParameters();
     }
 
     @Override

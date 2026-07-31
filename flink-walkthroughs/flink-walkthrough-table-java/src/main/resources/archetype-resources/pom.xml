@@ -34,7 +34,7 @@ under the License.
 		<target.java.version>11</target.java.version>
 		<maven.compiler.source>${target.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
-		<log4j.version>2.25.3</log4j.version>
+		<log4j.version>@log4j.version@</log4j.version>
 		<junit.version>5.14.1</junit.version>
 	</properties>
 

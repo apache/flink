@@ -33,6 +33,9 @@ import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.AsyncCodeGenerator.DEFAULT_DELEGATING_FUTURE_TERM
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.functions.DefaultExpressionEvaluator
@@ -49,6 +52,9 @@ import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
+import org.apache.calcite.rex.{RexCall, RexCallBinding, RexProgram}
+
+import java.util.Collections
 import java.util.concurrent.CompletableFuture
 
 import scala.collection.JavaConverters._
@@ -97,6 +103,93 @@ object BridgingFunctionGenUtil {
       udf: UserDefinedFunction,
       functionName: String,
       skipIfArgsNull: Boolean): (GeneratedExpression, DataType) = {
+    val result = generateFunctionAwareCallWithDataTypeAndTimeout(
+      ctx,
+      operands,
+      returnType,
+      inference,
+      callContext,
+      udf,
+      functionName,
+      skipIfArgsNull)
+    (result._1, result._3)
+  }
+
+  /**
+   * Resolves the [[BridgingSqlFunction]] wrapping a [[RexCall]] to a [[UserDefinedFunction]] and
+   * generates both the eval-call expression and (for async table functions) an optional timeout-
+   * call expression. Mirrors [[BridgingSqlFunctionCallGen.generate]] but additionally returns the
+   * timeout-call so that callers driving an [[AsyncFunction]] codegen path (currently
+   * [[org.apache.flink.table.planner.codegen.AsyncCorrelateCodeGenerator]]) can render a custom
+   * `timeout(...)` method on the generated subclass.
+   *
+   * <p>Used in correlate-query codegen where the top-level [[RexCall]] is known to be an async
+   * table function invocation; lookup-join codegen still uses
+   * [[generateFunctionAwareCallWithDataTypeAndTimeout]] directly because it constructs the type
+   * inference from the [[org.apache.flink.table.connector.source.LookupTableSource]] schema rather
+   * than the function definition.
+   */
+  def generateBridgingFunctionCallWithTimeout(
+      ctx: CodeGeneratorContext,
+      call: RexCall,
+      rexProgram: RexProgram,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType,
+      skipIfArgsNull: Boolean): (GeneratedExpression, Option[GeneratedExpression], DataType) = {
+    val function = call.getOperator.asInstanceOf[BridgingSqlFunction]
+    val definition = function.getDefinition
+    val dataTypeFactory = function.getDataTypeFactory
+    val rexFactory = function.getRexFactory
+
+    val callContext = new OperatorBindingCallContext(
+      dataTypeFactory,
+      definition,
+      RexCallBinding.create(function.getTypeFactory, call, rexProgram, Collections.emptyList()),
+      call.getType)
+
+    val udf = UserDefinedFunctionHelper.createSpecializedFunction(
+      function.getName,
+      definition,
+      callContext,
+      classOf[PlannerBase].getClassLoader,
+      ctx.tableConfig,
+      new DefaultExpressionEvaluatorFactory(ctx.tableConfig, ctx.classLoader, rexFactory)
+    )
+    val inference = udf.getTypeInference(dataTypeFactory)
+
+    generateFunctionAwareCallWithDataTypeAndTimeout(
+      ctx,
+      operands,
+      returnType,
+      inference,
+      callContext,
+      udf,
+      function.toString,
+      skipIfArgsNull)
+  }
+
+  /**
+   * Like [[generateFunctionAwareCallWithDataType]] but additionally returns an optional
+   * timeout-call expression when the UDF is an [[AsyncTableFunction]] (or its
+   * [[org.apache.flink.table.functions.AsyncLookupFunction]] subclass) that declares a public,
+   * non-static `timeout(CompletableFuture, ...)` method whose parameter list matches the call site.
+   * When the user UDF does not declare such a method, the returned timeout-call is empty and the
+   * generated `AsyncFunction` falls back to the framework default that completes the future with a
+   * [[java.util.concurrent.TimeoutException]].
+   *
+   * <p>An illegal `timeout` signature (e.g., parameter count or types incompatible with the lookup
+   * keys) triggers a [[org.apache.flink.table.api.ValidationException]] that bubbles up to fail the
+   * job at submit / operator init time, so misconfigurations never reach the data path.
+   */
+  def generateFunctionAwareCallWithDataTypeAndTimeout(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType,
+      inference: TypeInference,
+      callContext: CallContext,
+      udf: UserDefinedFunction,
+      functionName: String,
+      skipIfArgsNull: Boolean): (GeneratedExpression, Option[GeneratedExpression], DataType) = {
 
     // enrich argument types with conversion class
     val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
@@ -114,33 +207,45 @@ object BridgingFunctionGenUtil {
       enrichedOutputDataType,
       udf,
       functionName)
-    val call = generateFunctionAwareCall(
+
+    val functionTerm = ctx.addReusableFunction(udf)
+    val externalOperands = prepareExternalOperands(ctx, operands, enrichedArgumentDataTypes)
+
+    val call = generateFunctionAwareCallFromPreparedOperands(
       ctx,
-      operands,
-      enrichedArgumentDataTypes,
+      functionTerm,
+      externalOperands,
       enrichedOutputDataType,
       returnType,
       udf,
       skipIfArgsNull,
       None)
-    (call, enrichedOutputDataType)
+
+    val timeoutCall = if (udf.getKind == FunctionKind.ASYNC_TABLE) {
+      generateAsyncTableFunctionTimeoutCall(
+        udf,
+        functionName,
+        enrichedArgumentDataTypes,
+        functionTerm,
+        externalOperands,
+        returnType,
+        enrichedOutputDataType,
+        skipIfArgsNull)
+    } else {
+      None
+    }
+    (call, timeoutCall, enrichedOutputDataType)
   }
 
-  private def generateFunctionAwareCall(
+  private def generateFunctionAwareCallFromPreparedOperands(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      argumentDataTypes: Seq[DataType],
+      functionTerm: String,
+      externalOperands: Seq[GeneratedExpression],
       outputDataType: DataType,
       returnType: LogicalType,
       udf: UserDefinedFunction,
       skipIfArgsNull: Boolean,
       contextTerm: Option[String]): GeneratedExpression = {
-
-    val functionTerm = ctx.addReusableFunction(udf)
-
-    // operand conversion
-    val externalOperands = prepareExternalOperands(ctx, operands, argumentDataTypes)
-
     if (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE) {
       generateTableFunctionCall(
         ctx,
@@ -167,6 +272,75 @@ object BridgingFunctionGenUtil {
         outputDataType)
     } else {
       generateScalarFunctionCall(ctx, functionTerm, externalOperands, outputDataType)
+    }
+  }
+
+  /**
+   * Generates the body of the `timeout(...)` method that is rendered into a codegen
+   * `RichAsyncFunction` subclass when the user UDF declares a legal `timeout` method. Mirrors
+   * [[generateAsyncTableFunctionCall]] except the generated code invokes `function.timeout(...)`
+   * instead of `function.eval(...)` and reuses the SAME UDF instance registered by the eval path.
+   */
+  private def generateAsyncTableFunctionTimeoutCall(
+      udf: UserDefinedFunction,
+      functionName: String,
+      enrichedArgumentDataTypes: Seq[DataType],
+      functionTerm: String,
+      externalOperands: Seq[GeneratedExpression],
+      returnType: LogicalType,
+      outputDataType: DataType,
+      skipIfArgsNull: Boolean): Option[GeneratedExpression] = {
+    val argumentClasses = enrichedArgumentDataTypes.map(_.getConversionClass).toArray
+    val hasTimeout =
+      validateAsyncTableFunctionTimeoutClass(udf.getClass, argumentClasses, functionName)
+    if (!hasTimeout) {
+      None
+    } else {
+      val DELEGATE_ASYNC_TABLE = className[DelegatingAsyncTableResultFuture]
+      val outputType = outputDataType.getLogicalType
+      val needsWrapping = !isCompositeType(outputType)
+      val isInternal = DataTypeUtils.isInternal(outputDataType)
+      // Enforce AsyncTableFunction's synchronous-completion contract for timeout(...):
+      // the handler MUST complete the future before it returns. If it doesn't (typically
+      // because the user issued another async call and stored the future for a later
+      // callback), the AsyncWaitOperator's ResultHandler would never be released and the
+      // downstream record would hang until shutdown. Fail fast here instead.
+      //
+      // We deliberately do NOT wrap the call in try/catch. Synchronous throws are already
+      // caught by AsyncCorrelateRunner.timeout / AsyncLookupJoinRunner.timeout and forwarded
+      // to the ResultFuture, so duplicating that here would only obscure the contract.
+      val callTimeoutCode =
+        s"""
+           |$functionTerm.timeout(
+           |  delegates.getCompletableFuture(),
+           |  ${externalOperands.map(_.resultTerm).mkString(", ")});
+           |if (!delegates.getCompletableFuture().isDone()) {
+           |  delegates.getCompletableFuture().completeExceptionally(
+           |    new IllegalStateException(
+           |      "AsyncTableFunction.timeout(...) must complete the future synchronously; "
+           |        + "issuing another async call from inside timeout() is not allowed."));
+           |}
+           |""".stripMargin
+      val functionCallCode = if (skipIfArgsNull) {
+        s"""
+           |${externalOperands.map(_.code).mkString("\n")}
+           |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
+           |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
+           |} else {
+           |  $DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
+           |      $needsWrapping, $isInternal);
+           |  $callTimeoutCode
+           |}
+           |""".stripMargin
+      } else {
+        s"""
+           |${externalOperands.map(_.code).mkString("\n")}
+           |$DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
+           |      $needsWrapping, $isInternal);
+           |$callTimeoutCode
+           |""".stripMargin
+      }
+      Some(GeneratedExpression(NO_CODE, NEVER_NULL, functionCallCode, returnType))
     }
   }
 

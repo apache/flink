@@ -362,7 +362,9 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
                     compositeKeyBuilder.buildCompositeKeyUserKey(entry.getKey(), userKeySerializer);
             Object userValue = entry.getValue();
             valueOut.writeBoolean(userValue == null);
-            userValueSerializer.serialize(userValue, valueOut);
+            if (userValue != null) {
+                userValueSerializer.serialize(userValue, valueOut);
+            }
             currentValue = valueOut.getCopyOfBuffer();
 
             if (!mapEntries.hasNext()) {

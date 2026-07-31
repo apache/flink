@@ -43,14 +43,14 @@ jobs:
     name: "Basic QA"
     runs-on: ubuntu-24.04
     container:
-      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
 
     steps:
       - name: "Flink Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -59,19 +59,36 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
 
-      - name: "Checkstyle"
-        uses: "./.github/actions/run_mvn"
+      - name: "Resolve last green commit for spotless ratchet"
+        id: last-green
+        uses: "./.github/actions/last_workflow_run"
         with:
-          maven-parameters: "checkstyle:check -T1C"
+          workflow_id: "ci.yml"
+          branch: ${{ github.ref_name }}
+          status: "success"
 
-      - name: "Spotless"
-        if: (success() || failure())
+      - name: "Fetch last green commit"
+        if: steps.last-green.outputs.sha != ''
+        shell: bash
+        run: |
+          sha="${{ steps.last-green.outputs.sha }}"
+          if git -c safe.directory='*' fetch --depth=1 origin "${sha}" \
+             && git -c safe.directory='*' cat-file -e "${sha}^{commit}"; then
+            echo "RATCHET_SHA=${sha}" >> "${GITHUB_ENV}"
+            echo "Ratcheting spotless from ${sha}"
+          else
+            echo "Could not fetch ${sha}; running full spotless check."
+          fi
+
+      - name: "Checkstyle & Spotless"
         uses: "./.github/actions/run_mvn"
         with:
-          maven-parameters: "spotless:check -T1C"
+          maven-parameters: >-
+            checkstyle:check spotless:check -T1C -fae
+            ${{ env.RATCHET_SHA && format('-Dspotless.ratchetFrom={0}', env.RATCHET_SHA) || '' }}
 
       - name: "License Headers"
         if: (success() || failure())
         uses: "./.github/actions/run_mvn"
         with:
-          maven-parameters: "org.apache.rat:apache-rat-plugin:check -N"
+          maven-parameters: "-T1C org.apache.rat:apache-rat-plugin:check -N"

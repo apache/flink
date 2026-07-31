@@ -76,6 +76,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,6 +109,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     // This version can be set to generate savepoints for a particular Flink version.
     // By default, the savepoint is generated for the current version in the default directory.
     private static final FlinkVersion FLINK_VERSION = null;
+
+    // Bounds the wait for the expected sink results so a stuck job (e.g. an unlucky
+    // processing-time window split) fails the test instead of hanging the fork.
+    private static final long RESULT_AWAIT_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
     private final AfterRestoreSource afterRestoreSource;
@@ -277,6 +284,58 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     }
 
     /**
+     * Awaits the point during {@link #generateTestSetupFiles} at which the stop-with-savepoint
+     * should be triggered. The default waits until every sink has produced its "before restore"
+     * expected rows.
+     *
+     * <p>Override for operators that produce no output at the point of interest or when the test
+     * logic requires more customized savepoint triggering (e.g., based on processed input). See
+     * {@link TestValuesTableFactory#awaitSourceEmitted(String, int)}.
+     */
+    protected void awaitSavepointReady(
+            final TableTestProgram program, final List<CompletableFuture<?>> futures)
+            throws Exception {
+        awaitExpectedResults(program, futures, true);
+    }
+
+    private void awaitExpectedResults(
+            final TableTestProgram program,
+            final List<CompletableFuture<?>> futures,
+            final boolean ignoreAfter)
+            throws Exception {
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(RESULT_AWAIT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            final StringBuilder message = new StringBuilder();
+            message.append("Sink did not produce the expected results within ")
+                    .append(RESULT_AWAIT_TIMEOUT_MILLIS)
+                    .append(" ms for program '")
+                    .append(program.id)
+                    .append("'.");
+            for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
+                // Mirror the expected set the observer waits on, so the dump is exact.
+                final List<String> expected =
+                        new ArrayList<>(sinkTestStep.getExpectedBeforeRestoreAsStrings());
+                if (!ignoreAfter) {
+                    expected.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
+                }
+                message.append(System.lineSeparator())
+                        .append("Sink '")
+                        .append(sinkTestStep.name)
+                        .append("' expected results: ")
+                        .append(expected)
+                        .append(System.lineSeparator())
+                        .append("Sink '")
+                        .append(sinkTestStep.name)
+                        .append("' actual results: ")
+                        .append(getActualResults(sinkTestStep, sinkTestStep.name));
+            }
+            throw new AssertionError(message.toString(), e);
+        }
+    }
+
+    /**
      * Execute this test to generate test files. Remember to be using the correct branch when
      * generating the test files.
      */
@@ -293,6 +352,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 .set(
                         TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanCompilation.SCHEMA);
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataBeforeRestore);
@@ -336,12 +396,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+        awaitSavepointReady(program, futures);
         final JobClient jobClient = tableResult.getJobClient().get();
-        final String savepoint =
-                jobClient
-                        .stopWithSavepoint(false, tmpDir.toString(), SavepointFormatType.DEFAULT)
-                        .get();
+        final String savepoint = stopWithSavepointWhenRunning(jobClient);
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
         final Path savepointDirPath =
@@ -371,6 +428,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 .set(
                         TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
@@ -431,8 +489,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         if (afterRestoreSource == AfterRestoreSource.INFINITE) {
             final TableResult tableResult = compiledPlan.execute();
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-            tableResult.getJobClient().get().cancel().get();
+            try {
+                awaitExpectedResults(program, futures, false);
+            } finally {
+                tableResult.getJobClient().get().cancel().get();
+            }
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
@@ -441,6 +502,31 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .as("%s", program.id)
                         .containsExactlyInAnyOrder(
                                 sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
+            }
+        }
+    }
+
+    /**
+     * Triggers a stop-with-savepoint, retrying while the job is not yet fully running. A savepoint
+     * gated on source emission (see {@link #awaitSavepointReady}) can be requested before all
+     * downstream tasks have reached RUNNING, which aborts with "Not all required tasks are
+     * currently running". Sink-gated triggers never hit this (sink output implies a running
+     * pipeline), so they succeed on the first attempt.
+     */
+    private String stopWithSavepointWhenRunning(JobClient jobClient) throws Exception {
+        final long deadline = System.currentTimeMillis() + RESULT_AWAIT_TIMEOUT_MILLIS;
+        while (true) {
+            try {
+                return jobClient
+                        .stopWithSavepoint(false, tmpDir.toString(), SavepointFormatType.DEFAULT)
+                        .get();
+            } catch (ExecutionException e) {
+                final boolean notAllRunning =
+                        e.getMessage() != null && e.getMessage().contains("Not all required tasks");
+                if (!notAllRunning || System.currentTimeMillis() >= deadline) {
+                    throw e;
+                }
+                Thread.sleep(200);
             }
         }
     }

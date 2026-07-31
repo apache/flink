@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.{BinaryRowData, BinaryStringData}
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -636,9 +637,10 @@ object GenerateUtils {
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP | VARIANT | BITMAP =>
-      throw new UnsupportedOperationException(
-        s"Type($t) is not an orderable data type, " +
-          s"it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
+      throw new ValidationException(
+        s"Type '$t' cannot be ordered, so it cannot be used as a key for sorting, grouping, " +
+          s"or joining (for example in ORDER BY, GROUP BY, DISTINCT, or a join condition). " +
+          s"Remove it from the key, or replace it with a value that can be ordered.")
     // TODO support MULTISET and MAP?
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]

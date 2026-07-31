@@ -92,23 +92,15 @@ public class SortQueryOperation implements QueryOperation {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
-                                "SELECT %s FROM (%s\n) %s ORDER BY %s",
+                                "SELECT %s FROM (%s\n) %s",
                                 OperationUtils.formatSelectColumns(
                                         getResolvedSchema(), INPUT_ALIAS),
                                 OperationUtils.indent(child.asSerializableString(sqlFactory)),
-                                INPUT_ALIAS,
-                                order.stream()
-                                        .map(
-                                                expr ->
-                                                        OperationExpressionsUtils
-                                                                .scopeReferencesWithAlias(
-                                                                        INPUT_ALIAS, expr))
-                                        .map(
-                                                resolvedExpression ->
-                                                        resolvedExpression.asSerializableString(
-                                                                sqlFactory))
-                                        .collect(Collectors.joining(", "))));
+                                INPUT_ALIAS));
 
+        if (!order.isEmpty()) {
+            s.append(" ORDER BY ").append(serializeOrder(sqlFactory));
+        }
         if (offset >= 0) {
             s.append(" OFFSET ");
             s.append(offset);
@@ -120,6 +112,13 @@ public class SortQueryOperation implements QueryOperation {
             s.append(" ROWS ONLY");
         }
         return s.toString();
+    }
+
+    private String serializeOrder(SqlFactory sqlFactory) {
+        return order.stream()
+                .map(expr -> OperationExpressionsUtils.scopeReferencesWithAlias(INPUT_ALIAS, expr))
+                .map(expr -> expr.asSerializableString(sqlFactory))
+                .collect(Collectors.joining(", "));
     }
 
     @Override

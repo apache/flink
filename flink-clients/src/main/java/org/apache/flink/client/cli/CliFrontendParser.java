@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -654,9 +653,11 @@ public class CliFrontendParser {
 
     public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
         if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
-            String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
-            boolean allowNonRestoredState =
-                    commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+            final String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+            final Boolean allowNonRestoredState =
+                    commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt())
+                            ? Boolean.TRUE
+                            : null;
             final RecoveryClaimMode recoveryClaimMode;
             if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
                 recoveryClaimMode =
@@ -672,7 +673,7 @@ public class CliFrontendParser {
                         "The option '%s' is deprecated. Please use '%s' instead.%n",
                         SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
-                recoveryClaimMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
+                recoveryClaimMode = null;
             }
             return SavepointRestoreSettings.forPath(
                     savepointPath, allowNonRestoredState, recoveryClaimMode);

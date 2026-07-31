@@ -285,13 +285,13 @@ class ExpressionReducer(
 
             // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric
             assert(RexUtil.isDeterministic(divisionLiteral))
-            val divisionComparable =
-              divisionLiteral.asInstanceOf[RexLiteral].getValue.asInstanceOf[Comparable[Any]]
-            val zeroComparable = rexBuilder
-              .makeExactLiteral(new java.math.BigDecimal(0))
-              .getValue
-              .asInstanceOf[Comparable[Any]]
-            if (divisionComparable.compareTo(zeroComparable) == 0) {
+            val divisionValue = divisionLiteral.asInstanceOf[RexLiteral].getValue
+            val isZero = divisionValue match {
+              case d: java.lang.Double => d == 0.0
+              case bd: java.math.BigDecimal => bd.signum() == 0
+              case _ => false
+            }
+            if (isZero) {
               throw new ArithmeticException("Division by zero")
             }
           }

@@ -175,6 +175,58 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], cha
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testKeylessUpsertSinkFallsBackToRetractWhenUpsertKeyProjectedAway">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink_no_key SELECT rate FROM DeduplicatedView]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink_no_key], fields=[rate])
++- LogicalProject(rate=[$1])
+   +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+      +- LogicalFilter(condition=[=($3, 1)])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink_no_key], fields=[rate], changelogMode=[NONE])
++- Calc(select=[rate], changelogMode=[I,UB,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[currency], orderBy=[ROWTIME rowtime DESC], select=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeylessUpsertSinkKeepsUpsertWhenInputHasUpsertKey">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink SELECT currency, rate FROM DeduplicatedView]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink], fields=[currency, rate])
++- LogicalProject(currency=[$0], rate=[$1])
+   +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+      +- LogicalFilter(condition=[=($3, 1)])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink], fields=[currency, rate], changelogMode=[NONE])
++- Calc(select=[currency, rate], changelogMode=[I,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[currency], orderBy=[ROWTIME rowtime DESC], select=[currency, rate, rowtime], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testOneLevelGroupBy">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(number) FROM MyTable GROUP BY word]]>

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
+import { EdgeLabel, graphlib, layout } from '@dagrejs/dagre';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { curveLinear, line } from 'd3';
-import * as dagre from 'dagre';
-import { GraphEdge, graphlib } from 'dagre';
 
 import Graph = graphlib.Graph;
 
@@ -91,7 +90,7 @@ export class NzGraph {
    * @param opt
    */
   createGraph(opt: CreateGraphOpt = {}): void {
-    this.graph = new dagre.graphlib.Graph(opt);
+    this.graph = new graphlib.Graph(opt);
     this.graph.setGraph({
       rankdir: 'LR',
       ...this.config
@@ -144,7 +143,7 @@ export class NzGraph {
     this.layoutLinks = [];
     this.copyLayoutLinks = [];
 
-    dagre.layout(this.graph);
+    layout(this.graph);
     const generatedGraph = this.graph.graph();
     if (generatedGraph.width! < generatedGraph.height!) {
       this.graph.setGraph({
@@ -156,7 +155,7 @@ export class NzGraph {
         edge.height = edge.width;
         edge.width = null;
       });
-      dagre.layout(this.graph);
+      layout(this.graph);
     }
 
     this.graph.nodes().forEach(id => {
@@ -175,7 +174,7 @@ export class NzGraph {
     });
 
     this.graph.edges().forEach(e => {
-      const edge = this.graph.edge(e) as LayoutLink & GraphEdge;
+      const edge = this.graph.edge(e) as LayoutLink & EdgeLabel;
       const initLine = this.generateLine(edge.points) as string;
       const link: LayoutLink = {
         id: edge.id,
@@ -205,9 +204,10 @@ export class NzGraph {
    *
    * @param edge
    */
-  getDominantBaseline(edge: GraphEdge): string {
-    const firstPoint = edge.points[0];
-    const lastPoint = edge.points[edge.points.length - 1];
+  getDominantBaseline(edge: EdgeLabel): string {
+    const points = edge.points!;
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
     return lastPoint.x < firstPoint.x ? 'rtl' : 'ltr';
   }
 

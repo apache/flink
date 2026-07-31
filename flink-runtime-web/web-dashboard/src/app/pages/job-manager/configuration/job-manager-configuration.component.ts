@@ -41,7 +41,10 @@ export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
     return value.key;
   };
 
-  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobManagerService: JobManagerService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     forkJoin([

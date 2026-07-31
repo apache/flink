@@ -94,6 +94,9 @@ class JobMasterTriggerSavepointITCase {
 
     private static volatile CountDownLatch triggerCheckpointLatch;
 
+    /** Prefix of the StandaloneResourceManager log line emitted when a JobMaster disconnects. */
+    private static final String DISCONNECT_JOB_MANAGER_LOG_PREFIX = "Disconnect job manager ";
+
     @TempDir protected File temporaryFolder;
 
     @RegisterExtension
@@ -284,7 +287,7 @@ class JobMasterTriggerSavepointITCase {
                 List.of(
                         "Registering job manager .*",
                         "Registered job manager .*",
-                        "Disconnect job manager .*"),
+                        DISCONNECT_JOB_MANAGER_LOG_PREFIX + ".*"),
                 "Registering TaskManager with ResourceID .*");
         assertKeyPresent(
                 MdcUtils.JOB_ID,
@@ -362,6 +365,18 @@ class JobMasterTriggerSavepointITCase {
         clusterClient.cancel(jobGraph.getJobID()).get();
         CommonTestUtils.waitUntilCondition(
                 () -> clusterClient.getJobStatus(jobGraph.getJobID()).get() == JobStatus.CANCELED,
+                600);
+        // The JobMaster disconnects from the ResourceManager asynchronously after CANCELED;
+        // wait for the logged event so verifyJobIdIsLogged does not race it.
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        standaloneResourceManagerLogging.getEvents().stream()
+                                .anyMatch(
+                                        e ->
+                                                e.getMessage()
+                                                        .getFormattedMessage()
+                                                        .startsWith(
+                                                                DISCONNECT_JOB_MANAGER_LOG_PREFIX)),
                 600);
     }
 

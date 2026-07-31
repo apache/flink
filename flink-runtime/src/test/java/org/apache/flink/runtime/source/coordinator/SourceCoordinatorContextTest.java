@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -44,6 +45,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SourceCoordinatorContext}. */
 class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
+
+    @Test
+    void testGetJobInfo() {
+        // Compare on JobID (and JobName) rather than full JobInfo because JobInfoImpl is
+        // @Internal and does not override equals().
+        JobInfo expected = operatorCoordinatorContext.getJobInfo();
+        JobInfo actual = context.getJobInfo();
+        assertThat(actual.getJobId()).isEqualTo(expected.getJobId());
+        assertThat(actual.getJobName()).isEqualTo(expected.getJobName());
+    }
 
     @Test
     void testRegisterReader() throws Exception {

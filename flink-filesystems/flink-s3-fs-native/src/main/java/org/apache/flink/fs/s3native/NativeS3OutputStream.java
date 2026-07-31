@@ -79,9 +79,7 @@ class NativeS3OutputStream extends FSDataOutputStream {
                 Preconditions.checkNotNull(encryptionConfig, "encryptionConfig must not be null");
 
         File tmpDir = new File(localTmpDir);
-        if (!tmpDir.exists()) {
-            tmpDir.mkdirs();
-        }
+        Files.createDirectories(tmpDir.toPath());
 
         this.tmpFile = new File(tmpDir, "s3-upload-" + UUID.randomUUID());
         this.bufferedStream = new BufferedOutputStream(new FileOutputStream(tmpFile), BUFFER_SIZE);

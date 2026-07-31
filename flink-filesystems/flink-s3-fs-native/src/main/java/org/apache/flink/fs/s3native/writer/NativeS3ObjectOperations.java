@@ -20,13 +20,15 @@ package org.apache.flink.fs.s3native.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.s3native.NativeS3FileIoUtils;
 import org.apache.flink.fs.s3native.S3EncryptionConfig;
 import org.apache.flink.fs.s3native.S3ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -55,6 +57,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -96,6 +99,8 @@ import java.util.stream.Collectors;
 public class NativeS3ObjectOperations {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3ObjectOperations.class);
+
+    private static final int DOWNLOAD_BUFFER_SIZE = 256 * 1024;
 
     private final S3Client s3Client;
     private final S3TransferManager transferManager;
@@ -259,8 +264,20 @@ public class NativeS3ObjectOperations {
                             .build();
 
             FileUpload fileUpload = transferManager.uploadFile(uploadRequest);
-            CompletedFileUpload completedUpload = fileUpload.completionFuture().join();
+            CompletedFileUpload completedUpload;
+            try {
+                completedUpload = fileUpload.completionFuture().get();
+            } catch (InterruptedException e) {
+                fileUpload.completionFuture().cancel(true);
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while uploading object for key: " + key, e);
+            } catch (ExecutionException e) {
+                throw new IOException(
+                        "Failed to async upload object for key: " + key, e.getCause());
+            }
             return new PutObjectResult(completedUpload.response().eTag());
+        } catch (IOException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to async upload object for key: " + key, e);
         }
@@ -380,16 +397,45 @@ public class NativeS3ObjectOperations {
     }
 
     public long getObject(String key, File targetLocation) throws IOException {
+        java.nio.file.Path target = targetLocation.toPath().toAbsolutePath();
+        java.nio.file.Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        java.nio.file.Path tempTarget =
+                NativeS3FileIoUtils.createTemporaryDownloadFile(parent, target);
+        ResponseInputStream<GetObjectResponse> responseStream = null;
+        boolean success = false;
         try {
             GetObjectRequest request =
                     GetObjectRequest.builder().bucket(bucketName).key(key).build();
-            ResponseTransformer<GetObjectResponse, GetObjectResponse> responseTransformer =
-                    ResponseTransformer.toFile(targetLocation.toPath());
-            s3Client.getObject(request, responseTransformer);
-            return Files.size(targetLocation.toPath());
+            responseStream = s3Client.getObject(request);
+            NativeS3FileIoUtils.copyStream(responseStream, tempTarget, DOWNLOAD_BUFFER_SIZE);
+            NativeS3FileIoUtils.moveFile(tempTarget, target);
+            success = true;
+            return Files.size(target);
         } catch (S3Exception e) {
             throw new IOException("Failed to get object for key: " + key, e);
+        } finally {
+            if (success) {
+                IOUtils.closeQuietly(responseStream);
+            } else {
+                abortAndClose(responseStream);
+                IOUtils.deleteFileQuietly(tempTarget);
+            }
         }
+    }
+
+    private static void abortAndClose(ResponseInputStream<GetObjectResponse> stream) {
+        if (stream == null) {
+            return;
+        }
+        try {
+            stream.abort();
+        } catch (RuntimeException e) {
+            LOG.debug("Error aborting S3 response stream", e);
+        }
+        IOUtils.closeQuietly(stream);
     }
 
     public ObjectMetadata getObjectMetadata(String key) throws IOException {

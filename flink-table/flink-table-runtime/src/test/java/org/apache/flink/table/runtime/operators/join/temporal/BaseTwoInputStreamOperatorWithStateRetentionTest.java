@@ -94,6 +94,9 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest {
             assertThat(output)
                     .containsExactly(
                             firedDesc(0L),
+                            // Intermediate watermark surfacing progress after firing the first of
+                            // the 2 timers due at firstWindowEnd, before the drain is interrupted.
+                            "Watermark@" + (firstWindowEnd.toEpochMilli() - 1),
                             mailDesc(0L),
                             firedDesc(1L),
                             mailDesc(1L),
@@ -101,6 +104,7 @@ class BaseTwoInputStreamOperatorWithStateRetentionTest {
                             firedDesc(0L),
                             mailDesc(0L),
                             firedDesc(1L),
+                            "Watermark@" + (secondWindowEnd.toEpochMilli() - 1),
                             mailDesc(1L),
                             watermarkDesc(secondWindowEnd));
         }

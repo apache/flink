@@ -169,6 +169,37 @@ class MetricUtilsTest {
     }
 
     @Test
+    void testMemoryPoolMetricsCompleteness() {
+        final Map<String, InterceptingOperatorMetricGroup> addedGroups = new HashMap<>();
+        final InterceptingOperatorMetricGroup poolMetrics =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        return addedGroups.computeIfAbsent(
+                                name, k -> new InterceptingOperatorMetricGroup());
+                    }
+                };
+
+        MetricUtils.instantiateMemoryPoolMetrics(poolMetrics);
+
+        assertThat(addedGroups)
+                .withFailMessage("Expected at least one heap memory pool group to be registered")
+                .isNotEmpty();
+        assertThat(addedGroups).doesNotContainKey("Metaspace");
+
+        for (Map.Entry<String, InterceptingOperatorMetricGroup> e : addedGroups.entrySet()) {
+            final InterceptingOperatorMetricGroup g = e.getValue();
+            assertThat(g.get("Used")).isNotNull();
+            assertThat(g.get("Max")).isNotNull();
+            assertThat(g.get("CollectionUsed")).isNotNull();
+            assertThat(g.get("CollectionMax")).isNotNull();
+            @SuppressWarnings("unchecked")
+            final Gauge<Long> used = (Gauge<Long>) g.get("Used");
+            assertThat(used.getValue()).isGreaterThanOrEqualTo(0L);
+        }
+    }
+
+    @Test
     void testHeapMetricsCompleteness() {
         final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 

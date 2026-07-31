@@ -18,8 +18,13 @@
 
 package org.apache.flink.sql.parser.ddl.table;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -31,6 +36,20 @@ import java.util.List;
  * newColumnName.
  */
 public class SqlAlterTableRenameColumn extends SqlAlterTable {
+
+    private static final SqlSpecialOperator RENAME_COLUMN_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE RENAME COLUMN", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterTableRenameColumn(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlIdentifier) operands[1],
+                            (SqlIdentifier) operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     private final SqlIdentifier originColumnIdentifier;
     private final SqlIdentifier newColumnIdentifier;
@@ -47,9 +66,17 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return RENAME_COLUMN_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                tableIdentifier, originColumnIdentifier, newColumnIdentifier);
+                tableIdentifier,
+                originColumnIdentifier,
+                newColumnIdentifier,
+                SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     public SqlIdentifier getOldColumnIdentifier() {

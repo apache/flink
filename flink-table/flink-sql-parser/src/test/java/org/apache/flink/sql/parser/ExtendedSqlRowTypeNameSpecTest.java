@@ -92,12 +92,15 @@ class ExtendedSqlRowTypeNameSpecTest {
                         .withParserFactory((SqlParserImplFactory) options.get("parserFactory"));
 
         return new SqlPrettyWriter(
-                new CalciteSqlDialect(
-                        SqlDialect.EMPTY_CONTEXT
-                                .withQuotedCasing(parserConfig.unquotedCasing())
-                                .withConformance(parserConfig.conformance())
-                                .withUnquotedCasing(parserConfig.unquotedCasing())
-                                .withIdentifierQuoteString(parserConfig.quoting().string)),
-                false);
+                SqlPrettyWriter.config()
+                        .withDialect(
+                                new CalciteSqlDialect(
+                                        SqlDialect.EMPTY_CONTEXT
+                                                .withQuotedCasing(parserConfig.unquotedCasing())
+                                                .withConformance(parserConfig.conformance())
+                                                .withUnquotedCasing(parserConfig.unquotedCasing())
+                                                .withIdentifierQuoteString(
+                                                        parserConfig.quoting().string)))
+                        .withAlwaysUseParentheses(false));
     }
 }

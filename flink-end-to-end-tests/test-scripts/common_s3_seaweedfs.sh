@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+################################################################################
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+if [[ $S3_SOURCED ]]; then
+  echo "Only source common_s3.sh or common_s3_seaweedfs.sh in the same test, previously sourced $S3_SOURCED" && exit 1
+fi
+export S3_SOURCED="common_s3_seaweedfs.sh"
+
+# export credentials into environment variables for AWS client
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=access_key
+export AWS_SECRET_ACCESS_KEY=secret_key
+
+IT_CASE_S3_BUCKET=test-data
+
+S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/words"
+
+###################################
+# Starts a docker container for s3 seaweedfs.
+#
+# Globals:
+#   TEST_INFRA_DIR
+#   AWS_ACCESS_KEY_ID
+#   AWS_SECRET_ACCESS_KEY
+# Exports:
+#   SEAWEEDFS_CONTAINER_ID
+#   S3_ENDPOINT
+###################################
+function s3_start {
+  echo "Spawning seaweedfs for s3 tests"
+  export SEAWEEDFS_CONTAINER_ID=$(docker run -d \
+    -P \
+    -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
+    chrislusf/seaweedfs:4.34 \
+    server \
+    -s3 \
+    -s3.port=8333 \
+    -dir=/data)
+  while [[ "$(docker inspect -f {{.State.Running}} "$SEAWEEDFS_CONTAINER_ID")" -ne "true" ]]; do
+    sleep 0.1
+  done
+  export S3_ENDPOINT="http://$(docker port "$SEAWEEDFS_CONTAINER_ID" 8333 | grep -F '0.0.0.0' | sed s'/0\.0\.0\.0/localhost/')"
+  echo "Started seaweedfs @ $S3_ENDPOINT"
+  on_exit s3_stop
+
+  while [[ "$(curl -s -o /dev/null -w '%{http_code}' "$S3_ENDPOINT/healthz")" != "200" ]]; do
+    sleep 0.1
+  done
+  echo "Seaweedfs S3 gateway is up @ $S3_ENDPOINT"
+}
+
+###################################
+# Stops the docker container of seaweedfs.
+#
+# Globals:
+#   SEAWEEDFS_CONTAINER_ID
+###################################
+function s3_stop {
+  docker kill "$SEAWEEDFS_CONTAINER_ID"
+  docker rm "$SEAWEEDFS_CONTAINER_ID"
+  export S3_ENDPOINT=
+  export SEAWEEDFS_CONTAINER_ID=
+}
+
+# always start it while sourcing, so that SEAWEEDFS_CONTAINER_ID is available from parent script
+if [[ $SEAWEEDFS_CONTAINER_ID ]]; then
+  s3_stop
+fi
+s3_start
+
+###################################
+# Setup Flink s3 access.
+#
+# Globals:
+#   FLINK_DIR
+#   IT_CASE_S3_ACCESS_KEY
+#   IT_CASE_S3_SECRET_KEY
+# Arguments:
+#   $1 - s3 filesystem type (hadoop/presto)
+# Returns:
+#   None
+###################################
+function s3_setup {
+  add_optional_plugin "s3-fs-$1"
+
+  set_config_key "s3.access-key" "$AWS_ACCESS_KEY_ID"
+  set_config_key "s3.secret-key" "$AWS_SECRET_ACCESS_KEY"
+  # change endpoint to seaweedfs's location
+  set_config_key "s3.endpoint" "$S3_ENDPOINT"
+  # If the test is using virtual host style (default), then it tries to reach seaweedfs on <bucket>.localhost:<port>,
+  # which docker does not properly forward.
+  set_config_key "s3.path.style.access" "true"
+  set_config_key "s3.path-style-access" "true"
+}
+
+function s3_setup_with_provider {
+  add_optional_plugin "s3-fs-$1"
+  # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+  # change endpoint to seaweedfs's location
+  set_config_key "s3.endpoint" "$S3_ENDPOINT"
+  # If the test is using virtual host style (default), then it tries to reach seaweedfs on <bucket>.localhost:<port>,
+  # which docker does not properly forward.
+  set_config_key "s3.path.style.access" "true"
+  set_config_key "s3.path-style-access" "true"
+}
+
+source "$(dirname "$0")"/common_s3_operations.sh
+
+# SeaweedFS does not expose on-disk directories as S3 buckets,
+# so the bucket must be created explicitly
+aws_cli s3 mb "s3://$IT_CASE_S3_BUCKET"
+aws_cli s3 cp "/hostdir/test-data/words" "$S3_TEST_DATA_WORDS_URI"

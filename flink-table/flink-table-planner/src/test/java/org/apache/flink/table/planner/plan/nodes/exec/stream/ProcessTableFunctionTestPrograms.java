@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ImplicitCastingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
@@ -1939,5 +1940,107 @@ public class ProcessTableFunctionTestPrograms {
                                     + "in1 => TABLE t PARTITION BY name ORDER BY (ts ASC, score DESC), "
                                     + "in2 => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
                                     + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_IMPLICIT_CASTS =
+            TableTestProgram.of(
+                            "process-implicit-casts",
+                            "implicits casts for both scalar and table args")
+                    .setupTemporarySystemFunction("f", ImplicitCastingFunction.class)
+                    .setupSql(
+                            "CREATE VIEW v AS SELECT 'Bob', 12, (42, TIMESTAMP '2020-01-01 12:12:12')")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{CastingPojo(s='Bob', b=12, r=+I[42, 2020-01-01T12:12:12]), 42}]")
+                                    .build())
+                    // The function expects wider types (BIGINT and TIMESTAMP(6)),
+                    // implicit casts are added to fix the mismatch between INT vs. BIGINT and
+                    // TIMESTAMP(0) vs. TIMESTAMP(6).
+                    // Also in constructed types: ROW (table input) vs. STRUCTURED (expected).
+                    .runSql("INSERT INTO sink SELECT * FROM f(p => TABLE v, b => 42)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_PARTITION_BY =
+            TableTestProgram.of(
+                            "process-set-from-session-view-with-multi-partition-by",
+                            "set semantic table partitioned by multiple columns, sourced from a view wrapping a SESSION window aggregate")
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "suite_name STRING",
+                                            "test_name STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedValues(
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(0)),
+                                            Row.of("suiteB", "test2", Instant.ofEpochMilli(1)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(2)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(3)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(4)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(5)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(6)))
+                                    .build())
+                    .setupSql(
+                            "CREATE VIEW v AS "
+                                    + "SELECT suite_name, test_name, COUNT(*) AS c "
+                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
+                                    + "GROUP BY suite_name, test_name, window_start, window_end")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`suite_name` STRING",
+                                            "`test_name` STRING",
+                                            "`out` STRING")
+                                    .consumedValues(
+                                            "+I[suiteB, test2, {+I[suiteB, test2, 1], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 6], 1}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE v PARTITION BY (suite_name, test_name), i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_PARTITION_BY_AND_ORDER_BY =
+            TableTestProgram.of(
+                            "process-order-by-multi-partition-key-and-order-by",
+                            "set semantic table partitioned and ordered by multiple columns, sourced from a view wrapping a SESSION window aggregate")
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "suite_name STRING",
+                                            "test_name STRING",
+                                            "`group` STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedValues(
+                                            // group is only used to force two independent SESSION
+                                            // windows for suiteA/test1 whose window_time ties.
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(0)),
+                                            Row.of("suiteB", "test2", "x", Instant.ofEpochMilli(1)),
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(2)),
+                                            Row.of("suiteA", "test1", "y", Instant.ofEpochMilli(2)))
+                                    .build())
+                    .setupSql(
+                            "CREATE VIEW v AS "
+                                    + "SELECT suite_name, test_name, window_time, COUNT(*) AS c "
+                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name, `group`), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
+                                    + "GROUP BY suite_name, test_name, `group`, window_start, window_end, window_time")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`suite_name` STRING",
+                                            "`test_name` STRING",
+                                            "`out` STRING")
+                                    .consumedValues(
+                                            "+I[suiteB, test2, {+I[suiteB, test2, 1970-01-01T00:00:00.002Z, 1], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 2], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 1], 1}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "r => TABLE v PARTITION BY (suite_name, test_name) ORDER BY (window_time ASC, c DESC), i => 1)")
                     .build();
 }

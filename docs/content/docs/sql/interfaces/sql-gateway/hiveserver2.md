@@ -282,7 +282,7 @@ After the setup, you can explore Flink with DBeaver.
 ### Apache Superset
 
 Apache Superset is a powerful data exploration and visualization platform. With the API compatibility, you can connect 
-to the Flink SQL Gateway like Hive. Please refer to the [guidance](https://superset.apache.org/docs/databases/hive) for more details.
+to the Flink SQL Gateway like Hive. Please refer to the [guidance](https://superset.apache.org/user-docs/databases/supported/apache-hive/) for more details.
 
 {{< img width="80%" src="/fig/apache_superset.png" alt="Apache Superset" >}}
 

@@ -82,6 +82,16 @@ public class SqlStartMode {
         }
     }
 
+    /** Reconstruction constructor used by deep-copy ({@code createCall}). */
+    public SqlStartMode(
+            SqlStartModeKind kind,
+            @Nullable SqlIntervalLiteral intervalLiteral,
+            @Nullable SqlTimestampLiteral timestampLiteral) {
+        this.kind = kind;
+        this.intervalLiteral = intervalLiteral;
+        this.timestampLiteral = timestampLiteral;
+    }
+
     public SqlStartMode(SqlLiteral kind, @Nullable SqlLiteral literal, SqlParserPos pos) {
         this.kind = SqlParseUtils.extractEnum(kind, SqlStartModeKind.class);
         if (literal == null) {

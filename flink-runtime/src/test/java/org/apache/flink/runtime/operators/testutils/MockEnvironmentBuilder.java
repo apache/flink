@@ -67,6 +67,7 @@ public class MockEnvironmentBuilder {
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
     private ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
             new ChannelStateWriteRequestExecutorFactory(jobID);
+    private Configuration jobConfiguration = new Configuration();
 
     private MemoryManager buildMemoryManager(long memorySize) {
         return MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
@@ -181,6 +182,11 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
+    public MockEnvironmentBuilder setJobConfiguration(Configuration jobConfiguration) {
+        this.jobConfiguration = jobConfiguration;
+        return this;
+    }
+
     public MockEnvironment build() {
         if (ioManager == null) {
             ioManager = new IOManagerAsync();
@@ -206,6 +212,7 @@ public class MockEnvironmentBuilder {
                 taskManagerRuntimeInfo,
                 memoryManager,
                 externalResourceInfoProvider,
-                channelStateExecutorFactory);
+                channelStateExecutorFactory,
+                jobConfiguration);
     }
 }

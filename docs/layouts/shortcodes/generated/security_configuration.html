@@ -27,10 +27,16 @@
             <td>Indicates whether to start delegation tokens system for external services.</td>
         </tr>
         <tr>
-            <td><h5>security.delegation.tokens.renewal.retry.backoff</h5></td>
-            <td style="word-wrap: break-word;">1 h</td>
+            <td><h5>security.delegation.tokens.renewal.retry.initial.backoff</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The time period how long to wait before retrying to obtain new delegation tokens after a failure.</td>
+            <td>Initial backoff time when retrying to obtain delegation tokens after a failure. Doubles on each subsequent failure up to security.delegation.tokens.renewal.retry.max.backoff.</td>
+        </tr>
+        <tr>
+            <td><h5>security.delegation.tokens.renewal.retry.max.backoff</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Maximum backoff time between retries when obtaining delegation tokens fails. Retry delays start at security.delegation.tokens.renewal.retry.initial.backoff and double on each failure up to this cap.</td>
         </tr>
         <tr>
             <td><h5>security.delegation.tokens.renewal.time-ratio</h5></td>

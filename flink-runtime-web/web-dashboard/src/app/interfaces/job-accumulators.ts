@@ -32,6 +32,6 @@ export interface SubTaskAccumulators {
   type: string;
   value: string;
   subtask: number;
-  host: string;
+  endpoint: string;
   attempt: number;
 }

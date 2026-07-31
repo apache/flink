@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl.table;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -35,6 +40,19 @@ import static java.util.Objects.requireNonNull;
 
 /** ALTER TABLE [IF EXISTS] [[catalogName.] dataBasesName].tableName RESET ( 'key1' [, 'key2']*). */
 public class SqlAlterTableReset extends SqlAlterTable {
+    private static final SqlSpecialOperator RESET_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE RESET", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterTableReset(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            ((SqlLiteral) operands[2]).booleanValue());
+                }
+            };
+
     private final SqlNodeList propertyKeyList;
 
     public SqlAlterTableReset(
@@ -48,8 +66,16 @@ public class SqlAlterTableReset extends SqlAlterTable {
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return RESET_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableIdentifier, propertyKeyList);
+        return ImmutableNullableList.of(
+                tableIdentifier,
+                propertyKeyList,
+                SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     public SqlNodeList getPropertyKeyList() {

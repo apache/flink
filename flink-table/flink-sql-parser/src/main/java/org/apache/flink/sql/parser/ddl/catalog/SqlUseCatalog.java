@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.ddl.catalog;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -34,7 +35,13 @@ import java.util.List;
 public class SqlUseCatalog extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlUseCatalog(pos, (SqlIdentifier) operands[0]);
+                }
+            };
     private final SqlIdentifier catalogName;
 
     public SqlUseCatalog(SqlParserPos pos, SqlIdentifier catalogName) {

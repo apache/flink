@@ -22,28 +22,26 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.forstdb.RocksDB;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test validates that the ForSt JNI library loading works properly in the presence of the
  * ForSt code being loaded dynamically via reflection. That can happen when ForSt is in the user
  * code JAR, or in certain test setups. TODO: test working with both ForSt and RocksDB
  */
-public class ForStMultiClassLoaderTest {
-
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+class ForStMultiClassLoaderTest {
 
     @Test
-    public void testTwoSeparateClassLoaders() throws Exception {
+    void testTwoSeparateClassLoaders(@TempDir Path tmp) throws Exception {
         // collect the libraries / class folders with ForSt related code: the state backend and
         // ForSt itself
         final URL codePath1 =
@@ -70,13 +68,14 @@ public class ForStMultiClassLoaderTest {
 
         final Class<?> clazz1 = Class.forName(className, false, loader1);
         final Class<?> clazz2 = Class.forName(className, false, loader2);
-        assertNotEquals(
-                "Test broken - the two reflectively loaded classes are equal", clazz1, clazz2);
+        assertThat(clazz1)
+                .as("Test broken - the two reflectively loaded classes are equal")
+                .isNotEqualTo(clazz2);
 
         final Object instance1 = clazz1.getConstructor().newInstance();
         final Object instance2 = clazz2.getConstructor().newInstance();
 
-        final String tempDir = tmp.newFolder().getAbsolutePath();
+        final String tempDir = tmp.toFile().getAbsolutePath();
 
         final Method meth1 =
                 clazz1.getDeclaredMethod("ensureForStIsLoaded", String.class, Executor.class);

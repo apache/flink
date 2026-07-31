@@ -31,12 +31,13 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -98,6 +99,11 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
         this.maxBackoff = maxBackoff;
         this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
         this.networkBuffersPerChannel = networkBuffersPerChannel;
+    }
+
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
@@ -171,21 +177,23 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
 
     public RemoteInputChannel toRemoteInputChannel(
             ConnectionID producerAddress, ResultPartitionID resultPartitionID) {
-        return new RemoteInputChannel(
-                inputGate,
-                getChannelIndex(),
-                resultPartitionID,
-                consumedSubpartitionIndexSet,
-                checkNotNull(producerAddress),
-                connectionManager,
-                initialBackoff,
-                maxBackoff,
-                partitionRequestListenerTimeout,
-                networkBuffersPerChannel,
-                metrics.getNumBytesInRemoteCounter(),
-                metrics.getNumBuffersInRemoteCounter(),
-                channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
-                new ArrayDeque<>());
+        RemoteInputChannel channel =
+                new RemoteInputChannel(
+                        inputGate,
+                        getChannelIndex(),
+                        resultPartitionID,
+                        consumedSubpartitionIndexSet,
+                        checkNotNull(producerAddress),
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        partitionRequestListenerTimeout,
+                        networkBuffersPerChannel,
+                        metrics.getNumBytesInRemoteCounter(),
+                        metrics.getNumBuffersInRemoteCounter(),
+                        channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
+                        false);
+        return channel;
     }
 
     public LocalInputChannel toLocalInputChannel(ResultPartitionID resultPartitionID) {
@@ -201,7 +209,8 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
-                new ArrayDeque<>());
+                networkBuffersPerChannel,
+                false);
     }
 
     @Override

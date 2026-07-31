@@ -223,12 +223,17 @@ public class TestUtils {
      */
     public static void waitUntil(Supplier<Boolean> condition, Duration timeout, String message)
             throws InterruptedException, TimeoutException {
-        long startTime = System.currentTimeMillis();
-        while (!condition.get() && System.currentTimeMillis() < startTime + timeout.toMillis()) {
+        long deadline = System.currentTimeMillis() + timeout.toMillis();
+        while (true) {
+            // Latch the result so that a condition that is satisfied once does not fail the
+            // wait if it becomes false again before a re-evaluation.
+            if (condition.get()) {
+                return;
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                throw new TimeoutException(message);
+            }
             Thread.sleep(1);
-        }
-        if (!condition.get()) {
-            throw new TimeoutException(message);
         }
     }
 

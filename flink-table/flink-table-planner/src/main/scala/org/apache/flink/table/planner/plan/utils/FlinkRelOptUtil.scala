@@ -288,7 +288,9 @@ object FlinkRelOptUtil {
     } else {
       literal.getTypeName match {
         case BOOLEAN => RexLiteral.booleanValue(literal)
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL =>
+        case FLOAT | DOUBLE | REAL =>
+          BigDecimal.valueOf(literal.getValue3.asInstanceOf[Double])
+        case TINYINT | SMALLINT | INTEGER | BIGINT | DECIMAL =>
           literal.getValue3.asInstanceOf[BigDecimal]
         case VARCHAR | CHAR => literal.getValueAs(classOf[String])
 

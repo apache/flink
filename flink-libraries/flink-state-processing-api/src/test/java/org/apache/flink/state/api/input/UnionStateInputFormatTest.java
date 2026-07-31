@@ -37,21 +37,20 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for operator union state input format. */
-public class UnionStateInputFormatTest {
+class UnionStateInputFormatTest {
     private static ListStateDescriptor<Integer> descriptor =
             new ListStateDescriptor<>("state", Types.INT);
 
     @Test
-    public void testReadUnionOperatorState() throws Exception {
+    void testReadUnionOperatorState() throws Exception {
         try (OneInputStreamOperatorTestHarness<Integer, Void> testHarness = getTestHarness()) {
             testHarness.open();
 
@@ -80,12 +79,9 @@ public class UnionStateInputFormatTest {
                 results.add(format.nextRecord(0));
             }
 
-            results.sort(Comparator.naturalOrder());
-
-            Assert.assertEquals(
-                    "Failed to read correct list state from state backend",
-                    Arrays.asList(1, 2, 3),
-                    results);
+            assertThat(results)
+                    .as("Failed to read correct list state from state backend")
+                    .containsExactlyInAnyOrder(1, 2, 3);
         }
     }
 

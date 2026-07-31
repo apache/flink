@@ -27,7 +27,10 @@ import { JobService } from '@flink-runtime-web/services';
   providedIn: 'root'
 })
 export class RunningJobGuard implements CanActivate {
-  constructor(private readonly jobService: JobService, private router: Router) {}
+  constructor(
+    private readonly jobService: JobService,
+    private router: Router
+  ) {}
 
   canActivate(
     route: ActivatedRouteSnapshot,

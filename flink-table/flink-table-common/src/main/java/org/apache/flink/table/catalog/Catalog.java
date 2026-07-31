@@ -383,6 +383,31 @@ public interface Catalog {
         alterTable(tablePath, newTable, ignoreIfNotExists);
     }
 
+    /**
+     * Converts an existing {@link CatalogTable} to a {@link CatalogMaterializedTable} in place,
+     * preserving the catalog entry's identity and storage.
+     *
+     * <p>The default throws {@link UnsupportedOperationException}; catalogs that support in-place
+     * conversion override it. Launching the refresh job for the new materialized table is the
+     * executor's responsibility, not the catalog's.
+     *
+     * @param tableChanges structured delta between {@code originalTable} and {@code
+     *     materializedTable}, useful for incremental storage migration.
+     * @throws TableNotExistException if the table does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void convertTableToMaterializedTable(
+            ObjectPath tablePath,
+            CatalogTable originalTable,
+            CatalogMaterializedTable materializedTable,
+            List<TableChange> tableChanges)
+            throws TableNotExistException, CatalogException {
+        throw new CatalogException(
+                "Catalog "
+                        + getClass().getName()
+                        + " does not support converting tables to materialized tables.");
+    }
+
     // ------ partitions ------
 
     /**

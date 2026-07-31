@@ -23,9 +23,11 @@ import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlCreateObject;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -46,7 +48,21 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE MODEL", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE MODEL", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCreateModel(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlCharStringLiteral) operands[1],
+                            (SqlNodeList) operands[2],
+                            (SqlNodeList) operands[3],
+                            (SqlNodeList) operands[4],
+                            ((SqlLiteral) operands[5]).booleanValue(),
+                            ((SqlLiteral) operands[6]).booleanValue());
+                }
+            };
 
     private final SqlNodeList inputColumnList;
     private final SqlNodeList outputColumnList;
@@ -69,7 +85,13 @@ public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                name, comment, inputColumnList, outputColumnList, properties);
+                name,
+                comment,
+                inputColumnList,
+                outputColumnList,
+                properties,
+                SqlLiteral.createBoolean(isTemporary(), SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
     }
 
     public SqlNodeList getInputColumnList() {

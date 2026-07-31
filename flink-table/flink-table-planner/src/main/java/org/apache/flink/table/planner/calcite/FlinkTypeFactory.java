@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -237,10 +238,9 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             final TimeIndicatorRelDataType it = (TimeIndicatorRelDataType) relDataType;
             newType =
                     new TimeIndicatorRelDataType(
-                            it.typeSystemField(), it.originalType(), isNullable, it.isEventTime());
+                            it.getTypeSystem(), it.getOriginalType(), isNullable, it.isEventTime());
         } else if (relDataType instanceof RelRecordType
-                && ((RelRecordType) relDataType).getStructKind()
-                        == StructKind.PEEK_FIELDS_NO_EXPAND) {
+                && relDataType.getStructKind() == StructKind.PEEK_FIELDS_NO_EXPAND) {
             // for nested rows we keep the nullability property,
             // top-level rows fall back to Calcite's default handling
             final RelRecordType rt = (RelRecordType) relDataType;
@@ -571,7 +571,7 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
     public static boolean isTimestampLtzIndicatorType(RelDataType relDataType) {
         return relDataType instanceof TimeIndicatorRelDataType
                 && ((TimeIndicatorRelDataType) relDataType)
-                        .originalType()
+                        .getOriginalType()
                         .getSqlTypeName()
                         .equals(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE);
     }
@@ -799,7 +799,7 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             case INTERVAL_MINUTE:
             case INTERVAL_MINUTE_SECOND:
             case INTERVAL_SECOND:
-                if (relDataType.getPrecision() > 3) {
+                if (relDataType.getPrecision() > DayTimeIntervalType.MAX_DAY_PRECISION) {
                     throw new TableException(
                             "DAY_INTERVAL_TYPES precision is not supported: "
                                     + relDataType.getPrecision());

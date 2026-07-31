@@ -29,10 +29,9 @@ LogicalUnion(all=[true])
 :  +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 :     +- LogicalProject(a=[$0])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-+- LogicalProject(a=[$0], g=[1:BIGINT], c=[$1])
-   +- LogicalAggregate(group=[{0}], groups=[[{}]], c=[COUNT()])
-      +- LogicalProject(a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalProject(a=[null:INTEGER], g=[1:BIGINT], c=[$0])
+   +- LogicalAggregate(group=[{}], c=[COUNT()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -43,9 +42,9 @@ FlinkLogicalUnion(all=[true])
 :     +- FlinkLogicalExpand(projects=[{a, 0 AS $e}, {null AS a, 1 AS $e}])
 :        +- FlinkLogicalCalc(select=[a])
 :           +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-+- FlinkLogicalCalc(select=[a, 1 AS g, c])
-   +- FlinkLogicalAggregate(group=[{0}], groups=[[{}]], c=[COUNT()])
-      +- FlinkLogicalCalc(select=[a])
++- FlinkLogicalCalc(select=[null:INTEGER AS a, 1 AS g, c])
+   +- FlinkLogicalAggregate(group=[{}], c=[COUNT()])
+      +- FlinkLogicalCalc(select=[0 AS $f0])
          +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -21,20 +21,29 @@ package org.apache.flink.sql.parser.dql;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
 import java.util.List;
 
 /** DESCRIBE DATABASE [ EXTENDED] [ databaseName.] dataBasesName sql call. */
 public class SqlDescribeDatabase extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("DESCRIBE DATABASE", SqlKind.OTHER);
+            new SqlSpecialOperator("DESCRIBE DATABASE", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDescribeDatabase(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue());
+                }
+            };
     private final SqlIdentifier databaseName;
     private boolean isExtended = false;
 
@@ -51,7 +60,7 @@ public class SqlDescribeDatabase extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(databaseName);
+        return List.of(databaseName, SqlLiteral.createBoolean(isExtended, SqlParserPos.ZERO));
     }
 
     public String getDatabaseName() {

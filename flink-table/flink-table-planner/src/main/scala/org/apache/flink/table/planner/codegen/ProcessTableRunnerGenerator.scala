@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
+import org.apache.flink.table.planner.codegen.calls.{BridgingFunctionGenUtil, ScalarOperatorGens}
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -44,7 +44,7 @@ import org.apache.flink.table.types.extraction.ExtractionUtils
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rex.{RexCall, RexNode}
@@ -323,22 +323,59 @@ object ProcessTableRunnerGenerator {
   private def generateEvalOperands(
       ctx: CodeGeneratorContext,
       call: RexCall,
+      enrichedArgumentDataTypes: Seq[DataType],
       inputIndexTerm: String,
       inputRowTerm: String): Seq[GeneratedExpression] = {
     val generator = new ExprCodeGenerator(ctx, false)
+
+    // Generate (potentially cast) operands
     call.getOperands.asScala
+      .zip(enrichedArgumentDataTypes)
       .map {
-        case tableArgCall: RexTableArgCall =>
+        case (tableArgCall: RexTableArgCall, targetDataType: DataType) =>
           val inputIndex = tableArgCall.getInputIndex
-          val tableType = FlinkTypeFactory.toLogicalType(call.getType).copy(true)
-          GeneratedExpression(
+          val tableType = FlinkTypeFactory.toLogicalType(tableArgCall.getType).copy(true)
+          val tableArgAccess = GeneratedExpression(
             s"$inputRowTerm",
-            s"$inputIndexTerm != $inputIndex",
+            s"($inputIndexTerm != $inputIndex)",
             NO_CODE,
             tableType)
-        case rexNode: RexNode =>
-          generator.generateExpression(rexNode)
+          val (castTableArg, hasCast) =
+            castOperand(ctx, tableArgAccess, targetDataType.getLogicalType)
+          val tableArgWithKind = if (hasCast) {
+            // Casting a table argument to the target type (potentially) produces a fresh row that
+            // defaults to RowKind.INSERT. We forward the table's underlying changelog
+            // information to the eval() here.
+            val rowKindCode =
+              s"""
+                 |if (!${castTableArg.nullTerm}) {
+                 |  ${castTableArg.resultTerm}.setRowKind($inputRowTerm.getRowKind());
+                 |}
+                 |""".stripMargin
+            castTableArg.copy(code = s"${castTableArg.code}\n$rowKindCode")
+          } else {
+            tableArgAccess
+          }
+          tableArgWithKind
+
+        case (rexNode: RexNode, targetDataType: DataType) =>
+          val scalarArg = generator.generateExpression(rexNode)
+          val (castScalarArg, _) = castOperand(ctx, scalarArg, targetDataType.getLogicalType)
+          castScalarArg
       }
+  }
+
+  /** Applies a cast if necessary. Also returns whether a cast was necessary. */
+  private def castOperand(
+      ctx: CodeGeneratorContext,
+      operand: GeneratedExpression,
+      targetType: LogicalType): (GeneratedExpression, Boolean) = {
+    if (LogicalTypeCasts.supportsAvoidingCast(operand.resultType, targetType)) {
+      return (operand, false)
+    }
+    val cast =
+      ScalarOperatorGens.generateCast(ctx, operand, targetType, nullOnFailure = false)
+    (cast, true)
   }
 
   private def verifyMethodImplementation(
@@ -390,7 +427,8 @@ object ProcessTableRunnerGenerator {
     val inputIndexTerm = "inputIndex"
     val inputRowTerm = "inputRow"
     val collectorTerm = "evalCollector"
-    val callOperands = generateEvalOperands(ctx, call, inputIndexTerm, inputRowTerm)
+    val callOperands =
+      generateEvalOperands(ctx, call, enrichedArgumentDataTypes, inputIndexTerm, inputRowTerm)
     val externalCallOperands =
       BridgingFunctionGenUtil.prepareExternalOperands(ctx, callOperands, enrichedArgumentDataTypes)
     val allExternalOperands = externalStateOperands ++ externalCallOperands

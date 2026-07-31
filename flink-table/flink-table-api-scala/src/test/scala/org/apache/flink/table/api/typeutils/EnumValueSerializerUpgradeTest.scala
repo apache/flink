@@ -24,13 +24,11 @@ import org.apache.flink.table.api.typeutils.EnumValueSerializerUpgradeTest.{Enum
 import org.apache.flink.test.util.MigrationTest
 
 import org.assertj.core.api.Condition
-import org.junit.jupiter.api.Disabled
 
 import java.util
 import java.util.Objects
 
 /** A [[TypeSerializerUpgradeTestBase]] for [[EnumValueSerializer]]. */
-@Disabled("FLINK-36334")
 class EnumValueSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[Letters.Value, Letters.Value] {
 

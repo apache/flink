@@ -1595,7 +1595,7 @@ class TableEnvironment(object):
         """
         return CompiledPlan(
             j_compiled_plan=self._j_tenv.loadPlan(plan_reference._j_plan_reference),
-            t_env=self._j_tenv
+            t_env=self
         )
 
     def compile_plan_sql(self, stmt: str) -> CompiledPlan:
@@ -1621,7 +1621,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 2.1.0
         """
-        return CompiledPlan(j_compiled_plan=self._j_tenv.compilePlanSql(stmt), t_env=self._j_tenv)
+        return CompiledPlan(j_compiled_plan=self._j_tenv.compilePlanSql(stmt), t_env=self)
 
     def execute_plan(self, plan_reference: PlanReference) -> TableResult:
         """

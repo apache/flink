@@ -21,8 +21,10 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -40,7 +42,14 @@ import static java.util.Objects.requireNonNull;
 public class SqlAlterDatabase extends SqlAlterObject {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterDatabase(
+                            pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                }
+            };
 
     private final SqlNodeList propertyList;
 

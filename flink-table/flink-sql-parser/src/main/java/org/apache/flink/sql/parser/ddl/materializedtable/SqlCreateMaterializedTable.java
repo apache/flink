@@ -29,19 +29,23 @@ import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,7 +55,49 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateMaterializedTable extends SqlCreateObject implements ExtendedSqlNode {
 
     public static final SqlSpecialOperator CREATE_OPERATOR =
-            new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE);
+            new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return buildCreateCall(CREATE_OPERATOR, pos, operands);
+                }
+            };
+
+    static SqlCreateMaterializedTable buildCreateCall(
+            SqlSpecialOperator operator, SqlParserPos pos, SqlNode[] operands) {
+        List<SqlTableConstraint> constraints = new ArrayList<>();
+        for (SqlNode c : (SqlNodeList) operands[2]) {
+            constraints.add((SqlTableConstraint) c);
+        }
+        SqlRefreshMode refreshMode =
+                operands[10] == null
+                        ? null
+                        : ((SqlLiteral) operands[10]).getValueAs(SqlRefreshMode.class);
+        SqlStartMode startMode =
+                operands[11] == null
+                        ? null
+                        : new SqlStartMode(
+                                ((SqlLiteral) operands[11])
+                                        .getValueAs(SqlStartMode.SqlStartModeKind.class),
+                                (SqlIntervalLiteral) operands[12],
+                                (SqlTimestampLiteral) operands[13]);
+        return new SqlCreateMaterializedTable(
+                operator,
+                pos,
+                (SqlIdentifier) operands[0],
+                (SqlNodeList) operands[1],
+                constraints,
+                (SqlWatermark) operands[3],
+                (SqlCharStringLiteral) operands[4],
+                (SqlDistribution) operands[9],
+                (SqlNodeList) operands[5],
+                (SqlNodeList) operands[6],
+                (SqlIntervalLiteral) operands[7],
+                refreshMode,
+                startMode,
+                operands[8],
+                SqlParserPos.ZERO);
+    }
 
     private final SqlNodeList columnList;
 
@@ -115,7 +161,16 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
                 partitionKeyList,
                 properties,
                 freshness,
-                asQuery);
+                asQuery,
+                distribution,
+                refreshMode == null
+                        ? null
+                        : SqlLiteral.createSymbol(refreshMode, SqlParserPos.ZERO),
+                startMode == null
+                        ? null
+                        : SqlLiteral.createSymbol(startMode.getKind(), SqlParserPos.ZERO),
+                startMode == null ? null : startMode.getIntervalLiteral(),
+                startMode == null ? null : startMode.getTimestampLiteral());
     }
 
     public SqlNodeList getColumnList() {

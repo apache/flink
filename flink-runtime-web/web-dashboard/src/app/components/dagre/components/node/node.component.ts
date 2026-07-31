@@ -129,10 +129,10 @@ export class NodeComponent {
       (f[3] > -1 && t[3] > -1
         ? Math.round(((t[3] - f[3]) * p + f[3]) * 255)
         : t[3] > -1
-        ? Math.round(t[3] * 255)
-        : f[3] > -1
-        ? Math.round(f[3] * 255)
-        : 255) *
+          ? Math.round(t[3] * 255)
+          : f[3] > -1
+            ? Math.round(f[3] * 255)
+            : 255) *
         0x1000000 +
       Math.round((t[0] - f[0]) * p + f[0]) * 0x10000 +
       Math.round((t[1] - f[1]) * p + f[1]) * 0x100 +

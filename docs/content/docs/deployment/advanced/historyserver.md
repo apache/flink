@@ -79,6 +79,37 @@ The contained archives are downloaded and cached in the local filesystem. The lo
 
 Check out the configuration page for a [complete list of configuration options]({{< ref "docs/deployment/config" >}}#history-server).
 
+**Archive Storage Backend**
+
+The HistoryServer supports pluggable local archive storage backends, selected via `historyserver.archive.storage.type`:
+
+* `FILE` (default): Each archive is unpacked into multiple JSON files under `historyserver.web.tmpdir`.
+* `ROCKSDB`: All archives are stored as key-value pairs in a single embedded RocksDB instance under `historyserver.web.tmpdir/rocksdb`. This avoids the "many small files" problem and is recommended when there is a large number of archives.
+
+Example for enabling the RocksDB backend:
+
+```yaml
+historyserver.archive.storage.type: ROCKSDB
+```
+
+**Archive Load Mode**
+
+The HistoryServer supports two modes for loading archives, selected via `historyserver.archive.load.mode`:
+
+* `EAGER` (default): Archives are automatically and synchronously downloaded to local storage via periodic background refreshes.
+* `LAZY`: Archives are displayed on the web interface immediately, while the underlying data is fetched asynchronously in the background. If a specific archive is accessed before its background download completes, the system will prioritize and fetch it on demand.
+
+Example for enabling the lazy loading:
+
+```yaml
+historyserver.archive.load.mode: LAZY
+```
+
+In `LAZY` mode, on-demand fetches use two thread pools:
+
+* `historyserver.lazy.fetch.executor.common.pool-size` — The size of the shared thread pool used for routine, background archive fetching.
+* `historyserver.lazy.fetch.executor.individual.pool-size` — The size of the high-priority thread pool dedicated to fetching individual archives on demand (e.g., when a user accesses them).
+
 ## Log Integration
 
 Flink does not provide built-in methods for archiving logs of completed jobs.

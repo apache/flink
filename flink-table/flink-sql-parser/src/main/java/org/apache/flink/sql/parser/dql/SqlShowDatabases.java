@@ -20,9 +20,12 @@ package org.apache.flink.sql.parser.dql;
 
 import org.apache.flink.sql.parser.impl.ParseException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -38,7 +41,23 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 public class SqlShowDatabases extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER);
+            new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    try {
+                        return new SqlShowDatabases(
+                                pos,
+                                operandToString(operands[1]),
+                                (SqlIdentifier) operands[0],
+                                operandToString(operands[2]),
+                                (SqlCharStringLiteral) operands[3],
+                                operandToBoolean(operands[4]));
+                    } catch (ParseException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
 
     public SqlShowDatabases(
             SqlParserPos pos,

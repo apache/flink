@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.SqlParseUtils;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -31,7 +32,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -42,7 +42,13 @@ import java.util.List;
 public class SqlCompileAndExecutePlan extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("COMPILE AND EXECUTE PLAN", SqlKind.OTHER);
+            new SqlSpecialOperator("COMPILE AND EXECUTE PLAN", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCompileAndExecutePlan(pos, operands[1], operands[0]);
+                }
+            };
 
     private final SqlNode planFile;
     private SqlNode operand;
@@ -67,7 +73,7 @@ public class SqlCompileAndExecutePlan extends SqlCall {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(operand);
+        return List.of(operand, planFile);
     }
 
     @Override

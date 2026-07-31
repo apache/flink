@@ -24,9 +24,10 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.ApplicationExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.ApplicationIDPathParameter;
-import org.apache.flink.runtime.rest.messages.ApplicationMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.application.ApplicationExceptionsMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,8 +49,10 @@ public class ApplicationExceptionsHandler
                 RestfulGateway,
                 EmptyRequestBody,
                 ApplicationExceptionsInfoWithHistory,
-                ApplicationMessageParameters>
+                ApplicationExceptionsMessageParameters>
         implements ApplicationJsonArchivist {
+
+    static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 
     public ApplicationExceptionsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -57,7 +61,7 @@ public class ApplicationExceptionsHandler
             MessageHeaders<
                             EmptyRequestBody,
                             ApplicationExceptionsInfoWithHistory,
-                            ApplicationMessageParameters>
+                            ApplicationExceptionsMessageParameters>
                     messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
     }
@@ -66,13 +70,20 @@ public class ApplicationExceptionsHandler
     public CompletableFuture<ApplicationExceptionsInfoWithHistory> handleRequest(
             @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway) {
         ApplicationID applicationId = request.getPathParameter(ApplicationIDPathParameter.class);
+        final List<Integer> exceptionToReportMaxSizes =
+                request.getQueryParameter(UpperLimitExceptionParameter.class);
+        final int exceptionToReportMaxSize =
+                exceptionToReportMaxSizes.size() > 0
+                        ? exceptionToReportMaxSizes.get(0)
+                        : MAX_NUMBER_EXCEPTION_TO_REPORT;
 
         return gateway.requestApplication(applicationId, timeout)
                 .thenApply(
                         archivedApplication ->
                                 ApplicationExceptionsInfoWithHistory
                                         .fromApplicationExceptionHistory(
-                                                archivedApplication.getExceptionHistory()));
+                                                archivedApplication.getExceptionHistory(),
+                                                exceptionToReportMaxSize));
     }
 
     @Override
@@ -88,6 +99,7 @@ public class ApplicationExceptionsHandler
                 new ArchivedJson(
                         path,
                         ApplicationExceptionsInfoWithHistory.fromApplicationExceptionHistory(
-                                archivedApplication.getExceptionHistory())));
+                                archivedApplication.getExceptionHistory(),
+                                MAX_NUMBER_EXCEPTION_TO_REPORT)));
     }
 }

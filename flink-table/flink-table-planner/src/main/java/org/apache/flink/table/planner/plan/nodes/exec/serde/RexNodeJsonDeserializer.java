@@ -253,12 +253,14 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         switch (sqlTypeName) {
             case BOOLEAN:
                 return valueNode.booleanValue();
+            case FLOAT:
+            case DOUBLE:
+            case REAL:
+                return Double.parseDouble(valueNode.asText());
             case TINYINT:
             case SMALLINT:
             case INTEGER:
             case BIGINT:
-            case FLOAT:
-            case DOUBLE:
             case DECIMAL:
             case INTERVAL_YEAR:
             case INTERVAL_YEAR_MONTH:

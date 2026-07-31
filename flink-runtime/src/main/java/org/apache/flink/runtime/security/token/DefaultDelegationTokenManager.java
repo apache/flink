@@ -27,6 +27,7 @@ import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -44,11 +46,13 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
+import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,7 +84,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private final double tokensRenewalTimeRatio;
 
-    private final long renewalRetryBackoffPeriod;
+    private final long renewalRetryInitialBackoff;
+
+    private final long renewalRetryMaxBackoff;
+
+    @VisibleForTesting long currentRetryBackoff;
+
+    @VisibleForTesting long lastKnownNextRenewal = Long.MAX_VALUE;
 
     @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
 
@@ -106,8 +116,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
         this.pluginManager = pluginManager;
         this.tokensRenewalTimeRatio = configuration.get(DELEGATION_TOKENS_RENEWAL_TIME_RATIO);
-        this.renewalRetryBackoffPeriod =
-                configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF).toMillis();
+        this.renewalRetryInitialBackoff =
+                configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF).toMillis();
+        this.renewalRetryMaxBackoff =
+                configuration.get(DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF).toMillis();
+        this.currentRetryBackoff = renewalRetryInitialBackoff;
         this.delegationTokenProviders = loadProviders();
         this.delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, pluginManager);
@@ -321,6 +334,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
 
             if (nextRenewal.isPresent()) {
+                lastKnownNextRenewal = nextRenewal.get();
+                currentRetryBackoff = renewalRetryInitialBackoff;
                 long renewalDelay =
                         calculateRenewalDelay(Clock.systemDefaultZone(), nextRenewal.get());
                 synchronized (tokensUpdateFutureLock) {
@@ -330,7 +345,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                     renewalDelay,
                                     TimeUnit.MILLISECONDS);
                 }
-                LOG.info("Tokens update task started with {} ms delay", renewalDelay);
+                LOG.info(
+                        "Tokens update task started with {} delay",
+                        TimeUtils.formatWithHighestUnit(Duration.ofMillis(renewalDelay)));
             } else {
                 LOG.warn(
                         "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
@@ -339,16 +356,17 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             // Ignore, may happen if shutting down.
             LOG.debug("Interrupted", e);
         } catch (Exception e) {
+            long delay = calculateRetryDelay(Clock.systemDefaultZone());
             synchronized (tokensUpdateFutureLock) {
                 tokensUpdateFuture =
                         scheduledExecutor.schedule(
                                 () -> ioExecutor.execute(this::startTokensUpdate),
-                                renewalRetryBackoffPeriod,
+                                delay,
                                 TimeUnit.MILLISECONDS);
             }
             LOG.warn(
-                    "Failed to update tokens, will try again in {} ms",
-                    renewalRetryBackoffPeriod,
+                    "Failed to update tokens, will try again in {}",
+                    TimeUtils.formatWithHighestUnit(Duration.ofMillis(delay)),
                     e);
         }
     }
@@ -361,6 +379,28 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 tokensUpdateFuture = null;
             }
         }
+    }
+
+    @VisibleForTesting
+    long calculateRetryDelay(Clock clock) {
+        long nowMillis = clock.millis();
+        long effectiveMax;
+        if (lastKnownNextRenewal != Long.MAX_VALUE) {
+            long remaining = lastKnownNextRenewal - nowMillis;
+            // If a failure occurs close to token expiry there may not be enough time for the
+            // normal exponential backoff to complete before the token becomes invalid. Capping
+            // each retry delay to one third of the remaining valid window ensures a retry always
+            // happens while the token is still live, regardless of how close to expiry the
+            // failure occurred.
+            effectiveMax = remaining > 0 ? remaining / 3 : renewalRetryMaxBackoff;
+        } else {
+            effectiveMax = renewalRetryMaxBackoff;
+        }
+        long base = Math.min(currentRetryBackoff, effectiveMax);
+        long jitter = (long) ((ThreadLocalRandom.current().nextDouble() - 0.5) * base);
+        long delay = Math.max(0, Math.min(base + jitter, effectiveMax));
+        currentRetryBackoff = Math.min(currentRetryBackoff * 2, renewalRetryMaxBackoff);
+        return delay;
     }
 
     @VisibleForTesting

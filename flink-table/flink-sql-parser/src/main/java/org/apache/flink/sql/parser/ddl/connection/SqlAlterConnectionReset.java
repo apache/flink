@@ -21,9 +21,14 @@ package org.apache.flink.sql.parser.ddl.connection;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
@@ -37,6 +42,19 @@ import static java.util.Objects.requireNonNull;
  * 'key2']...).
  */
 public class SqlAlterConnectionReset extends SqlAlterConnection {
+    private static final SqlSpecialOperator RESET_OPERATOR =
+            new SqlSpecialOperator("ALTER CONNECTION RESET", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterConnectionReset(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[2]).booleanValue(),
+                            (SqlNodeList) operands[1]);
+                }
+            };
+
     private final SqlNodeList optionKeyList;
 
     public SqlAlterConnectionReset(
@@ -49,8 +67,16 @@ public class SqlAlterConnectionReset extends SqlAlterConnection {
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return RESET_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
-        return List.of(name, optionKeyList);
+        return List.of(
+                name,
+                optionKeyList,
+                SqlLiteral.createBoolean(ifConnectionExists, SqlParserPos.ZERO));
     }
 
     public Set<String> getResetKeys() {

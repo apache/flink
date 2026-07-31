@@ -487,62 +487,6 @@ public class SqlFunctionUtils {
     }
 
     /**
-     * Parse string as key-value string and return the value matches key name. example:
-     * keyvalue('k1=v1;k2=v2', ';', '=', 'k2') = 'v2' keyvalue('k1:v1,k2:v2', ',', ':', 'k3') = NULL
-     *
-     * @param str target string.
-     * @param pairSeparator separator between key-value tuple.
-     * @param kvSeparator separator between key and value.
-     * @param keyName name of the key whose value you want return.
-     * @return target value.
-     */
-    public static BinaryStringData keyValue(
-            BinaryStringData str,
-            BinaryStringData pairSeparator,
-            BinaryStringData kvSeparator,
-            BinaryStringData keyName) {
-        if (str == null || str.getSizeInBytes() == 0) {
-            return null;
-        }
-        if (pairSeparator != null
-                && pairSeparator.getSizeInBytes() == 1
-                && kvSeparator != null
-                && kvSeparator.getSizeInBytes() == 1) {
-            return BinaryStringDataUtil.keyValue(
-                    str, pairSeparator.byteAt(0), kvSeparator.byteAt(0), keyName);
-        } else {
-            return BinaryStringData.fromString(
-                    keyValue(
-                            BinaryStringDataUtil.safeToString(str),
-                            BinaryStringDataUtil.safeToString(pairSeparator),
-                            BinaryStringDataUtil.safeToString(kvSeparator),
-                            BinaryStringDataUtil.safeToString(keyName)));
-        }
-    }
-
-    private static String keyValue(
-            String str, String pairSeparator, String kvSeparator, String keyName) {
-        try {
-            if (StringUtils.isEmpty(str)) {
-                return null;
-            }
-            String[] values = StringUtils.split(str, pairSeparator);
-            for (String value : values) {
-                if (!StringUtils.isEmpty(value)) {
-                    String[] kv = StringUtils.split(kvSeparator);
-                    if (kv != null && kv.length == 2 && kv[0].equals(keyName)) {
-                        return kv[1];
-                    }
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            LOG.error("Exception when parse key-value", e);
-            return null;
-        }
-    }
-
-    /**
      * Calculate the hash value of a given string.
      *
      * @param algorithm message digest algorithm.
@@ -603,7 +547,6 @@ public class SqlFunctionUtils {
         try {
             url = URL_CACHE.get(urlStr);
         } catch (Exception e) {
-            LOG.error("Parse URL error: " + urlStr, e);
             return null;
         }
         if ("HOST".equals(partToExtract)) {
@@ -666,16 +609,9 @@ public class SqlFunctionUtils {
 
     public static String subString(String str, long start, long len) {
         if (len < 0) {
-            LOG.error(
-                    "len of 'substring(str, start, len)' must be >= 0 and Int type, but len = {}",
-                    len);
             return null;
         }
         if (len > Integer.MAX_VALUE || start > Integer.MAX_VALUE) {
-            LOG.error(
-                    "len or start of 'substring(str, start, len)' must be Int type, but len = {}, start = {}",
-                    len,
-                    start);
             return null;
         }
         int length = (int) len;

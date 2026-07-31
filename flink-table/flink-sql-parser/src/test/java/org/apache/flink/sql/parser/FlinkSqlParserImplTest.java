@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.ddl.view.SqlCreateView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
@@ -34,10 +35,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Locale;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -72,6 +75,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testMultisetQueryConstructor() {}
+
+    @Test
+    void testMeasure() {}
 
     @Test
     void testShowCatalogs() {
@@ -2450,6 +2456,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateViewWithFieldNamesWithToString() throws SqlParseException {
+        final String sql = "create view v(col1, col2) as select col3, col4 from tbl";
+        final String expected =
+                "CREATE VIEW `V` (`COL1`, `COL2`)\n"
+                        + "AS\n"
+                        + "SELECT `COL3`, `COL4`\n"
+                        + "FROM `TBL`";
+        final SqlNode node = sql(sql).parser().parseQuery();
+        assertThat(node).isInstanceOf(SqlCreateView.class).hasToString(expected);
+    }
+
+    @Test
     void testCreateViewWithInvalidName() {
         final String sql = "create view v(^*^) COMMENT 'this is a view' as select col1 from tbl";
         final String expected = "(?s).*Encountered \"\\*\" at line 1, column 15.*";
@@ -3167,29 +3185,42 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\,\" at line 1, column 32.\n.*");
     }
 
-    @Test
-    void testExplainCreateTableNoSupported() {
-        this.sql("EXPLAIN CREATE TABLE t (id int^)^")
+    @ParameterizedTest
+    @ValueSource(strings = {"CREATE", "CREATE OR REPLACE"})
+    void testExplainCreateTableNotSupported(final String operation) {
+        this.sql(String.format("EXPLAIN %s TABLE t (id int^)^", operation))
                 .fails(
                         "Unsupported CREATE OR REPLACE statement for EXPLAIN\\. The statement must define a query using the AS clause \\(i\\.e\\. CTAS/RTAS statements\\)\\.");
     }
 
-    @Test
-    void testExplainCreateTableAsSelect() {
-        this.sql("EXPLAIN CREATE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "ALTER MATERIALIZED TABLE t ^SUSPEND^",
+                "ALTER MATERIALIZED TABLE t ^RESUME^",
+                "ALTER MATERIALIZED TABLE t ADD category_id STRING METADATA ^VIRTUAL^",
+                "ALTER MATERIALIZED TABLE t MODIFY measurement double ^METADATA^"
+            })
+    void testExplainAlterMaterializedTableWithoutAsQueryNotSupported(
+            final String alterMaterializedTable) {
+        this.sql(String.format("EXPLAIN %s", alterMaterializedTable))
+                .fails(
+                        "Unsupported ALTER MATERIALIZED TABLE statement for EXPLAIN\\. The statement must define a query using the AS clause.");
     }
 
-    @Test
-    void testExplainCreateOrReplaceTableAsSelect() {
-        this.sql("EXPLAIN CREATE OR REPLACE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
-    }
-
-    @Test
-    void testExplainReplaceTableAsSelect() {
-        this.sql("EXPLAIN REPLACE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "CREATE",
+                "CREATE OR REPLACE",
+                "REPLACE",
+                "CREATE MATERIALIZED",
+                "ALTER MATERIALIZED",
+                "CREATE OR ALTER MATERIALIZED",
+            })
+    void testExplain(final String operation) {
+        this.sql(String.format("EXPLAIN %s TABLE t AS SELECT * FROM b", operation))
+                .ok(String.format("EXPLAIN %s TABLE `T`\nAS\nSELECT *\nFROM `B`", operation));
     }
 
     @Test

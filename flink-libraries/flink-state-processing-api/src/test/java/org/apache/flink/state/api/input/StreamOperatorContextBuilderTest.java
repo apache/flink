@@ -28,18 +28,20 @@ import org.apache.flink.state.api.input.splits.PrioritizedOperatorSubtaskStateIn
 import org.apache.flink.state.api.utils.CustomStateBackendFactory;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for the stream operator context builder. */
-public class StreamOperatorContextBuilderTest {
+class StreamOperatorContextBuilderTest {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(StreamOperatorContextBuilderTest.class);
 
-    @Test(expected = CustomStateBackendFactory.ExpectedException.class)
-    public void testStateBackendLoading() throws Exception {
+    @Test
+    void testStateBackendLoading() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(
                 StateBackendOptions.STATE_BACKEND,
@@ -67,6 +69,7 @@ public class StreamOperatorContextBuilderTest {
                         null,
                         context.getExecutionConfig());
 
-        builder.build(LOG);
+        assertThatThrownBy(() -> builder.build(LOG))
+                .isInstanceOf(CustomStateBackendFactory.ExpectedException.class);
     }
 }

@@ -23,23 +23,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.nio.file.Path;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the ForStStateBackendFactory. */
-public class ForStStateBackendFactoryTest {
+class ForStStateBackendFactoryTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir Path tmp;
 
     private final ClassLoader cl = getClass().getClassLoader();
 
@@ -48,13 +45,13 @@ public class ForStStateBackendFactoryTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testEmbeddedFactoryName() {
+    void testEmbeddedFactoryName() {
         // construct the name such that it will not be automatically adjusted on refactorings
         String factoryName = "org.apache.flink.state.forst.For";
         factoryName += "StStateBackendFactory";
 
         // !!! if this fails, the code in StateBackendLoader must be adjusted
-        assertEquals(factoryName, ForStStateBackendFactory.class.getName());
+        assertThat(ForStStateBackendFactory.class.getName()).isEqualTo(factoryName);
     }
 
     /**
@@ -62,9 +59,9 @@ public class ForStStateBackendFactoryTest {
      * configuration.
      */
     @Test
-    public void testLoadForStStateBackend() throws Exception {
-        final String localDir1 = tmp.newFolder().getAbsolutePath();
-        final String localDir2 = tmp.newFolder().getAbsolutePath();
+    void testLoadForStStateBackend() throws Exception {
+        final String localDir1 = TempDirUtils.newFolder(tmp).getAbsolutePath();
+        final String localDir2 = TempDirUtils.newFolder(tmp).getAbsolutePath();
         final String localDirs = localDir1 + File.pathSeparator + localDir2;
         final boolean incremental = !CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
 
@@ -81,8 +78,8 @@ public class ForStStateBackendFactoryTest {
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
-        assertTrue(backend1 instanceof ForStStateBackend);
-        assertTrue(backend2 instanceof ForStStateBackend);
+        assertThat(backend1).isInstanceOf(ForStStateBackend.class);
+        assertThat(backend2).isInstanceOf(ForStStateBackend.class);
 
         ForStStateBackend fs1 = (ForStStateBackend) backend1;
         ForStStateBackend fs2 = (ForStStateBackend) backend1;
@@ -97,11 +94,11 @@ public class ForStStateBackendFactoryTest {
      * parameters over configuration-defined parameters.
      */
     @Test
-    public void testLoadForStStateBackendMixed() throws Exception {
-        final String localDir1 = tmp.newFolder().getAbsolutePath();
-        final String localDir2 = tmp.newFolder().getAbsolutePath();
-        final String localDir3 = tmp.newFolder().getAbsolutePath();
-        final String localDir4 = tmp.newFolder().getAbsolutePath();
+    void testLoadForStStateBackendMixed() throws Exception {
+        final String localDir1 = TempDirUtils.newFolder(tmp).getAbsolutePath();
+        final String localDir2 = TempDirUtils.newFolder(tmp).getAbsolutePath();
+        final String localDir3 = TempDirUtils.newFolder(tmp).getAbsolutePath();
+        final String localDir4 = TempDirUtils.newFolder(tmp).getAbsolutePath();
 
         final ForStStateBackend backend = new ForStStateBackend();
         backend.setLocalDbStoragePaths(localDir1, localDir2);
@@ -115,7 +112,7 @@ public class ForStStateBackendFactoryTest {
         final StateBackend loadedBackend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         backend, new Configuration(), config, cl, null);
-        assertTrue(loadedBackend instanceof ForStStateBackend);
+        assertThat(loadedBackend).isInstanceOf(ForStStateBackend.class);
 
         final ForStStateBackend loadedRocks = (ForStStateBackend) loadedBackend;
 
@@ -125,15 +122,8 @@ public class ForStStateBackendFactoryTest {
     // ------------------------------------------------------------------------
 
     private static void checkPaths(String[] pathsArray, String... paths) {
-        assertNotNull(pathsArray);
-        assertNotNull(paths);
-
-        assertEquals(pathsArray.length, paths.length);
-
-        HashSet<String> pathsSet = new HashSet<>(Arrays.asList(pathsArray));
-
-        for (String path : paths) {
-            assertTrue(pathsSet.contains(path));
-        }
+        assertThat(pathsArray).isNotNull();
+        assertThat(paths).isNotNull();
+        assertThat(pathsArray).containsExactlyInAnyOrder(paths);
     }
 }

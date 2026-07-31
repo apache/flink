@@ -30,7 +30,7 @@ import java.util.Collections;
 /** {@link MessageParameters} for {@link JobExceptionsHandler}. */
 public class JobExceptionsMessageParameters extends JobMessageParameters {
 
-    private final UpperLimitExceptionParameter upperLimitExceptionParameter =
+    public final UpperLimitExceptionParameter upperLimitExceptionParameter =
             new UpperLimitExceptionParameter();
 
     private final FailureLabelFilterParameter failureLabelExceptionParameter =

@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.expressions.utils.{TestNonDeterministicUdaf, TestNonDeterministicUdf, TestNonDeterministicUdtf}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.{NonDeterministicUpdatingRetractFunction, NonDeterministicUpdatingRetractRowSemanticFunction, UpdatingJoinFunction, UpdatingRetractFunction, UpdatingRetractRowSemanticFunction, UpdatingUpsertFunction}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -231,6 +232,101 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
     util.tableEnv.createTemporaryFunction("ndAggFunc", new TestNonDeterministicUdaf)
     // deterministic table function
     util.tableEnv.createTemporaryFunction("str_split", new StringSplit())
+
+    // PTF functions for NDU changelog tests
+    util.tableEnv.createTemporaryFunction("updatingUpsertFunc", new UpdatingUpsertFunction)
+    util.tableEnv.createTemporaryFunction("updatingRetractFunc", new UpdatingRetractFunction)
+    util.tableEnv.createTemporaryFunction(
+      "nonDeterministicRetractFunc",
+      new NonDeterministicUpdatingRetractFunction)
+    // PTF taking two table arguments (multi-table case)
+    util.tableEnv.createTemporaryFunction("updatingJoinFunc", new UpdatingJoinFunction)
+    // Row-semantic PTFs
+    util.tableEnv.createTemporaryFunction(
+      "updatingRetractRowSemanticFunc",
+      new UpdatingRetractRowSemanticFunction)
+    util.tableEnv.createTemporaryFunction(
+      "nonDeterministicRetractRowSemanticFunc",
+      new NonDeterministicUpdatingRetractRowSemanticFunction)
+
+    // View with ndFunc applied to the partition key column (INT -> INT)
+    util.tableEnv.executeSql("""CREATE VIEW nd_partition_key_src AS
+                               |SELECT ndFunc(a) AS nd_a, b, c, d FROM upsert_src""".stripMargin)
+
+    // View with ndFunc applied to a non-key column (BIGINT -> BIGINT)
+    util.tableEnv.executeSql("""CREATE VIEW nd_col_src AS
+                               |SELECT a, ndFunc(b) AS nd_b, c, d FROM cdc""".stripMargin)
+
+    // Upsert sink: 4 columns (INT, INT, BIGINT, STRING) matching PTF upsert output over INT sources
+    util.tableEnv.executeSql("""CREATE TABLE ptf_upsert_sink (
+                               |  f0 INT, f1 STRING, f2 BIGINT, f3 STRING,
+                               |  PRIMARY KEY (f0) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false',
+                               |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                               |)""".stripMargin)
+
+    // Retract sink: same column types, no primary key
+    util.tableEnv.executeSql("""CREATE TABLE ptf_retract_sink (
+                               |  f0 INT, f1 STRING, f2 BIGINT, f3 STRING
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false'
+                               |)""".stripMargin)
+
+    // Two upsert sources for the multi-table (join) PTF, both keyed by id.
+    util.tableEnv.executeSql("""CREATE TABLE ptf_score_src (
+                               |  id INT,
+                               |  score INT,
+                               |  PRIMARY KEY (id) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'changelog-mode' = 'I,UA,D',
+                               |  'source.produces-delete-by-key' = 'true'
+                               |)""".stripMargin)
+    util.tableEnv.executeSql("""CREATE TABLE ptf_city_src (
+                               |  id INT,
+                               |  city STRING,
+                               |  PRIMARY KEY (id) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'changelog-mode' = 'I,UA,D',
+                               |  'source.produces-delete-by-key' = 'true'
+                               |)""".stripMargin)
+
+    // Views applying ndFunc to each source's key column, so its upsert key no longer matches the
+    // partition key used by the PTF.
+    util.tableEnv.executeSql("""CREATE VIEW nd_score_src AS
+                               |SELECT ndFunc(id) AS id, score FROM ptf_score_src""".stripMargin)
+    util.tableEnv.executeSql("""CREATE VIEW nd_city_src AS
+                               |SELECT ndFunc(id) AS id, city FROM ptf_city_src""".stripMargin)
+
+    // Upsert sink for the join PTF output: the two table arguments are co-partitioned on the same
+    // key, so a single partition key (id) is prepended to the PTF output.
+    util.tableEnv.executeSql("""CREATE TABLE ptf_join_sink (
+                               |  id INT,
+                               |  `out` STRING,
+                               |  PRIMARY KEY (id) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false',
+                               |  'sink-changelog-mode-enforced' = 'I,UA,D',
+                               |  'sink.supports-delete-by-key' = 'true'
+                               |)""".stripMargin)
+
+    // Retract sink matching the row-semantic changelog PTF output ROW<name, count, mode>, no PK.
+    util.tableEnv.executeSql("""CREATE TABLE ptf_row_retract_sink (
+                               |  f0 STRING, f1 BIGINT, f2 STRING
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false'
+                               |)""".stripMargin)
+
+    // Insert-only source with a non-deterministic column. Feeding this to a row-semantic PTF
+    // exercises the inputInsertOnly short-circuit in visitPtf.
+    util.tableEnv.executeSql("""CREATE VIEW nd_insert_only_src AS
+                               |SELECT a, ndFunc(b) AS nd_b, c, d FROM src""".stripMargin)
   }
 
   @TestTemplate
@@ -1960,6 +2056,154 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
         ))
       .hasMessageContaining("Match Recognize doesn't support consuming update and delete changes")
       .isInstanceOf[TableException]
+  }
+
+  // ---------------------------------------------------------------------------
+  // PTF changelog NDU tests
+  // ---------------------------------------------------------------------------
+
+  /** Partition key equals the source upsert key — requirement excluded, no NDU error. */
+  @TestTemplate
+  def testPtfUpsertOutputPartitionKeyMatchesUpsertKey(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_upsert_sink" +
+            " SELECT * FROM updatingUpsertFunc(TABLE upsert_src PARTITION BY a)"))
+      .doesNotThrowAnyException()
+  }
+
+  /**
+   * Non-deterministic function on the partition key column — the partition key of the PTF input
+   * must be deterministic for upsert output correctness; expect error only under TRY_RESOLVE.
+   */
+  @TestTemplate
+  def testPtfUpsertOutputNonDeterministicPartitionKey(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_upsert_sink" +
+          " SELECT * FROM updatingUpsertFunc(TABLE nd_partition_key_src PARTITION BY nd_a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function: ndFunc")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /** All CDC input columns are deterministic — full-retract output requires no NDU error. */
+  @TestTemplate
+  def testPtfRetractOutputDeterministicInput(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_retract_sink" +
+            " SELECT * FROM updatingRetractFunc(TABLE cdc PARTITION BY a)"))
+      .doesNotThrowAnyException()
+  }
+
+  /**
+   * Non-deterministic function on a non-key input column — full-retract output requires all columns
+   * to be deterministic; expect error only under TRY_RESOLVE.
+   */
+  @TestTemplate
+  def testPtfRetractOutputNonDeterministicInputColumn(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_retract_sink" +
+          " SELECT * FROM updatingRetractFunc(TABLE nd_col_src PARTITION BY a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function: ndFunc")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /**
+   * A non-deterministic PTF writing to a retract sink (no PK): the retract sink requires all PTF
+   * output columns to be deterministic, and the retract PTF has no upsert key so nothing is zeroed
+   * by requireDeterminismExcludeUpsertKey — requireDeterminism is fully non-empty when it reaches
+   * visitPtf. The PTF claims isDeterministic() == false (Concern 1), so the NDU visitor must flag
+   * it.
+   *
+   * <p>Inputs are deterministic (cdc with no ndFunc), so Concern 2 (non-deterministic input
+   * columns) does not trigger.
+   */
+  @TestTemplate
+  def testPtfNonDeterministicFunctionWithRequiredOutputDeterminism(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_retract_sink" +
+          " SELECT * FROM nonDeterministicRetractFunc(TABLE cdc PARTITION BY a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /** Multi-table PTF: both table arguments are partitioned by their respective upsert keys. */
+  @TestTemplate
+  def testPtfMultiInputUpsertOutputPartitionKeyMatchesUpsertKey(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_join_sink SELECT id, `out` FROM updatingJoinFunc(" +
+            "scoreTable => TABLE ptf_score_src PARTITION BY id, " +
+            "cityTable => TABLE ptf_city_src PARTITION BY id)"))
+      .doesNotThrowAnyException()
+  }
+
+  /**
+   * Multi-table (join) PTF where one table argument is partitioned by a non-deterministic column
+   * (ndFunc(id)) that no longer matches the source's upsert key.
+   */
+  @TestTemplate
+  def testPtfMultiInputUpsertOutputNonDeterministicPartitionKey(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_join_sink SELECT id, `out` FROM updatingJoinFunc(" +
+          "scoreTable => TABLE nd_score_src PARTITION BY id, " +
+          "cityTable => TABLE ptf_city_src PARTITION BY id)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function: ndFunc")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /** Row-semantic PTF that is itself non-deterministic, writing to a retract sink. */
+  @TestTemplate
+  def testPtfRowSemanticNonDeterministicFunctionWithRetractSink(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_row_retract_sink" +
+          " SELECT * FROM nonDeterministicRetractRowSemanticFunc(TABLE cdc)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /** Row-semantic PTF reading an insert-only input that carries a non-deterministic column. */
+  @TestTemplate
+  def testPtfRowSemanticInsertOnlyInputWithRetractSink(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_row_retract_sink" +
+            " SELECT * FROM updatingRetractRowSemanticFunc(TABLE nd_insert_only_src)"))
+      .doesNotThrowAnyException()
   }
 
   /**

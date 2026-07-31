@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.Condition;
-import org.junit.jupiter.api.Disabled;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +37,6 @@ import scala.Option;
  * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link
  * ScalaEitherSerializerSnapshot}.
  */
-@Disabled("FLINK-36334")
 class OptionSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
 

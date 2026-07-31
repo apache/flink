@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN_OR_EQUAL}
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
-
-import scala.collection.JavaConversions._
 
 class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
 
@@ -69,7 +68,7 @@ class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
 
     val ts = relBuilder.scan("MyTable3").build()
     relBuilder.push(ts)
-    val projects = List(
+    val projects = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       relBuilder.field(1),
@@ -95,14 +94,14 @@ class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
       studentLogicalScan,
       studentLogicalScan.getRowType,
       relBuilder.fields(),
-      List(expr))
+      java.util.List.of[RexNode](expr))
     (0 until calc1.getRowType.getFieldCount).foreach {
       idx => assertNull(mq.getColumnOriginNullCount(calc1, idx))
     }
 
     val ts = relBuilder.scan("MyTable3").build()
     relBuilder.push(ts)
-    val projects = List(
+    val projects = java.util.List.of(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
       relBuilder.field(1),
@@ -110,7 +109,7 @@ class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
       relBuilder.literal(null)
     )
     val outputRowType = relBuilder.project(projects).build().getRowType
-    val calc2 = createLogicalCalc(ts, outputRowType, projects, List())
+    val calc2 = createLogicalCalc(ts, outputRowType, projects, java.util.List.of())
     assertEquals(null, mq.getColumnOriginNullCount(calc2, 0))
     assertEquals(1.0, mq.getColumnOriginNullCount(calc2, 1))
     assertEquals(0.0, mq.getColumnOriginNullCount(calc2, 2))

@@ -214,6 +214,13 @@ public class JarFileChecker {
                     // dual-licensed under GPL 2 and EPL 2.0
                     // contained in sql-avro-confluent-registry
                     .filter(path -> !pathStartsWith(path, "/org/glassfish/jersey/internal"))
+                    // dual-licensed under GPL-2.0-with-Classpath-exception and EPL 2.0
+                    // contained in flink-sql-connector-elasticsearch8
+                    .filter(
+                            path ->
+                                    !pathStartsWith(
+                                            path,
+                                            "/org/apache/flink/elasticsearch8/shaded/org/eclipse/parsson"))
                     // contained in sql-connector-pulsar
                     // while the Pulsar connector is externalized, this is still needed for PyFlink
                     .filter(

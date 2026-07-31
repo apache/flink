@@ -20,9 +20,11 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -39,7 +41,24 @@ import static java.util.Objects.requireNonNull;
 public class SqlAlterFunction extends SqlAlterObject {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    String language =
+                            operands[2] instanceof SqlCharStringLiteral
+                                    ? ((SqlCharStringLiteral) operands[2]).getValueAs(String.class)
+                                    : null;
+                    return new SqlAlterFunction(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlCharStringLiteral) operands[1],
+                            language,
+                            ((SqlLiteral) operands[3]).booleanValue(),
+                            ((SqlLiteral) operands[4]).booleanValue(),
+                            ((SqlLiteral) operands[5]).booleanValue());
+                }
+            };
 
     private final SqlCharStringLiteral functionClassName;
 
@@ -79,7 +98,15 @@ public class SqlAlterFunction extends SqlAlterObject {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, functionClassName);
+        return ImmutableNullableList.of(
+                name,
+                functionClassName,
+                functionLanguage == null
+                        ? SqlLiteral.createNull(SqlParserPos.ZERO)
+                        : SqlLiteral.createCharString(functionLanguage, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isTemporary, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isSystemFunction, SqlParserPos.ZERO));
     }
 
     public String getFunctionLanguage() {

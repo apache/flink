@@ -28,17 +28,16 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -46,15 +45,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for distributing files with {@link org.apache.flink.api.common.cache.DistributedCache} via
  * HDFS.
  */
-public class DistributedCacheDfsTest extends TestLogger {
+class DistributedCacheDfsTest {
 
     private static final String testFileContent =
             "Goethe - Faust: Der Tragoedie erster Teil\n"
@@ -74,11 +71,11 @@ public class DistributedCacheDfsTest extends TestLogger {
                     + "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
                     + "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir static File dataDir;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(1)
@@ -90,10 +87,8 @@ public class DistributedCacheDfsTest extends TestLogger {
     private static Path testFile;
     private static Path testDir;
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        File dataDir = TEMP_FOLDER.newFolder();
-
+    @BeforeAll
+    static void setup() throws Exception {
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
         hdfsCluster = builder.build();
@@ -123,13 +118,13 @@ public class DistributedCacheDfsTest extends TestLogger {
         return file;
     }
 
-    @AfterClass
-    public static void teardown() {
+    @AfterAll
+    static void teardown() {
         hdfsCluster.shutdown();
     }
 
     @Test
-    public void testDistributedFileViaDFS() throws Exception {
+    void testDistributedFileViaDFS() throws Exception {
         createJobWithRegisteredCachedFiles().execute("Distributed Cache Via Blob Test Program");
     }
 
@@ -139,7 +134,7 @@ public class DistributedCacheDfsTest extends TestLogger {
      * cover this cases.
      */
     @Test
-    public void testSubmittingJobViaRestClusterClient() throws Exception {
+    void testSubmittingJobViaRestClusterClient() throws Exception {
         RestClusterClient<String> restClusterClient =
                 new RestClusterClient<>(
                         MINI_CLUSTER_RESOURCE.getClientConfiguration(),
@@ -158,7 +153,7 @@ public class DistributedCacheDfsTest extends TestLogger {
                 jobResult.getSerializedThrowable().isPresent()
                         ? jobResult.getSerializedThrowable().get().getFullStringifiedStackTrace()
                         : "Job failed.";
-        assertTrue(messageInCaseOfFailure, jobResult.isSuccess());
+        assertThat(jobResult.isSuccess()).as(messageInCaseOfFailure).isTrue();
     }
 
     private StreamExecutionEnvironment createJobWithRegisteredCachedFiles() {
@@ -183,19 +178,19 @@ public class DistributedCacheDfsTest extends TestLogger {
                             getRuntimeContext().getDistributedCache().getFile("test_data").toURI());
 
             Path path = new Path(actualFile.toUri());
-            assertFalse(path.getFileSystem().isDistributedFS());
+            assertThat(path.getFileSystem().isDistributedFS()).isFalse();
 
             DataInputStream in = new DataInputStream(actualFile.getFileSystem().open(actualFile));
             String contents = in.readUTF();
 
-            assertEquals(testFileContent, contents);
+            assertThat(contents).isEqualTo(testFileContent);
 
             final Path actualDir =
                     new Path(getRuntimeContext().getDistributedCache().getFile("test_dir").toURI());
             FileStatus fileStatus = actualDir.getFileSystem().getFileStatus(actualDir);
-            assertTrue(fileStatus.isDir());
+            assertThat(fileStatus.isDir()).isTrue();
             FileStatus[] fileStatuses = actualDir.getFileSystem().listStatus(actualDir);
-            assertEquals(2, fileStatuses.length);
+            assertThat(fileStatuses).hasSize(2);
 
             return contents;
         }

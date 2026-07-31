@@ -66,7 +66,10 @@ class PlannerScalaFreeITCase extends SqlITCaseBase {
         runAndCheckSQL("scala_free_e2e.sql", Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
     }
 
-    /** The test data is from {@link org.apache.flink.table.toolbox.TestSourceFunction#DATA}. */
+    /**
+     * The test data is from {@link
+     * org.apache.flink.table.toolbox.TestScanTableSourceWithWatermarkPushDown#DATA}.
+     */
     @TestTemplate
     void testWatermarkPushDown() throws Exception {
         assumeThat(executionMode).isEqualTo("streaming");

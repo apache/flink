@@ -546,4 +546,41 @@ class ChangelogModeInferenceTest extends TableTestBase {
     // upsert key {id, name} is NOT a subset of sink pk {id}, so BEFORE_AND_AFTER is required
     util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testKeylessUpsertSinkKeepsUpsertWhenInputHasUpsertKey(): Unit = {
+    // Input keeps its upsert key (currency), so a keyless upsert-only sink stays upsert.
+    util.addTable("""
+                    |CREATE TABLE keyless_upsert_sink (
+                    |  currency STRING,
+                    |  rate INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false',
+                    |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                    |)
+                    |""".stripMargin)
+    util.verifyRelPlanInsert(
+      "INSERT INTO keyless_upsert_sink SELECT currency, rate FROM DeduplicatedView",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testKeylessUpsertSinkFallsBackToRetractWhenUpsertKeyProjectedAway(): Unit = {
+    // The input upsert key (currency) is projected away, so a keyless upsert-only sink cannot
+    // upsert and the planner falls back to retract; the deduplicate's ChangelogNormalize supplies
+    // UPDATE_BEFORE.
+    util.addTable("""
+                    |CREATE TABLE keyless_upsert_sink_no_key (
+                    |  rate INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false',
+                    |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                    |)
+                    |""".stripMargin)
+    util.verifyRelPlanInsert(
+      "INSERT INTO keyless_upsert_sink_no_key SELECT rate FROM DeduplicatedView",
+      ExplainDetail.CHANGELOG_MODE)
+  }
 }

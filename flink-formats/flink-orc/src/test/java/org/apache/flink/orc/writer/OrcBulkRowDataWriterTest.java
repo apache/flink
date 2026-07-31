@@ -18,12 +18,8 @@
 
 package org.apache.flink.orc.writer;
 
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RowDataVectorizer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
-import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
@@ -86,34 +82,20 @@ class OrcBulkRowDataWriterTest {
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
-        final OrcBulkWriterFactory<RowData> writer =
+        final OrcBulkWriterFactory<RowData> writerFactory =
                 new OrcBulkWriterFactory<>(
                         new RowDataVectorizer(schema, fieldTypes),
                         writerProps,
                         new Configuration());
 
-        StreamingFileSink<RowData> sink =
-                StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
-                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .withBucketCheckInterval(10000)
-                        .build();
+        // Mimic a single bucket directory so the validate(...) helper applies.
+        final File bucketDir = new File(outDir, "test");
+        assertThat(bucketDir.mkdirs()).isTrue();
 
-        try (OneInputStreamOperatorTestHarness<RowData, Object> testHarness =
-                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
+        OrcBulkWriterTestUtil.writeRecordsToFile(
+                new File(bucketDir, "part-0-0"), writerFactory, input);
 
-            testHarness.setup();
-            testHarness.open();
-
-            int time = 0;
-            for (final RowData record : input) {
-                testHarness.processElement(record, ++time);
-            }
-
-            testHarness.snapshot(1, ++time);
-            testHarness.notifyOfCompletedCheckpoint(1);
-
-            validate(outDir, input);
-        }
+        validate(outDir, input);
     }
 
     @BeforeEach

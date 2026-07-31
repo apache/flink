@@ -44,7 +44,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -96,7 +95,8 @@ class PartitionRequestRegistrationTest {
                                     resultPartition.getPartitionId(),
                                     new ResultSubpartitionIndexSet(0),
                                     new InputChannelID(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification
@@ -144,7 +144,8 @@ class PartitionRequestRegistrationTest {
                                     resultPartition.getPartitionId(),
                                     new ResultSubpartitionIndexSet(0),
                                     new InputChannelID(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Register result partition after partition request
@@ -213,7 +214,8 @@ class PartitionRequestRegistrationTest {
                                     pid,
                                     new ResultSubpartitionIndexSet(0),
                                     remoteInputChannel.getInputChannelId(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification
@@ -250,7 +252,7 @@ class PartitionRequestRegistrationTest {
                     new SimpleCounter(),
                     new SimpleCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    false);
             this.latch = latch;
         }
 

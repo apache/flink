@@ -20,37 +20,37 @@ package org.apache.flink.streaming.test.examples.windowing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Tests for {@link TopSpeedWindowing}. */
-public class TopSpeedWindowingExampleITCase extends TestLogger {
+class TopSpeedWindowingExampleITCase {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
+    @TempDir static File temporaryFolder;
+
     @Test
-    public void testTopSpeedWindowingExampleITCase() throws Exception {
-        File inputFile = temporaryFolder.newFile();
+    void testTopSpeedWindowingExampleITCase() throws Exception {
+        File inputFile = new File(temporaryFolder, "input");
+        inputFile.createNewFile();
         FileUtils.writeFileUtf8(inputFile, TopSpeedWindowingExampleData.CAR_DATA);
 
-        final String resultPath = temporaryFolder.newFolder().toURI().toString();
+        final String resultPath = new File(temporaryFolder, "result").toURI().toString();
 
         TopSpeedWindowing.main(
                 new String[] {

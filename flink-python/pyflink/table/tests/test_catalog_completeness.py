@@ -38,7 +38,7 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
 
     @classmethod
     def excluded_methods(cls):
-        # open/close are not needed in Python API as they are used internally
+        # open/close are not needed in Python API as they are used internally.
         return {
             'open',
             'close',
@@ -51,7 +51,8 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'connectionExists',
             'listConnections',
             'createConnection',
-            'alterConnection'}
+            'alterConnection',
+            'convertTableToMaterializedTable'}
 
 
 class CatalogDatabaseAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):

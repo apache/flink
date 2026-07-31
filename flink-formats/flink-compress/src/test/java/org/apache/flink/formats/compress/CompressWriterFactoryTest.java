@@ -18,13 +18,9 @@
 
 package org.apache.flink.formats.compress;
 
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.formats.compress.extractor.DefaultExtractor;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
-import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -132,54 +128,36 @@ class CompressWriterFactoryTest {
                         .withHadoopCompression(codec, conf);
         List<String> lines = Arrays.asList("line1", "line2", "line3");
 
-        File directory = prepareCompressedFile(codec, writer, lines);
+        File partFile = writeCompressedFile(codec, writer, lines);
 
-        validateResults(directory, lines, new CompressionCodecFactory(conf).getCodecByName(codec));
+        validateResult(partFile, lines, new CompressionCodecFactory(conf).getCodecByName(codec));
     }
 
-    private File prepareCompressedFile(
+    private File writeCompressedFile(
             String codec, CompressWriterFactory<String> writer, List<String> lines)
             throws Exception {
         final File outDir = tmpDir.resolve(codec).toFile();
         assertThat(outDir.mkdirs()).isTrue();
+        final File partFile = new File(outDir, "part-0-0");
 
-        StreamingFileSink<String> sink =
-                StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
-                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
-                        .build();
-
-        try (OneInputStreamOperatorTestHarness<String, Object> testHarness =
-                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
-            testHarness.setup();
-            testHarness.open();
-
-            int time = 0;
+        // finish() writes the codec trailer and flushes the compressed bytes; closing the
+        // stream releases the file.
+        try (LocalDataOutputStream out = new LocalDataOutputStream(partFile)) {
+            final BulkWriter<String> bulkWriter = writer.create(out);
             for (String line : lines) {
-                testHarness.processElement(new StreamRecord<>(line, ++time));
+                bulkWriter.addElement(line);
             }
-
-            testHarness.snapshot(1, ++time);
-            testHarness.notifyOfCompletedCheckpoint(1);
+            bulkWriter.finish();
         }
 
-        return outDir;
+        return partFile;
     }
 
-    private void validateResults(File folder, List<String> expected, CompressionCodec codec)
+    private void validateResult(File partFile, List<String> expected, CompressionCodec codec)
             throws Exception {
-        File[] buckets = folder.listFiles();
-        assertThat(buckets).isNotNull();
-        assertThat(buckets).hasSize(1);
-
-        final File[] partFiles = buckets[0].listFiles();
-        assertThat(partFiles).isNotNull();
-        assertThat(partFiles).hasSize(1);
-
-        for (File partFile : partFiles) {
-            assertThat(partFile.length()).isGreaterThan(0);
-            final List<String> fileContent = readFile(partFile, codec);
-            assertThat(fileContent).isEqualTo(expected);
-        }
+        assertThat(partFile.length()).isGreaterThan(0);
+        final List<String> fileContent = readFile(partFile, codec);
+        assertThat(fileContent).isEqualTo(expected);
     }
 
     private List<String> readFile(File file, CompressionCodec codec) throws Exception {

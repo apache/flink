@@ -76,6 +76,12 @@ object FunctionCallCodeGenerator {
          |""".stripMargin
     }
 
+    val adapted
+        : (CodeGeneratorContext, FunctionCallContext, UserDefinedFunction, Seq[GeneratedExpression]) => (GeneratedExpression, Option[GeneratedExpression], DataType) =
+      (ctx, callContext, udf, operands) => {
+        val (call, dataType) = inferCall(ctx, callContext, udf, operands)
+        (call, None, dataType)
+      }
     generateFunctionCall(
       classOf[FlatMapFunction[RowData, RowData]],
       tableConfig,
@@ -86,7 +92,7 @@ object FunctionCallCodeGenerator {
       collectorOutputType,
       parameters,
       syncFunctionDefinition,
-      inferCall,
+      adapted,
       functionName,
       generateClassName,
       fieldCopy,
@@ -112,6 +118,51 @@ object FunctionCallCodeGenerator {
       functionName: String,
       generateClassName: String
   ): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
+    val adapted
+        : (CodeGeneratorContext, FunctionCallContext, UserDefinedFunction, Seq[GeneratedExpression]) => (GeneratedExpression, Option[GeneratedExpression], DataType) =
+      (ctx, callContext, udf, operands) => {
+        val (call, dataType) = generateCallWithDataType(ctx, callContext, udf, operands)
+        (call, None, dataType)
+      }
+    generateAsyncFunctionTimeoutCall(
+      tableConfig,
+      classLoader,
+      dataTypeFactory,
+      inputType,
+      functionOutputType,
+      collectorOutputType,
+      parameters,
+      asyncFunctionDefinition,
+      adapted,
+      functionName,
+      generateClassName
+    )
+  }
+
+  /**
+   * Generates an async function ([[AsyncTableFunction]]) call that may additionally render a
+   * `timeout(...)` method body in the generated `RichAsyncFunction` subclass. The third element of
+   * the callback tuple, when present, is the timeout call expression produced by
+   * [[org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil .generateFunctionAwareCallWithDataTypeAndTimeout]].
+   * When absent, the generated class inherits AsyncFunction's default timeout behaviour.
+   */
+  def generateAsyncFunctionTimeoutCall(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      dataTypeFactory: DataTypeFactory,
+      inputType: LogicalType,
+      functionOutputType: LogicalType,
+      collectorOutputType: LogicalType,
+      parameters: util.List[FunctionParam],
+      asyncFunctionDefinition: AsyncTableFunction[_],
+      generateCallWithTimeoutAndDataType: (
+          CodeGeneratorContext,
+          FunctionCallContext,
+          UserDefinedFunction,
+          Seq[GeneratedExpression]) => (GeneratedExpression, Option[GeneratedExpression], DataType),
+      functionName: String,
+      generateClassName: String
+  ): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
     generateFunctionCall(
       classOf[AsyncFunction[RowData, AnyRef]],
       tableConfig,
@@ -122,7 +173,7 @@ object FunctionCallCodeGenerator {
       collectorOutputType,
       parameters,
       asyncFunctionDefinition,
-      generateCallWithDataType,
+      generateCallWithTimeoutAndDataType,
       functionName,
       generateClassName,
       fieldCopy = true,
@@ -140,11 +191,11 @@ object FunctionCallCodeGenerator {
       collectorOutputType: LogicalType,
       parameters: util.List[FunctionParam],
       functionDefinition: UserDefinedFunction,
-      generateCallWithDataType: (
+      generateCallWithTimeoutAndDataType: (
           CodeGeneratorContext,
           FunctionCallContext,
           UserDefinedFunction,
-          Seq[GeneratedExpression]) => (GeneratedExpression, DataType),
+          Seq[GeneratedExpression]) => (GeneratedExpression, Option[GeneratedExpression], DataType),
       functionName: String,
       generateClassName: String,
       fieldCopy: Boolean,
@@ -172,18 +223,20 @@ object FunctionCallCodeGenerator {
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val operands = prepareOperands(ctx, inputType, parameters, fieldCopy)
 
-    val callWithDataType: (GeneratedExpression, DataType) =
-      generateCallWithDataType(ctx, callContext, udf, operands)
+    val (call, timeoutCall, dataType) =
+      generateCallWithTimeoutAndDataType(ctx, callContext, udf, operands)
 
     val function = FunctionCodeGenerator.generateFunction(
       ctx,
       generateClassName,
       generatedClass,
-      bodyCode(callWithDataType._1),
+      bodyCode(call),
       collectorOutputType,
-      inputType)
+      inputType,
+      timeoutBodyCode = timeoutCall.map(bodyCode)
+    )
 
-    GeneratedTableFunctionWithDataType(function, callWithDataType._2)
+    GeneratedTableFunctionWithDataType(function, dataType)
   }
 
   private def prepareOperands(

@@ -61,6 +61,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
@@ -267,6 +268,11 @@ public class LogicalTypeJsonSerdeTest {
                         new MultisetType(BinaryType.ofEmptyLiteral()),
                         new MultisetType(VarBinaryType.ofEmptyLiteral()),
                         new BitmapType(),
+                        new VariantType(),
+                        new ArrayType(new VariantType()),
+                        new MultisetType(new VariantType()),
+                        new MapType(new VarCharType(5), new VariantType()),
+                        RowType.of(new VariantType(), new VariantType(false)),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {

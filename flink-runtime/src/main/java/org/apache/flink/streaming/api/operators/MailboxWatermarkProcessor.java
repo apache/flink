@@ -44,6 +44,7 @@ public class MailboxWatermarkProcessor<OUT> {
     private final Output<StreamRecord<OUT>> output;
     private final MailboxExecutor mailboxExecutor;
     private final InternalTimeServiceManager<?> internalTimeServiceManager;
+    private final boolean emitIntermediateWatermarks;
 
     /**
      * Flag to indicate whether a progress watermark is scheduled in the mailbox. This is used to
@@ -53,13 +54,17 @@ public class MailboxWatermarkProcessor<OUT> {
 
     private Watermark maxInputWatermark = Watermark.UNINITIALIZED;
 
+    private long lastEmittedIntermediateWatermark = Long.MIN_VALUE;
+
     public MailboxWatermarkProcessor(
             Output<StreamRecord<OUT>> output,
             MailboxExecutor mailboxExecutor,
-            InternalTimeServiceManager<?> internalTimeServiceManager) {
+            InternalTimeServiceManager<?> internalTimeServiceManager,
+            boolean emitIntermediateWatermarks) {
         this.output = checkNotNull(output);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.internalTimeServiceManager = checkNotNull(internalTimeServiceManager);
+        this.emitIntermediateWatermarks = emitIntermediateWatermarks;
     }
 
     public void emitWatermarkInsideMailbox(Watermark mark) throws Exception {
@@ -73,8 +78,20 @@ public class MailboxWatermarkProcessor<OUT> {
         if (internalTimeServiceManager.tryAdvanceWatermark(
                 maxInputWatermark, mailboxExecutor::shouldInterrupt)) {
             // In case output watermark has fully progressed emit it downstream.
+            lastEmittedIntermediateWatermark = maxInputWatermark.getTimestamp();
             output.emitWatermark(maxInputWatermark);
-        } else if (!progressWatermarkScheduled) {
+            return;
+        }
+        if (emitIntermediateWatermarks) {
+            long reachedWatermark = internalTimeServiceManager.getReachedWatermark();
+            if (reachedWatermark > lastEmittedIntermediateWatermark) {
+                // Firing was interrupted before completing; surface the progress made so far
+                // instead of leaving watermark advancement stalled until the whole drain finishes.
+                lastEmittedIntermediateWatermark = reachedWatermark;
+                output.emitWatermark(new Watermark(reachedWatermark));
+            }
+        }
+        if (!progressWatermarkScheduled) {
             progressWatermarkScheduled = true;
             // We still have work to do, but we need to let other mails to be processed first.
             mailboxExecutor.execute(

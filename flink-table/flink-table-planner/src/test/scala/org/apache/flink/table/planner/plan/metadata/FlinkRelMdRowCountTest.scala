@@ -28,7 +28,7 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
-import scala.collection.JavaConversions._
+import java.util
 
 class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
 
@@ -174,7 +174,7 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
         false,
         false,
         false,
-        List[Integer](3),
+        java.util.List.of[Integer](3),
         -1,
         null,
         RelCollations.EMPTY,
@@ -185,6 +185,7 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
     val windowAgg = new LogicalWindowAggregate(
       ts.getCluster,
       ts.getTraitSet,
+      util.List.of(),
       ts,
       ImmutableBitSet.of(0, 1),
       aggCallOfWindowAgg,

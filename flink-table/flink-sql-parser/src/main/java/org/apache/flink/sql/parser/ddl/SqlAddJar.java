@@ -19,8 +19,10 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.calcite.sql.SqlAlter;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -34,7 +36,14 @@ import java.util.List;
 /** Add Jar command to add jar into the classloader. */
 public class SqlAddJar extends SqlAlter {
 
-    public static final SqlOperator OPERATOR = new SqlSpecialOperator("ADD JAR", SqlKind.OTHER_DDL);
+    public static final SqlOperator OPERATOR =
+            new SqlSpecialOperator("ADD JAR", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAddJar(pos, (SqlCharStringLiteral) operands[0]);
+                }
+            };
 
     private final SqlCharStringLiteral jarPath;
 

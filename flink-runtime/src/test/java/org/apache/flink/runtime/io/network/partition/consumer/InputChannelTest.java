@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -144,6 +145,11 @@ class InputChannelTest {
 
         @Override
         public void resumeConsumption() {}
+
+        @Override
+        public CompletableFuture<Void> getStateConsumedFuture() {
+            return CompletableFuture.completedFuture(null);
+        }
 
         @Override
         public void acknowledgeAllRecordsProcessed() throws IOException {}

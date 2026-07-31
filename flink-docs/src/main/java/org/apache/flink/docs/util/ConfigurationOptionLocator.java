@@ -105,7 +105,8 @@ public class ConfigurationOptionLocator {
                             "org.apache.flink.state.rocksdb.PredefinedOptions",
                             "org.apache.flink.python.PythonConfig",
                             "org.apache.flink.cep.configuration.SharedBufferCacheConfig",
-                            "org.apache.flink.table.api.config.LookupJoinHintOptions"));
+                            "org.apache.flink.table.api.config.LookupJoinHintOptions",
+                            "org.apache.flink.table.api.config.EarlyFireJoinHintOptions"));
 
     private static final String DEFAULT_PATH_PREFIX = "src/main/java";
 

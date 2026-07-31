@@ -147,6 +147,42 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testCreateTableLikeWithWatermarkReferencingMetadataColumn(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE LikeSourceTable (
+                               |  `ts` TIMESTAMP(3),
+                               |  `opts` TIMESTAMP(3) METADATA VIRTUAL,
+                               |  WATERMARK FOR `ts` AS `ts`
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'readable-metadata' = 'opts:TIMESTAMP(3)'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE LikeSourceWithWatermark (
+                               |  WATERMARK FOR `opts`
+                               |    AS `opts` - INTERVAL '5' SECOND
+                               |) LIKE LikeSourceTable (
+                               |  EXCLUDING WATERMARKS
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE SinkTable (
+                               |  `ts` TIMESTAMP(3),
+                               |  `opts` TIMESTAMP(3)
+                               |) WITH (
+                               |  'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExecPlanInsert(
+      "INSERT INTO SinkTable " +
+        "SELECT `ts`, `opts` FROM LikeSourceWithWatermark")
+  }
+
+  @Test
   def testDDLWithWatermarkComputedColumn(): Unit = {
     // Create table with field as atom expression.
     util.addTemporarySystemFunction("my_udf", Func0)

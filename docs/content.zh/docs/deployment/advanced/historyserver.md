@@ -85,6 +85,37 @@ historyserver.archive.fs.refresh-interval: 10000
 
 请查看配置页面以获取[配置选项的完整列表]({{< ref "docs/deployment/config" >}}#history-server)。
 
+**存储后端**
+
+HistoryServer 支持通过 `historyserver.archive.storage.type` 选择本地存档存储后端：
+
+* `FILE`（默认）：每个存档解压为多个 JSON 文件，存放在 `historyserver.web.tmpdir` 下。
+* `ROCKSDB`：所有存档以 KV 形式存储在 `historyserver.web.tmpdir/rocksdb` 的单个 RocksDB 实例中，可避免"大量小文件"问题，适合存档数量较多的场景。
+
+启用 RocksDB 后端示例：
+
+```yaml
+historyserver.archive.storage.type: ROCKSDB
+```
+
+**加载模式**
+
+HistoryServer 支持两种加载模式，通过 `historyserver.archive.load.mode` 配置：
+
+* `EAGER`（默认）：通过周期性的后台刷新，自动、同步地将存档下载到本地存储。
+* `LAZY`：存档会立即展示在 Web 界面上，底层数据则在后台异步拉取。如果某个存档在其后台下载完成之前被访问，系统会优先按需拉取该存档。
+
+启用懒加载模式示例：
+
+```yaml
+historyserver.archive.load.mode: LAZY
+```
+
+在 `LAZY` 模式下，按需拉取使用两个线程池：
+
+* `historyserver.lazy.fetch.executor.common.pool-size` —— 用于常规后台存档拉取的共享线程池的大小。
+* `historyserver.lazy.fetch.executor.individual.pool-size` —— 专用于按需拉取单个存档（例如用户访问某个存档时）的高优先级线程池的大小。
+
 ## 日志集成
 
 Flink 本身并不提供已完成作业的日志收集功能。

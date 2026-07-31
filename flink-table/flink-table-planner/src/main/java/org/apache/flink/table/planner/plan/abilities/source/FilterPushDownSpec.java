@@ -191,7 +191,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
         return String.format(
                 "filter=[%s]",
                 expressionStrs.stream()
-                        .reduce((l, r) -> String.format("and(%s, %s)", l, r))
+                        .reduce((l, r) -> String.format("AND(%s, %s)", l, r))
                         .orElse(""));
     }
 

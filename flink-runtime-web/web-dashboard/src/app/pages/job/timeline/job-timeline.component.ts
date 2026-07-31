@@ -132,13 +132,13 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
           listOfTimeLine.forEach((item, index) => {
             if (index === listOfTimeLine.length - 1) {
               this.listOfSubTaskTimeLine.push({
-                name: `${task.subtask} - ${task.host}`,
+                name: `${task.subtask} - ${task.endpoint}`,
                 status: item.status,
                 range: [item.startTime, task.duration + listOfTimeLine[0].startTime]
               });
             } else {
               this.listOfSubTaskTimeLine.push({
-                name: `${task.subtask} - ${task.host}`,
+                name: `${task.subtask} - ${task.endpoint}`,
                 status: item.status,
                 range: [item.startTime, listOfTimeLine[index + 1].startTime]
               });

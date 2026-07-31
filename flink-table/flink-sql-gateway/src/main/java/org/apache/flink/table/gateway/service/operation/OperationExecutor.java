@@ -494,7 +494,8 @@ public class OperationExecutor {
             TableEnvironmentInternal tableEnv, OperationHandle handle, Operation operation) {
         if (operation instanceof EndStatementSetOperation) {
             return callEndStatementSetOperation(tableEnv, handle);
-        } else if (operation instanceof ModifyOperation) {
+        } else if (operation instanceof ModifyOperation
+                && !(operation instanceof MaterializedTableOperation)) {
             sessionContext.addStatementSetOperation((ModifyOperation) operation);
             return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
@@ -518,7 +519,7 @@ public class OperationExecutor {
         } else if (op instanceof EndStatementSetOperation) {
             throw new SqlExecutionException(
                     "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
-        } else if (op instanceof ModifyOperation) {
+        } else if (op instanceof ModifyOperation && !(op instanceof MaterializedTableOperation)) {
             return callModifyOperations(
                     tableEnv, handle, Collections.singletonList((ModifyOperation) op));
         } else if (op instanceof CompileAndExecutePlanOperation

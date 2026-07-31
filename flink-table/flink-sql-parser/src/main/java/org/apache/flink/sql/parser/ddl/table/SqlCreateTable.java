@@ -30,9 +30,11 @@ import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -45,6 +47,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,7 +57,29 @@ import static java.util.Objects.requireNonNull;
 public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
+            new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlTableConstraint> constraints = new ArrayList<>();
+                    for (SqlNode c : (SqlNodeList) operands[2]) {
+                        constraints.add((SqlTableConstraint) c);
+                    }
+                    return new SqlCreateTable(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            constraints,
+                            (SqlNodeList) operands[3],
+                            (SqlDistribution) operands[8],
+                            (SqlNodeList) operands[4],
+                            (SqlWatermark) operands[5],
+                            (SqlCharStringLiteral) operands[6],
+                            (SqlIdentifier) operands[7],
+                            ((SqlLiteral) operands[9]).booleanValue(),
+                            ((SqlLiteral) operands[10]).booleanValue());
+                }
+            };
 
     private final SqlNodeList columnList;
 
@@ -135,7 +160,10 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
                 partitionKeyList,
                 watermark,
                 comment,
-                connection);
+                connection,
+                distribution,
+                SqlLiteral.createBoolean(isTemporary(), SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
     }
 
     public SqlNodeList getColumnList() {
