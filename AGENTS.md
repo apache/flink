@@ -305,6 +305,15 @@ This section maps common types of Flink changes to the modules they touch and th
 - You must be able to explain the design, code, and tests, debug them, and respond to review feedback substantively
 - Reviewer-ready quality bar: the author owns PR quality. PRs that look AI-generated without author refinement (walls of unreviewed prose, scaffolding without behaviour, tests that do not exercise the change, padded commit messages) will be closed without review
 
+## Code Review Guidelines
+
+When reviewing a PR or diff against this repo:
+
+- Look for opportunities to simplify the code, scoped to the diff itself (not pre-existing code outside the change).
+- Flag comments that are obvious (restate what the code already says) or overly verbose.
+- In test code, look for potential flakiness — e.g. `Thread.sleep` used outside a retry/poll loop, or similar timing-dependent, non-deterministic patterns. Where applicable, suggest clock injection (e.g. a manually-advanced `Clock`/`ManualClock`) instead of relying on wall-clock time, or waiting for the actual condition in a loop with a timeout, for deterministic tests.
+- Check that each commit message conforms to Flink conventions: it must start with `[FLINK-XXXX]` or `[hotfix]`, and must specify a subsystem/component (e.g. `[FLINK-XXXX][runtime] Description`).
+
 ## Boundaries
 
 ### Ask first
