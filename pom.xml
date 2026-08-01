@@ -2236,6 +2236,7 @@ under the License.
 						<configLocation>/tools/maven/checkstyle.xml</configLocation>
 						<logViolationsToConsole>true</logViolationsToConsole>
 						<failOnViolation>true</failOnViolation>
+						<cacheFile>${project.basedir}/.checkstyle-cachefile</cacheFile>
 					</configuration>
 				</plugin>
 
