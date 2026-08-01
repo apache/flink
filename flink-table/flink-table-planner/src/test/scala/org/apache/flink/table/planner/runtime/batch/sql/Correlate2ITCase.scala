@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-class CorrelateITCase2 extends BatchTestBase {
+class Correlate2ITCase extends BatchTestBase {
 
   @BeforeEach
   override def before(): Unit = {
