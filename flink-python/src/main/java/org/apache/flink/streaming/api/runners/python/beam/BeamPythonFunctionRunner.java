@@ -334,40 +334,53 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Override
     public void close() throws Exception {
         try {
-            if (jobBundleFactory != null) {
-                jobBundleFactory.close();
-            }
-        } finally {
-            jobBundleFactory = null;
-
-            // State backends are disposed after the runner is closed. Drain the handler after
-            // stopping Beam request production so no callback can access disposed state.
             try {
-                if (stateRequestHandler != null) {
-                    stateRequestHandler.close();
+                // A managed-memory JobBundleFactory can be shared by multiple runners. Finish this
+                // runner's bundle first so it cannot issue state requests after its handler closes.
+                if (sharedResources != null && bundleStarted) {
+                    flush();
                 }
             } finally {
-                stateRequestHandler = null;
-            }
-        }
+                bundleStarted = false;
 
-        try {
-            if (sharedResources != null) {
-                sharedResources.close();
-            } else {
-                // if sharedResources is not null, the close of environmentManager will be managed
-                // in sharedResources,
-                // otherwise, we need to close the environmentManager explicitly
-                environmentManager.close();
+                try {
+                    if (jobBundleFactory != null) {
+                        jobBundleFactory.close();
+                    }
+                } finally {
+                    jobBundleFactory = null;
+
+                    try {
+                        if (sharedResources != null) {
+                            sharedResources.close();
+                        } else {
+                            // if sharedResources is not null, the close of environmentManager will
+                            // be managed in sharedResources, otherwise, we need to close the
+                            // environmentManager explicitly
+                            environmentManager.close();
+                        }
+                    } finally {
+                        sharedResources = null;
+
+                        // State backends are disposed after the runner is closed. Gate this
+                        // runner's handler only after its bundle and resource teardown can no
+                        // longer use it.
+                        try {
+                            if (stateRequestHandler != null) {
+                                stateRequestHandler.close();
+                            }
+                        } finally {
+                            stateRequestHandler = null;
+                        }
+                    }
+                }
             }
         } finally {
-            sharedResources = null;
-        }
-
-        if (shutdownHook != null) {
-            ShutdownHookUtil.removeShutdownHook(
-                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
-            shutdownHook = null;
+            if (shutdownHook != null) {
+                ShutdownHookUtil.removeShutdownHook(
+                        shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+                shutdownHook = null;
+            }
         }
     }
 
