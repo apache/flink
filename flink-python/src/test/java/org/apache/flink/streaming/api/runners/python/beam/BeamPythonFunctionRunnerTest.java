@@ -52,9 +52,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -150,6 +151,7 @@ class BeamPythonFunctionRunnerTest {
         final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
         final AtomicBoolean sharedFactoryClosed = new AtomicBoolean();
         final AtomicInteger remoteBundleCloseCalls = new AtomicInteger();
+        final AtomicReference<Thread> closeThread = new AtomicReference<>();
         final CountDownLatch firstBundleCloseStarted = new CountDownLatch(1);
         final CountDownLatch releaseFirstBundleClose = new CountDownLatch(1);
         final CountDownLatch closeFlushStarted = new CountDownLatch(1);
@@ -189,12 +191,13 @@ class BeamPythonFunctionRunnerTest {
             final Future<?> closeFuture =
                     executor.submit(
                             () -> {
+                                closeThread.set(Thread.currentThread());
                                 runner.close();
                                 return null;
                             });
             assertThat(closeFlushStarted.await(10, TimeUnit.SECONDS)).isTrue();
-            assertThatThrownBy(() -> closeFuture.get(100, TimeUnit.MILLISECONDS))
-                    .isInstanceOf(TimeoutException.class);
+            assertCloseWaitsForConcurrentFlush(closeThread.get(), remoteBundleCloseCalls);
+            assertThat(closeFuture.isDone()).isFalse();
             assertThat(remoteBundleCloseCalls).hasValue(1);
             assertThat(sharedFactoryClosed).isFalse();
 
@@ -210,6 +213,22 @@ class BeamPythonFunctionRunnerTest {
             releaseFirstBundleClose.countDown();
             executor.shutdownNow();
         }
+    }
+
+    private static void assertCloseWaitsForConcurrentFlush(
+            Thread closeThread, AtomicInteger remoteBundleCloseCalls) {
+        final long timeoutNanos = TimeUnit.SECONDS.toNanos(10);
+        final long deadlineNanos = System.nanoTime() + timeoutNanos;
+        while (System.nanoTime() < deadlineNanos) {
+            if (remoteBundleCloseCalls.get() > 1) {
+                assertThat(remoteBundleCloseCalls).hasValue(1);
+            }
+            if (closeThread.getState() == Thread.State.BLOCKED) {
+                return;
+            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertThat(closeThread.getState()).isEqualTo(Thread.State.BLOCKED);
     }
 
     private static OpaqueMemoryResource<PythonSharedResources> createSharedResourceLease(
