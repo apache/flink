@@ -297,6 +297,11 @@ class DataType:
 
         :param dtype: Type of each list element.
 
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> scores_type = pf.DataType.list(pf.DataType.int32())
+
         .. versionadded:: 2.4.0
         """
         return cls(DataTypes.ARRAY(dtype._to_table_data_type()))
@@ -309,6 +314,14 @@ class DataType:
 
         :param key_type: Type of each map key.
         :param value_type: Type of each map value.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> config_type = pf.DataType.map(
+            ...     pf.DataType.string(),
+            ...     pf.DataType.int64(),
+            ... )
 
         .. versionadded:: 2.4.0
         """
@@ -342,6 +355,13 @@ class DataType:
             ...     "name": pf.DataType.string(),
             ...     "age": pf.DataType.int32(),
             ... })
+
+        Fields may also be passed as a list of name and type pairs::
+
+            >>> person_type = pf.DataType.struct([
+            ...     ("name", pf.DataType.string()),
+            ...     ("age", pf.DataType.int32()),
+            ... ])
 
         .. versionadded:: 2.4.0
         """

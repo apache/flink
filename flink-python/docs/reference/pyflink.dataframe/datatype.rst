@@ -34,8 +34,6 @@ Example::
     :toctree: api/
 
     DataType
-    DataType.not_null
-    DataType.nullable
     DataType.int8
     DataType.int16
     DataType.int32
@@ -56,3 +54,5 @@ Example::
     DataType.list
     DataType.map
     DataType.struct
+    DataType.not_null
+    DataType.nullable
