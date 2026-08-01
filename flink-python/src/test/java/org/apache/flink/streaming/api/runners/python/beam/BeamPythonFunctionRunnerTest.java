@@ -47,6 +47,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -137,6 +143,73 @@ class BeamPythonFunctionRunnerTest {
 
         assertThat(stateAccessedDuringFactoryClose).isTrue();
         assertStateHandlerClosed(stateRequestHandler);
+    }
+
+    @Test
+    void testCloseWaitsForConcurrentManagedBundleFlush() throws Exception {
+        final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
+        final AtomicBoolean sharedFactoryClosed = new AtomicBoolean();
+        final AtomicInteger remoteBundleCloseCalls = new AtomicInteger();
+        final CountDownLatch firstBundleCloseStarted = new CountDownLatch(1);
+        final CountDownLatch releaseFirstBundleClose = new CountDownLatch(1);
+        final CountDownLatch closeFlushStarted = new CountDownLatch(1);
+        final BeamStateRequestHandler stateRequestHandler =
+                createStateRequestHandler(stateAccessedDuringBundleClose);
+        final PythonSharedResources pythonSharedResources =
+                new PythonSharedResources(
+                        new TrackingJobBundleFactory(sharedFactoryClosed),
+                        RunnerApi.Environment.getDefaultInstance());
+        final OpaqueMemoryResource<PythonSharedResources> sharedResources =
+                new OpaqueMemoryResource<>(pythonSharedResources, 1L, pythonSharedResources::close);
+        final TestingBeamPythonFunctionRunner runner =
+                new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+        setField(runner, "stateRequestHandler", stateRequestHandler);
+        setField(
+                runner,
+                "remoteBundle",
+                new BlockingTestingRemoteBundle(
+                        stateRequestHandler,
+                        remoteBundleCloseCalls,
+                        firstBundleCloseStarted,
+                        releaseFirstBundleClose));
+        setField(runner, "bundleStarted", true);
+        setField(runner, "sharedResources", sharedResources);
+        runner.notifyWhenCloseFlushStarts(closeFlushStarted);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            final Future<?> flushFuture =
+                    executor.submit(
+                            () -> {
+                                runner.flush();
+                                return null;
+                            });
+            assertThat(firstBundleCloseStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            final Future<?> closeFuture =
+                    executor.submit(
+                            () -> {
+                                runner.close();
+                                return null;
+                            });
+            assertThat(closeFlushStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> closeFuture.get(100, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(sharedFactoryClosed).isFalse();
+
+            releaseFirstBundleClose.countDown();
+            flushFuture.get(10, TimeUnit.SECONDS);
+            closeFuture.get(10, TimeUnit.SECONDS);
+
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(sharedFactoryClosed).isTrue();
+            assertThat(stateAccessedDuringBundleClose).isTrue();
+            assertStateHandlerClosed(stateRequestHandler);
+        } finally {
+            releaseFirstBundleClose.countDown();
+            executor.shutdownNow();
+        }
     }
 
     private static OpaqueMemoryResource<PythonSharedResources> createSharedResourceLease(
@@ -263,6 +336,35 @@ class BeamPythonFunctionRunnerTest {
         }
     }
 
+    private static class BlockingTestingRemoteBundle extends TestingRemoteBundle {
+
+        private final BeamStateRequestHandler stateRequestHandler;
+        private final AtomicInteger closeCalls;
+        private final CountDownLatch firstCloseStarted;
+        private final CountDownLatch releaseFirstClose;
+
+        private BlockingTestingRemoteBundle(
+                BeamStateRequestHandler stateRequestHandler,
+                AtomicInteger closeCalls,
+                CountDownLatch firstCloseStarted,
+                CountDownLatch releaseFirstClose) {
+            super(stateRequestHandler, new AtomicBoolean());
+            this.stateRequestHandler = stateRequestHandler;
+            this.closeCalls = closeCalls;
+            this.firstCloseStarted = firstCloseStarted;
+            this.releaseFirstClose = releaseFirstClose;
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (closeCalls.incrementAndGet() == 1) {
+                firstCloseStarted.countDown();
+                releaseFirstClose.await();
+            }
+            stateRequestHandler.handle(createBagUserStateRequest());
+        }
+    }
+
     private static class TrackingJobBundleFactory implements JobBundleFactory {
 
         private final AtomicBoolean closed;
@@ -309,6 +411,9 @@ class BeamPythonFunctionRunnerTest {
 
     private static class TestingBeamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
+        private volatile Thread closingThread;
+        private volatile CountDownLatch closeFlushStarted;
+
         private TestingBeamPythonFunctionRunner(
                 ProcessPythonEnvironmentManager environmentManager) {
             super(
@@ -326,6 +431,28 @@ class BeamPythonFunctionRunnerTest {
                     FlinkFnApi.CoderInfoDescriptor.getDefaultInstance(),
                     FlinkFnApi.CoderInfoDescriptor.getDefaultInstance(),
                     Collections.emptyMap());
+        }
+
+        private void notifyWhenCloseFlushStarts(CountDownLatch closeFlushStarted) {
+            this.closeFlushStarted = closeFlushStarted;
+        }
+
+        @Override
+        public void close() throws Exception {
+            closingThread = Thread.currentThread();
+            try {
+                super.close();
+            } finally {
+                closingThread = null;
+            }
+        }
+
+        @Override
+        public void flush() throws Exception {
+            if (Thread.currentThread() == closingThread && closeFlushStarted != null) {
+                closeFlushStarted.countDown();
+            }
+            super.flush();
         }
 
         @Override
