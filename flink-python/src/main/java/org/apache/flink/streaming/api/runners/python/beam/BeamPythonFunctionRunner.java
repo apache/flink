@@ -337,7 +337,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             try {
                 // A managed-memory JobBundleFactory can be shared by multiple runners. Finish this
                 // runner's bundle first so it cannot issue state requests after its handler closes.
-                if (sharedResources != null && bundleStarted) {
+                if (sharedResources != null) {
                     flush();
                 }
             } finally {
@@ -462,7 +462,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     @Override
-    public void flush() throws Exception {
+    public synchronized void flush() throws Exception {
         if (bundleStarted) {
             try {
                 finishBundle();
