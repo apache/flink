@@ -118,10 +118,6 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:89
-msgid "python.archives"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:90 ../../user_guide/configuration.rst:110
 #: ../../user_guide/configuration.rst:154
 #: ../../user_guide/configuration.rst:158
@@ -154,10 +150,6 @@ msgid ""
 "option \"-pyarch\"."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:93
-msgid "python.client.executable"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:94 ../../user_guide/configuration.rst:102
 msgid "\"python\""
 msgstr ""
@@ -175,10 +167,6 @@ msgid ""
 " in config.yaml - the environment variable PYFLINK_CLIENT_EXECUTABLE;"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:101
-msgid "python.executable"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:104
 msgid ""
 "Specify the path of the python interpreter used to execute the python UDF"
@@ -187,10 +175,6 @@ msgid ""
 "(version >= 37.0.0). Please ensure that the specified environment meets "
 "the above requirements. The option is equivalent to the command line "
 "option \"-pyexec\"."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:105
-msgid "python.execution-mode"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:106
@@ -209,10 +193,6 @@ msgid ""
 "these cases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:109
-msgid "python.files"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:112
 msgid ""
 "Attach custom files for job. The standard resource file suffixes such as "
@@ -222,10 +202,6 @@ msgid ""
 "PYTHONPATH. Comma (',') could be used as the separator to specify "
 "multiple files. The option is equivalent to the command line option "
 "\"-pyfs\"."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:113
-msgid "python.fn-execution.arrow.batch.size"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:114
@@ -255,10 +231,6 @@ msgid ""
 "batch size."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:117
-msgid "python.fn-execution.bundle.size"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:120
 msgid ""
 "The maximum number of elements to include in a bundle for Python user-"
@@ -266,10 +238,6 @@ msgid ""
 "One bundle of elements are processed before processing the next bundle of"
 " elements. A larger value can improve the throughput, but at the cost of "
 "more memory usage and higher latency."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:121
-msgid "python.fn-execution.bundle.time"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:123
@@ -282,10 +250,6 @@ msgid ""
 "Python user-defined function execution. The timeout defines how long the "
 "elements of a bundle will be buffered before being processed. Lower "
 "timeouts lead to lower tail latencies, but may affect throughput."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:125
-msgid "python.fn-execution.memory.managed"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:126
@@ -311,10 +275,6 @@ msgid ""
 "using the configuration key taskmanager.memory.task.off-heap.size."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:129
-msgid "python.map-state.iterate-response-batch-size"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:132
 msgid ""
 "The maximum number of the MapState keys/entries sent to Python UDF worker"
@@ -322,19 +282,11 @@ msgid ""
 "experimental flag and might not be available in future releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:133
-msgid "python.map-state.read-cache-size"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:136
 msgid ""
 "The maximum number of cached entries for a single Python MapState. Note "
 "that this is an experimental flag and might not be available in future "
 "releases."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:137
-msgid "python.map-state.write-cache-size"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:140
@@ -346,28 +298,16 @@ msgid ""
 "in future releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:141
-msgid "python.metric.enabled"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:144
 msgid ""
 "When it is false, metric for Python will be disabled. You can disable the"
 " metric to achieve better performance at some circumstance."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:145
-msgid "python.operator-chaining.enabled"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:148
 msgid ""
 "Python operator chaining allows non-shuffle operations to be co-located "
 "in the same thread fully avoiding serialization and de-serialization."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:149
-msgid "python.profile.enabled"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:150
@@ -382,19 +322,11 @@ msgid ""
 "python.fn-execution.bundle.size and python.fn-execution.bundle.time."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:153
-msgid "python.pythonpath"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:156
 msgid ""
 "Specify the path on the Worker Node where the Flink Python Dependencies "
 "are installed, which gets added into the PYTHONPATH of the Python Worker."
 " The option is equivalent to the command line option \"-pypath\"."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:157
-msgid "python.requirements"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:160
@@ -407,19 +339,11 @@ msgid ""
 "The option is equivalent to the command line option \"-pyreq\"."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:161
-msgid "python.state.cache-size"
-msgstr ""
-
 #: ../../user_guide/configuration.rst:164
 msgid ""
 "The maximum number of states cached in a Python UDF worker. Note that "
 "this is an experimental flag and might not be available in future "
 "releases."
-msgstr ""
-
-#: ../../user_guide/configuration.rst:165
-msgid "python.systemenv.enabled"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:168
