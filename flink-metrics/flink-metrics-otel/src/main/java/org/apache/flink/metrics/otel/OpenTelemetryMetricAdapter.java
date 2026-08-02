@@ -55,7 +55,8 @@ class OpenTelemetryMetricAdapter {
     static final double[] HISTOGRAM_QUANTILES = {0.5, 0.75, 0.95, 0.99};
 
     static final InstrumentationScopeInfo INSTRUMENTATION_SCOPE_INFO =
-            InstrumentationScopeInfo.create(OpenTelemetryMetricAdapter.class.getPackage().getName());
+            InstrumentationScopeInfo.create(
+                    OpenTelemetryMetricAdapter.class.getPackage().getName());
 
     public static Optional<MetricData> convertCounter(
             CollectionMetadata collectionMetadata,
