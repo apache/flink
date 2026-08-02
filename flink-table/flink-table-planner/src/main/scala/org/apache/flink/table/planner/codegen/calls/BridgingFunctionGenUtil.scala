@@ -278,18 +278,21 @@ object BridgingFunctionGenUtil {
       )
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
       generateAsyncTableFunctionCall(
+        ctx,
         functionTerm,
         externalOperands,
         returnType,
         outputDataType,
-        skipIfArgsNull)
+        skipIfArgsNull,
+        udfMetricName)
     } else if (udf.getKind == FunctionKind.ASYNC_SCALAR) {
       generateAsyncScalarFunctionCall(
         ctx,
         functionTerm,
         externalOperands,
         returnType,
-        outputDataType)
+        outputDataType,
+        udfMetricName)
     } else {
       generateScalarFunctionCall(ctx, functionTerm, externalOperands, outputDataType, udfMetricName)
     }
@@ -409,11 +412,13 @@ object BridgingFunctionGenUtil {
   }
 
   private def generateAsyncTableFunctionCall(
+      ctx: CodeGeneratorContext,
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
       returnType: LogicalType,
       outputDataType: DataType,
-      skipIfArgsNull: Boolean): GeneratedExpression = {
+      skipIfArgsNull: Boolean,
+      udfMetricName: Option[String]): GeneratedExpression = {
 
     val DELEGATE_ASYNC_TABLE = className[DelegatingAsyncTableResultFuture]
     val outputType = outputDataType.getLogicalType
@@ -428,6 +433,17 @@ object BridgingFunctionGenUtil {
     ) ++ externalOperands.map(_.resultTerm)
     val anyNull = externalOperands.map(_.nullTerm) ++ Seq("false")
 
+    // When metrics are enabled the handle is passed into the delegating future, which takes the
+    // sample decision at construction (dispatch, task thread) and records the completion span in
+    // its callback. The extra ctor argument is omitted when off, keeping the code byte-identical.
+    val metricsTerm = udfMetricsTermIfEnabled(ctx, udfMetricName)
+    val metricsCtorArg = metricsTerm.map(t => s", $t").getOrElse("")
+    val constructDelegate =
+      s"""$DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
+         |      $needsWrapping, $isInternal$metricsCtorArg);""".stripMargin
+    val instrumentedEval =
+      instrumentAsyncDispatch(ctx, metricsTerm, s"$functionTerm.eval(${arguments.mkString(", ")});")
+
     val functionCallCode = {
       if (skipIfArgsNull) {
         s"""
@@ -435,17 +451,15 @@ object BridgingFunctionGenUtil {
            |if (${anyNull.mkString(" || ")}) {
            |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
            |} else {
-           |  $DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
-           |      $needsWrapping, $isInternal);
-           |  $functionTerm.eval(${arguments.mkString(", ")});
+           |  $constructDelegate
+           |  $instrumentedEval
            |}
            |""".stripMargin
       } else {
         s"""
            |${externalOperands.map(_.code).mkString("\n")}
-           |$DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
-           |      $needsWrapping, $isInternal);
-           |  $functionTerm.eval(${arguments.mkString(", ")});
+           |$constructDelegate
+           |  $instrumentedEval
            |""".stripMargin
       }
     }
@@ -459,17 +473,25 @@ object BridgingFunctionGenUtil {
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
       outputType: LogicalType,
-      outputDataType: DataType): GeneratedExpression = {
+      outputDataType: DataType,
+      udfMetricName: Option[String]): GeneratedExpression = {
     val converterTerm = ctx.addReusableConverter(outputDataType)
+    // Registering the handle here lets the async scalar fetcher pass it into the delegating future
+    // (see AsyncCodeGenerator); the future then takes the sample decision in createAsyncFuture on
+    // the task thread and records the completion span in its callback.
+    val metricsTerm = udfMetricsTermIfEnabled(ctx, udfMetricName)
+    val evalStatement =
+      s"""$functionTerm.eval(
+         |    $DEFAULT_DELEGATING_FUTURE_TERM.createAsyncFuture($converterTerm),
+         |    ${externalOperands.map(_.resultTerm).mkString(", ")});""".stripMargin
+    val instrumentedEval = instrumentAsyncDispatch(ctx, metricsTerm, evalStatement)
     val functionCallCode =
       s"""
          |${externalOperands.map(_.code).mkString("\n")}
          |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
          |  $DEFAULT_DELEGATING_FUTURE_TERM.createAsyncFuture($converterTerm).complete(null);
          |} else {
-         |  $functionTerm.eval(
-         |    $DEFAULT_DELEGATING_FUTURE_TERM.createAsyncFuture($converterTerm),
-         |    ${externalOperands.map(_.resultTerm).mkString(", ")});
+         |  $instrumentedEval
          |}
          |""".stripMargin
 
@@ -535,14 +557,8 @@ object BridgingFunctionGenUtil {
       ctx: CodeGeneratorContext,
       udfMetricName: Option[String],
       evalStatement: String): String = {
-    udfMetricName match {
-      case Some(name)
-          if ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED) =>
-        val sampleInterval =
-          ctx.tableConfig
-            .get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL)
-            .intValue()
-        val metricsTerm = ctx.addReusableUdfMetrics(name, sampleInterval)
+    udfMetricsTermIfEnabled(ctx, udfMetricName) match {
+      case Some(metricsTerm) =>
         val sampleTerm = ctx.addReusableLocalVariable("boolean", "udfSample")
         val startNanosTerm = ctx.addReusableLocalVariable("long", "udfStartNanos")
         val exceptionTerm = newName(ctx, "udfException")
@@ -557,8 +573,46 @@ object BridgingFunctionGenUtil {
            |if ($sampleTerm) {
            |  $metricsTerm.update(System.nanoTime() - $startNanosTerm);
            |}""".stripMargin
-      case _ => evalStatement
+      case None => evalStatement
     }
+  }
+
+  /**
+   * Returns the shared [[UdfMetrics]] handle term when metrics are enabled for this call, else
+   * [[None]]. Acquiring the term registers the handle member and its `open()` registration exactly
+   * once per UDF name in the current context.
+   */
+  private def udfMetricsTermIfEnabled(
+      ctx: CodeGeneratorContext,
+      udfMetricName: Option[String]): Option[String] = udfMetricName match {
+    case Some(name) if ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_ENABLED) =>
+      val sampleInterval =
+        ctx.tableConfig
+          .get(ExecutionConfigOptions.TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL)
+          .intValue()
+      Some(ctx.addReusableUdfMetrics(name, sampleInterval))
+    case _ => None
+  }
+
+  /**
+   * Brackets an async UDF dispatch `eval` so a synchronous throw (before the future is handed to
+   * the framework) still increments the exception counter, mirroring the sync path. Exceptional
+   * completions are counted separately in the delegating future's completion callback. Returns the
+   * statement unchanged when metrics are disabled, keeping the generated code byte-identical.
+   */
+  private def instrumentAsyncDispatch(
+      ctx: CodeGeneratorContext,
+      metricsTerm: Option[String],
+      evalStatement: String): String = metricsTerm match {
+    case Some(term) =>
+      val exceptionTerm = newName(ctx, "udfException")
+      s"""try {
+         |  $evalStatement
+         |} catch (Throwable $exceptionTerm) {
+         |  $term.markException();
+         |  throw $exceptionTerm;
+         |}""".stripMargin
+    case None => evalStatement
   }
 
   private def generateScalarFunctionCall(
