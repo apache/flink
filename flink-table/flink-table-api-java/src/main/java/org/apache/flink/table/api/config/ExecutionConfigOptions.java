@@ -700,6 +700,28 @@ public class ExecutionConfigOptions {
                                     + " is set true, its value must be positive.");
 
     // ------------------------------------------------------------------------
+    //  UDF Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_UDF_METRIC_ENABLED =
+            key("table.exec.udf-metric-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When enabled, per-operator UDF metrics (udfProcessingTime, "
+                                    + "udfExceptionCount) are registered for SQL/Table user-defined functions. "
+                                    + "Disabled by default; nothing is registered and there is zero overhead when off.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_UDF_METRIC_SAMPLE_INTERVAL =
+            key("table.exec.udf-metric.sample-interval")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription(
+                            "When UDF metrics are enabled, udfProcessingTime is measured every N "
+                                    + "invocations (default 100). The non-sampled fast path is a single integer increment.");
+
+    // ------------------------------------------------------------------------
     //  Other Exec Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
