@@ -824,7 +824,7 @@ class ForStStateBackendConfigTest {
 
         try (ForStResourceContainer resourceContainer =
                 forStStateBackend.createOptionsAndResourceContainer(null)) {
-            assertThat(10).isEqualTo(resourceContainer.getDataTransferThreadNum());
+            assertThat(resourceContainer.getDataTransferThreadNum()).isEqualTo(10);
         }
     }
 
