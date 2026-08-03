@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.within;
  * Verifies correct accesses with regards to endianness in {@link MemorySegment} (in both heap and
  * off-heap modes).
  */
-class EndiannessAccessChecks {
+class EndiannessAccessChecksTest {
 
     @Test
     void testOnHeapSegment() {
