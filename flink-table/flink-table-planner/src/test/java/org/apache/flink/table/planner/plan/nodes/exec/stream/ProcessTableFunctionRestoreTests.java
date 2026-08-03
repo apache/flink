@@ -26,7 +26,7 @@ import java.util.List;
 /** Restore tests for {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionRestoreTests extends RestoreTestBase {
 
-    protected ProcessTableFunctionRestoreTests() {
+    public ProcessTableFunctionRestoreTests() {
         super(StreamExecProcessTableFunction.class);
     }
 
