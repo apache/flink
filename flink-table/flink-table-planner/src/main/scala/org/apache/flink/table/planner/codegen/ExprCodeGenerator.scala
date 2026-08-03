@@ -389,7 +389,8 @@ class ExprCodeGenerator(
     val index = rexFieldAccess.getField.getIndex
     val fieldAccessExpr = generateFieldAccess(ctx, refExpr.resultType, refExpr.resultTerm, index)
 
-    val resultType = fieldAccessExpr.resultType
+    // Use the field access' own (planner-derived) type: a field of a nullable parent row is nullable even if declared NOT NULL.
+    val resultType = FlinkTypeFactory.toLogicalType(rexFieldAccess.getType)
 
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
@@ -410,7 +411,7 @@ class ExprCodeGenerator(
          |}
          |""".stripMargin
 
-    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+    GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
