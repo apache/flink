@@ -20,7 +20,12 @@ from typing import Union, TypeVar, Generic, Any
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.table.types import (
+    DataType,
+    DataTypes,
+    _TableDataTypeLike,
+    _to_java_data_type,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
@@ -886,7 +891,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("asArgument")(self, name)
 
-    def cast(self, data_type: DataType) -> 'Expression':
+    def cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
@@ -900,7 +905,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
-    def try_cast(self, data_type: DataType) -> 'Expression':
+    def try_cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Like cast, but in case of error, returns NULL rather than failing the job.
 
