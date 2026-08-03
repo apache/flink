@@ -65,6 +65,11 @@ main() {
               baseRef {
                 name
               }
+              labels(first: 20) {
+                nodes {
+                  name
+                }
+              }
               timelineItems(first: 100, itemTypes: [PULL_REQUEST_REVIEW]) {
                 nodes {
                   ... on PullRequestReview {
@@ -162,9 +167,12 @@ process_each_pr() {
 
     printf "\n(%s/%s) PR %s - " "$counter" "$prCount" "$pr_number"
 
-    # Add target branch as label 
-    local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")  
-    process_target_branch_label "$token" "$pr_number" "$target_branch"
+    # Labels already on the PR, as a space separated string
+    local existing_labels=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | [.node.labels.nodes[].name] | join(" ")' <<< "$pullRequests")
+
+    # Add target branch as label
+    local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")
+    process_target_branch_label "$token" "$pr_number" "$target_branch" "$existing_labels"
 
     # PR author - used to exclude the author's own reviews from the community-review tally
     local pr_author=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.author.login' <<< "$pullRequests")
@@ -185,7 +193,7 @@ process_each_pr() {
 
        printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
 
-       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" "$pr_author" || exit
+       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" "$pr_author" "$existing_labels" || exit
     fi
     ((counter++))
   done <<< "$prNumbersAndPaging" || exit
@@ -197,11 +205,13 @@ process_each_pr() {
 #   $1 - GitHub API token for authentication
 #   $2 - PR number
 #   $3 - Target branch name
+#   $4 - Labels already on the PR
 # =============================================================================
 process_target_branch_label() {
   local token="${1?missing token}"
   local pr_number="${2?missing pr number}"
   local target_branch="${3?missing target branch}"
+  local existing_labels="${4-}"
 
   local file_name=$PR_CACHE_FILENAME
 
@@ -222,10 +232,7 @@ process_target_branch_label() {
     
     # Ensure the target branch label exists before trying to add it to the PR
     ensure_label_exists "$token" "$target_branch_label"
-    
-    # Get existing labels
-    local existing_labels=$(call_github_get_labels_api "$pr_number")
-    
+
     # Add target branch label if it doesn't exist on the PR
     if [[ ! "$existing_labels" =~ (^|[[:space:]])"$target_branch_label"($|[[:space:]]) ]]; then
       call_github_mutate_label_api "$token" "$target_branch_label" "POST" "$pr_number" || exit
@@ -259,12 +266,14 @@ process_target_branch_label() {
 #   $2 - PR number
 #   $3 - PR reviews
 #   $4 - PR author login (excluded from the review tally)
+#   $5 - Labels already on the PR
 # =============================================================================
 process_pr_reviews() {
   local token="${1?missing token}"
   local pr_number="${2?missing pr number}"
   local pr_reviews="${3?missing pr reviews}"
   local pr_author="${4?missing pr author}"
+  local existing_labels="${5-}"
 
   local communityApproves=0
   local requestForChanges=0
@@ -297,7 +306,7 @@ process_pr_reviews() {
         if [[ -z "${pr_coauthors+set}" ]]; then
           pr_coauthors="$(get_pr_coauthors "$token" "$pr_number")" || exit
         fi
-        if is_coauthor_before_review "$user" "$first_review_time" "$pr_coauthors"; then
+        if is_coauthor_before_review "$user" "$first_review_time" "${pr_coauthors-}"; then
           printf "%-15s | %-20s | %-20s - skipping PR co-author self-review\n" "$user" "$state" "$time"
         else
           ((++communityReviews))
@@ -316,7 +325,6 @@ process_pr_reviews() {
 
   local label_to_post=
   local label_to_delete=
-  local existing_labels
   if [[ $communityApproves -ge 2 && $requestForChanges -eq 0 && $committerApproves -eq 0 ]]; then
     label_to_post=$LGTM_LABEL
     label_to_delete=$COMMUNITY_REVIEW_LABEL
@@ -326,8 +334,6 @@ process_pr_reviews() {
   fi
 
   if [[ -n "$label_to_post" ]]; then
-    existing_labels=$(call_github_get_labels_api "$pr_number")
-
     if [[ ! "$existing_labels" =~ (^|[[:space:]])"$label_to_post"($|[[:space:]]) ]]; then
       call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
     fi
@@ -599,23 +605,6 @@ replace_template_value() {
 JSONArrayLength() {
   local jsonArray=${1?missing array}
   echo "${jsonArray}" | jq 'length'
-}
-
-# =============================================================================
-# Retrieves existing label names on a Flink PR
-# Arguments:
-#   $1 - pr number to fetch labels from
-# =============================================================================
-call_github_get_labels_api() {
-  local prNumber="${1?missing pr number}"
-
-  local labels
-  labels=$(curl --fail --no-progress-meter -s \
-    -H 'Content-Type: application/json' \
-    "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$prNumber/labels")
-
-  # extract label names as a space separated string
-  jq -r '.[].name' <<< "$labels" | tr '\n' ' '
 }
 
 # =============================================================================
