@@ -39,6 +39,12 @@
             <td>An upper-bound of the size that can be used for cache. User should specify at least one cache size limit to enable the cache, either this option or the 'state.backend.forst.cache.reserve-size' option. They can be set simultaneously, and in this case, cache will grow if meet the requirements of both two options. The default value is '0 bytes', meaning that this option is disabled. </td>
         </tr>
         <tr>
+            <td><h5>state.backend.forst.checkpoint.transfer.thread.num</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>Integer</td>
+            <td>The number of threads used to transfer files during checkpoint (writing or copying files to the checkpoint storage) and restore (transferring state files back to the ForSt working directory). Consider increasing this value when snapshotting or restoring large state. Note that the pool is created per state backend instance. Setting it too high can saturate network bandwidth or trigger rate limiting depending on the remote storage; setting it too low can lead to long checkpoint durations or timeouts for large state. The default value is '4'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.forst.executor.inline-coordinator</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

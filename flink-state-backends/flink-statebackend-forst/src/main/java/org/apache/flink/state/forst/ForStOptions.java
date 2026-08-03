@@ -300,4 +300,19 @@ public class ForStOptions {
                                     + " Only valid when '"
                                     + EXECUTOR_WRITE_IO_INLINE.key()
                                     + "' is false.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
+            ConfigOptions.key("state.backend.forst.checkpoint.transfer.thread.num")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            "The number of threads used to transfer files during checkpoint (writing or copying "
+                                    + "files to the checkpoint storage) and restore (transferring state files back to "
+                                    + "the ForSt working directory). Consider increasing this value when snapshotting or "
+                                    + "restoring large state. Note that the pool is created per state backend instance. "
+                                    + "Setting it too high can saturate network bandwidth or trigger rate limiting depending "
+                                    + "on the remote storage; setting it too low can lead to long checkpoint durations "
+                                    + "or timeouts for large state. "
+                                    + "The default value is '4'.");
 }
