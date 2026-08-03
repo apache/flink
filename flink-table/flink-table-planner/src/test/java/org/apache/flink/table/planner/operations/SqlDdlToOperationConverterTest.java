@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -90,6 +91,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -680,6 +682,38 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         assertThat(op.getCatalogTable().getConnection()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"mycat....mydb....myconn", ".", "...", ".2.2."})
+    void testCreateTableWithMalformedConnectionNameFailsToParse(String connectionName) {
+        final String sql = "CREATE TABLE derivedTable(a INT) USING CONNECTION " + connectionName;
+        assertThatThrownBy(() -> parseAndConvert(sql)).isInstanceOf(SqlParserException.class);
+    }
+
+    @Test
+    void testCreateTableWithTooManyConnectionNameParts() {
+        final String sql =
+                "CREATE TABLE derivedTable(a INT) USING CONNECTION mycat.mydb.mygroup.myconn";
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Object identifier must consist of 1 to 3 parts.");
+    }
+
+    @Test
+    void testCreateTableWithWhitespaceOnlyConnectionNamePart() {
+        final String sql = "CREATE TABLE derivedTable(a INT) USING CONNECTION mycat.`   `.myconn";
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Parts of the object identifier are null or whitespace-only.");
+    }
+
+    @Test
+    void testCreateTableWithUnicodeConnectionName() {
+        final String sql = "CREATE TABLE derivedTable(a INT) USING CONNECTION `😍.😍`";
+        CreateTableOperation op = (CreateTableOperation) parseAndConvert(sql);
+        assertThat(op.getCatalogTable().getConnection()).hasValue(UnresolvedIdentifier.of("😍.😍"));
     }
 
     @Test
