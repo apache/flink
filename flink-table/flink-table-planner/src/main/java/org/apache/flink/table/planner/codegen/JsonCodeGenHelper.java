@@ -32,26 +32,21 @@ public final class JsonCodeGenHelper {
     private JsonCodeGenHelper() {}
 
     /**
-     * Generates {@code JSON_TYPE(jsonValue)}: the argument is parsed into a {@link
-     * SqlJsonUtils.JsonValueContext} and the type flag is read off it, guarded so that a NULL
-     * argument yields a NULL result.
+     * Generates {@code JSON_TYPE(jsonValue)} or {@code JSON_TYPE(jsonValue, path)}: the first
+     * argument is parsed into a {@link SqlJsonUtils.JsonValueContext} and the type flag is read off
+     * it (optionally at {@code path}), guarded so that a NULL argument yields a NULL result.
      *
-     * <p>The parsed context is shared with {@code JSON_VALUE} and {@code JSON_QUERY} over the same
-     * input, so the input is parsed only once per record. Note that the sharing is not sound today:
-     * the owner registers the shared variable at code generation time but assigns it inside its own
-     * args-not-null guard, so a NULL path argument in a preceding call leaves it unassigned while
-     * the reuse map still reports it as parsed. {@link SqlJsonUtils#jsonType} therefore reports
-     * NULL rather than failing when handed an unassigned context, matching how {@code JSON_VALUE}
-     * and {@code JSON_QUERY} already degrade in the same situation. A follow-up fixes this for all
-     * JSON functions by gating the assignment on the input's nullability alone.
+     * <p>The parsed context is shared with the other JSON functions over the same input, so the
+     * input is parsed only once per record.
      *
      * @param ctx the code generator context
      * @param returnType the result type of the call
-     * @param operands the generated operands, of which only the first is used
+     * @param operands the generated operands: the JSON value, and optionally a path
      * @return the generated expression for the call
      */
     public static GeneratedExpression generateJsonType(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
+        boolean hasPath = operands.length() == 2;
         return GenerateUtils.generateCallWithStmtIfArgsNotNull(
                 ctx,
                 returnType,
@@ -60,13 +55,19 @@ public final class JsonCodeGenHelper {
                 false,
                 argTerms -> {
                     ParsedJson parsed = getOrCreateParsedJson(ctx, argTerms.head() + ".toString()");
-                    String resultExpr =
-                            CodeGenUtils.BINARY_STRING()
-                                    + ".fromString("
-                                    + CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE())
-                                    + "("
-                                    + parsed.varName
-                                    + "))";
+                    String call =
+                            hasPath
+                                    ? CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE_PATH())
+                                            + "("
+                                            + parsed.varName
+                                            + ", "
+                                            + argTerms.apply(1)
+                                            + ".toString())"
+                                    : CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE())
+                                            + "("
+                                            + parsed.varName
+                                            + ")";
+                    String resultExpr = CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
                     return new Tuple2<>(parsed.parseCode, resultExpr);
                 });
     }

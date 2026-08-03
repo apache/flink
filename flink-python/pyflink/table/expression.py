@@ -2324,30 +2324,25 @@ class Expression(Generic[T]):
         else:
             return _binary_op("jsonLength")(self, path)
 
-    def json_type(self) -> 'Expression':
+    def json_type(self, path=None) -> 'Expression':
         """
         Returns a string value indicating the type of the input.
 
         Potential outputs are as following
 
-        * `INTEGER`
-        * `STRING`
-        * `FLOAT`
-        * `DOUBLE`
-        * `LONG`
-        * `BOOLEAN`
-        * `DATE`
         * `OBJECT`
         * `ARRAY`
+        * `STRING`
+        * `NUMBER`
+        * `BOOLEAN`
         * `NULL`, for the JSON null literal
 
-        Because JSON cannot express a date and has a single number type, `DATE` is inferred from
-        strings in the form "yyyy-MM-dd" such as "2015-01-01", and `FLOAT` from numbers exactly
-        representable in 32 bits such as 1.5. Date-times are reported as `STRING`, since there is no
-        timestamp flag. This inference applies to `json_type()` only; `json_value()` still returns a
-        date as a string.
+        Numbers are not split by width or precision; JSON has one number rule.
 
         Returns None if the input is None or is not valid JSON.
+
+        If `path` is given, the type is read at that location instead of the root. A wildcard
+        path that resolves to more than one value returns None.
 
         Examples:
         ::
@@ -2356,18 +2351,16 @@ class Expression(Generic[T]):
             >>> lit('[1, 2]').json_type() # 'ARRAY'
             >>> lit('null').json_type() # 'NULL'
             >>> lit('"Hello, World!"').json_type() # 'STRING'
-            >>> lit('66').json_type() # 'INTEGER'
-
-            >>> lit('1.5').json_type() # 'FLOAT', exact in 32 bits
-            >>> lit('11.1').json_type() # 'DOUBLE', not exact in 32 bits
-
-            >>> lit('"2015-01-01"').json_type() # 'DATE'
-            >>> lit('"2015-02-30"').json_type() # 'STRING', not a valid date
-
+            >>> lit('"2015-01-01"').json_type() # 'STRING'
+            >>> lit('66').json_type() # 'NUMBER'
+            >>> lit('11.1').json_type() # 'NUMBER'
             >>> lit('68s').json_type() # None, not valid JSON
+            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'ARRAY'
         """
-        return _unary_op("jsonType")(self)
-
+        if path is None:
+            return _unary_op("jsonType")(self)
+        else:
+            return _binary_op("jsonType")(self, path)
     # ---------------------------- value modification functions -----------------------------
 
     def object_update(self, *kv) -> "Expression":

@@ -2514,23 +2514,15 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>Potential outputs are as following
      *
      * <ul>
-     *   <li>INTEGER
-     *   <li>STRING
-     *   <li>FLOAT
-     *   <li>DOUBLE
-     *   <li>LONG
-     *   <li>BOOLEAN
-     *   <li>DATE
      *   <li>OBJECT
      *   <li>ARRAY
+     *   <li>STRING
+     *   <li>NUMBER
+     *   <li>BOOLEAN
      *   <li>NULL, for the JSON null literal
      * </ul>
      *
-     * <p>Because JSON cannot express a date and has a single number type, DATE is inferred from
-     * strings in the form {@code "yyyy-MM-dd"} such as {@code "2015-01-01"}, and FLOAT from numbers
-     * exactly representable in 32 bits such as {@code 1.5}. Date-times are reported as STRING,
-     * since there is no timestamp flag. This inference applies to {@code jsonType()} only; {@code
-     * jsonValue()} still returns a date as a string.
+     * <p>Numbers are not split by width or precision; JSON has one number rule.
      *
      * <p>Returns NULL if the input is NULL or is not valid JSON.
      *
@@ -2541,19 +2533,25 @@ public abstract class BaseExpressions<InType, OutType> {
      * lit("[1, 2]").jsonType() // "ARRAY"
      * lit("null").jsonType() // "NULL"
      * lit("\"Hello, World!\"").jsonType() // "STRING"
-     * lit("66").jsonType() // "INTEGER"
-     *
-     * lit("1.5").jsonType() // "FLOAT", exact in 32 bits
-     * lit("11.1").jsonType() // "DOUBLE", not exact in 32 bits
-     *
-     * lit("\"2015-01-01\"").jsonType() // "DATE"
-     * lit("\"2015-02-30\"").jsonType() // "STRING", not a valid date
-     *
+     * lit("\"2015-01-01\"").jsonType() // "STRING"
+     * lit("66").jsonType() // "NUMBER"
+     * lit("11.1").jsonType() // "NUMBER"
      * lit("68s").jsonType() // null, not valid JSON
      * }</pre>
      */
     public OutType jsonType() {
         return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr()));
+    }
+
+    /**
+     * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root.
+     *
+     * <pre>{@code
+     * lit("{\"a\": [1, 2]}").jsonType("$.a") // "ARRAY"
+     * }</pre>
+     */
+    public OutType jsonType(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr(), valueLiteral(path)));
     }
 
     /**

@@ -1267,27 +1267,18 @@ json:
       
         -- JSON_EXISTS separates an absent path from a present one
         SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
-  - sql: JSON_TYPE(jsonValue)
-    table: jsonType(jsonValue)
+  - sql: JSON_TYPE(jsonValue[, path])
+    table: jsonType(jsonValue[, path])
     description: |
-      Returns a string value indicating the type of jsonValue. Returns `NULL` if jsonValue is
-      `NULL` or is not valid JSON.
+      Returns a string value indicating the type of jsonValue, optionally at the given JSON
+      `path`. Returns `NULL` if jsonValue is `NULL`, is not valid JSON, or the path does not
+      resolve to exactly one value.
 
-      The possible results are `OBJECT`, `ARRAY`, `STRING`, `INTEGER`, `LONG`, `FLOAT`, `DOUBLE`,
-      `BOOLEAN` and `DATE`, plus the string `'NULL'` for the JSON null literal.
+      The possible results are `OBJECT`, `ARRAY`, `STRING`, `NUMBER` and `BOOLEAN`, plus the string
+      `'NULL'` for the JSON null literal. These are the types of JSON's own grammar.
 
-      Because JSON cannot express a date and has a single number type, `DATE` and `FLOAT` are
-      inferred from the value itself: `DATE` for a string in the `yyyy-MM-dd` form, and `FLOAT`
-      for a number that is exactly representable in 32 bits. Note that this inference applies to
-      `JSON_TYPE` only; `JSON_VALUE` still returns a date as a string.
-
-      `DATE` requires exactly the ISO-8601 `yyyy-MM-dd` form, the same form the `json` format uses
-      to read a `DATE` column. Nothing else counts, which makes it stricter than
-      `CAST(x AS DATE)`: forms only `CAST` accepts, such as `2015-1-1`, `2015-01` and `2015`, are
-      reported as `STRING`.
-
-      Date-times are also reported as `STRING`, in every form. There is no timestamp flag to
-      return, and reporting `DATE` for a value carrying a time of day would be misleading.
+      JSON has a single number rule with no width, so every number is reported as `NUMBER`.
+      Anything quoted is a `STRING`, including dates and date-times.
 
       ```sql
       -- OBJECT
@@ -1299,29 +1290,26 @@ json:
       -- the JSON null literal, returned as the string 'NULL'
       SELECT JSON_TYPE('null')
 
+      -- BOOLEAN
+      SELECT JSON_TYPE('true')
+
       -- STRING
       SELECT JSON_TYPE('"Hello, World!"')
 
-      -- INTEGER
-      SELECT JSON_TYPE('66')
-
-      -- LONG
-      SELECT JSON_TYPE('4294967296')
-
-      -- FLOAT, since 1.5 is exact in 32 bits
-      SELECT JSON_TYPE('1.5')
-
-      -- DOUBLE, since 11.1 is not
-      SELECT JSON_TYPE('11.1')
-
-      -- DATE
+      -- STRING, since a date in JSON is just a quoted string
       SELECT JSON_TYPE('"2015-01-01"')
 
-      -- STRING, since 2015-02-30 is not a valid date
-      SELECT JSON_TYPE('"2015-02-30"')
+      -- NUMBER
+      SELECT JSON_TYPE('66')
+
+      -- NUMBER, whatever the magnitude or precision
+      SELECT JSON_TYPE('11.1')
 
       -- NULL, since 68s is not valid JSON
       SELECT JSON_TYPE('68s')
+
+      -- ARRAY, read at the given path
+      SELECT JSON_TYPE('{"a": [1, 2]}', '$.a')
       ```
 
 variant:

@@ -3108,7 +3108,14 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_TYPE")
                     .kind(SCALAR)
-                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL))))
                     // Nullable rather than nullableIfArgs: a non-null but unparseable input also
                     // yields NULL.
                     .outputTypeStrategy(explicit(DataTypes.STRING()))
