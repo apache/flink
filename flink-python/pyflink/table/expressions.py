@@ -20,7 +20,7 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
-from pyflink.table.types import _to_java_data_type, DataType
+from pyflink.table.types import _to_java_data_type, _to_java_literal_value, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, load_java_class
@@ -118,7 +118,12 @@ def lit(v, data_type: DataType = None) -> Expression:
     if data_type is None:
         return _unary_op("lit", v)
     else:
-        return _binary_op("lit", v, _to_java_data_type(data_type))
+        gateway = get_gateway()
+        j_data_type = _to_java_data_type(data_type)
+        _j_literal_value = _to_java_literal_value(v, data_type)
+        return Expression(
+            gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils.createLiteralWithType(
+                _j_literal_value, j_data_type))
 
 
 @PublicEvolving()
