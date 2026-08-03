@@ -216,7 +216,7 @@ under the License.
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
-		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<test.unit.pattern>**/*Test.*,**/Tests.*</test.unit.pattern>
 	</properties>
 
 	<dependencies>
