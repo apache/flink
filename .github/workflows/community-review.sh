@@ -179,8 +179,9 @@ process_each_pr() {
        else
          all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")"
        fi
-       # leave only the latest reviews per reviewer in a comma separated form
-       pr_reviewers="$(jq  '. | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | [.author.login, .state, .createdAt] | join(",")' <<< "$all_reviews")"
+       # leave only the latest reviews per reviewer in a comma separated form, keeping the
+       # time of their first review so co-authored reviews can be recognised later on
+       pr_reviewers="$(jq  '. as $all_reviews | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | .author.login as $login | [$login, .state, .createdAt, ([$all_reviews[] | select(.author.login == $login) | .createdAt] | min)] | join(",")' <<< "$all_reviews")"
 
        printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
 
@@ -249,6 +250,10 @@ process_target_branch_label() {
 # 'community-reviewed' is set.
 # If one of the labels is set the other is unset.
 #
+# Reviews written by someone who worked on the PR do not count towards the community
+# review tally - neither the author's own reviews, nor those of a co-author. A request
+# for changes is still honoured, whoever it came from.
+#
 # Arguments:
 #   $1 - GitHub API token for authentication
 #   $2 - PR number
@@ -266,31 +271,40 @@ process_pr_reviews() {
   local committerApproves=0
   local communityReviews=0
   local push_permission
+  local pr_coauthors
   # replace spaces with new lines so the loop will work
   pr_reviews=$(echo "$pr_reviews" | tr ' ' '\n')
   # remove unnecessary double quotes
   pr_reviews="${pr_reviews//\"/}"
 
-  while IFS=, read -r user state time
+  while IFS=, read -r user state time first_review_time
   do
     # A PR author commenting on their own PR is not a community review
     if [[ "$user" == "$pr_author" ]]; then
       printf "%-15s | %-20s | %-20s - skipping PR author self-review\n" "$user" "$state" "$time"
-      continue
-    fi
-    printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
-    push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
-    printf "%s\n" "$push_permission"
-
-    #see if the user has read role
-    if [[ "$push_permission" == "true" ]]; then
-      if [[ "$state" == "APPROVED" ]]; then
-        ((++committerApproves))
-      fi
     else
-      ((++communityReviews))
-      if [[ "$state" == "APPROVED" ]]; then
-        ((++communityApproves))
+      printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
+      push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
+      printf "%s\n" "$push_permission"
+
+      #see if the user has read role
+      if [[ "$push_permission" == "true" ]]; then
+        if [[ "$state" == "APPROVED" ]]; then
+          ((++committerApproves))
+        fi
+      else
+        # only worth paying for the co-author lookup once a review would otherwise be counted
+        if [[ -z "${pr_coauthors+set}" ]]; then
+          pr_coauthors="$(get_pr_coauthors "$token" "$pr_number")" || exit
+        fi
+        if is_coauthor_before_review "$user" "$first_review_time" "$pr_coauthors"; then
+          printf "%-15s | %-20s | %-20s - skipping PR co-author self-review\n" "$user" "$state" "$time"
+        else
+          ((++communityReviews))
+          if [[ "$state" == "APPROVED" ]]; then
+            ((++communityApproves))
+          fi
+        fi
       fi
     fi
 
@@ -400,6 +414,88 @@ get_all_reviews_for_pr() {
     all_reviews_for_pr=$(echo -e "${all_reviews_for_pr}" "$cutdownRestResponse" | jq '.[]' | jq -s)
   done
   echo "$all_reviews_for_pr"
+}
+
+# =============================================================================
+# Get the co-authors of a pr, as a 'login,date' line per co-author, where date is
+# the earliest commit on the pr they authored. Co-authors that do not resolve to a
+# GitHub user are left out, as they can never match a reviewer.
+#
+# The date matters because GitHub records a reviewer as co-author as soon as the pr
+# author commits one of their suggestions - see is_coauthor_before_review.
+#
+# Arguments:
+#   $1 - GitHub API token for authentication
+#   $2 - PR number
+# =============================================================================
+get_pr_coauthors() {
+  local token="${1?missing token}"
+  local pr_number="${2?missing pr number}"
+
+  # a single page of commits covers every Flink pr, so there is nothing to page through
+  local GET_COAUTHORS_TEMPLATE='{
+  "query":
+    "query {
+      repository(owner: \"<<REPO_OWNER>>\" name: \"<<REPO_NAME>>\") {
+        pullRequest(number: <<PR_NUMBER>>) {
+          commits(first: 100) {
+            nodes {
+              commit {
+                authoredDate
+                authors(first: 10) {
+                  nodes {
+                    user {
+                      login
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"
+  }'
+
+  local payload
+  payload=$(echo "$GET_COAUTHORS_TEMPLATE" | tr -d '\n')  # the query should be a one-liner, without newlines
+  payload="$(replace_template_value "$payload" "REPO_OWNER" "${REPO_OWNER}")"
+  payload="$(replace_template_value "$payload" "REPO_NAME" "${REPO_NAME}")"
+  payload="$(replace_template_value "$payload" "PR_NUMBER" "${pr_number}")"
+
+  local restResponse
+  restResponse="$(call_github_graphql_api "$token" "$payload")"
+  check_github_graphql_response "$restResponse"
+
+  jq -r '[.data.repository.pullRequest.commits.nodes[] | .commit as $commit | $commit.authors.nodes[] | select(.user != null) | {login: .user.login, date: $commit.authoredDate}] | group_by(.login) | .[] | [.[0].login, (map(.date) | min)] | join(",")' <<< "$restResponse"
+}
+
+# =============================================================================
+# Check whether a reviewer had already co-authored the pr by the time they first
+# reviewed it, in which case their review is not a community review.
+#
+# A reviewer who only became a co-author later on was credited by GitHub when the pr
+# author committed one of their suggestions. That co-authorship is a product of the
+# review itself, so the review still counts.
+#
+# Arguments:
+#   $1 - reviewer login
+#   $2 - time of the reviewer's first review
+#   $3 - pr co-authors, as returned by get_pr_coauthors
+# =============================================================================
+is_coauthor_before_review() {
+  local user="${1?missing user}"
+  local first_review_time="${2?missing first review time}"
+  local pr_coauthors="${3-}"
+
+  local coauthor
+  local authored_date
+  while IFS=, read -r coauthor authored_date; do
+    if [[ "$coauthor" == "$user" ]] && [[ "$authored_date" < "$first_review_time" ]]; then
+      return 0
+    fi
+  done <<< "$pr_coauthors"
+  return 1
 }
 
 # ======================================
