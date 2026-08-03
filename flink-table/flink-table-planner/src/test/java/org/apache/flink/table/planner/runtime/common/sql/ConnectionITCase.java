@@ -138,7 +138,8 @@ class ConnectionITCase extends AbstractTestBase {
 
         assertThatThrownBy(() -> tEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("already exists");
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
     }
 
     @TestTemplate
@@ -149,7 +150,8 @@ class ConnectionITCase extends AbstractTestBase {
 
         assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("already exists");
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
     }
 
     @TestTemplate
@@ -160,7 +162,8 @@ class ConnectionITCase extends AbstractTestBase {
 
         assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("already exists");
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
     }
 
     private TableEnvironment tableEnvWithSecretStore() {
