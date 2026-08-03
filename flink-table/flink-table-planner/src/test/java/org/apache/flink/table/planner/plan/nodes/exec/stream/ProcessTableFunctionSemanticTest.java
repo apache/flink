@@ -24,7 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Semantic tests for {@link StreamExecProcessTableFunction}. */
-public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
+public class ProcessTableFunctionSemanticTest extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {

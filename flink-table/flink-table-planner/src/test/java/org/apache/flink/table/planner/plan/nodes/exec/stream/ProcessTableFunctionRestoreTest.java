@@ -24,9 +24,9 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecProcessTableFunction}. */
-public class ProcessTableFunctionRestoreTests extends RestoreTestBase {
+public class ProcessTableFunctionRestoreTest extends RestoreTestBase {
 
-    protected ProcessTableFunctionRestoreTests() {
+    protected ProcessTableFunctionRestoreTest() {
         super(StreamExecProcessTableFunction.class);
     }
 

@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.JoinSemanticTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for various {@link StreamExecNode}s and sources producing deletes by key only. */
-public class DeletesByKeySemanticTests extends SemanticTestBase {
-
+/** Semantic tests for {@link StreamExecJoin}. */
+public class JoinSemanticTest extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY,
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_FULL_DELETE,
-                DeletesByKeyPrograms.INSERT_SELECT_FULL_DELETE_FULL_DELETE,
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION,
-                DeletesByKeyPrograms.JOIN_INTO_FULL_DELETES,
-                DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY);
+                JoinSemanticTestPrograms.OUTER_JOIN_CHANGELOG_TEST,
+                JoinSemanticTestPrograms.ANTI_JOIN_ON_NESTED,
+                JoinSemanticTestPrograms.LEFT_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.RIGHT_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.FULL_JOIN_NOT_NULL_NESTED_ROW,
+                JoinSemanticTestPrograms.LEFT_JOIN_NULLABLE_NESTED_ROW,
+                JoinSemanticTestPrograms.RIGHT_JOIN_NULLABLE_NESTED_ROW,
+                JoinSemanticTestPrograms.FULL_JOIN_NULLABLE_NESTED_ROW);
     }
 }

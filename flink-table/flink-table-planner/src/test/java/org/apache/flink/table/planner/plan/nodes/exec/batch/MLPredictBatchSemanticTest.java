@@ -28,7 +28,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTes
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_ML_PREDICT_TABLE_API;
 
 /** Semantic tests for {@link BatchExecMLPredictTableFunction} using Table API. */
-public class MLPredictBatchSemanticTests extends BatchSemanticTestBase {
+public class MLPredictBatchSemanticTest extends BatchSemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {

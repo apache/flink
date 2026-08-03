@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Semantic tests for {@link StreamExecSink}. */
-public class SinkSemanticTests extends SemanticTestBase {
+public class SinkSemanticTest extends SemanticTestBase {
 
     @Override
     public EnumSet<TestKind> supportedSetupSteps() {

@@ -18,21 +18,25 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.common.CalcTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for various {@link StreamExecNode}s. */
-public class MiscSemanticTests extends SemanticTestBase {
+/** Semantic tests for {@link StreamExecChangelogNormalize}. */
+public class ChangelogNormalizeSemanticTest extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1,
-                CalcTestPrograms.CURRENT_WATERMARK,
-                CalcTestPrograms.COALESCE_NESTED_ROW_LEFT_JOIN,
-                WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_DECODE);
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NO_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NO_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_NO_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_NON_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_KEY_FILTER);
     }
 }

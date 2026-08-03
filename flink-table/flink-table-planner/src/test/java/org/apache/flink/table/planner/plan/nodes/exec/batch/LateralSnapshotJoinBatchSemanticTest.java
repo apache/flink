@@ -29,7 +29,7 @@ import java.util.List;
  * BatchPhysicalLateralSnapshotJoinRule} degrades the join to a regular join of the probe side
  * against the (final) build side.
  */
-public class LateralSnapshotJoinBatchSemanticTests extends BatchSemanticTestBase {
+public class LateralSnapshotJoinBatchSemanticTest extends BatchSemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {

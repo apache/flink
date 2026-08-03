@@ -26,7 +26,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Semantic tests for the built-in FROM_CHANGELOG process table function. */
-public class FromChangelogSemanticTests extends SemanticTestBase {
+public class FromChangelogSemanticTest extends SemanticTestBase {
 
     @Override
     protected void applyDefaultEnvironmentOptions(TableConfig config) {

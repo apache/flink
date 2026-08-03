@@ -25,7 +25,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Semantic tests for {@link ConstraintEnforcer}. */
-public class ConstraintEnforcerSemanticTests extends SemanticTestBase {
+public class ConstraintEnforcerSemanticTest extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {

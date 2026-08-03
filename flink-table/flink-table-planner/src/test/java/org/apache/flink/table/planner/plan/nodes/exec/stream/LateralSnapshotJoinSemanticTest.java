@@ -23,20 +23,21 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for {@link StreamExecChangelogNormalize}. */
-public class ChangelogNormalizeSemanticTests extends SemanticTestBase {
-
+/** Semantic tests for {@link StreamExecLateralSnapshotJoin}. */
+public class LateralSnapshotJoinSemanticTest extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NON_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_NO_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NON_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.KAFKA_SOURCE_WITH_NO_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_NO_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_NON_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.RETRACT_SOURCE_WITH_KEY_FILTER);
+                LateralSnapshotJoinSemanticTestPrograms.INNER_JOIN,
+                LateralSnapshotJoinSemanticTestPrograms.LEFT_JOIN,
+                LateralSnapshotJoinSemanticTestPrograms.SELECT_STAR,
+                LateralSnapshotJoinSemanticTestPrograms.COMPOSITE_KEYS,
+                LateralSnapshotJoinSemanticTestPrograms.NON_EQUI,
+                LateralSnapshotJoinSemanticTestPrograms.EMPTY_BUILD_INNER,
+                LateralSnapshotJoinSemanticTestPrograms.EMPTY_BUILD_LEFT,
+                LateralSnapshotJoinSemanticTestPrograms.FLIP_AT_END,
+                LateralSnapshotJoinSemanticTestPrograms.DEFAULT_COMPILE_TIME,
+                LateralSnapshotJoinSemanticTestPrograms.LIVE_JOIN,
+                LateralSnapshotJoinSemanticTestPrograms.BUFFERED_THEN_DRAINED);
     }
 }

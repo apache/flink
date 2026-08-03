@@ -18,26 +18,21 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.CalcTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for {@link StreamExecLateralSnapshotJoin}. */
-public class LateralSnapshotJoinSemanticTests extends SemanticTestBase {
+/** Semantic tests for various {@link StreamExecNode}s. */
+public class MiscSemanticTest extends SemanticTestBase {
+
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                LateralSnapshotJoinSemanticTestPrograms.INNER_JOIN,
-                LateralSnapshotJoinSemanticTestPrograms.LEFT_JOIN,
-                LateralSnapshotJoinSemanticTestPrograms.SELECT_STAR,
-                LateralSnapshotJoinSemanticTestPrograms.COMPOSITE_KEYS,
-                LateralSnapshotJoinSemanticTestPrograms.NON_EQUI,
-                LateralSnapshotJoinSemanticTestPrograms.EMPTY_BUILD_INNER,
-                LateralSnapshotJoinSemanticTestPrograms.EMPTY_BUILD_LEFT,
-                LateralSnapshotJoinSemanticTestPrograms.FLIP_AT_END,
-                LateralSnapshotJoinSemanticTestPrograms.DEFAULT_COMPILE_TIME,
-                LateralSnapshotJoinSemanticTestPrograms.LIVE_JOIN,
-                LateralSnapshotJoinSemanticTestPrograms.BUFFERED_THEN_DRAINED);
+                WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1,
+                CalcTestPrograms.CURRENT_WATERMARK,
+                CalcTestPrograms.COALESCE_NESTED_ROW_LEFT_JOIN,
+                WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_DECODE);
     }
 }
