@@ -20,6 +20,8 @@ package org.apache.flink.fs.s3native.writer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,12 +37,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Tests for the local temp-file handling of {@link NativeS3RecoverableFsDataOutputStream} on the
  * part-upload failure and commit paths.
- *
- * <p>Cleanup after a failed {@code uploadPart()} is deliberately left to {@code close()} rather
- * than done eagerly in {@code uploadCurrentPart()}, so that a delete failure cannot mask the
- * original upload {@link IOException}. These tests pin that contract: the temp file survives the
- * failed upload and is reclaimed by {@code close()}, and no {@code s3-part-*} file is left behind
- * afterwards.
  */
 class NativeS3RecoverableFsDataOutputStreamTest {
 
@@ -48,59 +44,44 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     private static final String KEY = "test/object";
     private static final String UPLOAD_ID = "test-upload-id";
 
+    /** The two call sites that can hit a failing {@code uploadPart()}. */
+    enum UploadFailurePath {
+        WRITE,
+        CLOSE_FOR_COMMIT
+    }
+
     /**
-     * When {@code uploadPart()} fails for a part flushed mid-stream (from {@code write()}), the
-     * temp file is intentionally retained so the upload exception propagates unmasked, and {@code
-     * close()} reclaims it.
+     * When {@code uploadPart()} fails, whether flushed mid-stream from {@code write()} or at commit
+     * time from {@code closeForCommit()}, the temp file is intentionally retained so the upload
+     * exception propagates unmasked, and the subsequent {@code close()} reclaims it.
      */
-    @Test
-    void uploadPartFailureFromWriteIsReclaimedByClose(@TempDir Path tmpDir) throws IOException {
+    @ParameterizedTest
+    @EnumSource(UploadFailurePath.class)
+    void uploadPartFailureIsReclaimedByClose(UploadFailurePath path, @TempDir Path tmpDir)
+            throws IOException {
         FailingUploadHelper helper = new FailingUploadHelper();
         NativeS3RecoverableFsDataOutputStream stream =
                 new NativeS3RecoverableFsDataOutputStream(
                         helper, KEY, UPLOAD_ID, tmpDir.toString(), MIN_PART_SIZE);
 
-        // Write >= minPartSize so write() flushes a part via uploadCurrentPart(), which fails.
-        byte[] payload = new byte[(int) MIN_PART_SIZE];
+        if (path == UploadFailurePath.WRITE) {
+            // Write >= minPartSize so write() flushes the part immediately, which fails.
+            byte[] payload = new byte[(int) MIN_PART_SIZE];
+            assertThatThrownBy(() -> stream.write(payload, 0, payload.length))
+                    .isInstanceOf(IOException.class);
+        } else {
+            // Write < minPartSize so the single pending part is uploaded only at commit time.
+            stream.write(new byte[1024], 0, 1024);
+            assertThatThrownBy(stream::closeForCommit).isInstanceOf(IOException.class);
+        }
 
-        assertThatThrownBy(() -> stream.write(payload, 0, payload.length))
-                .isInstanceOf(IOException.class);
-
-        // Retained by design: uploadCurrentPart() must not delete on failure.
         assertThat(findTempFile(tmpDir))
                 .as("temp file is reclaimed by close(), not eagerly")
                 .isNotNull();
 
         stream.close();
 
-        assertNoTempFilesRemain(
-                tmpDir, "after close() following an uploadPart() failure in write()");
-    }
-
-    /**
-     * Regression test for the commit path. {@code closeForCommit()} only sets {@code closed = true}
-     * after the final part has been uploaded, so when {@code uploadPart()} throws there the stream
-     * is still open and {@code close()} reclaims the temp file. Were {@code closed} set before the
-     * upload, {@code close()} would short-circuit on its {@code if (!closed)} guard and orphan the
-     * {@code s3-part-*} file in the shared {@code io.tmp.dirs} for the lifetime of the TaskManager.
-     */
-    @Test
-    void closeForCommitUploadFailureIsReclaimedByClose(@TempDir Path tmpDir) throws IOException {
-        FailingUploadHelper helper = new FailingUploadHelper();
-        NativeS3RecoverableFsDataOutputStream stream =
-                new NativeS3RecoverableFsDataOutputStream(
-                        helper, KEY, UPLOAD_ID, tmpDir.toString(), MIN_PART_SIZE);
-
-        // Write a small amount (< minPartSize) so no part is flushed during write(); the single
-        // pending part is uploaded only at commit time, where uploadPart() then fails.
-        stream.write(new byte[1024], 0, 1024);
-
-        assertThatThrownBy(stream::closeForCommit).isInstanceOf(IOException.class);
-
-        stream.close();
-
-        assertNoTempFilesRemain(
-                tmpDir, "after close() following an uploadPart() failure in closeForCommit()");
+        assertNoTempFilesRemain(tmpDir, "after close() following an uploadPart() failure");
     }
 
     /** The temp file for a successfully uploaded part is deleted on the normal commit path. */
@@ -117,13 +98,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         assertNoTempFilesRemain(tmpDir, "after a successful commit upload");
     }
 
-    /**
-     * {@code closeForCommit()} with no pending bytes takes the {@code else} branch and deletes the
-     * (empty) temp file. With {@code Files.delete} this threw {@link
-     * java.nio.file.NoSuchFileException} if the file was already gone; {@code Files.deleteIfExists}
-     * makes it idempotent. Here the temp file is removed up front to simulate an
-     * external/concurrent cleanup having already deleted it.
-     */
+    /** {@code closeForCommit()} succeeds even when the temp file was already removed. */
     @Test
     void closeForCommitIsIdempotentWhenTempFileMissing(@TempDir Path tmpDir) throws IOException {
         NoopObjectOperations helper = new NoopObjectOperations();
@@ -136,7 +111,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         assertThat(tempFile).isNotNull();
         Files.delete(tempFile.toPath());
 
-        // With the fix (deleteIfExists) this succeeds; without it, it threw NoSuchFileException.
         assertThat(stream.closeForCommit()).isNotNull();
     }
 

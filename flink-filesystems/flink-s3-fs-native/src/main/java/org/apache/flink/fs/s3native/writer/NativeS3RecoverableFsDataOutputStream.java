@@ -282,10 +282,6 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 }
                 if (currentTempFile != null) {
                     try {
-                        // deleteIfExists() rather than exists() + delete(): write() and
-                        // uploadCurrentPart() run without the lock and replace currentTempFile,
-                        // so a concurrent cancellation close() could otherwise fail with
-                        // NoSuchFileException between the exists() check and the delete().
                         Files.deleteIfExists(currentTempFile.toPath());
                     } catch (IOException e) {
                         cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
