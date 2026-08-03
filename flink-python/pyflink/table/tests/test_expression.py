@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import unittest
+
+from py4j.protocol import Py4JJavaError
 
 from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
@@ -377,6 +380,49 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('ifThenElse(a, b, c)', str(if_then_else(expr1, expr2, expr3)))
         self.assertEqual('withColumns(a, b, c)', str(with_columns(expr1, expr2, expr3)))
         self.assertEqual('a.b.c(a)', str(call('a.b.c', expr1)))
+
+    def test_lit_converts_python_values_to_declared_data_types(self):
+        test_cases = [
+            (1, DataTypes.TINYINT().not_null(), "TINYINT"),
+            (1, DataTypes.SMALLINT().not_null(), "SMALLINT"),
+            (1, DataTypes.BIGINT().not_null(), "BIGINT"),
+            (1.25, DataTypes.FLOAT().not_null(), "FLOAT"),
+            (datetime.date(2026, 8, 3), DataTypes.DATE().not_null(), "DATE"),
+            (datetime.time(1, 2, 3, 4000), DataTypes.TIME(6).not_null(),
+             "TIME_WITHOUT_TIME_ZONE"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
+             DataTypes.TIMESTAMP(6).not_null(), "TIMESTAMP_WITHOUT_TIME_ZONE"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000, datetime.timezone.utc),
+             DataTypes.TIMESTAMP_LTZ(6).not_null(), "TIMESTAMP_WITH_LOCAL_TIME_ZONE"),
+            (datetime.timedelta(days=1, seconds=2, microseconds=3000),
+             DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(6)).not_null(),
+             "INTERVAL_DAY_TIME"),
+            ([1, 2], DataTypes.ARRAY(DataTypes.SMALLINT()).not_null(), "ARRAY"),
+            ({1: 1.25},
+             DataTypes.MAP(DataTypes.SMALLINT(), DataTypes.FLOAT()).not_null(), "MAP"),
+            ((1, 1.25),
+             DataTypes.ROW([
+                 DataTypes.FIELD("small_value", DataTypes.SMALLINT()),
+                 DataTypes.FIELD("float_value", DataTypes.FLOAT()),
+             ]).not_null(),
+             "ROW"),
+        ]
+
+        for value, data_type, expected_type_root in test_cases:
+            with self.subTest(value=value, data_type=data_type):
+                literal = lit(value, data_type)._j_expr.toExpr()
+                actual_type_root = literal.getOutputDataType() \
+                    .getLogicalType().getTypeRoot().name()
+                self.assertEqual(expected_type_root, actual_type_root)
+
+    def test_lit_rejects_out_of_range_integer_values(self):
+        for value, data_type in [
+            (128, DataTypes.TINYINT().not_null()),
+            (32768, DataTypes.SMALLINT().not_null()),
+        ]:
+            with self.subTest(value=value, data_type=data_type):
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, data_type)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,8 @@ package org.apache.flink.table.utils.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
@@ -62,6 +64,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.lang.reflect.Array;
@@ -74,6 +77,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -141,6 +145,11 @@ public final class PythonTableUtils {
                         .collect(Collectors.toList());
         return new CollectionInputFormat<>(
                 dataCollection, InternalSerializers.create(dataType.getLogicalType()));
+    }
+
+    /** Creates a typed literal after adapting values received through Py4J. */
+    public static ApiExpression createLiteralWithType(Object value, DataType dataType) {
+        return Expressions.lit(convertLiteralValue(value, dataType), dataType);
     }
 
     private static BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor(
@@ -501,6 +510,124 @@ public final class PythonTableUtils {
         }
 
         throw new IllegalStateException("Failed to get converter for LogicalType: " + logicalType);
+    }
+
+    private static Object convertLiteralValue(Object value, DataType dataType) {
+        if (value == null || !usesDefaultLiteralConversion(dataType)) {
+            return value;
+        }
+
+        LogicalType logicalType = dataType.getLogicalType();
+        if (logicalType instanceof TinyIntType && isIntegral(value)) {
+            long number = ((Number) value).longValue();
+            return number >= Byte.MIN_VALUE && number <= Byte.MAX_VALUE ? (byte) number : value;
+        } else if (logicalType instanceof SmallIntType && isIntegral(value)) {
+            long number = ((Number) value).longValue();
+            return number >= Short.MIN_VALUE && number <= Short.MAX_VALUE ? (short) number : value;
+        } else if (logicalType instanceof BigIntType && isIntegral(value)) {
+            return ((Number) value).longValue();
+        } else if (logicalType instanceof FloatType && value instanceof Double) {
+            return ((Double) value).floatValue();
+        } else if (logicalType instanceof ArrayType) {
+            return convertLiteralArray(value, dataType);
+        } else if (logicalType instanceof MapType) {
+            return convertLiteralMap(value, dataType);
+        } else if (logicalType instanceof RowType) {
+            return convertLiteralRow(value, dataType);
+        }
+        return value;
+    }
+
+    private static boolean usesDefaultLiteralConversion(DataType dataType) {
+        LogicalType logicalType = dataType.getLogicalType();
+        Class<?> conversionClass = dataType.getConversionClass();
+        if (logicalType instanceof ArrayType) {
+            return conversionClass.isArray();
+        } else if (logicalType instanceof MapType || logicalType instanceof MultisetType) {
+            return Map.class.isAssignableFrom(conversionClass);
+        } else if (logicalType instanceof RowType) {
+            return conversionClass == Row.class;
+        }
+        return conversionClass == logicalType.getDefaultConversion();
+    }
+
+    private static boolean isIntegral(Object value) {
+        return value instanceof Byte
+                || value instanceof Short
+                || value instanceof Integer
+                || value instanceof Long;
+    }
+
+    private static Object convertLiteralArray(Object value, DataType dataType) {
+        final int length;
+        final Function<Integer, Object> elementGetter;
+        if (value instanceof List) {
+            length = ((List<?>) value).size();
+            elementGetter = pos -> ((List<?>) value).get(pos);
+        } else if (value.getClass().isArray()) {
+            length = Array.getLength(value);
+            elementGetter = pos -> Array.get(value, pos);
+        } else {
+            return value;
+        }
+
+        DataType elementDataType = dataType.getChildren().get(0);
+        Object converted =
+                Array.newInstance(dataType.getConversionClass().getComponentType(), length);
+        for (int pos = 0; pos < length; pos++) {
+            Array.set(
+                    converted, pos, convertLiteralValue(elementGetter.apply(pos), elementDataType));
+        }
+        return converted;
+    }
+
+    private static Object convertLiteralMap(Object value, DataType dataType) {
+        if (!(value instanceof Map)) {
+            return value;
+        }
+        DataType keyDataType = dataType.getChildren().get(0);
+        DataType valueDataType = dataType.getChildren().get(1);
+        Map<Object, Object> converted = new HashMap<>();
+        ((Map<?, ?>) value)
+                .forEach(
+                        (key, mapValue) ->
+                                converted.put(
+                                        convertLiteralValue(key, keyDataType),
+                                        convertLiteralValue(mapValue, valueDataType)));
+        return converted;
+    }
+
+    private static Object convertLiteralRow(Object value, DataType dataType) {
+        if (!(value instanceof Row)
+                && !(value instanceof List)
+                && !(value instanceof Map)
+                && (value == null || !value.getClass().isArray())) {
+            return value;
+        }
+        LogicalType logicalType = dataType.getLogicalType();
+        List<String> fieldNames = ((RowType) logicalType).getFieldNames();
+        List<DataType> fieldDataTypes = dataType.getChildren();
+        RowKind rowKind = value instanceof Row ? ((Row) value).getKind() : RowKind.INSERT;
+        Row converted = Row.withPositions(rowKind, fieldDataTypes.size());
+        for (int pos = 0; pos < fieldDataTypes.size(); pos++) {
+            Object fieldValue = getLiteralRowField(value, pos, fieldNames.get(pos));
+            converted.setField(pos, convertLiteralValue(fieldValue, fieldDataTypes.get(pos)));
+        }
+        return converted;
+    }
+
+    private static Object getLiteralRowField(Object value, int pos, String fieldName) {
+        if (value instanceof Row) {
+            Row row = (Row) value;
+            return row.getFieldNames(false) == null ? row.getField(pos) : row.getField(fieldName);
+        } else if (value instanceof List) {
+            return ((List<?>) value).get(pos);
+        } else if (value instanceof Map) {
+            return ((Map<?, ?>) value).get(fieldName);
+        } else if (value != null && value.getClass().isArray()) {
+            return Array.get(value, pos);
+        }
+        return value;
     }
 
     private static int getOffsetFromLocalMillis(final long millisLocal) {

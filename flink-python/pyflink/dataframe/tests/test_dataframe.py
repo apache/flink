@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
 import unittest
 from datetime import datetime, timezone
 from typing import NamedTuple
@@ -636,6 +637,9 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             inferred_string=pf.lit("x"),
             explicit_int=pf.lit(3, pf.DataType.int64()),
             explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
+            explicit_small_int=pf.lit(3, pf.DataType.int16()),
+            explicit_float=pf.lit(1.25, pf.DataType.float32()),
+            explicit_date=pf.lit(datetime.date(2026, 8, 3), pf.DataType.date()),
             explicit_string=pf.lit("y", pf.DataType.string()),
         )
 
@@ -646,6 +650,9 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
                 "inferred_string",
                 "explicit_int",
                 "explicit_large_int",
+                "explicit_small_int",
+                "explicit_float",
+                "explicit_date",
                 "explicit_string",
             ],
             [
@@ -653,6 +660,9 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
                 TableDataTypes.CHAR(1).not_null(),
                 TableDataTypes.BIGINT().not_null(),
                 TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.SMALLINT().not_null(),
+                TableDataTypes.FLOAT().not_null(),
+                TableDataTypes.DATE().not_null(),
                 TableDataTypes.STRING().not_null(),
             ],
         )

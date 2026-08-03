@@ -1960,6 +1960,100 @@ def _to_java_data_type(data_type: _TableDataTypeLike):
     return j_data_type
 
 
+def _to_java_literal_value(value, data_type: DataType):
+    """Converts Python-only literal values into objects that can be sent through Py4J."""
+    if value is None or data_type._conversion_cls:
+        return value
+
+    gateway = get_gateway()
+    jvm = gateway.jvm
+
+    if isinstance(data_type, DateType) and isinstance(value, datetime.datetime):
+        value = value.date()
+    if isinstance(data_type, DateType) and isinstance(value, datetime.date):
+        return jvm.java.time.LocalDate.of(value.year, value.month, value.day)
+    elif isinstance(data_type, TimeType) and isinstance(value, datetime.time):
+        return jvm.java.time.LocalTime.of(
+            value.hour, value.minute, value.second, value.microsecond * 1000)
+    elif isinstance(data_type, TimestampType) and isinstance(value, datetime.datetime):
+        return jvm.java.time.LocalDateTime.of(
+            value.year,
+            value.month,
+            value.day,
+            value.hour,
+            value.minute,
+            value.second,
+            value.microsecond * 1000)
+    elif isinstance(data_type, LocalZonedTimestampType) and \
+            isinstance(value, datetime.datetime):
+        seconds = calendar.timegm(value.utctimetuple()) if value.tzinfo else \
+            int(time.mktime(value.timetuple()))
+        return jvm.java.time.Instant.ofEpochSecond(seconds, value.microsecond * 1000)
+    elif isinstance(data_type, ZonedTimestampType) and isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            value = value.astimezone()
+        offset = value.utcoffset()
+        if offset is None or offset.microseconds != 0:
+            return value
+        j_offset = jvm.java.time.ZoneOffset.ofTotalSeconds(int(offset.total_seconds()))
+        return jvm.java.time.OffsetDateTime.of(
+            value.year,
+            value.month,
+            value.day,
+            value.hour,
+            value.minute,
+            value.second,
+            value.microsecond * 1000,
+            j_offset)
+    elif isinstance(data_type, DayTimeIntervalType) and \
+            isinstance(value, datetime.timedelta):
+        seconds = value.days * 86400 + value.seconds
+        return jvm.java.time.Duration.ofSeconds(seconds, value.microseconds * 1000)
+    elif isinstance(data_type, ArrayType) and isinstance(value, (list, tuple, array)):
+        j_values = jvm.java.util.ArrayList()
+        for element in value:
+            j_values.add(_to_java_literal_value(element, data_type.element_type))
+        return j_values
+    elif isinstance(data_type, MapType) and isinstance(value, dict):
+        j_values = jvm.java.util.HashMap()
+        for key, map_value in value.items():
+            j_values.put(
+                _to_java_literal_value(key, data_type.key_type),
+                _to_java_literal_value(map_value, data_type.value_type))
+        return j_values
+    elif isinstance(data_type, RowType):
+        if isinstance(value, Row):
+            if hasattr(value, '_fields'):
+                j_row = jvm.org.apache.flink.types.Row.withNames(
+                    value.get_row_kind().to_j_row_kind())
+                for field in data_type.fields:
+                    j_row.setField(
+                        field.name,
+                        _to_java_literal_value(value[field.name], field.data_type))
+            else:
+                j_row = jvm.org.apache.flink.types.Row.withPositions(
+                    value.get_row_kind().to_j_row_kind(), len(value))
+                for pos, (field_value, field) in enumerate(zip(value, data_type.fields)):
+                    j_row.setField(
+                        pos, _to_java_literal_value(field_value, field.data_type))
+            return j_row
+
+        if isinstance(value, dict):
+            j_values = jvm.java.util.HashMap()
+            for field in data_type.fields:
+                j_values.put(
+                    field.name,
+                    _to_java_literal_value(value.get(field.name), field.data_type))
+            return j_values
+        elif isinstance(value, (list, tuple)):
+            j_values = jvm.java.util.ArrayList()
+            for field_value, field in zip(value, data_type.fields):
+                j_values.add(_to_java_literal_value(field_value, field.data_type))
+            return j_values
+
+    return value
+
+
 _acceptable_types = {
     BooleanType: (bool,),
     TinyIntType: (int,),
