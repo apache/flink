@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
@@ -35,6 +36,7 @@ public class ShuffleServiceOptions {
     /**
      * The full class name of the shuffle service factory implementation to be used by the cluster.
      */
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
     public static final ConfigOption<String> SHUFFLE_SERVICE_FACTORY_CLASS =
             ConfigOptions.key("shuffle-service-factory.class")
                     .stringType()

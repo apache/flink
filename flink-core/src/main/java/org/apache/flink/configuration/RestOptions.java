@@ -58,6 +58,7 @@ public class RestOptions {
                                     + " collisions when multiple Rest servers are running on the same machine.");
 
     /** The url prefix that should be used by clients to construct the full target url. */
+    @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
     public static final ConfigOption<String> URL_PREFIX =
             key("rest.url-prefix")
                     .stringType()
