@@ -197,13 +197,13 @@ public class ChangelogKeyedStateBackendTest {
                     new MemCheckpointStreamFactory(1000),
                     new CheckpointOptions(
                             SavepointType.savepoint(SavepointFormatType.NATIVE),
-                            CheckpointStorageLocationReference.getDefault()
-                    )
-            );
+                            CheckpointStorageLocationReference.getDefault()));
             backend.notifyCheckpointAborted(savepointId);
             appendMockStateChange(backend);
 
-            assertTrue("materialization should not be blocked by an unconfirmed native savepoint", backend.initMaterialization().isPresent());
+            assertTrue(
+                    "materialization should not be blocked by an unconfirmed native savepoint",
+                    backend.initMaterialization().isPresent());
         } finally {
             backend.close();
             backend.dispose();
