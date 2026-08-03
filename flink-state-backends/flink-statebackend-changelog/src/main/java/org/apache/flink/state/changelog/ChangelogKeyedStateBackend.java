@@ -199,6 +199,9 @@ public class ChangelogKeyedStateBackend<K>
     /** last failed or cancelled materialization. */
     private long lastFailedMaterializationId = -1L;
 
+    /** ID of the last materialization actually triggered by {@link #initMaterialization()}. */
+    private long lastTriggeredMaterializationId = -1L;
+
     private final ChangelogTruncateHelper changelogTruncateHelper;
 
     /**
@@ -820,6 +823,7 @@ public class ChangelogKeyedStateBackend<K>
             }
         }
         this.lastConfirmedMaterializationId = materializationId;
+        this.lastTriggeredMaterializationId = materializationId;
         this.materializedId = materializationId + 1;
 
         if (!isRescaling
@@ -851,15 +855,15 @@ public class ChangelogKeyedStateBackend<K>
      */
     @Override
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
-        if (lastConfirmedMaterializationId < materializedId - 1
-                && lastFailedMaterializationId < materializedId - 1) {
+        if (lastConfirmedMaterializationId < lastTriggeredMaterializationId
+                && lastFailedMaterializationId < lastTriggeredMaterializationId) {
             // SharedStateRegistry potentially requires that the checkpoint's dependency on the
             // shared file be continuous, it will be broken if we trigger a new materialization
             // before the previous one has either confirmed or failed. See discussion in
             // https://github.com/apache/flink/pull/22669#issuecomment-1593370772 .
             LOG.info(
                     "materialization:{} not confirmed or failed or cancelled, skip trigger new one.",
-                    materializedId - 1);
+                    lastTriggeredMaterializationId);
             return Optional.empty();
         }
 
@@ -878,6 +882,7 @@ public class ChangelogKeyedStateBackend<K>
             // streamFactory that is designed for state backend snapshot, which requires unique
             // checkpoint ID. A faked materialized Id is provided here.
             long materializationID = materializedId++;
+            lastTriggeredMaterializationId = materializationID;
 
             MaterializationRunnable materializationRunnable =
                     new MaterializationRunnable(
