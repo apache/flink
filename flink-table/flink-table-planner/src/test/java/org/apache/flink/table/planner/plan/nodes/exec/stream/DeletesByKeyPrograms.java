@@ -237,13 +237,8 @@ public final class DeletesByKeyPrograms {
                                             "`value` INT")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .addOption("sink.supports-delete-by-key", "false")
-                                    .consumedValues(
-                                            "+I[1, Alice, 10]",
-                                            "+I[2, Bob, 20]",
-                                            "+I[3, Emily, 30]",
-                                            "-D[1, Alice, 10]",
-                                            "+U[3, Emily, 40]",
-                                            "+U[2, BOB, 20]")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[3, Emily, 40]", "+I[2, BOB, 20]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT l.id, r.name, l.`value` FROM left_t l JOIN right_t r ON l.id = r.id")
@@ -291,13 +286,8 @@ public final class DeletesByKeyPrograms {
                                             "`value` INT")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .addOption("sink.supports-delete-by-key", "true")
-                                    .consumedValues(
-                                            "+I[1, Alice, 10]",
-                                            "+I[2, Bob, 20]",
-                                            "+I[3, Emily, 30]",
-                                            "-D[1, Alice, null]",
-                                            "+U[3, Emily, 40]",
-                                            "+U[2, BOB, 20]")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[2, BOB, 20]", "+I[3, Emily, 40]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT l.id, r.name, l.`value` FROM left_t l JOIN right_t r ON l.id = r.id")
