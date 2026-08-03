@@ -31,11 +31,23 @@ jobs:
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
+  variables:
+    # Newline-separated git pathspec globs (GitHub Actions "paths-ignore" style); PRs touching only these skip e2e.
+    IGNORE_PATHS: |
+      docs/**
+      **/*.md
+      .idea/**
+      .asf.yaml
+      .editorconfig
+      .git-blame-ignore-revs
+      .gitignore
+      .gitattributes
+      .github/**
   steps:
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh
-        is_docs_only_pullrequest
+        is_ignored_pattern_pullrequest
         if [[ "$?" == 0 ]] ; then
           echo "##[debug]This is a documentation-only change. Skipping e2e execution."
           echo "##vso[task.setvariable variable=skip;]1"
