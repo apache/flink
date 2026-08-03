@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
@@ -25,6 +26,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.math.BigDecimal;
@@ -184,6 +186,18 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 explicitSequence(DataTypes.DECIMAL(2, 2)))
                         .calledWithArgumentTypes(DataTypes.DECIMAL(6, 3))
                         .expectArgumentTypes(DataTypes.DECIMAL(2, 2)),
+
+                // a legacy DECIMAL-rooted type (e.g. Types.BIG_DEC via
+                // LegacyTypeInfoDataTypeConverter) is not a DecimalType instance; the check must
+                // not attempt to cast it and must not raise a ClassCastException
+                TestSpec.forStrategy(
+                                "literal decimal against a legacy (non-DecimalType) DECIMAL-rooted type",
+                                explicitSequence(
+                                        LegacyTypeInfoDataTypeConverter.toDataType(Types.BIG_DEC)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 2))
+                        .calledWithLiteralAt(0, new BigDecimal("0.45"))
+                        .expectArgumentTypes(
+                                LegacyTypeInfoDataTypeConverter.toDataType(Types.BIG_DEC)),
 
                 // any type
                 TestSpec.forStrategy(sequence(ANY))

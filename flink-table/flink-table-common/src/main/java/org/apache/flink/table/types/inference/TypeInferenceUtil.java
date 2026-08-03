@@ -175,12 +175,16 @@ public final class TypeInferenceUtil {
      * castable to a {@code DECIMAL(2, 2)} but would otherwise be silently reduced to {@code NULL}
      * during constant folding instead of raising a type error.
      *
-     * <p>Only {@code DECIMAL} is covered here; other value-level overflows (e.g. {@code CHAR}
-     * overruns or out-of-range integer literals) are out of scope for this check.
+     * <p>Only a top-level {@code DECIMAL} argument is covered here; other value-level overflows
+     * (e.g. {@code CHAR} overruns or out-of-range integer literals) and a {@code DECIMAL} nested
+     * inside a container type (e.g. {@code ARRAY<DECIMAL(2, 2)>}) are out of scope for this check.
      */
     private static void validateDecimalLiteralFitsExpectedType(
             CallContext callContext, int pos, DataType expectedType) {
-        if (!expectedType.getLogicalType().is(LogicalTypeRoot.DECIMAL)) {
+        if (!(expectedType.getLogicalType() instanceof DecimalType)) {
+            // Some expected types (e.g. a legacy DECIMAL-rooted type backed by
+            // LegacyTypeInformationType for Types.BIG_DEC) report LogicalTypeRoot.DECIMAL without
+            // actually being a DecimalType, so the type-root alone is not a safe cast guard.
             return;
         }
         final BigDecimal value;
