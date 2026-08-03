@@ -26,14 +26,20 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for describing {@link Operation}s. */
@@ -133,5 +139,53 @@ class QueryOperationTest {
                                 + "            thirdLevel0\n"
                                 + "        secondLevel1\n"
                                 + "            thirdLevel1");
+    }
+
+    @Test
+    void testWindowPropertiesSharingAnAliasAreAllSerialized() {
+        final ResolvedSchema childSchema =
+                ResolvedSchema.physical(
+                        Collections.singletonList("a"), Collections.singletonList(DataTypes.INT()));
+        final FieldReferenceExpression field =
+                new FieldReferenceExpression("a", DataTypes.INT(), 0, 0);
+        final ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        Arrays.asList("a", "dup", "dup"),
+                        Arrays.asList(
+                                DataTypes.INT(), DataTypes.TIMESTAMP(3), DataTypes.TIMESTAMP(3)));
+
+        final WindowAggregateQueryOperation operation =
+                new WindowAggregateQueryOperation(
+                        Collections.singletonList(field),
+                        Collections.emptyList(),
+                        Arrays.asList(
+                                aliasedWindowProperty(BuiltInFunctionDefinitions.WINDOW_START),
+                                aliasedWindowProperty(BuiltInFunctionDefinitions.WINDOW_END)),
+                        WindowAggregateQueryOperation.ResolvedGroupWindow.tumblingWindow(
+                                "w", field, intervalOfMillis(10)),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.newBuilder()
+                                                        .schema(Schema.newBuilder().build())
+                                                        .build(),
+                                                childSchema))),
+                        schema);
+
+        assertThat(operation.asSerializableString(DefaultSqlFactory.INSTANCE))
+                .contains("(window_start) AS `dup`", "(window_end) AS `dup`");
+    }
+
+    private static ResolvedExpression aliasedWindowProperty(BuiltInFunctionDefinition property) {
+        final CallExpression propertyCall =
+                CallExpression.permanent(
+                        property,
+                        Collections.singletonList(localRef("w", DataTypes.TIMESTAMP(3))),
+                        DataTypes.TIMESTAMP(3));
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.AS,
+                Arrays.asList(propertyCall, valueLiteral("dup")),
+                DataTypes.TIMESTAMP(3));
     }
 }
