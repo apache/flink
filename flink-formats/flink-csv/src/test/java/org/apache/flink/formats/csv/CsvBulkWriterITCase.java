@@ -27,10 +27,13 @@ import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -44,7 +47,14 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CsvBulkWriterIT {
+class CsvBulkWriterITCase {
+
+    @RegisterExtension
+    static final MiniClusterExtension MINI_CLUSTER =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(2)
+                            .build());
 
     @TempDir File outDir;
 
@@ -53,7 +63,7 @@ public class CsvBulkWriterIT {
      * flush signal from Flink.
      */
     @Test
-    public void testNoDataIsWrittenBeforeFlinkFlush() throws Exception {
+    void testNoDataIsWrittenBeforeFlinkFlush() throws Exception {
 
         Configuration config = new Configuration();
         config.set(
