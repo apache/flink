@@ -154,6 +154,9 @@ jobs:
       - name: "Initialize job"
         uses: "./.github/actions/job_init"
         with:
+          # In order for other repository's(e.g. flink-docker, flink-benchmarks) CI to 
+          # cover all supported jdks, keep it to the minimum supported version.
+          # Upgrade this only when we drop support for this jdk version.
           jdk_version: 11
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
@@ -225,6 +228,9 @@ jobs:
       - name: "Initialize job"
         uses: "./.github/actions/job_init"
         with:
+          # In order for other repository's(e.g. flink-docker, flink-benchmarks) CI to 
+          # cover all supported jdks, keep it to the minimum supported version.
+          # Upgrade this only when we drop support for this jdk version.
           jdk_version: 11
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
