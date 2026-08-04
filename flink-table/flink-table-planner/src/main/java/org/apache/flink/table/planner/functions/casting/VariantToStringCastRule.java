@@ -42,6 +42,9 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.sta
  *
  * <p>The target {@code CHAR}/{@code VARCHAR} length is enforced strictly: a value that does not fit
  * fails {@code CAST} and yields {@code null} for {@code TRY_CAST}, with no padding or truncation.
+ *
+ * <p>Printing a result is not a cast and cannot fail, so it renders every variant as JSON rather
+ * than extracting the scalar value. A stored string therefore prints quoted.
  */
 class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant> {
 
@@ -89,6 +92,11 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        if (context.isPrinting()) {
+            // Every result has to be displayable, including an object or an array, which have no
+            // scalar rendering and would fail the cast.
+            return methodCall(inputTerm, "toJson");
+        }
         return staticCall(
                 VariantCastUtils.class,
                 "toStringValue",
