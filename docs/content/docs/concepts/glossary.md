@@ -85,18 +85,19 @@ A consistent snapshot of the State of a [Flink Job](#flink-job) at a logical poi
 with a variant of the Chandy-Lamport algorithm and written to [Checkpoint
 Storage](#checkpoint-storage).
 
-A Checkpoint contains the [State](#managed-state) of all stateful [Operators](#operator), but also
-source positions (for example Kafka partition offsets), the assignment of [Source
-Splits](#source-split) to [Sub-Tasks](#sub-task), Sink transaction metadata, and the buffered data
-of some asynchronous Sinks.
+A Checkpoint contains the [State](#managed-state) of all stateful [Operators](#operator). This also
+includes source positions (for example Kafka partition offsets), assignment of [Source Splits](#source-split)
+to [Sub-Tasks](#sub-task),  and Sink transaction metadata. Async I/O in-flight data and buffered data
+of some asynchronous Sink connectors are also part of the [Operator](#operator) [State](#managed-state)
+and are saved in the Checkpoint.
 When [Unaligned Checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing)
 are enabled, it may also contain data in flight between Sub-Tasks.
 
 Checkpoints are triggered automatically and periodically while the Job is running, and are used to
 recover from failures such as a TaskManager crash or a network problem: the Job restarts from the
 latest completed Checkpoint. They are designed for low overhead and run mostly asynchronously,
-without blocking record processing, apart from the short pause each Sub-Task takes to snapshot its
-own State. Transactional [Sources and Sinks](#operator) tie their transactions to the Checkpoint; the
+without blocking record processing, apart from a synchronous phase in each Sub-Task.
+Transactional [Sources and Sinks](#operator) tie their transactions to the Checkpoint; the
 Kafka Sink, for instance, commits its Kafka transactions when a Checkpoint completes.
 
 Checkpoints are only used in the `STREAMING` [Execution Mode](#runtime-execution-mode). In `BATCH`
@@ -108,13 +109,15 @@ input has been processed.
 
 Compare to [Savepoint](#savepoint).
 
+Checkpoints and [Savepoints](#savepoint) are also referred to, collectively, as *State Snapshots* or 
+*Snapshots*.
+
 #### Checkpoint Storage
 
-The durable location where the [State Backend](#state-backend) writes the snapshot it takes during a
-[Checkpoint](#checkpoint) or a [Savepoint](#savepoint), either the Java Heap of the [Flink
-JobManager](#flink-jobmanager) or a filesystem. Production deployments use a filesystem, typically
-remote object storage, since Checkpoint Storage is what makes State survive the loss of a
-[TaskManager](#flink-taskmanager) or of the whole [Flink Cluster](#flink-cluster).
+The durable location where [Checkpoints](#checkpoint) and [Savepoints](#savepoint) are saved. It can
+be either the Java Heap of the [Flink JobManager](#flink-jobmanager) or a filesystem. Production
+deployments use a filesystem, typically remote object storage, since Checkpoint Storage is what makes
+State survive the loss of a [TaskManager](#flink-taskmanager) or of the whole [Flink Cluster](#flink-cluster).
 
 The relationship between the State Backend and Checkpoint Storage changes with [Disaggregated
 State]({{< ref "docs/ops/state/disaggregated_state" >}}), where remote storage becomes the primary
@@ -241,8 +244,10 @@ Logical Graphs are also often referred to as *Dataflow Graphs* or, for the DataS
 
 #### Managed State
 
-Managed State describes Application State which has been registered with the framework. For
-Managed State, Apache Flink will take care about persistence and rescaling among other things.
+Managed State describes Application State which has been registered with the framework. This includes
+both [keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#using-keyed-state) and
+non-keyed state (also known as [Operator State]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state)).
+For Managed State, Apache Flink takes care of persistence and rescaling, among other things.
 
 #### Operator
 
@@ -288,8 +293,8 @@ often called repartitioning.
 
 *Logical Partitioning* is how records and State are divided in the [Logical
 Graph](#logical-graph) and the [Job Graph](#job-graph), in order to implement the semantics of an
-operation. A `GROUP BY` in SQL or a `keyBy()` in the DataStream API, for example, requires the data to
-be logically partitioned by a key, and the number of Logical Partitions is then the number of
+operation. A `JOIN` or `GROUP BY` in SQL, or a `keyBy()` in DataStream API, for example, requires the 
+data to be logically partitioned by a key, and the number of Logical Partitions is then the number of
 distinct keys. Keyed State is isolated per Logical Partition: a [Function](#function) can only access
 the State of the key of the record or timer it is currently processing. Operator State and Broadcast
 State, in contrast, are not keyed.
@@ -339,15 +344,19 @@ Note that a bounded data set can also be processed in `STREAMING` mode, for exam
 
 #### Savepoint
 
-A [Checkpoint](#checkpoint) that is triggered on demand rather than periodically, typically to
-capture a consistent snapshot of a [Flink Job](#flink-job) that can be resumed from later, for
-instance across an Application upgrade or a Flink version upgrade.
+A consistent snapshot of the [State](#managed-state) of a [Flink Job](#flink-job), triggered on
+demand. A Job can be resumed from a Savepoint later, for instance across an Application upgrade or a
+Flink version upgrade.
 
 When a Job is *stopped with a Savepoint*, every [Sub-Task](#sub-task) stops right after its State has
-been snapshotted, which guarantees that no record is reprocessed when the Job is resumed.
+been snapshotted, which minimizes the chances of records being reprocessed when the Job is resumed.
 
-See [Checkpoints vs. Savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}) for a
-detailed comparison.
+Savepoints are similar to [Checkpoints](#checkpoint). See
+[Checkpoints vs. Savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}) for a detailed
+comparison.
+
+[Checkpoints](#checkpoint) and Savepoints are also referred to, collectively, as *State Snapshots* or 
+*Snapshots*.
 
 #### Flink Session Cluster
 
@@ -374,12 +383,18 @@ submitted as a single Job by grouping them into a [Statement Set](#statement-set
 #### State Backend
 
 For stream processing programs, the State Backend of a [Flink Job](#flink-job) holds the
-[State](#managed-state) that the Job is actively working with, local to each
-[TaskManager](#flink-taskmanager): either on the Java Heap of the TaskManager
-(`HashMapStateBackend`) or in off-heap memory and on local disk (`EmbeddedRocksDBStateBackend`).
+[keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#using-keyed-state) of the
+[Job](#flink-job)'s [Operators](#operator). This is local to each [TaskManager](#flink-taskmanager):
+either on the Java Heap of the TaskManager (`HashMapStateBackend`) or in off-heap memory and on
+local disk (`EmbeddedRocksDBStateBackend`).
 
 The State Backend is working storage, not long-term storage: it is [Checkpoint
 Storage](#checkpoint-storage) that makes the State durable and recoverable.
+
+Note that non-keyed state (also known as
+[Operator State]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state)) is always
+maintained in memory, in the JVM heap of the [TaskManager](#flink-taskmanager), regardless of the
+configured State Backend.
 
 #### Statement Set
 
@@ -469,7 +484,8 @@ a [UID Hash](#uid-hash).
 A unique identifier of an [Operator](#operator) at runtime, otherwise known as "Operator ID" or
 "Vertex ID" and generated from a [UID](#uid).
 It is commonly exposed in logs, the REST API or metrics, and most importantly is how
-Operators are identified within [Savepoints]({{< ref "docs/ops/state/savepoints" >}}).
+[Operators](#operator) are identified in state snapshots ([Checkpoints](#checkpoint) and
+[Savepoints](#savepoint)).
 
 #### Watermark
 
@@ -485,7 +501,7 @@ must fire. A record that arrives after the Watermark has already passed its time
 
 Watermarks are emitted at the Sources, based on a `WatermarkStrategy`. Each Source [Sub-Task](#sub-task) generates its own Watermarks independently. Event time advances independently in each [Physical Partition](#partition). When a Watermark reaches a Sub-Task, the Sub-Task advances its internal event-time clock and emits a new Watermark to its downstream Sub-Tasks.
 A Sub-Task with several input Channels takes the *minimum* of the event times of its
-inputs, which means a single lagging input holds back event time for the whole downstream graph.
+active inputs, which means a single lagging input holds back event time for the whole downstream graph.
 
 An input that receives no records cannot advance its Watermark, and would otherwise stall event time
 downstream indefinitely. To prevent this, a `WatermarkStrategy` can declare an input *idle*, which
