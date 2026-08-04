@@ -48,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -391,7 +392,7 @@ public class SqlJsonUtils {
 
     /** Accepts a pre-parsed context from {@link #jsonParse}. */
     public static Integer jsonLength(final JsonValueContext parsedInput) {
-        if (parsedInput.hasException()) {
+        if (parsedInput == null || parsedInput.hasException()) {
             return null;
         }
 
@@ -403,7 +404,7 @@ public class SqlJsonUtils {
     public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
         // An empty path is ruled out up front because JsonPath rejects it with an
         // IllegalArgumentException instead of the InvalidPathException caught below.
-        if (parsedInput.hasException() || pathSpec.isEmpty()) {
+        if (parsedInput == null || parsedInput.hasException() || pathSpec.isEmpty()) {
             return null;
         }
 
@@ -443,10 +444,12 @@ public class SqlJsonUtils {
     private static int jsonLengthValue(final Object value) {
         if (value instanceof Map) {
             return ((Map<?, ?>) value).size();
-        }
-        if (value instanceof List<?>) {
+        } else if (value != null && value.getClass().isArray()) {
+            return Array.getLength(value);
+        } else if (value instanceof List<?>) {
             return ((List<?>) value).size();
         }
+
         // Scalars, including a JSON null literal, have length 1.
         return 1;
     }
