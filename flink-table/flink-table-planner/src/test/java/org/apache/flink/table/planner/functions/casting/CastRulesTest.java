@@ -164,6 +164,27 @@ class CastRulesTest {
     /** A two-byte lead followed by a byte that is not a continuation byte. */
     private static final byte[] INVALID_UTF8 = new byte[] {(byte) 0xC3, (byte) 0x28};
 
+    private static final Variant VARIANT_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of(1))
+                    .add(Variant.newBuilder().of("two"))
+                    .add(Variant.newBuilder().of(false))
+                    .add(Variant.newBuilder().ofNull())
+                    .build();
+
+    private static final Variant VARIANT_OBJECT =
+            Variant.newBuilder()
+                    .object()
+                    .add(
+                            "k",
+                            Variant.newBuilder()
+                                    .array()
+                                    .add(Variant.newBuilder().of(1))
+                                    .add(Variant.newBuilder().of(2))
+                                    .build())
+                    .build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -1593,7 +1614,18 @@ class CastRulesTest {
                         .fail(
                                 VARIANT(),
                                 Variant.newBuilder().of(INVALID_UTF8),
-                                TableRuntimeException.class),
+                                TableRuntimeException.class)
+                        // an object or an array has no scalar rendering and fails the cast
+                        .fail(VARIANT(), VARIANT_ARRAY, TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_OBJECT, TableRuntimeException.class)
+                        // printing is not a cast and cannot fail, so it renders JSON instead,
+                        // which leaves a stored string quoted
+                        .fromCasePrinting(
+                                VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
+                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))
+                        .fromCasePrinting(
+                                VARIANT(), Variant.newBuilder().of("foo"), fromString("\"foo\""))
+                        .fromCasePrinting(VARIANT(), Variant.newBuilder().of(42), fromString("42")),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(VARIANT(), Variant.newBuilder().of(true), true)
                         .fromCase(VARIANT(), Variant.newBuilder().of(false), false)
