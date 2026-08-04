@@ -22,9 +22,9 @@
 ##
 SKIP_GPG=${SKIP_GPG:-false}
 # Set to true for automated builds (e.g. nightly snapshots) which
-#  do not try to include Python wheels in the binary release.
+# do not try to include Python wheels in the binary release.
 # Defaults to false for manual use, when the release manager will
-#  first download platform wheels to flink-python/dist
+# first download platform wheels to flink-python/dist
 SKIP_PYTHON_WHEELS=${SKIP_PYTHON_WHEELS:-false}
 MVN=${MVN:-mvn}
 
@@ -38,6 +38,8 @@ set -o errexit
 set -o nounset
 # print command before executing
 set -o xtrace
+
+trap 'echo "create_binary_release.sh failed (line ${LINENO})" 1>&2' ERR
 
 CURR_DIR=`pwd`
 if [[ `basename $CURR_DIR` != "tools" ]] ; then
