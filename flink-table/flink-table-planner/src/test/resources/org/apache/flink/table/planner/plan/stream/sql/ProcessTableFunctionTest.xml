@@ -484,7 +484,7 @@ LogicalSink(table=[default_catalog.default_database.t_key_only_delete_sink], fie
          :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
          +- LogicalProject(name=[$0], city=[$1])
             +- LogicalProject(name=[$0], city=[$1])
-               +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', _UTF-16LE'London' }, { _UTF-16LE'Alice', _UTF-16LE'Berlin' }]])
+               +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', _UTF-16LE'Tokyo' }, { _UTF-16LE'Alice', _UTF-16LE'Berlin' }]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -494,7 +494,7 @@ Sink(table=[default_catalog.default_database.t_key_only_delete_sink], fields=[na
    :- Exchange(distribution=[hash[name]])
    :  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
    +- Exchange(distribution=[hash[name]])
-      +- Values(tuples=[[{ _UTF-16LE'Bob', _UTF-16LE'London' }, { _UTF-16LE'Alice', _UTF-16LE'Berlin' }]])
+      +- Values(tuples=[[{ _UTF-16LE'Bob', _UTF-16LE'Tokyo' }, { _UTF-16LE'Alice', _UTF-16LE'Berlin' }]])
 ]]>
     </Resource>
   </TestCase>

@@ -94,7 +94,7 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "CREATE VIEW t AS SELECT * FROM (VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)");
         util.tableEnv()
                 .executeSql(
-                        "CREATE VIEW t_city AS SELECT * FROM (VALUES ('Bob', 'London'), ('Alice', 'Berlin')) AS T(name, city)");
+                        "CREATE VIEW t_city AS SELECT * FROM (VALUES ('Bob', 'Tokyo'), ('Alice', 'Berlin')) AS T(name, city)");
         util.tableEnv()
                 .executeSql("CREATE VIEW t_name_diff AS SELECT 'Bob' AS name, 12 AS different");
         util.tableEnv()
