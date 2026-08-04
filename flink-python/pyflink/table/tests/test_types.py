@@ -549,6 +549,18 @@ class TypesTests(PyFlinkTestCase):
         dt = DataTypes.DATE()
         self.assertEqual(dt.from_sql_type(0), datetime.date(1970, 1, 1))
 
+    def test_array_from_sql_type_converts_elements(self):
+        at = DataTypes.ARRAY(DataTypes.DATE())
+        self.assertEqual(
+            at.from_sql_type([0, 1]),
+            [datetime.date(1970, 1, 1), datetime.date(1970, 1, 2)])
+
+    def test_multiset_from_sql_type_converts_elements(self):
+        mst = DataTypes.MULTISET(DataTypes.DATE())
+        self.assertEqual(
+            mst.from_sql_type([0, 1]),
+            [datetime.date(1970, 1, 1), datetime.date(1970, 1, 2)])
+
     @unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
                                    "than time.ctime(32536799999), so this test can't run "
                                    "under Windows platform")
