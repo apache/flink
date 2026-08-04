@@ -403,8 +403,9 @@ class AvroRowDataDeSerializationSchemaTest {
                 .isEqualTo("1970-01-01T00:02:03.456");
     }
 
-    @Test
-    void testDeserializeWithNonZeroStartingProjection() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testDeserializeWithNonZeroStartingProjection(AvroEncoding encoding) throws Exception {
         final DataType physicalDataType =
                 ROW(
                                 FIELD("user_id", BIGINT()),
@@ -420,11 +421,12 @@ class AvroRowDataDeSerializationSchemaTest {
         record.put(1, "name 3");
         record.put(2, 102L);
         record.put(3, "payload 3");
-        final byte[] input = writeRecord(record, schema);
+        final byte[] input = writeRecord(record, schema, encoding);
 
         // projection does not start at 0: reads only {name, event_id}
         final RowData rowData =
-                createProjectedDeserializationSchema(physicalDataType, new int[][] {{1}, {2}})
+                createProjectedDeserializationSchema(
+                                physicalDataType, new int[][] {{1}, {2}}, encoding)
                         .deserialize(input);
 
         assertThat(rowData.getArity()).isEqualTo(2);
@@ -432,8 +434,9 @@ class AvroRowDataDeSerializationSchemaTest {
         assertThat(rowData.getLong(1)).isEqualTo(102L);
     }
 
-    @Test
-    void testDeserializeProjectionWithNestedRow() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testDeserializeProjectionIncludingNestedRow(AvroEncoding encoding) throws Exception {
         final DataType physicalDataType =
                 ROW(
                                 FIELD("id", BIGINT()),
@@ -453,11 +456,12 @@ class AvroRowDataDeSerializationSchemaTest {
         record.put(0, 1L);
         record.put(1, "outer");
         record.put(2, nested);
-        final byte[] input = writeRecord(record, schema);
+        final byte[] input = writeRecord(record, schema, encoding);
 
         // project {name, nested}, i.e. a non-zero starting projection including a nested row
         final RowData rowData =
-                createProjectedDeserializationSchema(physicalDataType, new int[][] {{1}, {2}})
+                createProjectedDeserializationSchema(
+                                physicalDataType, new int[][] {{1}, {2}}, encoding)
                         .deserialize(input);
 
         assertThat(rowData.getArity()).isEqualTo(2);
@@ -467,17 +471,19 @@ class AvroRowDataDeSerializationSchemaTest {
         assertThat(nestedOut.getString(1).toString()).isEqualTo("inner");
     }
 
-    private static byte[] writeRecord(GenericRecord record, Schema schema) throws Exception {
+    private static byte[] writeRecord(GenericRecord record, Schema schema, AvroEncoding encoding)
+            throws Exception {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
-        final Encoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+        final Encoder encoder = createEncoder(encoding, schema, out);
         datumWriter.write(record, encoder);
         encoder.flush();
         return out.toByteArray();
     }
 
     private AvroRowDataDeserializationSchema createProjectedDeserializationSchema(
-            DataType physicalDataType, int[][] projections) throws Exception {
+            DataType physicalDataType, int[][] projections, AvroEncoding encoding)
+            throws Exception {
         final DataType producedDataType = Projection.of(projections).project(physicalDataType);
         final RowType producedRowType = (RowType) producedDataType.getLogicalType();
         final RowType physicalRowType = (RowType) physicalDataType.getLogicalType();
@@ -487,7 +493,7 @@ class AvroRowDataDeSerializationSchemaTest {
                         AvroDeserializationSchema.forGeneric(
                                 AvroSchemaConverter.convertToSchema(producedRowType),
                                 AvroSchemaConverter.convertToSchema(physicalRowType),
-                                AvroEncoding.BINARY),
+                                encoding),
                         AvroToRowDataConverters.createRowConverter(producedRowType),
                         InternalTypeInfo.of(producedRowType));
         deserializationSchema.open(null);

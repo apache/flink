@@ -78,15 +78,15 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      * Creates {@link AvroDeserializationSchema} that produces {@link GenericRecord} using the
      * provided reader schema and resolves the input against the given writer schema.
      *
-     * @param schema reader schema of produced records
+     * @param reader reader schema of produced records
      * @param writer writer schema the input was serialized with, or {@code null} to reuse the
      *     reader schema
      * @param encoding Avro serialization approach to use for decoding
      * @return deserialized record in form of {@link GenericRecord}
      */
-    public static AvroDeserializationSchema<GenericRecord> forGeneric(
-            Schema schema, @Nullable Schema writer, AvroEncoding encoding) {
-        return new AvroDeserializationSchema<>(GenericRecord.class, schema, writer, encoding);
+    static AvroDeserializationSchema<GenericRecord> forGeneric(
+            Schema reader, @Nullable Schema writer, AvroEncoding encoding) {
+        return new AvroDeserializationSchema<>(GenericRecord.class, reader, writer, encoding);
     }
 
     /**
@@ -258,7 +258,9 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         this.inputStream = new MutableByteArrayInputStream();
 
         if (encoding == AvroEncoding.JSON) {
-            this.decoder = DecoderFactory.get().jsonDecoder(getReaderSchema(), inputStream);
+            final Schema writerSchema = getWriterSchema();
+            final Schema decoderSchema = writerSchema == null ? getReaderSchema() : writerSchema;
+            this.decoder = DecoderFactory.get().jsonDecoder(decoderSchema, inputStream);
         } else {
             this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
         }
