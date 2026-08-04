@@ -24,10 +24,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -252,6 +254,53 @@ class BinaryVariantTest {
         assertThatThrownBy(() -> builder.of(nonFinite).toJson())
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessageContaining("cannot be serialized to JSON");
+    }
+
+    @Test
+    void testNonAsciiStringsAndFieldNames() {
+        // Multi-byte code points make the UTF-8 byte length differ from the character count, so a
+        // charset mismatch between writing and reading mangles the text instead of preserving it.
+        final String nestedKey = "キー";
+        final String shortValue = "Grüße, 世界 🚀";
+        final String longValue = String.join("", Collections.nCopies(20, "äö🚀"));
+
+        assertThat(longValue.getBytes(StandardCharsets.UTF_8).length)
+                .as("long string must not fit into the short string encoding")
+                .isGreaterThan(BinaryVariantUtil.MAX_SHORT_STR_SIZE);
+
+        final BinaryVariant variant =
+                (BinaryVariant)
+                        builder.object()
+                                .add("schlüssel", builder.of(shortValue))
+                                .add(
+                                        nestedKey,
+                                        builder.object()
+                                                .add("schlüssel", builder.of(longValue))
+                                                .build())
+                                .build();
+
+        // Reading through the raw binaries is what happens once a variant has been serialized, and
+        // it is the only path that decodes the field names from the metadata.
+        final BinaryVariant decoded = new BinaryVariant(variant.getValue(), variant.getMetadata());
+
+        assertThat(decoded.getFieldNames()).containsExactlyInAnyOrder("schlüssel", nestedKey);
+        assertThat(decoded.getField("schlüssel").getString()).isEqualTo(shortValue);
+        assertThat(decoded.getField(nestedKey).getFieldNames()).containsExactly("schlüssel");
+        assertThat(decoded.getField(nestedKey).getField("schlüssel").getString())
+                .isEqualTo(longValue);
+        assertThat(decoded.toJson())
+                .isEqualTo(
+                        "{\""
+                                + "schlüssel"
+                                + "\":\""
+                                + shortValue
+                                + "\",\""
+                                + nestedKey
+                                + "\":{\""
+                                + "schlüssel"
+                                + "\":\""
+                                + longValue
+                                + "\"}}");
     }
 
     @Test

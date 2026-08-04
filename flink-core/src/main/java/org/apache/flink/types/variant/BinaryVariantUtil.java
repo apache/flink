@@ -23,6 +23,7 @@ import org.apache.flink.types.variant.Variant.Type;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
@@ -528,7 +529,7 @@ public class BinaryVariantUtil {
                 length = readUnsigned(value, pos + 1, U32_SIZE);
             }
             checkIndex(start + length - 1, value.length);
-            return new String(value, start, length);
+            return new String(value, start, length, StandardCharsets.UTF_8);
         }
         throw unexpectedType(Type.STRING);
     }
@@ -625,6 +626,7 @@ public class BinaryVariantUtil {
             throw malformedVariant();
         }
         checkIndex(stringStart + nextOffset - 1, metadata.length);
-        return new String(metadata, stringStart + offset, nextOffset - offset);
+        return new String(
+                metadata, stringStart + offset, nextOffset - offset, StandardCharsets.UTF_8);
     }
 }
