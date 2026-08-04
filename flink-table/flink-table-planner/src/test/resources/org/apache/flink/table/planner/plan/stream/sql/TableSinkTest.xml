@@ -16,6 +16,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testAppendOnlyInputWithoutOnConflict">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sinkWithPk], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sinkWithPk], fields=[a, b], changelogMode=[NONE])
++- Calc(select=[a, b], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAppendSink">
     <Resource name="ast">
       <![CDATA[
@@ -852,6 +868,27 @@ Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person,
             +- GroupAggregate(groupBy=[person], select=[person, SUM(votes) AS sum_votes])
                +- Exchange(distribution=[hash[person]])
                   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[person, votes])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdatingInputWithoutOnConflict">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.updatingSinkWithPk], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], EXPR$1=[COUNT()])
+      +- LogicalProject(c=[$2], a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.updatingSinkWithPk], fields=[EXPR$0, EXPR$1], upsertMaterialize=[true], changelogMode=[NONE])
++- Calc(select=[EXPR$0, EXPR$1], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[c], select=[c, MAX(a) AS EXPR$0, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[c]], changelogMode=[I])
+         +- Calc(select=[c, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
