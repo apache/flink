@@ -79,7 +79,7 @@ public final class DeletesByKeyPrograms {
             INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_NOT_NULL_SINK =
                     TableTestProgram.of(
                                     "select-delete-on-key-to-not-null-sink",
-                                    "No ChangelogNormalize: validates that key-only deletes can contain null"
+                                    "No ChangelogNormalize: validates that key-only delete can contain null"
                                             + " non-key fields when writing to a sink with NOT NULL constraints")
                             .setupTableSource(
                                     SourceTestStep.newBuilder("source_t")
