@@ -77,6 +77,8 @@ class CreateConnectionITCase extends BatchTestBase {
     void testDropTemporaryConnection() {
         tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
+
         tEnv().executeSql("DROP TEMPORARY CONNECTION my_conn");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
