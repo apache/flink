@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils.python;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -32,6 +33,47 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PythonTableUtilsTest {
+
+    @Test
+    void testToJavaArrayPreservesLiteralElementType() {
+        final Object strings = PythonTableUtils.toJavaArray(Arrays.asList("abc", null));
+        assertThat(strings).isInstanceOf(String[].class);
+        assertThat((String[]) strings).containsExactly("abc", null);
+
+        final ValueLiteralExpression literal =
+                (ValueLiteralExpression) Expressions.lit(strings).toExpr();
+        assertThat(literal.getOutputDataType())
+                .isEqualTo(DataTypes.ARRAY(DataTypes.CHAR(3)).notNull());
+    }
+
+    @Test
+    void testToJavaArrayUsesElementDataType() {
+        final Object shorts =
+                PythonTableUtils.toJavaArray(Arrays.asList(1, 2), DataTypes.SMALLINT().notNull());
+        assertThat(shorts).isInstanceOf(Short[].class);
+        assertThat((Short[]) shorts).containsExactly((short) 1, (short) 2);
+        assertThat(inferredLiteralDataType(shorts))
+                .isEqualTo(DataTypes.ARRAY(DataTypes.SMALLINT()).notNull());
+
+        final Object floats =
+                PythonTableUtils.toJavaArray(Arrays.asList(1.25, 2.5), DataTypes.FLOAT().notNull());
+        assertThat(floats).isInstanceOf(Float[].class);
+        assertThat((Float[]) floats).containsExactly(1.25F, 2.5F);
+        assertThat(inferredLiteralDataType(floats))
+                .isEqualTo(DataTypes.ARRAY(DataTypes.FLOAT()).notNull());
+
+        final Object empty =
+                PythonTableUtils.toJavaArray(
+                        Collections.emptyList(), DataTypes.SMALLINT().notNull());
+        assertThat(empty).isInstanceOf(Short[].class);
+        assertThat(inferredLiteralDataType(empty))
+                .isEqualTo(DataTypes.ARRAY(DataTypes.SMALLINT()).notNull());
+
+        final Object nested = PythonTableUtils.toJavaArray(Collections.singletonList(shorts));
+        assertThat(nested).isInstanceOf(Short[][].class);
+        assertThat(inferredLiteralDataType(nested))
+                .isEqualTo(DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.SMALLINT())).notNull());
+    }
 
     @Test
     void testCreateLiteralWithTypeConvertsPy4JNumbers() {
@@ -83,5 +125,9 @@ class PythonTableUtilsTest {
                 (ValueLiteralExpression)
                         PythonTableUtils.createLiteralWithType(value, dataType).toExpr();
         return literal.getValueAs(Object.class).orElseThrow(AssertionError::new);
+    }
+
+    private static DataType inferredLiteralDataType(final Object value) {
+        return ((ValueLiteralExpression) Expressions.lit(value).toExpr()).getOutputDataType();
     }
 }
