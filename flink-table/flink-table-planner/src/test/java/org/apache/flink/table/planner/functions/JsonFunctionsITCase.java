@@ -119,92 +119,193 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
                         STRING(), STRING(), STRING(), STRING())
                 // path exists but resolves to a JSON null literal -> scalar, length 1
-                .testSqlResult("JSON_LENGTH(f8, '$.a[2]')", 1, INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.a[2]"),
+                        "JSON_LENGTH(f8, '$.a[2]')",
+                        1,
+                        INT().nullable())
                 // missing paths on the same document -> NULL
-                .testSqlResult("JSON_LENGTH(f8, '$.a[9]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f8, '$.b')", null, INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.a[9]"),
+                        "JSON_LENGTH(f8, '$.a[9]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.b"), "JSON_LENGTH(f8, '$.b')", null, INT().nullable())
 
                 // whole document is a JSON null literal: the root path matches it as a scalar,
                 // anything else does not exist
-                .testSqlResult("JSON_LENGTH(f4, '$')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f4, '$.a')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f4, '$[0]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f4, '$.*')", null, INT().nullable())
+                .testResult($("f4").jsonLength("$"), "JSON_LENGTH(f4, '$')", 1, INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$.a"), "JSON_LENGTH(f4, '$.a')", null, INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$[0]"),
+                        "JSON_LENGTH(f4, '$[0]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$.*"), "JSON_LENGTH(f4, '$.*')", null, INT().nullable())
 
                 // malformed, blank and empty paths -> NULL
-                .testSqlResult("JSON_LENGTH(f8, '$[')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f8, '$.[]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f8, '   ')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f8, '')", null, INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$["), "JSON_LENGTH(f8, '$[')", null, INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.[]"),
+                        "JSON_LENGTH(f8, '$.[]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("   "), "JSON_LENGTH(f8, '   ')", null, INT().nullable())
+                .testResult($("f8").jsonLength(""), "JSON_LENGTH(f8, '')", null, INT().nullable())
 
                 // the root path on a scalar document behaves like the no-path overload
-                .testSqlResult("JSON_LENGTH(f3, '$')", 1, INT().nullable())
+                .testResult($("f3").jsonLength("$"), "JSON_LENGTH(f3, '$')", 1, INT().nullable())
 
                 // SQL NULL input
-                .testSqlResult("JSON_LENGTH(f6)", null, INT().nullable())
+                .testResult($("f6").jsonLength(), "JSON_LENGTH(f6)", null, INT().nullable())
 
                 // whole-document length from the existing resource:
-                .testSqlResult("JSON_LENGTH(f0)", 3, INT().nullable())
+                .testResult($("f0").jsonLength(), "JSON_LENGTH(f0)", 3, INT().nullable())
 
                 // basic shapes
-                .testSqlResult("JSON_LENGTH(f1)", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f2)", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f3)", 1, INT().nullable())
+                .testResult($("f1").jsonLength(), "JSON_LENGTH(f1)", 2, INT().nullable())
+                .testResult($("f2").jsonLength(), "JSON_LENGTH(f2)", 3, INT().nullable())
+                .testResult($("f3").jsonLength(), "JSON_LENGTH(f3)", 1, INT().nullable())
 
                 // empty containers -> 0
-                .testSqlResult("JSON_LENGTH(f9)", 0, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f10)", 0, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f9, '$')", 0, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f10, '$')", 0, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f4)", 1, INT().nullable())
+                .testResult($("f9").jsonLength(), "JSON_LENGTH(f9)", 0, INT().nullable())
+                .testResult($("f10").jsonLength(), "JSON_LENGTH(f10)", 0, INT().nullable())
+                .testResult($("f9").jsonLength("$"), "JSON_LENGTH(f9, '$')", 0, INT().nullable())
+                .testResult($("f10").jsonLength("$"), "JSON_LENGTH(f10, '$')", 0, INT().nullable())
+                .testResult($("f4").jsonLength(), "JSON_LENGTH(f4)", 1, INT().nullable())
 
                 // (valid) paths
-                .testSqlResult("JSON_LENGTH(f0, '$')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.type')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author.address')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[0]')", 2, INT().nullable())
-                .testSqlResult(
-                        "JSON_LENGTH(f0, '$.metadata.references[0].url')", 1, INT().nullable())
+                .testResult($("f0").jsonLength("$"), "JSON_LENGTH(f0, '$')", 3, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.type"),
+                        "JSON_LENGTH(f0, '$.type')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author"),
+                        "JSON_LENGTH(f0, '$.author')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.address"),
+                        "JSON_LENGTH(f0, '$.author.address')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.tags"),
+                        "JSON_LENGTH(f0, '$.metadata.tags')",
+                        3,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references"),
+                        "JSON_LENGTH(f0, '$.metadata.references')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[0]"),
+                        "JSON_LENGTH(f0, '$.metadata.references[0]')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[0].url"),
+                        "JSON_LENGTH(f0, '$.metadata.references[0].url')",
+                        1,
+                        INT().nullable())
                 // (invalid) path
-                .testSqlResult("JSON_LENGTH(f0, '$.missing')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f7)", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.missing"),
+                        "JSON_LENGTH(f0, '$.missing')",
+                        null,
+                        INT().nullable())
+                .testResult($("f7").jsonLength(), "JSON_LENGTH(f7)", null, INT().nullable())
 
                 // invalid JSON -> NULL
-                .testSqlResult("JSON_LENGTH(f5)", null, INT().nullable())
+                .testResult($("f5").jsonLength(), "JSON_LENGTH(f5)", null, INT().nullable())
 
                 // literal (NOT NULL) arguments must still yield a nullable result
-                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')", 3, INT().nullable())
+                .testResult(
+                        lit("{\"a\":[1,2,3]}").jsonLength("$.b"),
+                        "JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        lit("{\"a\":[1,2,3]}").jsonLength("$.a"),
+                        "JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')",
+                        3,
+                        INT().nullable())
 
                 // missing path: neither mode throws -> both yield NULL
-                .testSqlResult("JSON_LENGTH(f0, '$.author.nope')", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.nope"),
+                        "JSON_LENGTH(f0, '$.author.nope')",
+                        null,
+                        INT().nullable())
 
                 // WILDCARDS matching MULTIPLE nodes -> NULL
+                // PARSE_JSON has no Table API equivalent, so this stays SQL-only
                 .testSqlResult("JSON_LENGTH(PARSE_JSON(f0), '$.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.author.address.*')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$..name')", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.*"), "JSON_LENGTH(f0, '$.*')", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.*"),
+                        "JSON_LENGTH(f0, '$.author.*')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.address.*"),
+                        "JSON_LENGTH(f0, '$.author.address.*')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.tags[*]"),
+                        "JSON_LENGTH(f0, '$.metadata.tags[*]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$..name"),
+                        "JSON_LENGTH(f0, '$..name')",
+                        null,
+                        INT().nullable())
 
                 // deep-scan `$..url` -> single scalar
-                .testSqlResult("JSON_LENGTH(f0, '$..url')", 1, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$..address')", 2, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.references[*]')", 2, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$..url"),
+                        "JSON_LENGTH(f0, '$..url')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$..address"),
+                        "JSON_LENGTH(f0, '$..address')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[*]"),
+                        "JSON_LENGTH(f0, '$.metadata.references[*]')",
+                        2,
+                        INT().nullable())
                 // `$.metadata.references[*].name` -> single scalar)
-                .testSqlResult(
-                        "JSON_LENGTH(f0, '$.metadata.references[*].name')", 1, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[*].name"),
+                        "JSON_LENGTH(f0, '$.metadata.references[*].name')",
+                        1,
+                        INT().nullable())
                 // JSON_LENGTH variant support (runtime path, no constant folding)
+                // PARSE_JSON has no Table API equivalent, so these stay SQL-only
                 .testSqlResult("JSON_LENGTH(PARSE_JSON(f0))", 3, INT().nullable())
                 .testSqlResult("JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]'))", 5, INT().nullable())
                 .testSqlResult("JSON_LENGTH(PARSE_JSON('\"hello\"'))", 1, INT().nullable())
                 .testSqlResult(
                         "JSON_LENGTH(PARSE_JSON(f0), '$.metadata.tags')", 3, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.metadata.tags[*]')", null, INT().nullable())
-                .testSqlResult("JSON_LENGTH(f0, '$.items[*]')", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.items[*]"),
+                        "JSON_LENGTH(f0, '$.items[*]')",
+                        null,
+                        INT().nullable())
 
                 // lax/strict path modes are not supported and are rejected at runtime
                 .testSqlRuntimeError(
