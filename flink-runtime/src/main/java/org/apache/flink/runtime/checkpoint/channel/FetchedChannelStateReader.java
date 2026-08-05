@@ -25,22 +25,15 @@ import java.util.Collections;
 import java.util.Optional;
 
 /**
- * Forward reader over a {@link FetchedChannelState}'s spill files. This is our own segment reader,
- * on purpose <em>not</em> a Java {@link java.util.Iterator}: our access pattern ("a body must be
- * fully read before the next segment", "body ownership is handed to the consumer", "consume and
- * commit are separate steps") does not fit the {@code hasNext/next} contract.
+ * Forward-only, strictly sequential reader over a {@link FetchedChannelState}'s spill files.
+ * Deliberately not a Java {@link java.util.Iterator}: a body must be fully read before advancing,
+ * body ownership is handed to the consumer, and consume/commit are separate steps.
  *
- * <p>This interface is the contract callers depend on; {@link FetchedChannelStateReaderImpl} holds
- * the implementation (the live file stream, the two progress positions, the bounded body view).
- *
- * <p>Reading is strictly sequential: a reader is positioned once (offset 0 for the root reader, or
- * the committed position for a {@link #snapshot()}), then consumes forward only via {@link
- * #nextSegment()}. It never seeks backward and never re-positions mid-iteration.
- *
- * <p>The drain thread reads the root reader front to back and commits via {@link
- * SpillSegment#commit()}; each checkpoint derives a fresh {@link #snapshot()} that resumes from the
- * committed position. {@link #snapshot()} and {@link SpillSegment#commit()} must be called under
- * the drainer lock; disk reads happen outside it.
+ * <p>The drain reader (opened via {@link FetchedChannelState#reader()}, starting at offset 0)
+ * records the delivered boundary — the "committed position" — via {@link SpillSegment#commit()};
+ * before anything is committed it equals the reader's start position. Each checkpoint derives a
+ * {@link #snapshot()} that resumes from that boundary. {@link #snapshot()} and {@link
+ * SpillSegment#commit()} must be called under the drainer lock; disk reads happen outside it.
  */
 @Internal
 public interface FetchedChannelStateReader extends Closeable {
@@ -119,8 +112,8 @@ public interface FetchedChannelStateReader extends Closeable {
          * Advances the reader's committed position to match how many body bytes have been read from
          * {@link #bodyStream()} so far. Must be called under the drainer lock after each buffer
          * delivery so that a subsequent {@link FetchedChannelStateReader#snapshot()} sees the
-         * correct delivered boundary. Only the drain (root) reader commits; the snapshot reader
-         * never does.
+         * correct delivered boundary. Only the drain reader commits; the snapshot reader never
+         * does.
          */
         void commit();
     }

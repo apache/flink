@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -36,7 +38,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>The 1:1 reader constraint is enforced fail-loud: calling {@link #reader()} a second time
  * throws {@link IllegalStateException} immediately.
  */
-final class FetchedChannelStateSnapshot {
+@Internal
+public final class FetchedChannelStateSnapshot {
 
     private final FetchedChannelState channelState;
     private final FetchedChannelStateReaderImpl.Position position;
@@ -62,7 +65,7 @@ final class FetchedChannelStateSnapshot {
      *
      * @return a new reader starting from this snapshot's position; caller must close it when done
      */
-    FetchedChannelStateReader reader() {
+    public FetchedChannelStateReader reader() {
         checkState(!readerOpened, "A reader has already been opened from this snapshot");
         readerOpened = true;
         return new FetchedChannelStateReaderImpl(this);

@@ -40,15 +40,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * table is maintained. The reader scans files sequentially, reading each 12-byte header to obtain
  * the channel info and body length.
  *
- * <p>The file list grows as the writer rotates to new files (one rotation per 64 MB soft limit),
- * and is sealed on writer close.
+ * <p>The file list is fixed at construction: rotation to new files (one per 64 MB soft limit)
+ * happens earlier, in the writer, which builds this container from the final list on close.
  *
  * <p>File lifecycle is managed by {@link #acquire()} / {@link #release()} reference counting. Files
  * are deleted only when the last lifecycle grant is released (i.e. when both the drain reader and
  * all snapshot readers have finished).
- *
- * <p>Mutations (file list appends) are single-writer and intentionally unsynchronized; callers must
- * serialize them via the channel IO executor.
  */
 @Internal
 public final class FetchedChannelState implements Closeable {
@@ -75,8 +72,8 @@ public final class FetchedChannelState implements Closeable {
     // -------------------------------------------------------------------------------------------
 
     /**
-     * Opens a root reader covering all segments from the beginning. The returned reader holds one
-     * lifecycle grant and must be closed when done.
+     * Opens the drain reader covering all segments from the beginning. The returned reader holds
+     * one lifecycle grant and must be closed when done.
      */
     public FetchedChannelStateReader reader() {
         return new FetchedChannelStateSnapshot(
