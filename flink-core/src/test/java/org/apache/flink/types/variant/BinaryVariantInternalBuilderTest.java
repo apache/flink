@@ -122,6 +122,18 @@ class BinaryVariantInternalBuilderTest {
         assertThat(variant.getField("k2").getDecimal()).isEqualTo(BigDecimal.valueOf(1.5));
     }
 
+    @Test
+    void testParseJsonWithNonAsciiStringsAndKeys() throws IOException {
+        String json = "{\"schlüssel\":\"Grüße, 世界 🚀\",\"キー\":[\"äöü\"]}";
+
+        BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(json, false);
+
+        assertThat(variant.getFieldNames()).containsExactlyInAnyOrder("schlüssel", "キー");
+        assertThat(variant.getField("schlüssel").getString()).isEqualTo("Grüße, 世界 🚀");
+        assertThat(variant.getField("キー").getElement(0).getString()).isEqualTo("äöü");
+        assertThat(variant.toJson()).isEqualTo(json);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"NaN", "Infinity", "-Infinity", "1e400", "-1e400"})
     void testParseJsonRejectsNonFiniteNumbers(final String nonFiniteNumber) {
