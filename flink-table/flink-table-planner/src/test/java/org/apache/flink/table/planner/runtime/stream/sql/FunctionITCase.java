@@ -59,6 +59,9 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -758,6 +761,80 @@ public class FunctionITCase extends StreamingTestBase {
                 .await();
 
         assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sourceData);
+    }
+
+    @Test
+    void testVariantScalarFunction() throws Exception {
+        final VariantBuilder builder = Variant.newBuilder();
+        final List<Row> sourceData =
+                List.of(
+                        Row.of("a", builder.object().add("i", builder.of(1)).build()),
+                        Row.of("b", builder.array().add(builder.of("x")).build()),
+                        Row.of("c", builder.ofNull()),
+                        Row.of("d", null));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(s STRING, v VARIANT) "
+                                + "WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction("VariantScalarFunction", VariantScalarFunction.class);
+        tEnv().executeSql("INSERT INTO TestTable SELECT s, VariantScalarFunction(v) FROM TestTable")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sourceData);
+    }
+
+    @Test
+    void testBinaryVariantScalarFunction() throws Exception {
+        final VariantBuilder builder = Variant.newBuilder();
+        final List<Row> sourceData =
+                List.of(
+                        Row.of("a", builder.object().add("i", builder.of(1)).build()),
+                        Row.of("b", builder.of("x")),
+                        Row.of("c", null));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(s STRING, v VARIANT) "
+                                + "WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction(
+                        "BinaryVariantScalarFunction", BinaryVariantScalarFunction.class);
+        tEnv().executeSql(
+                        "INSERT INTO TestTable SELECT s, BinaryVariantScalarFunction(v) FROM TestTable")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sourceData);
+    }
+
+    @Test
+    void testVariantScalarFunctionWithVariantMemberVariable() throws Exception {
+        final VariantBuilder builder = Variant.newBuilder();
+        final Variant constant = builder.object().add("i", builder.of(1)).build();
+
+        final List<Row> sourceData = List.of(Row.of("a", null), Row.of("b", null));
+        final List<Row> sinkData = List.of(Row.of("a", constant), Row.of("b", constant));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(s STRING, v VARIANT) "
+                                + "WITH ('connector' = 'COLLECTION')");
+
+        // the instance carries a Variant, so it is serialized instead of being identified by class
+        tEnv().createTemporarySystemFunction(
+                        "VariantConstantFunction", new VariantConstantFunction(constant));
+        tEnv().executeSql(
+                        "INSERT INTO TestTable SELECT s, VariantConstantFunction() FROM TestTable")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sinkData);
     }
 
     @Test
@@ -2027,6 +2104,33 @@ public class FunctionITCase extends StreamingTestBase {
         public @DataTypeHint("ROW<f0 INT, f1 STRING>") Row eval(
                 @DataTypeHint("ROW<f0 INT, f1 STRING>") Row row) {
             return row;
+        }
+    }
+
+    /** Function that takes and returns variants. */
+    public static class VariantScalarFunction extends ScalarFunction {
+        public @DataTypeHint("VARIANT") Variant eval(@DataTypeHint("VARIANT") Variant v) {
+            return v;
+        }
+    }
+
+    /** Function that takes and returns variants through the internal implementation class. */
+    public static class BinaryVariantScalarFunction extends ScalarFunction {
+        public BinaryVariant eval(BinaryVariant v) {
+            return v;
+        }
+    }
+
+    /** Function that returns the variant it was constructed with. */
+    public static class VariantConstantFunction extends ScalarFunction {
+        private final Variant constant;
+
+        public VariantConstantFunction(Variant constant) {
+            this.constant = constant;
+        }
+
+        public Variant eval() {
+            return constant;
         }
     }
 
