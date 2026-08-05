@@ -31,7 +31,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link PythonTableUtils}. */
 class PythonTableUtilsTest {
 
     @Test
@@ -44,14 +43,14 @@ class PythonTableUtilsTest {
 
     @Test
     void testCreateLiteralWithTypeConvertsCompositeValues() {
-        Short[] array =
+        final Short[] array =
                 (Short[])
                         literalValue(
                                 Arrays.asList(1, 2),
                                 DataTypes.ARRAY(DataTypes.SMALLINT()).notNull());
         assertThat(array).containsExactly((short) 1, (short) 2);
 
-        Map<?, ?> map =
+        final Map<?, ?> map =
                 (Map<?, ?>)
                         literalValue(
                                 Collections.singletonMap(1, 1.25),
@@ -59,7 +58,14 @@ class PythonTableUtilsTest {
         assertThat(map.keySet()).allMatch(Short.class::isInstance);
         assertThat(map.values()).allMatch(Float.class::isInstance);
 
-        Row row =
+        final Map<?, ?> multiset =
+                (Map<?, ?>)
+                        literalValue(
+                                Collections.singletonMap(1, 2),
+                                DataTypes.MULTISET(DataTypes.SMALLINT()).notNull());
+        assertThat(multiset.keySet()).allMatch(Short.class::isInstance);
+
+        final Row row =
                 (Row)
                         literalValue(
                                 Arrays.asList(1, 1.25),
@@ -72,8 +78,8 @@ class PythonTableUtilsTest {
         assertThat(row.getField(1)).isInstanceOf(Float.class);
     }
 
-    private static Object literalValue(Object value, DataType dataType) {
-        ValueLiteralExpression literal =
+    private static Object literalValue(final Object value, final DataType dataType) {
+        final ValueLiteralExpression literal =
                 (ValueLiteralExpression)
                         PythonTableUtils.createLiteralWithType(value, dataType).toExpr();
         return literal.getValueAs(Object.class).orElseThrow(AssertionError::new);
