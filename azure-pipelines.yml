@@ -84,6 +84,8 @@ stages:
         pool:
           vmImage: 'ubuntu-24.04'
         steps:
+          - script: ./tools/ci/print_machine_info.sh
+            displayName: Machine info
           - task: GoTool@0
             inputs:
               version: '1.18.1'

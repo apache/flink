@@ -44,6 +44,8 @@ jobs:
       .gitattributes
       .github/**
   steps:
+    - script: ./tools/ci/print_machine_info.sh
+      displayName: Machine info
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh

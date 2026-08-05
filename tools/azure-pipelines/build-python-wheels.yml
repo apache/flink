@@ -18,6 +18,8 @@ jobs:
     pool:
       vmImage: 'ubuntu-24.04'
     steps:
+      - script: ./tools/ci/print_machine_info.sh
+        displayName: Machine info
       - task: UsePythonVersion@0
         inputs:
           versionSpec: '3.12'
@@ -34,6 +36,8 @@ jobs:
     pool:
       vmImage: 'macOS-latest'
     steps:
+      - script: ./tools/ci/print_machine_info.sh
+        displayName: Machine info
       - task: UsePythonVersion@0
         inputs:
           versionSpec: '3.12'
