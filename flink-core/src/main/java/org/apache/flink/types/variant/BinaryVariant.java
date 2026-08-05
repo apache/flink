@@ -66,6 +66,8 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.variantConstructo
 @Internal
 public final class BinaryVariant implements Variant {
 
+    private static final long serialVersionUID = 1L;
+
     private final byte[] value;
     private final byte[] metadata;
     // The variant value doesn't use the whole `value` binary, but starts from its `pos` index and
