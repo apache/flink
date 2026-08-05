@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
@@ -1148,7 +1148,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      * Analyze whether to enable upsertMaterialize or not. In these case will return true:
      *   1. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to FORCE and sink's primary key nonempty.
      *      2. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to AUTO and sink's primary key doesn't
-     *      contain upsertKeys of the input update stream.
+     *      contain upsertKeys of the input update stream, unless the input is insert only and the
+     *      effective conflict strategy is DEDUPLICATE.
      *
      * Also validates that ON CONFLICT clause is specified when upsert key differs from primary key.
      */
@@ -1197,38 +1198,47 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             return false
           }
 
-          // For a DEDUPLICATE strategy and INSERT only input, we simply let the inserts be handled
-          // as UPSERT_AFTER and overwrite previous value
-          if (inputIsAppend && sink.isDeduplicateConflictStrategy) {
-            return false
-          }
-
           // if input has updates and primary key != upsert key  we should enable upsertMaterialize.
           //
           // An optimize is: do not enable upsertMaterialize when sink pk(s) contains input
           // changeLogUpsertKeys
           val upsertKeyDiffersFromPk = !sink.primaryKeysContainsUpsertKey
+          validateOnConflictSpecifiedIfRequired(sink, tableConfig, upsertKeyDiffersFromPk)
 
-          // Validate that ON CONFLICT is specified when upsert key differs from primary key
-          val requireOnConflict =
-            tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
-          if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
-            val pkNames = sink.getPrimaryKeyNames
-            val upsertKeyNames = sink.getUpsertKeyNames
-            throw new ValidationException(
-              "The query has an upsert key that differs from the primary key of the sink table " +
-                s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
-                s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
-                "This can lead to non-deterministic results when multiple records with different " +
-                "upsert keys map to the same primary key. " +
-                "Please specify an ON CONFLICT clause to define how conflicts should be handled: " +
-                "ON CONFLICT DO DEDUPLICATE (update to the latest record, state intensive, since we" +
-                " need to keep the entire history), or " +
-                "ON CONFLICT DO ERROR (fail on conflict), or " +
-                "ON CONFLICT DO NOTHING (keep first record).")
+          // Once enforcement above has passed, an absent clause leaves DEDUPLICATE as the strategy.
+          val deduplicatesOnConflict =
+            sink.conflictStrategy == null || sink.isDeduplicateConflictStrategy
+
+          // For a DEDUPLICATE strategy and INSERT only input, we simply let the inserts be handled
+          // as UPDATE_AFTER and overwrite previous value
+          if (deduplicatesOnConflict && inputIsAppend) {
+            return false
           }
 
           upsertKeyDiffersFromPk
+      }
+    }
+
+    private def validateOnConflictSpecifiedIfRequired(
+        sink: StreamPhysicalSink,
+        tableConfig: TableConfig,
+        upsertKeyDiffersFromPk: Boolean): Unit = {
+      val requireOnConflict =
+        tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
+      if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
+        val pkNames = sink.getPrimaryKeyNames
+        val upsertKeyNames = sink.getUpsertKeyNames
+        throw new ValidationException(
+          "The query has an upsert key that differs from the primary key of the sink table " +
+            s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
+            s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
+            "This can lead to non-deterministic results when multiple records with different " +
+            "upsert keys map to the same primary key. " +
+            "Please specify an ON CONFLICT clause to define how conflicts should be handled: " +
+            "ON CONFLICT DO DEDUPLICATE (update to the latest record, state intensive, since we" +
+            " need to keep the entire history), or " +
+            "ON CONFLICT DO ERROR (fail on conflict), or " +
+            "ON CONFLICT DO NOTHING (keep first record).")
       }
     }
 
