@@ -923,7 +923,7 @@ class ArrayType(DataType):
     def from_sql_type(self, obj):
         if not self.need_conversion():
             return obj
-        return obj and [self.element_type.to_sql_type(v) for v in obj]
+        return obj and [self.element_type.from_sql_type(v) for v in obj]
 
 
 class ListViewType(DataType):
@@ -1051,7 +1051,7 @@ class MultisetType(DataType):
     def from_sql_type(self, obj):
         if not self.need_conversion():
             return obj
-        return obj and [self.element_type.to_sql_type(v) for v in obj]
+        return obj and [self.element_type.from_sql_type(v) for v in obj]
 
 
 class RowField(object):
