@@ -1960,13 +1960,42 @@ def _to_java_data_type(data_type: _TableDataTypeLike):
     return j_data_type
 
 
-def _to_java_literal_value(value, data_type: DataType):
+def _to_java_literal_value(value, data_type: DataType = None):
     """Converts Python-only literal values into objects that can be sent through Py4J."""
-    if value is None or data_type._conversion_cls:
+    if value is None:
         return value
 
     gateway = get_gateway()
     jvm = gateway.jvm
+
+    if data_type is None:
+        if isinstance(value, datetime.datetime):
+            return _to_java_literal_value(value, TimestampType())
+        elif isinstance(value, datetime.date):
+            return _to_java_literal_value(value, DateType())
+        elif isinstance(value, datetime.time):
+            return _to_java_literal_value(value, TimeType())
+        elif isinstance(value, datetime.timedelta):
+            return _to_java_literal_value(
+                value,
+                DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND))
+        elif isinstance(value, (list, tuple, array)):
+            j_values = jvm.java.util.ArrayList()
+            for element in value:
+                j_values.add(_to_java_literal_value(element))
+            if isinstance(value, array):
+                if value.typecode not in _array_type_mappings:
+                    raise TypeError("not supported type: array(%s)" % value.typecode)
+                j_element_data_type = _to_java_data_type(
+                    _array_type_mappings[value.typecode])
+                return jvm.org.apache.flink.table.utils.python.PythonTableUtils.toJavaArray(
+                    j_values, j_element_data_type)
+            return jvm.org.apache.flink.table.utils.python.PythonTableUtils.toJavaArray(j_values)
+        else:
+            return value
+
+    if data_type._conversion_cls:
+        return value
 
     if isinstance(data_type, DateType) and isinstance(value, datetime.datetime):
         value = value.date()

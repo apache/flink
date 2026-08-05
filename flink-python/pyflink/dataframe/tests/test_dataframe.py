@@ -16,7 +16,9 @@
 # limitations under the License.
 ################################################################################
 
+import array
 import datetime
+import decimal
 import unittest
 from datetime import datetime, timezone
 from typing import NamedTuple
@@ -631,10 +633,56 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         super().setUp()
         self.dataframe = pf.from_records([(1,)], schema=["id"])
 
-    def test_lit_supports_inferred_and_explicit_types(self):
+    def test_lit_infers_supported_python_types(self):
+        literal_values = {
+            "inferred_bool": True,
+            "inferred_int": 2,
+            "inferred_float": 1.25,
+            "inferred_string": "x",
+            "inferred_bytes": b"x",
+            "inferred_bytearray": bytearray(b"x"),
+            "inferred_decimal": decimal.Decimal("1.25"),
+            "inferred_date": datetime.date(2026, 8, 3),
+            "inferred_time": datetime.time(1, 2, 3),
+            "inferred_timestamp": datetime.datetime(2026, 8, 3, 1, 2, 3),
+            "inferred_timedelta": datetime.timedelta(days=1, seconds=2, microseconds=3000),
+            "inferred_list": ["abc"],
+            "inferred_nested_list": [[datetime.date(2026, 8, 3)]],
+            "inferred_tuple": (1, 2),
+            "inferred_array": array.array("h", [1, 2]),
+        }
         result = self.dataframe.select(
-            inferred_int=pf.lit(2),
-            inferred_string=pf.lit("x"),
+            **{name: pf.lit(value) for name, value in literal_values.items()}
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            list(literal_values),
+            [
+                TableDataTypes.BOOLEAN().not_null(),
+                TableDataTypes.INT().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME().not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.INTERVAL(
+                    TableDataTypes.DAY(1), TableDataTypes.SECOND(3)
+                ),
+                TableDataTypes.ARRAY(TableDataTypes.CHAR(3)).not_null(),
+                TableDataTypes.ARRAY(
+                    TableDataTypes.ARRAY(TableDataTypes.DATE())
+                ).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.INT()).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()).not_null(),
+            ],
+        )
+
+    def test_lit_supports_explicit_types(self):
+        result = self.dataframe.select(
             explicit_int=pf.lit(3, pf.DataType.int64()),
             explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
             explicit_small_int=pf.lit(3, pf.DataType.int16()),
@@ -646,8 +694,6 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         self.assert_dataframe_schema(
             result,
             [
-                "inferred_int",
-                "inferred_string",
                 "explicit_int",
                 "explicit_large_int",
                 "explicit_small_int",
@@ -656,8 +702,6 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
                 "explicit_string",
             ],
             [
-                TableDataTypes.INT().not_null(),
-                TableDataTypes.CHAR(1).not_null(),
                 TableDataTypes.BIGINT().not_null(),
                 TableDataTypes.BIGINT().not_null(),
                 TableDataTypes.SMALLINT().not_null(),

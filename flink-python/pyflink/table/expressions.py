@@ -115,12 +115,12 @@ def lit(v, data_type: DataType = None) -> Expression:
 
         >>> tab.select(col("key"), lit("abc"))
     """
+    _j_literal_value = _to_java_literal_value(v, data_type)
     if data_type is None:
-        return _unary_op("lit", v)
+        return _unary_op("lit", _j_literal_value)
     else:
         gateway = get_gateway()
         j_data_type = _to_java_data_type(data_type)
-        _j_literal_value = _to_java_literal_value(v, data_type)
         return Expression(
             gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils.createLiteralWithType(
                 _j_literal_value, j_data_type))

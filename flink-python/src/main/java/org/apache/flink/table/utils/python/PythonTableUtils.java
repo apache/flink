@@ -148,6 +148,35 @@ public final class PythonTableUtils {
     }
 
     /**
+     * Converts values received through Py4J into an array, inferring its component class from the
+     * first non-null element.
+     *
+     * @param values the array elements received through Py4J
+     * @return an array with the inferred component class
+     */
+    public static Object toJavaArray(final List<Object> values) {
+        final Class<?> componentClass =
+                values.stream()
+                        .filter(value -> value != null)
+                        .map(Object::getClass)
+                        .findFirst()
+                        .orElse(Object.class);
+        return convertLiteralArray(values, componentClass, Function.identity());
+    }
+
+    /**
+     * Converts values received through Py4J into an array using the given element data type.
+     *
+     * @param values the array elements received through Py4J
+     * @param elementDataType the data type represented by the Python collection
+     * @return an array with elements converted to the data type's conversion class
+     */
+    public static Object toJavaArray(final List<Object> values, final DataType elementDataType) {
+        return convertLiteralArray(
+                values, elementDataType.getConversionClass(), literalConverter(elementDataType));
+    }
+
+    /**
      * Creates a typed literal from a value received through Py4J.
      *
      * <p>Py4J represents Python numeric values as {@link Integer}, {@link Long}, or {@link Double},
