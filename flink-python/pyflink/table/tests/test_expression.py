@@ -400,6 +400,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
             ([1, 2], DataTypes.ARRAY(DataTypes.SMALLINT()).not_null(), "ARRAY"),
             ({1: 1.25},
              DataTypes.MAP(DataTypes.SMALLINT(), DataTypes.FLOAT()).not_null(), "MAP"),
+            ({datetime.date(2026, 8, 3): 2},
+             DataTypes.MULTISET(DataTypes.DATE()).not_null(), "MULTISET"),
             ((1, 1.25),
              DataTypes.ROW([
                  DataTypes.FIELD("small_value", DataTypes.SMALLINT()),

@@ -143,7 +143,7 @@ public final class PythonTableUtils {
      * @param dataType the data type of the literal
      * @return the typed literal expression
      */
-    public static ApiExpression createLiteralWithType(Object value, DataType dataType) {
+    public static ApiExpression createLiteralWithType(final Object value, final DataType dataType) {
         return Expressions.lit(literalConverter(dataType).apply(value), dataType);
     }
 
@@ -507,18 +507,18 @@ public final class PythonTableUtils {
         throw new IllegalStateException("Failed to get converter for LogicalType: " + logicalType);
     }
 
-    private static Function<Object, Object> literalConverter(DataType dataType) {
+    private static Function<Object, Object> literalConverter(final DataType dataType) {
         if (!usesDefaultLiteralConversion(dataType)) {
             return Function.identity();
         }
 
-        LogicalType logicalType = dataType.getLogicalType();
+        final LogicalType logicalType = dataType.getLogicalType();
         if (logicalType instanceof TinyIntType) {
             return value -> {
                 if (!isIntegral(value)) {
                     return value;
                 }
-                long number = ((Number) value).longValue();
+                final long number = ((Number) value).longValue();
                 return number >= Byte.MIN_VALUE && number <= Byte.MAX_VALUE ? (byte) number : value;
             };
         }
@@ -527,7 +527,7 @@ public final class PythonTableUtils {
                 if (!isIntegral(value)) {
                     return value;
                 }
-                long number = ((Number) value).longValue();
+                final long number = ((Number) value).longValue();
                 return number >= Short.MIN_VALUE && number <= Short.MAX_VALUE
                         ? (short) number
                         : value;
@@ -540,20 +540,26 @@ public final class PythonTableUtils {
             return value -> value instanceof Double ? ((Double) value).floatValue() : value;
         }
         if (logicalType instanceof ArrayType) {
-            Function<Object, Object> elementConverter =
+            final Function<Object, Object> elementConverter =
                     literalConverter(dataType.getChildren().get(0));
-            Class<?> componentClass = dataType.getConversionClass().getComponentType();
+            final Class<?> componentClass = dataType.getConversionClass().getComponentType();
             return value -> convertLiteralArray(value, componentClass, elementConverter);
         }
+        if (logicalType instanceof MultisetType) {
+            final Function<Object, Object> elementConverter =
+                    literalConverter(dataType.getChildren().get(0));
+            return value -> convertLiteralMap(value, elementConverter, Function.identity());
+        }
         if (logicalType instanceof MapType) {
-            Function<Object, Object> keyConverter = literalConverter(dataType.getChildren().get(0));
-            Function<Object, Object> valueConverter =
+            final Function<Object, Object> keyConverter =
+                    literalConverter(dataType.getChildren().get(0));
+            final Function<Object, Object> valueConverter =
                     literalConverter(dataType.getChildren().get(1));
             return value -> convertLiteralMap(value, keyConverter, valueConverter);
         }
         if (logicalType instanceof RowType) {
-            List<String> fieldNames = ((RowType) logicalType).getFieldNames();
-            List<Function<Object, Object>> fieldConverters =
+            final List<String> fieldNames = ((RowType) logicalType).getFieldNames();
+            final List<Function<Object, Object>> fieldConverters =
                     dataType.getChildren().stream()
                             .map(PythonTableUtils::literalConverter)
                             .collect(Collectors.toList());
@@ -562,9 +568,9 @@ public final class PythonTableUtils {
         return Function.identity();
     }
 
-    private static boolean usesDefaultLiteralConversion(DataType dataType) {
-        LogicalType logicalType = dataType.getLogicalType();
-        Class<?> conversionClass = dataType.getConversionClass();
+    private static boolean usesDefaultLiteralConversion(final DataType dataType) {
+        final LogicalType logicalType = dataType.getLogicalType();
+        final Class<?> conversionClass = dataType.getConversionClass();
         if (logicalType instanceof ArrayType) {
             return conversionClass.isArray();
         } else if (logicalType instanceof MapType || logicalType instanceof MultisetType) {
@@ -575,7 +581,7 @@ public final class PythonTableUtils {
         return conversionClass == logicalType.getDefaultConversion();
     }
 
-    private static boolean isIntegral(Object value) {
+    private static boolean isIntegral(final Object value) {
         return value instanceof Byte
                 || value instanceof Short
                 || value instanceof Integer
@@ -583,7 +589,9 @@ public final class PythonTableUtils {
     }
 
     private static Object convertLiteralArray(
-            Object value, Class<?> componentClass, Function<Object, Object> elementConverter) {
+            final Object value,
+            final Class<?> componentClass,
+            final Function<Object, Object> elementConverter) {
         final int length;
         final Function<Integer, Object> elementGetter;
         if (value instanceof List) {
@@ -596,7 +604,7 @@ public final class PythonTableUtils {
             return value;
         }
 
-        Object converted = Array.newInstance(componentClass, length);
+        final Object converted = Array.newInstance(componentClass, length);
         for (int pos = 0; pos < length; pos++) {
             Array.set(converted, pos, elementConverter.apply(elementGetter.apply(pos)));
         }
@@ -604,41 +612,43 @@ public final class PythonTableUtils {
     }
 
     private static Object convertLiteralMap(
-            Object value,
-            Function<Object, Object> keyConverter,
-            Function<Object, Object> valueConverter) {
+            final Object value,
+            final Function<Object, Object> keyConverter,
+            final Function<Object, Object> valueConverter) {
         if (!(value instanceof Map)) {
             return value;
         }
-        Map<Object, Object> converted = new HashMap<>();
-        ((Map<?, ?>) value)
-                .forEach(
-                        (key, mapValue) ->
-                                converted.put(
-                                        keyConverter.apply(key), valueConverter.apply(mapValue)));
+        final Map<Object, Object> converted = new HashMap<>();
+        for (final Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+            converted.put(
+                    keyConverter.apply(entry.getKey()), valueConverter.apply(entry.getValue()));
+        }
         return converted;
     }
 
     private static Object convertLiteralRow(
-            Object value, List<String> fieldNames, List<Function<Object, Object>> fieldConverters) {
+            final Object value,
+            final List<String> fieldNames,
+            final List<Function<Object, Object>> fieldConverters) {
         if (!(value instanceof Row)
                 && !(value instanceof List)
                 && !(value instanceof Map)
                 && (value == null || !value.getClass().isArray())) {
             return value;
         }
-        RowKind rowKind = value instanceof Row ? ((Row) value).getKind() : RowKind.INSERT;
-        Row converted = Row.withPositions(rowKind, fieldConverters.size());
+        final RowKind rowKind = value instanceof Row ? ((Row) value).getKind() : RowKind.INSERT;
+        final Row converted = Row.withPositions(rowKind, fieldConverters.size());
         for (int pos = 0; pos < fieldConverters.size(); pos++) {
-            Object fieldValue = getLiteralRowField(value, pos, fieldNames.get(pos));
+            final Object fieldValue = getLiteralRowField(value, pos, fieldNames.get(pos));
             converted.setField(pos, fieldConverters.get(pos).apply(fieldValue));
         }
         return converted;
     }
 
-    private static Object getLiteralRowField(Object value, int pos, String fieldName) {
+    private static Object getLiteralRowField(
+            final Object value, final int pos, final String fieldName) {
         if (value instanceof Row) {
-            Row row = (Row) value;
+            final Row row = (Row) value;
             return row.getFieldNames(false) == null ? row.getField(pos) : row.getField(fieldName);
         } else if (value instanceof List) {
             return ((List<?>) value).get(pos);

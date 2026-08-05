@@ -2014,6 +2014,12 @@ def _to_java_literal_value(value, data_type: DataType):
         for element in value:
             j_values.add(_to_java_literal_value(element, data_type.element_type))
         return j_values
+    elif isinstance(data_type, MultisetType) and isinstance(value, dict):
+        j_values = jvm.java.util.HashMap()
+        for element, count in value.items():
+            j_values.put(
+                _to_java_literal_value(element, data_type.element_type), count)
+        return j_values
     elif isinstance(data_type, MapType) and isinstance(value, dict):
         j_values = jvm.java.util.HashMap()
         for key, map_value in value.items():
