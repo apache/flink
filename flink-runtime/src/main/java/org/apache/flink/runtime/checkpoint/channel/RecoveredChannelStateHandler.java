@@ -41,11 +41,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -384,12 +384,20 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
         // create the spill dir on the first file; no-op afterwards
         Files.createDirectories(baseDir);
         Path filePath = baseDir.resolve("spill-segment-" + files.size() + ".bin");
+        // CREATE_NEW fails loud if the file already exists instead of silently overwriting it.
         currentStream =
                 new OffsetAwareOutputStream(
-                        new BufferedOutputStream(new FileOutputStream(filePath.toFile())), 0L);
+                        new BufferedOutputStream(
+                                Files.newOutputStream(
+                                        filePath,
+                                        StandardOpenOption.CREATE_NEW,
+                                        StandardOpenOption.WRITE)),
+                        0L);
         files.add(filePath);
     }
 
+    // TODO: FLINK-38544 — wire this into SequentialChannelStateReaderImpl#readInputData when the
+    // handler factory starts selecting the Spilling* handlers; unused in production until then.
     @Override
     @Nullable
     FetchedChannelState getProducedChannelState() {
