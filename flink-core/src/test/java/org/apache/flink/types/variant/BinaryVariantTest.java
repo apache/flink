@@ -18,15 +18,13 @@
 
 package org.apache.flink.types.variant;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -346,22 +344,11 @@ class BinaryVariantTest {
                         .add("i", builder.of(1))
                         .add("nested", builder.array().add(builder.of("v")).build())
                         .build();
-        assertThat(javaRoundTrip(variant)).isEqualTo(variant);
+        assertThat(CommonTestUtils.createCopySerializable(variant)).isEqualTo(variant);
 
         // a sub-variant is addressed by a position into the value binary of the enclosing document
         Variant subVariant = variant.getField("nested");
         assertThat(((BinaryVariant) subVariant).getPos()).isGreaterThan(0);
-        assertThat(javaRoundTrip(subVariant)).isEqualTo(subVariant);
-    }
-
-    private static Variant javaRoundTrip(Variant variant) throws Exception {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
-            out.writeObject(variant);
-        }
-        try (ObjectInputStream in =
-                new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
-            return (Variant) in.readObject();
-        }
+        assertThat(CommonTestUtils.createCopySerializable(subVariant)).isEqualTo(subVariant);
     }
 }

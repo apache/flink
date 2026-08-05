@@ -788,6 +788,30 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    void testVariantScalarFunctionInView() throws Exception {
+        final VariantBuilder builder = Variant.newBuilder();
+        final List<Row> sourceData =
+                List.of(
+                        Row.of("a", builder.object().add("i", builder.of(1)).build()),
+                        Row.of("b", null));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(s STRING, v VARIANT) "
+                                + "WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction("VariantScalarFunction", VariantScalarFunction.class);
+        // a view is stored as expanded SQL, so this also covers unparsing a VARIANT expression
+        tEnv().executeSql(
+                "CREATE VIEW VariantView AS SELECT s, VariantScalarFunction(v) AS v FROM TestTable");
+        tEnv().executeSql("INSERT INTO TestTable SELECT s, v FROM VariantView").await();
+
+        assertThat(TestCollectionTableFactory.getResult()).isEqualTo(sourceData);
+    }
+
+    @Test
     void testBinaryVariantScalarFunction() throws Exception {
         final VariantBuilder builder = Variant.newBuilder();
         final List<Row> sourceData =
