@@ -35,8 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link org.apache.flink.table.utils.PartitionPathUtils}. */
 class PartitionPathUtilsTest {
 
-    @TempDir
-    Path tmpDir;
+    @TempDir Path tmpDir;
 
     @Test
     void testEscapeChar() {
@@ -116,11 +115,7 @@ class PartitionPathUtilsTest {
 
         // Real partition: date=2019-8-30/country=China
         Files.createDirectories(
-                Path.of(
-                        tmpDir.toString(),
-                        "country_page_view",
-                        "date=2019-8-30",
-                        "country=China"));
+                Path.of(tmpDir.toString(), "country_page_view", "date=2019-8-30", "country=China"));
         // Hidden _temporary dir whose non-hidden child sits at partition depth (2).
         Files.createDirectories(
                 Path.of(tmpDir.toString(), "country_page_view", "_temporary", "job-123"));
