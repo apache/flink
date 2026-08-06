@@ -70,7 +70,9 @@ if [[ "${SKIP_QA_CHECKS:-false}" != "true" ]]; then
     BUILD_MODE_ARGS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG"
     DEPLOY_ARGS="deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence"
 else
-    BUILD_MODE_ARGS="-Pfast"
+    # -Dflink.fsShade.skip=true drops the FS-plugin shade (gs/azure/s3/oss) off the compile critical
+    # path; those plugins aren't needed by the reuse consumers (connect re-shades, e2e rebuilds).
+    BUILD_MODE_ARGS="-Pfast -Dflink.fsShade.skip=true"
     DEPLOY_ARGS="install"
 fi
 # Only force snapshot updates (-U) unless the global Maven options already disable them (--no-snapshot-updates)

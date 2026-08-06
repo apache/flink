@@ -40,8 +40,9 @@ resources:
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
     image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
-    # On AZP provided machines, set this flag to allow writing coredumps in docker
-    options: --privileged
+    # On AZP provided machines, set this flag to allow writing coredumps in docker.
+    # --tmpfs provides RAM-backed scratch; the Machine info step reports whether the agent honours it.
+    options: --privileged --tmpfs /mnt/ram:size=24g,exec,mode=1777
 
 # Define variables:
 # - See tools/azure-pipelines/jobs-template.yml for a short summary of the caching

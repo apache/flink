@@ -131,6 +131,8 @@ under the License.
 		<flink.shaded.jackson.version>2.20.1</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.10.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
+		<!-- Default false = normal shade; the fast CI compile sets it true to skip the FS-plugin shade off the critical path (see tools/ci/compile.sh) -->
+		<flink.fsShade.skip>false</flink.fsShade.skip>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>

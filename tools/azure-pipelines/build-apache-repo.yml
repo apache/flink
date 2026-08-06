@@ -40,6 +40,8 @@ resources:
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
     image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
+    # RAM-backed scratch for the build; the Machine info step reports whether the agent honours it.
+    options: --tmpfs /mnt/ram:size=24g,exec,mode=1777
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository

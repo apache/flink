@@ -82,3 +82,22 @@ t2=$(now_ms)
 cr=$(( t1 - t0 )); [ "$cr" -le 0 ] && cr=1
 dl=$(( t2 - t1 )); [ "$dl" -lt 0 ] && dl=0
 echo "Small-file I/O: create ${N} tiny files in ${cr} ms ($(( N * 1000 / cr )) files/s), delete in ${dl} ms"
+
+# tmpfs availability -- can we put the (IOPS-heavy) build I/O in RAM to dodge a slow disk?
+echo "---- tmpfs availability ----"
+echo "/dev/shm: $(df -h /dev/shm 2>/dev/null | awk 'NR==2{print $2" total, "$4" free"}' || echo 'n/a')"
+RAMDIR="${TMPFS_BUILD_DIR:-/mnt/ram}"
+if [ -d "$RAMDIR" ] && : > "$RAMDIR/.mi_wtest" 2>/dev/null; then
+    rm -f "$RAMDIR/.mi_wtest"
+    echo "$RAMDIR: PRESENT & writable (fs=$(df -T "$RAMDIR" 2>/dev/null | awk 'NR==2{print $2}'), size=$(df -h "$RAMDIR" 2>/dev/null | awk 'NR==2{print $2}'))"
+else
+    tdir=$(mktemp -d 2>/dev/null || echo /tmp/.mi_mnt); mkdir -p "$tdir" 2>/dev/null
+    if mount -t tmpfs -o size=8m tmpfs "$tdir" 2>/dev/null; then
+        echo "$RAMDIR: absent, but in-job 'mount -t tmpfs' is ALLOWED"; umount "$tdir" 2>/dev/null
+    elif sudo -n mount -t tmpfs -o size=8m tmpfs "$tdir" 2>/dev/null; then
+        echo "$RAMDIR: absent, but 'sudo mount -t tmpfs' is ALLOWED"; sudo -n umount "$tdir" 2>/dev/null
+    else
+        echo "$RAMDIR: absent and no tmpfs-mount privilege -> add container '--tmpfs $RAMDIR', or use /dev/shm"
+    fi
+    rmdir "$tdir" 2>/dev/null
+fi
