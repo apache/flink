@@ -27,18 +27,15 @@ import java.io.IOException;
 public interface RecoveryCheckpointTrigger {
 
     /**
-     * Atomically snapshots the undrained recovered state and inserts matching {@link
-     * RecoveryCheckpointBarrier}s into in-recovery channels.
-     *
-     * <p>FLINK-38544 transitional signature: once the spilling backend lands this returns an
-     * independent reader over the remaining (undrained) spill segments that the caller owns and
-     * must close. The in-memory backend hands all recovered buffers to the channels in one shot, so
-     * there is never an undrained residue and nothing to return yet.
+     * Atomically snapshots the undrained spill slice and inserts matching {@link
+     * RecoveryCheckpointBarrier}s into in-recovery channels. Returns an independent reader over the
+     * remaining segments; the caller owns and must close it.
      */
-    void snapshotAndInsertBarriers(long checkpointId) throws IOException, CheckpointException;
+    FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
+            throws IOException, CheckpointException;
 
-    /** Inserts no barriers (and there is no recovered state left to snapshot). */
-    RecoveryCheckpointTrigger NO_OP = checkpointId -> {};
+    /** Returns an empty reader (no spill files, so no segments) and inserts no barriers. */
+    RecoveryCheckpointTrigger NO_OP = checkpointId -> FetchedChannelStateReader.emptyReader();
 
     RecoveryCheckpointTrigger NOT_READY =
             ign -> {
