@@ -118,8 +118,7 @@ class AvroDeserializationSchemaTest {
         byte[] corrupt = new byte[] {100, 0, 0, 0, 0, 0, 0, 0};
 
         assertThat(deserializer.deserialize(validBytes)).isEqualTo(valid);
-        assertThatThrownBy(() -> deserializer.deserialize(corrupt))
-                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> deserializer.deserialize(corrupt)).isInstanceOf(Exception.class);
         // FLINK-34474: a subsequent valid message must still deserialize,
         // instead of being poisoned by the prior failed read.
         assertThat(deserializer.deserialize(validBytes)).isEqualTo(valid);
