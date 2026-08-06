@@ -57,6 +57,8 @@ __all__ = [
 ]
 
 _SCALAR_SEQUENCE_TYPES = (str, bytes, bytearray, memoryview)
+_BIGINT_MIN = -(1 << 63)
+_BIGINT_MAX = (1 << 63) - 1
 
 
 class _WatermarkSpec(NamedTuple):
@@ -553,7 +555,8 @@ def range(start_or_end: int, end: Optional[int] = None, step: int = 1) -> DataFr
     :param step: Distance between adjacent values; must not be zero.
     :return: A DataFrame with one ``id`` column.
     :raises TypeError: If an argument is not an integer.
-    :raises ValueError: If ``step`` is zero.
+    :raises ValueError: If ``step`` is zero or the range contains values outside the signed
+        ``BIGINT`` bounds.
 
     Example::
 
@@ -579,10 +582,15 @@ def range(start_or_end: int, end: Optional[int] = None, step: int = 1) -> DataFr
     else:
         start = start_or_end
         stop = end
+    values = builtins.range(start, stop, step)
+    has_values = start < stop if step > 0 else start > stop
+    if has_values and not (
+        _BIGINT_MIN <= values[0] <= _BIGINT_MAX
+        and _BIGINT_MIN <= values[-1] <= _BIGINT_MAX
+    ):
+        raise ValueError("range values must fit in signed BIGINT")
+
     row_type = DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT())])
-    sql_rows = [
-        row_type.to_sql_type((value,))
-        for value in builtins.range(start, stop, step)
-    ]
+    sql_rows = [row_type.to_sql_type((value,)) for value in values]
     table = get_or_create_table_environment()._from_elements(sql_rows, row_type)
     return DataFrame(table)

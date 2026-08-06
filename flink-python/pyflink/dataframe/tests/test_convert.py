@@ -291,6 +291,8 @@ class RangeTests(unittest.TestCase):
             ((4,), [(0,), (1,), (2,), (3,)]),
             ((4, -1, -2), [(4,), (2,), (0,)]),
             ((2, 2), []),
+            ((2**63 - 1, 2**63), [(2**63 - 1,)]),
+            ((-(2**63), -(2**63) + 1), [(-(2**63),)]),
         ]
         for arguments, expected_rows in cases:
             table_environment = Mock()
@@ -306,6 +308,25 @@ class RangeTests(unittest.TestCase):
             self.assertIsInstance(row_type, RowType)
             self.assertEqual(row_type.field_names(), ["id"])
             self.assertIsInstance(row_type.field_types()[0], BigIntType)
+
+    def test_rejects_values_outside_bigint_bounds(self):
+        invalid_ranges = [
+            (2**63, 2**63 + 1),
+            (2**63 - 1, 2**63 + 2),
+            (-(2**63) - 1, -(2**63) - 2, -1),
+            (-(2**63), -(2**63) - 3, -1),
+        ]
+        table_environment = Mock()
+        for arguments in invalid_ranges:
+            with self.subTest(arguments=arguments), patch(
+                "pyflink.dataframe.convert.get_or_create_table_environment",
+                return_value=table_environment,
+            ) as get_table_environment:
+                with self.assertRaisesRegex(
+                    ValueError, "range values must fit in signed BIGINT"
+                ):
+                    pf.range(*arguments)
+                get_table_environment.assert_not_called()
 
     def test_rejects_invalid_arguments(self):
         invalid_arguments = [
