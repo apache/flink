@@ -19,14 +19,28 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An immutable resume point for a {@link FetchedChannelState} reader. It captures the {@link
- * FetchedChannelStateReaderImpl.Position} at which reading should start and holds one lifecycle
- * grant on the underlying {@link FetchedChannelState} (acquired in the constructor).
+ * An immutable resume point for a {@link FetchedChannelState} reader: where to start reading, plus
+ * the metadata of a half-delivered segment when the boundary falls inside one. It holds one
+ * lifecycle grant on the underlying {@link FetchedChannelState} (acquired in the constructor).
+ *
+ * <p>{@code channel} decides how the resume point is read. It is {@code null} when {@code
+ * readOffset} points at a segment header, and non-null when it points into a segment body, in which
+ * case {@code remaining} is that segment's not-yet-delivered byte count. The three cases that occur
+ * in practice:
+ *
+ * <pre>
+ * (0, 0,   null, 0)   nothing delivered yet — read everything from the first header
+ * (2, 840, null, 0)   boundary landed exactly on a header — read that header, then continue
+ * (2, 851, c3,   57)  boundary landed inside c3's body — hand out its last 57 bytes, no header read
+ * </pre>
  *
  * <p>A snapshot is a one-shot, single-reader handle:
  *
@@ -42,20 +56,43 @@ import static org.apache.flink.util.Preconditions.checkState;
 public final class FetchedChannelStateSnapshot {
 
     private final FetchedChannelState channelState;
-    private final FetchedChannelStateReaderImpl.Position position;
+
+    /** Spill file to resume in. */
+    private final int fileIndex;
+
+    /** Byte offset within that file to resume at. */
+    private final long readOffset;
+
+    /** Channel of the half-delivered segment, or {@code null} if {@code readOffset} is a header. */
+    @Nullable private final InputChannelInfo channel;
+
+    /** Not-yet-delivered body bytes of that segment; 0 iff {@code channel} is {@code null}. */
+    private final int remaining;
 
     /** True once {@link #reader()} has been called; prevents opening a second reader. */
     private boolean readerOpened;
 
     /**
-     * Creates a snapshot at {@code position} within {@code channelState}. Acquires one lifecycle
-     * grant on {@code channelState}; the grant is released when the reader returned by {@link
-     * #reader()} is closed.
+     * Creates a snapshot resuming at {@code readOffset} in file {@code fileIndex}. Acquires one
+     * lifecycle grant on {@code channelState}; the grant is released when the reader returned by
+     * {@link #reader()} is closed.
      */
     FetchedChannelStateSnapshot(
-            FetchedChannelState channelState, FetchedChannelStateReaderImpl.Position position) {
+            FetchedChannelState channelState,
+            int fileIndex,
+            long readOffset,
+            @Nullable InputChannelInfo channel,
+            int remaining) {
+        checkArgument(
+                (channel == null) == (remaining == 0),
+                "channel and remaining must be set together: %s / %s",
+                channel,
+                remaining);
         this.channelState = channelState;
-        this.position = position;
+        this.fileIndex = fileIndex;
+        this.readOffset = readOffset;
+        this.channel = channel;
+        this.remaining = remaining;
         channelState.acquire();
     }
 
@@ -84,11 +121,20 @@ public final class FetchedChannelStateSnapshot {
         return channelState;
     }
 
-    /**
-     * Returns the start position (package-private; used by the reader, which copies it
-     * immediately).
-     */
-    FetchedChannelStateReaderImpl.Position position() {
-        return position;
+    int fileIndex() {
+        return fileIndex;
+    }
+
+    long readOffset() {
+        return readOffset;
+    }
+
+    @Nullable
+    InputChannelInfo channel() {
+        return channel;
+    }
+
+    int remaining() {
+        return remaining;
     }
 }

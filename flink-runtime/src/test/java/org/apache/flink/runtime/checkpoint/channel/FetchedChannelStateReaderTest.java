@@ -293,6 +293,44 @@ class FetchedChannelStateReaderTest {
     }
 
     @Test
+    void testSnapshotCarriesResumeSegmentOnlyWhenBoundaryIsMidBody() throws Exception {
+        InputChannelInfo ch = new InputChannelInfo(0, 0);
+
+        FetchedChannelState state;
+        try (TestSpillWriter writer = new TestSpillWriter(tempDir)) {
+            writer.writePassThrough(ch, bytes(1, 2, 3, 4, 5, 6, 7, 8), 0, 8);
+            state = writer.getChannelState();
+        }
+
+        try (FetchedChannelStateReader root = state.reader()) {
+            // Before anything is committed: start of the first file, no resume segment.
+            FetchedChannelStateSnapshot atStart = root.snapshot();
+            assertThat(atStart.fileIndex()).isZero();
+            assertThat(atStart.readOffset()).isZero();
+            assertThat(atStart.channel()).isNull();
+            assertThat(atStart.remaining()).isZero();
+
+            SpillSegment seg = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
+            InputStream body = seg.bodyStream();
+            assertThat(body.read(new byte[3])).isEqualTo(3);
+            seg.commit();
+
+            // Boundary inside the body: the channel and its remainder travel with the snapshot.
+            FetchedChannelStateSnapshot midBody = root.snapshot();
+            assertThat(midBody.channel()).isEqualTo(ch);
+            assertThat(midBody.remaining()).isEqualTo(5);
+
+            readAll(body);
+            seg.commit();
+
+            // Boundary on a header (here: end of the last segment): no resume segment again.
+            FetchedChannelStateSnapshot atHeader = root.snapshot();
+            assertThat(atHeader.channel()).isNull();
+            assertThat(atHeader.remaining()).isZero();
+        }
+    }
+
+    @Test
     void testSnapshotResumesPartialSegmentAcrossFileBoundary() throws Exception {
         InputChannelInfo c0 = new InputChannelInfo(0, 0);
         InputChannelInfo c1 = new InputChannelInfo(0, 1);

@@ -41,37 +41,35 @@ import static org.apache.flink.util.Preconditions.checkState;
  * The single {@link FetchedChannelStateReader} implementation over a {@link FetchedChannelState}'s
  * spill files.
  *
- * <p>Reading is strictly sequential and never seeks mid-iteration. There is exactly one place that
- * skips bytes: the very first {@link #advanceAndGetNextSegment()} call, where a snapshot reader
- * started mid-body discards the already-delivered prefix to land on the not-yet-delivered
- * remainder. Every later call does no skipping at all — the previous body was read to its end, so
- * the stream already sits on the next segment's header. This "skip only on first positioning" rule
- * is what keeps the steady-state path free of any seek/skip.
+ * <p>Reading is strictly sequential: the stream is positioned once when a file is opened and then
+ * only moves forward. A snapshot that resumes inside a segment body starts right at the boundary —
+ * the segment's channel and remaining length come from the snapshot itself, so no header is re-read
+ * and no prefix is skipped.
  *
- * <p>The reader holds <b>two</b> {@link Position}s and nothing else duplicates them:
- *
- * <ul>
- *   <li>{@code current} — the live read position; its {@code readOffset} is exactly where the open
- *       file stream sits, advancing as the header and the consumer's body reads consume bytes (the
- *       latter outside the drainer lock).
- *   <li>{@code committed} — the delivered boundary; {@link SpillSegment#commit()} advances it from
- *       {@code current} (under the drainer lock). {@link #snapshot()} derives a new reader from it.
- * </ul>
+ * <p>The reader tracks two {@link Position}s of the same shape — the values a {@link
+ * FetchedChannelStateSnapshot} is made of: {@code current}, the live read position, and {@code
+ * committed}, the delivered boundary that {@link SpillSegment#commit()} publishes from it under the
+ * drainer lock.
  *
  * <p>The "previous body fully read before advancing" rule is checked at the {@link
- * #advanceAndGetNextSegment()} entry (the first call is exempt — there is no previous segment).
- * Body ownership is handed to the consumer, so the reader does not track body progress except
- * through {@code current}.
+ * #advanceAndGetNextSegment()} entry. Body ownership is handed to the consumer, so the reader does
+ * not track body progress except through {@code current}.
  */
 @Internal
 final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
     private final FetchedChannelStateSnapshot snapshot;
 
-    /** Live read position; {@code readOffset} is where the open stream physically sits. */
+    /**
+     * The live read position: the file being read and the exact byte offset within it. It runs
+     * ahead of the committed boundary by what the drainer has read from disk but not yet handed to
+     * a channel (at most one recovery buffer) — reads happen outside the drainer lock, delivery and
+     * commit inside it. A checkpoint therefore cuts at the committed boundary: what is already in
+     * the channel queue is persisted from the channel side, everything after it is re-read from the
+     * spill files.
+     */
     private final Position current;
 
-    /** Delivered boundary; {@link SpillSegment#commit()} advances it from {@link #current}. */
     private final Position committed;
 
     /** Open stream over {@code current.fileIndex}, or {@code null} before the first read. */
@@ -88,76 +86,52 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
     FetchedChannelStateReaderImpl(FetchedChannelStateSnapshot snapshot) {
         this.snapshot = snapshot;
-        // Must copy the position so that this reader's commits do not mutate the snapshot's state.
-        this.committed = snapshot.position().copy();
-        this.current = committed.copy();
+        this.current =
+                new Position(
+                        snapshot.fileIndex(),
+                        snapshot.readOffset(),
+                        snapshot.channel(),
+                        snapshot.remaining());
+        this.committed = current.copy();
     }
 
     @Override
     public Optional<SpillSegment> advanceAndGetNextSegment() {
         checkState(!closed, "FetchedChannelStateReader is closed");
         checkState(
-                currentBody == null || currentBody.remaining() == 0,
+                !positioned || current.remaining == 0,
                 "Previous segment body not fully consumed before advancing: %s bytes left",
-                currentBody == null ? 0 : currentBody.remaining());
+                current.remaining);
         try {
             if (!positioned) {
                 positioned = true;
-                return firstSegment();
+                if (current.channel != null) {
+                    return resumedSegment();
+                }
             }
-            return followingSegment();
+            return nextSegmentAtHeader();
         } catch (IOException e) {
             throw new RuntimeException("Failed to read segment", e);
         }
     }
 
     /**
-     * First positioning — the only path that may skip bytes. Opens the file at the committed header
-     * offset and reads the header. A snapshot may resume in the middle of a segment: the committed
-     * {@code readOffset} says how many body bytes were already delivered, and that prefix is
-     * skipped so the returned body starts at the not-yet-delivered remainder. If the segment was
-     * already fully delivered (prefix == whole body), it is exhausted here and we move on to the
-     * next one.
+     * Resume path, taken once by a snapshot reader whose start offset sits inside a body: the
+     * channel and the remaining length come from the snapshot, so nothing is re-read or skipped.
      */
-    private Optional<SpillSegment> firstSegment() throws IOException {
-        // The committed read offset may sit mid-body (after a partial commit), but the header lives
-        // at segmentStartOffset. Capture how much was already delivered, then rewind the live read
-        // offset to the header so we open the file there and read the header, not mid-body.
-        int deliveredPrefix = (int) current.deliveredBodyBytes();
-        current.rewindToSegmentStart();
-
-        if (!openCurrentFile()) {
-            return Optional.empty();
-        }
-        SegmentHeader header = readHeaderAtCurrent();
-        checkState(
-                deliveredPrefix <= header.bufferLength,
-                "Delivered offset %s exceeds segment length %s",
-                deliveredPrefix,
-                header.bufferLength);
-
-        if (deliveredPrefix == header.bufferLength) {
-            // This segment was already fully delivered before the snapshot; nothing remains in it.
-            // Skip its whole body to reach the next segment's header, then take the steady path.
-            skipBody(header.bufferLength);
-            return followingSegment();
-        }
-
-        skipBody(deliveredPrefix);
-        currentBody =
-                new BoundedSegmentStream(header.bufferLength - deliveredPrefix, deliveredPrefix);
-        return Optional.of(new Segment(header.channelInfo, currentBody));
+    private Optional<SpillSegment> resumedSegment() throws IOException {
+        openFileAndSeek();
+        currentBody = new BoundedSegmentStream(current.remaining);
+        return Optional.of(new Segment(current.channel, currentBody));
     }
 
-    /**
-     * Steady-state path — no skipping: the previous body was read to its end, so the stream already
-     * sits on this segment's header.
-     */
-    private Optional<SpillSegment> followingSegment() throws IOException {
+    /** Steady path: the stream sits on a segment header; read it and hand out the whole body. */
+    private Optional<SpillSegment> nextSegmentAtHeader() throws IOException {
         if (!openCurrentFile()) {
             return Optional.empty();
         }
         SegmentHeader header = readHeaderAtCurrent();
+        current.startSegment(header.channelInfo, header.bufferLength);
         currentBody = new BoundedSegmentStream(header.bufferLength);
         return Optional.of(new Segment(header.channelInfo, currentBody));
     }
@@ -165,7 +139,12 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     @Override
     public FetchedChannelStateSnapshot snapshot() {
         checkState(!closed, "FetchedChannelStateReader is closed");
-        return new FetchedChannelStateSnapshot(snapshot.channelState(), committed.copy());
+        return new FetchedChannelStateSnapshot(
+                snapshot.channelState(),
+                committed.fileIndex,
+                committed.readOffset,
+                committed.channel,
+                committed.remaining);
     }
 
     @Override
@@ -194,9 +173,6 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      * Ensures a file is open with the stream positioned at {@code current}'s read offset, ready to
      * read this segment's header. Rolls to the next file when the current one is exhausted. Returns
      * false when no segment remains.
-     *
-     * <p>{@code current.segmentStartOffset} is set to where the header begins, so a later {@link
-     * SpillSegment#commit()} records the right segment for the snapshot to resume from.
      */
     private boolean openCurrentFile() throws IOException {
         if (current.fileIndex >= files().size()) {
@@ -204,7 +180,6 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         }
         openFileAndSeek();
         if (current.readOffset < currentFileSize) {
-            current.startSegmentHere();
             return true;
         }
         // Current file fully read: move to the next file's first segment.
@@ -214,11 +189,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
             return false;
         }
         openFileAndSeek();
-        if (current.readOffset < currentFileSize) {
-            current.startSegmentHere();
-            return true;
-        }
-        return false;
+        return current.readOffset < currentFileSize;
     }
 
     /** Reads the 12-byte header at the current read offset; advances past it. */
@@ -259,14 +230,6 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         currentFileStream = in;
     }
 
-    /** Skips {@code count} body bytes on the open stream, advancing the read offset. */
-    private void skipBody(long count) throws IOException {
-        if (count > 0) {
-            skipOnStream(currentFileStream, count);
-            current.advanceReadOffset(count);
-        }
-    }
-
     /** Skips exactly {@code count} bytes on {@code in}, failing loud if the file ends early. */
     private void skipOnStream(InputStream in, long count) throws IOException {
         long skipped = 0;
@@ -293,11 +256,14 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         current.advanceReadOffset(buf.length);
     }
 
-    /** Reads up to {@code len} body bytes from the current file; called only by the body view. */
+    /**
+     * Reads up to {@code len} body bytes from the current file; called only by the body view. The
+     * only place body progress moves, so {@code readOffset} and {@code remaining} cannot drift.
+     */
     private int readBody(byte[] buf, int off, int len) throws IOException {
         int n = currentFileStream.read(buf, off, len);
         if (n > 0) {
-            current.advanceReadOffset(n);
+            current.advanceBody(n);
         }
         return n;
     }
@@ -310,93 +276,64 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     }
 
     // -------------------------------------------------------------------------------------------
-    // Position: the three progress values locating where a snapshot resumes
+    // Position: where the open stream sits
     // -------------------------------------------------------------------------------------------
 
     /**
-     * One progress point, expressed with the three values that fully locate where a snapshot
-     * resumes. The reader holds two of these: {@code current} (live read position) and {@code
-     * committed} (delivered boundary). They are the same shape but different in meaning; neither
-     * keeps a shadow copy of the other.
-     *
-     * <ul>
-     *   <li>{@code fileIndex} — file holding the current segment.
-     *   <li>{@code segmentStartOffset} — byte offset of the current segment's header. A snapshot
-     *       reads the segment metadata (channel, full body length) from here, because the segment
-     *       may already be partially delivered yet the snapshot still needs the whole-segment
-     *       header.
-     *   <li>{@code readOffset} — for {@code current}, exactly where the open stream sits (the live
-     *       read offset); for {@code committed}, the delivered boundary. For a brand-new segment
-     *       {@code readOffset == segmentStartOffset} (header not yet passed); after the header and
-     *       n body bytes it is {@code segmentStartOffset + SEGMENT_HEADER_BYTES + n}.
-     * </ul>
+     * A point in the spill files, in the four values a {@link FetchedChannelStateSnapshot} is made
+     * of: {@code channel} is null exactly when {@code readOffset} sits on a segment header, and
+     * non-null while a body is in flight, {@code remaining} being what is left of it.
      */
     static final class Position {
         private int fileIndex;
-        private long segmentStartOffset;
         private long readOffset;
+        @Nullable private InputChannelInfo channel;
+        private int remaining;
 
-        Position(int fileIndex, long segmentStartOffset, long readOffset) {
+        Position(
+                int fileIndex, long readOffset, @Nullable InputChannelInfo channel, int remaining) {
             this.fileIndex = fileIndex;
-            this.segmentStartOffset = segmentStartOffset;
             this.readOffset = readOffset;
-        }
-
-        static Position atStart() {
-            return new Position(0, 0L, 0L);
+            this.channel = channel;
+            this.remaining = remaining;
         }
 
         Position copy() {
-            return new Position(fileIndex, segmentStartOffset, readOffset);
+            return new Position(fileIndex, readOffset, channel, remaining);
         }
 
-        /**
-         * Already-delivered body bytes of the current segment, clamped to 0 before the header is
-         * crossed (where {@code readOffset <= segmentStartOffset}). Only the first-positioning path
-         * uses it, to size the prefix a snapshot must discard.
-         */
-        long deliveredBodyBytes() {
-            return Math.max(0L, readOffset - segmentStartOffset - SEGMENT_HEADER_BYTES);
+        /** Publishes {@code other} into this position (used by commit). */
+        void copyFrom(Position other) {
+            fileIndex = other.fileIndex;
+            readOffset = other.readOffset;
+            channel = other.channel;
+            remaining = other.remaining;
         }
 
-        /** Advances the live read offset by {@code delta} bytes just read/skipped. */
+        /** Advances past the {@code delta} header bytes just read; no body is in flight. */
         void advanceReadOffset(long delta) {
             readOffset += delta;
         }
 
-        /**
-         * Rewinds the live read offset back to the current segment's header. Used only on first
-         * positioning: a snapshot's committed offset may sit mid-body, but the header must be read
-         * first, so the read offset returns to {@code segmentStartOffset} before opening the file.
-         */
-        void rewindToSegmentStart() {
-            readOffset = segmentStartOffset;
+        /** Enters the body of a freshly read segment header. */
+        void startSegment(InputChannelInfo segmentChannel, int bodyLength) {
+            channel = segmentChannel;
+            remaining = bodyLength;
         }
 
-        /**
-         * Marks the current read offset as the start of the segment about to be read (its header
-         * begins here). Called right before reading a header.
-         */
-        void startSegmentHere() {
-            segmentStartOffset = readOffset;
+        /** Accounts for {@code n} body bytes handed to the consumer. */
+        void advanceBody(int n) {
+            readOffset += n;
+            remaining -= n;
+            if (remaining == 0) {
+                channel = null;
+            }
         }
 
         /** Rolls to the start of the next file once the current one is exhausted. */
         void rollToNextFile() {
             fileIndex++;
-            segmentStartOffset = 0L;
             readOffset = 0L;
-        }
-
-        /**
-         * Copies this position into {@code target} but pins {@code target}'s read offset to {@code
-         * deliveredBody} body bytes of the current segment — i.e. {@code commit} records "delivered
-         * up to here", not "physically read up to here".
-         */
-        void copyAsDelivered(Position target, long deliveredBody) {
-            target.fileIndex = fileIndex;
-            target.segmentStartOffset = segmentStartOffset;
-            target.readOffset = segmentStartOffset + SEGMENT_HEADER_BYTES + deliveredBody;
         }
     }
 
@@ -445,54 +382,28 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
         @Override
         public void commit() {
-            current.copyAsDelivered(committed, body.deliveredFromSegmentHead());
+            committed.copyFrom(current);
         }
     }
 
     /**
-     * A forward-only, bounded view over one segment's not-yet-delivered body remainder. It hands
-     * out {@code remainingLength} bytes and reaches EOF after them; it never reads into the next
-     * segment or file. The underlying stream is already positioned at the first byte this view
-     * hands out (the prefix, if any, was skipped before construction). If the file ends before the
-     * segment end, an {@link EOFException} is thrown (fail-loud). Closing this view does not close
-     * the underlying file; the reader owns it.
+     * A forward-only, bounded view over the body bytes this reader still has to hand out for one
+     * segment. The bound is {@code current.remaining}, so the view keeps no counter of its own; it
+     * reaches EOF there and never reads into the next segment or file. If the file ends first, an
+     * {@link EOFException} is thrown (fail-loud). Closing this view does not close the underlying
+     * file; the reader owns it.
      */
     private final class BoundedSegmentStream extends InputStream {
 
-        /**
-         * Body bytes already delivered before this view (the skipped prefix); 0 for the drain
-         * reader.
-         */
-        private final int alreadyDelivered;
+        private final int length;
 
-        private final int remainingLength;
-        private int read;
-
-        private BoundedSegmentStream(int remainingLength) {
-            this(remainingLength, 0);
+        private BoundedSegmentStream(int length) {
+            this.length = length;
         }
 
-        private BoundedSegmentStream(int remainingLength, int alreadyDelivered) {
-            this.remainingLength = remainingLength;
-            this.alreadyDelivered = alreadyDelivered;
-        }
-
-        /** Body bytes not yet handed out (between the read position and the segment end). */
-        int remaining() {
-            return remainingLength - read;
-        }
-
-        /** Number of body bytes this view will hand out: the not-yet-delivered remainder. */
+        /** Number of body bytes this view will hand out. */
         int deliverableLength() {
-            return remainingLength;
-        }
-
-        /**
-         * Total delivered body bytes measured from the segment head: the skipped prefix plus what
-         * has been read through this view. This is what {@link Segment#commit()} records.
-         */
-        int deliveredFromSegmentHead() {
-            return alreadyDelivered + read;
+            return length;
         }
 
         @Override
@@ -504,20 +415,20 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
         @Override
         public int read(byte[] buf, int off, int len) throws IOException {
-            if (read >= remainingLength) {
+            checkState(currentBody == this, "Reading a segment that is no longer the current one");
+            if (current.remaining == 0) {
                 return -1;
             }
-            int toRead = Math.min(len, remainingLength - read);
+            int toRead = Math.min(len, current.remaining);
             int n = readBody(buf, off, toRead);
             if (n < 0) {
                 throw new EOFException(
                         "Unexpected EOF in segment body after "
-                                + read
+                                + (length - current.remaining)
                                 + "/"
-                                + remainingLength
+                                + length
                                 + " bytes");
             }
-            read += n;
             return n;
         }
 
