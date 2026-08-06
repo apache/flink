@@ -1554,19 +1554,19 @@ A `VARIANT` has no dedicated kind for these values. To keep one, store it as a J
 it back out, for example `CAST(CAST(PARSE_JSON('"Infinity"') AS STRING) AS FLOAT)`.
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
-the target holds the stored value without altering it, so a value is never wrapped, rounded,
-truncated, or padded to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
+the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
+to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
 
-| Stored kind     | Succeeds for                                         |
-|-----------------|------------------------------------------------------|
-| numeric kinds   | any numeric target that holds the value              |
-| `BOOLEAN`       | `BOOLEAN`                                            |
-| `DATE`          | `DATE`                                               |
-| `TIMESTAMP`     | `TIMESTAMP(p)` that keeps the fractional seconds     |
-| `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)` that keeps the fractional seconds |
-| `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string   |
-| any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                    |
-| `NULL`          | SQL `NULL` for any nullable target                   |
+| Stored kind     | Succeeds for                                        |
+|-----------------|-----------------------------------------------------|
+| numeric kinds   | any numeric target that holds the value             |
+| `BOOLEAN`       | `BOOLEAN`                                           |
+| `DATE`          | `DATE`                                              |
+| `TIMESTAMP`     | `TIMESTAMP(p)`                                      |
+| `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`                                  |
+| `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string |
+| any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                   |
+| `NULL`          | SQL `NULL` for any nullable target                  |
 
 The conditions above mean:
 
@@ -1577,10 +1577,9 @@ The conditions above mean:
   `42` reaches `DECIMAL(5, 2)` as `42.00`, but a scale that would have to round is rejected.
 - **`FLOAT`** and **`DOUBLE`** are approximate by definition, so they take any numeric kind and drop
   decimal digits, rejecting only a magnitude out of range such as `1e40` to a `FLOAT`.
-- **fractional seconds** have to survive the target precision. A variant keeps microseconds, so
-  `.123` reaches `TIMESTAMP(3)` while `.123456` does not.
-- **`CHAR(n)`** and **`BINARY(n)`** require the exact length, **`VARCHAR(n)`** and **`VARBINARY(n)`**
-  at most `n`. Nothing is padded or truncated.
+- A **length or precision** is adjusted the same way a regular cast into that type would: a value
+  longer than the target is trimmed, fractional seconds beyond the target precision are truncated,
+  and the fixed width types `CHAR(n)` and `BINARY(n)` pad a shorter value.
 
 To reach a type the table does not list, wrap the cast in a regular cast. Only the inner cast is a
 `VARIANT` cast, so the outer one applies the usual rules and may round, truncate, or overflow:

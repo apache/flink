@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.variant.Variant;
@@ -29,18 +31,22 @@ import org.apache.flink.types.variant.Variant;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.TimeZone;
 
 /**
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
  *
- * <p>A cast succeeds only when the target holds the stored value without altering it, so a value is
- * never wrapped, rounded, truncated, or padded to make it fit. Any numeric kind therefore reaches
- * an integer target as long as the value is integral and in range. {@code FLOAT} and {@code DOUBLE}
- * are the exception to exactness: they are approximate by definition, so they accept any numeric
- * kind and reject only a magnitude they cannot represent at all.
+ * <p>A cast never reinterprets the stored value: one kind is not read as another, and a numeric
+ * value is never wrapped or rounded to make it fit. Any numeric kind therefore reaches an integer
+ * target as long as the value is integral and in range. {@code FLOAT} and {@code DOUBLE} are the
+ * exception to exactness: they are approximate by definition, so they accept any numeric kind and
+ * reject only a magnitude they cannot represent at all.
+ *
+ * <p>A length or a precision is not part of the value in that sense, so it follows the rules of a
+ * regular cast into the same type. A value longer than the target is trimmed, fractional seconds
+ * beyond the target precision are truncated, and the fixed width targets {@code CHAR(n)} and {@code
+ * BINARY(n)} pad a shorter value.
  */
 @Internal
 public final class VariantCastUtils {
@@ -175,15 +181,15 @@ public final class VariantCastUtils {
 
     /**
      * Reads a timestamp variant as the target {@code TIMESTAMP}. A variant keeps microseconds, so
-     * the value is accepted only when its fractional seconds fit the target precision.
+     * fractional seconds beyond the target precision are truncated, the same as a regular {@code
+     * TIMESTAMP} to {@code TIMESTAMP(p)} cast.
      */
     public static TimestampData toTimestamp(Variant variant, int precision) {
         if (variant.getType() != Variant.Type.TIMESTAMP) {
             throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
         }
-        final LocalDateTime value = variant.getDateTime();
-        checkFractionFits(value.getNano(), precision, value, "TIMESTAMP");
-        return TimestampData.fromLocalDateTime(value);
+        return DateTimeUtils.truncate(
+                TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
     }
 
     /** Reads a timestamp with local time zone variant. See {@link #toTimestamp(Variant, int)}. */
@@ -191,33 +197,28 @@ public final class VariantCastUtils {
         if (variant.getType() != Variant.Type.TIMESTAMP_LTZ) {
             throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
         }
-        final Instant value = variant.getInstant();
-        checkFractionFits(value.getNano(), precision, value, "TIMESTAMP_LTZ");
-        return TimestampData.fromInstant(value);
+        return DateTimeUtils.truncate(TimestampData.fromInstant(variant.getInstant()), precision);
     }
 
     /**
-     * Reads a binary variant, enforcing {@code targetLength} strictly with no padding or truncation
-     * ({@code BINARY} requires an exact length, {@code VARBINARY} an upper bound).
+     * Reads a binary variant as the target binary type. {@code BINARY} is fixed width, so a shorter
+     * value is padded with zero bytes, and either target truncates a value longer than {@code
+     * targetLength}. This matches a regular cast into the same type.
      */
     public static byte[] toBytes(Variant variant, int targetLength, boolean fixedLength) {
         final byte[] value = variant.getBytes();
-        final boolean fits =
-                fixedLength ? value.length == targetLength : value.length <= targetLength;
-        if (!fits) {
-            throw new TableRuntimeException(
-                    String.format(
-                            "The VARIANT binary value of length %d does not fit %s(%d); VARIANT "
-                                    + "casts do not pad or truncate.",
-                            value.length, fixedLength ? "BINARY" : "VARBINARY", targetLength));
+        if (fixedLength) {
+            return value.length == targetLength ? value : Arrays.copyOf(value, targetLength);
         }
-        return value;
+        return value.length <= targetLength ? value : Arrays.copyOf(value, targetLength);
     }
 
     /**
      * Casts a scalar {@code VARIANT} to a character string, rendering the value the way a regular
-     * SQL cast of the stored kind would. {@code targetLength} is enforced strictly with no padding
-     * or truncation ({@code CHAR} requires an exact length, {@code VARCHAR} an upper bound).
+     * SQL cast of the stored kind would. A value longer than {@code targetLength} is trimmed, and a
+     * {@code CHAR} target pads a shorter value to its fixed width. Both are measured in code
+     * points, so a character outside the BMP fills a single position even though it occupies two
+     * UTF-16 units.
      *
      * <p>A stored binary value has to be well-formed UTF-8, since a character string cannot carry
      * bytes that no character maps to. Invalid input is rejected rather than decoded into {@code
@@ -225,8 +226,28 @@ public final class VariantCastUtils {
      *
      * @param sessionZone the session time zone, applied to a {@code TIMESTAMP_LTZ} value
      */
-    public static String toStringValue(
+    public static BinaryStringData toStringValue(
             Variant variant, TimeZone sessionZone, int targetLength, boolean charTarget) {
+        final String value = getVariantTypeAsString(variant, sessionZone, targetLength, charTarget);
+        // numChars and substring both count code points, so a character outside the BMP fills one
+        // position rather than the two UTF-16 units it occupies.
+        final BinaryStringData result = BinaryStringData.fromString(value);
+        final int length = result.numChars();
+        if (length > targetLength) {
+            return result.substring(0, targetLength);
+        }
+        if (charTarget && length < targetLength) {
+            return BinaryStringDataUtil.concat(
+                    result, BinaryStringData.blankString(targetLength - length));
+        }
+        return result;
+    }
+
+    private static String getVariantTypeAsString(
+            final Variant variant,
+            final TimeZone sessionZone,
+            final int targetLength,
+            final boolean charTarget) {
         final String value;
         switch (variant.getType()) {
             case BOOLEAN:
@@ -302,15 +323,6 @@ public final class VariantCastUtils {
                                         + "JSON_STRING function to obtain its JSON representation.",
                                 variant.getType()));
         }
-        final boolean fits =
-                charTarget ? value.length() == targetLength : value.length() <= targetLength;
-        if (!fits) {
-            throw new TableRuntimeException(
-                    String.format(
-                            "The VARIANT string value of length %d does not fit %s; VARIANT string "
-                                    + "casts do not pad or truncate.",
-                            value.length(), characterTarget(targetLength, charTarget)));
-        }
         return value;
     }
 
@@ -330,18 +342,6 @@ public final class VariantCastUtils {
                 return (Number) variant.get();
             default:
                 throw unsupportedKind(variant, targetType);
-        }
-    }
-
-    private static void checkFractionFits(
-            int nanos, int precision, Object value, String targetType) {
-        // A precision of p keeps the first p fractional digits, so the remaining ones must be zero.
-        long unit = 1;
-        for (int i = precision; i < 9; i++) {
-            unit *= 10;
-        }
-        if (nanos % unit != 0) {
-            throw lossyCast(value, String.format("%s(%d)", targetType, precision));
         }
     }
 

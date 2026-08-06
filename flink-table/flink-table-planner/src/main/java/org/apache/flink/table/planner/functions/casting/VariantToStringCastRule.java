@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -25,6 +26,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
@@ -40,13 +42,15 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.sta
  * it to {@code BYTES} to inspect the raw value, or wrap that in {@code MAKE_VALID_UTF8} to accept
  * the lenient decode explicitly.
  *
- * <p>The target {@code CHAR}/{@code VARCHAR} length is enforced strictly: a value that does not fit
- * fails {@code CAST} and yields {@code null} for {@code TRY_CAST}, with no padding or truncation.
+ * <p>A value that does not fit a {@code CHAR(n)} or {@code VARCHAR(n)} target is trimmed, and a
+ * {@code CHAR} target pads a shorter value to its fixed width. The length is enforced here rather
+ * than by {@link CharVarCharTrimPadCastRule}, so that a variant storing a JSON {@code null} still
+ * reaches SQL {@code NULL} and so that trimming counts code points rather than UTF-16 units.
  *
  * <p>Printing a result is not a cast and cannot fail, so it renders every variant as JSON rather
  * than extracting the scalar value. A stored string therefore prints quoted.
  */
-class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant> {
+class VariantToStringCastRule extends AbstractExpressionCodeGeneratorCastRule<Variant, StringData> {
 
     static final VariantToStringCastRule INSTANCE = new VariantToStringCastRule();
 
@@ -87,15 +91,16 @@ class VariantToStringCastRule extends AbstractCharacterFamilyTargetRule<Variant>
     }
 
     @Override
-    public String generateStringExpression(
+    public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         if (context.isPrinting()) {
             // Every result has to be displayable, including an object or an array, which have no
-            // scalar rendering and would fail the cast.
-            return methodCall(inputTerm, "toJson");
+            // scalar rendering and would fail the cast. toJson returns a String, so it needs the
+            // wrap that toStringValue applies itself.
+            return staticCall(BINARY_STRING_DATA_FROM_STRING(), methodCall(inputTerm, "toJson"));
         }
         return staticCall(
                 VariantCastUtils.class,
