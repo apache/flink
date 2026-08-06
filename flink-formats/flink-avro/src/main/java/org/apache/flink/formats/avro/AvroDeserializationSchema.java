@@ -198,7 +198,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             if (encoding == AvroEncoding.JSON) {
                 this.decoder = DecoderFactory.get().jsonDecoder(getReaderSchema(), inputStream);
             } else {
-                this.decoder = DecoderFactory.get().binaryDecoder(inputStream, this.decoder);
+                // Rebuild the BinaryDecoder bound to the input stream. The pooled
+                // decoder is discarded (passing null as reuse) so a poisoned internal
+                // buffer cannot leak into the next message.
+                this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
             }
         } catch (IOException e) {
             // jsonDecoder only throws on schema/input issues that cannot occur here
