@@ -558,7 +558,7 @@ public class SqlJsonUtils {
             return "ARRAY";
         } else if (val == null) {
             // JSON null, distinct from the SQL NULL returned for invalid input.
-            return "NULL";
+            return null;
         }
         return null;
     }
