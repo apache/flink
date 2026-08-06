@@ -490,6 +490,15 @@ object BuiltInMethods {
     classOf[Any]
   )
 
+  val JSON_LENGTH =
+    Types.lookupMethod(classOf[SqlJsonUtils], "jsonLength", classOf[SqlJsonUtils.JsonValueContext])
+
+  val JSON_LENGTH_PATH = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "jsonLength",
+    classOf[SqlJsonUtils.JsonValueContext],
+    classOf[String])
+
   val JSON_QUERY = Types.lookupMethod(
     classOf[SqlJsonUtils],
     "jsonQuery",
