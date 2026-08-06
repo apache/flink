@@ -95,6 +95,9 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                     "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
         }
 
+        // Apply parallelism overrides after StreamGraph -> JobGraph conversion
+        ParallelismOverrideUtil.applyParallelismOverrides(jobGraph, jobMasterConfiguration);
+
         final SlotPool slotPool =
                 slotPoolService
                         .castInto(SlotPool.class)

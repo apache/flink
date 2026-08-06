@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.event.ExecutionJobVertexFinishedEvent;
@@ -250,7 +251,10 @@ class DefaultAdaptiveExecutionHandlerTest {
             throws DynamicCodeLoadingException {
         DefaultAdaptiveExecutionHandler handler =
                 new DefaultAdaptiveExecutionHandler(
-                        getClass().getClassLoader(), streamGraph, EXECUTOR_RESOURCE.getExecutor());
+                        getClass().getClassLoader(),
+                        streamGraph,
+                        EXECUTOR_RESOURCE.getExecutor(),
+                        new Configuration());
         handler.registerJobGraphUpdateListener(listener);
 
         return handler;
