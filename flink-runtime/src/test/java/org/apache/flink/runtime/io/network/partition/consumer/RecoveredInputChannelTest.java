@@ -24,12 +24,18 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.memory.MemoryManager;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -38,6 +44,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RecoveredInputChannel}. */
 class RecoveredInputChannelTest {
+
+    private NetworkBufferPool pool;
+
+    @AfterEach
+    void tearDown() {
+        if (pool != null) {
+            pool.destroy();
+            pool = null;
+        }
+    }
 
     @Test
     void testRequestPartitionsImpossible() {
@@ -71,7 +87,7 @@ class RecoveredInputChannelTest {
         assertThat(channel.getStateConsumedFuture()).isNotDone();
 
         // Conversion fails because the sentinel is still queued.
-        assertThatThrownBy(() -> channel.toInputChannel(false))
+        assertThatThrownBy(() -> channel.toInputChannel(true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Received buffer should be empty");
 
@@ -92,32 +108,9 @@ class RecoveredInputChannelTest {
         channel.onRecoveredStateBuffer(BufferBuilderTestUtils.buildSomeBuffer());
         channel.finishReadRecoveredState();
 
-        assertThatThrownBy(() -> channel.toInputChannel(false))
+        assertThatThrownBy(() -> channel.toInputChannel(true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Received buffer should be empty");
-    }
-
-    @Test
-    void testToInputChannelPushesQueuedBuffersWhenNeedsRecovery() throws IOException {
-        // FLINK-38544 transitional: removed when the spilling backend lands (recovered state then
-        // goes to disk, the queue is always empty at conversion, and toInputChannel(true) asserts
-        // emptiness instead of pushing).
-        TestableRecoveredInputChannel channel = buildTestableChannel(true);
-
-        channel.onRecoveredStateBuffer(BufferBuilderTestUtils.buildSomeBuffer(42));
-        channel.finishReadRecoveredState();
-
-        TestInputChannel converted = (TestInputChannel) channel.toInputChannel(true);
-
-        // The queued data buffer is handed over through the push interface and the legacy
-        // EndOfInputChannelStateEvent is dropped in translation. The EndOfFetchedChannelStateEvent
-        // sentinel is deliberately NOT appended here: the StreamTask recovery chain appends it via
-        // finishRecoveredBufferDelivery() on the channel IO executor after partitions have been
-        // requested (the sentinel must not become consumable before upstream readiness).
-        assertThat(converted.getRecoveredBuffersSpy()).hasSize(1);
-        Buffer data = converted.getRecoveredBuffersSpy().pollFirst();
-        assertThat(data.isBuffer()).isTrue();
-        assertThat(data.getSize()).isEqualTo(42);
     }
 
     @Test
@@ -164,6 +157,82 @@ class RecoveredInputChannelTest {
         } catch (Exception e) {
             throw new AssertionError("channel creation failed", e);
         }
+    }
+
+    @Test
+    void testBufferPoolExhaustedBlocksRatherThanHeapAllocate() throws Exception {
+        int totalSegments = 4;
+        pool = new NetworkBufferPool(totalSegments, MemoryManager.DEFAULT_PAGE_SIZE);
+        RecoveredInputChannel channel = buildPooledChannel(pool, totalSegments);
+
+        for (int i = 0; i < totalSegments; i++) {
+            channel.requestBufferBlocking();
+        }
+
+        CountDownLatch entered = new CountDownLatch(1);
+        AtomicReference<Buffer> result = new AtomicReference<>();
+        Thread blocker =
+                new Thread(
+                        () -> {
+                            try {
+                                entered.countDown();
+                                result.set(channel.requestBufferBlocking());
+                            } catch (Exception ignored) {
+                                // Thread will be interrupted at teardown.
+                            }
+                        },
+                        "blocking-requester");
+        blocker.start();
+
+        assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+        Thread.sleep(200);
+        assertThat(result.get()).as("buffer should not have been allocated").isNull();
+
+        blocker.interrupt();
+        blocker.join(5_000);
+    }
+
+    @Test
+    void testFilterOnPathTakesSameRouteAsFilterOff() throws Exception {
+        int exclusivePerChannel = 1;
+        int totalSegments = 4;
+        pool = new NetworkBufferPool(totalSegments, MemoryManager.DEFAULT_PAGE_SIZE);
+
+        Buffer filterOnBuf = buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking();
+        Buffer filterOffBuf = buildPooledChannel(pool, exclusivePerChannel).requestBufferBlocking();
+
+        // Both must come from the pool — the BufferManager-owned recycler, not the
+        // FreeingBufferRecycler the heap-fallback used.
+        assertThat(filterOnBuf.getMemorySegment()).isNotNull();
+        assertThat(filterOffBuf.getMemorySegment()).isNotNull();
+        assertThat(filterOnBuf.getRecycler().getClass().getName())
+                .doesNotContain("FreeingBufferRecycler");
+        assertThat(filterOffBuf.getRecycler().getClass().getName())
+                .doesNotContain("FreeingBufferRecycler");
+
+        filterOnBuf.recycleBuffer();
+        filterOffBuf.recycleBuffer();
+    }
+
+    private RecoveredInputChannel buildPooledChannel(
+            NetworkBufferPool segmentProvider, int exclusivePerChannel) {
+        SingleInputGate inputGate =
+                new SingleInputGateBuilder().setSegmentProvider(segmentProvider).build();
+        return new RecoveredInputChannel(
+                inputGate,
+                0,
+                new ResultPartitionID(),
+                new ResultSubpartitionIndexSet(0),
+                0,
+                0,
+                new SimpleCounter(),
+                new SimpleCounter(),
+                exclusivePerChannel) {
+            @Override
+            protected InputChannel toInputChannelInternal(boolean needsRecovery) {
+                throw new AssertionError("not expected during this test");
+            }
+        };
     }
 
     /**
