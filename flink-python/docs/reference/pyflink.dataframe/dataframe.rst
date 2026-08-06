@@ -57,10 +57,6 @@ Transformations
 Results
 -------
 
-``to_pandas()`` executes the DataFrame and transfers every result row to the client. Use it only
-when the complete result fits in client memory. ``to_table()`` returns the exact underlying
-PyFlink Table without executing or copying it.
-
 .. currentmodule:: pyflink.dataframe
 
 .. autosummary::

@@ -685,22 +685,24 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             [Row(1, "Alice"), Row(2, "Bob")],
         )
 
-    def test_arrow_to_pandas_round_trip(self):
+    def test_pandas_to_pandas_round_trip(self):
         timestamp = datetime(2026, 1, 1, 0, 0, 0, 123000)
-        arrow_table = pa.table(
+        pdf = pd.DataFrame(
             {
-                "id": pa.array([1, 2], type=pa.int64()),
-                "ts": pa.array([timestamp, None], type=pa.timestamp("ms")),
+                "id": [0, 1, 2],
+                "ts": pd.Series([None, timestamp, None], dtype="datetime64[ms]"),
             }
         )
 
         result = (
-            pf.from_arrow(arrow_table)
+            pf.from_pandas(pdf)
+            .filter(pf.col("id") > 0)
             .with_column("id_plus_one", pf.col("id") + 1)
+            .select("id", "id_plus_one", "ts")
             .to_pandas()
         )
 
-        self.assertEqual(list(result.columns), ["id", "ts", "id_plus_one"])
+        self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
         self.assertEqual(result["id"].tolist(), [1, 2])
         self.assertEqual(result["id_plus_one"].tolist(), [2, 3])
         self.assertEqual(result["ts"].isna().tolist(), [False, True])
