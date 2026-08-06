@@ -164,6 +164,9 @@ class CastRulesTest {
     /** A two-byte lead followed by a byte that is not a continuation byte. */
     private static final byte[] INVALID_UTF8 = new byte[] {(byte) 0xC3, (byte) 0x28};
 
+    /** U+1D54F, one code point but two UTF-16 units and four UTF-8 bytes. */
+    private static final String NON_BMP = "𝕏";
+
     private static final Variant VARIANT_ARRAY =
             Variant.newBuilder()
                     .array()
@@ -1626,6 +1629,38 @@ class CastRulesTest {
                         .fromCasePrinting(
                                 VARIANT(), Variant.newBuilder().of("foo"), fromString("\"foo\""))
                         .fromCasePrinting(VARIANT(), Variant.newBuilder().of(42), fromString("42")),
+                // A bounded character target pads and trims like any other cast into it, and its
+                // length counts code points, so a character outside the BMP fills one position
+                // even though it occupies two UTF-16 units.
+                CastTestSpecBuilder.testCastTo(CHAR(1))
+                        .fromCase(VARIANT(), Variant.newBuilder().of("x"), fromString("x"))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(), Variant.newBuilder().of("abcdefghij"), fromString("a")),
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        // shorter than the target, so it is padded to the fixed width
+                        .fromCase(VARIANT(), Variant.newBuilder().of("ab"), fromString("ab   "))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of("abcdefghij"),
+                                fromString("abcde")),
+                CastTestSpecBuilder.testCastTo(VARCHAR(2))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        // longer than the target, so it is trimmed rather than rejected, and a
+                        // variable width target is not padded
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        .fromCase(VARIANT(), Variant.newBuilder().of("a"), fromString("a")),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(VARIANT(), Variant.newBuilder().of(true), true)
                         .fromCase(VARIANT(), Variant.newBuilder().of(false), false)
@@ -1761,9 +1796,8 @@ class CastRulesTest {
                                 VARIANT(),
                                 Variant.newBuilder().of(Instant.ofEpochSecond(1_600_000_000L)),
                                 TableRuntimeException.class),
-                // A variant keeps microseconds, so a lower target precision is only allowed when
-                // the
-                // fractional seconds fit it. Truncating them away would change the value.
+                // A variant keeps microseconds, so fractional seconds beyond the target precision
+                // are truncated, matching a regular cast into a narrower TIMESTAMP.
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(3))
                         .fromCase(
                                 VARIANT(),
@@ -1776,17 +1810,19 @@ class CastRulesTest {
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)))
-                        .fail(
+                        .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder()
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
-                                TableRuntimeException.class),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(0))
-                        .fail(
+                        .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder()
                                         .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
-                                TableRuntimeException.class),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
                         .fromCase(
                                 VARIANT(),
@@ -1799,11 +1835,37 @@ class CastRulesTest {
                                 Variant.newBuilder().of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
                                 TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(3))
-                        .fail(
+                        .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder()
                                         .of(Instant.ofEpochSecond(1_600_000_000L, 123456000)),
-                                TableRuntimeException.class));
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123000000))),
+                // A binary target pads a shorter value and truncates a longer one, matching a
+                // regular cast into the same type.
+                CastTestSpecBuilder.testCastTo(BINARY(4))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4}),
+                                new byte[] {1, 2, 3, 4})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2}),
+                                new byte[] {1, 2, 0, 0})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}),
+                CastTestSpecBuilder.testCastTo(VARBINARY(4))
+                        // a variable width target is trimmed but never padded
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2}),
+                                new byte[] {1, 2})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}));
     }
 
     @TestFactory
