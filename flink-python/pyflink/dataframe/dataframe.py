@@ -442,6 +442,8 @@ class DataFrame:
         """
         Return the underlying PyFlink Table without copying or converting it.
 
+        This method does not trigger job execution.
+
         :return: The exact Table wrapped by this DataFrame.
 
         Example::
