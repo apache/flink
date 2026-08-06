@@ -16,7 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Any, Callable, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union, overload
+
+if TYPE_CHECKING:
+    import pandas
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
@@ -348,3 +351,41 @@ class DataFrame:
         """
         with self._table.execute().collect() as rows:
             return list(rows)
+
+    @PublicEvolving()
+    def to_table(self) -> Table:
+        """
+        Return the underlying PyFlink Table without copying or converting it.
+
+        :return: The exact Table wrapped by this DataFrame.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> table = table_env.from_elements([(1,)], ["id"])
+            >>> dataframe = pf.from_table(table)
+            >>> dataframe.to_table() is table
+            True
+
+        .. versionadded:: 2.4.0
+        """
+        return self._table
+
+    @PublicEvolving()
+    def to_pandas(self) -> "pandas.DataFrame":
+        """
+        Execute this DataFrame and collect its rows into a pandas DataFrame.
+
+        All results are transferred to the client and must fit in client memory.
+
+        :return: A pandas DataFrame containing all result rows.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> dataframe = pf.from_records([{"id": 1}, {"id": 2}])
+            >>> pdf = dataframe.to_pandas()
+
+        .. versionadded:: 2.4.0
+        """
+        return self._table.to_pandas()

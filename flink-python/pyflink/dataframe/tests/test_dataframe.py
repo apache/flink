@@ -17,8 +17,12 @@
 ################################################################################
 
 import unittest
+from datetime import datetime, timezone
+from unittest.mock import patch
 from typing import NamedTuple
 
+import pandas as pd
+import pyarrow as pa
 import pyflink.dataframe as pf
 from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
@@ -28,6 +32,7 @@ from pyflink.table import (
     TableEnvironment,
 )
 from pyflink.table.expression import Expression
+from pyflink.table.types import LocalZonedTimestampType, TimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkITTestCase,
@@ -77,6 +82,17 @@ class _Table:
         return _TableResult(self._iterator)
 
 
+class _PandasTable:
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+
+    def to_pandas(self):
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+
 class DataFrameCollectTests(unittest.TestCase):
     def test_collect_returns_all_rows_and_closes_iterator(self):
         iterator = _CloseableIterator([Row(1, "Alice")])
@@ -93,6 +109,24 @@ class DataFrameCollectTests(unittest.TestCase):
             dataframe.collect()
 
         self.assertTrue(iterator.closed)
+
+
+class DataFrameConversionTests(unittest.TestCase):
+    def test_to_table_returns_underlying_table(self):
+        table = _PandasTable()
+
+        self.assertIs(pf.DataFrame(table).to_table(), table)
+
+    def test_to_pandas_delegates_to_underlying_table(self):
+        expected = pd.DataFrame({"id": [1]})
+
+        self.assertIs(pf.DataFrame(_PandasTable(expected)).to_pandas(), expected)
+
+    def test_to_pandas_propagates_errors(self):
+        with self.assertRaisesRegex(RuntimeError, "conversion failed"):
+            pf.DataFrame(
+                _PandasTable(error=RuntimeError("conversion failed"))
+            ).to_pandas()
 
 
 class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
@@ -191,6 +225,126 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             ["y", "x"],
             [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
         )
+
+    def test_from_pandas_and_arrow_rename_columns_positionally(self):
+        inputs = [
+            pd.DataFrame(
+                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
+            ),
+            pa.table(
+                {
+                    "original_id": pa.array([1], type=pa.int64()),
+                    "original_ts": pa.array(
+                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
+                    ),
+                }
+            ),
+        ]
+        for creator, data in zip((pf.from_pandas, pf.from_arrow), inputs):
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data, schema=["id", "ts"])
+                self.assert_dataframe_schema(dataframe, ["id", "ts"])
+
+    def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
+        inputs = [
+            (
+                pf.from_pandas,
+                pd.DataFrame({"id": pd.Series([], dtype="int64")}),
+            ),
+            (
+                pf.from_arrow,
+                pa.table({"id": pa.array([], type=pa.int64())}),
+            ),
+        ]
+        for creator, data in inputs:
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data)
+                self.assert_dataframe_schema(
+                    dataframe,
+                    ["id"],
+                    [TableDataTypes.BIGINT()],
+                )
+
+    def test_from_arrow_does_not_use_pandas_conversion(self):
+        with patch.object(
+            self.t_env,
+            "from_pandas",
+            side_effect=AssertionError("from_pandas must not be called"),
+        ):
+            dataframe = pf.from_arrow(pa.table({"id": [1]}))
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id"],
+            [TableDataTypes.BIGINT()],
+        )
+
+    def test_creators_attach_and_normalize_watermarks(self):
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
+        creators = [
+            (
+                lambda: pf.from_dict(
+                    {"ts": [timestamp]},
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_records(
+                    [{"ts": timestamp}],
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_pandas(
+                    pd.DataFrame({"ts": [timestamp]}),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "ts": pa.array(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                type=pa.timestamp("us", tz="UTC"),
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+        ]
+        for creator, expected_type in creators:
+            with self.subTest(creator=creator):
+                resolved_schema = creator().to_table().get_resolved_schema()
+                timestamp_type = resolved_schema.get_column_data_types()[0]
+                self.assertIsInstance(timestamp_type, expected_type)
+                self.assertEqual(timestamp_type.precision, 3)
+                watermark_specs = resolved_schema.get_watermark_specs()
+                self.assertEqual(len(watermark_specs), 1)
+                self.assertEqual(watermark_specs[0].get_rowtime_attribute(), "ts")
+
+    def test_watermark_requires_existing_timestamp_column(self):
+        invalid_watermarks = [
+            (("missing", "ts"), "watermark column 'missing' is not present"),
+            (("id", "id"), "watermark column 'id' must have a timestamp type"),
+        ]
+        for watermark, message in invalid_watermarks:
+            with self.subTest(watermark=watermark):
+                with self.assertRaisesRegex(ValueError, message):
+                    pf.from_records(
+                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
+                        watermark=watermark,
+                    )
+
+    def test_from_table_and_to_table_preserve_identity(self):
+        table = self.t_env.from_elements([(1,)], ["id"])
+
+        self.assertIs(pf.from_table(table).to_table(), table)
 
 
 class DataFrameSelectTests(PyFlinkDataFrameUTTestCase):
@@ -479,6 +633,27 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             dataframe.collect(),
             [Row(1, "Alice"), Row(2, "Bob")],
         )
+
+    def test_arrow_to_pandas_round_trip(self):
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123000)
+        arrow_table = pa.table(
+            {
+                "id": pa.array([1, 2], type=pa.int64()),
+                "ts": pa.array([timestamp, None], type=pa.timestamp("ms")),
+            }
+        )
+
+        result = (
+            pf.from_arrow(arrow_table)
+            .with_column("id_plus_one", pf.col("id") + 1)
+            .to_pandas()
+        )
+
+        self.assertEqual(list(result.columns), ["id", "ts", "id_plus_one"])
+        self.assertEqual(result["id"].tolist(), [1, 2])
+        self.assertEqual(result["id_plus_one"].tolist(), [2, 3])
+        self.assertEqual(result["ts"].isna().tolist(), [False, True])
+        self.assertEqual(result.loc[0, "ts"].to_pydatetime(), timestamp)
 
     def test_basic_functionality(self):
         df = pf.from_dict(
