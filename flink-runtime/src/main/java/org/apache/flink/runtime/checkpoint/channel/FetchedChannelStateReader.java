@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.Closeable;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -59,17 +58,6 @@ public interface FetchedChannelStateReader extends Closeable {
      *     reader from it
      */
     FetchedChannelStateSnapshot snapshot();
-
-    /**
-     * Returns a reader with no segments — its first {@link #advanceAndGetNextSegment()} is empty.
-     * Each call hands out a fresh instance: readers have independent lifecycle and {@link #close()}
-     * is single-use, so a shared instance would let one consumer's close break later consumers.
-     * Used wherever there is nothing to snapshot (e.g. after drain finished, or the no-op recovery
-     * trigger).
-     */
-    static FetchedChannelStateReader emptyReader() {
-        return new FetchedChannelState(Collections.emptyList()).reader();
-    }
 
     /**
      * One per-channel segment produced by {@link #advanceAndGetNextSegment()}.

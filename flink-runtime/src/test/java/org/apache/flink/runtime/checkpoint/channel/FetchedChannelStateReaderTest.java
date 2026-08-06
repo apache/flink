@@ -304,11 +304,12 @@ class FetchedChannelStateReaderTest {
 
         try (FetchedChannelStateReader root = state.reader()) {
             // Before anything is committed: start of the first file, no resume segment.
-            FetchedChannelStateSnapshot atStart = root.snapshot();
-            assertThat(atStart.fileIndex()).isZero();
-            assertThat(atStart.readOffset()).isZero();
-            assertThat(atStart.channel()).isNull();
-            assertThat(atStart.remaining()).isZero();
+            try (FetchedChannelStateSnapshot atStart = root.snapshot()) {
+                assertThat(atStart.fileIndex()).isZero();
+                assertThat(atStart.readOffset()).isZero();
+                assertThat(atStart.channel()).isNull();
+                assertThat(atStart.remaining()).isZero();
+            }
 
             SpillSegment seg = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             InputStream body = seg.bodyStream();
@@ -316,17 +317,19 @@ class FetchedChannelStateReaderTest {
             seg.commit();
 
             // Boundary inside the body: the channel and its remainder travel with the snapshot.
-            FetchedChannelStateSnapshot midBody = root.snapshot();
-            assertThat(midBody.channel()).isEqualTo(ch);
-            assertThat(midBody.remaining()).isEqualTo(5);
+            try (FetchedChannelStateSnapshot midBody = root.snapshot()) {
+                assertThat(midBody.channel()).isEqualTo(ch);
+                assertThat(midBody.remaining()).isEqualTo(5);
+            }
 
             readAll(body);
             seg.commit();
 
             // Boundary on a header (here: end of the last segment): no resume segment again.
-            FetchedChannelStateSnapshot atHeader = root.snapshot();
-            assertThat(atHeader.channel()).isNull();
-            assertThat(atHeader.remaining()).isZero();
+            try (FetchedChannelStateSnapshot atHeader = root.snapshot()) {
+                assertThat(atHeader.channel()).isNull();
+                assertThat(atHeader.remaining()).isZero();
+            }
         }
     }
 
@@ -455,6 +458,59 @@ class FetchedChannelStateReaderTest {
     }
 
     @Test
+    void testSnapshotClosedWithoutReaderReleasesItsGrant() throws Exception {
+        InputChannelInfo ch = new InputChannelInfo(0, 0);
+
+        FetchedChannelState state;
+        try (TestSpillWriter writer = new TestSpillWriter(tempDir)) {
+            writer.writeRecord(ch, bytes(1), 1);
+            state = writer.getChannelState();
+        }
+
+        Path spill = state.files().get(0);
+
+        FetchedChannelStateReader root = state.reader();
+        FetchedChannelStateSnapshot snapshot = root.snapshot();
+        // Drop the handoff grant so only the reader's and the snapshot's grants remain.
+        state.release();
+
+        root.close(); // The snapshot still holds a grant, so the file survives.
+        assertThat(Files.exists(spill)).isTrue();
+
+        snapshot.close(); // No reader was ever opened: closing returns the snapshot's own grant.
+        assertThat(Files.exists(spill)).isFalse();
+
+        snapshot.close(); // Idempotent: no second release, no exception.
+        assertThatThrownBy(snapshot::reader).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testClosingSnapshotAfterOpeningReaderDoesNotDeleteFilesEarly() throws Exception {
+        InputChannelInfo ch = new InputChannelInfo(0, 0);
+
+        FetchedChannelState state;
+        try (TestSpillWriter writer = new TestSpillWriter(tempDir)) {
+            writer.writeRecord(ch, bytes(1), 1);
+            state = writer.getChannelState();
+        }
+
+        Path spill = state.files().get(0);
+
+        FetchedChannelStateReader root = state.reader();
+        FetchedChannelStateSnapshot snapshot = root.snapshot();
+        FetchedChannelStateReader snapReader = snapshot.reader();
+        state.release();
+        root.close();
+
+        // The grant moved to the reader, so closing the snapshot must not drop it.
+        snapshot.close();
+        assertThat(Files.exists(spill)).isTrue();
+
+        snapReader.close();
+        assertThat(Files.exists(spill)).isFalse();
+    }
+
+    @Test
     void testSnapshotKeepsFilesAliveUntilSnapshotClosed() throws Exception {
         InputChannelInfo ch = new InputChannelInfo(0, 0);
 
@@ -535,16 +591,16 @@ class FetchedChannelStateReaderTest {
     }
 
     @Test
-    void testEmptyReaderHandsOutIndependentInstancesSoCloseDoesNotLeak() throws Exception {
-        // emptyReader() is obtained and closed once per checkpoint. close() is single-use (it flips
-        // the closed flag permanently), so each call must yield a fresh instance; otherwise the
-        // first consumer's close would make every later consumer's advanceAndGetNextSegment() fail
-        // loud.
-        FetchedChannelStateReader first = FetchedChannelStateReader.emptyReader();
+    void testEmptySnapshotHandsOutIndependentReadersSoCloseDoesNotLeak() throws Exception {
+        // An empty snapshot is created and closed once per checkpoint. close() is single-use (it
+        // flips the closed flag permanently), so each call must yield a fresh instance; otherwise
+        // the first consumer's close would make every later consumer's advanceAndGetNextSegment()
+        // fail loud.
+        FetchedChannelStateReader first = FetchedChannelState.emptySnapshot().reader();
         assertThat(first.advanceAndGetNextSegment()).isEmpty();
         first.close();
 
-        FetchedChannelStateReader second = FetchedChannelStateReader.emptyReader();
+        FetchedChannelStateReader second = FetchedChannelState.emptySnapshot().reader();
         assertThat(second).isNotSameAs(first);
         // Must still work after the previously obtained empty reader was closed.
         assertThat(second.advanceAndGetNextSegment()).isEmpty();

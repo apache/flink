@@ -28,14 +28,14 @@ public interface RecoveryCheckpointTrigger {
 
     /**
      * Atomically snapshots the undrained spill slice and inserts matching {@link
-     * RecoveryCheckpointBarrier}s into in-recovery channels. Returns an independent reader over the
-     * remaining segments; the caller owns and must close it.
+     * RecoveryCheckpointBarrier}s into in-recovery channels. Returns a snapshot over the remaining
+     * segments; the caller owns it, opens the reader it needs and must close the snapshot.
      */
-    FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
+    FetchedChannelStateSnapshot snapshotAndInsertBarriers(long checkpointId)
             throws IOException, CheckpointException;
 
-    /** Returns an empty reader (no spill files, so no segments) and inserts no barriers. */
-    RecoveryCheckpointTrigger NO_OP = checkpointId -> FetchedChannelStateReader.emptyReader();
+    /** Returns an empty snapshot (no spill files, so no segments) and inserts no barriers. */
+    RecoveryCheckpointTrigger NO_OP = checkpointId -> FetchedChannelState.emptySnapshot();
 
     RecoveryCheckpointTrigger NOT_READY =
             ign -> {

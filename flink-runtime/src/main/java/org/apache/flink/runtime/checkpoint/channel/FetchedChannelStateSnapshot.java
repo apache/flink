@@ -42,18 +42,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  * (2, 851, c3,   57)  boundary landed inside c3's body — hand out its last 57 bytes, no header read
  * </pre>
  *
- * <p>A snapshot is a one-shot, single-reader handle:
+ * <p>A snapshot is a one-shot, single-reader handle: exactly one {@link FetchedChannelStateReader}
+ * may be opened from it via {@link #reader()}, and opening one transfers the grant to that reader,
+ * which returns it on close. A second {@link #reader()} call fails loud.
  *
- * <ul>
- *   <li>Exactly one {@link FetchedChannelStateReader} may be opened from it via {@link #reader()}.
- *   <li>When that reader is closed, it releases the lifecycle grant via {@link #release()}.
- * </ul>
- *
- * <p>The 1:1 reader constraint is enforced fail-loud: calling {@link #reader()} a second time
- * throws {@link IllegalStateException} immediately.
+ * <p>Owners must {@link #close()} the snapshot. Closing releases the grant when no reader was
+ * opened; once one was, the reader owns it and closing here is a no-op — so closing early never
+ * deletes files out from under a live reader.
  */
 @Internal
-public final class FetchedChannelStateSnapshot {
+public final class FetchedChannelStateSnapshot implements AutoCloseable {
 
     private final FetchedChannelState channelState;
 
@@ -71,6 +69,8 @@ public final class FetchedChannelStateSnapshot {
 
     /** True once {@link #reader()} has been called; prevents opening a second reader. */
     private boolean readerOpened;
+
+    private boolean closed;
 
     /**
      * Creates a snapshot resuming at {@code readOffset} in file {@code fileIndex}. Acquires one
@@ -103,6 +103,7 @@ public final class FetchedChannelStateSnapshot {
      * @return a new reader starting from this snapshot's position; caller must close it when done
      */
     public FetchedChannelStateReader reader() {
+        checkState(!closed, "Snapshot is closed");
         checkState(!readerOpened, "A reader has already been opened from this snapshot");
         readerOpened = true;
         return new FetchedChannelStateReaderImpl(this);
@@ -114,6 +115,21 @@ public final class FetchedChannelStateSnapshot {
      */
     void release() throws IOException {
         channelState.release();
+    }
+
+    /**
+     * Releases the grant if no reader was opened; otherwise the reader owns it and this is a no-op.
+     * Idempotent.
+     */
+    @Override
+    public void close() throws IOException {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        if (!readerOpened) {
+            channelState.release();
+        }
     }
 
     /** Returns the underlying channel state (package-private; used by the reader). */

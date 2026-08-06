@@ -71,14 +71,14 @@ public final class FetchedChannelStateDrainer implements RecoveryCheckpointTrigg
      * must persist is already inside the channels' queues, so the snapshot is inherently empty.
      */
     @Override
-    public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId)
+    public FetchedChannelStateSnapshot snapshotAndInsertBarriers(long checkpointId)
             throws IOException {
         for (RecoverableInputChannel channel : channels) {
             channel.insertRecoveryCheckpointBarrierIfInRecovery(checkpointId);
         }
         // No snapshot side for the in-memory backend: everything a checkpoint must persist is
-        // already inside the channels' queues, so the returned reader is empty.
-        return FetchedChannelStateReader.emptyReader();
+        // already inside the channels' queues, so the returned snapshot is empty.
+        return FetchedChannelState.emptySnapshot();
     }
 
     @Override

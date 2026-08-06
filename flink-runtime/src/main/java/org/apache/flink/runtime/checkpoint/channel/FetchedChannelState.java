@@ -76,7 +76,17 @@ public final class FetchedChannelState implements Closeable {
      * lifecycle grant and must be closed when done.
      */
     public FetchedChannelStateReader reader() {
-        return new FetchedChannelStateSnapshot(this, 0, 0L, null, 0).reader();
+        return snapshotAtStart().reader();
+    }
+
+    /** A snapshot covering all segments from the beginning. */
+    public FetchedChannelStateSnapshot snapshotAtStart() {
+        return new FetchedChannelStateSnapshot(this, 0, 0L, null, 0);
+    }
+
+    /** A snapshot over no spill files: its reader yields no segments. */
+    public static FetchedChannelStateSnapshot emptySnapshot() {
+        return new FetchedChannelState(Collections.emptyList()).snapshotAtStart();
     }
 
     /** Returns the ordered list of spill file paths. Read-only view. */

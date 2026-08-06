@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -114,15 +115,17 @@ final class ChannelState {
     /**
      * Dispatches checkpoint start: inserts recovery-checkpoint barriers into in-recovery channels
      * through the trigger, then notifies every input. (FLINK-38544 transitional: the spilling
-     * backend adds a third step handing the trigger's snapshot reader to the channel-state writer.)
+     * backend adds a third step handing a reader opened from the snapshot to the channel-state
+     * writer, instead of closing it here.)
      */
     public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
             throws CheckpointException, IOException {
         long cpId = barrier.getId();
-        recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
-
-        for (CheckpointableInput input : inputs) {
-            input.checkpointStarted(barrier);
+        try (FetchedChannelStateSnapshot snapshot =
+                recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId)) {
+            for (CheckpointableInput input : inputs) {
+                input.checkpointStarted(barrier);
+            }
         }
     }
 }

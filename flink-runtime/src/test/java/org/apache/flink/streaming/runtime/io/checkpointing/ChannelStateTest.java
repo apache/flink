@@ -21,7 +21,8 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelState;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -98,9 +99,9 @@ class ChannelStateTest {
         }
 
         @Override
-        public FetchedChannelStateReader snapshotAndInsertBarriers(long checkpointId) {
+        public FetchedChannelStateSnapshot snapshotAndInsertBarriers(long checkpointId) {
             trace.add("trigger.snapshotAndInsertBarriers:" + checkpointId);
-            return FetchedChannelStateReader.emptyReader();
+            return FetchedChannelState.emptySnapshot();
         }
     }
 
