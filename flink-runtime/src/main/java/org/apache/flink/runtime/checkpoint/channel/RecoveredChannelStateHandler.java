@@ -348,8 +348,7 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
 
     /**
      * Backfills the body length into the segment header and flushes the whole segment to the file
-     * stream. Empty segments (filtered out entirely, or a zero-byte pass-through) are dropped
-     * without opening a file, so no empty file is created.
+     * stream. Empty segments are dropped without opening a file, so no empty file is created.
      */
     private void sealCurrentSegment() throws IOException {
         if (currentChannel == null) {
@@ -359,6 +358,8 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
         int totalBytes = segmentSerializer.length();
         int bodyBytes = totalBytes - SEGMENT_HEADER_BYTES;
         if (bodyBytes == 0) {
+            // The header is written before filtering runs, so a channel whose records are all
+            // filtered out ends up empty: drop it instead of writing a header-only segment.
             return;
         }
         // Math.toIntExact guards against the unlikely case of a single segment > 2 GB.
