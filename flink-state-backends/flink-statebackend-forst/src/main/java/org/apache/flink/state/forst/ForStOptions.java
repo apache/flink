@@ -303,7 +303,7 @@ public class ForStOptions {
 
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
-            ConfigOptions.key("state.backend.forst.checkpoint.transfer.thread.num")
+            ConfigOptions.key("state.backend.forst.checkpoint.transfer-thread-num")
                     .intType()
                     .defaultValue(4)
                     .withDescription(
