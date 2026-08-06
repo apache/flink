@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.FailingRecoveredInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -33,10 +34,13 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -121,9 +125,14 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
     private FilteringHandler buildFilteringInputChannelStateHandler() {
         // Empty GateFilterHandler array: filtering is "enabled" structurally, but no gate-level
         // filter logic runs. Suitable for exercising getBuffer() routing only.
-        ChannelStateFilteringHandler stubFilteringHandler =
+        return buildFilteringInputChannelStateHandler(
+                inputGate,
                 new ChannelStateFilteringHandler(
-                        new ChannelStateFilteringHandler.GateFilterHandler[0]);
+                        new ChannelStateFilteringHandler.GateFilterHandler[0]));
+    }
+
+    private FilteringHandler buildFilteringInputChannelStateHandler(
+            SingleInputGate inputGate, ChannelStateFilteringHandler stubFilteringHandler) {
         return (FilteringHandler)
                 AbstractInputChannelRecoveredStateHandler.create(
                         new InputGate[] {inputGate},
@@ -281,6 +290,49 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                     filteringHandler.getBuffer(channelInfo);
             second.context.recycleBuffer();
         }
+    }
+
+    @Test
+    void testFilteredBuffersRecycledOnceWhenDeliveryFails() throws Exception {
+        List<Buffer> filteredBuffers =
+                Arrays.asList(buildSomeBuffer(), buildSomeBuffer(), buildSomeBuffer());
+        ChannelStateFilteringHandler filteringHandler =
+                new ChannelStateFilteringHandler(
+                        new ChannelStateFilteringHandler.GateFilterHandler[0]) {
+                    @Override
+                    public List<Buffer> filterAndRewrite(
+                            int gateIndex,
+                            int oldSubtaskIndex,
+                            int oldChannelIndex,
+                            Buffer sourceBuffer,
+                            BufferSupplier bufferSupplier) {
+                        sourceBuffer.recycleBuffer();
+                        return filteredBuffers;
+                    }
+                };
+        // The gate fails while taking over the first filtered buffer.
+        SingleInputGate failingGate =
+                new SingleInputGateBuilder()
+                        .setChannelFactory(
+                                (builder, gate) -> new FailingRecoveredInputChannel(gate, 0))
+                        .setSegmentProvider(networkBufferPool)
+                        .build();
+
+        try (FilteringHandler handler =
+                buildFilteringInputChannelStateHandler(failingGate, filteringHandler)) {
+            RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
+                    handler.getBuffer(channelInfo);
+            bufferWithContext.context.setSize(1);
+
+            assertThatThrownBy(() -> handler.recover(channelInfo, 0, bufferWithContext))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Delivery failed on purpose.");
+        }
+
+        // The first buffer is owned by the channel, the undelivered ones are recycled exactly once.
+        assertThat(filteredBuffers.get(0).isRecycled()).isFalse();
+        assertThat(filteredBuffers.get(1).isRecycled()).isTrue();
+        assertThat(filteredBuffers.get(2).isRecycled()).isTrue();
     }
 
     @Test
