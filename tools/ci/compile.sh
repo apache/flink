@@ -49,6 +49,13 @@ rm -rf ${MVN_VALIDATION_DIR}
 source "${CI_DIR}/stage.sh"
 source "${CI_DIR}/shade.sh"
 
+# Sample host load (CPU %steal / disk util) during the build to detect agent contention; killed on exit.
+# Written to stdout (the job log) because compile/qa/e2e don't publish a debug-files artifact.
+chmod +x "${CI_DIR}/sample_load.sh" 2>/dev/null || true
+"${CI_DIR}/sample_load.sh" 5 /dev/stdout &
+LOAD_SAMPLER_PID=$!
+trap 'kill "$LOAD_SAMPLER_PID" 2>/dev/null' EXIT
+
 echo "Maven version:"
 $MVN -version
 

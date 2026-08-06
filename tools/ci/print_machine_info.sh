@@ -18,8 +18,8 @@
 ################################################################################
 
 #
-# Prints the CPU, core count and memory of the machine running the job. Intended as the first step of
-# every CI job so build/test timings can be correlated with the hardware they ran on.
+# Prints the CPU, core count, memory and disk throughput of the machine running the job. Intended as
+# the first step of every CI job so build/test timings can be correlated with the hardware they ran on.
 #
 
 echo "=============================================================================="
@@ -45,3 +45,40 @@ elif [ -r /proc/meminfo ]; then
 else
     mem_bytes=$(sysctl -n hw.memsize 2>/dev/null) && echo "MemTotal: $((mem_bytes / 1024 / 1024)) MB" || echo "Memory: n/a"
 fi
+
+echo "---- Disk (working dir: $(pwd)) ----"
+df -h . 2>/dev/null
+# filesystem type (Linux df supports -T; ignored elsewhere)
+df -T . 2>/dev/null | awk 'NR==2 {print "Filesystem type: " $2}'
+if command -v lsblk >/dev/null 2>&1; then
+    lsblk -d -o NAME,ROTA,SIZE,MODEL 2>/dev/null
+fi
+# Rough sequential write throughput incl. flush. O_DIRECT is often unsupported on overlayfs (CI runs in
+# containers), so use conv=fdatasync; fall back to non-GNU dd (e.g. macOS) which lacks that option.
+if command -v dd >/dev/null 2>&1; then
+    disk_probe="./.machine_info_disktest"
+    echo "Sequential write (1 GiB, incl. flush):"
+    probe_out=$(dd if=/dev/zero of="$disk_probe" bs=1M count=1024 conv=fdatasync 2>&1)
+    if [ $? -ne 0 ]; then
+        probe_out=$(dd if=/dev/zero of="$disk_probe" bs=1m count=1024 2>&1)
+    fi
+    echo "$probe_out" | tail -n 1
+    rm -f "$disk_probe"
+fi
+
+# Small-file / metadata I/O -- the workload maven-shade actually generates (unpack/repack thousands of
+# tiny class files). Sequential MB/s says nothing about this; a slow-IOPS disk shows up here, not above.
+# Zero deps: time creating then deleting many tiny files. GNU date gives ms; falls back to seconds*1000.
+now_ms() { local d; d=$(date +%s%3N 2>/dev/null); case "$d" in ''|*[!0-9]*) d=$(( $(date +%s) * 1000 ));; esac; echo "$d"; }
+iops_dir="./.machine_info_iops_$$"
+mkdir -p "$iops_dir" 2>/dev/null
+N=2000
+t0=$(now_ms); i=0
+while [ "$i" -lt "$N" ]; do printf 'x' > "$iops_dir/f$i"; i=$(( i + 1 )); done
+sync 2>/dev/null
+t1=$(now_ms)
+rm -rf "$iops_dir"
+t2=$(now_ms)
+cr=$(( t1 - t0 )); [ "$cr" -le 0 ] && cr=1
+dl=$(( t2 - t1 )); [ "$dl" -lt 0 ] && dl=0
+echo "Small-file I/O: create ${N} tiny files in ${cr} ms ($(( N * 1000 / cr )) files/s), delete in ${dl} ms"

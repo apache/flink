@@ -89,11 +89,16 @@ jobs:
       targetPath: $(MAVEN_CACHE_FOLDER)/org/apache/flink
       artifact: FlinkMavenRepoArtifact-${{parameters.stage_name}}
 
-  # upload the assembled distribution (run-scoped, NOT cached) so dist-dependent stages can reuse it
+  # build outputs that reuse stages read from target/ dirs (not .m2): the assembled dist (build-target)
+  # and flink-python/target (pyflink's test classpath: test-dependencies, *-tests.jar, testDataStream.jar)
   - task: PublishPipelineArtifact@1
     inputs:
       targetPath: flink-dist/target
       artifact: FlinkDistArtifact-${{parameters.stage_name}}
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: flink-python/target
+      artifact: FlinkPythonTargetArtifact-${{parameters.stage_name}}
 
 # All QA checks (javadoc/scala/shaded/bundled/license) run here: this job builds Flink from scratch
 # single-threaded and validates it. Runs as an independent job (in parallel with compile/test) so it
@@ -142,33 +147,27 @@ jobs:
     clean: all
   strategy:
     # reuseArtifacts: reuse the compile job's installed jars (skip Step 1) instead of a full rebuild.
-    # needsDist: also download the prebuilt distribution (build-target) for stages whose tests need it.
-    # Stages whose dist needs are unverified keep reuseArtifacts=false (safe full rebuild) for now.
+    # Only stages that resolve everything from .m2 can reuse; stages needing build outputs under module
+    # target/ dirs (python's test classpath, the assembled dist, cluster ITs) do a full rebuild.
     matrix:
       core:
         module: core
         reuseArtifacts: 'true'
-        needsDist: 'false'
       python:
         module: python
         reuseArtifacts: 'true'
-        needsDist: 'true'
       table:
         module: table
         reuseArtifacts: 'true'
-        needsDist: 'false'
       connect:
         module: connect
         reuseArtifacts: 'true'
-        needsDist: 'false'
       tests:
         module: tests
         reuseArtifacts: 'false'
-        needsDist: 'false'
       misc:
         module: misc
         reuseArtifacts: 'false'
-        needsDist: 'false'
   steps:
   - script: ./tools/ci/print_machine_info.sh
     displayName: Machine info
@@ -212,14 +211,20 @@ jobs:
       path: $(MAVEN_CACHE_FOLDER)/org/apache/flink
       artifact: FlinkMavenRepoArtifact-${{parameters.stage_name}}
 
-  # dist-dependent stages also pull the prebuilt distribution; test_controller.sh relinks build-target.
-  # continueOnError so a missing/expired artifact falls back to a rebuild.
+  # python reuse also needs the assembled dist (build-target) and flink-python/target test artifacts,
+  # which pyflink reads from target/ dirs. continueOnError so a missing artifact falls back to a rebuild.
   - task: DownloadPipelineArtifact@2
     continueOnError: true
-    condition: and(succeeded(), eq(variables['needsDist'], 'true'))
+    condition: and(succeeded(), eq(variables['reuseArtifacts'], 'true'), eq(variables['module'], 'python'))
     inputs:
       path: flink-dist/target
       artifact: FlinkDistArtifact-${{parameters.stage_name}}
+  - task: DownloadPipelineArtifact@2
+    continueOnError: true
+    condition: and(succeeded(), eq(variables['reuseArtifacts'], 'true'), eq(variables['module'], 'python'))
+    inputs:
+      path: flink-python/target
+      artifact: FlinkPythonTargetArtifact-${{parameters.stage_name}}
 
   - task: Cache@2
     inputs:
@@ -243,8 +248,8 @@ jobs:
   - script: sudo sysctl -w kernel.core_pattern=core.%p
     displayName: Set coredump pattern
 
-  # Test — reuse the handed-off jars per stage (see the matrix). test_controller.sh falls back to a
-  # full rebuild if the jars aren't present, and relinks build-target from the handed-off dist.
+  # Test — reuse the handed-off jars on stages that can (see the matrix); test_controller.sh falls back
+  # to a full rebuild when reuse is off or the jars aren't present.
   - script: REUSE_INSTALLED_ARTIFACTS=$(reuseArtifacts) ${{parameters.environment}} ./tools/ci/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
     displayName: Test - $(module)
     env:
