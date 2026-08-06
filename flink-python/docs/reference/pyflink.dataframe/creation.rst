@@ -20,7 +20,20 @@
 DataFrame Creation
 ==================
 
-Functions for creating DataFrames from row-oriented or column-oriented Python data.
+Functions for creating DataFrames from row-oriented and column-oriented Python data, pandas
+DataFrames, PyArrow tables, PyFlink Tables, and integer ranges.
+
+``schema`` is an optional list of column names. For dictionaries and mapping records it selects
+and reorders named fields. For pandas and Arrow inputs it renames columns positionally and must
+contain exactly one name per input column. Names must be non-empty strings and must be unique.
+
+Dictionary and record inputs must contain at least one row. Empty pandas and Arrow inputs are
+supported when their column types can be inferred from pandas dtypes or the Arrow schema. An empty
+:func:`range` still has one ``id BIGINT`` column.
+
+The native data creators accept an optional ``watermark=(column, expression)`` declaration. The
+column must exist and have a timestamp-compatible type. Watermark columns are normalized to
+``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``; sub-millisecond precision is truncated.
 
 Example::
 
@@ -30,6 +43,28 @@ Example::
     ...     {"id": 2, "name": "Bob"},
     ... ])
     >>> users = pf.from_dict({"id": [1, 2], "name": ["Alice", "Bob"]})
+    >>> identifiers = pf.range(1, 5)
+
+Pandas and Arrow inputs can be renamed positionally::
+
+    >>> import pandas as pd
+    >>> import pyarrow as pa
+    >>> pandas_users = pf.from_pandas(
+    ...     pd.DataFrame({"identifier": [1], "display_name": ["Alice"]}),
+    ...     schema=["id", "name"],
+    ... )
+    >>> arrow_users = pf.from_arrow(
+    ...     pa.table({"identifier": [1], "display_name": ["Alice"]}),
+    ...     schema=["id", "name"],
+    ... )
+
+A watermark can be attached while creating event data::
+
+    >>> from datetime import datetime
+    >>> events = pf.from_records(
+    ...     [{"id": 1, "ts": datetime(2026, 1, 1)}],
+    ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+    ... )
 
 .. currentmodule:: pyflink.dataframe
 
@@ -38,3 +73,7 @@ Example::
 
     from_records
     from_dict
+    from_pandas
+    from_arrow
+    from_table
+    range

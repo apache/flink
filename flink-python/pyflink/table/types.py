@@ -2286,7 +2286,7 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
     elif types.is_null(arrow_type):
         return NullType()
     else:
-        raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
+        raise TypeError("Unsupported data type to convert from Arrow type: " + str(arrow_type))
 
 
 def to_arrow_type(data_type: DataType):

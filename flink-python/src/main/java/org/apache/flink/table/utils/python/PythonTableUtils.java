@@ -100,11 +100,27 @@ public final class PythonTableUtils {
      */
     public static Table createTableFromElement(
             TableEnvironment tEnv, String filePath, DataType schema, boolean batched) {
+        return createTableFromElement(
+                tEnv, filePath, Schema.newBuilder().fromRowDataType(schema).build(), batched);
+    }
+
+    /**
+     * Create a table from {@link PythonDynamicTableSource} that reads data from an input file with
+     * the given declarative {@link Schema}.
+     *
+     * @param tEnv The TableEnvironment to create the table.
+     * @param filePath the file path of the input data.
+     * @param schema the schema of the table, including time attributes when present.
+     * @param batched Whether to read data in a batch.
+     * @return Table backed by the input file.
+     */
+    public static Table createTableFromElement(
+            TableEnvironment tEnv, String filePath, Schema schema, boolean batched) {
         TableDescriptor.Builder builder =
                 TableDescriptor.forConnector(PythonDynamicTableFactory.IDENTIFIER)
                         .option(PythonDynamicTableOptions.INPUT_FILE_PATH, filePath)
                         .option(PythonDynamicTableOptions.BATCH_MODE, batched)
-                        .schema(Schema.newBuilder().fromRowDataType(schema).build());
+                        .schema(schema);
         return tEnv.from(builder.build());
     }
 
