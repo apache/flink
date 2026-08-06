@@ -212,30 +212,25 @@ def _resolve_watermark_schema(
     return row_type, table_schema
 
 
-def _create_dataframe_from_rows(
+def _infer_schema_and_create_dataframe(
     rows: Sequence[Sequence[Any]],
-    row_type: RowType,
+    column_names: List[str],
     watermark: Optional[_WatermarkSpec] = None,
 ) -> DataFrame:
+    row_type = _infer_schema_from_data(rows, names=column_names)
+    row_type, table_schema = _resolve_watermark_schema(row_type, watermark)
+    converter = _create_converter(row_type)
     verify_row = _create_type_verifier(row_type)
-    verified_rows = []
+    sql_rows = []
     for row in rows:
+        row = converter(row)
         verify_row(row)
-        verified_rows.append(row_type.to_sql_type(row))
+        sql_rows.append(row_type.to_sql_type(row))
 
-    _, table_schema = _resolve_watermark_schema(row_type, watermark)
     table = get_or_create_table_environment()._from_elements(
-        verified_rows, row_type, table_schema
+        sql_rows, row_type, table_schema
     )
     return DataFrame(table)
-
-
-def _infer_row_type_and_convert_rows(
-    rows: Sequence[Sequence[Any]], schema: List[str]
-) -> Tuple[List[Sequence[Any]], RowType]:
-    row_type = _infer_schema_from_data(rows, names=schema)
-    converter = _create_converter(row_type)
-    return [converter(row) for row in rows], row_type
 
 
 def _row_type_from_arrow_schema(arrow_schema: Any, names: List[str]) -> RowType:
@@ -475,8 +470,7 @@ def from_records(
             raise ValueError(f"invalid record at index {index}") from error
         rows.append(row)
 
-    converted_rows, row_type = _infer_row_type_and_convert_rows(rows, schema)
-    return _create_dataframe_from_rows(converted_rows, row_type, watermark_spec)
+    return _infer_schema_and_create_dataframe(rows, schema, watermark_spec)
 
 
 @PublicEvolving()
@@ -543,8 +537,7 @@ def from_dict(
         tuple(data[name][row_index] for name in schema)
         for row_index in builtins.range(row_count)
     ]
-    converted_rows, row_type = _infer_row_type_and_convert_rows(rows, schema)
-    return _create_dataframe_from_rows(converted_rows, row_type, watermark_spec)
+    return _infer_schema_and_create_dataframe(rows, schema, watermark_spec)
 
 
 @PublicEvolving()
@@ -586,6 +579,10 @@ def range(start_or_end: int, end: Optional[int] = None, step: int = 1) -> DataFr
     else:
         start = start_or_end
         stop = end
-    rows = [(value,) for value in builtins.range(start, stop, step)]
     row_type = DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT())])
-    return _create_dataframe_from_rows(rows, row_type)
+    sql_rows = [
+        row_type.to_sql_type((value,))
+        for value in builtins.range(start, stop, step)
+    ]
+    table = get_or_create_table_environment()._from_elements(sql_rows, row_type)
+    return DataFrame(table)
