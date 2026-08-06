@@ -1,0 +1,27 @@
+#Tue Aug 04 14:13:45 BST 2026
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/GettingStartedExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/StreamSQLExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/StreamWindowSQLExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/TemporalJoinSQLExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/UpdatingTopCityExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/basics/WordCountSQLExample.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/ChangelogCsvDeserializer.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/ChangelogCsvFormat.java=1783333752532
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/ChangelogCsvFormatFactory.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/ChangelogSocketExample.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/SocketDynamicTableFactory.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/SocketDynamicTableSource.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/connectors/SocketSource.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/InternalRowMergerFunction.java=1783333752533
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/LastDatedValueFunction.java=1783333752534
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/main/resources/log4j2.properties=1783333752534
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/basics/GettingStartedExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/basics/StreamSQLExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/basics/TemporalJoinSQLExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/basics/UpdatingTopCityExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/basics/WordCountSQLExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExampleITCase.java=1783333752535
+/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/src/test/java/org/apache/flink/table/examples/utils/ExampleOutputTestBase.java=1783333752535
+configuration*?=C1A6399D0B5CE35915A372B86E613FBF2957C986
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-examples/flink-examples-table/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

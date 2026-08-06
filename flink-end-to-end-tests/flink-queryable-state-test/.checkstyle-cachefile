@@ -1,0 +1,10 @@
+#Tue Aug 04 14:13:53 BST 2026
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/Email.java=1783333752456
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/EmailId.java=1783333752456
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/EmailInformation.java=1783333752456
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/LabelSurrogate.java=1783333752457
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/QsConstants.java=1783333752457
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/QsStateClient.java=1783333752457
+/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/src/main/java/org/apache/flink/streaming/tests/queryablestate/QsStateProducer.java=1783333752457
+configuration*?=50FFB17E5876F864F9FA94ED06253368CCCE9BE0
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-end-to-end-tests/flink-queryable-state-test/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

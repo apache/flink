@@ -1,0 +1,23 @@
+#Tue Aug 04 14:13:43 BST 2026
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/DefaultHadoopFileCommitterFactory.java=1783333752625
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/HadoopFileCommitter.java=1783333752625
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/HadoopFileCommitterFactory.java=1783333752625
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/HadoopPathBasedBulkWriter.java=1783333752625
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/HadoopPathBasedPartFileWriter.java=1783333752625
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/formats/hadoop/bulk/committer/HadoopRenameFileCommitter.java=1783333752626
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/streaming/api/functions/sink/filesystem/HadoopPathBasedBulkFormatBuilder.java=1783333752626
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/main/java/org/apache/flink/streaming/api/functions/sink/filesystem/SerializableConfiguration.java=1783333752626
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/architecture/TestCodeArchitectureTest.java=1783333752626
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/AbstractFileCommitterTest.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/HadoopPathBasedPartFileWriterITCase.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/HadoopPathBasedPendingFileRecoverableSerializerMigrationTest.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/TestHadoopPathBasedBulkWriterFactory.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/committer/HadoopRenameCommitterHDFSITCase.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/committer/HadoopRenameCommitterLocalFSITCase.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/formats/hadoop/bulk/committer/cluster/HDFSCluster.java=1783333752627
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/streaming/api/functions/sink/filesystem/HadoopPathBasedBulkFormatBuilderTest.java=1783333752628
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/java/org/apache/flink/streaming/api/functions/sink/filesystem/TestStreamingFileSinkFactory.java=1783333752628
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/resources/archunit.properties=1783333752628
+/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/src/test/resources/log4j2-test.properties=1783333752628
+configuration*?=D8A354E7457B32CD2F66A152C31680C4028770B9
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-formats/flink-hadoop-bulk/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

@@ -75,7 +75,6 @@ public class SqlJsonUtils {
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
-
     private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER =
             new JacksonJsonProvider(MAPPER);
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =

@@ -940,7 +940,7 @@ class ExprCodeGenerator(
             new JsonLengthCallGen().generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.JSON_TYPE =>
-            JsonCodeGenHelper.generateJsonType(ctx, resultType, operands)
+            JsonCodeGenUtils.generateJsonType(ctx, resultType, operands)
 
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)

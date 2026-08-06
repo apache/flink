@@ -1,0 +1,20 @@
+#Tue Aug 04 14:13:40 BST 2026
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/apache/flink/fs/s3presto/FlinkS3PrestoFileSystem.java=1783333752582
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/apache/flink/fs/s3presto/S3FileSystemFactory.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/apache/flink/fs/s3presto/S3PFileSystemFactory.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/apache/flink/fs/s3presto/token/S3PrestoDelegationTokenProvider.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/apache/flink/fs/s3presto/token/S3PrestoDelegationTokenReceiver.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/openjdk/jol/info/ClassLayout.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/main/java/org/openjdk/jol/info/package-info.java=1783333752583
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/architecture/TestCodeArchitectureTest.java=1783333752585
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/HAApplicationRunOnPrestoS3FileSystemITCase.java=1783333752585
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/HAJobRunOnPrestoS3FileSystemITCase.java=1783333752585
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/PrestoS3FileSystemBehaviorITCase.java=1783333752585
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/PrestoS3FileSystemITCase.java=1783333752586
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/PrestoS3FileSystemTest.java=1783333752586
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/PrestoS3RecoverableWriterTest.java=1783333752586
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/java/org/apache/flink/fs/s3presto/S5CmdOnPrestoS3FileSystemITCase.java=1783333752586
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/resources/archunit.properties=1783333752586
+/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/src/test/resources/log4j2-test.properties=1783333752586
+configuration*?=77B182B8E284969B7B29BF6CB2C2E7DB4D277842
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-filesystems/flink-s3-fs-presto/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

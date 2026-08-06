@@ -27,9 +27,9 @@ import scala.Tuple2;
 import scala.collection.Seq;
 
 /** Utilities shared across the code generation of JSON functions. */
-public final class JsonCodeGenHelper {
+public final class JsonCodeGenUtils {
 
-    private JsonCodeGenHelper() {}
+    private JsonCodeGenUtils() {}
 
     /**
      * Generates {@code JSON_TYPE(jsonValue)} or {@code JSON_TYPE(jsonValue, path)}: the first
@@ -38,11 +38,6 @@ public final class JsonCodeGenHelper {
      *
      * <p>The parsed context is shared with the other JSON functions over the same input, so the
      * input is parsed only once per record.
-     *
-     * @param ctx the code generator context
-     * @param returnType the result type of the call
-     * @param operands the generated operands: the JSON value, and optionally a path
-     * @return the generated expression for the call
      */
     public static GeneratedExpression generateJsonType(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {

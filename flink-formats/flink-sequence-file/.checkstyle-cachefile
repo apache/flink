@@ -1,0 +1,11 @@
+#Tue Aug 04 14:13:43 BST 2026
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/main/java/org/apache/flink/formats/sequencefile/SequenceFileWriter.java=1783333752690
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/main/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.java=1783333752690
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/main/java/org/apache/flink/formats/sequencefile/SerializableHadoopConfiguration.java=1783333752691
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/test/java/org/apache/flink/architecture/TestCodeArchitectureTest.java=1783333752691
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/test/java/org/apache/flink/formats/sequencefile/SequenceFileSinkITCase.java=1783333752691
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/test/java/org/apache/flink/formats/sequencefile/SerializableHadoopConfigurationTest.java=1783333752691
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/test/resources/archunit.properties=1783333752692
+/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/src/test/resources/log4j2-test.properties=1783333752692
+configuration*?=1BF426E18AC0521C7152B2251D677D6D775A503E
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-formats/flink-sequence-file/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

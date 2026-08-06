@@ -1,0 +1,11 @@
+#Tue Aug 04 14:13:51 BST 2026
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/events/slf4j/Slf4jEventReporter.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/events/slf4j/Slf4jEventReporterFactory.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/metrics/slf4j/Slf4jReporter.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/metrics/slf4j/Slf4jReporterFactory.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/traces/slf4j/Slf4jTraceReporter.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/main/java/org/apache/flink/traces/slf4j/Slf4jTraceReporterFactory.java=1783333752804
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/test/java/org/apache/flink/metrics/slf4j/Slf4jReporterTest.java=1783333752805
+/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/src/test/resources/log4j2-test.properties=1783333752806
+configuration*?=DE21B2699DA65A10481D8CDBD67F4340DD70C300
+module-resource*?\:/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-slf4j/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2
