@@ -29,7 +29,7 @@ import java.util.Optional;
  * Deliberately not a Java {@link java.util.Iterator}: a body must be fully read before advancing,
  * body ownership is handed to the consumer, and consume/commit are separate steps.
  *
- * <p>The drain reader (opened via {@link FetchedChannelState#reader()}, starting at offset 0)
+ * <p>The main reader (opened via {@link FetchedChannelState#reader()}, starting at offset 0)
  * records the delivered boundary — the "committed position" — via {@link SpillSegment#commit()};
  * before anything is committed it equals the reader's start position. Each checkpoint derives a
  * {@link #snapshot()} that resumes from that boundary. {@link #snapshot()} and {@link
@@ -40,12 +40,12 @@ public interface FetchedChannelStateReader extends Closeable {
 
     /**
      * Advances to the next segment and returns it, or {@link Optional#empty()} when no segment
-     * remains. Advancing and probing are one step; there is no separate {@code hasNext}.
+     * remains.
      *
      * <p>Entry rule (the first call is exempt): the previous segment's body must be fully read,
      * otherwise this is a contract violation and fails loud (no skip-ahead).
      */
-    Optional<SpillSegment> nextSegment();
+    Optional<SpillSegment> advanceAndGetNextSegment();
 
     /**
      * Derives an independent resume point starting from the committed position. The snapshot holds
@@ -61,10 +61,10 @@ public interface FetchedChannelStateReader extends Closeable {
     FetchedChannelStateSnapshot snapshot();
 
     /**
-     * Returns a reader with no segments — its first {@link #nextSegment()} is empty. Each call
-     * hands out a fresh instance: readers have independent lifecycle and {@link #close()} is
-     * single-use, so a shared instance would let one consumer's close break later consumers. Used
-     * wherever there is nothing to snapshot (e.g. after drain finished, or the no-op recovery
+     * Returns a reader with no segments — its first {@link #advanceAndGetNextSegment()} is empty.
+     * Each call hands out a fresh instance: readers have independent lifecycle and {@link #close()}
+     * is single-use, so a shared instance would let one consumer's close break later consumers.
+     * Used wherever there is nothing to snapshot (e.g. after drain finished, or the no-op recovery
      * trigger).
      */
     static FetchedChannelStateReader emptyReader() {
@@ -72,19 +72,18 @@ public interface FetchedChannelStateReader extends Closeable {
     }
 
     /**
-     * One per-channel segment produced by {@link #nextSegment()}.
+     * One per-channel segment produced by {@link #advanceAndGetNextSegment()}.
      *
      * <p>The segment body bytes are opaque to the reader; record framing is handled by the
      * consumer's deserializer. A consumer reads {@link #bodyStream()} to EOF (after {@link
-     * #length()} bytes), and the drain consumer additionally calls {@link #commit()} under the
-     * drainer lock after each delivery so that a later {@link FetchedChannelStateReader#snapshot()}
-     * resumes from the delivered boundary.
+     * #length()} bytes), and the drain consumer additionally calls {@link #commit()}.
      *
      * <p>Ownership of {@link #bodyStream()} passes to the consumer: the reader no longer tracks how
      * far it has been read. The "previous body must be fully read" rule (no skip-ahead) is enforced
-     * at the next {@link FetchedChannelStateReader#nextSegment()} call, not here.
+     * at the next {@link FetchedChannelStateReader#advanceAndGetNextSegment()} call, not here.
      *
-     * <p>A segment is valid only until the next {@code nextSegment()} call on the parent reader.
+     * <p>A segment is valid only until the next {@code advanceAndGetNextSegment()} call on the
+     * parent reader.
      */
     interface SpillSegment {
 
@@ -97,7 +96,7 @@ public interface FetchedChannelStateReader extends Closeable {
          * file.
          *
          * <p>The stream is single-use, not thread-safe, and must be fully consumed before the next
-         * {@link FetchedChannelStateReader#nextSegment()}.
+         * {@link FetchedChannelStateReader#advanceAndGetNextSegment()}.
          */
         InputStream bodyStream();
 
@@ -109,11 +108,11 @@ public interface FetchedChannelStateReader extends Closeable {
         int length();
 
         /**
-         * Advances the reader's committed position to match how many body bytes have been read from
-         * {@link #bodyStream()} so far. Must be called under the drainer lock after each buffer
-         * delivery so that a subsequent {@link FetchedChannelStateReader#snapshot()} sees the
-         * correct delivered boundary. Only the drain reader commits; the snapshot reader never
-         * does.
+         * Records the body bytes read from {@link #bodyStream()} so far as delivered.
+         *
+         * <p>Called once per delivered buffer by the drainer's drain loop, under the same lock as
+         * {@link FetchedChannelStateReader#snapshot()}, so a snapshot always resumes on a buffer
+         * boundary. Only the main reader commits.
          */
         void commit();
     }

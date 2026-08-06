@@ -42,11 +42,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * spill files.
  *
  * <p>Reading is strictly sequential and never seeks mid-iteration. There is exactly one place that
- * skips bytes: the very first {@link #nextSegment()} call, where a snapshot reader started mid-body
- * discards the already-delivered prefix to land on the not-yet-delivered remainder. Every later
- * call does no skipping at all — the previous body was read to its end, so the stream already sits
- * on the next segment's header. This "skip only on first positioning" rule is what keeps the
- * steady-state path free of any seek/skip.
+ * skips bytes: the very first {@link #advanceAndGetNextSegment()} call, where a snapshot reader
+ * started mid-body discards the already-delivered prefix to land on the not-yet-delivered
+ * remainder. Every later call does no skipping at all — the previous body was read to its end, so
+ * the stream already sits on the next segment's header. This "skip only on first positioning" rule
+ * is what keeps the steady-state path free of any seek/skip.
  *
  * <p>The reader holds <b>two</b> {@link Position}s and nothing else duplicates them:
  *
@@ -58,15 +58,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       {@code current} (under the drainer lock). {@link #snapshot()} derives a new reader from it.
  * </ul>
  *
- * <p>The "previous body fully read before advancing" rule is checked at the {@link #nextSegment()}
- * entry (the first call is exempt — there is no previous segment). Body ownership is handed to the
- * consumer, so the reader does not track body progress except through {@code current}.
+ * <p>The "previous body fully read before advancing" rule is checked at the {@link
+ * #advanceAndGetNextSegment()} entry (the first call is exempt — there is no previous segment).
+ * Body ownership is handed to the consumer, so the reader does not track body progress except
+ * through {@code current}.
  */
 @Internal
 final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
     private final FetchedChannelStateSnapshot snapshot;
-    private final List<Path> files;
 
     /** Live read position; {@code readOffset} is where the open stream physically sits. */
     private final Position current;
@@ -80,7 +80,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     /** Size of the file currently open. */
     private long currentFileSize;
 
-    /** Body view of the segment returned by the last {@link #nextSegment()}, or {@code null}. */
+    /** Body view of the segment returned by the last {@link #advanceAndGetNextSegment()}. */
     @Nullable private BoundedSegmentStream currentBody;
 
     private boolean positioned;
@@ -88,14 +88,13 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
     FetchedChannelStateReaderImpl(FetchedChannelStateSnapshot snapshot) {
         this.snapshot = snapshot;
-        this.files = snapshot.channelState().files();
         // Must copy the position so that this reader's commits do not mutate the snapshot's state.
         this.committed = snapshot.position().copy();
         this.current = committed.copy();
     }
 
     @Override
-    public Optional<SpillSegment> nextSegment() {
+    public Optional<SpillSegment> advanceAndGetNextSegment() {
         checkState(!closed, "FetchedChannelStateReader is closed");
         checkState(
                 currentBody == null || currentBody.remaining() == 0,
@@ -186,6 +185,11 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     // Sequential IO over the spill files; all of it advances current.readOffset / current.fileIndex
     // -------------------------------------------------------------------------------------------
 
+    /** The spill files in write order; the reader never mutates the list. */
+    private List<Path> files() {
+        return snapshot.channelState().files();
+    }
+
     /**
      * Ensures a file is open with the stream positioned at {@code current}'s read offset, ready to
      * read this segment's header. Rolls to the next file when the current one is exhausted. Returns
@@ -195,7 +199,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      * SpillSegment#commit()} records the right segment for the snapshot to resume from.
      */
     private boolean openCurrentFile() throws IOException {
-        if (current.fileIndex >= files.size()) {
+        if (current.fileIndex >= files().size()) {
             return false;
         }
         openFileAndSeek();
@@ -206,7 +210,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         // Current file fully read: move to the next file's first segment.
         closeFileStream();
         current.rollToNextFile();
-        if (current.fileIndex >= files.size()) {
+        if (current.fileIndex >= files().size()) {
             return false;
         }
         openFileAndSeek();
@@ -226,6 +230,11 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         int channelIdx = h.readInt();
         int bufferLength = h.readInt();
         checkState(bufferLength >= 0, "negative segment length: %s", bufferLength);
+        checkState(
+                gateIdx >= 0 && channelIdx >= 0,
+                "negative channel info in segment header: %s/%s",
+                gateIdx,
+                channelIdx);
         return new SegmentHeader(new InputChannelInfo(gateIdx, channelIdx), bufferLength);
     }
 
@@ -238,7 +247,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         if (currentFileStream != null) {
             return;
         }
-        Path path = files.get(current.fileIndex);
+        Path path = files().get(current.fileIndex);
         currentFileSize = Files.size(path);
         InputStream in = new BufferedInputStream(Files.newInputStream(path));
         try {
@@ -270,7 +279,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
                             "Cannot position to offset "
                                     + count
                                     + " in spill file "
-                                    + files.get(current.fileIndex));
+                                    + files().get(current.fileIndex));
                 }
                 skipped++;
             } else {
@@ -280,16 +289,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     }
 
     private void readFully(byte[] buf) throws IOException {
-        try {
-            IOUtils.readFully(currentFileStream, buf, 0, buf.length);
-        } catch (IOException e) {
-            throw new IOException(
-                    "Truncated segment header in file "
-                            + files.get(current.fileIndex)
-                            + " at offset "
-                            + current.readOffset,
-                    e);
-        }
+        IOUtils.readFully(currentFileStream, buf, 0, buf.length);
         current.advanceReadOffset(buf.length);
     }
 
@@ -417,7 +417,7 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      * body bytes have been read. Reading the body and committing are separate steps so the consumer
      * can read outside the drainer lock and commit inside it.
      *
-     * <p>Only the drain reader commits.
+     * <p>Only the main reader commits.
      */
     private final class Segment implements SpillSegment {
         private final InputChannelInfo channelInfo;

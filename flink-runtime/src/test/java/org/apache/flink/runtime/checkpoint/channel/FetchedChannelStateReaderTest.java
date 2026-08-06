@@ -57,7 +57,7 @@ class FetchedChannelStateReaderTest {
         // A writer that never spills produces no state; an empty state has no segments.
         FetchedChannelState state = new FetchedChannelState(Collections.emptyList());
         try (FetchedChannelStateReader reader = state.reader()) {
-            assertThat(reader.nextSegment()).isEmpty();
+            assertThat(reader.advanceAndGetNextSegment()).isEmpty();
         }
     }
 
@@ -77,7 +77,7 @@ class FetchedChannelStateReaderTest {
         List<InputChannelInfo> channels = new ArrayList<>();
         try (FetchedChannelStateReader reader = state.reader()) {
             Optional<SpillSegment> next;
-            while ((next = reader.nextSegment()).isPresent()) {
+            while ((next = reader.advanceAndGetNextSegment()).isPresent()) {
                 SpillSegment seg = next.get();
                 channels.add(seg.channelInfo());
                 readAll(seg.bodyStream());
@@ -103,7 +103,7 @@ class FetchedChannelStateReaderTest {
         }
 
         try (FetchedChannelStateReader reader = state.reader()) {
-            SpillSegment seg = reader.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment seg = reader.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             InputStream body = seg.bodyStream();
             // Read exactly length bytes
             byte[] data = new byte[seg.length()];
@@ -141,7 +141,7 @@ class FetchedChannelStateReaderTest {
         List<InputChannelInfo> channels = new ArrayList<>();
         try (FetchedChannelStateReader reader = state.reader()) {
             Optional<SpillSegment> next;
-            while ((next = reader.nextSegment()).isPresent()) {
+            while ((next = reader.advanceAndGetNextSegment()).isPresent()) {
                 SpillSegment seg = next.get();
                 channels.add(seg.channelInfo());
                 // Body read must not throw even if the segment is in a different file.
@@ -173,7 +173,7 @@ class FetchedChannelStateReaderTest {
             try (FetchedChannelStateReader snap = root.snapshot().reader()) {
                 List<InputChannelInfo> channels = new ArrayList<>();
                 Optional<SpillSegment> next;
-                while ((next = snap.nextSegment()).isPresent()) {
+                while ((next = snap.advanceAndGetNextSegment()).isPresent()) {
                     SpillSegment seg = next.get();
                     channels.add(seg.channelInfo());
                     readAll(seg.bodyStream());
@@ -197,7 +197,7 @@ class FetchedChannelStateReaderTest {
 
         try (FetchedChannelStateReader root = state.reader()) {
             // Consume and commit first segment
-            SpillSegment first = root.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment first = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             readAll(first.bodyStream());
             first.commit();
 
@@ -205,7 +205,7 @@ class FetchedChannelStateReaderTest {
             try (FetchedChannelStateReader snap = root.snapshot().reader()) {
                 List<InputChannelInfo> channels = new ArrayList<>();
                 Optional<SpillSegment> next;
-                while ((next = snap.nextSegment()).isPresent()) {
+                while ((next = snap.advanceAndGetNextSegment()).isPresent()) {
                     SpillSegment seg = next.get();
                     channels.add(seg.channelInfo());
                     readAll(seg.bodyStream());
@@ -229,7 +229,7 @@ class FetchedChannelStateReaderTest {
         assertThat(state.files()).hasSize(1);
 
         try (FetchedChannelStateReader root = state.reader()) {
-            SpillSegment seg = root.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment seg = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             int fullLength = seg.length();
             InputStream body = seg.bodyStream();
 
@@ -239,7 +239,9 @@ class FetchedChannelStateReaderTest {
 
             try (FetchedChannelStateReader snapBeforeCommit = root.snapshot().reader()) {
                 SpillSegment snapSeg =
-                        snapBeforeCommit.nextSegment().orElseThrow(AssertionError::new);
+                        snapBeforeCommit
+                                .advanceAndGetNextSegment()
+                                .orElseThrow(AssertionError::new);
                 assertThat(snapSeg.length()).isEqualTo(fullLength);
                 readAll(snapSeg.bodyStream());
             }
@@ -250,7 +252,7 @@ class FetchedChannelStateReaderTest {
 
             // After commit the snapshot must be empty
             try (FetchedChannelStateReader snapAfterCommit = root.snapshot().reader()) {
-                assertThat(snapAfterCommit.nextSegment()).isEmpty();
+                assertThat(snapAfterCommit.advanceAndGetNextSegment()).isEmpty();
             }
         }
     }
@@ -268,7 +270,7 @@ class FetchedChannelStateReaderTest {
         assertThat(state.files()).hasSize(1);
 
         try (FetchedChannelStateReader root = state.reader()) {
-            SpillSegment seg = root.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment seg = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             int fullLength = seg.length();
             InputStream body = seg.bodyStream();
 
@@ -279,12 +281,13 @@ class FetchedChannelStateReaderTest {
 
             // Snapshot must resume mid-segment and yield exactly the remaining tail bytes.
             try (FetchedChannelStateReader snap = root.snapshot().reader()) {
-                SpillSegment snapSeg = snap.nextSegment().orElseThrow(AssertionError::new);
+                SpillSegment snapSeg =
+                        snap.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
                 assertThat(snapSeg.channelInfo()).isEqualTo(ch);
                 assertThat(snapSeg.length()).isEqualTo(fullLength - 3);
                 byte[] tail = readAll(snapSeg.bodyStream());
                 assertThat(tail).isEqualTo(bytes(4, 5, 6, 7, 8));
-                assertThat(snap.nextSegment()).isEmpty();
+                assertThat(snap.advanceAndGetNextSegment()).isEmpty();
             }
         }
     }
@@ -304,22 +307,24 @@ class FetchedChannelStateReaderTest {
         assertThat(state.files()).hasSize(2);
 
         try (FetchedChannelStateReader root = state.reader()) {
-            SpillSegment first = root.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment first = root.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             // Commit a 1-byte prefix of the file-0 segment.
             first.bodyStream().read(new byte[1]);
             first.commit();
 
             try (FetchedChannelStateReader snap = root.snapshot().reader()) {
-                SpillSegment resumed = snap.nextSegment().orElseThrow(AssertionError::new);
+                SpillSegment resumed =
+                        snap.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
                 assertThat(resumed.channelInfo()).isEqualTo(c0);
                 assertThat(readAll(resumed.bodyStream())).isEqualTo(bytes(2, 3, 4));
 
                 // Crossing into file 1 must reset the skip to 0.
-                SpillSegment following = snap.nextSegment().orElseThrow(AssertionError::new);
+                SpillSegment following =
+                        snap.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
                 assertThat(following.channelInfo()).isEqualTo(c1);
                 assertThat(readAll(following.bodyStream())).isEqualTo(bytes(5, 6, 7));
 
-                assertThat(snap.nextSegment()).isEmpty();
+                assertThat(snap.advanceAndGetNextSegment()).isEmpty();
             }
         }
     }
@@ -339,7 +344,7 @@ class FetchedChannelStateReaderTest {
         try (FetchedChannelStateReader root = state.reader()) {
             int count = 0;
             Optional<SpillSegment> next;
-            while ((next = root.nextSegment()).isPresent()) {
+            while ((next = root.advanceAndGetNextSegment()).isPresent()) {
                 SpillSegment seg = next.get();
                 readAll(seg.bodyStream());
                 seg.commit();
@@ -349,7 +354,7 @@ class FetchedChannelStateReaderTest {
 
             // After draining everything, a snapshot must have nothing left.
             try (FetchedChannelStateReader snap = root.snapshot().reader()) {
-                assertThat(snap.nextSegment()).isEmpty();
+                assertThat(snap.advanceAndGetNextSegment()).isEmpty();
             }
         }
     }
@@ -378,7 +383,7 @@ class FetchedChannelStateReaderTest {
                 StandardOpenOption.TRUNCATE_EXISTING);
 
         try (FetchedChannelStateReader reader = state.reader()) {
-            SpillSegment seg = reader.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment seg = reader.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             // bufferLength from header says > 0 bytes, but file has nothing after the header.
             assertThatThrownBy(() -> readAll(seg.bodyStream())).isInstanceOf(EOFException.class);
         }
@@ -451,7 +456,7 @@ class FetchedChannelStateReaderTest {
 
         try (FetchedChannelStateReader reader = state.reader()) {
             // Must not throw on the first call even though no body has been consumed before.
-            Optional<SpillSegment> seg = reader.nextSegment();
+            Optional<SpillSegment> seg = reader.advanceAndGetNextSegment();
             assertThat(seg).isPresent();
         }
     }
@@ -469,13 +474,13 @@ class FetchedChannelStateReaderTest {
         }
 
         try (FetchedChannelStateReader reader = state.reader()) {
-            SpillSegment seg = reader.nextSegment().orElseThrow(AssertionError::new);
+            SpillSegment seg = reader.advanceAndGetNextSegment().orElseThrow(AssertionError::new);
             // Read only part of the body — do not exhaust it.
             seg.bodyStream().read();
 
             // Advancing to the next segment while the previous body is not fully consumed must fail
             // loud.
-            assertThatThrownBy(reader::nextSegment)
+            assertThatThrownBy(reader::advanceAndGetNextSegment)
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Previous segment body not fully consumed");
         }
@@ -486,7 +491,7 @@ class FetchedChannelStateReaderTest {
         FetchedChannelState state = new FetchedChannelState(Collections.emptyList());
         try (FetchedChannelStateReader reader = state.reader()) {
             // First call on an empty reader must return empty without throwing.
-            assertThat(reader.nextSegment()).isEmpty();
+            assertThat(reader.advanceAndGetNextSegment()).isEmpty();
             // Closing must not throw.
         }
     }
@@ -495,15 +500,16 @@ class FetchedChannelStateReaderTest {
     void testEmptyReaderHandsOutIndependentInstancesSoCloseDoesNotLeak() throws Exception {
         // emptyReader() is obtained and closed once per checkpoint. close() is single-use (it flips
         // the closed flag permanently), so each call must yield a fresh instance; otherwise the
-        // first consumer's close would make every later consumer's nextSegment() fail loud.
+        // first consumer's close would make every later consumer's advanceAndGetNextSegment() fail
+        // loud.
         FetchedChannelStateReader first = FetchedChannelStateReader.emptyReader();
-        assertThat(first.nextSegment()).isEmpty();
+        assertThat(first.advanceAndGetNextSegment()).isEmpty();
         first.close();
 
         FetchedChannelStateReader second = FetchedChannelStateReader.emptyReader();
         assertThat(second).isNotSameAs(first);
         // Must still work after the previously obtained empty reader was closed.
-        assertThat(second.nextSegment()).isEmpty();
+        assertThat(second.advanceAndGetNextSegment()).isEmpty();
         second.close();
     }
 
