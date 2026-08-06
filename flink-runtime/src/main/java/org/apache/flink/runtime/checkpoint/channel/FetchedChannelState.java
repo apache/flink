@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * happens earlier, in the writer, which builds this container from the final list on close.
  *
  * <p>File lifecycle is managed by {@link #acquire()} / {@link #release()} reference counting. Files
- * are deleted only when the last lifecycle grant is released (i.e. when both the drain reader and
+ * are deleted only when the last lifecycle grant is released (i.e. when both the main reader and
  * all snapshot readers have finished).
  */
 @Internal
@@ -72,8 +72,8 @@ public final class FetchedChannelState implements Closeable {
     // -------------------------------------------------------------------------------------------
 
     /**
-     * Opens the drain reader covering all segments from the beginning. The returned reader holds
-     * one lifecycle grant and must be closed when done.
+     * Opens the main reader covering all segments from the beginning. The returned reader holds one
+     * lifecycle grant and must be closed when done.
      */
     public FetchedChannelStateReader reader() {
         return new FetchedChannelStateSnapshot(
