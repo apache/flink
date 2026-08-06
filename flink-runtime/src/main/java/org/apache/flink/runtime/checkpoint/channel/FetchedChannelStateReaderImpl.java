@@ -29,8 +29,11 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
 
@@ -218,37 +221,16 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         if (currentFileStream != null) {
             return;
         }
-        Path path = files().get(current.fileIndex);
-        currentFileSize = Files.size(path);
-        InputStream in = new BufferedInputStream(Files.newInputStream(path));
+        SeekableByteChannel channel =
+                Files.newByteChannel(files().get(current.fileIndex), StandardOpenOption.READ);
         try {
-            skipOnStream(in, current.readOffset);
+            currentFileSize = channel.size();
+            channel.position(current.readOffset);
         } catch (IOException e) {
-            in.close();
+            channel.close();
             throw e;
         }
-        currentFileStream = in;
-    }
-
-    /** Skips exactly {@code count} bytes on {@code in}, failing loud if the file ends early. */
-    private void skipOnStream(InputStream in, long count) throws IOException {
-        long skipped = 0;
-        while (skipped < count) {
-            long s = in.skip(count - skipped);
-            if (s <= 0) {
-                // skip can return 0 near EOF; read-and-discard as a fallback.
-                if (in.read() < 0) {
-                    throw new EOFException(
-                            "Cannot position to offset "
-                                    + count
-                                    + " in spill file "
-                                    + files().get(current.fileIndex));
-                }
-                skipped++;
-            } else {
-                skipped += s;
-            }
-        }
+        currentFileStream = new BufferedInputStream(Channels.newInputStream(channel));
     }
 
     private void readFully(byte[] buf) throws IOException {
