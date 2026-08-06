@@ -182,6 +182,22 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.VARCHAR(5))
                         .testResult(
                                 lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
+                        // FLINK-40338: non-INT INTEGER_NUMERIC index must not throw ClassCastException
+                        .testResult(
+                                lit(2).cast(DataTypes.TINYINT()).elt("scala", "java"),
+                                "ELT(CAST(2 AS TINYINT), 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                lit(2).cast(DataTypes.SMALLINT()).elt("scala", "java"),
+                                "ELT(CAST(2 AS SMALLINT), 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                lit(2).cast(DataTypes.BIGINT()).elt("scala", "java"),
+                                "ELT(CAST(2 AS BIGINT), 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
                         .testResult(
                                 lit(2).elt($("f2"), $("f3"), $("f3")),
                                 "ELT(2, f2, f3, f3)",

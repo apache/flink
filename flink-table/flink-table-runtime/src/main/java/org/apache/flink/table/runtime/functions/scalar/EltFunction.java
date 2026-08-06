@@ -40,6 +40,9 @@ public class EltFunction extends BuiltInScalarFunction {
         if (idx < 1 || idx > exprs.length) {
             return null;
         }
-        return exprs[(int) index - 1];
+        // Narrow the already-unboxed long instead of casting the Number reference.
+        // Casting `index` (java.lang.Number) to int compiles to a checkcast to Integer
+        // followed by unboxing, which throws ClassCastException for Byte/Short/Long.
+        return exprs[(int) idx - 1];
     }
 }
