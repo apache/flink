@@ -1,8 +1,0 @@
-#Tue Aug 04 14:13:56 BST 2026
-/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/src/main/java/org/apache/flink/walkthrough/common/entity/Alert.java=1783333755173
-/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/src/main/java/org/apache/flink/walkthrough/common/entity/Transaction.java=1783333755173
-/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/src/main/java/org/apache/flink/walkthrough/common/sink/AlertSink.java=1783333755173
-/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/src/main/java/org/apache/flink/walkthrough/common/sink/LoggerOutputFormat.java=1783333755173
-/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/src/main/java/org/apache/flink/walkthrough/common/source/TransactionSource.java=1783333755174
-configuration*?=EB17194AF80019E71EDFC82F2922C2510AB6EA14
-module-resource*?\:/Users/vasshabu/Documents/flink/flink-walkthroughs/flink-walkthrough-common/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

@@ -1,7 +1,0 @@
-#Tue Aug 04 14:13:23 BST 2026
-/Users/vasshabu/Documents/flink/flink-table/flink-table-api-bridge-base/src/main/java/org/apache/flink/table/api/bridge/internal/AbstractStreamTableEnvironmentImpl.java=1783333753888
-/Users/vasshabu/Documents/flink/flink-table/flink-table-api-bridge-base/src/main/java/org/apache/flink/table/delegation/StreamExecutorFactory.java=1783333753888
-/Users/vasshabu/Documents/flink/flink-table/flink-table-api-bridge-base/src/main/java/org/apache/flink/table/operations/DataStreamQueryOperation.java=1783333753888
-/Users/vasshabu/Documents/flink/flink-table/flink-table-api-bridge-base/src/main/java/org/apache/flink/table/operations/ExternalQueryOperation.java=1783333753888
-configuration*?=E9C3CD87B56D17EAEA89E56943A44C13DA8DD2B9
-module-resource*?\:/Users/vasshabu/Documents/flink/flink-table/flink-table-api-bridge-base/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

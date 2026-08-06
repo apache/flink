@@ -1,8 +1,0 @@
-#Tue Aug 04 14:13:51 BST 2026
-/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/src/main/java/org/apache/flink/metrics/statsd/StatsDReporter.java=1783333752806
-/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/src/main/java/org/apache/flink/metrics/statsd/StatsDReporterFactory.java=1783333752806
-/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/src/test/java/org/apache/flink/metrics/statsd/StatsDReporterFactoryTest.java=1783333752807
-/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/src/test/java/org/apache/flink/metrics/statsd/StatsDReporterTest.java=1783333752807
-/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/src/test/resources/log4j2-test.properties=1783333752808
-configuration*?=779D445B8BE40213D147C2D07B087FF75CA6A4F8
-module-resource*?\:/Users/vasshabu/Documents/flink/flink-metrics/flink-metrics-statsd/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2

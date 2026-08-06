@@ -1,9 +1,0 @@
-#Tue Aug 04 14:12:33 BST 2026
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/main/java/org/apache/flink/architecture/TestCodeArchitectureTestBase.java=1785848180579
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/main/java/org/apache/flink/architecture/rules/BanJunit4Rules.java=1783333751828
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/main/java/org/apache/flink/architecture/rules/ITCaseRules.java=1783333751828
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/main/java/org/apache/flink/architecture/rules/TestNamingRules.java=1785848180579
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/test/resources/archunit.properties=1783333751828
-/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/src/test/resources/log4j2-test.properties=1783333751829
-configuration*?=B8A011AAA7F64914064F8D03F7EA43FFB0824672
-module-resource*?\:/Users/vasshabu/Documents/flink/flink-architecture-tests/flink-architecture-tests-test/target/checkstyle-suppressions.xml=AA6B67F407EDF2740ADAD3A49B0588276369C8A2
