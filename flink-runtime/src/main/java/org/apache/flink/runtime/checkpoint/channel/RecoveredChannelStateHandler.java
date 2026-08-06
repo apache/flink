@@ -328,7 +328,9 @@ class FilteringHandler extends AbstractInputChannelRecoveredStateHandler {
                 channel.onRecoveredStateBuffer(filteredBuffers.get(i));
             }
         } catch (Throwable t) {
-            for (int j = i; j < filteredBuffers.size(); j++) {
+            // Start at i + 1: onRecoveredStateBuffer() takes over the buffer before anything can
+            // fail, so recycling the buffer at index i again would corrupt its reference count.
+            for (int j = i + 1; j < filteredBuffers.size(); j++) {
                 filteredBuffers.get(j).recycleBuffer();
             }
             throw t;
