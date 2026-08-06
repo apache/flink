@@ -181,7 +181,30 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             ((JsonDecoder) this.decoder).configure(inputStream);
         }
 
-        return datumReader.read(null, decoder);
+        try {
+            return datumReader.read(null, decoder);
+        } catch (IOException | RuntimeException e) {
+            // FLINK-34474: a failed read can leave the pooled decoder in an
+            // inconsistent internal state, so that subsequent reads return
+            // corrupted data even after the input buffer is reset. Discard
+            // the poisoned decoder so the next message starts from a clean state.
+            resetDecoder();
+            throw e;
+        }
+    }
+
+    private void resetDecoder() {
+        try {
+            if (encoding == AvroEncoding.JSON) {
+                this.decoder = DecoderFactory.get().jsonDecoder(getReaderSchema(), inputStream);
+            } else {
+                this.decoder = DecoderFactory.get().binaryDecoder(inputStream, this.decoder);
+            }
+        } catch (IOException e) {
+            // jsonDecoder only throws on schema/input issues that cannot occur here
+            // (the schema is cached and the input is an in-memory stream).
+            throw new RuntimeException(e);
+        }
     }
 
     void checkAvroInitialized() throws IOException {

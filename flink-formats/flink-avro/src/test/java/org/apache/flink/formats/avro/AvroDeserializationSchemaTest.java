@@ -24,15 +24,19 @@ import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link AvroDeserializationSchema}. */
 class AvroDeserializationSchemaTest {
@@ -84,5 +88,40 @@ class AvroDeserializationSchemaTest {
         byte[] encodedData = writeRecord(data, encoding);
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
         assertThat(deserializedData).isEqualTo(data);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testDeserializeRecoversFromCorruptMessage(AvroEncoding encoding) throws Exception {
+        // Schema with a 2-branch union so a corrupt tag triggers an
+        // ArrayIndexOutOfBoundsException mid-read (FLINK-34474 reproducer).
+        Schema schema = Schema.createRecord("corruptTest", null, null, false);
+        schema.setFields(
+                Collections.singletonList(
+                        new Schema.Field(
+                                "f",
+                                Schema.createUnion(
+                                        Schema.create(Schema.Type.STRING),
+                                        Schema.create(Schema.Type.INT)))));
+
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(schema, encoding);
+
+        GenericRecord valid = new GenericData.Record(schema);
+        valid.put("f", "hello");
+        byte[] validBytes = writeRecord(valid, schema, encoding);
+
+        // The leading byte (100) decodes to an out-of-range union tag (zig-zag 50)
+        // and throws mid-read; the trailing bytes are left unconsumed in the
+        // pooled BinaryDecoder's internal buffer, poisoning subsequent reads
+        // unless the decoder is reset (FLINK-34474).
+        byte[] corrupt = new byte[] {100, 0, 0, 0, 0, 0, 0, 0};
+
+        assertThat(deserializer.deserialize(validBytes)).isEqualTo(valid);
+        assertThatThrownBy(() -> deserializer.deserialize(corrupt))
+                .isInstanceOf(Exception.class);
+        // FLINK-34474: a subsequent valid message must still deserialize,
+        // instead of being poisoned by the prior failed read.
+        assertThat(deserializer.deserialize(validBytes)).isEqualTo(valid);
     }
 }
