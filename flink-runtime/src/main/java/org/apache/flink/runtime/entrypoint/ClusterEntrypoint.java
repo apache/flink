@@ -496,6 +496,16 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
 
+            if (delegationTokenManager != null) {
+                try {
+                    // Terminal teardown of the delegation token providers. The per-session
+                    // manager stop() already ran when the ResourceManager component closed.
+                    delegationTokenManager.close();
+                } catch (Throwable t) {
+                    exception = ExceptionUtils.firstOrSuppressed(t, exception);
+                }
+            }
+
             if (blobServer != null) {
                 try {
                     blobServer.close();

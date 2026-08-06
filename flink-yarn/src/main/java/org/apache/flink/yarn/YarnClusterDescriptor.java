@@ -1344,7 +1344,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             DelegationTokenManager delegationTokenManager =
                     new DefaultDelegationTokenManager(flinkConfiguration, null, null, null);
             DelegationTokenContainer container = new DelegationTokenContainer();
-            delegationTokenManager.obtainDelegationTokens(container);
+            try {
+                delegationTokenManager.obtainDelegationTokens(container);
+            } finally {
+                // One-shot, client-side use: release the providers' resources right away.
+                delegationTokenManager.close();
+            }
 
             // This is here for backward compatibility to make log aggregation work
             for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {

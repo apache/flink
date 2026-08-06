@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -274,6 +275,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             ResourceID jobMasterResourceId,
             String jobMasterAddress,
             JobID jobId,
+            Configuration jobConfiguration,
             Duration timeout) {
         final QuadFunction<
                         JobMasterId,

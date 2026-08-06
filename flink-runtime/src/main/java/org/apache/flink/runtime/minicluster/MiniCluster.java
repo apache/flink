@@ -1372,6 +1372,17 @@ public class MiniCluster implements AutoCloseableAsync {
         Exception exception = null;
 
         synchronized (lock) {
+            if (delegationTokenManager != null) {
+                try {
+                    // Terminal teardown of the delegation token providers. The per-session
+                    // manager stop() already ran when the ResourceManager component closed.
+                    delegationTokenManager.close();
+                } catch (Exception e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+                delegationTokenManager = null;
+            }
+
             if (blobCacheService != null) {
                 try {
                     blobCacheService.close();
