@@ -637,6 +637,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         literal_values = {
             "inferred_bool": True,
             "inferred_int": 2,
+            "inferred_bigint": 1 << 40,
             "inferred_float": 1.25,
             "inferred_string": "x",
             "inferred_bytes": b"x",
@@ -645,6 +646,9 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             "inferred_date": datetime.date(2026, 8, 3),
             "inferred_time": datetime.time(1, 2, 3),
             "inferred_timestamp": datetime.datetime(2026, 8, 3, 1, 2, 3),
+            "inferred_aware_timestamp": datetime.datetime(
+                2026, 8, 3, 1, 2, 3, tzinfo=datetime.timezone.utc
+            ),
             "inferred_timedelta": datetime.timedelta(days=1, seconds=2, microseconds=3000),
             "inferred_list": ["abc"],
             "inferred_nested_list": [[datetime.date(2026, 8, 3)]],
@@ -661,6 +665,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             [
                 TableDataTypes.BOOLEAN().not_null(),
                 TableDataTypes.INT().not_null(),
+                TableDataTypes.BIGINT().not_null(),
                 TableDataTypes.DOUBLE().not_null(),
                 TableDataTypes.CHAR(1).not_null(),
                 TableDataTypes.BINARY(1).not_null(),
@@ -668,6 +673,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
                 TableDataTypes.DECIMAL(3, 2).not_null(),
                 TableDataTypes.DATE().not_null(),
                 TableDataTypes.TIME().not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
                 TableDataTypes.TIMESTAMP(0).not_null(),
                 TableDataTypes.INTERVAL(
                     TableDataTypes.DAY(1), TableDataTypes.SECOND(3)
@@ -682,32 +688,87 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         )
 
     def test_lit_supports_explicit_types(self):
+        list_type = pf.DataType.list(pf.DataType.int16())
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
         result = self.dataframe.select(
-            explicit_int=pf.lit(3, pf.DataType.int64()),
-            explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
-            explicit_small_int=pf.lit(3, pf.DataType.int16()),
-            explicit_float=pf.lit(1.25, pf.DataType.float32()),
-            explicit_date=pf.lit(datetime.date(2026, 8, 3), pf.DataType.date()),
+            explicit_int8=pf.lit(3, pf.DataType.int8()),
+            explicit_int16=pf.lit(3, pf.DataType.int16()),
+            explicit_int32=pf.lit(3, pf.DataType.int32()),
+            explicit_int64=pf.lit(3, pf.DataType.int64()),
+            explicit_float32=pf.lit(1.25, pf.DataType.float32()),
+            explicit_float64=pf.lit(1.25, pf.DataType.float64()),
+            explicit_decimal=pf.lit(decimal.Decimal("1.25"), pf.DataType.decimal(3, 2)),
+            explicit_bool=pf.lit(True, pf.DataType.bool()),
             explicit_string=pf.lit("y", pf.DataType.string()),
+            explicit_fixed_string=pf.lit("y", pf.DataType.fixed_size_string(1)),
+            explicit_binary=pf.lit(b"y", pf.DataType.binary()),
+            explicit_fixed_binary=pf.lit(b"y", pf.DataType.fixed_size_binary(1)),
+            explicit_date=pf.lit(datetime.date(2026, 8, 3), pf.DataType.date()),
+            explicit_time=pf.lit(datetime.time(1, 2, 3, 4000), pf.DataType.time(6)),
+            explicit_timestamp=pf.lit(
+                datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
+                pf.DataType.timestamp(6),
+            ),
+            explicit_timestamp_ltz=pf.lit(
+                datetime.datetime(
+                    2026, 8, 3, 1, 2, 3, 4000, tzinfo=datetime.timezone.utc
+                ),
+                pf.DataType.timestamp_ltz(6),
+            ),
+            explicit_list=pf.lit([1, 2], list_type),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
         )
 
         self.assert_dataframe_schema(
             result,
             [
-                "explicit_int",
-                "explicit_large_int",
-                "explicit_small_int",
-                "explicit_float",
-                "explicit_date",
+                "explicit_int8",
+                "explicit_int16",
+                "explicit_int32",
+                "explicit_int64",
+                "explicit_float32",
+                "explicit_float64",
+                "explicit_decimal",
+                "explicit_bool",
                 "explicit_string",
+                "explicit_fixed_string",
+                "explicit_binary",
+                "explicit_fixed_binary",
+                "explicit_date",
+                "explicit_time",
+                "explicit_timestamp",
+                "explicit_timestamp_ltz",
+                "explicit_list",
+                "explicit_map",
+                "explicit_struct",
             ],
             [
-                TableDataTypes.BIGINT().not_null(),
-                TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.TINYINT().not_null(),
                 TableDataTypes.SMALLINT().not_null(),
+                TableDataTypes.INT().not_null(),
+                TableDataTypes.BIGINT().not_null(),
                 TableDataTypes.FLOAT().not_null(),
-                TableDataTypes.DATE().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.BOOLEAN().not_null(),
                 TableDataTypes.STRING().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BYTES().not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME(6).not_null(),
+                TableDataTypes.TIMESTAMP(6).not_null(),
+                TableDataTypes.TIMESTAMP_LTZ(6).not_null(),
+                list_type._to_table_data_type().not_null(),
+                map_type._to_table_data_type().not_null(),
+                struct_type._to_table_data_type().not_null(),
             ],
         )
 
@@ -715,12 +776,33 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.select(
             null_int=pf.lit(None, pf.DataType.int64()),
             null_string=pf.lit(None, pf.DataType.string()),
+            null_list=pf.lit(None, pf.DataType.list(pf.DataType.int16())),
+            null_map=pf.lit(
+                None, pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+            ),
+            null_struct=pf.lit(
+                None, pf.DataType.struct({"value": pf.DataType.int16()})
+            ),
         )
 
         self.assert_dataframe_schema(
             result,
-            ["null_int", "null_string"],
-            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+            [
+                "null_int",
+                "null_string",
+                "null_list",
+                "null_map",
+                "null_struct",
+            ],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()),
+                TableDataTypes.MAP(TableDataTypes.SMALLINT(), TableDataTypes.FLOAT()),
+                TableDataTypes.ROW(
+                    [TableDataTypes.FIELD("value", TableDataTypes.SMALLINT())]
+                ),
+            ],
         )
 
     def test_lit_supports_small_int_for_non_nullable_bigint(self):
@@ -738,6 +820,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             (3.14, pf.DataType.int64()),
             ("abc", pf.DataType.int64()),
             (42, pf.DataType.string()),
+            ([1.25], pf.DataType.list(pf.DataType.int16())),
         ]
         for value, data_type in incompatible_values:
             with self.subTest(value=value, data_type=data_type):
@@ -892,6 +975,44 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             )
         finally:
             self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_lit_supports_inferred_and_explicit_types(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
+
+        result = dataframe.select(
+            inferred_date=pf.lit(datetime.date(2026, 8, 3)),
+            inferred_list=pf.lit(["abc"]),
+            explicit_small_int=pf.lit(1, pf.DataType.int16()),
+            explicit_float=pf.lit(1.25, pf.DataType.float32()),
+            explicit_list=pf.lit(
+                [1, 2],
+                pf.DataType.list(pf.DataType.int16()),
+            ),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
+        )
+
+        self.assertEqual(
+            result.collect(),
+            [
+                Row(
+                    datetime.date(2026, 8, 3),
+                    ["abc"],
+                    1,
+                    1.25,
+                    [1, 2],
+                    {1: 1.25},
+                    Row(1, 1.25),
+                )
+            ],
+        )
 
     def test_basic_functionality(self):
         df = pf.from_dict(

@@ -22,11 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
 import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.DecimalData;
@@ -36,6 +38,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -67,6 +70,8 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -74,10 +79,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -148,48 +153,211 @@ public final class PythonTableUtils {
     }
 
     /**
-     * Converts values received through Py4J into an array, inferring its component class from the
-     * first non-null element.
-     *
-     * @param values the array elements received through Py4J
-     * @return an array with the inferred component class
-     */
-    public static Object toJavaArray(final List<Object> values) {
-        final Class<?> componentClass =
-                values.stream()
-                        .filter(value -> value != null)
-                        .map(Object::getClass)
-                        .findFirst()
-                        .orElse(Object.class);
-        return convertLiteralArray(values, componentClass, Function.identity());
-    }
-
-    /**
-     * Converts values received through Py4J into an array using the given element data type.
-     *
-     * @param values the array elements received through Py4J
-     * @param elementDataType the data type represented by the Python collection
-     * @return an array with elements converted to the data type's conversion class
-     */
-    public static Object toJavaArray(final List<Object> values, final DataType elementDataType) {
-        return convertLiteralArray(
-                values, elementDataType.getConversionClass(), literalConverter(elementDataType));
-    }
-
-    /**
-     * Creates a typed literal from a value received through Py4J.
+     * Creates a literal from a value received through Py4J.
      *
      * <p>Py4J represents Python numeric values as {@link Integer}, {@link Long}, or {@link Double},
      * which does not preserve the boxed Java classes required by some {@link DataType}s. This
      * method adapts the value to the data type's external representation and creates the literal in
-     * the same JVM call so that the adapted value is not converted by Py4J again.
+     * the same JVM call so that the adapted value is not converted by Py4J again. If {@code
+     * dataType} is absent, Java literal inference remains authoritative. Constructed values are
+     * represented by constructor expressions because raw constructed value literals cannot be
+     * planned.
      *
      * @param value the literal value received through Py4J
-     * @param dataType the data type of the literal
-     * @return the typed literal expression
+     * @param dataType the declared data type, or {@code null} for type inference
+     * @return the literal expression
+     * @throws ValidationException if the constructed value has no plannable literal expression
      */
-    public static ApiExpression createLiteralWithType(final Object value, final DataType dataType) {
-        return Expressions.lit(literalConverter(dataType).apply(value), dataType);
+    public static ApiExpression createLiteral(
+            final Object value, @Nullable final DataType dataType) {
+        if (dataType != null) {
+            return createTypedLiteral(value, dataType);
+        }
+
+        final Object inferredValue = materializeInferredArrays(value);
+        final ApiExpression literal = Expressions.lit(inferredValue);
+        final DataType inferredDataType =
+                ((ValueLiteralExpression) literal.toExpr()).getOutputDataType();
+        // Raw array literals can be inferred but not planned. Rebuild the array as a constructor
+        // expression while preserving the data type inferred by Java.
+        if (inferredDataType.getLogicalType() instanceof ArrayType) {
+            return createTypedLiteral(inferredValue, inferredDataType);
+        }
+        return literal;
+    }
+
+    private static ApiExpression createTypedLiteral(final Object value, final DataType dataType) {
+        if (value == null) {
+            // A typed null carries no composite payload and is directly plannable.
+            return Expressions.lit(value, dataType);
+        }
+        if (dataType.getLogicalType().isNullable()) {
+            // Delegate the invalid non-null value/nullable type combination to Java validation.
+            return Expressions.lit(value, dataType);
+        }
+        if (!usesDefaultLiteralConversion(dataType)) {
+            // Custom conversion classes are opaque to this bridge; use native literal handling.
+            return Expressions.lit(value, dataType);
+        }
+
+        if (dataType.getLogicalType() instanceof ArrayType) {
+            if (!(value instanceof List) && !value.getClass().isArray()) {
+                // Delegate incompatible ARRAY representations to standard literal validation.
+                return Expressions.lit(value, dataType);
+            }
+            final int length = getLiteralArrayLength(value);
+            if (length == 0) {
+                return createEmptyArray(dataType);
+            }
+            final DataType elementDataType = dataType.getChildren().get(0);
+            final Object[] tail = new Object[length - 1];
+            for (int pos = 1; pos < length; pos++) {
+                tail[pos - 1] =
+                        createNestedLiteral(getLiteralArrayElement(value, pos), elementDataType);
+            }
+            return Expressions.array(
+                            createNestedLiteral(getLiteralArrayElement(value, 0), elementDataType),
+                            tail)
+                    .cast(dataType);
+        }
+        if (dataType.getLogicalType() instanceof RowType) {
+            if (!isLiteralRow(value)) {
+                // Delegate incompatible ROW representations to standard literal validation.
+                return Expressions.lit(value, dataType);
+            }
+            final RowType rowType = (RowType) dataType.getLogicalType();
+            final List<DataType> fieldDataTypes = dataType.getChildren();
+            if (fieldDataTypes.isEmpty()) {
+                throw new ValidationException("Non-null empty ROW literals are not supported.");
+            }
+            if (!(value instanceof Map)) {
+                final int valueArity = getLiteralRowArity(value);
+                if (valueArity != fieldDataTypes.size()) {
+                    throw new ValidationException(
+                            String.format(
+                                    "ROW literal has arity %d but the data type has arity %d.",
+                                    valueArity, fieldDataTypes.size()));
+                }
+            }
+            final List<String> fieldNames = rowType.getFieldNames();
+            final Object[] tail = new Object[fieldDataTypes.size() - 1];
+            for (int pos = 1; pos < fieldDataTypes.size(); pos++) {
+                tail[pos - 1] =
+                        createNestedLiteral(
+                                getLiteralRowField(value, pos, fieldNames.get(pos)),
+                                fieldDataTypes.get(pos));
+            }
+            return Expressions.row(
+                            createNestedLiteral(
+                                    getLiteralRowField(value, 0, fieldNames.get(0)),
+                                    fieldDataTypes.get(0)),
+                            tail)
+                    .cast(dataType);
+        }
+        if (dataType.getLogicalType() instanceof MultisetType) {
+            throw new ValidationException("Non-null MULTISET literals are not supported.");
+        }
+        if (dataType.getLogicalType() instanceof MapType) {
+            if (!(value instanceof Map)) {
+                // Delegate incompatible MAP representations to standard literal validation.
+                return Expressions.lit(value, dataType);
+            }
+            final Map<?, ?> map = (Map<?, ?>) value;
+            final DataType keyDataType = dataType.getChildren().get(0);
+            final DataType valueDataType = dataType.getChildren().get(1);
+            if (map.isEmpty()) {
+                return Expressions.mapFromArrays(
+                                createEmptyArray(DataTypes.ARRAY(keyDataType).notNull()),
+                                createEmptyArray(DataTypes.ARRAY(valueDataType).notNull()))
+                        .cast(dataType);
+            }
+            final Object[] arguments = new Object[map.size() * 2];
+            int pos = 0;
+            for (final Map.Entry<?, ?> entry : map.entrySet()) {
+                arguments[pos++] = createNestedLiteral(entry.getKey(), keyDataType);
+                arguments[pos++] = createNestedLiteral(entry.getValue(), valueDataType);
+            }
+            return Expressions.map(
+                            arguments[0],
+                            arguments[1],
+                            Arrays.copyOfRange(arguments, 2, arguments.length))
+                    .cast(dataType);
+        }
+        // After normalizing Py4J numerics, let Java perform final scalar validation.
+        return Expressions.lit(scalarLiteralConverter(dataType).apply(value), dataType);
+    }
+
+    private static ApiExpression createEmptyArray(final DataType dataType) {
+        final DataType elementDataType = dataType.getChildren().get(0);
+        // The ARRAY constructor requires an argument, so slice a typed one-element array to empty.
+        return Expressions.array(Expressions.lit(null, elementDataType.nullable()))
+                .arraySlice(2, 1)
+                .cast(dataType);
+    }
+
+    private static ApiExpression createNestedLiteral(
+            final Object value, final DataType declaredDataType) {
+        // Java requires non-null literals to use a NOT NULL type. Preserve declared nullability for
+        // null values so that invalid nulls remain rejected.
+        final DataType literalDataType =
+                value == null ? declaredDataType : declaredDataType.notNull();
+        return createTypedLiteral(value, literalDataType);
+    }
+
+    private static Object materializeInferredArrays(final Object value) {
+        if (!(value instanceof List)) {
+            return value;
+        }
+
+        final List<?> values = (List<?>) value;
+        final Object[] convertedValues = new Object[values.size()];
+        Class<?> componentClass = null;
+        boolean hasCommonComponentClass = true;
+        for (int pos = 0; pos < values.size(); pos++) {
+            final Object convertedValue = materializeInferredArrays(values.get(pos));
+            convertedValues[pos] = convertedValue;
+            if (convertedValue == null) {
+                continue;
+            }
+            if (componentClass == null) {
+                componentClass = convertedValue.getClass();
+            } else if (componentClass != convertedValue.getClass()) {
+                hasCommonComponentClass = false;
+            }
+        }
+
+        if (!hasCommonComponentClass || componentClass == null) {
+            return convertedValues;
+        }
+        final Object convertedArray = Array.newInstance(componentClass, convertedValues.length);
+        for (int pos = 0; pos < convertedValues.length; pos++) {
+            Array.set(convertedArray, pos, convertedValues[pos]);
+        }
+        return convertedArray;
+    }
+
+    private static int getLiteralArrayLength(final Object value) {
+        return value instanceof List ? ((List<?>) value).size() : Array.getLength(value);
+    }
+
+    private static Object getLiteralArrayElement(final Object value, final int pos) {
+        return value instanceof List ? ((List<?>) value).get(pos) : Array.get(value, pos);
+    }
+
+    private static boolean isLiteralRow(final Object value) {
+        return value instanceof Row
+                || value instanceof List
+                || value instanceof Map
+                || value.getClass().isArray();
+    }
+
+    private static int getLiteralRowArity(final Object value) {
+        if (value instanceof Row) {
+            return ((Row) value).getArity();
+        } else if (value instanceof List) {
+            return ((List<?>) value).size();
+        }
+        return Array.getLength(value);
     }
 
     private static BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor(
@@ -552,7 +720,7 @@ public final class PythonTableUtils {
         throw new IllegalStateException("Failed to get converter for LogicalType: " + logicalType);
     }
 
-    private static Function<Object, Object> literalConverter(final DataType dataType) {
+    private static Function<Object, Object> scalarLiteralConverter(final DataType dataType) {
         if (!usesDefaultLiteralConversion(dataType)) {
             return Function.identity();
         }
@@ -584,31 +752,16 @@ public final class PythonTableUtils {
         if (logicalType instanceof FloatType) {
             return value -> value instanceof Double ? ((Double) value).floatValue() : value;
         }
-        if (logicalType instanceof ArrayType) {
-            final Function<Object, Object> elementConverter =
-                    literalConverter(dataType.getChildren().get(0));
-            final Class<?> componentClass = dataType.getConversionClass().getComponentType();
-            return value -> convertLiteralArray(value, componentClass, elementConverter);
-        }
-        if (logicalType instanceof MultisetType) {
-            final Function<Object, Object> elementConverter =
-                    literalConverter(dataType.getChildren().get(0));
-            return value -> convertLiteralMap(value, elementConverter, Function.identity());
-        }
-        if (logicalType instanceof MapType) {
-            final Function<Object, Object> keyConverter =
-                    literalConverter(dataType.getChildren().get(0));
-            final Function<Object, Object> valueConverter =
-                    literalConverter(dataType.getChildren().get(1));
-            return value -> convertLiteralMap(value, keyConverter, valueConverter);
-        }
-        if (logicalType instanceof RowType) {
-            final List<String> fieldNames = ((RowType) logicalType).getFieldNames();
-            final List<Function<Object, Object>> fieldConverters =
-                    dataType.getChildren().stream()
-                            .map(PythonTableUtils::literalConverter)
-                            .collect(Collectors.toList());
-            return value -> convertLiteralRow(value, fieldNames, fieldConverters);
+        if (logicalType instanceof YearMonthIntervalType) {
+            return value -> {
+                if (!isIntegral(value)) {
+                    return value;
+                }
+                final long number = ((Number) value).longValue();
+                return number >= Integer.MIN_VALUE && number <= Integer.MAX_VALUE
+                        ? Period.ofMonths((int) number)
+                        : value;
+            };
         }
         return Function.identity();
     }
@@ -631,63 +784,6 @@ public final class PythonTableUtils {
                 || value instanceof Short
                 || value instanceof Integer
                 || value instanceof Long;
-    }
-
-    private static Object convertLiteralArray(
-            final Object value,
-            final Class<?> componentClass,
-            final Function<Object, Object> elementConverter) {
-        final int length;
-        final Function<Integer, Object> elementGetter;
-        if (value instanceof List) {
-            length = ((List<?>) value).size();
-            elementGetter = pos -> ((List<?>) value).get(pos);
-        } else if (value != null && value.getClass().isArray()) {
-            length = Array.getLength(value);
-            elementGetter = pos -> Array.get(value, pos);
-        } else {
-            return value;
-        }
-
-        final Object converted = Array.newInstance(componentClass, length);
-        for (int pos = 0; pos < length; pos++) {
-            Array.set(converted, pos, elementConverter.apply(elementGetter.apply(pos)));
-        }
-        return converted;
-    }
-
-    private static Object convertLiteralMap(
-            final Object value,
-            final Function<Object, Object> keyConverter,
-            final Function<Object, Object> valueConverter) {
-        if (!(value instanceof Map)) {
-            return value;
-        }
-        final Map<Object, Object> converted = new HashMap<>();
-        for (final Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-            converted.put(
-                    keyConverter.apply(entry.getKey()), valueConverter.apply(entry.getValue()));
-        }
-        return converted;
-    }
-
-    private static Object convertLiteralRow(
-            final Object value,
-            final List<String> fieldNames,
-            final List<Function<Object, Object>> fieldConverters) {
-        if (!(value instanceof Row)
-                && !(value instanceof List)
-                && !(value instanceof Map)
-                && (value == null || !value.getClass().isArray())) {
-            return value;
-        }
-        final RowKind rowKind = value instanceof Row ? ((Row) value).getKind() : RowKind.INSERT;
-        final Row converted = Row.withPositions(rowKind, fieldConverters.size());
-        for (int pos = 0; pos < fieldConverters.size(); pos++) {
-            final Object fieldValue = getLiteralRowField(value, pos, fieldNames.get(pos));
-            converted.setField(pos, fieldConverters.get(pos).apply(fieldValue));
-        }
-        return converted;
     }
 
     private static Object getLiteralRowField(

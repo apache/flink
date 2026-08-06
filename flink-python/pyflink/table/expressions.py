@@ -20,7 +20,8 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
-from pyflink.table.types import _to_java_data_type, _to_java_literal_value, DataType
+from pyflink.table.literal import _to_java_literal_value
+from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, load_java_class
@@ -116,14 +117,13 @@ def lit(v, data_type: DataType = None) -> Expression:
         >>> tab.select(col("key"), lit("abc"))
     """
     _j_literal_value = _to_java_literal_value(v, data_type)
-    if data_type is None:
-        return _unary_op("lit", _j_literal_value)
-    else:
-        gateway = get_gateway()
-        j_data_type = _to_java_data_type(data_type)
-        return Expression(
-            gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils.createLiteralWithType(
-                _j_literal_value, j_data_type))
+    gateway = get_gateway()
+    j_data_type = _to_java_data_type(data_type) if data_type is not None else None
+    return Expression(
+        gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils.createLiteral(
+            _j_literal_value, j_data_type
+        )
+    )
 
 
 @PublicEvolving()

@@ -17,7 +17,6 @@
 ################################################################################
 import datetime
 import unittest
-from array import array as python_array
 
 from py4j.protocol import Py4JJavaError
 
@@ -32,7 +31,6 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
                                        convert_tz, unix_timestamp)
-from pyflink.table.types import _array_type_mappings
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -399,17 +397,6 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
             (datetime.timedelta(days=1, seconds=2, microseconds=3000),
              DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(6)).not_null(),
              "INTERVAL_DAY_TIME"),
-            ([1, 2], DataTypes.ARRAY(DataTypes.SMALLINT()).not_null(), "ARRAY"),
-            ({1: 1.25},
-             DataTypes.MAP(DataTypes.SMALLINT(), DataTypes.FLOAT()).not_null(), "MAP"),
-            ({datetime.date(2026, 8, 3): 2},
-             DataTypes.MULTISET(DataTypes.DATE()).not_null(), "MULTISET"),
-            ((1, 1.25),
-             DataTypes.ROW([
-                 DataTypes.FIELD("small_value", DataTypes.SMALLINT()),
-                 DataTypes.FIELD("float_value", DataTypes.FLOAT()),
-             ]).not_null(),
-             "ROW"),
         ]
 
         for value, data_type, expected_type_root in test_cases:
@@ -427,35 +414,12 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
              "TIMESTAMP(3) NOT NULL"),
             (datetime.timedelta(days=1, seconds=2, microseconds=3000),
              "INTERVAL DAY(1) TO SECOND(3) NOT NULL"),
-            (["abc"], "ARRAY<CHAR(3)> NOT NULL"),
-            ([[datetime.date(2026, 8, 3)]], "ARRAY<ARRAY<DATE>> NOT NULL"),
-            ((1, 2), "ARRAY<INT> NOT NULL"),
         ]
 
         for value, expected_data_type in test_cases:
             with self.subTest(value=value):
                 literal = lit(value)._j_expr.toExpr()
                 self.assertEqual(expected_data_type, str(literal.getOutputDataType()))
-
-    def test_lit_preserves_python_array_typecodes(self):
-        for typecode in ["b", "h", "i", "l", "f", "d"]:
-            with self.subTest(typecode=typecode):
-                literal = lit(python_array(typecode, [1, 2]))._j_expr.toExpr()
-                element_type = literal.getOutputDataType().getChildren().get(0)
-                self.assertEqual(
-                    str(_array_type_mappings[typecode]),
-                    str(element_type.getLogicalType()),
-                )
-
-        literal = lit(python_array("h"))._j_expr.toExpr()
-        element_type = literal.getOutputDataType().getChildren().get(0)
-        self.assertEqual("SMALLINT", str(element_type.getLogicalType()))
-
-        literal = lit([python_array("h", [1, 2])])._j_expr.toExpr()
-        self.assertEqual(
-            "ARRAY<ARRAY<SMALLINT>> NOT NULL",
-            str(literal.getOutputDataType()),
-        )
 
     def test_lit_rejects_out_of_range_integer_values(self):
         for value, data_type in [
