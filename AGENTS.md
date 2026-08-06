@@ -313,6 +313,9 @@ When reviewing a PR or diff against this repo:
 - Flag comments that are obvious (restate what the code already says) or overly verbose.
 - In test code, look for potential flakiness — e.g. `Thread.sleep` used outside a retry/poll loop, or similar timing-dependent, non-deterministic patterns. Where applicable, suggest clock injection (e.g. a manually-advanced `Clock`/`ManualClock`) instead of relying on wall-clock time, or waiting for the actual condition in a loop with a timeout, for deterministic tests.
 - Check that each commit message conforms to Flink conventions: it must start with `[FLINK-XXXX]` or `[hotfix]`, and must specify a subsystem/component (e.g. `[FLINK-XXXX][runtime] Description`).
+- If a change introduces a new feature controlled by a config option/flag, check that the resolved state (enabled/disabled, and the effective value) is logged at INFO level when the feature initializes/activates.
+- Consider whether a change should be hidden behind a feature flag, especially if it's non-trivial (touches core paths, changes default behavior, or is hard to reason about in isolation). This is mandatory if the change is risky (correctness, performance, backward-compatibility, or data-safety risk) and no flag/kill-switch already exists.
+- For changes to configuration options, check if the corresponding documentation has been regenerated (this should be covered by tests but flagging it earlier speeds up development)
 
 ## Boundaries
 
