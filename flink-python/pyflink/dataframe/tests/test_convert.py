@@ -24,6 +24,7 @@ from typing import NamedTuple
 import pandas as pd
 import pyarrow as pa
 import pyflink.dataframe as pf
+import pyflink.dataframe.convert as dataframe_convert
 from pyflink.table.types import BigIntType, RowType
 
 
@@ -231,6 +232,14 @@ class FromDictTests(unittest.TestCase):
 
 
 class CreationValidationTests(unittest.TestCase):
+    def test_parses_watermark_into_semantic_specification(self):
+        watermark = dataframe_convert._parse_watermark(
+            ("ts", "ts - INTERVAL '5' SECOND")
+        )
+
+        self.assertEqual(watermark.column, "ts")
+        self.assertEqual(watermark.expression, "ts - INTERVAL '5' SECOND")
+
     def test_rejects_invalid_watermarks(self):
         invalid_watermarks = [
             ("ts", "watermark must be a tuple"),

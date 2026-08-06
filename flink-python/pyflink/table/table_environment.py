@@ -19,7 +19,7 @@ import atexit
 import os
 import sys
 import tempfile
-from typing import Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
+from typing import BinaryIO, Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas
@@ -59,6 +59,20 @@ __all__ = [
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
+
+
+def _serialize_arrow_table(table, stream: BinaryIO, splits_num: int) -> None:
+    if isinstance(splits_num, bool) or not isinstance(splits_num, int):
+        raise TypeError("splits_num must be an integer")
+    if splits_num <= 0:
+        raise ValueError("splits_num must be greater than 0")
+
+    import pyarrow as pa
+
+    with pa.ipc.new_stream(stream, table.schema) as writer:
+        if table.num_rows > 0:
+            max_chunksize = -(-table.num_rows // splits_num)
+            writer.write_table(table, max_chunksize=max_chunksize)
 
 
 @PublicEvolving()
@@ -1503,7 +1517,8 @@ class TableEnvironment(object):
             self,
             table,
             row_type: RowType,
-            table_schema: Schema = None) -> Table:
+            table_schema: Schema = None,
+            splits_num: int = 1) -> Table:
         """Creates a table from a PyArrow Table through the Arrow table source."""
         import pyarrow as pa
 
@@ -1522,8 +1537,7 @@ class TableEnvironment(object):
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         try:
             with temp_file:
-                with pa.ipc.new_stream(temp_file, arrow_schema) as writer:
-                    writer.write_table(compatible_table)
+                _serialize_arrow_table(compatible_table, temp_file, splits_num)
 
             jvm = get_gateway().jvm
             if table_schema is None:

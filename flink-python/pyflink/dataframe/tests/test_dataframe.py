@@ -265,18 +265,69 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     [TableDataTypes.BIGINT()],
                 )
 
-    def test_from_arrow_does_not_use_pandas_conversion(self):
+    def test_columnar_creators_do_not_use_table_environment_from_pandas(self):
         with patch.object(
             self.t_env,
             "from_pandas",
             side_effect=AssertionError("from_pandas must not be called"),
         ):
-            dataframe = pf.from_arrow(pa.table({"id": [1]}))
+            for creator, data in [
+                (pf.from_pandas, pd.DataFrame({"id": [1]})),
+                (pf.from_arrow, pa.table({"id": [1]})),
+            ]:
+                with self.subTest(creator=creator.__name__):
+                    dataframe = creator(data)
+                    self.assert_dataframe_schema(
+                        dataframe,
+                        ["id"],
+                        [TableDataTypes.BIGINT()],
+                    )
 
-        self.assert_dataframe_schema(
-            dataframe,
-            ["id"],
-            [TableDataTypes.BIGINT()],
+    def test_from_pandas_matches_table_environment_schema(self):
+        pdf = pd.DataFrame(
+            {
+                "original_id": [1.0, None],
+                "original_name": ["Alice", None],
+                "original_ts": pd.Series(
+                    pd.to_datetime(
+                        ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]
+                    )
+                ),
+            }
+        )
+        names = ["id", "name", "ts"]
+
+        dataframe_schema = (
+            pf.from_pandas(pdf, schema=names).to_table().get_resolved_schema()
+        )
+        table_schema = self.t_env.from_pandas(
+            pdf, schema=names
+        ).get_resolved_schema()
+
+        self.assertEqual(
+            table_schema.get_column_names(), dataframe_schema.get_column_names()
+        )
+        self.assertEqual(
+            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
+        )
+
+        empty_pdf = pd.DataFrame(
+            {
+                "original_id": pd.Series([], dtype="float64"),
+                "original_name": pd.Series([], dtype="string"),
+                "original_ts": pd.Series([], dtype="datetime64[ns, UTC]"),
+            }
+        )
+        empty_schema = pf.from_pandas(
+            empty_pdf, schema=names
+        ).to_table().get_resolved_schema()
+        self.assertEqual(
+            table_schema.get_column_names(), empty_schema.get_column_names()
+        )
+        self.assertEqual(
+            table_schema.get_column_data_types(),
+            empty_schema.get_column_data_types(),
         )
 
     def test_creators_attach_and_normalize_watermarks(self):
@@ -315,7 +366,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     ),
                     watermark=("ts", "ts - INTERVAL '1' SECOND"),
                 ),
-                LocalZonedTimestampType,
+                TimestampType,
             ),
         ]
         for creator, expected_type in creators:

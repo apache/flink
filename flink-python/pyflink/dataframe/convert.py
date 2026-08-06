@@ -23,6 +23,7 @@ from typing import (
     Collection,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -56,6 +57,11 @@ __all__ = [
 ]
 
 _SCALAR_SEQUENCE_TYPES = (str, bytes, bytearray, memoryview)
+
+
+class _WatermarkSpec(NamedTuple):
+    column: str
+    expression: str
 
 
 class _RecordType(Enum):
@@ -143,36 +149,34 @@ def _validate_schema(schema: Any) -> None:
 def _resolve_column_names(
     input_names: Sequence[str], schema: Optional[List[str]]
 ) -> List[str]:
-    if schema is None:
-        column_names = list(input_names)
-    else:
-        _validate_schema(schema)
-        if len(schema) != len(input_names):
-            raise ValueError(
-                f"schema has {len(schema)} fields but data has "
-                f"{len(input_names)} columns"
-            )
-        column_names = schema
+    column_names = list(input_names) if schema is None else schema
+    if (
+        schema is not None
+        and isinstance(schema, list)
+        and len(schema) != len(input_names)
+    ):
+        raise ValueError(
+            f"schema has {len(schema)} fields but data has "
+            f"{len(input_names)} columns"
+        )
     _validate_schema(column_names)
     return column_names
 
 
-def _validate_watermark(
+def _parse_watermark(
     watermark: Optional[Tuple[str, str]],
-) -> Optional[Tuple[str, str]]:
+) -> Optional[_WatermarkSpec]:
     if watermark is None:
         return None
     if not isinstance(watermark, tuple) or len(watermark) != 2:
         raise TypeError("watermark must be a tuple of (column, expression)")
     if any(not isinstance(value, str) or not value.strip() for value in watermark):
         raise TypeError("watermark column and expression must be non-empty strings")
-    return watermark
+    return _WatermarkSpec(*watermark)
 
 
-def _normalize_watermark_row_type(
-    row_type: RowType, watermark: Tuple[str, str]
-) -> RowType:
-    column_name = watermark[0]
+def _normalize_watermark_row_type(row_type: RowType, watermark: _WatermarkSpec) -> RowType:
+    column_name = watermark.column
     matching_fields = [field for field in row_type.fields if field.name == column_name]
     if not matching_fields:
         raise ValueError(f"watermark column {column_name!r} is not present in data")
@@ -193,9 +197,8 @@ def _normalize_watermark_row_type(
 
 
 def _resolve_watermark_schema(
-    row_type: RowType, watermark: Optional[Tuple[str, str]]
+    row_type: RowType, watermark: Optional[_WatermarkSpec]
 ) -> Tuple[RowType, Optional[Schema]]:
-    watermark = _validate_watermark(watermark)
     if watermark is None:
         return row_type, None
 
@@ -203,16 +206,16 @@ def _resolve_watermark_schema(
     table_schema = (
         Schema.new_builder()
         .from_row_data_type(row_type)
-        .watermark(*watermark)
+        .watermark(watermark.column, watermark.expression)
         .build()
     )
     return row_type, table_schema
 
 
-def _from_rows(
+def _create_dataframe_from_rows(
     rows: Sequence[Sequence[Any]],
     row_type: RowType,
-    watermark: Optional[Tuple[str, str]] = None,
+    watermark: Optional[_WatermarkSpec] = None,
 ) -> DataFrame:
     verify_row = _create_type_verifier(row_type)
     verified_rows = []
@@ -227,7 +230,7 @@ def _from_rows(
     return DataFrame(table)
 
 
-def _infer_row_type(
+def _infer_row_type_and_convert_rows(
     rows: Sequence[Sequence[Any]], schema: List[str]
 ) -> Tuple[List[Sequence[Any]], RowType]:
     row_type = _infer_schema_from_data(rows, names=schema)
@@ -235,23 +238,13 @@ def _infer_row_type(
     return [converter(row) for row in rows], row_type
 
 
-def _timestamp_precision(unit: str) -> int:
-    return {"s": 0, "ms": 3, "us": 6, "ns": 9}[unit]
-
-
 def _row_type_from_arrow_schema(arrow_schema: Any, names: List[str]) -> RowType:
-    import pyarrow as pa
-
-    fields = []
-    for name, arrow_field in zip(names, arrow_schema):
-        if pa.types.is_timestamp(arrow_field.type) and arrow_field.type.tz is not None:
-            data_type = LocalZonedTimestampType(
-                _timestamp_precision(arrow_field.type.unit), arrow_field.nullable
-            )
-        else:
-            data_type = from_arrow_type(arrow_field.type, arrow_field.nullable)
-        fields.append(RowField(name, data_type))
-    return RowType(fields)
+    return RowType(
+        [
+            RowField(name, from_arrow_type(arrow_field.type, arrow_field.nullable))
+            for name, arrow_field in zip(names, arrow_schema)
+        ]
+    )
 
 
 @PublicEvolving()
@@ -308,6 +301,10 @@ def from_pandas(
         >>> import pyflink.dataframe as pf
         >>> pdf = pd.DataFrame({"identifier": [1, 2], "name": ["Alice", "Bob"]})
         >>> dataframe = pf.from_pandas(pdf, schema=["id", "name"])
+        >>> events = pf.from_pandas(
+        ...     pd.DataFrame({"ts": pd.to_datetime(["2026-01-01T00:00:00Z"])}),
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+        ... )
 
     .. versionadded:: 2.4.0
     """
@@ -317,22 +314,13 @@ def from_pandas(
         raise TypeError(
             f"data must be a pandas.DataFrame, but was {type(pdf).__name__}"
         )
-    watermark = _validate_watermark(watermark)
 
     import pyarrow as pa
 
-    arrow_table = pa.Table.from_pandas(pdf, preserve_index=False)
-    names = _resolve_column_names(arrow_table.column_names, schema)
-    row_type = _row_type_from_arrow_schema(arrow_table.schema, names)
-    resolved_row_type, table_schema = _resolve_watermark_schema(row_type, watermark)
-    table_environment = get_or_create_table_environment()
-
-    if len(pdf) > 0 and watermark is None:
-        return DataFrame(table_environment.from_pandas(pdf, schema))
-    return DataFrame(
-        table_environment._from_arrow(
-            arrow_table, resolved_row_type, table_schema
-        )
+    return from_arrow(
+        pa.Table.from_pandas(pdf, preserve_index=False),
+        schema=schema,
+        watermark=watermark,
     )
 
 
@@ -366,6 +354,10 @@ def from_arrow(
         >>> import pyflink.dataframe as pf
         >>> table = pa.table({"id": [1, 2], "name": ["Alice", "Bob"]})
         >>> dataframe = pf.from_arrow(table)
+        >>> events = pf.from_arrow(
+        ...     pa.table({"ts": pa.array([0], type=pa.timestamp("ms"))}),
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+        ... )
 
     .. versionadded:: 2.4.0
     """
@@ -375,10 +367,12 @@ def from_arrow(
         raise TypeError(
             f"data must be a pyarrow.Table, but was {type(table).__name__}"
         )
-    watermark = _validate_watermark(watermark)
+    watermark_spec = _parse_watermark(watermark)
     names = _resolve_column_names(table.column_names, schema)
     row_type = _row_type_from_arrow_schema(table.schema, names)
-    resolved_row_type, table_schema = _resolve_watermark_schema(row_type, watermark)
+    resolved_row_type, table_schema = _resolve_watermark_schema(
+        row_type, watermark_spec
+    )
     result = get_or_create_table_environment()._from_arrow(
         table, resolved_row_type, table_schema
     )
@@ -448,7 +442,7 @@ def from_records(
         )
     if not data:
         raise ValueError("data must not be empty")
-    watermark = _validate_watermark(watermark)
+    watermark_spec = _parse_watermark(watermark)
 
     first_record = data[0]
     try:
@@ -481,10 +475,8 @@ def from_records(
             raise ValueError(f"invalid record at index {index}") from error
         rows.append(row)
 
-    if watermark is not None:
-        converted_rows, row_type = _infer_row_type(rows, schema)
-        return _from_rows(converted_rows, row_type, watermark)
-    return DataFrame(get_or_create_table_environment().from_elements(rows, schema))
+    converted_rows, row_type = _infer_row_type_and_convert_rows(rows, schema)
+    return _create_dataframe_from_rows(converted_rows, row_type, watermark_spec)
 
 
 @PublicEvolving()
@@ -526,7 +518,7 @@ def from_dict(
         raise TypeError("data must be a mapping")
     if not data:
         raise ValueError("data must not be empty")
-    watermark = _validate_watermark(watermark)
+    watermark_spec = _parse_watermark(watermark)
     if schema is None:
         schema = list(data.keys())
     _validate_schema(schema)
@@ -551,10 +543,8 @@ def from_dict(
         tuple(data[name][row_index] for name in schema)
         for row_index in builtins.range(row_count)
     ]
-    if watermark is not None:
-        converted_rows, row_type = _infer_row_type(rows, schema)
-        return _from_rows(converted_rows, row_type, watermark)
-    return DataFrame(get_or_create_table_environment().from_elements(rows, schema))
+    converted_rows, row_type = _infer_row_type_and_convert_rows(rows, schema)
+    return _create_dataframe_from_rows(converted_rows, row_type, watermark_spec)
 
 
 @PublicEvolving()
@@ -598,4 +588,4 @@ def range(start_or_end: int, end: Optional[int] = None, step: int = 1) -> DataFr
         stop = end
     rows = [(value,) for value in builtins.range(start, stop, step)]
     row_type = DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT())])
-    return _from_rows(rows, row_type)
+    return _create_dataframe_from_rows(rows, row_type)
