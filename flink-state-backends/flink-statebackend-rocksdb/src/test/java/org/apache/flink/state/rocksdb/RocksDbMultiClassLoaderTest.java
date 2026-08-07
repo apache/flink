@@ -20,28 +20,26 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.RocksDB;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Path;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test validates that the RocksDB JNI library loading works properly in the presence of the
  * RocksDB code being loaded dynamically via reflection. That can happen when RocksDB is in the user
  * code JAR, or in certain test setups.
  */
-public class RocksDbMultiClassLoaderTest {
-
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+class RocksDbMultiClassLoaderTest {
 
     @Test
-    public void testTwoSeparateClassLoaders() throws Exception {
+    void testTwoSeparateClassLoaders(@TempDir Path tmp) throws Exception {
         // collect the libraries / class folders with RocksDB related code: the state backend and
         // RocksDB itself
         final URL codePath1 =
@@ -71,13 +69,14 @@ public class RocksDbMultiClassLoaderTest {
 
         final Class<?> clazz1 = Class.forName(className, false, loader1);
         final Class<?> clazz2 = Class.forName(className, false, loader2);
-        assertNotEquals(
-                "Test broken - the two reflectively loaded classes are equal", clazz1, clazz2);
+        assertThat(clazz1)
+                .as("Test broken - the two reflectively loaded classes are equal")
+                .isNotEqualTo(clazz2);
 
         final Object instance1 = clazz1.getConstructor().newInstance();
         final Object instance2 = clazz2.getConstructor().newInstance();
 
-        final String tempDir = tmp.newFolder().getAbsolutePath();
+        final String tempDir = tmp.toFile().getAbsolutePath();
 
         final Method meth1 = clazz1.getDeclaredMethod("ensureRocksDBIsLoaded", String.class);
         final Method meth2 = clazz2.getDeclaredMethod("ensureRocksDBIsLoaded", String.class);
