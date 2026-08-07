@@ -1353,6 +1353,50 @@ json:
       
         -- JSON_EXISTS separates an absent path from a present one
         SELECT JSON_EXISTS(json_doc, '$.items[*]'), JSON_LENGTH(json_doc, '$.items[*]');
+  - sql: JSON_TYPE(jsonValue[, path])
+    table: jsonType(jsonValue[, path])
+    description: |
+      Returns a string value indicating the type of jsonValue, optionally at the given JSON
+      `path`. Returns `NULL` if jsonValue is `NULL`, is not valid JSON, or the path does not
+      resolve to exactly one value.
+
+      The possible results are `object`, `array`, `string`, `number`, `boolean` and `null` for
+      the JSON null literal.
+
+      Every number is reported as `number`, whatever its magnitude or precision.
+      Anything quoted is a `string`, including dates and date-times.
+
+      ```sql
+      -- object
+      SELECT JSON_TYPE('{"a": true}')
+
+      -- array
+      SELECT JSON_TYPE('[1, 2]')
+
+      -- null
+      SELECT JSON_TYPE('null')
+
+      -- boolean
+      SELECT JSON_TYPE('true')
+
+      -- string
+      SELECT JSON_TYPE('"Hello, World!"')
+
+      -- string
+      SELECT JSON_TYPE('"2015-01-01"')
+
+      -- number
+      SELECT JSON_TYPE('66')
+
+      -- number
+      SELECT JSON_TYPE('11.1')
+
+      -- NULL, since 68s is not valid JSON
+      SELECT JSON_TYPE('68s')
+
+      -- array, read at the given path
+      SELECT JSON_TYPE('{"a": [1, 2]}', '$.a')
+      ```
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])

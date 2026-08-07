@@ -3104,6 +3104,22 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_TYPE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_TYPE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL))))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
+                    .runtimeProvided()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Variant functions
     // --------------------------------------------------------------------------------------------

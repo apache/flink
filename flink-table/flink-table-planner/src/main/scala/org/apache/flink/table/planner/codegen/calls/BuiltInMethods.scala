@@ -513,6 +513,17 @@ object BuiltInMethods {
   val JSON_PARSE =
     Types.lookupMethod(classOf[SqlJsonUtils], "jsonParse", classOf[String])
 
+  val JSON_TYPE =
+    Types.lookupMethod(classOf[SqlJsonUtils], "jsonType", classOf[SqlJsonUtils.JsonValueContext])
+
+  val JSON_TYPE_PATH = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "jsonType",
+    classOf[SqlJsonUtils.JsonValueContext],
+    classOf[String],
+    classOf[Boolean]
+  )
+
   val JSON_QUERY_PARSED = Types.lookupMethod(
     classOf[SqlJsonUtils],
     "jsonQueryParsed",

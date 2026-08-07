@@ -97,6 +97,12 @@ public class SqlJsonUtils {
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
 
+    private static final Configuration JSON_PATH_TYPE_CONFIG =
+            Configuration.builder()
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
+
     private SqlJsonUtils() {}
 
     static {
@@ -524,6 +530,91 @@ public class SqlJsonUtils {
 
     private static Object dejsonize(String input) {
         return JSON_PATH_JSON_PROVIDER.parse(input);
+    }
+
+    /**
+     * Returns the JSON type flag for the parsed value: {@code object}, {@code array}, {@code
+     * string}, {@code number}, {@code boolean}, or {@code null} for the JSON null literal. Returns
+     * SQL {@code NULL} for invalid JSON.
+     */
+    public static String jsonType(final JsonValueContext parsedInput) {
+        // Unparsed, or shared with a call that never assigned it: report NULL either way.
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+        return getJsonType(parsedInput.obj);
+    }
+
+    private static String getJsonType(final Object val) {
+        if (val instanceof Number) {
+            return "number";
+        } else if (val instanceof String) {
+            return "string";
+        } else if (val instanceof Boolean) {
+            return "boolean";
+        } else if (val instanceof Map) {
+            return "object";
+        } else if (val instanceof Collection) {
+            return "array";
+        } else if (val == null) {
+            return "null";
+        }
+        return null;
+    }
+
+    /**
+     * Returns the JSON type flag at {@code path}, or {@code null} if the path doesn't resolve to
+     * exactly one value. The {@code lax}/{@code strict} prefix is not supported: there's no {@code
+     * ON ERROR} clause here for it to matter. {@code definite} is computed at plan time by {@link
+     * #isPathDefinite}.
+     */
+    public static String jsonType(
+            final JsonValueContext parsedInput, final String path, final boolean definite) {
+        if (parsedInput == null || parsedInput.hasException() || path.isEmpty()) {
+            return null;
+        }
+
+        if (JSON_PATH_BASE.matcher(path).matches()) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "JSON_TYPE does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
+                                    + "Use a plain path such as '$.a.b'. To check path existence or handle "
+                                    + "invalid input, use JSON_EXISTS or IS JSON.",
+                            path));
+        }
+
+        if (parsedInput.obj == null) {
+            return "$".equals(path) ? "null" : null;
+        }
+
+        final Object value;
+        try {
+            // PathNotFoundException extends InvalidPathException (covers both exceptions)
+            value = JsonPath.parse(parsedInput.obj, JSON_PATH_TYPE_CONFIG).read(path);
+        } catch (InvalidPathException e) {
+            return null;
+        }
+
+        if (!definite) {
+            // Indefinite paths (e.g. wildcards) read back as a list; only one match has one type.
+            final List<?> matched = (List<?>) value;
+            return matched.size() == 1 ? getJsonType(matched.get(0)) : null;
+        }
+        return getJsonType(value);
+    }
+
+    /** Returns whether {@code pathSpec} is a definite JSON path. */
+    public static boolean isPathDefinite(final String pathSpec) {
+        // JsonPath.compile() rejects an empty path with an IllegalArgumentException rather than
+        // the InvalidPathException caught below.
+        if (pathSpec.isEmpty()) {
+            return false;
+        }
+        try {
+            return JsonPath.isPathDefinite(pathSpec);
+        } catch (InvalidPathException e) {
+            return false;
+        }
     }
 
     /**

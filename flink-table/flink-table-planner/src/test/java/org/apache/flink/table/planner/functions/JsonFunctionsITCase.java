@@ -92,6 +92,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonSpec());
         testCases.addAll(jsonArraySpec());
+        testCases.addAll(jsonTypeSpec());
         testCases.addAll(jsonQuoteSpec());
         testCases.addAll(jsonUnquoteSpecWithValidInput());
         testCases.addAll(jsonUnquoteSpecWithInvalidInput());
@@ -1411,6 +1412,145 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_OBJECT(KEY 'testRow' VALUE f0 NULL ON NULL)",
                                 "{\"testRow\":{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> jsonTypeSpec() {
+        return List.of(
+                // One flag per JSON type.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "{\"a\": true}", "[1, 2]", "true", "\"Hello, World!\"", "66")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "object", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "array", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "boolean", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "string", STRING().nullable())
+                        .testResult(
+                                $("f4").jsonType(), "JSON_TYPE(f4)", "number", STRING().nullable()),
+
+                // The flag follows the JSON grammar alone: a number has no width, and a quoted
+                // value is a string whatever it spells.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "11.1", "99999999999999999999", "\"2015-01-01\"", "\"66\"")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "number", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "number", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "string", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "string", STRING().nullable()),
+
+                // A SQL NULL input and invalid JSON both yield SQL NULL; the JSON null literal
+                // returns the string 'null'.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("68s", "null")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                nullOf(STRING()).jsonType(),
+                                "JSON_TYPE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable())
+                        .testResult($("f0").jsonType(), "JSON_TYPE(f0)", null, STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "null", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$"),
+                                "JSON_TYPE(f1, '$')",
+                                "null",
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$.a"),
+                                "JSON_TYPE(f1, '$.a')",
+                                null,
+                                STRING().nullable()),
+
+                // A path reads the type at that location instead of the root, and yields NULL
+                // unless it resolves to exactly one value. A wildcard path is indefinite: it reads
+                // back as a list, so it has a type only for a single match.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{\"a\": [1, 2]}", "{\"a\": [1]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType("$.a"),
+                                "JSON_TYPE(f0, '$.a')",
+                                "array",
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.a[0]"),
+                                "JSON_TYPE(f0, '$.a[0]')",
+                                "number",
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.b"),
+                                "JSON_TYPE(f0, '$.b')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.["),
+                                "JSON_TYPE(f0, '$.[')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType(""),
+                                "JSON_TYPE(f0, '')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.a[*]"),
+                                "JSON_TYPE(f0, '$.a[*]')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$.a[*]"),
+                                "JSON_TYPE(f1, '$.a[*]')",
+                                "number",
+                                STRING().nullable()),
+
+                // The 'lax'/'strict' path mode prefix is rejected.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{\"a\": 1}")
+                        .andDataTypes(STRING())
+                        .testSqlRuntimeError(
+                                "JSON_TYPE(f0, 'lax $.a')",
+                                TableRuntimeException.class,
+                                "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
+                                        + "(got: 'lax $.a'). Use a plain path such as '$.a.b'. To "
+                                        + "check path existence or handle invalid input, use "
+                                        + "JSON_EXISTS or IS JSON.")
+                        .testTableApiRuntimeError(
+                                $("f0").jsonType("strict $.a"),
+                                TableRuntimeException.class,
+                                "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
+                                        + "(got: 'strict $.a'). Use a plain path such as '$.a.b'. "
+                                        + "To check path existence or handle invalid input, use "
+                                        + "JSON_EXISTS or IS JSON."),
+
+                // Only CHARACTER_STRING casts implicitly to VARCHAR, so a non-string is rejected
+                // rather than coerced. A path argument must be a literal.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(1, "{}")
+                        .andDataTypes(INT(), STRING())
+                        .testTableApiValidationError(
+                                $("f0").jsonType(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "JSON_TYPE(f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError("JSON_TYPE(f1, f1)", "Invalid input arguments.")
+                        .testSqlValidationError(
+                                "JSON_TYPE()",
+                                "No match found for function signature JSON_TYPE().\n"
+                                        + "Supported signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)"));
     }
 
     private static List<TestSetSpec> jsonQuoteSpec() {

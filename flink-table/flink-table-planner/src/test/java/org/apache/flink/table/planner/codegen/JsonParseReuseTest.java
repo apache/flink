@@ -272,6 +272,55 @@ class JsonParseReuseTest {
     }
 
     @Test
+    void testSingleJsonTypeCall() {
+        final String sql = "SELECT JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("OBJECT"), Row.of("OBJECT"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("A single JSON_TYPE call should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testTwoJsonTypeCalls() {
+        final String sql = "SELECT JSON_TYPE(json_data), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("OBJECT", "OBJECT"), Row.of("OBJECT", "OBJECT"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Identical JSON_TYPE calls are one expression, so they parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("account", "OBJECT"), Row.of("admin", "OBJECT"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeWithJsonValueAndJsonQuery() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), "
+                        + "JSON_QUERY(json_data, '$.address'), "
+                        + "JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("account", "{\"city\":\"Munich\"}", "OBJECT"),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "OBJECT"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_QUERY + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
     void testDifferentJsonInputs() {
         final String sql =
                 "SELECT JSON_VALUE(json_data, '$.type'), "
