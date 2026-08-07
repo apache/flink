@@ -311,7 +311,7 @@ public abstract class FlinkHintStrategies {
 
                 String target = conf.get(EarlyFireJoinHintOptions.TARGET);
                 litmus.check(
-                        EarlyFireJoinHintOptions.INTERVAL_JOIN.equals(target),
+                        null == target || EarlyFireJoinHintOptions.INTERVAL_JOIN.equals(target),
                         "Invalid EARLY_FIRE hint option: {} value '{}' is not supported, only '{}' is supported currently",
                         EarlyFireJoinHintOptions.TARGET.key(),
                         target,

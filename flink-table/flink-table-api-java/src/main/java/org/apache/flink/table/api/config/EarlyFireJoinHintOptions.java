@@ -36,13 +36,13 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class EarlyFireJoinHintOptions {
 
-    /** The only operator kind the EARLY_FIRE hint applies to. */
+    /** The only operator kind the EARLY_FIRE hint currently supports. */
     public static final String INTERVAL_JOIN = "interval_join";
 
     public static final ConfigOption<String> TARGET =
             key("target")
                     .stringType()
-                    .defaultValue(INTERVAL_JOIN)
+                    .noDefaultValue()
                     .withDescription(
                             "The operator kind that the EARLY_FIRE hint applies to. Currently only"
                                     + " 'interval_join' is supported. When omitted, the hint applies"
