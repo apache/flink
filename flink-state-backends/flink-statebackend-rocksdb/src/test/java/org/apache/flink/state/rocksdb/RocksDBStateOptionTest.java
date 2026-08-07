@@ -30,9 +30,7 @@ import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend.PriorityQueueS
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.operators.TimerSerializer;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
@@ -49,8 +47,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.state.rocksdb.RocksDBTestUtils.createKeyedStateBackend;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests to cover cases that if user choose options previously prone to misuse, embedded RocksDB
@@ -61,16 +58,14 @@ import static org.junit.Assert.assertTrue;
  * RocksDBOptionsFactory}, and might lead some operations could not get expected result, e.g.
  * FLINK-17800
  */
-public class RocksDBStateOptionTest {
-
-    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
+class RocksDBStateOptionTest {
 
     /**
      * Tests to cover case when user choose optimizeForPointLookup with iterator interfaces on map
      * state.
      */
     @Test
-    public void testUseOptimizePointLookupWithMapState() throws Exception {
+    void testUseOptimizePointLookupWithMapState() throws Exception {
         EmbeddedRocksDBStateBackend rocksDBStateBackend =
                 createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
@@ -99,11 +94,11 @@ public class RocksDBStateOptionTest {
             Iterator<Map.Entry<Integer, Long>> iterator = mapState.entries().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Integer, Long> entry = iterator.next();
-                assertEquals(entry.getValue(), expectedResult.remove(entry.getKey()));
+                assertThat(entry.getValue()).isEqualTo(expectedResult.remove(entry.getKey()));
                 iterator.remove();
             }
-            assertTrue(expectedResult.isEmpty());
-            assertTrue(mapState.isEmpty());
+            assertThat(expectedResult).isEmpty();
+            assertThat(mapState.isEmpty()).isTrue();
         } finally {
             keyedStateBackend.dispose();
         }
@@ -114,7 +109,7 @@ public class RocksDBStateOptionTest {
      * queue.
      */
     @Test
-    public void testUseOptimizePointLookupWithPriorityQueue() throws IOException {
+    void testUseOptimizePointLookupWithPriorityQueue() throws IOException {
         EmbeddedRocksDBStateBackend rocksDBStateBackend =
                 createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
@@ -134,9 +129,8 @@ public class RocksDBStateOptionTest {
             PriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> expectedPriorityQueue =
                     new PriorityQueue<>((o1, o2) -> (int) (o1.getTimestamp() - o2.getTimestamp()));
             // ensure we insert timers more than cache capacity.
-            assertTrue(
-                    keyedStateBackend.getPriorityQueueFactory()
-                            instanceof RocksDBPriorityQueueSetFactory);
+            assertThat(keyedStateBackend.getPriorityQueueFactory())
+                    .isInstanceOf(RocksDBPriorityQueueSetFactory.class);
             int queueSize =
                     ((RocksDBPriorityQueueSetFactory) keyedStateBackend.getPriorityQueueFactory())
                                     .getCacheSize()
@@ -150,13 +144,13 @@ public class RocksDBStateOptionTest {
                 priorityQueue.add(timer);
                 expectedPriorityQueue.add(timer);
             }
-            assertEquals(queueSize, priorityQueue.size());
+            assertThat(priorityQueue.size()).isEqualTo(queueSize);
             TimerHeapInternalTimer<Integer, VoidNamespace> timer;
             while ((timer = priorityQueue.poll()) != null) {
-                assertEquals(expectedPriorityQueue.poll(), timer);
+                assertThat(timer).isEqualTo(expectedPriorityQueue.poll());
             }
-            assertTrue(expectedPriorityQueue.isEmpty());
-            assertTrue(priorityQueue.isEmpty());
+            assertThat(expectedPriorityQueue).isEmpty();
+            assertThat(priorityQueue.isEmpty()).isTrue();
         } finally {
             keyedStateBackend.dispose();
         }

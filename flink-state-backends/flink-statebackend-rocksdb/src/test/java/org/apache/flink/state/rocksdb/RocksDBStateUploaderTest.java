@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -53,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link RocksDBStateUploader}. */
-public class RocksDBStateUploaderTest extends TestLogger {
+class RocksDBStateUploaderTest {
 
     @TempDir private Path temporaryFolder;
 
