@@ -310,28 +310,18 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        char[] data = new char[len];
-        char[] baseChars = base.toCharArray();
-        char[] padChars = pad.toCharArray();
+        // Lengths are counted in characters (code points) rather than UTF-16 code units, so that a
+        // supplementary-plane character is never truncated into an unpaired surrogate.
+        final int keepEnd = endOfFirstCodePoints(base, len);
+        final int baseLen = base.codePointCount(0, keepEnd);
 
-        // the length of the padding needed
-        int pos = Math.max(len - base.length(), 0);
+        final StringBuilder sb = new StringBuilder(len);
 
-        // copy the padding
-        for (int i = 0; i < pos; i += pad.length()) {
-            for (int j = 0; j < pad.length() && j < pos - i; j++) {
-                data[i + j] = padChars[j];
-            }
-        }
+        // copy the padding, then the base shortened to the remaining length
+        appendPadding(sb, pad, len - baseLen);
+        sb.append(base, 0, keepEnd);
 
-        // copy the base
-        int i = 0;
-        while (pos + i < len && i < base.length()) {
-            data[pos + i] = baseChars[i];
-            i += 1;
-        }
-
-        return new String(data);
+        return sb.toString();
     }
 
     /**
@@ -345,29 +335,49 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        char[] data = new char[len];
-        char[] baseChars = base.toCharArray();
-        char[] padChars = pad.toCharArray();
+        // Lengths are counted in characters (code points) rather than UTF-16 code units, so that a
+        // supplementary-plane character is never truncated into an unpaired surrogate.
+        final int keepEnd = endOfFirstCodePoints(base, len);
+        final int baseLen = base.codePointCount(0, keepEnd);
 
-        int pos = 0;
+        final StringBuilder sb = new StringBuilder(len);
 
-        // copy the base
-        while (pos < base.length() && pos < len) {
-            data[pos] = baseChars[pos];
-            pos += 1;
+        // copy the base shortened to len characters, then the padding
+        sb.append(base, 0, keepEnd);
+        appendPadding(sb, pad, len - baseLen);
+
+        return sb.toString();
+    }
+
+    /**
+     * Returns the index just past the first {@code count} characters (code points) of {@code str},
+     * or {@code str.length()} if it holds fewer than that. Scanning stops at {@code count} so that
+     * a base far longer than the requested length is not walked in full.
+     */
+    private static int endOfFirstCodePoints(String str, int count) {
+        int index = 0;
+        for (int i = 0; i < count && index < str.length(); i++) {
+            index += Character.charCount(str.codePointAt(index));
         }
+        return index;
+    }
 
-        // copy the padding
-        while (pos < len) {
-            int i = 0;
-            while (i < pad.length() && i < len - pos) {
-                data[pos + i] = padChars[i];
-                i += 1;
-            }
-            pos += pad.length();
+    /**
+     * Appends {@code count} characters (code points) to {@code sb} by repeating {@code pad}
+     * cyclically, stopping mid-string only on a character boundary.
+     */
+    private static void appendPadding(StringBuilder sb, String pad, int count) {
+        if (count <= 0) {
+            return;
         }
-
-        return new String(data);
+        final int padLen = pad.codePointCount(0, pad.length());
+        for (int i = 0; i < count / padLen; i++) {
+            sb.append(pad);
+        }
+        final int remainder = count % padLen;
+        if (remainder > 0) {
+            sb.append(pad, 0, pad.offsetByCodePoints(0, remainder));
+        }
     }
 
     /** Returns a string that repeats the base string n times. */
