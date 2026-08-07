@@ -22,33 +22,33 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests to guard {@link RocksDBIncrementalCheckpointUtils}. */
-public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
+class RocksDBIncrementalCheckpointUtilsTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private Path tmp;
 
     @Test
-    public void testClipDBWithKeyGroupRange() throws Exception {
+    void testClipDBWithKeyGroupRange() throws Exception {
 
         testClipDBWithKeyGroupRangeHelper(new KeyGroupRange(0, 1), new KeyGroupRange(0, 2), 1);
 
@@ -82,7 +82,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testChooseTheBestStateHandleForInitial() {
+    void testChooseTheBestStateHandleForInitial() {
 
         List<KeyedStateHandle> keyedStateHandles = new ArrayList<>(3);
 
@@ -100,40 +100,40 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 
         // this should choose keyedStateHandle2, because keyedStateHandle2's key-group range
         // satisfies the overlap fraction demand.
-        Assert.assertEquals(
-                keyedStateHandle2,
-                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        keyedStateHandles,
-                        new KeyGroupRange(3, 6),
-                        RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()));
+        assertThat(
+                        RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+                                keyedStateHandles,
+                                new KeyGroupRange(3, 6),
+                                RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()))
+                .isEqualTo(keyedStateHandle2);
 
         // both keyedStateHandle2 & keyedStateHandle3's key-group range satisfies the overlap
         // fraction, but keyedStateHandle3's key group range is better.
-        Assert.assertEquals(
-                keyedStateHandle3,
-                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        keyedStateHandles,
-                        new KeyGroupRange(5, 12),
-                        RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()));
+        assertThat(
+                        RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+                                keyedStateHandles,
+                                new KeyGroupRange(5, 12),
+                                RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()))
+                .isEqualTo(keyedStateHandle3);
 
         // The intersect key group number of keyedStateHandle2 & keyedStateHandle3's with [4, 11]
         // are 4. But the over fraction of keyedStateHandle2 is better.
-        Assert.assertEquals(
-                keyedStateHandle2,
-                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        keyedStateHandles,
-                        new KeyGroupRange(4, 11),
-                        RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()));
+        assertThat(
+                        RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+                                keyedStateHandles,
+                                new KeyGroupRange(4, 11),
+                                RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()))
+                .isEqualTo(keyedStateHandle2);
 
         // both keyedStateHandle2 & keyedStateHandle3's key-group range are covered by [3, 12],
         // but this should choose the keyedStateHandle3, because keyedStateHandle3's key-group is
         // bigger than keyedStateHandle2.
-        Assert.assertEquals(
-                keyedStateHandle3,
-                RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        keyedStateHandles,
-                        new KeyGroupRange(3, 12),
-                        RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()));
+        assertThat(
+                        RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+                                keyedStateHandles,
+                                new KeyGroupRange(3, 12),
+                                RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()))
+                .isEqualTo(keyedStateHandle3);
     }
 
     private void testClipDBWithKeyGroupRangeHelper(
@@ -142,7 +142,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
             int keyGroupPrefixBytes)
             throws RocksDBException, IOException {
 
-        try (RocksDB rocksDB = RocksDB.open(tmp.newFolder().getAbsolutePath());
+        try (RocksDB rocksDB = RocksDB.open(TempDirUtils.newFolder(tmp).getAbsolutePath());
                 ColumnFamilyHandle columnFamilyHandle =
                         rocksDB.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()))) {
 
@@ -172,7 +172,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                     CompositeKeySerializationUtils.writeKey(
                             j, IntSerializer.INSTANCE, outputView, false);
                     byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
-                    Assert.assertEquals(String.valueOf(j), new String(value));
+                    assertThat(new String(value)).isEqualTo(String.valueOf(j));
                 }
             }
 
@@ -193,9 +193,9 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                             j, IntSerializer.INSTANCE, outputView, false);
                     byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
                     if (targetGroupRange.contains(i)) {
-                        Assert.assertEquals(String.valueOf(j), new String(value));
+                        assertThat(new String(value)).isEqualTo(String.valueOf(j));
                     } else {
-                        Assert.assertNull(value);
+                        assertThat(value).isNull();
                     }
                 }
             }
