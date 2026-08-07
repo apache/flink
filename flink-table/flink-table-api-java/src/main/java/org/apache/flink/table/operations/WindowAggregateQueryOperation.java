@@ -157,7 +157,7 @@ public class WindowAggregateQueryOperation implements QueryOperation {
         if (!children.isEmpty() && children.get(0) instanceof CallExpression) {
             final FunctionDefinition property =
                     ((CallExpression) children.get(0)).getFunctionDefinition();
-            if (BuiltInFunctionDefinitions.WINDOW_PROPERTIES.contains(property)) {
+            if (OperationExpressionsUtils.WINDOW_PROPERTIES.contains(property)) {
                 return property;
             }
         }

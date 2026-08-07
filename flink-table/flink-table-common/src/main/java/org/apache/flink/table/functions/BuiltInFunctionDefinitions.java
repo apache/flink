@@ -58,11 +58,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -3452,14 +3450,6 @@ public final class BuiltInFunctionDefinitions {
                     .kind(OTHER)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
-
-    public static final Set<FunctionDefinition> WINDOW_PROPERTIES =
-            new HashSet<>(Arrays.asList(WINDOW_START, WINDOW_END, PROCTIME, ROWTIME));
-
-    public static final Set<FunctionDefinition> TIME_ATTRIBUTES =
-            new HashSet<>(Arrays.asList(PROCTIME, ROWTIME));
-
-    public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
 
     /**
      * True when {@code key} appears among the {@code op_mapping} keys. Each map key may itself be a

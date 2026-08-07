@@ -354,6 +354,12 @@ public class QueryOperationTestPrograms {
                                     + ") $$T_PROJECT")
                     .build();
 
+    /**
+     * Can not be tested with {@link
+     * org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase} as a base class,
+     * because a processing-time window only emits from a processing-time timer, and a bounded test
+     * source terminates the job before the timer fires, so the query produces no rows to assert on.
+     */
     static final TableTestProgram WINDOW_AGGREGATE_PROCTIME_QUERY_OPERATION =
             TableTestProgram.of(
                             "window-aggregate-proctime-query-operation",
