@@ -129,7 +129,11 @@ class FetchedChannelStateReaderTest {
 
         // Use tiny rotation threshold so first segment triggers a file rotation.
         FetchedChannelState state;
-        try (TestSpillWriter writer = new TestSpillWriter(tempDir, 1L /* 1 byte threshold */)) {
+        try (TestSpillWriter writer =
+                new TestSpillWriter(
+                        tempDir,
+                        1L /* 1 byte file bound */,
+                        AbstractSpillingHandler.DEFAULT_MAX_SEGMENT_SIZE_BYTES)) {
             writer.writeRecord(c0, bytes(10, 11, 12), 3);
             writer.writeRecord(c1, bytes(20, 21), 2);
             state = writer.getChannelState();
@@ -340,7 +344,9 @@ class FetchedChannelStateReaderTest {
 
         // Tiny rotation threshold so the two segments land in separate files.
         FetchedChannelState state;
-        try (TestSpillWriter writer = new TestSpillWriter(tempDir, 1L)) {
+        try (TestSpillWriter writer =
+                new TestSpillWriter(
+                        tempDir, 1L, AbstractSpillingHandler.DEFAULT_MAX_SEGMENT_SIZE_BYTES)) {
             writer.writePassThrough(c0, bytes(1, 2, 3, 4), 0, 4);
             writer.writePassThrough(c1, bytes(5, 6, 7), 0, 3);
             state = writer.getChannelState();
