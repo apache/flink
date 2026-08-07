@@ -149,7 +149,8 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     private Stream<TestSetSpec> eltTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
-                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3}, (byte) 2, (short) 2, 2L)
+                        .onFieldsWithData(
+                                null, null, null, new byte[] {1, 2, 3}, (byte) 2, (short) 2, 2L)
                         .andDataTypes(
                                 DataTypes.INT(),
                                 DataTypes.STRING(),
