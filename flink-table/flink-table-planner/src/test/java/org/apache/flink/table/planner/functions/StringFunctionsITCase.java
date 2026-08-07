@@ -149,12 +149,15 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     private Stream<TestSetSpec> eltTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
-                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3})
+                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3}, (byte) 2, (short) 2, 2L)
                         .andDataTypes(
                                 DataTypes.INT(),
                                 DataTypes.STRING(),
                                 DataTypes.BYTES(),
-                                DataTypes.BYTES())
+                                DataTypes.BYTES(),
+                                DataTypes.TINYINT(),
+                                DataTypes.SMALLINT(),
+                                DataTypes.BIGINT())
                         // null input
                         .testResult(
                                 $("f0").elt("a", "b"), "ELT(f0, 'a', 'b')", null, DataTypes.CHAR(1))
@@ -182,20 +185,27 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.VARCHAR(5))
                         .testResult(
                                 lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
-                        // FLINK-40338: non-INT INTEGER_NUMERIC index must not throw ClassCastException
+                        // FLINK-40338: non-INT INTEGER_NUMERIC index must not throw ClassCastException.
+                        // Constant case covers the ExpressionReducer (constant-folding) path;
+                        // field-reference cases below cover the codegen'd operator path.
                         .testResult(
                                 lit(2).cast(DataTypes.TINYINT()).elt("scala", "java"),
                                 "ELT(CAST(2 AS TINYINT), 'scala', 'java')",
                                 "java",
                                 DataTypes.VARCHAR(5))
                         .testResult(
-                                lit(2).cast(DataTypes.SMALLINT()).elt("scala", "java"),
-                                "ELT(CAST(2 AS SMALLINT), 'scala', 'java')",
+                                $("f4").elt("scala", "java"),
+                                "ELT(f4, 'scala', 'java')",
                                 "java",
                                 DataTypes.VARCHAR(5))
                         .testResult(
-                                lit(2).cast(DataTypes.BIGINT()).elt("scala", "java"),
-                                "ELT(CAST(2 AS BIGINT), 'scala', 'java')",
+                                $("f5").elt("scala", "java"),
+                                "ELT(f5, 'scala', 'java')",
+                                "java",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                $("f6").elt("scala", "java"),
+                                "ELT(f6, 'scala', 'java')",
                                 "java",
                                 DataTypes.VARCHAR(5))
                         .testResult(
