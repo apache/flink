@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +79,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                                 taskStateSnapshot.getInputRescalingDescriptor(),
                                 filterContext.isCheckpointingDuringRecoveryEnabled(),
                                 filteringHandler,
-                                filterContext.getMemorySegmentSize())) {
+                                filterContext.getMemorySegmentSize(),
+                                filterContext.getTmpDirectories())) {
             boolean readAny =
                     read(
                             stateHandler,
@@ -97,20 +99,17 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         !filteringHandler.hasPartialData(),
                         "Not all data has been fully consumed during filtering");
             }
-            // A recovered-state container is produced whenever the checkpointing-during-recovery
-            // path recovered any state, regardless of whether filtering was needed: on this path
-            // conversion must hand the recovered buffers to the physical channels in recovery mode
-            // (needsRecovery = state.isPresent()), so the signal must reflect "any recovered data
-            // was pushed", not "a filter ran". The no-checkpointing path pushes recovered buffers
-            // directly and produces nothing here, matching the caller's
-            // checkState(readInputData(...).isEmpty()).
+            // The container signals "any recovered data was pushed", not "a filter ran": the
+            // no-checkpointing path pushes recovered buffers directly and must produce nothing
+            // here, matching the caller's checkState(readInputData(...).isEmpty()).
             //
             // FLINK-38544 transitional in-memory backend: recovered buffers already live in the
-            // physical channels' queues, so the returned container is an empty placeholder that
-            // only signals "there is state to recover". The spilling backend returns a real,
-            // file-backed container here.
+            // physical channels' queues, so the returned container is an empty placeholder.
+            // TODO: FLINK-38544 — return stateHandler.getProducedChannelState() once the handler
+            // factory selects the Spilling* handlers; as-is their file-backed state would be
+            // silently dropped here.
             return filterContext.isCheckpointingDuringRecoveryEnabled() && readAny
-                    ? Optional.of(new FetchedChannelState())
+                    ? Optional.of(new FetchedChannelState(Collections.emptyList()))
                     : Optional.empty();
         }
     }
