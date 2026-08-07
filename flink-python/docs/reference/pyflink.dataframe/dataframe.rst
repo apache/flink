@@ -54,6 +54,19 @@ Transformations
     DataFrame.filter
     DataFrame.__getitem__
 
+Aggregations
+------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.group_by
+    DataFrame.agg
+    GroupedDataFrame
+    GroupedDataFrame.agg
+
 Results
 -------
 

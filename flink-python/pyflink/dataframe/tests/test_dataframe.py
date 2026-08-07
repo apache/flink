@@ -468,6 +468,81 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             pf.lit(1, object())
 
 
+class DataFrameAggregationTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                ("engineering", "east", 10),
+                ("engineering", "west", 20),
+                ("sales", "east", 5),
+            ],
+            schema=["department", "region", "amount"],
+        )
+
+    def test_global_aggregation_preserves_positional_and_named_order(self):
+        result = self.dataframe.agg(
+            pf.col("amount").sum.alias("total_amount"),
+            row_count=pf.col("amount").count,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["total_amount", "row_count"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT().not_null()],
+        )
+
+    def test_grouped_aggregation_emits_string_and_expression_keys_first(self):
+        grouped = self.dataframe.group_by("department", pf.col("region"))
+
+        self.assertIsInstance(grouped, pf.GroupedDataFrame)
+        result = grouped.agg(
+            pf.col("amount").sum.alias("total_amount"),
+            row_count=pf.col("amount").count,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            ["department", "region", "total_amount", "row_count"],
+            [
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT().not_null(),
+            ],
+        )
+
+    def test_aggregation_python_contract_validation(self):
+        with self.assertRaisesRegex(ValueError, "requires at least one grouping key"):
+            self.dataframe.group_by()
+        with self.assertRaisesRegex(TypeError, "grouping keys must be strings"):
+            self.dataframe.group_by(42)
+        with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
+            self.dataframe.agg()
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            self.dataframe.agg(42)
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            self.dataframe.agg(total=42)
+
+        grouped = self.dataframe.group_by("department")
+        with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
+            grouped.agg()
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            grouped.agg(42)
+        with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
+            grouped.agg(total=42)
+
+    def test_global_aggregation_delegates_expression_legality_to_planner(self):
+        with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+            self.dataframe.agg(pf.col("amount"))
+
+    def test_grouped_aggregation_delegates_ambiguous_output_to_planner(self):
+        with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+            self.dataframe.group_by("department").agg(
+                department=pf.col("amount").sum
+            )
+
+
 class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
     def test_from_records(self):
         dataframe = pf.from_records(
@@ -569,6 +644,26 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         ).filter(pf.col("id") > 1)
 
         self.assertEqual(result.collect(), [Row(2, "Bob")])
+
+    def test_grouped_aggregation_with_batch_table_environment(self):
+        pf.set_table_environment(self.t_env)
+
+        result = pf.from_records(
+            [
+                ("engineering", 10),
+                ("engineering", 20),
+                ("sales", 5),
+            ],
+            schema=["department", "amount"],
+        ).group_by("department").agg(
+            total_amount=pf.col("amount").sum,
+            row_count=pf.col("amount").count,
+        )
+
+        self.assertCountEqual(
+            result.collect(),
+            [Row("engineering", 30, 2), Row("sales", 5, 1)],
+        )
 
 
 if __name__ == "__main__":
