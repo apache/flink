@@ -270,8 +270,13 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
 
     public static final long DEFAULT_SPILL_FILE_SIZE_BYTES = 64L * 1024 * 1024;
 
+    public static final int DEFAULT_MAX_SEGMENT_SIZE_BYTES = 1024 * 1024;
+
     /** Soft per-file size bound that triggers rotation between segments. */
     private final long maxFileSizeBytes;
+
+    /** Soft per-segment size bound that triggers a seal, keeping heap use bounded. */
+    private final int maxSegmentSizeBytes;
 
     /**
      * Accumulates the current segment: the header followed by the body, which is either
@@ -308,7 +313,8 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             String[] spillTmpDirectories,
-            long maxFileSizeBytes) {
+            long maxFileSizeBytes,
+            int maxSegmentSizeBytes) {
         // FLINK-38544 transitional: the base's third ctor arg is removed when the spilling backend
         // lands (spilling always implies checkpointing-during-recovery enabled).
         super(inputGates, channelMapping, true);
@@ -317,8 +323,13 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
                 "spillTmpDirectories must not be empty");
         checkArgument(
                 maxFileSizeBytes > 0, "maxFileSizeBytes must be positive: %s", maxFileSizeBytes);
+        checkArgument(
+                maxSegmentSizeBytes > 0,
+                "maxSegmentSizeBytes must be positive: %s",
+                maxSegmentSizeBytes);
         this.spillTmpDirectories = spillTmpDirectories;
         this.maxFileSizeBytes = maxFileSizeBytes;
+        this.maxSegmentSizeBytes = maxSegmentSizeBytes;
         this.baseDir =
                 Paths.get(spillTmpDirectories[0], "flink-channel-spill-" + UUID.randomUUID());
     }
@@ -328,12 +339,15 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
      * caller to append the body into. The caller must not seal the segment.
      */
     DataOutputSerializer segmentSerializerFor(InputChannelInfo channelInfo) throws IOException {
-        switchChannelIfNeeded(channelInfo);
+        startNewSegmentIfNeeded(channelInfo);
         return segmentSerializer;
     }
 
-    private void switchChannelIfNeeded(InputChannelInfo channelInfo) throws IOException {
-        if (channelInfo.equals(currentChannel)) {
+    private void startNewSegmentIfNeeded(InputChannelInfo channelInfo) throws IOException {
+        // A segment ends on a channel switch, or once it outgrew the heap bound; the disk format
+        // allows consecutive segments for one channel, so the reader is unaffected either way.
+        if (channelInfo.equals(currentChannel)
+                && segmentSerializer.length() <= maxSegmentSizeBytes) {
             return;
         }
         if (currentChannel != null) {
@@ -444,7 +458,12 @@ class SpillingNoFilteringHandler extends AbstractSpillingHandler {
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             String[] spillTmpDirectories) {
-        super(inputGates, channelMapping, spillTmpDirectories, DEFAULT_SPILL_FILE_SIZE_BYTES);
+        super(
+                inputGates,
+                channelMapping,
+                spillTmpDirectories,
+                DEFAULT_SPILL_FILE_SIZE_BYTES,
+                DEFAULT_MAX_SEGMENT_SIZE_BYTES);
     }
 
     @Override
@@ -513,7 +532,12 @@ class SpillingWithFilteringHandler extends AbstractSpillingHandler {
             ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize,
             String[] spillTmpDirectories) {
-        super(inputGates, channelMapping, spillTmpDirectories, DEFAULT_SPILL_FILE_SIZE_BYTES);
+        super(
+                inputGates,
+                channelMapping,
+                spillTmpDirectories,
+                DEFAULT_SPILL_FILE_SIZE_BYTES,
+                DEFAULT_MAX_SEGMENT_SIZE_BYTES);
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);

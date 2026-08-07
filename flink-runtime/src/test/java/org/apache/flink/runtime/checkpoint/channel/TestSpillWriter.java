@@ -37,11 +37,16 @@ final class TestSpillWriter implements Closeable {
     private final FormatHandler handler;
 
     TestSpillWriter(Path baseDir) {
-        this(baseDir, AbstractSpillingHandler.DEFAULT_SPILL_FILE_SIZE_BYTES);
+        this(
+                baseDir,
+                AbstractSpillingHandler.DEFAULT_SPILL_FILE_SIZE_BYTES,
+                AbstractSpillingHandler.DEFAULT_MAX_SEGMENT_SIZE_BYTES);
     }
 
-    TestSpillWriter(Path baseDir, long maxFileSizeBytes) {
-        this.handler = new FormatHandler(new String[] {baseDir.toString()}, maxFileSizeBytes);
+    TestSpillWriter(Path baseDir, long maxFileSizeBytes, int maxSegmentSizeBytes) {
+        this.handler =
+                new FormatHandler(
+                        new String[] {baseDir.toString()}, maxFileSizeBytes, maxSegmentSizeBytes);
     }
 
     /** Appends one length-prefixed record, mirroring the filtering path. */
@@ -79,12 +84,14 @@ final class TestSpillWriter implements Closeable {
 
     private static final class FormatHandler extends AbstractSpillingHandler {
 
-        FormatHandler(String[] spillTmpDirectories, long maxFileSizeBytes) {
+        FormatHandler(
+                String[] spillTmpDirectories, long maxFileSizeBytes, int maxSegmentSizeBytes) {
             super(
                     new InputGate[0],
                     InflightDataRescalingDescriptor.NO_RESCALE,
                     spillTmpDirectories,
-                    maxFileSizeBytes);
+                    maxFileSizeBytes,
+                    maxSegmentSizeBytes);
         }
 
         @Override

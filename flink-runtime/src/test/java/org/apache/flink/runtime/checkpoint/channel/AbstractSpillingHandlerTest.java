@@ -71,6 +71,26 @@ class AbstractSpillingHandlerTest {
     }
 
     @Test
+    void testSameChannelIsSplitIntoSegmentsWhenSizeBoundIsExceeded() throws Exception {
+        InputChannelInfo ch = new InputChannelInfo(0, 0);
+        // Segment bound of 8 bytes: every record outgrows it, so each write starts a new segment
+        // even though the channel never switches.
+        try (TestSpillWriter writer =
+                new TestSpillWriter(
+                        tempDir, AbstractSpillingHandler.DEFAULT_SPILL_FILE_SIZE_BYTES, 8)) {
+            writer.writeRecord(ch, bytes(1, 2, 3, 4, 5, 6, 7, 8), 8);
+            writer.writeRecord(ch, bytes(1, 2, 3, 4, 5, 6, 7, 8), 8);
+            writer.writeRecord(ch, bytes(1, 2, 3, 4, 5, 6, 7, 8), 8);
+            FetchedChannelState state = writer.getChannelState();
+
+            // Three headers instead of one: 3 * (header + 4B length prefix + 8B payload).
+            long segmentBytes = AbstractSpillingHandler.SEGMENT_HEADER_BYTES + Integer.BYTES + 8;
+            assertThat(state.files()).hasSize(1);
+            assertThat(state.files().get(0).toFile().length()).isEqualTo(3 * segmentBytes);
+        }
+    }
+
+    @Test
     void testPassThroughBytesAreWrittenVerbatim() throws Exception {
         InputChannelInfo ch = new InputChannelInfo(1, 2);
         byte[] data = bytes(0x01, 0x02, 0x03, 0x04, 0x05);
@@ -117,7 +137,9 @@ class AbstractSpillingHandlerTest {
 
     @Test
     void testRotationProducesOneFilePerSegmentWhenBoundIsTiny() throws Exception {
-        try (TestSpillWriter writer = new TestSpillWriter(tempDir, 1L)) {
+        try (TestSpillWriter writer =
+                new TestSpillWriter(
+                        tempDir, 1L, AbstractSpillingHandler.DEFAULT_MAX_SEGMENT_SIZE_BYTES)) {
             writer.writeRecord(new InputChannelInfo(0, 0), bytes(1), 1);
             writer.writeRecord(new InputChannelInfo(0, 1), bytes(2, 3), 2);
             writer.writeRecord(new InputChannelInfo(0, 2), bytes(4), 1);
