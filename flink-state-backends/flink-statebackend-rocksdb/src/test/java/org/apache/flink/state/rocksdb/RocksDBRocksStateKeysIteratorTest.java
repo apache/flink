@@ -26,24 +26,26 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.state.rocksdb.iterator.RocksStateKeysIterator;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyHandle;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the RocksIteratorWrapper. */
-public class RocksDBRocksStateKeysIteratorTest {
+class RocksDBRocksStateKeysIteratorTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private Path tmp;
 
     @Test
-    public void testIterator() throws Exception {
+    void testIterator() throws Exception {
 
         // test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
         testIteratorHelper(IntSerializer.INSTANCE, 128, i -> i);
@@ -115,12 +117,9 @@ public class RocksDBRocksStateKeysIteratorTest {
                     fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
                 }
 
-                fetchedKeys.sort(Comparator.comparingInt(a -> a));
-                Assert.assertEquals(1000, fetchedKeys.size());
-
-                for (int i = 0; i < 1000; ++i) {
-                    Assert.assertEquals(i, fetchedKeys.get(i).intValue());
-                }
+                assertThat(fetchedKeys)
+                        .containsExactlyInAnyOrderElementsOf(
+                                IntStream.range(0, 1000).boxed().collect(Collectors.toList()));
             }
         }
     }
