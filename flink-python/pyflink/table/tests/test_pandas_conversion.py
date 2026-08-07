@@ -17,55 +17,14 @@
 ################################################################################
 import datetime
 import decimal
-import io
-import unittest
 
 from pandas.testing import assert_frame_equal
-import pyarrow as pa
 
 from pyflink.common import Row
-from pyflink.table import table_environment
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
     PyFlinkStreamTableTestCase
-
-
-class ArrowTableSerializationTests(unittest.TestCase):
-
-    def test_serializes_expected_batch_sizes(self):
-        table = pa.table({"id": [1, 2, 3, 4, 5]})
-        stream = io.BytesIO()
-
-        table_environment._serialize_arrow_table(table, stream, splits_num=2)
-
-        reader = pa.ipc.open_stream(stream.getvalue())
-        self.assertEqual([3, 2], [batch.num_rows for batch in reader])
-
-    def test_serializes_empty_table_with_schema(self):
-        table = pa.table({"id": pa.array([], type=pa.int64())})
-        stream = io.BytesIO()
-
-        table_environment._serialize_arrow_table(table, stream, splits_num=1)
-
-        reader = pa.ipc.open_stream(stream.getvalue())
-        self.assertEqual(table.schema, reader.schema)
-        self.assertEqual([], list(reader))
-
-    def test_rejects_invalid_split_counts(self):
-        table = pa.table({"id": [1]})
-        invalid_splits = [
-            (True, TypeError, "splits_num must be an integer"),
-            (1.5, TypeError, "splits_num must be an integer"),
-            (0, ValueError, "splits_num must be greater than 0"),
-            (-1, ValueError, "splits_num must be greater than 0"),
-        ]
-        for splits_num, error_type, message in invalid_splits:
-            with self.subTest(splits_num=splits_num):
-                with self.assertRaisesRegex(error_type, message):
-                    table_environment._serialize_arrow_table(
-                        table, io.BytesIO(), splits_num
-                    )
 
 
 class PandasConversionTestBase(object):

@@ -19,7 +19,7 @@ import atexit
 import os
 import sys
 import tempfile
-from typing import BinaryIO, Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
+from typing import Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas
@@ -59,20 +59,6 @@ __all__ = [
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
-
-
-def _serialize_arrow_table(table, stream: BinaryIO, splits_num: int) -> None:
-    if isinstance(splits_num, bool) or not isinstance(splits_num, int):
-        raise TypeError("splits_num must be an integer")
-    if splits_num <= 0:
-        raise ValueError("splits_num must be greater than 0")
-
-    import pyarrow as pa
-
-    with pa.ipc.new_stream(stream, table.schema) as writer:
-        if table.num_rows > 0:
-            max_chunksize = -(-table.num_rows // splits_num)
-            writer.write_table(table, max_chunksize=max_chunksize)
 
 
 @PublicEvolving()
@@ -1524,6 +1510,10 @@ class TableEnvironment(object):
 
         if not isinstance(table, pa.Table):
             raise TypeError(f"table must be a pyarrow.Table, but was {type(table).__name__}")
+        if isinstance(splits_num, bool) or not isinstance(splits_num, int):
+            raise TypeError("splits_num must be an integer")
+        if splits_num <= 0:
+            raise ValueError("splits_num must be greater than 0")
 
         arrow_schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
         try:
@@ -1537,7 +1527,10 @@ class TableEnvironment(object):
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         try:
             with temp_file:
-                _serialize_arrow_table(compatible_table, temp_file, splits_num)
+                with pa.ipc.new_stream(temp_file, compatible_table.schema) as writer:
+                    if compatible_table.num_rows > 0:
+                        max_chunksize = -(-compatible_table.num_rows // splits_num)
+                        writer.write_table(compatible_table, max_chunksize=max_chunksize)
 
             jvm = get_gateway().jvm
             if table_schema is None:
