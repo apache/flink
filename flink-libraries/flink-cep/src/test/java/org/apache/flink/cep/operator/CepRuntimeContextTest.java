@@ -41,9 +41,8 @@ import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.List;
@@ -53,20 +52,19 @@ import static org.apache.flink.cep.operator.CepRuntimeContextTest.MockProcessFun
 import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
 import static org.apache.flink.cep.utils.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.utils.EventBuilder.event;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Test cases for {@link CepRuntimeContext}. */
-public class CepRuntimeContextTest extends TestLogger {
+class CepRuntimeContextTest {
 
     @Test
-    public void testCepRuntimeContextIsSetInNFA() throws Exception {
+    void testCepRuntimeContextIsSetInNFA() throws Exception {
 
         @SuppressWarnings("unchecked")
         final NFA<Event> mockNFA = mock(NFA.class);
@@ -80,7 +78,7 @@ public class CepRuntimeContextTest extends TestLogger {
     }
 
     @Test
-    public void testCepRuntimeContextIsSetInProcessFunction() throws Exception {
+    void testCepRuntimeContextIsSetInProcessFunction() throws Exception {
 
         final VerifyRuntimeContextProcessFunction processFunction =
                 new VerifyRuntimeContextProcessFunction();
@@ -107,7 +105,7 @@ public class CepRuntimeContextTest extends TestLogger {
     }
 
     @Test
-    public void testCepRuntimeContext() {
+    void testCepRuntimeContext() {
         final String taskName = "foobarTask";
         final OperatorMetricGroup metricGroup =
                 UnregisteredMetricsGroup.createOperatorMetricGroup();
@@ -138,168 +136,127 @@ public class CepRuntimeContextTest extends TestLogger {
 
         RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
 
-        assertEquals(taskName, runtimeContext.getTaskInfo().getTaskName());
-        assertEquals(metricGroup, runtimeContext.getMetricGroup());
-        assertEquals(
-                numberOfParallelSubtasks,
-                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks());
-        assertEquals(indexOfSubtask, runtimeContext.getTaskInfo().getIndexOfThisSubtask());
-        assertEquals(attemptNumber, runtimeContext.getTaskInfo().getAttemptNumber());
-        assertEquals(taskNameWithSubtask, runtimeContext.getTaskInfo().getTaskNameWithSubtasks());
-        assertEquals(globalJobParameters, runtimeContext.getGlobalJobParameters());
-        assertEquals(isObjectReused, runtimeContext.isObjectReuseEnabled());
-        assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
-        assertEquals(distributedCache, runtimeContext.getDistributedCache());
+        assertThat(runtimeContext.getTaskInfo().getTaskName()).isEqualTo(taskName);
+        assertThat(runtimeContext.getMetricGroup()).isEqualTo(metricGroup);
+        assertThat(runtimeContext.getTaskInfo().getNumberOfParallelSubtasks())
+                .isEqualTo(numberOfParallelSubtasks);
+        assertThat(runtimeContext.getTaskInfo().getIndexOfThisSubtask()).isEqualTo(indexOfSubtask);
+        assertThat(runtimeContext.getTaskInfo().getAttemptNumber()).isEqualTo(attemptNumber);
+        assertThat(runtimeContext.getTaskInfo().getTaskNameWithSubtasks())
+                .isEqualTo(taskNameWithSubtask);
+        assertThat(runtimeContext.getGlobalJobParameters()).isEqualTo(globalJobParameters);
+        assertThat(runtimeContext.isObjectReuseEnabled()).isEqualTo(isObjectReused);
+        assertThat(runtimeContext.getUserCodeClassLoader()).isEqualTo(userCodeClassLoader);
+        assertThat(runtimeContext.getDistributedCache()).isEqualTo(distributedCache);
 
-        try {
-            runtimeContext.getState(new ValueStateDescriptor<>("foobar", Integer.class, 42));
-            fail("Expected getState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getState(
+                                        new ValueStateDescriptor<>("foobar", Integer.class, 42)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getListState(new ListStateDescriptor<>("foobar", Integer.class));
-            fail("Expected getListState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getListState(
+                                        new ListStateDescriptor<>("foobar", Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getReducingState(
-                    new ReducingStateDescriptor<>(
-                            "foobar", mock(ReduceFunction.class), Integer.class));
-            fail("Expected getReducingState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getReducingState(
+                                        new ReducingStateDescriptor<>(
+                                                "foobar",
+                                                mock(ReduceFunction.class),
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getAggregatingState(
-                    new AggregatingStateDescriptor<>(
-                            "foobar", mock(AggregateFunction.class), Integer.class));
-            fail("Expected getAggregatingState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getAggregatingState(
+                                        new AggregatingStateDescriptor<>(
+                                                "foobar",
+                                                mock(AggregateFunction.class),
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getMapState(
-                    new MapStateDescriptor<>("foobar", Integer.class, String.class));
-            fail("Expected getMapState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getMapState(
+                                        new MapStateDescriptor<>(
+                                                "foobar", Integer.class, String.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getState(
-                    new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
-                            "foobar", Integer.class));
-            fail("Expected getState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ValueStateDescriptor<>("foobar", Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getListState(
-                    new org.apache.flink.api.common.state.v2.ListStateDescriptor<>(
-                            "foobar", Integer.class));
-            fail("Expected getListState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getListState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ListStateDescriptor<>("foobar", Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getReducingState(
-                    new org.apache.flink.api.common.state.v2.ReducingStateDescriptor<>(
-                            "foobar", mock(ReduceFunction.class), Integer.class));
-            fail("Expected getReducingState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getReducingState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ReducingStateDescriptor<>(
+                                                "foobar",
+                                                mock(ReduceFunction.class),
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getAggregatingState(
-                    new org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<>(
-                            "foobar", mock(AggregateFunction.class), Integer.class));
-            fail("Expected getAggregatingState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getAggregatingState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .AggregatingStateDescriptor<>(
+                                                "foobar",
+                                                mock(AggregateFunction.class),
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getMapState(
-                    new org.apache.flink.api.common.state.v2.MapStateDescriptor<>(
-                            "foobar", Integer.class, String.class));
-            fail("Expected getMapState to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getMapState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .MapStateDescriptor<>(
+                                                "foobar", Integer.class, String.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.addAccumulator("foobar", mock(Accumulator.class));
-            fail("Expected addAccumulator to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.addAccumulator("foobar", mock(Accumulator.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getAccumulator("foobar");
-            fail("Expected getAccumulator to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getAccumulator("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getIntCounter("foobar");
-            fail("Expected getIntCounter to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getIntCounter("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getLongCounter("foobar");
-            fail("Expected getLongCounter to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getLongCounter("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getDoubleCounter("foobar");
-            fail("Expected getDoubleCounter to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getDoubleCounter("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getHistogram("foobar");
-            fail("Expected getHistogram to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getHistogram("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.hasBroadcastVariable("foobar");
-            fail("Expected hasBroadcastVariable to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.hasBroadcastVariable("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getBroadcastVariable("foobar");
-            fail("Expected getBroadcastVariable to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> runtimeContext.getBroadcastVariable("foobar"))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            runtimeContext.getBroadcastVariableWithInitializer(
-                    "foobar", mock(BroadcastVariableInitializer.class));
-            fail(
-                    "Expected getBroadcastVariableWithInitializer to fail with unsupported operation exception.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getBroadcastVariableWithInitializer(
+                                        "foobar", mock(BroadcastVariableInitializer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /* Test Utils */
@@ -316,17 +273,17 @@ public class CepRuntimeContextTest extends TestLogger {
         }
 
         MockProcessFunctionAsserter checkOpenCalled() {
-            assertThat(function.openCalled, is(true));
+            assertThat(function.openCalled).isTrue();
             return this;
         }
 
         MockProcessFunctionAsserter checkCloseCalled() {
-            assertThat(function.openCalled, is(true));
+            assertThat(function.openCalled).isTrue();
             return this;
         }
 
         MockProcessFunctionAsserter checkProcessMatchCalled() {
-            assertThat(function.processMatchCalled, is(true));
+            assertThat(function.processMatchCalled).isTrue();
             return this;
         }
     }

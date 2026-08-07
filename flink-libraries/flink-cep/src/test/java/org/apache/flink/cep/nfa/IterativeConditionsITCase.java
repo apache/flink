@@ -24,11 +24,10 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +38,7 @@ import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /** IT tests covering {@link IterativeCondition} usage. */
 @SuppressWarnings("unchecked")
-public class IterativeConditionsITCase extends TestLogger {
+class IterativeConditionsITCase {
 
     //////////////////////			Iterative BooleanConditions			/////////////////////////
 
@@ -55,7 +54,7 @@ public class IterativeConditionsITCase extends TestLogger {
     private final Event endEvent = new Event(46, "end", 1.0);
 
     @Test
-    public void testIterativeWithBranchingPatternEager() throws Exception {
+    void testIterativeWithBranchingPatternEager() throws Exception {
         List<List<Event>> actual = testIterativeWithBranchingPattern(true);
 
         comparePatterns(
@@ -70,7 +69,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithBranchingPatternCombinations() throws Exception {
+    void testIterativeWithBranchingPatternCombinations() throws Exception {
         List<List<Event>> actual = testIterativeWithBranchingPattern(false);
 
         comparePatterns(
@@ -143,7 +142,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithLoopingStartingEager() throws Exception {
+    void testIterativeWithLoopingStartingEager() throws Exception {
         List<List<Event>> actual = testIterativeWithLoopingStarting(true);
 
         comparePatterns(
@@ -157,7 +156,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithLoopingStartingCombination() throws Exception {
+    void testIterativeWithLoopingStartingCombination() throws Exception {
         List<List<Event>> actual = testIterativeWithLoopingStarting(false);
 
         comparePatterns(
@@ -226,7 +225,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithPrevPatternDependency() throws Exception {
+    void testIterativeWithPrevPatternDependency() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(startEvent1, 1L));
@@ -270,7 +269,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithABACPattern() throws Exception {
+    void testIterativeWithABACPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(startEvent1, 1L)); // 1
@@ -332,7 +331,7 @@ public class IterativeConditionsITCase extends TestLogger {
     }
 
     @Test
-    public void testIterativeWithPrevPatternDependencyAfterBranching() throws Exception {
+    void testIterativeWithPrevPatternDependencyAfterBranching() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(startEvent1, 1L));

@@ -37,21 +37,20 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for rescaling of CEP operators. */
-public class CEPRescalingTest {
+class CEPRescalingTest {
 
     @Test
-    public void testCEPFunctionScalingUp() throws Exception {
+    void testCEPFunctionScalingUp() throws Exception {
         int maxParallelism = 10;
 
         KeySelector<Event, Integer> keySelector =
@@ -74,11 +73,11 @@ public class CEPRescalingTest {
         int keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent1), maxParallelism);
-        assertEquals(1, keygroup);
-        assertEquals(
-                0,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isOne();
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isZero();
 
         Event startEvent2 = new Event(10, "start", 1.0); // this will go to task index 2
         SubEvent middleEvent2 = new SubEvent(10, "foo", 1.0, 10.0);
@@ -87,11 +86,11 @@ public class CEPRescalingTest {
         keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent2), maxParallelism);
-        assertEquals(9, keygroup);
-        assertEquals(
-                1,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isEqualTo(9);
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isOne();
 
         // now we start the test, we go from parallelism 1 to 2.
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = null;
@@ -142,7 +141,7 @@ public class CEPRescalingTest {
             harness1.processWatermark(new Watermark(Long.MAX_VALUE));
 
             // watermarks and the result
-            assertEquals(3, harness1.getOutput().size());
+            assertThat(harness1.getOutput()).hasSize(3);
             verifyWatermark(harness1.getOutput().poll(), 2);
             verifyPattern(harness1.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
 
@@ -160,7 +159,7 @@ public class CEPRescalingTest {
 
             harness2.processWatermark(new Watermark(Long.MAX_VALUE));
 
-            assertEquals(3, harness2.getOutput().size());
+            assertThat(harness2.getOutput()).hasSize(3);
             verifyWatermark(harness2.getOutput().poll(), 2);
             verifyPattern(harness2.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
         } finally {
@@ -180,7 +179,7 @@ public class CEPRescalingTest {
     }
 
     @Test
-    public void testCEPFunctionScalingDown() throws Exception {
+    void testCEPFunctionScalingDown() throws Exception {
         int maxParallelism = 10;
 
         KeySelector<Event, Integer> keySelector =
@@ -203,15 +202,15 @@ public class CEPRescalingTest {
         int keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent1), maxParallelism);
-        assertEquals(1, keygroup);
-        assertEquals(
-                0,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 3, keygroup));
-        assertEquals(
-                0,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isOne();
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 3, keygroup))
+                .isZero();
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isZero();
 
         Event startEvent2 = new Event(45, "start", 1.0); // this will go to task index 1
         SubEvent middleEvent2 = new SubEvent(45, "foo", 1.0, 10.0);
@@ -220,15 +219,15 @@ public class CEPRescalingTest {
         keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent2), maxParallelism);
-        assertEquals(6, keygroup);
-        assertEquals(
-                1,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 3, keygroup));
-        assertEquals(
-                1,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isEqualTo(6);
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 3, keygroup))
+                .isOne();
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isOne();
 
         Event startEvent3 = new Event(90, "start", 1.0); // this will go to task index 0
         SubEvent middleEvent3 = new SubEvent(90, "foo", 1.0, 10.0);
@@ -237,15 +236,15 @@ public class CEPRescalingTest {
         keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent3), maxParallelism);
-        assertEquals(2, keygroup);
-        assertEquals(
-                0,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 3, keygroup));
-        assertEquals(
-                0,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isEqualTo(2);
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 3, keygroup))
+                .isZero();
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isZero();
 
         Event startEvent4 = new Event(10, "start", 1.0); // this will go to task index 2
         SubEvent middleEvent4 = new SubEvent(10, "foo", 1.0, 10.0);
@@ -254,15 +253,15 @@ public class CEPRescalingTest {
         keygroup =
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(startEvent4), maxParallelism);
-        assertEquals(9, keygroup);
-        assertEquals(
-                2,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 3, keygroup));
-        assertEquals(
-                1,
-                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                        maxParallelism, 2, keygroup));
+        assertThat(keygroup).isEqualTo(9);
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 3, keygroup))
+                .isEqualTo(2);
+        assertThat(
+                        KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                maxParallelism, 2, keygroup))
+                .isOne();
 
         // starting the test, we will go from parallelism of 3 to parallelism of 2
 
@@ -306,13 +305,13 @@ public class CEPRescalingTest {
             harness3.processElement(new StreamRecord<>(endEvent4, 17));
 
             // so far we only have the initial watermark
-            assertEquals(1, harness1.getOutput().size());
+            assertThat(harness1.getOutput()).hasSize(1);
             verifyWatermark(harness1.getOutput().poll(), Long.MIN_VALUE);
 
-            assertEquals(1, harness2.getOutput().size());
+            assertThat(harness2.getOutput()).hasSize(1);
             verifyWatermark(harness2.getOutput().poll(), Long.MIN_VALUE);
 
-            assertEquals(1, harness3.getOutput().size());
+            assertThat(harness3.getOutput()).hasSize(1);
             verifyWatermark(harness3.getOutput().poll(), Long.MIN_VALUE);
 
             // we take a snapshot and make it look as a single operator
@@ -351,7 +350,7 @@ public class CEPRescalingTest {
             // a pruning time underflow exception in NFA
             harness4.processWatermark(new Watermark(12));
 
-            assertEquals(2, harness4.getOutput().size());
+            assertThat(harness4.getOutput()).hasSize(2);
             verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
             verifyWatermark(harness4.getOutput().poll(), 12);
 
@@ -365,12 +364,12 @@ public class CEPRescalingTest {
             harness5.processWatermark(new Watermark(Long.MAX_VALUE));
 
             // verify result
-            assertEquals(3, harness4.getOutput().size());
+            assertThat(harness4.getOutput()).hasSize(3);
 
             // check the order of the events in the output
             Queue<Object> output = harness4.getOutput();
             StreamRecord<?> resultRecord = (StreamRecord<?>) output.peek();
-            assertTrue(resultRecord.getValue() instanceof Map);
+            assertThat(resultRecord.getValue()).isInstanceOf(Map.class);
 
             @SuppressWarnings("unchecked")
             Map<String, List<Event>> patternMap =
@@ -384,7 +383,7 @@ public class CEPRescalingTest {
             }
 
             // after scaling down this should end up here
-            assertEquals(2, harness5.getOutput().size());
+            assertThat(harness5.getOutput()).hasSize(2);
             verifyPattern(harness5.getOutput().poll(), startEvent4, middleEvent4, endEvent4);
         } finally {
             closeSilently(harness1);
@@ -396,21 +395,21 @@ public class CEPRescalingTest {
     }
 
     private void verifyWatermark(Object outputObject, long timestamp) {
-        assertTrue(outputObject instanceof Watermark);
-        assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());
+        assertThat(outputObject).isInstanceOf(Watermark.class);
+        assertThat(((Watermark) outputObject).getTimestamp()).isEqualTo(timestamp);
     }
 
     private void verifyPattern(Object outputObject, Event start, SubEvent middle, Event end) {
-        assertTrue(outputObject instanceof StreamRecord);
+        assertThat(outputObject).isInstanceOf(StreamRecord.class);
 
         StreamRecord<?> resultRecord = (StreamRecord<?>) outputObject;
-        assertTrue(resultRecord.getValue() instanceof Map);
+        assertThat(resultRecord.getValue()).isInstanceOf(Map.class);
 
         @SuppressWarnings("unchecked")
         Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
-        assertEquals(start, patternMap.get("start").get(0));
-        assertEquals(middle, patternMap.get("middle").get(0));
-        assertEquals(end, patternMap.get("end").get(0));
+        assertThat(patternMap.get("start").get(0)).isEqualTo(start);
+        assertThat(patternMap.get("middle").get(0)).isEqualTo(middle);
+        assertThat(patternMap.get("end").get(0)).isEqualTo(end);
     }
 
     private KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>>
