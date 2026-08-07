@@ -298,8 +298,11 @@ class DataFrame:
             ...     ("sales", 5),
             ... ], schema=["department", "amount"])
             >>> totals = df.group_by("department").agg(
-            ...     total_amount=pf.col("amount").sum
+            ...     pf.col("amount").sum.alias("total_amount"),
+            ...     row_count=pf.col("amount").count,
             ... )
+            >>> # totals schema: [department: STRING, total_amount: BIGINT,
+            >>> #                 row_count: BIGINT NOT NULL]
 
         .. versionadded:: 2.4.0
         """
@@ -342,6 +345,7 @@ class DataFrame:
             ...     pf.col("order_id").count.alias("order_count"),
             ...     total_amount=pf.col("amount").sum,
             ... )
+            >>> # summary schema: [order_count: BIGINT NOT NULL, total_amount: BIGINT]
 
         .. versionadded:: 2.4.0
         """
@@ -469,9 +473,11 @@ class GroupedDataFrame:
             ...     ("sales", 5),
             ... ], schema=["department", "amount"])
             >>> totals = df.group_by("department").agg(
-            ...     total_amount=pf.col("amount").sum,
+            ...     pf.col("amount").sum.alias("total_amount"),
             ...     row_count=pf.col("amount").count,
             ... )
+            >>> # totals schema: [department: STRING, total_amount: BIGINT,
+            >>> #                 row_count: BIGINT NOT NULL]
 
         .. versionadded:: 2.4.0
         """
