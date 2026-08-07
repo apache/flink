@@ -81,8 +81,11 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
     /** Size of the file currently open. */
     private long currentFileSize;
 
-    /** Body view of the segment returned by the last {@link #advanceAndGetNextSegment()}. */
-    @Nullable private BoundedSegmentStream currentBody;
+    /**
+     * The segment handed out by the last {@link #advanceAndGetNextSegment()}. A segment is only
+     * valid until the next one is handed out; reading or committing an older one fails loud.
+     */
+    @Nullable private Segment currentSegment;
 
     private boolean positioned;
     private boolean closed;
@@ -124,8 +127,8 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      */
     private Optional<SpillSegment> resumedSegment() throws IOException {
         openFileAndSeek();
-        currentBody = new BoundedSegmentStream(current.remaining);
-        return Optional.of(new Segment(current.channel, currentBody));
+        currentSegment = new Segment(current.channel, new BoundedSegmentStream(current.remaining));
+        return Optional.of(currentSegment);
     }
 
     /** Steady path: the stream sits on a segment header; read it and hand out the whole body. */
@@ -135,8 +138,9 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         }
         SegmentHeader header = readHeaderAtCurrent();
         current.startSegment(header.channelInfo, header.bufferLength);
-        currentBody = new BoundedSegmentStream(header.bufferLength);
-        return Optional.of(new Segment(header.channelInfo, currentBody));
+        currentSegment =
+                new Segment(header.channelInfo, new BoundedSegmentStream(header.bufferLength));
+        return Optional.of(currentSegment);
     }
 
     @Override
@@ -364,6 +368,9 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
         @Override
         public void commit() {
+            checkState(
+                    currentSegment == this,
+                    "Committing a segment that is no longer the current one");
             committed.copyFrom(current);
         }
     }
@@ -397,7 +404,9 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
 
         @Override
         public int read(byte[] buf, int off, int len) throws IOException {
-            checkState(currentBody == this, "Reading a segment that is no longer the current one");
+            checkState(
+                    currentSegment != null && currentSegment.body == this,
+                    "Reading a segment that is no longer the current one");
             if (current.remaining == 0) {
                 return -1;
             }
