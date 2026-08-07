@@ -185,9 +185,6 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.VARCHAR(5))
                         .testResult(
                                 lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
-                        // FLINK-40338: non-INT INTEGER_NUMERIC index must not throw ClassCastException.
-                        // Constant case covers the ExpressionReducer (constant-folding) path;
-                        // field-reference cases below cover the codegen'd operator path.
                         .testResult(
                                 lit(2).cast(DataTypes.TINYINT()).elt("scala", "java"),
                                 "ELT(CAST(2 AS TINYINT), 'scala', 'java')",
