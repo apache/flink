@@ -2514,28 +2514,28 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>Potential outputs are as following
      *
      * <ul>
-     *   <li>OBJECT
-     *   <li>ARRAY
-     *   <li>STRING
-     *   <li>NUMBER
-     *   <li>BOOLEAN
-     *   <li>NULL, for the JSON null literal
+     *   <li>object
+     *   <li>array
+     *   <li>string
+     *   <li>number
+     *   <li>boolean
+     *   <li>null, for the JSON null literal
      * </ul>
      *
-     * <p>Numbers are not split by width or precision; JSON has one number rule.
+     * <p>Every number is reported as number, whatever its magnitude or precision.
      *
      * <p>Returns NULL if the input is NULL or is not valid JSON.
      *
      * <p>Examples:
      *
      * <pre>{@code
-     * lit("{\"a\": true}").jsonType() // "OBJECT"
-     * lit("[1, 2]").jsonType() // "ARRAY"
-     * lit("null").jsonType() // "NULL"
-     * lit("\"Hello, World!\"").jsonType() // "STRING"
-     * lit("\"2015-01-01\"").jsonType() // "STRING"
-     * lit("66").jsonType() // "NUMBER"
-     * lit("11.1").jsonType() // "NUMBER"
+     * lit("{\"a\": true}").jsonType() // "object"
+     * lit("[1, 2]").jsonType() // "array"
+     * lit("null").jsonType() // "null"
+     * lit("\"Hello, World!\"").jsonType() // "string"
+     * lit("\"2015-01-01\"").jsonType() // "string"
+     * lit("66").jsonType() // "number"
+     * lit("11.1").jsonType() // "number"
      * lit("68s").jsonType() // null, not valid JSON
      * }</pre>
      */
@@ -2547,7 +2547,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root.
      *
      * <pre>{@code
-     * lit("{\"a\": [1, 2]}").jsonType("$.a") // "ARRAY"
+     * lit("{\"a\": [1, 2]}").jsonType("$.a") // "array"
      * }</pre>
      */
     public OutType jsonType(String path) {

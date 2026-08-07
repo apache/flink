@@ -26,15 +26,13 @@ import scala.Option;
 import scala.Tuple2;
 import scala.collection.Seq;
 
-/** Utilities shared across the code generation of JSON functions. */
+/** Utilities for the code generation of JSON functions. */
 public final class JsonCodeGenUtils {
 
     private JsonCodeGenUtils() {}
 
     /**
-     * Generates {@code JSON_TYPE(jsonValue)} or {@code JSON_TYPE(jsonValue, path)}: the first
-     * argument is parsed into a {@link SqlJsonUtils.JsonValueContext} and the type flag is read off
-     * it (optionally at {@code path}), guarded so that a NULL argument yields a NULL result.
+     * Generates {@code JSON_TYPE(jsonValue)} or {@code JSON_TYPE(jsonValue, path)}.
      *
      * <p>The parsed context is shared with the other JSON functions over the same input, so the
      * input is parsed only once per record.
@@ -50,18 +48,26 @@ public final class JsonCodeGenUtils {
                 false,
                 argTerms -> {
                     ParsedJson parsed = getOrCreateParsedJson(ctx, argTerms.head() + ".toString()");
-                    String call =
-                            hasPath
-                                    ? CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE_PATH())
-                                            + "("
-                                            + parsed.varName
-                                            + ", "
-                                            + argTerms.apply(1)
-                                            + ".toString())"
-                                    : CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE())
-                                            + "("
-                                            + parsed.varName
-                                            + ")";
+                    String call;
+                    if (hasPath) {
+                        String pathSpec = operands.apply(1).literalValue().get().toString();
+                        boolean definite = SqlJsonUtils.isPathDefinite(pathSpec);
+                        call =
+                                CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE_PATH())
+                                        + "("
+                                        + parsed.varName
+                                        + ", "
+                                        + argTerms.apply(1)
+                                        + ".toString(), "
+                                        + definite
+                                        + ")";
+                    } else {
+                        call =
+                                CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE())
+                                        + "("
+                                        + parsed.varName
+                                        + ")";
+                    }
                     String resultExpr = CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
                     return new Tuple2<>(parsed.parseCode, resultExpr);
                 });
@@ -71,12 +77,8 @@ public final class JsonCodeGenUtils {
      * Emits code that parses the given JSON {@code inputTerm} into a reusable {@link
      * SqlJsonUtils.JsonValueContext} member variable.
      *
-     * <p>When multiple JSON functions share the same input expression, the parse statement is
-     * emitted only once and the parsed context is reused across all of them.
-     *
-     * @param ctx the code generator context
-     * @param inputTerm the term producing the JSON string to parse
-     * @return the parsed-context variable name and the parse statement (empty if already parsed)
+     * @return the parsed-context variable name and the parse statement, empty if the same input was
+     *     already parsed
      */
     private static ParsedJson getOrCreateParsedJson(CodeGeneratorContext ctx, String inputTerm) {
         Option<GeneratedExpression> existing =

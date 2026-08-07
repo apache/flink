@@ -2330,14 +2330,14 @@ class Expression(Generic[T]):
 
         Potential outputs are as following
 
-        * `OBJECT`
-        * `ARRAY`
-        * `STRING`
-        * `NUMBER`
-        * `BOOLEAN`
-        * `NULL`, for the JSON null literal
+        * `object`
+        * `array`
+        * `string`
+        * `number`
+        * `boolean`
+        * `null`, for the JSON null literal
 
-        Numbers are not split by width or precision; JSON has one number rule.
+        Every number is reported as `number`, whatever its magnitude or precision.
 
         Returns None if the input is None or is not valid JSON.
 
@@ -2347,15 +2347,15 @@ class Expression(Generic[T]):
         Examples:
         ::
 
-            >>> lit('{"a": true}').json_type() # 'OBJECT'
-            >>> lit('[1, 2]').json_type() # 'ARRAY'
-            >>> lit('null').json_type() # 'NULL'
-            >>> lit('"Hello, World!"').json_type() # 'STRING'
-            >>> lit('"2015-01-01"').json_type() # 'STRING'
-            >>> lit('66').json_type() # 'NUMBER'
-            >>> lit('11.1').json_type() # 'NUMBER'
+            >>> lit('{"a": true}').json_type() # 'object'
+            >>> lit('[1, 2]').json_type() # 'array'
+            >>> lit('null').json_type() # 'null'
+            >>> lit('"Hello, World!"').json_type() # 'string'
+            >>> lit('"2015-01-01"').json_type() # 'string'
+            >>> lit('66').json_type() # 'number'
+            >>> lit('11.1').json_type() # 'number'
             >>> lit('68s').json_type() # None, not valid JSON
-            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'ARRAY'
+            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'array'
         """
         if path is None:
             return _unary_op("jsonType")(self)

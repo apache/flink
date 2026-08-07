@@ -3116,8 +3116,6 @@ public final class BuiltInFunctionDefinitions {
                                             and(
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                                     LITERAL))))
-                    // Nullable rather than nullableIfArgs: a non-null but unparseable input also
-                    // yields NULL.
                     .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .runtimeProvided()
                     .build();

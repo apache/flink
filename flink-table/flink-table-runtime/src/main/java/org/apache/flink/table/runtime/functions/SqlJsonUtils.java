@@ -533,9 +533,9 @@ public class SqlJsonUtils {
     }
 
     /**
-     * Returns the JSON type flag for the parsed value: {@code OBJECT}, {@code ARRAY}, {@code
-     * STRING}, {@code NUMBER}, {@code BOOLEAN}, or {@code NULL} for a JSON null. Returns SQL {@code
-     * NULL} for invalid JSON.
+     * Returns the JSON type flag for the parsed value: {@code object}, {@code array}, {@code
+     * string}, {@code number}, {@code boolean}, or {@code null} for the JSON null literal. Returns
+     * SQL {@code NULL} for invalid JSON.
      */
     public static String jsonType(final JsonValueContext parsedInput) {
         // Unparsed, or shared with a call that never assigned it: report NULL either way.
@@ -547,18 +547,17 @@ public class SqlJsonUtils {
 
     private static String getJsonType(final Object val) {
         if (val instanceof Number) {
-            return "NUMBER";
+            return "number";
         } else if (val instanceof String) {
-            return "STRING";
+            return "string";
         } else if (val instanceof Boolean) {
-            return "BOOLEAN";
+            return "boolean";
         } else if (val instanceof Map) {
-            return "OBJECT";
+            return "object";
         } else if (val instanceof Collection) {
-            return "ARRAY";
+            return "array";
         } else if (val == null) {
-            // JSON null, distinct from the SQL NULL returned for invalid input.
-            return null;
+            return "null";
         }
         return null;
     }
@@ -566,9 +565,11 @@ public class SqlJsonUtils {
     /**
      * Returns the JSON type flag at {@code path}, or {@code null} if the path doesn't resolve to
      * exactly one value. The {@code lax}/{@code strict} prefix is not supported: there's no {@code
-     * ON ERROR} clause here for it to matter.
+     * ON ERROR} clause here for it to matter. {@code definite} is computed at plan time by {@link
+     * #isPathDefinite}.
      */
-    public static String jsonType(final JsonValueContext parsedInput, final String path) {
+    public static String jsonType(
+            final JsonValueContext parsedInput, final String path, final boolean definite) {
         if (parsedInput == null || parsedInput.hasException() || path.isEmpty()) {
             return null;
         }
@@ -583,25 +584,37 @@ public class SqlJsonUtils {
         }
 
         if (parsedInput.obj == null) {
-            // Null has no children, so only the root path resolves.
-            return "$".equals(path) ? "NULL" : null;
+            return "$".equals(path) ? "null" : null;
         }
 
         final Object value;
         try {
-            // PathNotFoundException extends InvalidPathException, so this also covers a path
-            // that doesn't match anything.
+            // PathNotFoundException extends InvalidPathException (covers both exceptions)
             value = JsonPath.parse(parsedInput.obj, JSON_PATH_TYPE_CONFIG).read(path);
-        } catch (Exception e) {
+        } catch (InvalidPathException e) {
             return null;
         }
 
-        if (!JsonPath.isPathDefinite(path)) {
+        if (!definite) {
             // Indefinite paths (e.g. wildcards) read back as a list; only one match has one type.
             final List<?> matched = (List<?>) value;
             return matched.size() == 1 ? getJsonType(matched.get(0)) : null;
         }
         return getJsonType(value);
+    }
+
+    /** Returns whether {@code pathSpec} is a definite JSON path. */
+    public static boolean isPathDefinite(final String pathSpec) {
+        // JsonPath.compile() rejects an empty path with an IllegalArgumentException rather than
+        // the InvalidPathException caught below.
+        if (pathSpec.isEmpty()) {
+            return false;
+        }
+        try {
+            return JsonPath.isPathDefinite(pathSpec);
+        } catch (InvalidPathException e) {
+            return false;
+        }
     }
 
     /**

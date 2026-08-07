@@ -1360,41 +1360,41 @@ json:
       `path`. Returns `NULL` if jsonValue is `NULL`, is not valid JSON, or the path does not
       resolve to exactly one value.
 
-      The possible results are `OBJECT`, `ARRAY`, `STRING`, `NUMBER` and `BOOLEAN`, plus the string
-      `'NULL'` for the JSON null literal. These are the types of JSON's own grammar.
+      The possible results are `object`, `array`, `string`, `number`, `boolean` and `null` for
+      the JSON null literal.
 
-      JSON has a single number rule with no width, so every number is reported as `NUMBER`.
-      Anything quoted is a `STRING`, including dates and date-times.
+      Every number is reported as `number`, whatever its magnitude or precision.
+      Anything quoted is a `string`, including dates and date-times.
 
       ```sql
-      -- OBJECT
+      -- object
       SELECT JSON_TYPE('{"a": true}')
 
-      -- ARRAY
+      -- array
       SELECT JSON_TYPE('[1, 2]')
 
-      -- the JSON null literal, returned as the string 'NULL'
+      -- null
       SELECT JSON_TYPE('null')
 
-      -- BOOLEAN
+      -- boolean
       SELECT JSON_TYPE('true')
 
-      -- STRING
+      -- string
       SELECT JSON_TYPE('"Hello, World!"')
 
-      -- STRING, since a date in JSON is just a quoted string
+      -- string
       SELECT JSON_TYPE('"2015-01-01"')
 
-      -- NUMBER
+      -- number
       SELECT JSON_TYPE('66')
 
-      -- NUMBER, whatever the magnitude or precision
+      -- number
       SELECT JSON_TYPE('11.1')
 
       -- NULL, since 68s is not valid JSON
       SELECT JSON_TYPE('68s')
 
-      -- ARRAY, read at the given path
+      -- array, read at the given path
       SELECT JSON_TYPE('{"a": [1, 2]}', '$.a')
       ```
 
