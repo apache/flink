@@ -26,6 +26,7 @@ import org.apache.flink.configuration.MdcOptions;
 import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utility class to manage common Flink attributes in {@link MDC}. */
+@ThreadSafe
 public class MdcUtils {
 
     public static final String JOB_ID = "flink-job-id";
@@ -162,9 +164,12 @@ public class MdcUtils {
                 jobConfiguration.get(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS);
         final Map<String, String> context = new HashMap<>();
         for (Map.Entry<String, String> entry : mdcKeyMapping.entrySet()) {
+            final String mdcKeyName = entry.getValue();
+            final String effectiveMdcKey =
+                    (mdcKeyName == null || mdcKeyName.isBlank()) ? entry.getKey() : mdcKeyName;
             final String value = jobConfiguration.getString(entry.getKey(), null);
             if (value != null && !value.isBlank()) {
-                context.put(entry.getValue(), value);
+                context.put(effectiveMdcKey, value);
             }
         }
         if (context.isEmpty()) {

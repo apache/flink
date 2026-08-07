@@ -107,6 +107,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JobMdcRegistry;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -572,12 +573,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testJobMdcContextRegisteredOnSubmissionAndClearedOnTermination() throws Exception {
-        final Map<String, String> keyMapping = new HashMap<>();
-        keyMapping.put("job.key-1", "mdc-key-1");
-        keyMapping.put("job.key-2", "mdc-key-2");
-        jobGraph.getJobConfiguration().set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
-        jobGraph.getJobConfiguration().setString("job.key-1", "val-1");
-        jobGraph.getJobConfiguration().setString("job.key-2", "val-2");
+        configureJobWithMdcEnrichment();
 
         final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
         dispatcher =
@@ -609,6 +605,32 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // the unregistration callback is an independent dependent of the termination future,
         // so poll instead of asserting immediately
         CommonTestUtils.waitUntilCondition(() -> JobMdcRegistry.lookup(jobId) == null);
+    }
+
+    @Test
+    public void testJobMdcContextRegisteredOnRecovery() throws Exception {
+        configureJobWithMdcEnrichment();
+
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        final TestingJobMasterServiceLeadershipRunnerFactory runnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(runnerFactory)
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .build(rpcService);
+        dispatcher.start();
+
+        // takeCreatedJobManagerRunner blocks until the runner is created,
+        // which happens AFTER registerOrClear in runRecoveredJob
+        runnerFactory.takeCreatedJobManagerRunner();
+
+        assertThat(JobMdcRegistry.lookup(jobId))
+                .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                .containsEntry("mdc-key-1", "val-1")
+                .containsEntry("mdc-key-2", "val-2")
+                .hasSize(3);
     }
 
     @Test
@@ -673,6 +695,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             return CompletableFuture.completedFuture(null);
                         })
                 .get();
+    }
+
+    private void configureJobWithMdcEnrichment() {
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", "mdc-key-1");
+        keyMapping.put("job.key-2", "mdc-key-2");
+        jobGraph.getJobConfiguration().set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        jobGraph.getJobConfiguration().setString("job.key-1", "val-1");
+        jobGraph.getJobConfiguration().setString("job.key-2", "val-2");
     }
 
     @Test

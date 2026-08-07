@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -309,6 +310,30 @@ class MdcUtilsTest {
         assertThat(context)
                 .as(scenario)
                 .isEqualTo(Collections.singletonMap(MdcUtils.JOB_ID, jobID.toHexString()));
+    }
+
+    private static Stream<Arguments> blankMdcKeyNameCases() {
+        return Stream.of(
+                Arguments.of("empty string", ""),
+                Arguments.of("whitespace only", "   "),
+                Arguments.of("null key name", (String) null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("blankMdcKeyNameCases")
+    void testBlankMdcKeyNameFallsBackToConfigKey(final String scenario, final String mdcKeyName) {
+        final JobID jobID = new JobID();
+        final Configuration conf = new Configuration();
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", mdcKeyName);
+        conf.set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        conf.setString("job.key-1", "val-1");
+
+        final Map<String, String> context = MdcUtils.asContextData(jobID, conf);
+        assertThat(context)
+                .as(scenario)
+                .containsEntry(MdcUtils.JOB_ID, jobID.toHexString())
+                .containsEntry("job.key-1", "val-1");
     }
 
     // --- JobMdcRegistry integration: registry-first lookup ---
