@@ -127,7 +127,9 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      */
     private Optional<SpillSegment> resumedSegment() throws IOException {
         openFileAndSeek();
-        currentSegment = new Segment(current.channel, new BoundedSegmentStream(current.remaining));
+        currentSegment =
+                new Segment(
+                        this, current.channel, new BoundedSegmentStream(this, current.remaining));
         return Optional.of(currentSegment);
     }
 
@@ -139,7 +141,10 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         SegmentHeader header = readHeaderAtCurrent();
         current.startSegment(header.channelInfo, header.bufferLength);
         currentSegment =
-                new Segment(header.channelInfo, new BoundedSegmentStream(header.bufferLength));
+                new Segment(
+                        this,
+                        header.channelInfo,
+                        new BoundedSegmentStream(this, header.bufferLength));
         return Optional.of(currentSegment);
     }
 
@@ -182,21 +187,20 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      * false when no segment remains.
      */
     private boolean openCurrentFile() throws IOException {
-        if (current.fileIndex >= files().size()) {
-            return false;
+        boolean rolled = false;
+        while (current.fileIndex < files().size()) {
+            openFileAndSeek();
+            if (current.readOffset < currentFileSize) {
+                return true;
+            }
+            // Current file fully read: move to the next file's first segment. The writer never
+            // produces an empty file, so one roll always lands on data.
+            checkState(!rolled, "Rolled past more than one empty file");
+            closeFileStream();
+            current.rollToNextFile();
+            rolled = true;
         }
-        openFileAndSeek();
-        if (current.readOffset < currentFileSize) {
-            return true;
-        }
-        // Current file fully read: move to the next file's first segment.
-        closeFileStream();
-        current.rollToNextFile();
-        if (current.fileIndex >= files().size()) {
-            return false;
-        }
-        openFileAndSeek();
-        return current.readOffset < currentFileSize;
+        return false;
     }
 
     /** Reads the 12-byte header at the current read offset; advances past it. */
@@ -342,11 +346,16 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      *
      * <p>Only the main reader commits.
      */
-    private final class Segment implements SpillSegment {
+    private static final class Segment implements SpillSegment {
+        private final FetchedChannelStateReaderImpl reader;
         private final InputChannelInfo channelInfo;
         private final BoundedSegmentStream body;
 
-        private Segment(InputChannelInfo channelInfo, BoundedSegmentStream body) {
+        private Segment(
+                FetchedChannelStateReaderImpl reader,
+                InputChannelInfo channelInfo,
+                BoundedSegmentStream body) {
+            this.reader = reader;
             this.channelInfo = channelInfo;
             this.body = body;
         }
@@ -369,9 +378,9 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         @Override
         public void commit() {
             checkState(
-                    currentSegment == this,
+                    reader.currentSegment == this,
                     "Committing a segment that is no longer the current one");
-            committed.copyFrom(current);
+            reader.committed.copyFrom(reader.current);
         }
     }
 
@@ -382,11 +391,12 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
      * {@link EOFException} is thrown (fail-loud). Closing this view does not close the underlying
      * file; the reader owns it.
      */
-    private final class BoundedSegmentStream extends InputStream {
-
+    private static final class BoundedSegmentStream extends InputStream {
+        private final FetchedChannelStateReaderImpl reader;
         private final int length;
 
-        private BoundedSegmentStream(int length) {
+        private BoundedSegmentStream(FetchedChannelStateReaderImpl reader, int length) {
+            this.reader = reader;
             this.length = length;
         }
 
@@ -405,17 +415,17 @@ final class FetchedChannelStateReaderImpl implements FetchedChannelStateReader {
         @Override
         public int read(byte[] buf, int off, int len) throws IOException {
             checkState(
-                    currentSegment != null && currentSegment.body == this,
+                    reader.currentSegment != null && reader.currentSegment.body == this,
                     "Reading a segment that is no longer the current one");
-            if (current.remaining == 0) {
+            if (reader.current.remaining == 0) {
                 return -1;
             }
-            int toRead = Math.min(len, current.remaining);
-            int n = readBody(buf, off, toRead);
+            int toRead = Math.min(len, reader.current.remaining);
+            int n = reader.readBody(buf, off, toRead);
             if (n < 0) {
                 throw new EOFException(
                         "Unexpected EOF in segment body after "
-                                + (length - current.remaining)
+                                + (length - reader.current.remaining)
                                 + "/"
                                 + length
                                 + " bytes");
