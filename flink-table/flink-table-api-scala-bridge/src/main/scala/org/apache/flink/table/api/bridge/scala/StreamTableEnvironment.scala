@@ -835,14 +835,15 @@ object StreamTableEnvironment {
    *   The Scala [[StreamExecutionEnvironment]] of the [[TableEnvironment]].
    */
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
-    val settingsBuilder = EnvironmentSettings.newInstance()
-    if (
-      executionEnvironment.getConfiguration.get(ExecutionOptions.RUNTIME_MODE) ==
-        RuntimeExecutionMode.BATCH
-    ) {
-      settingsBuilder.inBatchMode()
-    }
-    create(executionEnvironment, settingsBuilder.build)
+    val runtimeMode =
+      if (
+        executionEnvironment.getConfiguration.get(ExecutionOptions.RUNTIME_MODE) ==
+          RuntimeExecutionMode.BATCH
+      ) RuntimeExecutionMode.BATCH
+      else RuntimeExecutionMode.STREAMING
+    create(
+      executionEnvironment,
+      EnvironmentSettings.newInstance().inRuntimeExecutionMode(runtimeMode).build)
   }
 
   /**

@@ -90,12 +90,14 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        final EnvironmentSettings.Builder settingsBuilder = EnvironmentSettings.newInstance();
-        if (executionEnvironment.getConfiguration().get(ExecutionOptions.RUNTIME_MODE)
-                == RuntimeExecutionMode.BATCH) {
-            settingsBuilder.inBatchMode();
-        }
-        return create(executionEnvironment, settingsBuilder.build());
+        final RuntimeExecutionMode runtimeMode =
+                executionEnvironment.getConfiguration().get(ExecutionOptions.RUNTIME_MODE)
+                                == RuntimeExecutionMode.BATCH
+                        ? RuntimeExecutionMode.BATCH
+                        : RuntimeExecutionMode.STREAMING;
+        return create(
+                executionEnvironment,
+                EnvironmentSettings.newInstance().inRuntimeExecutionMode(runtimeMode).build());
     }
 
     /**
