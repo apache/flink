@@ -173,7 +173,7 @@ public class StreamPhysicalIntervalJoinRule
         // target scopes the hint to one operator kind: this rule applies it only when it targets
         // the interval join, and leaves a hint aimed at any other operator kind untouched.
         String target = conf.get(EarlyFireJoinHintOptions.TARGET);
-        if (target != null && !EarlyFireJoinHintOptions.INTERVAL_JOIN.equals(target)) {
+        if (!EarlyFireJoinHintOptions.INTERVAL_JOIN.equals(target)) {
             return new EarlyFire(null, null);
         }
         Duration delay = conf.get(EarlyFireJoinHintOptions.DELAY);

@@ -42,7 +42,7 @@ public class EarlyFireJoinHintOptions {
     public static final ConfigOption<String> TARGET =
             key("target")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue(INTERVAL_JOIN)
                     .withDescription(
                             "The operator kind that the EARLY_FIRE hint applies to. Currently only"
                                     + " 'interval_join' is supported. When omitted, the hint applies"
