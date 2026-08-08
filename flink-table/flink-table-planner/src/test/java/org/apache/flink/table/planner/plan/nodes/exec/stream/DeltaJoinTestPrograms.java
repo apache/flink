@@ -41,10 +41,18 @@ public class DeltaJoinTestPrograms {
     static final String[] RIGHT_TABLE_BASE_SCHEMA =
             new String[] {"b0 double", "b2 string", "b1 int"};
 
+    static final String[] SRC_C_TABLE_BASE_SCHEMA =
+            new String[] {"c1 int", "c0 double", "c2 string"};
+
     static final String[] SINK_TABLE_BASE_SCHEMA =
             Stream.concat(
                             Arrays.stream(LEFT_TABLE_BASE_SCHEMA),
                             Arrays.stream(RIGHT_TABLE_BASE_SCHEMA))
+                    .toArray(String[]::new);
+
+    static final String[] CASCADED_SINK_TABLE_BASE_SCHEMA =
+            Stream.of(LEFT_TABLE_BASE_SCHEMA, RIGHT_TABLE_BASE_SCHEMA, SRC_C_TABLE_BASE_SCHEMA)
+                    .flatMap(Arrays::stream)
                     .toArray(String[]::new);
 
     static final Map<String, String> TABLE_BASE_OPTIONS =
@@ -416,6 +424,240 @@ public class DeltaJoinTestPrograms {
                                             .getRunSqlTestStep()
                                             .sql)
                             .build();
+
+    // --- Cascaded Delta Join Test Programs (3-table join) ---
+    // All cascaded programs use CDC+PK sources (changelog-mode = I,UA,UB) because PK propagation
+    // through the inner join is required for the downstream join to be optimized into a delta join.
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-join-key-equals-index",
+                            "validates cascaded delta join with join key equals index")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("srcA")
+                                    .addSchema(addPk2Schema(LEFT_TABLE_BASE_SCHEMA, "a1", "a0"))
+                                    .addOptions(TABLE_BASE_OPTIONS)
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addIndex("a1")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1.0, "a-1"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2.0, "a-2"),
+                                            Row.ofKind(RowKind.INSERT, 5, 5.0, "a-5-1"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 5, 5.0, "a-5-1"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 5, 5.0, "a-5-2"))
+                                    .treatDataBeforeRestoreAsConsumedData()
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 3, 3.0, "a-3"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 2, 2.0, "a-2"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 2.0, "a-2-u"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("srcB")
+                                    .addSchema(addPk2Schema(RIGHT_TABLE_BASE_SCHEMA, "b0", "b1"))
+                                    .addOptions(TABLE_BASE_OPTIONS)
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addIndex("b1")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1.0, "b-1", 1),
+                                            Row.ofKind(RowKind.INSERT, 2.0, "b-2", 2),
+                                            Row.ofKind(RowKind.INSERT, 5.0, "b-5", 5))
+                                    .treatDataBeforeRestoreAsConsumedData()
+                                    .producedAfterRestore(Row.ofKind(RowKind.INSERT, 3.0, "b-3", 3))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("srcC")
+                                    .addSchema(addPk2Schema(SRC_C_TABLE_BASE_SCHEMA, "c1", "c0"))
+                                    .addOptions(TABLE_BASE_OPTIONS)
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addIndex("c1")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1.0, "c-1"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2.0, "c-2"),
+                                            Row.ofKind(RowKind.INSERT, 5, 5.0, "c-5"))
+                                    .treatDataBeforeRestoreAsConsumedData()
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 5, 5.0, "c-5"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 5, 5.0, "c-5-u"),
+                                            Row.ofKind(RowKind.INSERT, 3, 3.0, "c-3"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("snk")
+                                    .addSchema(
+                                            addPk2Schema(
+                                                    CASCADED_SINK_TABLE_BASE_SCHEMA,
+                                                    "a0",
+                                                    "b0",
+                                                    "c0",
+                                                    "a1",
+                                                    "b1",
+                                                    "c1"))
+                                    .addOptions(TABLE_BASE_OPTIONS)
+                                    .testMaterializedData()
+                                    .deduplicatedFieldIndices(new int[] {0, 1, 3, 5, 6, 7})
+                                    .consumedBeforeRestore(
+                                            Row.of(1, 1.0, "a-1", 1.0, "b-1", 1, 1, 1.0, "c-1"),
+                                            Row.of(2, 2.0, "a-2", 2.0, "b-2", 2, 2, 2.0, "c-2"),
+                                            Row.of(5, 5.0, "a-5-2", 5.0, "b-5", 5, 5, 5.0, "c-5"))
+                                    .consumedAfterRestore(
+                                            Row.of(1, 1.0, "a-1", 1.0, "b-1", 1, 1, 1.0, "c-1"),
+                                            Row.of(2, 2.0, "a-2-u", 2.0, "b-2", 2, 2, 2.0, "c-2"),
+                                            Row.of(3, 3.0, "a-3", 3.0, "b-3", 3, 3, 3.0, "c-3"),
+                                            Row.of(5, 5.0, "a-5-2", 5.0, "b-5", 5, 5, 5.0, "c-5-u"))
+                                    .build())
+                    .runSql(
+                            "insert into snk "
+                                    + "select * from srcA join srcB "
+                                    + "on a1 = b1 "
+                                    + "join srcC on a1 = c1")
+                    .build();
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_JOIN_KEY_CONTAINS_INDEX =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-join-key-contains-index",
+                            "validates cascaded delta join with join key contains index")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupTableSources(
+                            CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX
+                                    .getSetupSourceTestSteps())
+                    .setupTableSinks(
+                            CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX.getSetupSinkTestSteps())
+                    .runSql(
+                            "insert into snk "
+                                    + "select * from srcA join srcB "
+                                    + "on a1 = b1 and a0 = b0 "
+                                    + "join srcC on a1 = c1")
+                    .build();
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-non-equiv-condition",
+                            "validates cascaded delta join with non equiv condition")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupTableSources(
+                            CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX
+                                    .getSetupSourceTestSteps())
+                    .setupTableSinks(
+                            CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX.getSetupSinkTestSteps())
+                    .runSql(
+                            "insert into snk "
+                                    + "select * from srcA join srcB "
+                                    + "on a1 = b1 "
+                                    + "join srcC on a1 = c1 and a2 <> c2")
+                    .build();
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-calc-on-source",
+                            "validates cascaded delta join with calc on source")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupTableSources(
+                            CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX
+                                    .getSetupSourceTestSteps())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("snk")
+                                    .addSchema(
+                                            addPk2Schema(
+                                                    CASCADED_SINK_TABLE_BASE_SCHEMA,
+                                                    "a0",
+                                                    "b0",
+                                                    "c0",
+                                                    "a1",
+                                                    "b1",
+                                                    "c1"))
+                                    .addOptions(TABLE_BASE_OPTIONS)
+                                    .testMaterializedData()
+                                    .deduplicatedFieldIndices(new int[] {0, 1, 3, 5, 6, 7})
+                                    .consumedBeforeRestore(
+                                            Row.of(2, 2.0, "a-2", 2.0, "b-2", 2, 2, 2.0, "c-2-s"),
+                                            Row.of(5, 5.0, "a-5-2", 5.0, "b-5", 5, 5, 5.0, "c-5-s"))
+                                    .consumedAfterRestore(
+                                            Row.of(2, 2.0, "a-2-u", 2.0, "b-2", 2, 2, 2.0, "c-2-s"),
+                                            Row.of(
+                                                    5, 5.0, "a-5-2", 5.0, "b-5", 5, 5, 5.0,
+                                                    "c-5-u-s"))
+                                    .build())
+                    .runSql(
+                            "insert into snk "
+                                    + "select a1, a0, a2, b0, b2, b1, c1, c0, new_c2 from "
+                                    + "srcA join srcB "
+                                    + "on a1 = b1 "
+                                    + "join ("
+                                    + "   select c1, c0, concat(c2, '-s') as new_c2 from srcC "
+                                    + "       where c1 = 2 or c1 = 5 "
+                                    + ") on a1 = c1")
+                    .build();
+
+    public static final TableTestProgram
+            CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE_AND_FILTER_PUSHED_DOWN =
+                    TableTestProgram.of(
+                                    "cascaded-delta-join-with-calc-on-source-and-filter-pushed-down",
+                                    "validates cascaded delta join with calc on source and filter pushed down")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                                    OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                            .setupConfig(
+                                    ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED,
+                                    true)
+                            .setupTableSources(
+                                    CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE
+                                            .getSetupSourceTestSteps()
+                                            .stream()
+                                            .map(
+                                                    sourceTestStep -> {
+                                                        if (!sourceTestStep.name.equals("srcC")) {
+                                                            return sourceTestStep;
+                                                        }
+                                                        Map<String, String> oldOptions =
+                                                                new HashMap<>(
+                                                                        sourceTestStep.options);
+                                                        oldOptions.put("filterable-fields", "c1");
+                                                        return sourceTestStep.withNewOptions(
+                                                                oldOptions);
+                                                    })
+                                            .collect(Collectors.toList()))
+                            .setupTableSinks(
+                                    CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE.getSetupSinkTestSteps())
+                            .runSql(CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE.getRunSqlTestStep().sql)
+                            .build();
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_CACHE =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-cache",
+                            "validates cascaded delta join with cache")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupConfig(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED, true)
+                    .setupTableSources(
+                            CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION.getSetupSourceTestSteps())
+                    .setupTableSinks(
+                            CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION.getSetupSinkTestSteps())
+                    .runSql(CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION.getRunSqlTestStep().sql)
+                    .build();
+
+    public static final TableTestProgram CASCADED_DELTA_JOIN_WITH_CACHE_AND_CALC_ON_SOURCE =
+            TableTestProgram.of(
+                            "cascaded-delta-join-with-cache-and-calc-on-source",
+                            "validates cascaded delta join with cache and calc on source")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
+                            OptimizerConfigOptions.DeltaJoinStrategy.FORCE)
+                    .setupConfig(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED, true)
+                    .setupTableSources(
+                            CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE.getSetupSourceTestSteps())
+                    .setupTableSinks(
+                            CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE.getSetupSinkTestSteps())
+                    .runSql(CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE.getRunSqlTestStep().sql)
+                    .build();
 
     private static String[] addPk2Schema(String[] originalSchema, String... pkCols) {
         return Stream.concat(
