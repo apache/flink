@@ -256,6 +256,7 @@ class Schema(_message.Message):
         LOCAL_ZONED_TIMESTAMP: _ClassVar[Schema.TypeName]
         ZONED_TIMESTAMP: _ClassVar[Schema.TypeName]
         NULL: _ClassVar[Schema.TypeName]
+        GEOGRAPHY: _ClassVar[Schema.TypeName]
     ROW: Schema.TypeName
     TINYINT: Schema.TypeName
     SMALLINT: Schema.TypeName
@@ -278,6 +279,7 @@ class Schema(_message.Message):
     LOCAL_ZONED_TIMESTAMP: Schema.TypeName
     ZONED_TIMESTAMP: Schema.TypeName
     NULL: Schema.TypeName
+    GEOGRAPHY: Schema.TypeName
     class MapInfo(_message.Message):
         __slots__ = ("key_type", "value_type")
         KEY_TYPE_FIELD_NUMBER: _ClassVar[int]

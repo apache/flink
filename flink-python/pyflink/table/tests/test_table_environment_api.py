@@ -697,7 +697,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
     def test_collect_for_all_data_types(self):
         expected_result = [Row(1, None, 1, True, 32767, -2147483648, 1.23,
-                               1.98932, bytearray(b'pyflink'), 'pyflink',
+                               1.98932, b'pyflink', 'pyflink',
                                datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                                datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
                                [['a', 'b'], ['c', 'd'], ['e', 'f']],
