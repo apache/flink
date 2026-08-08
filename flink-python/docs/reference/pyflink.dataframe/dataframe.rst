@@ -63,6 +63,8 @@ Results
     :toctree: api/
 
     DataFrame.collect
+    DataFrame.to_table
+    DataFrame.to_pandas
 
 Expressions
 -----------

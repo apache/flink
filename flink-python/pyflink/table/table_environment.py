@@ -1469,11 +1469,17 @@ class TableEnvironment(object):
         elements = [schema.to_sql_type(element) for element in elements]
         return self._from_elements(elements, schema)
 
-    def _from_elements(self, elements: List, schema: DataType) -> Table:
+    def _from_elements(
+            self,
+            elements: List,
+            schema: DataType,
+            table_schema: Schema = None) -> Table:
         """
         Creates a table from a collection of elements.
 
         :param elements: The elements to create a table from.
+        :param schema: Data type used to serialize the elements.
+        :param table_schema: Optional declarative schema for the resulting source table.
         :return: The result :class:`~pyflink.table.Table`.
         """
         # serializes to a file, and we read the file in java
@@ -1482,7 +1488,8 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            j_schema = _to_java_data_type(schema)
+            j_schema = (table_schema._j_schema if table_schema is not None
+                        else _to_java_data_type(schema))
             gateway = get_gateway()
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonTableUtils
@@ -1491,6 +1498,52 @@ class TableEnvironment(object):
             return Table(j_table, self)
         finally:
             atexit.register(lambda: os.unlink(temp_file.name))
+
+    def _from_arrow(
+            self,
+            table,
+            row_type: RowType,
+            table_schema: Schema = None,
+            splits_num: int = 1) -> Table:
+        """Creates a table from a PyArrow Table through the Arrow table source."""
+        import pyarrow as pa
+
+        if not isinstance(table, pa.Table):
+            raise TypeError(f"table must be a pyarrow.Table, but was {type(table).__name__}")
+        if isinstance(splits_num, bool) or not isinstance(splits_num, int):
+            raise TypeError("splits_num must be an integer")
+        if splits_num <= 0:
+            raise ValueError("splits_num must be greater than 0")
+
+        arrow_schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        try:
+            compatible_table = table.rename_columns(row_type.field_names()).cast(
+                arrow_schema, safe=False)
+        except (pa.ArrowInvalid, pa.ArrowNotImplementedError, pa.ArrowTypeError, ValueError) as e:
+            raise TypeError(
+                f"Could not convert pyarrow.Table to the inferred Flink schema: {row_type}"
+            ) from e
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        try:
+            with temp_file:
+                with pa.ipc.new_stream(temp_file, compatible_table.schema) as writer:
+                    if compatible_table.num_rows > 0:
+                        max_chunksize = -(-compatible_table.num_rows // splits_num)
+                        writer.write_table(compatible_table, max_chunksize=max_chunksize)
+
+            jvm = get_gateway().jvm
+            if table_schema is None:
+                source_schema = _to_java_data_type(row_type).notNull()
+                source_schema = source_schema.bridgedTo(
+                    load_java_class('org.apache.flink.table.data.RowData'))
+            else:
+                source_schema = table_schema._j_schema
+            descriptor = jvm.org.apache.flink.table.runtime.arrow.ArrowUtils \
+                .createArrowTableSourceDesc(source_schema, temp_file.name)
+            return Table(getattr(self._j_tenv, "from")(descriptor), self)
+        finally:
+            os.unlink(temp_file.name)
 
     def from_pandas(self, pdf: 'pandas.DataFrame',
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],

@@ -16,12 +16,14 @@
 # limitations under the License.
 ################################################################################
 
+import builtins
 from enum import Enum
 from typing import (
     Any,
     Collection,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -31,11 +33,37 @@ from typing import (
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
+from pyflink.table import Schema, Table
+from pyflink.table.types import (
+    _create_converter,
+    _create_type_verifier,
+    _infer_schema_from_data,
+    DataTypes,
+    LocalZonedTimestampType,
+    RowField,
+    RowType,
+    TimestampType,
+    from_arrow_type,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["from_dict", "from_records"]
+__all__ = [
+    "from_arrow",
+    "from_dict",
+    "from_pandas",
+    "from_records",
+    "from_table",
+    "range",
+]
 
 _SCALAR_SEQUENCE_TYPES = (str, bytes, bytearray, memoryview)
+_BIGINT_MIN = -(1 << 63)
+_BIGINT_MAX = (1 << 63) - 1
+
+
+class _WatermarkSpec(NamedTuple):
+    column: str
+    expression: str
 
 
 class _RecordType(Enum):
@@ -109,7 +137,7 @@ class _RecordType(Enum):
         return tuple(getattr(record, name) for name in schema)
 
 
-def _validate_schema(schema: List[str]) -> None:
+def _validate_schema(schema: Any) -> None:
     if not isinstance(schema, list) or any(not isinstance(name, str) for name in schema):
         raise TypeError("schema must be a list of strings")
     if not schema:
@@ -120,10 +148,239 @@ def _validate_schema(schema: List[str]) -> None:
         raise ValueError("schema field names must be unique")
 
 
+def _resolve_column_names(
+    input_names: Sequence[str], schema: Optional[List[str]]
+) -> List[str]:
+    column_names = list(input_names) if schema is None else schema
+    if (
+        schema is not None
+        and isinstance(schema, list)
+        and len(schema) != len(input_names)
+    ):
+        raise ValueError(
+            f"schema has {len(schema)} fields but data has "
+            f"{len(input_names)} columns"
+        )
+    _validate_schema(column_names)
+    return column_names
+
+
+def _parse_watermark(
+    watermark: Optional[Tuple[str, str]],
+) -> Optional[_WatermarkSpec]:
+    if watermark is None:
+        return None
+    if not isinstance(watermark, tuple) or len(watermark) != 2:
+        raise TypeError("watermark must be a tuple of (column, expression)")
+    if any(not isinstance(value, str) or not value.strip() for value in watermark):
+        raise TypeError("watermark column and expression must be non-empty strings")
+    return _WatermarkSpec(*watermark)
+
+
+def _normalize_watermark_row_type(row_type: RowType, watermark: _WatermarkSpec) -> RowType:
+    column_name = watermark.column
+    matching_fields = [field for field in row_type.fields if field.name == column_name]
+    if not matching_fields:
+        raise ValueError(f"watermark column {column_name!r} is not present in data")
+
+    watermark_type = matching_fields[0].data_type
+    if not isinstance(watermark_type, (TimestampType, LocalZonedTimestampType)):
+        raise ValueError(
+            f"watermark column {column_name!r} must have a timestamp type"
+        )
+
+    fields = []
+    for field in row_type.fields:
+        data_type = field.data_type
+        if field.name == column_name and data_type.precision != 3:
+            data_type = type(data_type)(3, data_type._nullable)
+        fields.append(RowField(field.name, data_type, field.description))
+    return RowType(fields, row_type._nullable)
+
+
+def _resolve_watermark_schema(
+    row_type: RowType, watermark: Optional[_WatermarkSpec]
+) -> Tuple[RowType, Optional[Schema]]:
+    if watermark is None:
+        return row_type, None
+
+    row_type = _normalize_watermark_row_type(row_type, watermark)
+    table_schema = (
+        Schema.new_builder()
+        .from_row_data_type(row_type)
+        .watermark(watermark.column, watermark.expression)
+        .build()
+    )
+    return row_type, table_schema
+
+
+def _infer_schema_and_create_dataframe(
+    rows: Sequence[Sequence[Any]],
+    column_names: List[str],
+    watermark: Optional[_WatermarkSpec] = None,
+) -> DataFrame:
+    row_type = _infer_schema_from_data(rows, names=column_names)
+    row_type, table_schema = _resolve_watermark_schema(row_type, watermark)
+    converter = _create_converter(row_type)
+    verify_row = _create_type_verifier(row_type)
+    sql_rows = []
+    for row in rows:
+        row = converter(row)
+        verify_row(row)
+        sql_rows.append(row_type.to_sql_type(row))
+
+    table = get_or_create_table_environment()._from_elements(
+        sql_rows, row_type, table_schema
+    )
+    return DataFrame(table)
+
+
+def _row_type_from_arrow_schema(arrow_schema: Any, names: List[str]) -> RowType:
+    return RowType(
+        [
+            RowField(name, from_arrow_type(arrow_field.type, arrow_field.nullable))
+            for name, arrow_field in zip(names, arrow_schema)
+        ]
+    )
+
+
+@PublicEvolving()
+def from_table(table: Table) -> DataFrame:
+    """
+    Create a DataFrame that wraps a PyFlink Table.
+
+    :param table: Table to wrap without copying or converting it.
+    :return: A DataFrame backed by the exact supplied Table.
+    :raises TypeError: If ``table`` is not a :class:`~pyflink.table.Table`.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> table = table_env.from_elements([(1, "Alice")], ["id", "name"])
+        >>> dataframe = pf.from_table(table)
+        >>> dataframe.to_table() is table
+        True
+
+    .. versionadded:: 2.4.0
+    """
+    if not isinstance(table, Table):
+        raise TypeError("table must be a pyflink.table.Table")
+    return DataFrame(table)
+
+
+@PublicEvolving()
+def from_pandas(
+    pdf: Any,
+    schema: Optional[List[str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Create a DataFrame from a pandas DataFrame.
+
+    Types are inferred from the Arrow representation of the pandas columns. An explicit ``schema``
+    renames columns positionally and must contain exactly one unique, non-empty name per input
+    column. Empty inputs are supported when their pandas dtypes can be converted to Flink types.
+
+    ``watermark`` declares an event-time column and its SQL watermark expression. The selected
+    column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
+    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+
+    :param pdf: pandas DataFrame to convert.
+    :param schema: Optional list of positional result column names.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
+    :return: A DataFrame containing the pandas rows.
+    :raises TypeError: If the input, schema, watermark, or inferred types are invalid.
+    :raises ValueError: If schema width or watermark column requirements are not met.
+
+    Example::
+
+        >>> import pandas as pd
+        >>> import pyflink.dataframe as pf
+        >>> pdf = pd.DataFrame({"identifier": [1, 2], "name": ["Alice", "Bob"]})
+        >>> dataframe = pf.from_pandas(pdf, schema=["id", "name"])
+        >>> events = pf.from_pandas(
+        ...     pd.DataFrame({"ts": pd.to_datetime(["2026-01-01T00:00:00Z"])}),
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    import pandas as pd
+
+    if not isinstance(pdf, pd.DataFrame):
+        raise TypeError(
+            f"data must be a pandas.DataFrame, but was {type(pdf).__name__}"
+        )
+
+    import pyarrow as pa
+
+    return from_arrow(
+        pa.Table.from_pandas(pdf, preserve_index=False),
+        schema=schema,
+        watermark=watermark,
+    )
+
+
+@PublicEvolving()
+def from_arrow(
+    table: Any,
+    schema: Optional[List[str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Create a DataFrame from a PyArrow Table without converting through pandas.
+
+    An explicit ``schema`` renames columns positionally and must contain exactly one unique,
+    non-empty name per input column. Empty tables are supported when their Arrow field types can be
+    converted to Flink types.
+
+    ``watermark`` declares an event-time column and its SQL watermark expression. The selected
+    column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
+    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+
+    :param table: PyArrow Table to convert.
+    :param schema: Optional list of positional result column names.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
+    :return: A DataFrame containing the Arrow rows.
+    :raises TypeError: If the input, schema, watermark, or inferred types are invalid.
+    :raises ValueError: If schema width or watermark column requirements are not met.
+
+    Example::
+
+        >>> import pyarrow as pa
+        >>> import pyflink.dataframe as pf
+        >>> table = pa.table({"id": [1, 2], "name": ["Alice", "Bob"]})
+        >>> dataframe = pf.from_arrow(table)
+        >>> events = pf.from_arrow(
+        ...     pa.table({"ts": pa.array([0], type=pa.timestamp("ms"))}),
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    import pyarrow as pa
+
+    if not isinstance(table, pa.Table):
+        raise TypeError(
+            f"data must be a pyarrow.Table, but was {type(table).__name__}"
+        )
+    watermark_spec = _parse_watermark(watermark)
+    names = _resolve_column_names(table.column_names, schema)
+    row_type = _row_type_from_arrow_schema(table.schema, names)
+    resolved_row_type, table_schema = _resolve_watermark_schema(
+        row_type, watermark_spec
+    )
+    result = get_or_create_table_environment()._from_arrow(
+        table, resolved_row_type, table_schema
+    )
+    return DataFrame(result)
+
+
 @PublicEvolving()
 def from_records(
     data: Sequence[Union[Sequence[Any], Mapping[str, Any]]],
     schema: Optional[List[str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
 ) -> DataFrame:
     """
     Create a DataFrame from row-oriented records.
@@ -137,8 +394,13 @@ def from_records(
 
     Field types are inferred from the record values.
 
+    ``watermark`` declares an event-time column and its SQL watermark expression. The selected
+    column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
+    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+
     :param data: Non-empty sequence of mapping or sequence records.
     :param schema: Optional non-empty list of field names.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
     :return: A DataFrame containing the records.
     :raises TypeError: If a record or schema has an invalid type.
     :raises ValueError: If data or schema is empty, schema field names are invalid, a required
@@ -163,6 +425,11 @@ def from_records(
         >>> selected_users = pf.from_records(
         ...     [User(1, "Alice")], schema=["name", "id"]
         ... )
+        >>> from datetime import datetime
+        >>> events = pf.from_records(
+        ...     [{"id": 1, "ts": datetime(2026, 1, 1)}],
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
+        ... )
 
     .. versionadded:: 2.4.0
     """
@@ -172,6 +439,7 @@ def from_records(
         )
     if not data:
         raise ValueError("data must not be empty")
+    watermark_spec = _parse_watermark(watermark)
 
     first_record = data[0]
     try:
@@ -204,14 +472,14 @@ def from_records(
             raise ValueError(f"invalid record at index {index}") from error
         rows.append(row)
 
-    return DataFrame(
-        get_or_create_table_environment().from_elements(rows, schema)
-    )
+    return _infer_schema_and_create_dataframe(rows, schema, watermark_spec)
 
 
 @PublicEvolving()
 def from_dict(
-    data: Mapping[str, Sequence[Any]], schema: Optional[List[str]] = None
+    data: Mapping[str, Sequence[Any]],
+    schema: Optional[List[str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
 ) -> DataFrame:
     """
     Create a DataFrame from a column-oriented dictionary.
@@ -219,8 +487,13 @@ def from_dict(
     All selected columns must contain the same non-zero number of values. ``schema`` can select a
     subset of columns and controls their order. If omitted, dictionary insertion order is used.
 
+    ``watermark`` declares an event-time column and its SQL watermark expression. The selected
+    column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
+    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+
     :param data: Non-empty mapping of column names to value sequences.
     :param schema: Optional non-empty list of selected column names.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
     :return: A DataFrame containing the selected columns.
     :raises TypeError: If ``data`` is not a mapping, or the selected schema or a selected column
         value has an invalid type.
@@ -241,6 +514,7 @@ def from_dict(
         raise TypeError("data must be a mapping")
     if not data:
         raise ValueError("data must not be empty")
+    watermark_spec = _parse_watermark(watermark)
     if schema is None:
         schema = list(data.keys())
     _validate_schema(schema)
@@ -263,8 +537,60 @@ def from_dict(
         raise ValueError("data must contain at least one row")
     rows = [
         tuple(data[name][row_index] for name in schema)
-        for row_index in range(row_count)
+        for row_index in builtins.range(row_count)
     ]
-    return DataFrame(
-        get_or_create_table_environment().from_elements(rows, schema)
-    )
+    return _infer_schema_and_create_dataframe(rows, schema, watermark_spec)
+
+
+@PublicEvolving()
+def range(start_or_end: int, end: Optional[int] = None, step: int = 1) -> DataFrame:
+    """
+    Create a DataFrame containing an integer range in one ``id`` column.
+
+    The arguments follow Python's built-in :func:`range` semantics. The result always has an
+    ``id BIGINT`` column, including when the requested range is empty.
+
+    :param start_or_end: End value when ``end`` is omitted, otherwise the start value.
+    :param end: Optional exclusive end value.
+    :param step: Distance between adjacent values; must not be zero.
+    :return: A DataFrame with one ``id`` column.
+    :raises TypeError: If an argument is not an integer.
+    :raises ValueError: If ``step`` is zero or the range contains values outside the signed
+        ``BIGINT`` bounds.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> identifiers = pf.range(1, 6, 2)
+        >>> identifiers.collect()
+        [<Row(1)>, <Row(3)>, <Row(5)>]
+
+    .. versionadded:: 2.4.0
+    """
+    if not isinstance(start_or_end, int):
+        raise TypeError("start_or_end must be an integer")
+    if end is not None and not isinstance(end, int):
+        raise TypeError("end must be an integer")
+    if not isinstance(step, int):
+        raise TypeError("step must be an integer")
+    if step == 0:
+        raise ValueError("step must not be zero")
+
+    if end is None:
+        start = 0
+        stop = start_or_end
+    else:
+        start = start_or_end
+        stop = end
+    values = builtins.range(start, stop, step)
+    has_values = start < stop if step > 0 else start > stop
+    if has_values and not (
+        _BIGINT_MIN <= values[0] <= _BIGINT_MAX
+        and _BIGINT_MIN <= values[-1] <= _BIGINT_MAX
+    ):
+        raise ValueError("range values must fit in signed BIGINT")
+
+    row_type = DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT())])
+    sql_rows = [row_type.to_sql_type((value,)) for value in values]
+    table = get_or_create_table_environment()._from_elements(sql_rows, row_type)
+    return DataFrame(table)

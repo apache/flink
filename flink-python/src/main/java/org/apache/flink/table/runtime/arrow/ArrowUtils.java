@@ -488,14 +488,18 @@ public final class ArrowUtils {
         for (int i = 0; i < fieldNames.size(); i++) {
             schemaBuilder.column(fieldNames.get(i), fieldTypes.get(i));
         }
+        return createArrowTableSourceDesc(schemaBuilder.build(), fileName);
+    }
 
+    public static TableDescriptor createArrowTableSourceDesc(
+            org.apache.flink.table.api.Schema schema, String fileName) {
         try {
             byte[][] data = readArrowBatches(fileName);
             return TableDescriptor.forConnector(ArrowTableSourceFactory.IDENTIFIER)
                     .option(
                             ArrowTableSourceOptions.DATA,
                             ByteArrayUtils.twoDimByteArrayToString(data))
-                    .schema(schemaBuilder.build())
+                    .schema(schema)
                     .build();
         } catch (Throwable e) {
             throw new TableException("Failed to read the arrow data from " + fileName, e);

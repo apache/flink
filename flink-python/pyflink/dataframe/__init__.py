@@ -38,7 +38,14 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
-from pyflink.dataframe.convert import from_dict, from_records
+from pyflink.dataframe.convert import (
+    from_arrow,
+    from_dict,
+    from_pandas,
+    from_records,
+    from_table,
+    range,
+)
 from pyflink.dataframe.context import (
     get_or_create_table_environment,
     get_table_environment,
@@ -52,8 +59,12 @@ __all__ = [
     "DataType",
     "col",
     "lit",
+    "from_arrow",
     "from_dict",
+    "from_pandas",
     "from_records",
+    "from_table",
+    "range",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",
