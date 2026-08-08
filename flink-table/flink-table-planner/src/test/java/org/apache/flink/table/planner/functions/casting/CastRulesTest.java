@@ -161,6 +161,33 @@ class CastRulesTest {
 
     private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
 
+    /** A two-byte lead followed by a byte that is not a continuation byte. */
+    private static final byte[] INVALID_UTF8 = new byte[] {(byte) 0xC3, (byte) 0x28};
+
+    /** U+1D54F, one code point but two UTF-16 units and four UTF-8 bytes. */
+    private static final String NON_BMP = "𝕏";
+
+    private static final Variant VARIANT_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of(1))
+                    .add(Variant.newBuilder().of("two"))
+                    .add(Variant.newBuilder().of(false))
+                    .add(Variant.newBuilder().ofNull())
+                    .build();
+
+    private static final Variant VARIANT_OBJECT =
+            Variant.newBuilder()
+                    .object()
+                    .add(
+                            "k",
+                            Variant.newBuilder()
+                                    .array()
+                                    .add(Variant.newBuilder().of(1))
+                                    .add(Variant.newBuilder().of(2))
+                                    .build())
+                    .build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -1544,35 +1571,138 @@ class CastRulesTest {
                         .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
                         .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
                         .fromCase(BITMAP(), null, null),
-                // From VARIANT to primitive types. Numeric targets are lenient: a variant holding
-                // any numeric kind converts to the requested numeric type (widening and narrowing).
-                // Non-numeric targets are strict: the stored kind must match, otherwise the cast
-                // fails and TRY_CAST returns null.
+                // From VARIANT to primitive types. A cast succeeds only when the target holds the
+                // stored value unaltered, except for the approximate FLOAT and DOUBLE.
+                // A character string renders like a regular cast of the stored kind, so these
+                // expectations reuse the constants of the native cases above.
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(VARIANT(), Variant.newBuilder().of(true), fromString("TRUE"))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(false), fromString("FALSE"))
+                        .fromCase(VARIANT(), Variant.newBuilder().of("foo"), fromString("foo"))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42), fromString("42"))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.456")),
+                                fromString("123.456"))
+                        // a small scale stays plain instead of turning into scientific notation
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("0.0000000001")),
+                                fromString("0.0000000001"))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalDate.parse("2021-09-24")),
+                                DATE_STRING)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(TIMESTAMP.toLocalDateTime()),
+                                TIMESTAMP_STRING)
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                Variant.newBuilder().of(TIMESTAMP.toInstant()),
+                                TIMESTAMP_STRING_CET)
+                        // a binary value is read as UTF-8, like a regular BINARY to string cast
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of("hello".getBytes(StandardCharsets.UTF_8)),
+                                fromString("hello"))
+                        // a multi-byte sequence passes the well-formedness check unchanged
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of("héllo".getBytes(StandardCharsets.UTF_8)),
+                                fromString("héllo"))
+                        // bytes that are not valid UTF-8 are rejected rather than decoded into
+                        // the U+FFFD replacement character
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(INVALID_UTF8),
+                                TableRuntimeException.class)
+                        // an object or an array has no scalar rendering and fails the cast
+                        .fail(VARIANT(), VARIANT_ARRAY, TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_OBJECT, TableRuntimeException.class)
+                        // printing is not a cast and cannot fail, so it renders JSON instead,
+                        // which leaves a stored string quoted
+                        .fromCasePrinting(
+                                VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
+                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))
+                        .fromCasePrinting(
+                                VARIANT(), Variant.newBuilder().of("foo"), fromString("\"foo\""))
+                        .fromCasePrinting(VARIANT(), Variant.newBuilder().of(42), fromString("42")),
+                // A bounded character target pads and trims like any other cast into it, and its
+                // length counts code points, so a character outside the BMP fills one position
+                // even though it occupies two UTF-16 units.
+                CastTestSpecBuilder.testCastTo(CHAR(1))
+                        .fromCase(VARIANT(), Variant.newBuilder().of("x"), fromString("x"))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(), Variant.newBuilder().of("abcdefghij"), fromString("a")),
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        // shorter than the target, so it is padded to the fixed width
+                        .fromCase(VARIANT(), Variant.newBuilder().of("ab"), fromString("ab   "))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of("abcdefghij"),
+                                fromString("abcde")),
+                CastTestSpecBuilder.testCastTo(VARCHAR(2))
+                        .fromCase(VARIANT(), Variant.newBuilder().of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        // longer than the target, so it is trimmed rather than rejected, and a
+                        // variable width target is not padded
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(NON_BMP + NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        .fromCase(VARIANT(), Variant.newBuilder().of("a"), fromString("a")),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(VARIANT(), Variant.newBuilder().of(true), true)
                         .fromCase(VARIANT(), Variant.newBuilder().of(false), false)
                         .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), (byte) 42)
+                        // a wider integer kind narrows while the value is in range
                         .fromCase(VARIANT(), Variant.newBuilder().of(42), (byte) 42)
+                        // out of range is rejected instead of wrapping
+                        .fail(VARIANT(), Variant.newBuilder().of(1000), TableRuntimeException.class)
                         .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(VARIANT(), Variant.newBuilder().of((short) 42), (short) 42)
                         .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), (short) 42)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(1000), (short) 1000)
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(40000),
+                                TableRuntimeException.class)
                         .fail(
                                 VARIANT(),
                                 Variant.newBuilder().of(true),
                                 TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(INT())
-                        // widening: a JSON integer is stored in the smallest type but still casts
-                        // up
+                        .fromCase(VARIANT(), Variant.newBuilder().of(42), 42)
+                        // every integer kind converts as long as the value fits
                         .fromCase(VARIANT(), Variant.newBuilder().of((byte) 42), 42)
                         .fromCase(VARIANT(), Variant.newBuilder().of((short) 42), 42)
-                        .fromCase(VARIANT(), Variant.newBuilder().of(42), 42)
                         .fromCase(VARIANT(), Variant.newBuilder().of(42L), 42)
-                        // narrowing from a floating point or decimal value truncates
-                        .fromCase(VARIANT(), Variant.newBuilder().of(3.9d), 3)
-                        .fromCase(VARIANT(), Variant.newBuilder().of(new BigDecimal("7.2")), 7)
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(2147483648L),
+                                TableRuntimeException.class)
+                        // an approximate or decimal kind converts when the value is integral
+                        .fromCase(VARIANT(), Variant.newBuilder().of(7.0d), 7)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(new BigDecimal("7.0")), 7)
+                        // a fractional value would have to be rounded away, so it is rejected
+                        .fail(VARIANT(), Variant.newBuilder().of(7.2d), TableRuntimeException.class)
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("7.2")),
+                                TableRuntimeException.class)
                         // a non-numeric variant cannot be cast to a number
                         .fail(
                                 VARIANT(),
@@ -1587,14 +1717,28 @@ class CastRulesTest {
                         .fromCase(VARIANT(), Variant.newBuilder().of(42), 42L)
                         .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(FLOAT())
+                        // every numeric kind reaches an approximate target
                         .fromCase(VARIANT(), Variant.newBuilder().of(1.5f), 1.5f)
                         .fromCase(VARIANT(), Variant.newBuilder().of(1.5d), 1.5f)
                         .fromCase(VARIANT(), Variant.newBuilder().of(3), 3.0f)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.456")),
+                                123.456f)
+                        // a magnitude a FLOAT cannot represent is still rejected
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(1e40d),
+                                TableRuntimeException.class)
                         .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(VARIANT(), Variant.newBuilder().of(1.5d), 1.5d)
                         .fromCase(VARIANT(), Variant.newBuilder().of(1.5f), 1.5d)
                         .fromCase(VARIANT(), Variant.newBuilder().of(3), 3.0d)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.456")),
+                                123.456d)
                         .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DECIMAL(5, 2))
                         .fromCase(VARIANT(), null, null)
@@ -1602,10 +1746,23 @@ class CastRulesTest {
                                 VARIANT(),
                                 Variant.newBuilder().of(new BigDecimal("123.45")),
                                 DecimalData.fromBigDecimal(new BigDecimal("123.45"), 5, 2))
+                        // trailing zeros may be appended to reach the target scale
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.4")),
+                                DecimalData.fromBigDecimal(new BigDecimal("123.40"), 5, 2))
+                        // an integer is exact, so it converts when it fits
                         .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder().of(42),
-                                DecimalData.fromBigDecimal(new BigDecimal("42"), 5, 2))
+                                DecimalData.fromBigDecimal(new BigDecimal("42.00"), 5, 2))
+                        // a scale that would have to round is rejected
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(new BigDecimal("123.456")),
+                                TableRuntimeException.class)
+                        // an approximate kind is not read as a decimal
+                        .fail(VARIANT(), Variant.newBuilder().of(1.5d), TableRuntimeException.class)
                         .fail(VARIANT(), Variant.newBuilder().of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(VARIANT(), null, null)
@@ -1613,6 +1770,9 @@ class CastRulesTest {
                                 VARIANT(),
                                 Variant.newBuilder().of(new byte[] {1, 2, 3}),
                                 new byte[] {1, 2, 3})
+                        // the raw bytes stay reachable when the character string cast rejects
+                        // them, which is what makes this the way to inspect such a value
+                        .fromCase(VARIANT(), Variant.newBuilder().of(INVALID_UTF8), INVALID_UTF8)
                         .fail(
                                 VARIANT(),
                                 Variant.newBuilder().of("foo"),
@@ -1630,13 +1790,82 @@ class CastRulesTest {
                                 Variant.newBuilder().of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
-                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
+                        // a TIMESTAMP_LTZ is a different kind and is not read as a TIMESTAMP
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(Instant.ofEpochSecond(1_600_000_000L)),
+                                TableRuntimeException.class),
+                // A variant keeps microseconds, so fractional seconds beyond the target precision
+                // are truncated, matching a regular cast into a narrower TIMESTAMP.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(3))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000))),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(0))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
                         .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder().of(Instant.ofEpochSecond(1_600_000_000L)),
                                 TimestampData.fromInstant(Instant.ofEpochSecond(1_600_000_000L)))
-                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class));
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
+                        // a TIMESTAMP is not read as a TIMESTAMP_LTZ either
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(3))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456000)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123000000))),
+                // A binary target pads a shorter value and truncates a longer one, matching a
+                // regular cast into the same type.
+                CastTestSpecBuilder.testCastTo(BINARY(4))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4}),
+                                new byte[] {1, 2, 3, 4})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2}),
+                                new byte[] {1, 2, 0, 0})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}),
+                CastTestSpecBuilder.testCastTo(VARBINARY(4))
+                        // a variable width target is trimmed but never padded
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2}),
+                                new byte[] {1, 2})
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}));
     }
 
     @TestFactory
