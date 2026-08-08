@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, RexLiteralUtil}
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{Constant, FunctionParam}
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
 
 import scala.collection.mutable.ArrayBuffer
@@ -398,5 +399,56 @@ object ProjectionCodeGenerator {
       outClass = outClass,
       inputTerm = DEFAULT_INPUT1_TERM,
       constantExpressions = constantExpressions)
+  }
+
+  /**
+   * Generates a [[CodeGenOperatorFactory]] that performs a simple column projection/reorder. This
+   * is used for local-ref reuse projection in Python Calc.
+   *
+   * @param ctx
+   *   the code generator context.
+   * @param inputType
+   *   the row type of input.
+   * @param outputType
+   *   the row type of output.
+   * @param inputMapping
+   *   the index array mapping output positions to input positions.
+   * @param opName
+   *   the name of the generated operator.
+   * @return
+   *   the CodeGenOperatorFactory for the projection operator.
+   */
+  def generateProjectionOperator(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      outputType: RowType,
+      inputMapping: Array[Int],
+      opName: String): CodeGenOperatorFactory[RowData] = {
+    val inputTerm = DEFAULT_INPUT1_TERM
+    val exprGenerator = new ExprCodeGenerator(ctx, false)
+      .bindInput(inputType, inputTerm = inputTerm)
+
+    val accessExprs = inputMapping.map {
+      inputIdx => GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, inputIdx)
+    }
+
+    val resultExpr =
+      exprGenerator.generateResultExpression(accessExprs, outputType, classOf[BoxedWrapperRowData])
+
+    val processCode =
+      s"""
+         |${resultExpr.code}
+         |${OperatorCodeGenerator.generateCollect(resultExpr.resultTerm)}
+         |""".stripMargin
+
+    val genOperator =
+      OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
+        ctx,
+        opName,
+        processCode,
+        inputType,
+        inputTerm = inputTerm)
+
+    new CodeGenOperatorFactory(genOperator)
   }
 }

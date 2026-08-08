@@ -12,6 +12,9 @@ scalastyle-output.xml
 .cursor
 .claude
 .worktrees
+.codebuddy
+.codegraph
+openspec/
 .metadata
 .settings
 .project

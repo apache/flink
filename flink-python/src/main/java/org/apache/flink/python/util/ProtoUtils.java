@@ -180,6 +180,8 @@ public enum ProtoUtils {
             FlinkFnApi.Input.Builder inputProto = FlinkFnApi.Input.newBuilder();
             if (input instanceof PythonFunctionInfo) {
                 inputProto.setUdf(createUserDefinedFunctionProto((PythonFunctionInfo) input));
+            } else if (input instanceof PythonFunctionInfo.ResultRef) {
+                inputProto.setRefIndex(((PythonFunctionInfo.ResultRef) input).index);
             } else if (input instanceof Integer) {
                 inputProto.setInputOffset((Integer) input);
             } else {

@@ -36,10 +36,58 @@ public class PythonFunctionInfo implements Serializable {
     private final PythonFunction pythonFunction;
 
     /**
-     * The input arguments, it could be an input offset of the input row or the execution result of
-     * another python function described as PythonFunctionInfo.
+     * The input arguments. It could be one of the following:
+     *
+     * <ul>
+     *   <li>{@link Integer} – an input offset of the input row
+     *   <li>{@link PythonFunctionInfo} – the execution result of another python function (nested
+     *       call)
+     *   <li>{@code byte[]} – a constant value
+     *   <li>{@link ResultRef} – a reference to the result of a previously computed function in the
+     *       flattened UDF list (used for cross-subtree CSE)
+     * </ul>
      */
     private Object[] inputs;
+
+    /**
+     * Represents a reference to the result of a previously computed function in a flattened UDF
+     * list. This enables cross-subtree Common Subexpression Elimination (CSE) where a nested UDF
+     * call that appears in multiple positions can be computed once and its result referenced by
+     * index.
+     */
+    @Internal
+    public static class ResultRef implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        /** The index of the referenced function in the flattened UDF list. */
+        public final int index;
+
+        public ResultRef(int index) {
+            this.index = index;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ResultRef resultRef = (ResultRef) o;
+            return index == resultRef.index;
+        }
+
+        @Override
+        public int hashCode() {
+            return Integer.hashCode(index);
+        }
+
+        @Override
+        public String toString() {
+            return "ResultRef(" + index + ")";
+        }
+    }
 
     public PythonFunctionInfo(PythonFunction pythonFunction, Object[] inputs) {
         this.pythonFunction = Preconditions.checkNotNull(pythonFunction);
