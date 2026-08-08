@@ -528,6 +528,58 @@ public class CheckpointingOptions {
                                     .build());
 
     /**
+     * The initial delay before the first checkpoint is triggered after the job starts.
+     *
+     * <p>This is useful for jobs that need time to warm up (e.g., JIT compilation, cache
+     * population) or catch up with backlogs (e.g., consuming from Kafka with large lag) before
+     * performing the first checkpoint. Without this delay, the first checkpoint may be triggered
+     * while the job is still in an unstable state, leading to longer checkpoint durations,
+     * increased state size, or even checkpoint timeouts and failures.
+     *
+     * <p><b>Trade-offs:</b> A longer initial delay improves checkpoint stability during startup,
+     * but also delays the time to the first successful checkpoint. Any failure before the first
+     * checkpoint completes would require a full restart without any checkpoint to recover from. If
+     * your sources support the {@code isProcessingBacklog} signal, consider also using {@link
+     * #CHECKPOINTING_INTERVAL_DURING_BACKLOG} for dynamic checkpoint interval adjustment during
+     * backlog processing.
+     */
+    @PublicEvolving
+    public static final ConfigOption<Duration> CHECKPOINTING_INITIAL_DELAY =
+            ConfigOptions.key("execution.checkpointing.initial-delay")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The initial delay before the first checkpoint is triggered after the job starts. "
+                                                    + "This is useful for jobs that need time to warm up "
+                                                    + "(e.g., JIT compilation, cache population) "
+                                                    + "or catch up with backlogs "
+                                                    + "(e.g., consuming from Kafka with large lag). "
+                                                    + "Without this delay, the first checkpoint may be triggered "
+                                                    + "while the job is still in an unstable state, "
+                                                    + "leading to longer checkpoint durations, increased state size, "
+                                                    + "or even checkpoint timeouts and failures. "
+                                                    + "If set to 0 (default), the initial delay will be %s plus a random jitter "
+                                                    + "bounded by %s, preventing excessively long delays "
+                                                    + "when the checkpoint interval is large.",
+                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()),
+                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Trade-offs: A longer initial delay improves checkpoint stability during startup, "
+                                                    + "but delays the time to the first successful checkpoint. "
+                                                    + "Any failure before the first checkpoint completes would require "
+                                                    + "a full restart without any checkpoint to recover from. "
+                                                    + "If your sources support the isProcessingBacklog signal, "
+                                                    + "consider also using %s for dynamic checkpoint interval "
+                                                    + "adjustment during backlog processing.",
+                                            TextElement.code(
+                                                    CHECKPOINTING_INTERVAL_DURING_BACKLOG.key()))
+                                    .build());
+
+    /**
      * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
      *
      * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code

@@ -76,6 +76,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean pauseSourcesUntilFirstCheckpoint;
 
+    /** The initial delay before the first checkpoint is triggered after the job starts. */
+    private final long initialCheckpointDelay;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -105,7 +108,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 checkpointIdOfIgnoredInFlightData,
                 false,
                 false,
-                false);
+                false,
+                0);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -122,8 +126,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             long checkpointIdOfIgnoredInFlightData,
             boolean enableCheckpointsAfterTasksFinish,
             boolean recoverOutputOnDownstreamTask,
-            boolean pauseSourcesUntilFirstCheckpoint) {
-
+            boolean pauseSourcesUntilFirstCheckpoint,
+            long initialCheckpointDelay) {
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
             checkpointIntervalDuringBacklog = DISABLED_CHECKPOINT_INTERVAL;
@@ -164,6 +168,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
         this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
+        this.initialCheckpointDelay = initialCheckpointDelay;
     }
 
     public long getCheckpointInterval() {
@@ -222,6 +227,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return recoverOutputOnDownstreamTask;
     }
 
+    public long getInitialCheckpointDelay() {
+        return initialCheckpointDelay;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -242,7 +251,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
                 && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
-                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask;
+                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask
+                && initialCheckpointDelay == that.initialCheckpointDelay;
     }
 
     @Override
@@ -259,7 +269,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 tolerableCheckpointFailureNumber,
                 checkpointIdOfIgnoredInFlightData,
                 enableCheckpointsAfterTasksFinish,
-                recoverOutputOnDownstreamTask);
+                recoverOutputOnDownstreamTask,
+                initialCheckpointDelay);
     }
 
     @Override
@@ -289,6 +300,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + enableCheckpointsAfterTasksFinish
                 + ", recoverOutputOnDownstreamTask="
                 + recoverOutputOnDownstreamTask
+                + ", initialCheckpointDelay="
+                + initialCheckpointDelay
                 + '}';
     }
 
@@ -297,22 +310,33 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     }
 
     public long getInitialTriggeringDelay() {
-        return pauseSourcesUntilFirstCheckpoint
-                // if sources a waiting for a checkpoint then trigger a checkpoint ASAP (not waiting
-                // for checkpoint interval) to unblock them; however, we still need to:
-                // 1. honor the min pause between checkpoints
-                // 2. avoid checkpointing all the jobs on this JM simultaneously (hence *2)
-                // 3. account for 0 configured min pause (hence +1)
-                ? ThreadLocalRandom.current()
-                        .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1)
-                // otherwise, we can delay the first checkpoint by checkpoint interval
-                // additionally, increase the upper bound by 1 to avoid equal lower/upper bounds -
-                // unless it might cause an overflow
-                : ThreadLocalRandom.current()
-                        .nextLong(
-                                minPauseBetweenCheckpoints,
-                                checkpointInterval
-                                        + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
+        if (pauseSourcesUntilFirstCheckpoint) {
+            // if sources are waiting for a checkpoint then trigger a checkpoint ASAP (not waiting
+            // for checkpoint interval) to unblock them; however, we still need to:
+            // 1. honor the min pause between checkpoints
+            // 2. avoid checkpointing all the jobs on this JM simultaneously (hence *2)
+            // 3. account for 0 configured min pause (hence +1)
+            return ThreadLocalRandom.current()
+                    .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1);
+        }
+
+        if (initialCheckpointDelay > 0) {
+            // Use user-configured initial delay with a small random jitter to avoid
+            // synchronized checkpoint triggers across multiple jobs.
+            // The jitter is bounded by min(checkpointInterval, 60s) to keep it reasonable.
+            long jitter =
+                    ThreadLocalRandom.current()
+                            .nextLong(0, Math.min(checkpointInterval, 60_000L) + 1);
+            return initialCheckpointDelay + jitter;
+        }
+
+        // Default behavior: delay the first checkpoint by a random value in
+        // [minPause, checkpointInterval]. Additionally, increase the upper bound by 1 to
+        // avoid equal lower/upper bounds - unless it might cause an overflow.
+        return ThreadLocalRandom.current()
+                .nextLong(
+                        minPauseBetweenCheckpoints,
+                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
@@ -332,6 +356,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private boolean enableCheckpointsAfterTasksFinish;
         private boolean recoverOutputOnDownstreamTask;
         private boolean pauseSourcesUntilFirstCheckpoint;
+        private long initialCheckpointDelay;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -348,7 +373,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     checkpointIdOfIgnoredInFlightData,
                     enableCheckpointsAfterTasksFinish,
                     recoverOutputOnDownstreamTask,
-                    pauseSourcesUntilFirstCheckpoint);
+                    pauseSourcesUntilFirstCheckpoint,
+                    initialCheckpointDelay);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -431,6 +457,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setRecoverOutputOnDownstreamTask(
                 boolean recoverOutputOnDownstreamTask) {
             this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setInitialCheckpointDelay(
+                long initialCheckpointDelay) {
+            this.initialCheckpointDelay = initialCheckpointDelay;
             return this;
         }
     }

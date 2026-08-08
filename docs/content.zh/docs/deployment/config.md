@@ -157,7 +157,8 @@ You can configure checkpointing directly in code within your Flink job or applic
   - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap`, `rocksdb` or `forst`.
   - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
-  - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
+- `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
+  - `execution.checkpointing.initial-delay`: The initial delay before the first checkpoint is triggered after the job starts. This is useful for jobs that need time to warm up (e.g., JIT compilation, cache population) or catch up with backlogs (e.g., consuming from Kafka with large lag). Without this delay, the first checkpoint may be triggered while the job is still in an unstable state, which could lead to longer checkpoint durations, increased state size, or even checkpoint timeouts and failures — potentially causing unnecessary job restarts. **Trade-offs**: Setting a longer initial delay improves checkpoint stability during startup, but also delays the time to the first successful checkpoint, meaning any failure before that point would require a full restart without any checkpoint to recover from. If your sources support the `isProcessingBacklog` signal, consider also using `execution.checkpointing.interval-during-backlog` for dynamic checkpoint interval adjustment during backlog processing.
 
 **Web UI**
 
