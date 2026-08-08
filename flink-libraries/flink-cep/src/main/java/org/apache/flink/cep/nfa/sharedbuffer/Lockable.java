@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -186,7 +185,6 @@ public final class Lockable<T> {
             return new LockableTypeSerializerSnapshot<>(this);
         }
 
-        @VisibleForTesting
         TypeSerializer<E> getElementSerializer() {
             return elementSerializer;
         }

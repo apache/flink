@@ -932,12 +932,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                         splitSerializer));
     }
 
-    // --------------- methods for unit tests ------------
-
-    @VisibleForTesting
     public SourceReader<OUT, SplitT> getSourceReader() {
         return sourceReader;
     }
+
+    // --------------- methods for unit tests ------------
 
     @VisibleForTesting
     ListState<SplitT> getReaderState() {

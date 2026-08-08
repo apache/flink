@@ -455,7 +455,6 @@ public class MailboxProcessor implements Closeable {
         return suspendedDefaultAction;
     }
 
-    @VisibleForTesting
     public boolean isDefaultActionAvailable() {
         return suspendedDefaultAction == null;
     }

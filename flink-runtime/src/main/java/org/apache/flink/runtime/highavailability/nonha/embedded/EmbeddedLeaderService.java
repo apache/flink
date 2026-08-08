@@ -382,7 +382,6 @@ public class EmbeddedLeaderService {
         }
     }
 
-    @VisibleForTesting
     CompletableFuture<Void> grantLeadership() {
         synchronized (lock) {
             if (shutdown) {
@@ -398,7 +397,6 @@ public class EmbeddedLeaderService {
                 new FlinkException("EmbeddedLeaderService has been shut down."));
     }
 
-    @VisibleForTesting
     CompletableFuture<Void> revokeLeadership() {
         synchronized (lock) {
             if (shutdown) {
