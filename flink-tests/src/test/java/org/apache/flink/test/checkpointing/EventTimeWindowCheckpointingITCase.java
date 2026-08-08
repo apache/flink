@@ -52,6 +52,7 @@ import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.source.FailingCheckpointedSource;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -795,7 +796,11 @@ class EventTimeWindowCheckpointingITCase {
         }
     }
 
-    static class KeyedEventTimeGenerator implements FailingSource.EventEmittingGenerator {
+    // implements both generator interfaces until all FailingSource consumers are migrated to
+    // FailingCheckpointedSource
+    static class KeyedEventTimeGenerator
+            implements FailingSource.EventEmittingGenerator,
+                    FailingCheckpointedSource.EventGenerator<Tuple2<Long, IntType>> {
 
         private final int keyUniverseSize;
         private final int watermarkTrailing;
@@ -818,6 +823,19 @@ class EventTimeWindowCheckpointingITCase {
             }
 
             ctx.emitWatermark(new Watermark(eventSequenceNo - watermarkTrailing));
+        }
+
+        @Override
+        public void emit(
+                int subtaskIndex,
+                long sequenceNo,
+                FailingCheckpointedSource.GeneratorOutput<Tuple2<Long, IntType>> output) {
+            final IntType intTypeNext = new IntType((int) sequenceNo);
+            for (long i = 0; i < keyUniverseSize; i++) {
+                output.collect(new Tuple2<>(i, intTypeNext), sequenceNo);
+            }
+
+            output.emitWatermark(sequenceNo - watermarkTrailing);
         }
     }
 
