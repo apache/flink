@@ -29,13 +29,10 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.execution.JobStatusChangedListener;
-import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -43,11 +40,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -65,23 +59,14 @@ public class AbstractSessionClusterExecutor<
                 ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
         implements CacheSupportedPipelineExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSessionClusterExecutor.class);
-    private final ExecutorService executorService =
-            Executors.newFixedThreadPool(
-                    1, new ExecutorThreadFactory("Flink-SessionClusterExecutor-IO"));
 
     private final ClientFactory clusterClientFactory;
     private final Configuration configuration;
-    private final List<JobStatusChangedListener> jobStatusChangedListeners;
 
     public AbstractSessionClusterExecutor(
             @Nonnull final ClientFactory clusterClientFactory, Configuration configuration) {
         this.clusterClientFactory = checkNotNull(clusterClientFactory);
         this.configuration = configuration;
-        this.jobStatusChangedListeners =
-                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
-                        Thread.currentThread().getContextClassLoader(),
-                        configuration,
-                        executorService);
     }
 
     @Override
@@ -122,10 +107,7 @@ public class AbstractSessionClusterExecutor<
                                                     userCodeClassloader))
                     .whenCompleteAsync(
                             (jobClient, throwable) -> {
-                                if (throwable == null) {
-                                    PipelineExecutorUtils.notifyJobStatusListeners(
-                                            pipeline, streamGraph, jobStatusChangedListeners);
-                                } else {
+                                if (throwable != null) {
                                     LOG.error(
                                             "Failed to submit job graph to remote session cluster.",
                                             throwable);

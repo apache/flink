@@ -26,6 +26,7 @@ import java.util.Map;
 /** Default implementation for {@link LineageDataset}. */
 @Internal
 public class DefaultLineageDataset implements LineageDataset {
+    private static final long serialVersionUID = 1L;
     private String name;
     private String namespace;
     private Map<String, LineageDatasetFacet> facets;
