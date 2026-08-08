@@ -28,7 +28,6 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
-from pyflink.table.types import DataTypes as TableDataTypes
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "col", "lit"]
@@ -81,16 +80,6 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
     table_data_type = data_type._to_table_data_type()
     if value is None:
         return table_lit(value, table_data_type)
-    if (
-        table_data_type.nullable() == TableDataTypes.BIGINT()
-        and isinstance(value, int)
-        and not isinstance(value, bool)
-        and -(1 << 31) <= value < (1 << 31)
-    ):
-        # Py4J sends Python integers in this range as java.lang.Integer, but a typed BIGINT
-        # literal requires java.lang.Long. Match BIGINT independently of its nullability, then
-        # cast a typed INT literal to the originally declared BIGINT type.
-        return table_lit(value, TableDataTypes.INT().not_null()).cast(table_data_type)
     return table_lit(value, table_data_type.not_null())
 
 
