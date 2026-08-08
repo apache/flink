@@ -32,6 +32,7 @@ import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -101,6 +102,9 @@ class DataStructureConvertersTest {
                         .convertedTo(String.class, "12345")
                         .convertedTo(byte[].class, "12345".getBytes(StandardCharsets.UTF_8))
                         .convertedTo(StringData.class, StringData.fromString("12345")),
+                TestSpec.forDataType(STRING())
+                        .convertedTo(StringData.class, StringData.fromString("SECOND"))
+                        .convertedTo(ConverterEnum.class, ConverterEnum.SECOND),
                 TestSpec.forDataType(BOOLEAN().notNull())
                         .convertedTo(Boolean.class, true)
                         .convertedTo(boolean.class, true),
@@ -464,6 +468,27 @@ class DataStructureConvertersTest {
         }
     }
 
+    @Test
+    void testStringEnumConverterRejectsInvalidEnumName() {
+        final DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(STRING().bridgedTo(ConverterEnum.class));
+
+        assertThatThrownBy(() -> converter.toExternal(StringData.fromString("INVALID")))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Unsupported enum value: INVALID for enum class ConverterEnum.");
+    }
+
+    @Test
+    void testStringEnumConverterUsesEnumName() {
+        final DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(STRING().bridgedTo(CustomStringEnum.class));
+
+        assertThat(converter.toInternal(CustomStringEnum.FIRST))
+                .isEqualTo(StringData.fromString("FIRST"));
+        assertThat(converter.toExternal(StringData.fromString("FIRST")))
+                .isEqualTo(CustomStringEnum.FIRST);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test utilities
     // --------------------------------------------------------------------------------------------
@@ -593,6 +618,22 @@ class DataStructureConvertersTest {
 
     // --------------------------------------------------------------------------------------------
     // Structured types
+    // --------------------------------------------------------------------------------------------
+
+    private enum ConverterEnum {
+        FIRST,
+        SECOND
+    }
+
+    private enum CustomStringEnum {
+        FIRST {
+            @Override
+            public String toString() {
+                return "first";
+            }
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** POJO as superclass. */
