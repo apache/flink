@@ -80,6 +80,16 @@ The retry is only safe until the [async operation store duration]({{< ref "docs/
 The OpenAPI specification is still experimental.
 {{< /hint >}}
 
+#### Management Node Quarantine APIs
+
+The REST API includes endpoints for managing the cluster node quarantine:
+
+- `POST /cluster/node-quarantine` - Add a node to the quarantine list
+- `DELETE /cluster/node-quarantine/{nodeId}` - Remove a node from the quarantine list  
+- `GET /cluster/node-quarantine` - List all quarantined nodes
+
+For detailed information about the Management Node Quarantine feature, see [Management Node Quarantine]({{< ref "docs/ops/management_node_quarantine" >}}).
+
 #### API reference
 
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}

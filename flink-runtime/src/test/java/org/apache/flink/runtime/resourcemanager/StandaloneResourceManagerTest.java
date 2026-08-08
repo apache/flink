@@ -31,7 +31,6 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBu
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -146,12 +145,14 @@ class StandaloneResourceManagerTest {
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
                     new NoOpBlocklistHandler.Factory(),
+                    new org.apache.flink.runtime.management.nodequarantine
+                            .NoOpManagementNodeQuarantineHandler.Factory(),
                     jobLeaderIdService,
                     clusterInformation,
                     fatalErrorHandler,
                     resourceManagerMetricGroup,
                     startupPeriodTime,
-                    RpcUtils.INF_TIMEOUT,
+                    startupPeriodTime,
                     ForkJoinPool.commonPool());
         }
     }

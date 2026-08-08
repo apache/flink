@@ -112,6 +112,9 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
                 BlocklistUtils.loadBlocklistHandlerFactory(configuration),
+                org.apache.flink.runtime.management.nodequarantine.ManagementNodeQuarantineUtils
+                        .loadManagementNodeQuarantineHandlerFactory(
+                                configuration, rpcService.getScheduledExecutor()),
                 resourceManagerRuntimeServices.getJobLeaderIdService(),
                 clusterInformation,
                 fatalErrorHandler,
