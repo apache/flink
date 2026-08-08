@@ -39,6 +39,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -309,6 +310,8 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("VARIANT NOT NULL").expectType(new VariantType(false)),
                 TestSpec.forString("BITMAP").expectType(new BitmapType()),
                 TestSpec.forString("BITMAP NOT NULL").expectType(new BitmapType(false)),
+                TestSpec.forString("GEOGRAPHY").expectType(new GeographyType()),
+                TestSpec.forString("GEOGRAPHY NOT NULL").expectType(new GeographyType(false)),
 
                 // error message testing
 
