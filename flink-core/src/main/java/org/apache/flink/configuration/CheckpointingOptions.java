@@ -583,6 +583,14 @@ public class CheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
+    public static final ConfigOption<Duration> CHECKPOINTING_SYNC_PHASE_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.sync-phase-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDescription(
+                            "A timeout for the blocking part of a checkpoint, after which a job failure is triggered "
+                                    + "to address thread blockages. Defaults to 0 (disabled).");
+
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()

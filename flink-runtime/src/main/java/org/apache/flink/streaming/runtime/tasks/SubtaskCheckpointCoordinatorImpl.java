@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
@@ -44,6 +46,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.DelayableTimer;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.clock.Clock;
@@ -70,7 +73,10 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -747,6 +753,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         checkpointId, checkpointOptions.getTargetLocation());
         storage = applyFileMergingCheckpoint(storage, checkpointOptions);
 
+        final long syncPhaseTimeoutMillis =
+                env.getJobConfiguration()
+                        .get(CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT)
+                        .toMillis();
+        CountDownLatch syncPhaseCompleted = new CountDownLatch(1);
+        if (syncPhaseTimeoutMillis > 0) {
+            startSyncPhaseTimeoutWatchdog(checkpointId, syncPhaseTimeoutMillis, syncPhaseCompleted);
+        }
+
         try {
             operatorChain.snapshotState(
                     operatorSnapshotsInProgress,
@@ -757,6 +772,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     storage);
 
         } finally {
+            syncPhaseCompleted.countDown();
             checkpointStorage.clearCacheFor(checkpointId);
         }
 
@@ -848,5 +864,52 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     checkpointMetaData.getCheckpointId(),
                     delay);
         }
+    }
+
+    private Thread startSyncPhaseTimeoutWatchdog(
+            long checkpointId, long syncPhaseTimeoutMillis, CountDownLatch syncPhaseCompleted) {
+        final Thread taskThread = Thread.currentThread();
+        final Thread syncPhaseTimeoutWatchDog =
+                new Thread(
+                        taskThread.getThreadGroup(),
+                        () -> {
+                            try {
+                                syncPhaseCompleted.await(
+                                        syncPhaseTimeoutMillis, TimeUnit.MILLISECONDS);
+                            } catch (InterruptedException e) {
+                                // task shutdown
+                                return;
+                            }
+                            if (syncPhaseCompleted.getCount() == 0) {
+                                return;
+                            }
+                            try {
+                                final String errorMessage =
+                                        String.format(
+                                                "Task %s did not complete the synchronous phase of checkpoint %s within %s ms.",
+                                                taskName, checkpointId, syncPhaseTimeoutMillis);
+                                if (LOG.isWarnEnabled()) {
+                                    LOG.warn(
+                                            errorMessage
+                                                    + "\n"
+                                                    + Task.getTaskThreadStackTrace(taskThread));
+                                }
+                                env.failExternally(
+                                        new AsynchronousException(
+                                                new TimeoutException(errorMessage)));
+                            } catch (Exception e) {
+                                LOG.error(
+                                        "Error handling sync phase timeout for checkpoint {}",
+                                        checkpointId,
+                                        e);
+                            }
+                        },
+                        String.format(
+                                "checkpoint %s sync phase watchdog for %s_%s",
+                                checkpointId, taskName, env.getTaskInfo().getIndexOfThisSubtask()));
+        syncPhaseTimeoutWatchDog.setDaemon(true);
+        syncPhaseTimeoutWatchDog.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+        syncPhaseTimeoutWatchDog.start();
+        return syncPhaseTimeoutWatchDog;
     }
 }

@@ -153,6 +153,12 @@
             <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.<br />'execution.checkpointing.storage' and 'execution.checkpointing.dir' are usually combined to configure the checkpoint location. By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly. When 'execution.checkpointing.storage' is set to 'jobmanager', if 'execution.checkpointing.dir' is configured, the meta data of checkpoints will be persisted to the path specified by 'execution.checkpointing.dir'. Otherwise, the meta data will be stored in the JobManager's memory. When 'execution.checkpointing.storage' is set to 'filesystem', a valid path must be configured to 'execution.checkpointing.dir', and the checkpoint meta data and actual program state will both be persisted to the path.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.sync-phase-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>A timeout for the blocking part of a checkpoint, after which a job failure is triggered to address thread blockages. Defaults to 0 (disabled).</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>

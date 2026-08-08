@@ -1879,20 +1879,23 @@ public class Task
         }
     }
 
-    public static void logTaskThreadStackTrace(
-            Thread thread, String taskName, long timeoutMs, String action) {
+    public static String getTaskThreadStackTrace(Thread thread) {
         StackTraceElement[] stack = thread.getStackTrace();
         StringBuilder stackTraceStr = new StringBuilder();
         for (StackTraceElement e : stack) {
             stackTraceStr.append(e).append('\n');
         }
+        return stackTraceStr.toString();
+    }
 
+    public static void logTaskThreadStackTrace(
+            Thread thread, String taskName, long timeoutMs, String action) {
         LOG.warn(
                 "Task '{}' did not react to cancelling signal - {}; it is stuck for {} seconds in method:\n {}",
                 taskName,
                 action,
                 timeoutMs / 1000,
-                stackTraceStr);
+                getTaskThreadStackTrace(thread));
     }
 
     /** Various operation of notify checkpoint. */
