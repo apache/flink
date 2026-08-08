@@ -767,6 +767,18 @@ class StreamExecutionEnvironment(object):
             j_type_info = type_info.get_java_type_info()
         else:
             j_type_info = None
+        if watermark_strategy._timestamp_assigner is not None:
+            # in case users have specified a custom Python TimestampAssigner, the timestamp
+            # extraction and watermark generation cannot be performed on the Java source. So we
+            # create the source without watermarks first and then apply the watermark strategy
+            # downstream, where the custom Python TimestampAssigner can be executed.
+            j_data_stream = self._j_stream_execution_environment.fromSource(
+                source.get_java_function(),
+                WatermarkStrategy.no_watermarks()._j_watermark_strategy,
+                source_name,
+                j_type_info)
+            return DataStream(j_data_stream=j_data_stream).assign_timestamps_and_watermarks(
+                watermark_strategy)
         j_data_stream = self._j_stream_execution_environment.fromSource(
             source.get_java_function(),
             watermark_strategy._j_watermark_strategy,
