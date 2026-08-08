@@ -906,6 +906,51 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testForcedMaterializeWithAppendOnlyInput(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.addTable(s"""
+                     |CREATE TABLE forcedSink (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO forcedSink SELECT a, b FROM MyTable")
+    // There is nothing to materialize, so the plan must not contain a SinkMaterializer.
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testForcedMaterializeWithUpdatingInput(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.addTable(s"""
+                     |CREATE TABLE forcedSinkWithCount (
+                     |  `c` STRING,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (c) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO forcedSinkWithCount SELECT c, COUNT(*) FROM MyTable GROUP BY c")
+    // The upsert key already matches the primary key, so only FORCE asks for a SinkMaterializer.
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
   def testInjectiveCastPreservesUpsertKey(): Unit = {
     // Aggregation produces upsert stream with key (a).
     // Sink expects STRING primary key.
