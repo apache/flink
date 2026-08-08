@@ -369,6 +369,16 @@ public class OptimizerConfigOptions {
                                     .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_USE_MULTI_JOIN_FOR_BINARY_JOIN =
+            key("table.optimizer.multi-join.use-for-binary-join")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text("Allows binary multi join (multi join with 2 inputs).")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
             key("table.optimizer.incremental-agg-enabled")
                     .booleanType()
