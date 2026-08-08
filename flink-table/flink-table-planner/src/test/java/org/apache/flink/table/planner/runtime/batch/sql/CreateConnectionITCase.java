@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.secret.GenericInMemorySecretStore;
 
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +74,70 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThatThrownBy(() -> tEnv().executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("WritableSecretStore must be configured");
+    }
+
+    @Test
+    void testAlterConnectionRenameTemporaryConnection() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        tEnv().executeSql("ALTER CONNECTION my_conn RENAME TO new_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+        assertThat(catalogManager().getConnection(connectionIdentifier("new_conn")))
+                .hasValueSatisfying(
+                        connection ->
+                                assertThat(connection.getOptions()).containsOnly(entry("k", "v")));
+    }
+
+    @Test
+    void testAlterConnectionRenameIfExists() {
+        tEnv().executeSql("ALTER CONNECTION IF EXISTS missing_conn RENAME TO new_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("new_conn"))).isEmpty();
+    }
+
+    @Test
+    void testAlterConnectionRenameToExistingConnectionRejected() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tEnv().executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
+    }
+
+    @Test
+    void testAlterTemporaryConnectionRenameToExistingPermanentConnectionRejected() {
+        TableEnvironment tableEnv = tableEnvWithSecretStore();
+        tableEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+        tableEnv.executeSql("CREATE CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
+    }
+
+    @Test
+    void testAlterPermanentConnectionRenameToExistingTemporaryConnectionRejected() {
+        TableEnvironment tableEnv = tableEnvWithSecretStore();
+        tableEnv.executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')");
+        tableEnv.executeSql("CREATE TEMPORARY CONNECTION new_conn WITH ('k' = 'v')");
+
+        assertThatThrownBy(() -> tableEnv.executeSql("ALTER CONNECTION my_conn RENAME TO new_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Connection with identifier 'default_catalog.default_database.new_conn' already exists.");
+    }
+
+    private TableEnvironment tableEnvWithSecretStore() {
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance()
+                        .inBatchMode()
+                        .withSecretStore(new GenericInMemorySecretStore())
+                        .build();
+        return TableEnvironment.create(settings);
     }
 
     private CatalogManager catalogManager() {
