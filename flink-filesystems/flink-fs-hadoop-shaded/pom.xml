@@ -38,10 +38,10 @@ under the License.
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<!-- Bumped for security purposes -->
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<version>1.9.4</version>
+				<!-- Align with the metrics-core version bundled by the S3 filesystems -->
+				<groupId>io.dropwizard.metrics</groupId>
+				<artifactId>metrics-core</artifactId>
+				<version>3.2.5</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -77,6 +77,20 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-server</artifactId>
+				</exclusion>
+				<!-- Pulled in by hadoop-common 3.4.x via com.github.pjfanning:jersey-json,
+				     ships com/sun/jersey/json/** classes. -->
+				<exclusion>
+					<groupId>com.github.pjfanning</groupId>
+					<artifactId>jersey-json</artifactId>
+				</exclusion>
+				<!-- Transitive of jersey-json above; ships com/sun/xml/bind/** classes
+				     (CDDL+GPLv2-with-classpath-exception). Nothing bundled references the
+				     JAXB RI (jersey-json itself is excluded above); we only ship the API
+				     as a Java 11+ multi-release resource. -->
+				<exclusion>
+					<groupId>com.sun.xml.bind</groupId>
+					<artifactId>jaxb-impl</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>
@@ -177,6 +191,21 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+				<!-- Hadoop 3.4.x declares Netty as a compile-time dep of hadoop-common,
+				     but hadoop-common's compiled bytecode contains zero io.netty.*
+				     references (verified empirically). The dep exists for sibling
+				     Hadoop modules (hadoop-hdfs-client, hadoop-kms-server) that this
+				     shaded jar does NOT bundle. Exclude both transitive roots
+				     (netty-handler and netty-transport-native-epoll) to drop the
+				     entire 7-artifact Netty tree. -->
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-handler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-transport-native-epoll</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -297,6 +326,8 @@ under the License.
 								</filter>
 							</filters>
 							<transformers combine.children="append">
+								<!-- Mark as MRJAR: dnsjava 3.6.1's InetAddressResolverProvider lives under
+								     META-INF/versions/18/ and is unreachable to ServiceLoader otherwise. -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<manifestEntries>
 										<Multi-Release>true</Multi-Release>
