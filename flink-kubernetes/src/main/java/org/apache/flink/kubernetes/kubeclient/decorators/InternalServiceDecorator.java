@@ -75,6 +75,6 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
     /** Generate namespaced name of the internal Service. */
     public static String getNamespacedInternalServiceName(String clusterId, String namespace) {
-        return getInternalServiceName(clusterId) + "." + namespace;
+        return getInternalServiceName(clusterId) + "." + namespace + ".svc";
     }
 }
