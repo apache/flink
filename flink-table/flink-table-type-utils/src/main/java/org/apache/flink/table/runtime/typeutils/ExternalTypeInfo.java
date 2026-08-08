@@ -80,6 +80,16 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
         return new ExternalTypeInfo<>(dataType, serializer);
     }
 
+    /**
+     * Creates type information for the given {@link DataType} with an explicitly provided
+     * serializer. Use this when the serializer cannot be derived from the data type alone, e.g.
+     * when it was restored from a savepoint serializer snapshot.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> ExternalTypeInfo<T> of(DataType dataType, TypeSerializer<?> typeSerializer) {
+        return new ExternalTypeInfo<>(dataType, (TypeSerializer<T>) typeSerializer);
+    }
+
     @SuppressWarnings("unchecked")
     private static <T> TypeSerializer<T> createExternalTypeSerializer(
             DataType dataType, boolean isInternalInput) {

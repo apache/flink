@@ -172,6 +172,12 @@ public class TestStateBackend extends AbstractStateBackend {
         }
 
         @Override
+        public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(
+                List<String> states, N namespace) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
             throw new UnsupportedOperationException();
         }

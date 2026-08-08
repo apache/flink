@@ -32,6 +32,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -49,6 +51,7 @@ import static org.apache.flink.util.StringUtils.writeString;
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
 public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AvroSerializerSnapshot.class);
     private Class<T> runtimeType;
     private Schema schema;
     private Schema runtimeSchema;
@@ -114,7 +117,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         final String previousRuntimeTypeName = in.readUTF();
         final String previousSchemaDefinition = in.readUTF();
 
-        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.runtimeType =
+                findClassOrFallbackToGeneric(userCodeClassLoader, previousRuntimeTypeName);
         this.schema = parseAvroSchema(previousSchemaDefinition);
         this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
     }
@@ -123,7 +127,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         final String previousRuntimeTypeName = readString(in);
         final String previousSchemaDefinition = readString(in);
 
-        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.runtimeType =
+                findClassOrFallbackToGeneric(userCodeClassLoader, previousRuntimeTypeName);
         this.schema = parseAvroSchema(previousSchemaDefinition);
         this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
     }
@@ -155,6 +160,11 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     new SerializableAvroSchema(schema),
                     new SerializableAvroSchema(schema));
         }
+    }
+
+    /** Returns the Avro writer schema stored in this snapshot. */
+    public Schema getSchema() {
+        return schema;
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -227,31 +237,15 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
     @SuppressWarnings("unchecked")
     @Nonnull
-    private static <T> Class<T> findClassOrThrow(
-            ClassLoader userCodeClassLoader, String className) {
-        try {
-            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-            return (Class<T>) runtimeTarget;
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException(
-                    ""
-                            + "Unable to find the class '"
-                            + className
-                            + "' which is used to deserialize "
-                            + "the elements of this serializer. "
-                            + "Were the class was moved or renamed?",
-                    e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Nonnull
     private static <T> Class<T> findClassOrFallbackToGeneric(
             ClassLoader userCodeClassLoader, String className) {
         try {
             Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
             return (Class<T>) runtimeTarget;
         } catch (ClassNotFoundException e) {
+            LOG.debug(
+                    "Avro runtime type '{}' not found on classpath; falling back to GenericRecord.",
+                    className);
             return (Class<T>) GenericRecord.class;
         }
     }
