@@ -48,7 +48,7 @@ or influence how connectors of temporary tables should be created without a corr
 ### HiveModule
 
 The `HiveModule` provides Hive built-in functions as Flink's system functions to SQL and Table API users.
-Flink's [Hive documentation]({{< ref "docs/connectors/table/hive/hive_functions" >}}) provides full details on setting up the module.
+Flink's Hive documentation provides full details on setting up the module.
 
 ### User-Defined Module
 

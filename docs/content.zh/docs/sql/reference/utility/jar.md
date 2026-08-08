@@ -83,7 +83,7 @@ ADD JAR '<path_to_filename>.jar'
 
 ### 限制
 
-请不要通过 `ADD JAR` 语句来加载 Hive 的source、sink、function、catalog。这是 Hive connector 的一个已知限制，且会在将来版本中修复。当前，建议跟随这个指南来[安装 Hive 的集成]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies)。
+请不要通过 `ADD JAR` 语句来加载 Hive 的source、sink、function、catalog。这是 Hive connector 的一个已知限制，且会在将来版本中修复。当前，建议跟随这个指南来安装 Hive 的集成。
 
 <a name="show-jars"></a>
 
