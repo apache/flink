@@ -537,15 +537,22 @@ components:
     SerializedThrowable:
       type: object
       properties:
+        class:
+          type: string
         serialized-throwable:
           type: string
-          format: binary
+          format: byte
+        stack-trace:
+          type: string
     SessionHandle:
       type: object
       properties:
         identifier:
           type: string
           format: uuid
+    SlotSharingGroupId:
+      pattern: "[0-9a-f]{32}"
+      type: string
     TriggerId:
       pattern: "[0-9a-f]{32}"
       type: string
