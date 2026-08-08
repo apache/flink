@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_ENCODING;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_FAST_READ;
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_TIMESTAMP_LEGACY_MAPPING;
 
 /**
@@ -63,6 +64,7 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
 
         AvroEncoding encoding = formatOptions.get(AVRO_ENCODING);
         boolean legacyTimestampMapping = formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING);
+        boolean openFastRead = formatOptions.get(AVRO_FAST_READ);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -76,7 +78,7 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        rowType, rowDataTypeInfo, encoding, legacyTimestampMapping);
+                        rowType, rowDataTypeInfo, encoding, legacyTimestampMapping, openFastRead);
             }
 
             @Override
@@ -125,6 +127,7 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(AVRO_ENCODING);
         options.add(AVRO_TIMESTAMP_LEGACY_MAPPING);
+        options.add(AVRO_FAST_READ);
         return options;
     }
 }
