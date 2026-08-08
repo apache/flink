@@ -231,7 +231,9 @@ public final class LogicalTypeMerging {
     public static DecimalType findMultiplicationDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
         int scale = scale1 + scale2;
-        int precision = precision1 + precision2 + 1;
+        // The integer part of the product has at most (p1-s1)+(p2-s2) digits, and the fractional
+        // part has exactly s1+s2 digits, so the total is p1+p2 digits (no +1 needed).
+        int precision = precision1 + precision2;
         return adjustPrecisionScale(precision, scale);
     }
 
