@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.hint.FlinkHintStrategies
 import org.apache.flink.table.planner.plan.metadata.{FlinkDefaultRelMetadataProvider, FlinkRelMetadataQuery}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
-import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex.RexBuilder
 
 import java.util.function.Supplier
@@ -32,11 +32,18 @@ import java.util.function.Supplier
  */
 object FlinkRelOptClusterFactory {
 
+  private val METADATA_HANDLER_PROVIDER =
+    JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE)
+
   def create(planner: RelOptPlanner, rexBuilder: RexBuilder): RelOptCluster = {
     val cluster = RelOptCluster.create(planner, rexBuilder)
     cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
     cluster.setMetadataQuerySupplier(new Supplier[RelMetadataQuery]() {
-      def get: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
+      def get: FlinkRelMetadataQuery = {
+        // Ensure THREAD_PROVIDERS is set on whichever thread invokes the supplier.
+        RelMetadataQueryBase.THREAD_PROVIDERS.set(METADATA_HANDLER_PROVIDER)
+        FlinkRelMetadataQuery.instance()
+      }
     })
     cluster.setHintStrategies(FlinkHintStrategies.createHintStrategyTable())
     cluster
