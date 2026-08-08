@@ -65,7 +65,6 @@ import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -164,7 +163,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private transient StageBundleFactory stageBundleFactory;
 
     /** Handler for state requests. */
-    private transient StateRequestHandler stateRequestHandler;
+    private transient BeamStateRequestHandler stateRequestHandler;
 
     /** Handler for bundle progress messages, both during bundle execution and on its completion. */
     private transient BundleProgressHandler progressHandler;
@@ -335,30 +334,53 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Override
     public void close() throws Exception {
         try {
-            if (jobBundleFactory != null) {
-                jobBundleFactory.close();
+            try {
+                // A managed-memory JobBundleFactory can be shared by multiple runners. Finish this
+                // runner's bundle first so it cannot issue state requests after its handler closes.
+                if (sharedResources != null) {
+                    flush();
+                }
+            } finally {
+                bundleStarted = false;
+
+                try {
+                    if (jobBundleFactory != null) {
+                        jobBundleFactory.close();
+                    }
+                } finally {
+                    jobBundleFactory = null;
+
+                    try {
+                        if (sharedResources != null) {
+                            sharedResources.close();
+                        } else {
+                            // if sharedResources is not null, the close of environmentManager will
+                            // be managed in sharedResources, otherwise, we need to close the
+                            // environmentManager explicitly
+                            environmentManager.close();
+                        }
+                    } finally {
+                        sharedResources = null;
+
+                        // State backends are disposed after the runner is closed. Gate this
+                        // runner's handler only after its bundle and resource teardown can no
+                        // longer use it.
+                        try {
+                            if (stateRequestHandler != null) {
+                                stateRequestHandler.close();
+                            }
+                        } finally {
+                            stateRequestHandler = null;
+                        }
+                    }
+                }
             }
         } finally {
-            jobBundleFactory = null;
-        }
-
-        try {
-            if (sharedResources != null) {
-                sharedResources.close();
-            } else {
-                // if sharedResources is not null, the close of environmentManager will be managed
-                // in sharedResources,
-                // otherwise, we need to close the environmentManager explicitly
-                environmentManager.close();
+            if (shutdownHook != null) {
+                ShutdownHookUtil.removeShutdownHook(
+                        shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+                shutdownHook = null;
             }
-        } finally {
-            sharedResources = null;
-        }
-
-        if (shutdownHook != null) {
-            ShutdownHookUtil.removeShutdownHook(
-                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
-            shutdownHook = null;
         }
     }
 
@@ -440,7 +462,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     @Override
-    public void flush() throws Exception {
+    public synchronized void flush() throws Exception {
         if (bundleStarted) {
             try {
                 finishBundle();
@@ -734,7 +756,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         return new TimerReceiverFactory(stageBundleFactory, timerDataConsumer, null);
     }
 
-    private static StateRequestHandler getStateRequestHandler(
+    private static BeamStateRequestHandler getStateRequestHandler(
             @Nullable KeyedStateBackend<?> keyedStateBackend,
             @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
