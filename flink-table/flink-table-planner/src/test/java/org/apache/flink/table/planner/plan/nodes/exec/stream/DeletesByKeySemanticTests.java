@@ -30,6 +30,7 @@ public class DeletesByKeySemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_NOT_NULL_SINK,
                 DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_FULL_DELETE,
                 DeletesByKeyPrograms.INSERT_SELECT_FULL_DELETE_FULL_DELETE,
                 DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION,
