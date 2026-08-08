@@ -123,6 +123,11 @@ class StreamPlanner(
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
+    // Show rowcount and cumulative cost at the default explain level to help users
+    // understand the optimizer's cost estimation. This is redundant when the level is
+    // already ALL_ATTRIBUTES (which shows cost natively), so we only enable it
+    // for the default DIGEST_ATTRIBUTES case.
+    val withRowCountAndCost = explainLevel != SqlExplainLevel.ALL_ATTRIBUTES
     if (withAdvice) {
       sb.append(
         FlinkRelOptUtil
@@ -130,12 +135,17 @@ class StreamPlanner(
             optimizedRelNodes,
             explainLevel,
             withChangelogTraits = withChangelogTraits,
-            withAdvice = true))
+            withAdvice = true,
+            withRowCountAndCost = withRowCountAndCost))
     } else {
       optimizedRelNodes.foreach {
         rel =>
           sb.append(
-            FlinkRelOptUtil.toString(rel, explainLevel, withChangelogTraits = withChangelogTraits))
+            FlinkRelOptUtil.toString(
+              rel,
+              explainLevel,
+              withChangelogTraits = withChangelogTraits,
+              withRowCountAndCost = withRowCountAndCost))
           sb.append(System.lineSeparator)
       }
     }

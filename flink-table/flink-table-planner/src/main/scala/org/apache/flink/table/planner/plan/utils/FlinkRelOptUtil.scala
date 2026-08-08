@@ -78,7 +78,8 @@ object FlinkRelOptUtil {
       withRowType: Boolean = false,
       withUpsertKey: Boolean = false,
       withQueryBlockAlias: Boolean = false,
-      withDuplicateChangesTrait: Boolean = false): String = {
+      withDuplicateChangesTrait: Boolean = false,
+      withRowCountAndCost: Boolean = false): String = {
     if (rel == null) {
       return null
     }
@@ -93,7 +94,8 @@ object FlinkRelOptUtil {
       withUpsertKey,
       withQueryHint = true,
       withQueryBlockAlias,
-      withDuplicateChangesTrait = withDuplicateChangesTrait)
+      withDuplicateChangesTrait = withDuplicateChangesTrait,
+      withRowCountAndCost = withRowCountAndCost)
     rel.explain(planWriter)
     sw.toString
   }
@@ -120,7 +122,8 @@ object FlinkRelOptUtil {
       relNodes: Seq[RelNode],
       detailLevel: SqlExplainLevel,
       withChangelogTraits: Boolean,
-      withAdvice: Boolean): String = {
+      withAdvice: Boolean,
+      withRowCountAndCost: Boolean): String = {
     if (relNodes == null) {
       return null
     }
@@ -136,7 +139,8 @@ object FlinkRelOptUtil {
       withQueryHint = true,
       withQueryBlockAlias = false,
       relNodes.length,
-      withAdvice = withAdvice)
+      withAdvice = withAdvice,
+      withRowCountAndCost = withRowCountAndCost)
     relNodes.foreach {
       rel =>
         rel.explain(planWriter)

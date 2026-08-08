@@ -49,7 +49,8 @@ class RelTreeWriterImpl(
     withQueryBlockAlias: Boolean = false,
     statementNum: Integer = 1,
     withAdvice: Boolean = false,
-    withDuplicateChangesTrait: Boolean = false)
+    withDuplicateChangesTrait: Boolean = false,
+    withRowCountAndCost: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   val NODE_LEVEL_ADVICE = new util.HashMap[Integer, util.List[PlanAdvice]]()
@@ -210,11 +211,14 @@ class RelTreeWriterImpl(
       s.append(", rowType=[").append(rel.getRowType.toString).append("]")
     }
 
-    if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES) {
+    if (withRowCountAndCost) {
+      val rowCount = mq.getRowCount(rel)
+      val cost = mq.getCumulativeCost(rel)
+
       s.append(": rowcount = ")
-        .append(mq.getRowCount(rel))
+        .append(if (rowCount != null) rowCount else "unknown")
         .append(", cumulative cost = ")
-        .append(mq.getCumulativeCost(rel))
+        .append(if (cost != null) cost else "unknown")
     }
     pw.println(s)
 

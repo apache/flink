@@ -899,6 +899,7 @@ public abstract class JoinHintTestBase extends TableTestBase {
                                                 true,
                                                 false,
                                                 true,
+                                                false,
                                                 false)));
         return astBuilder.toString();
     }
