@@ -115,7 +115,7 @@ public final class ClusterEntrypointUtils {
         final int poolSize =
                 config.get(
                         ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE,
-                        4 * Hardware.getNumberCPUCores());
+                        (int) Math.ceil(4 * Hardware.getNumberCPUCoresAsDouble()));
         Preconditions.checkArgument(
                 poolSize > 0,
                 "Illegal pool size (%s) of io-executor, please re-configure '%s'.",
