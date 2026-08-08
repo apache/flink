@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableRetractArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractRowSemanticFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
@@ -92,6 +93,9 @@ class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE VIEW t AS SELECT * FROM (VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)");
         util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_city AS SELECT * FROM (VALUES ('Bob', 'Tokyo'), ('Alice', 'Berlin')) AS T(name, city)");
+        util.tableEnv()
                 .executeSql("CREATE VIEW t_name_diff AS SELECT 'Bob' AS name, 12 AS different");
         util.tableEnv()
                 .executeSql("CREATE VIEW t_type_diff AS SELECT 'Bob' AS name, TRUE AS isValid");
@@ -111,6 +115,10 @@ class ProcessTableFunctionTest extends TableTestBase {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t_keyed_sink (`name` STRING, `out` STRING) WITH ('connector' = 'blackhole')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_key_only_delete_sink (`name` STRING, `name0` STRING PRIMARY KEY NOT ENFORCED, `out` STRING) "
+                                + "WITH ('connector' = 'values', 'sink-insert-only' = 'false', 'sink.supports-delete-by-key' = 'true')");
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t_full_delete_sink (`name` STRING PRIMARY KEY NOT ENFORCED, `name0` STRING, `count` BIGINT, `mode` STRING) "
@@ -136,6 +144,17 @@ class ProcessTableFunctionTest extends TableTestBase {
                                 + "in1 => TABLE t PARTITION BY name,"
                                 + "in2 => TABLE t PARTITION BY name)");
         util.verifyRelPlan("SELECT * FROM v");
+    }
+
+    @Test
+    void testUpsertKeyWithMultipleTableArgs() {
+        util.addTemporarySystemFunction("f", UpdatingJoinFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW v AS SELECT * FROM f("
+                                + "scoreTable => TABLE t PARTITION BY name,"
+                                + "cityTable => TABLE t_city PARTITION BY name)");
+        util.verifyRelPlanInsert("INSERT INTO t_key_only_delete_sink SELECT * FROM v");
     }
 
     @Test
