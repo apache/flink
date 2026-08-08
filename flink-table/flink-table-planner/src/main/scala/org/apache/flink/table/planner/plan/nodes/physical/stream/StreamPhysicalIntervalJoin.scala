@@ -72,7 +72,7 @@ class StreamPhysicalIntervalJoin(
    */
   def produceEarlyFireUpdates: Boolean =
     earlyFireDelay != null && getJoinType.isOuterJoin &&
-      (windowBounds.getLeftUpperBound - windowBounds.getLeftLowerBound) >= 0
+      windowBounds.getLeftUpperBound >= windowBounds.getLeftLowerBound
 
   override def copy(
       traitSet: RelTraitSet,

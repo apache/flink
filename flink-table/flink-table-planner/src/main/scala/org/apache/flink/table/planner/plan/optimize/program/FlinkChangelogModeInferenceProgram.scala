@@ -374,10 +374,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         if (intervalJoin.produceEarlyFireUpdates && !providedTrait.satisfies(requiredTrait)) {
           throw new TableException(
-            s"$requester is insert-only, but the EARLY_FIRE hint makes this outer interval join " +
-              "produce update changes (a padded row is emitted speculatively and later corrected " +
-              "on a match). Remove the EARLY_FIRE hint, or write into a downstream/sink that " +
-              "accepts update changes.")
+            s"$requester doesn't support consuming update changes, but the EARLY_FIRE hint " +
+              "makes this outer interval join produce update changes (a padded row is emitted " +
+              "speculatively and later corrected on a match). Remove the EARLY_FIRE hint, or " +
+              "write into a downstream/sink that accepts update changes.")
         }
         createNewNode(intervalJoin, children, providedTrait, requiredTrait, requester)
 
