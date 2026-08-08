@@ -144,6 +144,21 @@ class RowLevelUpdateTest extends TableTestBase {
     }
 
     @TestTemplate
+    void testUpdateWithRequiredColumnsExcludingUpdatedColumns() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE t (a int PRIMARY KEY NOT ENFORCED, b string, c double) WITH"
+                                        + " ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'required-columns-for-update' = 'a', "
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+        util.verifyExplainInsert("UPDATE t SET b = 'v2' WHERE a = 1", explainDetails);
+    }
+
+    @TestTemplate
     void testUpdateWithMetaColumns() {
         util.tableEnv()
                 .executeSql(
