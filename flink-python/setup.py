@@ -313,7 +313,7 @@ try:
         'pyflink.bin': TEMP_PATH + '/bin'}
 
     PACKAGE_DATA = {
-        'pyflink': ['README.txt'],
+        'pyflink': ['README.txt', 'py.typed'],
         'pyflink.conf': ['*'],
         'pyflink.log': ['*'],
         'pyflink.examples': ['*.py', '*/*.py'],
