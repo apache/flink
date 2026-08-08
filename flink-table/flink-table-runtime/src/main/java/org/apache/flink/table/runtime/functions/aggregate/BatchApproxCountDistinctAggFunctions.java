@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions.aggregate;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.DataTypes;
@@ -51,7 +52,15 @@ import static org.apache.flink.table.runtime.functions.aggregate.hyperloglog.XXH
 import static org.apache.flink.table.runtime.functions.aggregate.hyperloglog.XXH64.hashUnsafeBytes;
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in APPROX_COUNT_DISTINCT aggregate function for Batch sql. */
+/**
+ * Built-in APPROX_COUNT_DISTINCT aggregate function for Batch SQL.
+ *
+ * @deprecated Use {@link ApproxCountDistinctAggFunctions} instead, which supports both batch and
+ *     streaming modes. This class is kept for backward compatibility and will be removed in a
+ *     future release.
+ */
+@Deprecated
+@Internal
 public class BatchApproxCountDistinctAggFunctions {
 
     /** Base function for APPROX_COUNT_DISTINCT aggregate. */

@@ -169,6 +169,30 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testApproximateCountDistinct">
+    <Resource name="sql">
+      <![CDATA[SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)])
++- LogicalProject(b=[$1])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(b) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[b])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- Calc(select=[b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAvgOnDifferentTypes">
     <Resource name="sql">
       <![CDATA[

@@ -423,8 +423,9 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testApproximateCountDistinct(): Unit = {
-    assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable"))
+    // APPROX_COUNT_DISTINCT is now supported in streaming mode on append-only streams.
+    // Retraction mode is still not supported (HyperLogLog cannot remove elements).
+    util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
   }
 
   @Test
