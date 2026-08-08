@@ -2315,6 +2315,44 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
+#### Process resources
+
+These metrics describe the Flink JVM process itself, as opposed to the `System.*` metrics
+which describe the whole machine.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Job-/TaskManager</strong></th>
+      <td>Process.CPU</td>
+      <td>Usage</td>
+      <td>% of CPU used by the Flink process, relative to the total capacity of the machine.</td>
+    </tr>
+    <tr>
+      <td>Process.Memory</td>
+      <td>RSS</td>
+      <td>Resident set size of the Flink process in bytes.</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Process.IO</td>
+      <td>Read</td>
+      <td>Total bytes read by the Flink process.</td>
+    </tr>
+    <tr>
+      <td>Write</td>
+      <td>Total bytes written by the Flink process.</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Speculative Execution
 
 Metrics below can be used to measure the effectiveness of speculative execution.
