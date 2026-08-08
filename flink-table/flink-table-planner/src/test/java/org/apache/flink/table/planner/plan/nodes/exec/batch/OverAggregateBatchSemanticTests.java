@@ -19,25 +19,22 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.OverAggregateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchSemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecOverAggregate}. */
-public class OverAggregateBatchRestoreTest extends BatchRestoreTestBase {
-
-    public OverAggregateBatchRestoreTest() {
-        super(BatchExecOverAggregate.class);
-    }
+/**
+ * Batch semantic tests for RANGE OVER aggregates with TIMESTAMP types. Regression tests for
+ * FLINK-25802 / FLINK-30499: the range-bound comparator code generator failed to compile for
+ * TIMESTAMP and TIMESTAMP_LTZ ORDER BY columns.
+ */
+public class OverAggregateBatchSemanticTests extends BatchSemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(
-                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
+        return List.of(
+                OverAggregateTestPrograms.OVER_AGGREGATE_RANGE_TIMESTAMP,
+                OverAggregateTestPrograms.OVER_AGGREGATE_RANGE_TIMESTAMP_LTZ);
     }
 }
