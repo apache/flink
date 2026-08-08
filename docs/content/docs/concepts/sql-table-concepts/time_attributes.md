@@ -197,6 +197,24 @@ There are three parameters :
 **Note:** connectors have to implement watermark alignment of source split in order to use the watermark alignment feature since 1.17 according [FLIP-217](https://cwiki.apache.org/confluence/display/FLINK/FLIP-217%3A+Support+watermark+alignment+of+source+splits). If source connector does not implement FLIP-217, the task will run with an error, user could set `pipeline.watermark-alignment.allow-unaligned-source-splits: true` to disable watermark alignment of source split, and watermark alignment will be working properly only when your number of splits equals to the parallelism of the source operator.
 {{< /hint >}}
 
+##### IV. Handling null rowtime fields
+
+In some cases, the rowtime field in your source data may be null due to data quality issues, schema evolution, or data backfilling scenarios. By default, Flink throws a `RuntimeException` when encountering a null rowtime field during watermark generation. However, you can configure how to handle null rowtime fields using the `table.exec.source.rowtime-null-handling` parameter:
+
+```sql
+-- Set in SQL
+SET 'table.exec.source.rowtime-null-handling' = 'DROP';
+```
+
+Available options:
+- `FAIL` (default): Throw a runtime exception when encountering null rowtime.
+- `DROP`: Drop the record silently. Use the `numNullRowtimeRecordsDropped` metric to monitor the number of dropped records.
+- `SKIP_WATERMARK`: Forward the record without advancing the watermark. Use the `numNullRowtimeRecordsSkipped` metric to monitor the number of skipped records.
+
+{{< hint info >}}
+**Note:** When using `DROP` or `SKIP_WATERMARK` strategies, records with null rowtime fields will not contribute to watermark advancement. If all records have null rowtime, the watermark will not progress, which may cause downstream time-based operations (e.g., windows) to not produce results.
+{{< /hint >}}
+
 
 ### During DataStream-to-Table Conversion
 
