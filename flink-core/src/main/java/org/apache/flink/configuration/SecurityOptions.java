@@ -510,8 +510,8 @@ public class SecurityOptions {
                     .stringType()
                     .defaultValue("TLSv1.2")
                     .withDescription(
-                            "The SSL protocol version to be supported for the ssl transport. Note that it doesn’t"
-                                    + " support comma separated list.");
+                            "The SSL protocol versions to be supported for the ssl transport."
+                                    + " Supports a comma-separated list (e.g. \"TLSv1.2,TLSv1.3\").");
 
     /**
      * The standard SSL algorithms to be supported.
