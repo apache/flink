@@ -185,7 +185,6 @@ class OpenTelemetryMetricAdapter {
                             histogram.getStatistics().getQuantile(histogramQuantile)));
         }
         quantileList.add(ImmutableValueAtQuantile.create(1, histogram.getStatistics().getMax()));
-        quantileList.add(ImmutableValueAtQuantile.create(1, histogram.getStatistics().getMax()));
         return Optional.of(
                 ImmutableMetricData.createDoubleSummary(
                         collectionMetadata.getOtelResource(),
