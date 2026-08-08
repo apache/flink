@@ -21,11 +21,17 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -35,7 +41,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -53,6 +58,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class WindowAggregateQueryOperation implements QueryOperation {
 
     private static final String INPUT_ALIAS = "$$T_WIN_AGG";
+
+    // Output columns of a windowing TVF, which is what window properties become in SQL.
+    private static final String WINDOW_START_COLUMN =
+            BuiltInFunctionDefinitions.WINDOW_START.getSqlName();
+    private static final String WINDOW_END_COLUMN =
+            BuiltInFunctionDefinitions.WINDOW_END.getSqlName();
+    private static final String WINDOW_TIME_COLUMN = "window_time";
+
     private final List<ResolvedExpression> groupingExpressions;
     private final List<ResolvedExpression> aggregateExpressions;
     private final List<ResolvedExpression> windowPropertiesExpressions;
@@ -94,35 +107,112 @@ public class WindowAggregateQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString(SqlFactory sqlFactory) {
+        final List<WindowColumn> windowColumns = resolveWindowColumns();
         return String.format(
                 "SELECT %s FROM TABLE(%s\n) %s GROUP BY %s",
-                Stream.of(
-                                groupingExpressions.stream(),
-                                aggregateExpressions.stream(),
-                                windowPropertiesExpressions.stream())
-                        .flatMap(Function.identity())
-                        .map(
-                                expr ->
-                                        OperationExpressionsUtils.scopeReferencesWithAlias(
-                                                INPUT_ALIAS, expr))
-                        .map(
-                                resolvedExpression ->
-                                        resolvedExpression.asSerializableString(sqlFactory))
-                        .collect(Collectors.joining(", ")),
+                serializeSelectList(windowColumns, sqlFactory),
                 OperationUtils.indent(
                         groupWindow.asSerializableString(
                                 child.asSerializableString(sqlFactory), sqlFactory)),
                 INPUT_ALIAS,
-                Stream.concat(
-                                Stream.of("window_start", "window_end"),
-                                groupingExpressions.stream()
-                                        .map(
-                                                expr ->
-                                                        OperationExpressionsUtils
-                                                                .scopeReferencesWithAlias(
-                                                                        INPUT_ALIAS, expr))
-                                        .map(expr -> expr.asSerializableString(sqlFactory)))
-                        .collect(Collectors.joining(", ")));
+                serializeGroupBy(windowColumns, sqlFactory));
+    }
+
+    private List<WindowColumn> resolveWindowColumns() {
+        return windowPropertiesExpressions.stream()
+                .map(property -> new WindowColumn(aliasOf(property), windowColumnOf(property)))
+                .collect(Collectors.toList());
+    }
+
+    private static String aliasOf(ResolvedExpression aliasedProperty) {
+        return OperationExpressionsUtils.extractName(aliasedProperty)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        "Expected a named alias over a window property. Got: "
+                                                + aliasedProperty));
+    }
+
+    /** The windowing TVF output column that the given window property denotes. */
+    private String windowColumnOf(ResolvedExpression aliasedProperty) {
+        final FunctionDefinition property = windowPropertyOf(aliasedProperty);
+        if (BuiltInFunctionDefinitions.WINDOW_START == property) {
+            return WINDOW_START_COLUMN;
+        }
+        if (BuiltInFunctionDefinitions.WINDOW_END == property) {
+            return WINDOW_END_COLUMN;
+        }
+        if (BuiltInFunctionDefinitions.ROWTIME == property) {
+            return WINDOW_TIME_COLUMN;
+        }
+        if (BuiltInFunctionDefinitions.PROCTIME == property) {
+            checkWindowIsProcessingTime();
+            return WINDOW_TIME_COLUMN;
+        }
+        throw new TableException("Unsupported window property: " + property);
+    }
+
+    private static FunctionDefinition windowPropertyOf(ResolvedExpression aliasedProperty) {
+        final List<ResolvedExpression> children = aliasedProperty.getResolvedChildren();
+        if (!children.isEmpty() && children.get(0) instanceof CallExpression) {
+            final FunctionDefinition property =
+                    ((CallExpression) children.get(0)).getFunctionDefinition();
+            if (OperationExpressionsUtils.WINDOW_PROPERTIES.contains(property)) {
+                return property;
+            }
+        }
+        throw new TableException(
+                "Expected an aliased window property call. Got: " + aliasedProperty);
+    }
+
+    /**
+     * Rejects a processing-time property on an event-time group window.
+     *
+     * <p>The {@code window_time} column of a windowing TVF derives its time attribute kind from the
+     * window, not from the requested property, so it cannot express a processing-time attribute of
+     * an event-time window. Since a {@code rowtime} property on a processing-time window is
+     * rejected during expression resolution (see {@code WindowTimeIndictorInputTypeStrategy}), we
+     * reject the other case here rather than serializing it.
+     */
+    private void checkWindowIsProcessingTime() {
+        final LogicalType windowTimeAttribute =
+                groupWindow.getTimeAttribute().getOutputDataType().getLogicalType();
+        if (LogicalTypeChecks.isProctimeAttribute(windowTimeAttribute)) {
+            return;
+        }
+        throw new TableException(
+                String.format(
+                        "The processing-time property of the event-time group window '%s' "
+                                + "cannot be expressed in windowing-TVF syntax. The window_time "
+                                + "column of a windowing TVF always has the time attribute kind "
+                                + "of the window itself, so it cannot represent a wall-clock "
+                                + "processing-time attribute. Define the group window on a "
+                                + "processing-time attribute instead.",
+                        groupWindow.getAlias()));
+    }
+
+    private String serializeSelectList(List<WindowColumn> windowColumns, SqlFactory sqlFactory) {
+        return Stream.concat(
+                        Stream.concat(groupingExpressions.stream(), aggregateExpressions.stream())
+                                .map(expr -> scopedToInput(expr, sqlFactory)),
+                        windowColumns.stream().map(WindowColumn::asSelectItem))
+                .collect(Collectors.joining(", "));
+    }
+
+    private String scopedToInput(ResolvedExpression expr, SqlFactory sqlFactory) {
+        return OperationExpressionsUtils.scopeReferencesWithAlias(INPUT_ALIAS, expr)
+                .asSerializableString(sqlFactory);
+    }
+
+    private String serializeGroupBy(List<WindowColumn> windowColumns, SqlFactory sqlFactory) {
+        final Stream<String> groupedWindowColumns =
+                windowColumns.stream().anyMatch(WindowColumn::isWindowTime)
+                        ? Stream.of(WINDOW_START_COLUMN, WINDOW_END_COLUMN, WINDOW_TIME_COLUMN)
+                        : Stream.of(WINDOW_START_COLUMN, WINDOW_END_COLUMN);
+        return Stream.concat(
+                        groupedWindowColumns,
+                        groupingExpressions.stream().map(expr -> scopedToInput(expr, sqlFactory)))
+                .collect(Collectors.joining(", "));
     }
 
     public List<ResolvedExpression> getGroupingExpressions() {
@@ -149,6 +239,26 @@ public class WindowAggregateQueryOperation implements QueryOperation {
     @Override
     public <T> T accept(QueryOperationVisitor<T> visitor) {
         return visitor.visit(this);
+    }
+
+    /** A windowing TVF output column, projected under the alias of a window property. */
+    private static final class WindowColumn {
+
+        private final String alias;
+        private final String column;
+
+        private WindowColumn(String alias, String column) {
+            this.alias = alias;
+            this.column = column;
+        }
+
+        private boolean isWindowTime() {
+            return WINDOW_TIME_COLUMN.equals(column);
+        }
+
+        private String asSelectItem() {
+            return String.format("(%s) AS %s", column, EncodingUtils.escapeIdentifier(alias));
+        }
     }
 
     /** Wrapper for resolved expressions of a {@link org.apache.flink.table.api.GroupWindow}. */
