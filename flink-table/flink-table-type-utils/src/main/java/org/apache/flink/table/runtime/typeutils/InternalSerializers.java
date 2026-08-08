@@ -130,6 +130,8 @@ public final class InternalSerializers {
                 return VariantSerializer.INSTANCE;
             case BITMAP:
                 return BitmapSerializer.INSTANCE;
+            case GEOGRAPHY:
+                return GeographyDataSerializer.INSTANCE;
             case NULL:
             case SYMBOL:
             case UNRESOLVED:
