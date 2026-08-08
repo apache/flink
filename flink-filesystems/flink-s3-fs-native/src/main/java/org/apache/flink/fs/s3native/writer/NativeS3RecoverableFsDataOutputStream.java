@@ -208,7 +208,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
         numBytesInParts += currentPartSize;
 
-        Files.delete(currentTempFile.toPath());
+        Files.deleteIfExists(currentTempFile.toPath());
     }
 
     @Override
@@ -224,7 +224,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             if (currentPartSize > 0) {
                 uploadCurrentPart();
             } else {
-                Files.delete(currentTempFile.toPath());
+                Files.deleteIfExists(currentTempFile.toPath());
             }
 
             NativeS3Recoverable recoverable =
@@ -280,9 +280,9 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                         cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
                     }
                 }
-                if (currentTempFile != null && currentTempFile.exists()) {
+                if (currentTempFile != null) {
                     try {
-                        Files.delete(currentTempFile.toPath());
+                        Files.deleteIfExists(currentTempFile.toPath());
                     } catch (IOException e) {
                         cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
                     }
