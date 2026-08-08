@@ -111,6 +111,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
  * +--------------------------------+-----------------------------------------+
  * | BITMAP                         | {@link Bitmap}                          |
  * +--------------------------------+-----------------------------------------+
+ * | GEOGRAPHY                      | {@link GeographyData}                   |
+ * +--------------------------------+-----------------------------------------+
  * </pre>
  *
  * <p>Nullability is always handled by the container data structure.
@@ -214,6 +216,12 @@ public interface RowData {
                 "This RowData implementation does not support Bitmap type.");
     }
 
+    /** Returns the geography value at the given position. */
+    default GeographyData getGeography(int pos) {
+        throw new UnsupportedOperationException(
+                "This RowData implementation does not support Geography type.");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Access Utilities
     // ------------------------------------------------------------------------------------------
@@ -298,6 +306,9 @@ public interface RowData {
                 break;
             case BITMAP:
                 fieldGetter = row -> row.getBitmap(fieldPos);
+                break;
+            case GEOGRAPHY:
+                fieldGetter = row -> row.getGeography(fieldPos);
                 break;
             case NULL:
             case SYMBOL:

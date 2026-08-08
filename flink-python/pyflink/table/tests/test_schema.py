@@ -23,33 +23,40 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 class SchemaTest(PyFlinkTestCase):
     def test_schema_basic(self):
-        old_schema = Schema.new_builder() \
-            .from_row_data_type(DataTypes.ROW(
-                [DataTypes.FIELD("a", DataTypes.TINYINT()),
-                 DataTypes.FIELD("b", DataTypes.SMALLINT()),
-                 DataTypes.FIELD("c", DataTypes.INT())])) \
-            .from_fields(["d", "e"], [DataTypes.STRING(), DataTypes.BOOLEAN()]) \
-            .build()
-        self.schema = Schema.new_builder() \
-            .from_schema(old_schema) \
-            .primary_key_named("primary_constraint", "id") \
-            .column("id", DataTypes.INT().not_null()) \
-            .column("counter", DataTypes.INT().not_null()) \
-            .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>") \
-            .column_by_metadata("topic", DataTypes.STRING(), None, True) \
-            .column_by_expression("ts", call_sql("orig_ts - INTERVAL '60' MINUTE")) \
-            .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp") \
-            .watermark("ts", "ts - INTERVAL '5' SECOND") \
-            .column_by_expression("proctime", "PROCTIME()") \
-            .build()
+        old_schema = (
+            Schema.new_builder()
+            .from_row_data_type(
+                DataTypes.ROW(
+                    [DataTypes.FIELD("a", DataTypes.TINYINT()),
+                     DataTypes.FIELD("b", DataTypes.SMALLINT()),
+                     DataTypes.FIELD("c", DataTypes.INT()),
+                     DataTypes.FIELD("f", DataTypes.GEOGRAPHY())]))
+            .from_fields(["d", "e"], [DataTypes.STRING(), DataTypes.BOOLEAN()])
+            .build())
+        self.schema = (
+            Schema.new_builder()
+            .from_schema(old_schema)
+            .primary_key_named("primary_constraint", "id")
+            .column("id", DataTypes.INT().not_null())
+            .column("counter", DataTypes.INT().not_null())
+            .column("location", DataTypes.GEOGRAPHY())
+            .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>")
+            .column_by_metadata("topic", DataTypes.STRING(), None, True)
+            .column_by_expression("ts", call_sql("orig_ts - INTERVAL '60' MINUTE"))
+            .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+            .watermark("ts", "ts - INTERVAL '5' SECOND")
+            .column_by_expression("proctime", "PROCTIME()")
+            .build())
         self.assertEqual("""(
   `a` TINYINT,
   `b` SMALLINT,
   `c` INT,
+  `f` GEOGRAPHY,
   `d` STRING,
   `e` BOOLEAN,
   `id` INT NOT NULL,
   `counter` INT NOT NULL,
+  `location` GEOGRAPHY,
   `payload` [ROW<name STRING, age INT, flag BOOLEAN>],
   `topic` STRING METADATA VIRTUAL,
   `ts` AS [orig_ts - INTERVAL '60' MINUTE],

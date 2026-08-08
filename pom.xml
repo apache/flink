@@ -1741,6 +1741,8 @@ under the License.
 						<inputExclude>flink-python/docs/_build/**</inputExclude>
 						<inputExclude>flink-python/docs/_static/switcher.json</inputExclude>
 						<inputExclude>flink-python/docs/uv.lock</inputExclude>
+						<inputExclude>flink-python/pyflink/fn_execution/flink_fn_execution_pb2.py</inputExclude>
+						<inputExclude>flink-python/pyflink/fn_execution/flink_fn_execution_pb2.pyi</inputExclude>
 
 						<!-- AWS SDK config that does not support license headers -->
 						<inputExclude>**/awssdk/global/handlers/execution.interceptors</inputExclude>

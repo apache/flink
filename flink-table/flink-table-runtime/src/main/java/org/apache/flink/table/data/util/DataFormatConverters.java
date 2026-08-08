@@ -35,6 +35,7 @@ import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -587,6 +588,21 @@ public class DataFormatConverters {
         @Override
         StringData toExternalImpl(RowData row, int column) {
             return row.getString(column);
+        }
+    }
+
+    /** Converter for GeographyData. */
+    public static final class GeographyConverter extends IdentityConverter<GeographyData> {
+
+        private static final long serialVersionUID = -2785143344060029173L;
+
+        public static final GeographyConverter INSTANCE = new GeographyConverter();
+
+        private GeographyConverter() {}
+
+        @Override
+        GeographyData toExternalImpl(RowData row, int column) {
+            return row.getGeography(column);
         }
     }
 

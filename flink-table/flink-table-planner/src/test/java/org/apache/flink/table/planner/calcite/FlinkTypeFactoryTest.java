@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -34,6 +35,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -267,6 +269,37 @@ class FlinkTypeFactoryTest {
                                         .map(typeFactory::createFieldTypeFromLogicalType)
                                         .collect(Collectors.toList())))
                 .isEqualTo(typeFactory.createFieldTypeFromLogicalType(expected));
+    }
+
+    @Test
+    void testLeastRestrictiveGeographyNullability() {
+        FlinkTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+
+        assertThat(
+                        typeFactory.leastRestrictive(
+                                Stream.of(
+                                                new GeographyType(false),
+                                                new GeographyType(true),
+                                                new NullType())
+                                        .map(typeFactory::createFieldTypeFromLogicalType)
+                                        .collect(Collectors.toList())))
+                .isEqualTo(typeFactory.createFieldTypeFromLogicalType(new GeographyType(true)));
+    }
+
+    @Test
+    void testLeastRestrictiveIncompatibleExtensionTypes() {
+        FlinkTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+
+        assertThat(
+                        typeFactory.leastRestrictive(
+                                Stream.of(new GeographyType(), new BitmapType())
+                                        .map(typeFactory::createFieldTypeFromLogicalType)
+                                        .collect(Collectors.toList())))
+                .isNull();
     }
 
     public static class TestClass {
