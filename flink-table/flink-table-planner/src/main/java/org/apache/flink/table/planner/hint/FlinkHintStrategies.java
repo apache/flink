@@ -308,6 +308,14 @@ public abstract class FlinkHintStrategies {
                         "Invalid EARLY_FIRE hint option: {} value should be at least 1 millisecond but was {}",
                         EarlyFireJoinHintOptions.DELAY.key(),
                         delay);
+
+                String target = conf.get(EarlyFireJoinHintOptions.TARGET);
+                litmus.check(
+                        null == target || EarlyFireJoinHintOptions.INTERVAL_JOIN.equals(target),
+                        "Invalid EARLY_FIRE hint option: {} value '{}' is not supported, only '{}' is supported currently",
+                        EarlyFireJoinHintOptions.TARGET.key(),
+                        target,
+                        EarlyFireJoinHintOptions.INTERVAL_JOIN);
                 return true;
             };
 

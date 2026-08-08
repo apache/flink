@@ -36,6 +36,18 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class EarlyFireJoinHintOptions {
 
+    /** The only operator kind the EARLY_FIRE hint currently supports. */
+    public static final String INTERVAL_JOIN = "interval_join";
+
+    public static final ConfigOption<String> TARGET =
+            key("target")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The operator kind that the EARLY_FIRE hint applies to. Currently only"
+                                    + " 'interval_join' is supported. When omitted, the hint applies"
+                                    + " to the interval join.");
+
     public static final ConfigOption<Duration> DELAY =
             key("delay")
                     .durationType()
@@ -60,6 +72,7 @@ public class EarlyFireJoinHintOptions {
     static {
         requiredKeys.add(DELAY);
 
+        supportedKeys.add(TARGET);
         supportedKeys.add(DELAY);
         supportedKeys.add(TIME_MODE);
     }
