@@ -56,8 +56,10 @@ import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountFor
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -613,6 +615,136 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         // this will wait forever if the second hook gets registered
         releaseHookLatch.await();
+    }
+
+    /**
+     * A {@link PermanentBlobKey} carries a random component on top of the content hash, so
+     * re-uploading an unchanged JAR - as happens when a JobManager fails over and resubmits the job
+     * - yields a key that is unequal to the one the cached class loader was resolved with. The
+     * cached class loader must still be reused for it (FLINK-32212).
+     */
+    @Test
+    public void classLoaderIsReusedWhenBlobKeysDifferOnlyInRandomComponent() throws Exception {
+        final JobID jobId = new JobID();
+        final byte[] content = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
+
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+            InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
+
+            final PermanentBlobKey key1 = server.putPermanent(jobId, content);
+            final PermanentBlobKey key2 = server.putPermanent(jobId, content);
+
+            assertNotEquals(key1, key2);
+            assertArrayEquals(key1.getHash(), key2.getHash());
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId, applicationId);
+
+            final LibraryCacheManager.ClassLoaderLease lease =
+                    libCache.registerClassLoaderLease(jobId, applicationId);
+            final UserCodeClassLoader classLoader1 =
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(key1), Collections.emptyList());
+            final UserCodeClassLoader classLoader2 =
+                    lease.getOrResolveClassLoader(
+                            Collections.singletonList(key2), Collections.emptyList());
+
+            assertThat(classLoader2, sameInstance(classLoader1));
+
+            lease.release();
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
+    }
+
+    /**
+     * All leases for a job share a single resolved class loader, so a lease presenting re-uploaded
+     * keys must not invalidate the class loader other leases already resolved.
+     */
+    @Test
+    public void classLoaderIsSharedAcrossLeasesWhenBlobKeysDifferOnlyInRandomComponent()
+            throws Exception {
+        final JobID jobId = new JobID();
+        final byte[] content = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
+
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+            InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            serverAddress);
+
+            final PermanentBlobKey key1 = server.putPermanent(jobId, content);
+            final PermanentBlobKey key2 = server.putPermanent(jobId, content);
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId, applicationId);
+
+            final LibraryCacheManager.ClassLoaderLease lease1 =
+                    libCache.registerClassLoaderLease(jobId, applicationId);
+            final LibraryCacheManager.ClassLoaderLease lease2 =
+                    libCache.registerClassLoaderLease(jobId, applicationId);
+
+            final UserCodeClassLoader viaLease1 =
+                    lease1.getOrResolveClassLoader(
+                            Collections.singletonList(key1), Collections.emptyList());
+            final UserCodeClassLoader viaLease2 =
+                    lease2.getOrResolveClassLoader(
+                            Collections.singletonList(key2), Collections.emptyList());
+            final UserCodeClassLoader viaLease1Again =
+                    lease1.getOrResolveClassLoader(
+                            Collections.singletonList(key1), Collections.emptyList());
+
+            assertThat(viaLease2, sameInstance(viaLease1));
+            assertThat(viaLease1Again, sameInstance(viaLease1));
+
+            lease1.release();
+            lease2.release();
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
     }
 
     private BlobLibraryCacheManager createSimpleBlobLibraryCacheManager() throws IOException {
