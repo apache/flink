@@ -107,12 +107,14 @@ Format Options
       <td>yes</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp format for <code>TIMESTAMP</code> and <code>TIMESTAMP_LTZ</code> type. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+      <td>Specify the input and output timestamp format for <code>TIMESTAMP</code> and <code>TIMESTAMP_LTZ</code> type. Currently supported values are <code>'SQL'</code>, <code>'ISO-8601'</code>, and <code>'ISO-8601-WITH-OFFSET'</code>:
       <ul>
         <li>Option <code>'SQL'</code> will parse input TIMESTAMP values in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g "2020-12-30 12:13:14.123", 
         parse input TIMESTAMP_LTZ values in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30 12:13:14.123Z" and output timestamp in the same format.</li>
         <li>Option <code>'ISO-8601'</code>will parse input TIMESTAMP in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g "2020-12-30T12:13:14.123" 
         parse input TIMESTAMP_LTZ in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
+        <li>Option <code>'ISO-8601-WITH-OFFSET'</code> will parse input TIMESTAMP and TIMESTAMP_LTZ in "yyyy-MM-ddTHH:mm:ss.s{precision}±HH:mm" format with explicit timezone offset, e.g "2020-12-30T12:13:14.123+02:00", "2020-12-30T12:13:14.123+05:30". 
+        <strong>Note:</strong> All timestamps are normalized to UTC (±00:00) on output and serialized in "yyyy-MM-ddTHH:mm:ss.s{precision}Z" format, e.g "2020-12-30T10:13:14.123Z", regardless of the input timezone offset.</li>
       </ul>
       </td>
     </tr>

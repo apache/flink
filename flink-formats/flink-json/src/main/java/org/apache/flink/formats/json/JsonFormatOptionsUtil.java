@@ -45,9 +45,10 @@ public class JsonFormatOptionsUtil {
 
     public static final String SQL = "SQL";
     public static final String ISO_8601 = "ISO-8601";
+    public static final String ISO_8601_WITH_OFFSET = "ISO-8601-WITH-OFFSET";
 
     public static final Set<String> TIMESTAMP_FORMAT_ENUM =
-            new HashSet<>(Arrays.asList(SQL, ISO_8601));
+            new HashSet<>(Arrays.asList(SQL, ISO_8601, ISO_8601_WITH_OFFSET));
 
     // The handling mode of null key for map data
     public static final String JSON_MAP_NULL_KEY_MODE_FAIL = "FAIL";
@@ -65,6 +66,8 @@ public class JsonFormatOptionsUtil {
                 return TimestampFormat.SQL;
             case ISO_8601:
                 return TimestampFormat.ISO_8601;
+            case ISO_8601_WITH_OFFSET:
+                return TimestampFormat.ISO_8601_WITH_OFFSET;
             default:
                 throw new TableException(
                         String.format(
@@ -132,13 +135,13 @@ public class JsonFormatOptionsUtil {
         validateTimestampFormat(tableOptions);
     }
 
-    /** Validates timestamp format which value should be SQL or ISO-8601. */
+    /** Validates timestamp format which value should be SQL, ISO-8601, or ISO-8601-WITH-OFFSET. */
     static void validateTimestampFormat(ReadableConfig tableOptions) {
         String timestampFormat = tableOptions.get(TIMESTAMP_FORMAT);
         if (!TIMESTAMP_FORMAT_ENUM.contains(timestampFormat)) {
             throw new ValidationException(
                     String.format(
-                            "Unsupported value '%s' for %s. Supported values are [SQL, ISO-8601].",
+                            "Unsupported value '%s' for %s. Supported values are [SQL, ISO-8601, ISO-8601-WITH-OFFSET].",
                             timestampFormat, TIMESTAMP_FORMAT.key()));
         }
     }
