@@ -22,7 +22,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PyFlink 2.3.dev0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"POT-Creation-Date: 2026-08-02 21:52+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -123,8 +123,9 @@ msgid "python.archives"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:90 ../../user_guide/configuration.rst:110
-#: ../../user_guide/configuration.rst:154
-#: ../../user_guide/configuration.rst:158
+#: ../../user_guide/configuration.rst:134
+#: ../../user_guide/configuration.rst:162
+#: ../../user_guide/configuration.rst:166
 msgid "(none)"
 msgstr ""
 
@@ -132,8 +133,9 @@ msgstr ""
 #: ../../user_guide/configuration.rst:103
 #: ../../user_guide/configuration.rst:107
 #: ../../user_guide/configuration.rst:111
-#: ../../user_guide/configuration.rst:155
-#: ../../user_guide/configuration.rst:159
+#: ../../user_guide/configuration.rst:131
+#: ../../user_guide/configuration.rst:163
+#: ../../user_guide/configuration.rst:167
 msgid "String"
 msgstr ""
 
@@ -231,19 +233,19 @@ msgstr ""
 #: ../../user_guide/configuration.rst:114
 #: ../../user_guide/configuration.rst:118
 #: ../../user_guide/configuration.rst:122
-#: ../../user_guide/configuration.rst:130
-#: ../../user_guide/configuration.rst:134
 #: ../../user_guide/configuration.rst:138
-#: ../../user_guide/configuration.rst:162
+#: ../../user_guide/configuration.rst:142
+#: ../../user_guide/configuration.rst:146
+#: ../../user_guide/configuration.rst:170
 msgid "1000"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:115
 #: ../../user_guide/configuration.rst:119
-#: ../../user_guide/configuration.rst:131
-#: ../../user_guide/configuration.rst:135
 #: ../../user_guide/configuration.rst:139
-#: ../../user_guide/configuration.rst:163
+#: ../../user_guide/configuration.rst:143
+#: ../../user_guide/configuration.rst:147
+#: ../../user_guide/configuration.rst:171
 msgid "Integer"
 msgstr ""
 
@@ -289,17 +291,17 @@ msgid "python.fn-execution.memory.managed"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:126
-#: ../../user_guide/configuration.rst:142
-#: ../../user_guide/configuration.rst:146
-#: ../../user_guide/configuration.rst:166
+#: ../../user_guide/configuration.rst:150
+#: ../../user_guide/configuration.rst:154
+#: ../../user_guide/configuration.rst:174
 msgid "true"
 msgstr ""
 
 #: ../../user_guide/configuration.rst:127
-#: ../../user_guide/configuration.rst:143
-#: ../../user_guide/configuration.rst:147
 #: ../../user_guide/configuration.rst:151
-#: ../../user_guide/configuration.rst:167
+#: ../../user_guide/configuration.rst:155
+#: ../../user_guide/configuration.rst:159
+#: ../../user_guide/configuration.rst:175
 msgid "Boolean"
 msgstr ""
 
@@ -312,32 +314,68 @@ msgid ""
 msgstr ""
 
 #: ../../user_guide/configuration.rst:129
-msgid "python.map-state.iterate-response-batch-size"
+msgid "python.logging.default.level"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:130
+msgid "\"INFO\""
 msgstr ""
 
 #: ../../user_guide/configuration.rst:132
+msgid ""
+"Controls the default log level of python loggers, available values: OFF, "
+"ERROR, WARN, INFO, DEBUG, TRACE."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:133
+msgid "python.logging.level.overrides"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:135
+msgid "Map"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:136
+msgid ""
+"This option controls the log levels for specifically named loggers. The "
+"expected format is \"Name: LogLevel...\". Supports a logging hierarchy "
+"based off of names that are '.' separated. For example, by specifying the"
+" value \"a.b.c.Foo: DEBUG\", the logger for the class 'a.b.c.Foo' will be"
+" configured to output logs at the DEBUG level. Similarly, by specifying "
+"the value \"a.b.c:WARN\", all loggers underneath the 'a.b.c' package will"
+" be configured to output logs at the WARN level. System.out and "
+"System.err levels are configured via loggers of the corresponding name. "
+"Also, note that when multiple overrides are specified, the exact name "
+"followed by the closest parent takes precedence."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:137
+msgid "python.map-state.iterate-response-batch-size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:140
 msgid ""
 "The maximum number of the MapState keys/entries sent to Python UDF worker"
 " in each batch when iterating a Python MapState. Note that this is an "
 "experimental flag and might not be available in future releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:133
+#: ../../user_guide/configuration.rst:141
 msgid "python.map-state.read-cache-size"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:136
+#: ../../user_guide/configuration.rst:144
 msgid ""
 "The maximum number of cached entries for a single Python MapState. Note "
 "that this is an experimental flag and might not be available in future "
 "releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:137
+#: ../../user_guide/configuration.rst:145
 msgid "python.map-state.write-cache-size"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:140
+#: ../../user_guide/configuration.rst:148
 msgid ""
 "The maximum number of cached write requests for a single Python MapState."
 " The write requests will be flushed to the state backend (managed in the "
@@ -346,35 +384,35 @@ msgid ""
 "in future releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:141
+#: ../../user_guide/configuration.rst:149
 msgid "python.metric.enabled"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:144
+#: ../../user_guide/configuration.rst:152
 msgid ""
 "When it is false, metric for Python will be disabled. You can disable the"
 " metric to achieve better performance at some circumstance."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:145
+#: ../../user_guide/configuration.rst:153
 msgid "python.operator-chaining.enabled"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:148
+#: ../../user_guide/configuration.rst:156
 msgid ""
 "Python operator chaining allows non-shuffle operations to be co-located "
 "in the same thread fully avoiding serialization and de-serialization."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:149
+#: ../../user_guide/configuration.rst:157
 msgid "python.profile.enabled"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:150
+#: ../../user_guide/configuration.rst:158
 msgid "false"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:152
+#: ../../user_guide/configuration.rst:160
 msgid ""
 "Specifies whether to enable Python worker profiling. The profile result "
 "will be displayed in the log file of the TaskManager periodically. The "
@@ -382,22 +420,22 @@ msgid ""
 "python.fn-execution.bundle.size and python.fn-execution.bundle.time."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:153
+#: ../../user_guide/configuration.rst:161
 msgid "python.pythonpath"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:156
+#: ../../user_guide/configuration.rst:164
 msgid ""
 "Specify the path on the Worker Node where the Flink Python Dependencies "
 "are installed, which gets added into the PYTHONPATH of the Python Worker."
 " The option is equivalent to the command line option \"-pypath\"."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:157
+#: ../../user_guide/configuration.rst:165
 msgid "python.requirements"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:160
+#: ../../user_guide/configuration.rst:168
 msgid ""
 "Specify a requirements.txt file which defines the third-party "
 "dependencies. These dependencies will be installed and added to the "
@@ -407,22 +445,22 @@ msgid ""
 "The option is equivalent to the command line option \"-pyreq\"."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:161
+#: ../../user_guide/configuration.rst:169
 msgid "python.state.cache-size"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:164
+#: ../../user_guide/configuration.rst:172
 msgid ""
 "The maximum number of states cached in a Python UDF worker. Note that "
 "this is an experimental flag and might not be available in future "
 "releases."
 msgstr ""
 
-#: ../../user_guide/configuration.rst:165
+#: ../../user_guide/configuration.rst:173
 msgid "python.systemenv.enabled"
 msgstr ""
 
-#: ../../user_guide/configuration.rst:168
+#: ../../user_guide/configuration.rst:176
 msgid "Specify whether to load System Environment when starting Python worker."
 msgstr ""
 
