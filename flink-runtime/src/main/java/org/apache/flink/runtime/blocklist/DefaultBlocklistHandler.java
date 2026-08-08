@@ -20,8 +20,11 @@ package org.apache.flink.runtime.blocklist;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -52,26 +55,30 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
 
     private volatile ScheduledFuture<?> timeoutCheckFuture;
 
-    private final ComponentMainThreadExecutor mainThreadExecutor;
+    @Nullable private ComponentMainThreadExecutor mainThreadExecutor;
 
     DefaultBlocklistHandler(
             BlocklistTracker blocklistTracker,
             BlocklistContext blocklistContext,
             Function<ResourceID, String> taskManagerNodeIdRetriever,
             Duration timeoutCheckInterval,
-            ComponentMainThreadExecutor mainThreadExecutor,
             Logger log) {
         this.blocklistTracker = checkNotNull(blocklistTracker);
         this.blocklistContext = checkNotNull(blocklistContext);
         this.taskManagerNodeIdRetriever = checkNotNull(taskManagerNodeIdRetriever);
         this.timeoutCheckInterval = checkNotNull(timeoutCheckInterval);
-        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
         this.log = checkNotNull(log);
+    }
 
+    @Override
+    public void start(ComponentMainThreadExecutor mainThreadExecutor) {
+        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
         scheduleTimeoutCheck();
     }
 
     private void scheduleTimeoutCheck() {
+        Preconditions.checkNotNull(mainThreadExecutor);
+
         this.timeoutCheckFuture =
                 mainThreadExecutor.schedule(
                         () -> {
@@ -106,6 +113,8 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     }
 
     private void assertRunningInMainThread() {
+        Preconditions.checkNotNull(
+                mainThreadExecutor, "Blocklist handler may not have been started.");
         mainThreadExecutor.assertRunningInMainThread();
     }
 
@@ -202,14 +211,12 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
         public BlocklistHandler create(
                 BlocklistContext blocklistContext,
                 Function<ResourceID, String> taskManagerNodeIdRetriever,
-                ComponentMainThreadExecutor mainThreadExecutor,
                 Logger log) {
             return new DefaultBlocklistHandler(
                     new DefaultBlocklistTracker(),
                     blocklistContext,
                     taskManagerNodeIdRetriever,
                     timeoutCheckInterval,
-                    mainThreadExecutor,
                     log);
         }
     }
