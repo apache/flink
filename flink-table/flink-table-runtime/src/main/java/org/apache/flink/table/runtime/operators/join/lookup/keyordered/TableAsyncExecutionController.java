@@ -197,6 +197,10 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
         recordsBuffer.close();
     }
 
+    public long getCurrentWatermark() {
+        return epochManager.getCurrentWatermark().getTimestamp();
+    }
+
     @VisibleForTesting
     public Epoch<OUT> getActiveEpoch() {
         return epochManager.getActiveEpoch();
