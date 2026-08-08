@@ -42,6 +42,7 @@ import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -316,6 +317,13 @@ public class ProcessTableFunctionTestUtils {
     public static class ScalarArgsFunction extends AppendProcessTableFunctionBase {
         public void eval(Integer i, Boolean b) {
             collectObjects(i, b);
+        }
+    }
+
+    /** Testing function. */
+    public static class ScalarDecimalArgFunction extends AppendProcessTableFunctionBase {
+        public void eval(@DataTypeHint("DECIMAL(2, 2)") BigDecimal d) {
+            collectObjects(d);
         }
     }
 
