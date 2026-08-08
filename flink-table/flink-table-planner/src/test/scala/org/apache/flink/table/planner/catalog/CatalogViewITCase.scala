@@ -21,11 +21,13 @@ import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, Schema, Table
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.catalog.CatalogViewITCase.VariantIdentityFunction
 import org.apache.flink.table.planner.factories.TableFactoryHarness
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.utils.TableITCaseBase
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
+import org.apache.flink.types.variant.Variant
 import org.apache.flink.util.CollectionUtil
 
 import org.assertj.core.api.Assertions.{assertThatList, assertThatThrownBy}
@@ -307,6 +309,52 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       TestCollectionTableFactory.RESULT)
   }
 
+  @TestTemplate
+  def testCreateViewWithVariant(): Unit = {
+    val builder = Variant.newBuilder()
+    val sourceData = List(
+      toRow("a", builder.`object`().add("i", builder.of(1)).build()),
+      toRow("b", builder.array().add(builder.of("x")).build()),
+      toRow("c", null))
+
+    TestCollectionTableFactory.initData(sourceData.asJava)
+
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  s varchar,
+        |  v variant
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkDDL =
+      """
+        |CREATE TABLE T2(
+        |  s varchar,
+        |  v variant
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    // the view is stored as expanded SQL, so reading it also covers unparsing a VARIANT expression
+    val viewDDL =
+      """
+        |CREATE VIEW T3 AS SELECT s, variantIdentity(v) AS v FROM T1
+      """.stripMargin
+
+    tableEnv.createTemporarySystemFunction("variantIdentity", classOf[VariantIdentityFunction])
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(sinkDDL)
+    tableEnv.executeSql(viewDDL)
+
+    tableEnv.sqlQuery("SELECT s, v FROM T3").executeInsert("T2").await()
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
+  }
+
   private def buildTableDescriptor(): TableDescriptor = {
     val tableDescriptor: TableDescriptor = TableFactoryHarness
       .newBuilder()
@@ -557,5 +605,10 @@ object CatalogViewITCase {
   @Parameters(name = "{0}")
   def parameters(): java.util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
+  }
+
+  /** Testing function that takes and returns a variant. */
+  class VariantIdentityFunction extends ScalarFunction {
+    def eval(v: Variant): Variant = v
   }
 }

@@ -388,6 +388,8 @@ object CodeGenUtils {
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$term.toObject($serTerm).hashCode()"
+      case VARIANT =>
+        s"$term.hashCode()"
       case BITMAP =>
         s"$term.hashCode()"
       case NULL | SYMBOL | UNRESOLVED =>
