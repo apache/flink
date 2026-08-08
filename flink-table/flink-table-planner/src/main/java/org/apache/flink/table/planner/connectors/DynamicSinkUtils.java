@@ -106,6 +106,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -329,8 +330,7 @@ public final class DynamicSinkUtils {
                 isOverwrite,
                 sink,
                 contextResolvedTable.getResolvedTable(),
-                sinkAbilitySpecs,
-                targetColumns);
+                sinkAbilitySpecs);
 
         // rewrite rel node for delete
         if (isDelete) {
@@ -344,7 +344,7 @@ public final class DynamicSinkUtils {
                             typeFactory,
                             sinkAbilitySpecs);
         } else if (isUpdate) {
-            input =
+            Tuple2<RelNode, int[]> updateResult =
                     convertUpdate(
                             (LogicalTableModify) input,
                             sink,
@@ -353,7 +353,12 @@ public final class DynamicSinkUtils {
                             dataTypeFactory,
                             typeFactory,
                             sinkAbilitySpecs);
+            input = updateResult.f0;
+            // align target columns with the projected row delivered to the sink
+            targetColumns = toNestedIndexPaths(updateResult.f1);
         }
+        // apply target columns after UPDATE rewrite so the sink sees the final column set
+        validateAndApplyTargetColumns(sink, targetColumns, sinkAbilitySpecs);
 
         sinkAbilitySpecs.forEach(spec -> spec.apply(sink));
 
@@ -520,7 +525,7 @@ public final class DynamicSinkUtils {
         return deleteRelNodeAndRequireIndices.f0;
     }
 
-    private static RelNode convertUpdate(
+    private static Tuple2<RelNode, int[]> convertUpdate(
             LogicalTableModify tableModify,
             DynamicTableSink sink,
             ContextResolvedTable contextResolvedTable,
@@ -552,6 +557,7 @@ public final class DynamicSinkUtils {
                         tableModify,
                         contextResolvedTable,
                         updateInfo,
+                        updatedColumns,
                         tableDebugName,
                         dataTypeFactory,
                         typeFactory);
@@ -561,7 +567,21 @@ public final class DynamicSinkUtils {
                         updateInfo.getRowLevelUpdateMode(),
                         context,
                         updateRelNodeAndRequireIndices.f1));
-        return updateRelNodeAndRequireIndices.f0;
+        return updateRelNodeAndRequireIndices;
+    }
+
+    /** Append updated columns that are missing from the sink-declared required columns. */
+    private static List<Column> mergeRequiredAndUpdatedColumns(
+            List<Column> requiredColumns, List<Column> updatedColumns) {
+        Set<String> existingNames =
+                requiredColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        List<Column> merged = new ArrayList<>(requiredColumns);
+        for (Column updated : updatedColumns) {
+            if (!existingNames.contains(updated.getName())) {
+                merged.add(updated);
+            }
+        }
+        return merged;
     }
 
     private static List<Column> getUpdatedColumns(
@@ -618,6 +638,14 @@ public final class DynamicSinkUtils {
                         dataTypeFactory,
                         typeFactory),
                 getPhysicalColumnIndices(colIndexes, resolvedSchema));
+    }
+
+    private static int[][] toNestedIndexPaths(int[] columnIndices) {
+        int[][] result = new int[columnIndices.length][];
+        for (int i = 0; i < columnIndices.length; i++) {
+            result[i] = new int[] {columnIndices[i]};
+        }
+        return result;
     }
 
     /** Return the indices from {@param colIndexes} that belong to physical column. */
@@ -739,13 +767,17 @@ public final class DynamicSinkUtils {
             LogicalTableModify tableModify,
             ContextResolvedTable contextResolvedTable,
             SupportsRowLevelUpdate.RowLevelUpdateInfo rowLevelUpdateInfo,
+            List<Column> updatedColumns,
             String tableDebugName,
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory) {
         // get the required columns
         ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
         Optional<List<Column>> optionalColumns = rowLevelUpdateInfo.requiredColumns();
-        List<Column> requiredColumns = optionalColumns.orElse(resolvedSchema.getColumns());
+        List<Column> requiredColumns =
+                optionalColumns
+                        .map(cols -> mergeRequiredAndUpdatedColumns(cols, updatedColumns))
+                        .orElse(resolvedSchema.getColumns());
         // get the root table scan which we may need rewrite it
         LogicalTableScan tableScan = getSourceTableScan(tableModify);
         Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
@@ -1056,8 +1088,7 @@ public final class DynamicSinkUtils {
             boolean isOverwrite,
             DynamicTableSink sink,
             ResolvedCatalogTable table,
-            List<SinkAbilitySpec> sinkAbilitySpecs,
-            int[][] targetColumns) {
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
         table.getDistribution()
                 .ifPresent(
                         distribution ->
@@ -1069,8 +1100,6 @@ public final class DynamicSinkUtils {
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
 
         validateAndApplyMetadata(tableDebugName, sink, table.getResolvedSchema(), sinkAbilitySpecs);
-
-        validateAndApplyTargetColumns(sink, targetColumns, sinkAbilitySpecs);
     }
 
     /**
