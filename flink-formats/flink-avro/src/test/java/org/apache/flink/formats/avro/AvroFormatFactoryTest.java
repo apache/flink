@@ -21,9 +21,11 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -31,13 +33,21 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +63,13 @@ class AvroFormatFactoryTest {
                     Column.physical("b", DataTypes.INT()),
                     Column.physical("c", DataTypes.BOOLEAN()),
                     Column.physical("d", DataTypes.TIMESTAMP(3)));
+
+    private static final ResolvedSchema PROJECTION_SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("user_id", DataTypes.BIGINT().notNull()),
+                    Column.physical("name", DataTypes.STRING().notNull()),
+                    Column.physical("event_id", DataTypes.BIGINT().notNull()),
+                    Column.physical("payload", DataTypes.STRING().notNull()));
 
     private static final ResolvedSchema NEW_SCHEMA =
             ResolvedSchema.of(
@@ -77,7 +94,7 @@ class AvroFormatFactoryTest {
                 new AvroRowDataDeserializationSchema(
                         ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), encoding);
 
-        final Map<String, String> options = getAllOptions(true);
+        final Map<String, String> options = getAllOptions(true, encoding);
 
         final DynamicTableSource actualSource = FactoryMocks.createTableSource(SCHEMA, options);
         assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
@@ -102,6 +119,51 @@ class AvroFormatFactoryTest {
                 sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
         assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testProjectionPushDown(AvroEncoding encoding) throws Exception {
+        final Map<String, String> options = getAllOptions(true, encoding);
+        final DynamicTableSource actualSource =
+                FactoryMocks.createTableSource(PROJECTION_SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        final TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+        assertThat(scanSourceMock.valueFormat).isInstanceOf(ProjectableDecodingFormat.class);
+
+        final ProjectableDecodingFormat<DeserializationSchema<RowData>> projectableFormat =
+                (ProjectableDecodingFormat<DeserializationSchema<RowData>>)
+                        scanSourceMock.valueFormat;
+        final DataType physicalDataType = PROJECTION_SCHEMA.toPhysicalRowDataType();
+        final DeserializationSchema<RowData> deserializationSchema =
+                projectableFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE,
+                        physicalDataType,
+                        new int[][] {{1}, {2}});
+        deserializationSchema.open(null);
+
+        final Schema writerSchema =
+                AvroSchemaConverter.convertToSchema(physicalDataType.getLogicalType());
+        final GenericRecord record = new GenericData.Record(writerSchema);
+        record.put("user_id", 3L);
+        record.put("name", "name 3");
+        record.put("event_id", 102L);
+        record.put("payload", "payload 3");
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        final Encoder encoder;
+        if (encoding == AvroEncoding.BINARY) {
+            encoder = EncoderFactory.get().binaryEncoder(output, null);
+        } else {
+            encoder = EncoderFactory.get().jsonEncoder(writerSchema, output);
+        }
+        new GenericDatumWriter<GenericRecord>(writerSchema).write(record, encoder);
+        encoder.flush();
+
+        final RowData rowData = deserializationSchema.deserialize(output.toByteArray());
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getString(0).toString()).isEqualTo("name 3");
+        assertThat(rowData.getLong(1)).isEqualTo(102L);
     }
 
     @Test
@@ -186,6 +248,13 @@ class AvroFormatFactoryTest {
         }
 
         options.put("format", AvroFormatFactory.IDENTIFIER);
+        return options;
+    }
+
+    private Map<String, String> getAllOptions(
+            boolean legacyTimestampMapping, AvroEncoding encoding) {
+        final Map<String, String> options = getAllOptions(legacyTimestampMapping);
+        options.put("avro.encoding", encoding.toString());
         return options;
     }
 }
