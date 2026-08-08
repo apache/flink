@@ -60,34 +60,67 @@ class ScalaCaseClassSerializer[T <: Product](
 object ScalaCaseClassSerializer {
 
   def lookupConstructor[T](cls: Class[T]): Array[AnyRef] => T = {
-    val rootMirror = universe.runtimeMirror(cls.getClassLoader)
-    val classSymbol = rootMirror.classSymbol(cls)
+    // Scala 2.12 runtime reflection is not thread-safe (SI-6240, SI-8861).
+    // Synchronize on the universe to prevent concurrent access from corrupting
+    // the internal symbol table, which can cause NoSuchElementException in
+    // Erasure.specialConstructorErasure when constructor parameter symbols are
+    // uninitialized.
+    //
+    // The returned lambda does NOT synchronize, because the MethodMirror's
+    // lazy jconstr field is forced ("warmed up") inside this block via a
+    // dummy invocation. Once jconstr is resolved, subsequent apply() calls
+    // are thread-safe.
+    universe.synchronized {
+      val rootMirror = universe.runtimeMirror(cls.getClassLoader)
+      val classSymbol = rootMirror.classSymbol(cls)
 
-    require(
-      classSymbol.isStatic,
-      s"""
-         |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
-         |toplevel object, or of an object contained in a toplevel object,
-         |therefore it requires an outer instance to be instantiated, but we don't have a
-         |reference to the outer instance. Please consider changing the outer class to an object.
-         |""".stripMargin
-    )
+      require(
+        classSymbol.isStatic,
+        s"""
+           |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
+           |toplevel object, or of an object contained in a toplevel object,
+           |therefore it requires an outer instance to be instantiated, but we don't have a
+           |reference to the outer instance. Please consider changing the outer class to an object.
+           |""".stripMargin
+      )
 
-    val primaryConstructorSymbol = classSymbol.toType
-      .decl(universe.termNames.CONSTRUCTOR)
-      .alternatives
-      .collectFirst {
-        case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
-          constructorSymbol
+      val constructorOpt = classSymbol.toType
+        .decl(universe.termNames.CONSTRUCTOR)
+        .alternatives
+        .collectFirst {
+          case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
+            constructorSymbol
+        }
+
+      if (constructorOpt.isEmpty) {
+        throw new RuntimeException(
+          s"Could not find primary constructor for ${cls.getName} via Scala " +
+            s"reflection.")
       }
-      .head
-      .asMethod
 
-    val classMirror = rootMirror.reflectClass(classSymbol)
-    val constructorMethodMirror = classMirror.reflectConstructor(primaryConstructorSymbol)
+      val primaryConstructorSymbol = constructorOpt.get.asMethod
+      val classMirror = rootMirror.reflectClass(classSymbol)
+      val constructorMethodMirror =
+        classMirror.reflectConstructor(primaryConstructorSymbol)
 
-    arr: Array[AnyRef] => {
-      constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
+      // Force the lazy resolution of jconstr (the underlying
+      // java.lang.reflect.Constructor) while holding the lock.
+      // This goes through constructorToJava -> Erasure.specialConstructorErasure
+      // which is the non-thread-safe code path. After this call, jconstr is
+      // cached and subsequent apply() calls are safe without synchronization.
+      val paramCount = primaryConstructorSymbol.paramLists.flatten.size
+      val dummyArgs = new Array[AnyRef](paramCount)
+      try {
+        constructorMethodMirror.apply(dummyArgs: _*)
+      } catch {
+        // We expect this to fail (null args, wrong types, etc.) — that's fine.
+        // The purpose is solely to force jconstr resolution.
+        case _: Exception =>
+      }
+
+      arr: Array[AnyRef] => {
+        constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
+      }
     }
   }
 }

@@ -24,6 +24,8 @@ import org.apache.flink.table.api.runtime.types.FlinkScalaKryoInstantiator.{regi
 
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.{BitSetSerializer, VoidSerializer}
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
+import org.objenesis.strategy.StdInstantiatorStrategy
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -59,7 +61,13 @@ class FlinkScalaKryoInstantiator {
   def newKryo: Kryo = {
     val k = new Kryo
     k.setRegistrationRequired(false)
-    k.setInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy)
+    // Use DefaultInstantiatorStrategy as the primary strategy (which tries no-arg constructors
+    // first via reflection), and only falls back to StdInstantiatorStrategy (Objenesis, which
+    // bypasses constructors entirely) when no suitable constructor is found.
+    // Previously this was set to pure StdInstantiatorStrategy, which bypasses all constructors
+    // and can leave fields uninitialized (e.g., causing NPE in classes like Iceberg's
+    // SerializableByteBufferMap that rely on constructor initialization).
+    k.setInstantiatorStrategy(new DefaultInstantiatorStrategy(new StdInstantiatorStrategy))
     k.register(classOf[Unit], new VoidSerializer)
     // The wrappers are private classes:
     useFieldSerializer(k, List(1, 2, 3).asJava.getClass)
@@ -89,9 +97,9 @@ class FlinkScalaKryoInstantiator {
       k,
       ImmutableHashMap[Any, Any](1 -> 1, 2 -> 2, 3 -> 3, 4 -> 4, 5 -> 5))
 
-    k.register(classOf[Range.Inclusive])
-    k.register(classOf[NumericRange.Inclusive[_]])
-    k.register(classOf[NumericRange.Exclusive[_]])
+    k.register(classOf[Range.Inclusive], new RangeInclusiveSerializer)
+    k.register(classOf[NumericRange.Inclusive[_]], new NumericRangeInclusiveSerializer)
+    k.register(classOf[NumericRange.Exclusive[_]], new NumericRangeExclusiveSerializer)
 
     k.register(classOf[BitSet], new BitSetSerializer)
 
