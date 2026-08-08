@@ -334,7 +334,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             logCheckpointStatistics(failed);
 
             if (checkpointStatsListener != null) {
-                checkpointStatsListener.onFailedCheckpoint();
+                checkpointStatsListener.onFailedCheckpoint(failed.getFailureReason());
             }
         } finally {
             statsReadWriteLock.unlock();
@@ -519,7 +519,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     }
 
     @Override
-    public void reportFailedCheckpointsWithoutInProgress() {
+    public void reportFailedCheckpointsWithoutInProgress(@Nullable CheckpointFailureReason reason) {
         statsReadWriteLock.lock();
         try {
             counts.incrementFailedCheckpointsWithoutInProgress();
@@ -527,7 +527,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             dirty = true;
 
             if (checkpointStatsListener != null) {
-                checkpointStatsListener.onFailedCheckpoint();
+                checkpointStatsListener.onFailedCheckpoint(reason);
             }
         } finally {
             statsReadWriteLock.unlock();

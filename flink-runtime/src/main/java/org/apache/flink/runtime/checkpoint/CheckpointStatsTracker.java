@@ -92,8 +92,11 @@ public interface CheckpointStatsTracker {
     /**
      * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
      * callback when triggering checkpoint failure before creating PendingCheckpoint.
+     *
+     * @param reason the {@link CheckpointFailureReason} categorizing the failure, or {@code null}
+     *     if unknown.
      */
-    void reportFailedCheckpointsWithoutInProgress();
+    void reportFailedCheckpointsWithoutInProgress(@Nullable CheckpointFailureReason reason);
 
     /**
      * Creates a new snapshot of the available stats.
