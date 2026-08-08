@@ -23,14 +23,17 @@ import java.util.concurrent.CompletableFuture;
 /** Testing implementation of {@link TaskManagerRunner.TaskExecutorService}. */
 public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecutorService {
     private final Runnable startRunnable;
+    private final Runnable prepareForTerminationRunnable;
     private final CompletableFuture<Void> terminationFuture;
     private final boolean completeTerminationFutureOnClose;
 
     private TestingTaskExecutorService(
             Runnable startRunnable,
+            Runnable prepareForTerminationRunnable,
             CompletableFuture<Void> terminationFuture,
             boolean completeTerminationFutureOnClose) {
         this.startRunnable = startRunnable;
+        this.prepareForTerminationRunnable = prepareForTerminationRunnable;
         this.terminationFuture = terminationFuture;
         this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
     }
@@ -43,6 +46,11 @@ public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecuto
     @Override
     public CompletableFuture<Void> getTerminationFuture() {
         return terminationFuture;
+    }
+
+    @Override
+    public void prepareForTermination() {
+        prepareForTerminationRunnable.run();
     }
 
     @Override
@@ -60,11 +68,17 @@ public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecuto
     /** Builder for {@link TestingTaskExecutorService}. */
     public static final class Builder {
         private Runnable startRunnable = () -> {};
+        private Runnable prepareForTerminationRunnable = () -> {};
         private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
         private boolean completeTerminationFutureOnClose = true;
 
         public Builder setStartRunnable(Runnable startRunnable) {
             this.startRunnable = startRunnable;
+            return this;
+        }
+
+        public Builder setPrepareForTerminationRunnable(Runnable prepareForTerminationRunnable) {
+            this.prepareForTerminationRunnable = prepareForTerminationRunnable;
             return this;
         }
 
@@ -80,7 +94,10 @@ public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecuto
 
         TestingTaskExecutorService build() {
             return new TestingTaskExecutorService(
-                    startRunnable, terminationFuture, completeTerminationFutureOnClose);
+                    startRunnable,
+                    prepareForTerminationRunnable,
+                    terminationFuture,
+                    completeTerminationFutureOnClose);
         }
     }
 }

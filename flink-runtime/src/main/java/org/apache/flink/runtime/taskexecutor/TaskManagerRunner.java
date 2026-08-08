@@ -75,6 +75,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.StringUtils;
@@ -85,6 +86,7 @@ import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.Signal;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -306,6 +308,21 @@ public class TaskManagerRunner implements FatalErrorHandler {
         }
     }
 
+    /**
+     * Best-effort request to prepare this TaskExecutor for an imminent, voluntary termination.
+     * Intended to be triggered by a Kubernetes {@code preStop} hook (via {@code SIGUSR2}, see
+     * {@link #registerGracefulTerminationSignalHandler}) ahead of the {@code SIGTERM} that ends the
+     * process, so the ResourceManager learns this TaskExecutor is leaving immediately instead of
+     * waiting for a heartbeat timeout.
+     */
+    public void prepareForTermination() {
+        synchronized (lock) {
+            if (taskExecutorService != null) {
+                taskExecutorService.prepareForTermination();
+            }
+        }
+    }
+
     public void close() throws Exception {
         try {
             closeAsync().get();
@@ -499,6 +516,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             configuration,
                             pluginManager,
                             TaskManagerRunner::createTaskExecutorService);
+            registerGracefulTerminationSignalHandler(taskManagerRunner);
             taskManagerRunner.start();
         } catch (Exception exception) {
             throw new FlinkException("Failed to start the TaskManagerRunner.", exception);
@@ -561,6 +579,36 @@ public class TaskManagerRunner implements FatalErrorHandler {
     // --------------------------------------------------------------------------------------------
     //  Static utilities
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Registers a handler for {@code SIGUSR2} that triggers {@link #prepareForTermination()} on the
+     * given runner. This is the signal a Kubernetes {@code preStop} hook is expected to send (see
+     * the {@code kubernetes.taskmanager.termination-grace-period} option) ahead of the {@code
+     * SIGTERM} that Kubernetes sends once the {@code preStop} hook returns. Unlike {@link
+     * SignalHandler}, this handler does not delegate to a previous handler or terminate the process
+     * - {@code SIGUSR2} has no default JVM behavior, so this is purely additive.
+     *
+     * <p>{@code SIGUSR2} is not available on Windows; the handler is simply not registered there,
+     * and graceful termination remains opt-in via a POSIX {@code preStop} hook regardless.
+     */
+    private static void registerGracefulTerminationSignalHandler(TaskManagerRunner runner) {
+        if (OperatingSystem.isWindows()) {
+            return;
+        }
+        try {
+            Signal.handle(
+                    new Signal("USR2"),
+                    signal -> {
+                        LOG.info(
+                                "RECEIVED SIGNAL {}: SIG{}. Preparing for graceful termination.",
+                                signal.getNumber(),
+                                signal.getName());
+                        runner.prepareForTermination();
+                    });
+        } catch (Exception e) {
+            LOG.info("Error while registering graceful termination signal handler", e);
+        }
+    }
 
     public static TaskExecutorService createTaskExecutorService(
             Configuration configuration,
@@ -811,6 +859,15 @@ public class TaskManagerRunner implements FatalErrorHandler {
         void start();
 
         CompletableFuture<Void> getTerminationFuture();
+
+        /**
+         * Best-effort request to prepare this TaskExecutor for an imminent, voluntary termination:
+         * disconnect from the ResourceManager without attempting to reconnect, instead of waiting
+         * to be timed out. Does not fail currently running tasks; callers that want a bounded drain
+         * window are expected to give tasks time to finish before the process is actually
+         * terminated.
+         */
+        void prepareForTermination();
     }
 
     public enum Result {

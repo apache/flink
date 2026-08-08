@@ -468,6 +468,32 @@ Configure the value of <a href="{{< ref "docs/deployment/config" >}}#kubernetes-
 It will help to achieve faster recovery.
 Notice that high availability should be enabled when starting standby JobManagers.
 
+### Graceful TaskManager Termination
+
+By default, Flink's Kubernetes deployment reacts to a lost TaskManager the same way whether the
+pod was evicted on purpose (a node drain, a spot/preemptible reclaim, a rolling upgrade) or crashed
+outright: the ResourceManager only notices once the TaskManager's heartbeat times out (50 seconds
+by default), and the TaskManager pod itself is torn down as soon as Kubernetes sends it `SIGTERM`,
+with no chance for currently-running tasks to keep making progress in the meantime.
+
+Setting <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-termination-grace-period">kubernetes.taskmanager.termination-grace-period</a>
+changes this for voluntary evictions. It sets the pod's `terminationGracePeriodSeconds` and adds a
+`preStop` lifecycle hook that:
+
+1. Signals the TaskExecutor to disconnect from the ResourceManager immediately, instead of waiting
+   to be timed out, so the ResourceManager can free its slots and schedule a replacement right away.
+2. Keeps the pod alive for most of the configured grace period afterwards (a few seconds are
+   reserved at the end for the JVM's own shutdown sequence to run once Kubernetes sends
+   `SIGTERM`), so tasks that are already running continue to make progress - and get a chance to
+   complete an in-flight checkpoint - instead of being killed the instant the pod is scheduled for
+   deletion.
+
+This only takes effect on a graceful `kubectl delete pod` / node drain, where Kubernetes actually
+runs `preStop` and waits out the grace period; it does not change how quickly Flink notices a pod
+that has actually crashed or become unreachable, since there is no signal to send to a process
+that is no longer running. It has no effect if the pod template already sets
+`terminationGracePeriodSeconds` or a `preStop` hook.
+
 ### Manual Resource Cleanup
 
 Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to clean up all cluster components.
