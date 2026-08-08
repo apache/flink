@@ -73,6 +73,13 @@ export WATCHDOG_ADDITIONAL_MONITORING_FILES="$DEBUG_FILES_OUTPUT_DIR/mvn-*.log"
 
 source "${HERE}/watchdog.sh"
 
+# Sample host load (CPU %steal, iowait, disk util) during the whole build+test, to measure whether the
+# agent is contended. Output goes to the debug-files artifact; the sampler is killed when this exits.
+chmod +x "${HERE}/sample_load.sh" 2>/dev/null || true
+"${HERE}/sample_load.sh" 5 "$DEBUG_FILES_OUTPUT_DIR/load-sample.log" &
+LOAD_SAMPLER_PID=$!
+trap 'kill "$LOAD_SAMPLER_PID" 2>/dev/null' EXIT
+
 # =============================================================================
 # Step 1: Rebuild jars and install Flink to local maven repository
 # =============================================================================
@@ -81,12 +88,34 @@ export LOG4J_PROPERTIES=${HERE}/log4j.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
-MVN_COMPILE_OPTIONS="-DskipTests"
-MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
-
 CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES_OUTPUT_DIR}/jps-traces.out"
-run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install" $CALLBACK_ON_TIMEOUT
-EXIT_CODE=$?
+
+# Reuse the jars the compile job handed off (REUSE_INSTALLED_ARTIFACTS + jars actually present) and skip
+# the rebuild. Only stages that resolve everything from .m2 can do this; stages needing build outputs
+# under module target/ dirs (e.g. python's test classpath, the assembled dist) must do a full rebuild.
+# Fall back to a full rebuild if no jars are present (e.g. an isolated retry after the artifact expired).
+FLINK_INSTALLED_JARS_DIR="${MAVEN_CACHE_FOLDER:-$HOME/.m2/repository}/org/apache/flink"
+if [[ "${REUSE_INSTALLED_ARTIFACTS:-false}" == "true" && -d "$FLINK_INSTALLED_JARS_DIR" && -n "$(ls -A "$FLINK_INSTALLED_JARS_DIR" 2>/dev/null)" ]]; then
+	echo "Reusing jars installed by the compile job; skipping rebuild/install."
+	# relink build-target when a prebuilt distribution was handed off (e.g. the python stage)
+	if [ ! -e build-target ]; then
+		dist_dir=$(ls -d flink-dist/target/flink-*-bin/flink-* 2>/dev/null | head -n 1)
+		if [ -n "$dist_dir" ]; then
+			ln -sfn "$dist_dir" build-target
+			echo "Linked build-target -> $dist_dir"
+		fi
+	fi
+	EXIT_CODE=0
+else
+	if [[ "${REUSE_INSTALLED_ARTIFACTS:-false}" == "true" ]]; then
+		echo "REUSE_INSTALLED_ARTIFACTS set but no handed-off jars in ${FLINK_INSTALLED_JARS_DIR}; doing a full rebuild."
+	fi
+	MVN_COMPILE_OPTIONS="-DskipTests"
+	MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
+	# the install step is a -DskipTests build (no test-output log parsing here), so it can run multi-threaded
+	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES -T${MVN_COMPILE_THREADS:-1C} install" $CALLBACK_ON_TIMEOUT
+	EXIT_CODE=$?
+fi
 
 if [ $EXIT_CODE != 0 ]; then
 	echo "=============================================================================="

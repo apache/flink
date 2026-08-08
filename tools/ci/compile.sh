@@ -49,6 +49,13 @@ rm -rf ${MVN_VALIDATION_DIR}
 source "${CI_DIR}/stage.sh"
 source "${CI_DIR}/shade.sh"
 
+# Sample host load (CPU %steal / disk util) during the build to detect agent contention; killed on exit.
+# Written to stdout (the job log) because compile/qa/e2e don't publish a debug-files artifact.
+chmod +x "${CI_DIR}/sample_load.sh" 2>/dev/null || true
+"${CI_DIR}/sample_load.sh" 5 /dev/stdout &
+LOAD_SAMPLER_PID=$!
+trap 'kill "$LOAD_SAMPLER_PID" 2>/dev/null' EXIT
+
 echo "Maven version:"
 $MVN -version
 
@@ -58,9 +65,24 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-# run with -T1 because our maven output parsers don't support multi-threaded builds
-$MVN clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
-    -Dmaven.javadoc.skip=true -U -DskipTests -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG "${@}" -T1 | tee $MVN_CLEAN_COMPILE_OUT
+# QA builds add shade DEBUG output and deploy to a local repo for the license check; other builds build fast and only install
+if [[ "${SKIP_QA_CHECKS:-false}" != "true" ]]; then
+    BUILD_MODE_ARGS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG"
+    DEPLOY_ARGS="deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence"
+else
+    # -Dflink.fsShade.skip=true drops the FS-plugin shade (gs/azure/s3/oss) off the compile critical
+    # path; those plugins aren't needed by the reuse consumers (connect re-shades, e2e rebuilds).
+    BUILD_MODE_ARGS="-Pfast -Dflink.fsShade.skip=true"
+    DEPLOY_ARGS="install"
+fi
+# Only force snapshot updates (-U) unless the global Maven options already disable them (--no-snapshot-updates)
+UPDATE_SNAPSHOTS_ARG="-U"
+if [[ "${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR}" == *"--no-snapshot-updates"* ]]; then
+    UPDATE_SNAPSHOTS_ARG=""
+fi
+# The bundled/license QA checks parse single-threaded output (-T1); QA-skipping builds may set MVN_COMPILE_THREADS (e.g. 1C)
+$MVN clean ${DEPLOY_ARGS} \
+    -Dmaven.javadoc.skip=true ${UPDATE_SNAPSHOTS_ARG} -DskipTests ${BUILD_MODE_ARGS} "${@}" -T${MVN_COMPILE_THREADS:-1} | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
 
@@ -79,6 +101,9 @@ if [ $EXIT_CODE != 0 ]; then
     exit $EXIT_CODE
 fi
 
+# All QA checks run only in the dedicated QA job (and local runs); compile/e2e skip them via SKIP_QA_CHECKS
+if [[ "${SKIP_QA_CHECKS:-false}" != "true" ]]; then
+
 echo "============ Checking Javadocs ============"
 
 javadoc_output=/tmp/javadoc.out
@@ -94,10 +119,6 @@ if [ $EXIT_CODE != 0 ] ; then
   exit $EXIT_CODE
 fi
 
-echo "============ Checking bundled dependencies marked as optional ============"
-
-MVN=$MVN ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?
-
 echo "============ Checking scala suffixes ============"
 
 MVN=$MVN ${CI_DIR}/verify_scala_suffixes.sh || exit $?
@@ -111,10 +132,16 @@ EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs presto
 EXIT_CODE=$(($EXIT_CODE+$?))
 
+echo "============ Checking bundled dependencies marked as optional ============"
+
+MVN=$MVN ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?
+
 echo "============ Run license check ============"
 
 find $MVN_VALIDATION_DIR
 MVN=$MVN ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $MVN_VALIDATION_DIR || exit $?
+
+fi
 
 exit $EXIT_CODE
 

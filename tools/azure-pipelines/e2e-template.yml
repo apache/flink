@@ -44,6 +44,8 @@ jobs:
       .gitattributes
       .github/**
   steps:
+    - script: ./tools/ci/print_machine_info.sh
+      displayName: Machine info
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh
@@ -140,7 +142,8 @@ jobs:
         sudo apt install ./libssl1.0.0_*.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
+    # e2e only needs the build; skip all QA checks (they run in the qa_check job) so it can build with -T1C
+    - script: SKIP_QA_CHECKS=true MVN_COMPILE_THREADS=1C ${{parameters.environment}} PROFILE="$PROFILE -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/ci/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
