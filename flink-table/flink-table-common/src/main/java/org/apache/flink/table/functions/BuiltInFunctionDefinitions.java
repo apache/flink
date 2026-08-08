@@ -552,6 +552,16 @@ public final class BuiltInFunctionDefinitions {
                     .internal()
                     .build();
 
+    public static final BuiltInFunctionDefinition INTERNAL_COMPARE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$COMPARE$1")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY, ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
+                    .runtimeProvided()
+                    .internal()
+                    .build();
+
     public static final BuiltInFunctionDefinition ARRAY_EXCEPT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_EXCEPT")
