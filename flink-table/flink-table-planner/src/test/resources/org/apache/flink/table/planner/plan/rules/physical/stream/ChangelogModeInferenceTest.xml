@@ -16,6 +16,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testChangelogNormalizeDoesNotInferDeleteWithoutFilterOrInputDelete">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO changelogSink SELECT * FROM upsertSource]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.changelogSink], fields=[id, payload])
++- LogicalProject(id=[$0], payload=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsertSource]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.changelogSink], fields=[id, payload], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsertSource]], fields=[id, payload], changelogMode=[I,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizeInfersDeleteWithFilterWithoutInputDelete">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO changelogSink SELECT * FROM upsertSource WHERE payload <> 'x']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.changelogSink], fields=[id, payload])
++- LogicalProject(id=[$0], payload=[$1])
+   +- LogicalFilter(condition=[<>($1, _UTF-16LE'x')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsertSource]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.changelogSink], fields=[id, payload], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], condition=[<>(payload, 'x')], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsertSource, filter=[]]], fields=[id, payload], changelogMode=[I,UA])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFilterNotContainedByAnyUpsertKey">
     <Resource name="sql">
       <![CDATA[
