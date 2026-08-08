@@ -36,8 +36,8 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistrationAction;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistrationHandler;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -136,7 +136,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Nullable private final TypeSerializer<?> namespaceSerializer;
 
-    @Nullable private final TimerRegistration timerRegistration;
+    @Nullable private final TimerRegistrationHandler timerRegistration;
 
     private final MemoryManager memoryManager;
 
@@ -209,7 +209,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
             @Nullable TypeSerializer<?> namespaceSerializer,
-            @Nullable TimerRegistration timerRegistration,
+            @Nullable TimerRegistrationHandler timerRegistration,
             MemoryManager memoryManager,
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
