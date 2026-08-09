@@ -92,12 +92,13 @@ s3_start
 #   IT_CASE_S3_ACCESS_KEY
 #   IT_CASE_S3_SECRET_KEY
 # Arguments:
-#   $1 - s3 filesystem type (hadoop/presto)
+#   $1 - s3 filesystem type (defaults to native)
 # Returns:
 #   None
 ###################################
 function s3_setup {
-  add_optional_plugin "s3-fs-$1"
+  local filesystem_type="${1:-native}"
+  add_optional_plugin "s3-fs-$filesystem_type"
 
   set_config_key "s3.access-key" "$AWS_ACCESS_KEY_ID"
   set_config_key "s3.secret-key" "$AWS_SECRET_ACCESS_KEY"
@@ -110,9 +111,10 @@ function s3_setup {
 }
 
 function s3_setup_with_provider {
-  add_optional_plugin "s3-fs-$1"
+  local filesystem_type="${1:-native}"
+  add_optional_plugin "s3-fs-$filesystem_type"
   # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+  set_config_key "$2" "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
   # change endpoint to seaweedfs's location
   set_config_key "s3.endpoint" "$S3_ENDPOINT"
   # If the test is using virtual host style (default), then it tries to reach seaweedfs on <bucket>.localhost:<port>,
