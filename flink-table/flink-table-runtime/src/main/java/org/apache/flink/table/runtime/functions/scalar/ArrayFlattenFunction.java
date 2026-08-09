@@ -25,7 +25,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
@@ -54,13 +53,18 @@ public class ArrayFlattenFunction extends BuiltInScalarFunction {
     public ArrayFlattenFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_FLATTEN, context);
 
-        // Get the output data type (ARRAY<T>)
-        final DataType outputDataType = context.getCallContext().getOutputDataType().get();
-        final DataType elementDataType = ((CollectionDataType) outputDataType).getElementDataType();
+        // Get the input data type (ARRAY<ARRAY<T>>)
+        final DataType inputDataType = context.getCallContext().getArgumentDataTypes().get(0);
+        // Get the inner array type (ARRAY<T>)
+        final DataType innerArrayDataType =
+                ((CollectionDataType) inputDataType).getElementDataType();
+        // Get the element type (T)
+        final DataType elementDataType =
+                ((CollectionDataType) innerArrayDataType).getElementDataType();
 
         // Create element getters
         // Outer getter retrieves inner arrays from the outer array
-        outerElementGetter = ArrayData.createElementGetter(LogicalTypeRoot.ARRAY);
+        outerElementGetter = ArrayData.createElementGetter(innerArrayDataType.getLogicalType());
         // Inner getter retrieves elements from inner arrays
         innerElementGetter = ArrayData.createElementGetter(elementDataType.getLogicalType());
     }
