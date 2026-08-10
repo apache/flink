@@ -67,8 +67,9 @@ jobs:
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
     displayName: "Set JDK"
   # Compile
+  # Fast multi-threaded build that only produces the test artifact; all QA (structural + convergence + license) runs single-threaded in the license_check job (MVN_LICENSE_CHECK_ARGS="" disables it here).
   - script: |
-      ${{parameters.environment}} ./tools/ci/compile_ci.sh || exit $?
+      MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} ./tools/ci/compile_ci.sh -Dfast || exit $?
       ./tools/ci/create_build_artifact.sh
     displayName: Compile
 
@@ -77,6 +78,38 @@ jobs:
     inputs:
       targetPath: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
+
+# All QA (structural + convergence + license) runs single-threaded here, off the critical path (no dependsOn), so the compile job can build fast with -Dfast -T1C.
+- job: license_check_${{parameters.stage_name}}
+  # succeeded() is needed to allow job cancellation
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  steps:
+  # if on Azure, free up disk space
+  - script: ./tools/ci/free_disk_space.sh
+    target: host
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Free up disk space
+  - task: Cache@2
+    inputs:
+      key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+      restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache Maven local repo
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+    displayName: "Set JDK"
+  # Full single-threaded build (deploy + -Pcheck-convergence) running every structural QA check and the license check.
+  - script: ${{parameters.environment}} ./tools/ci/compile_ci.sh
+    displayName: QA checks
 
 - job: test_${{parameters.stage_name}}
   dependsOn: compile_${{parameters.stage_name}}

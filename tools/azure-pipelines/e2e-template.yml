@@ -140,7 +140,8 @@ jobs:
         sudo apt install ./libssl1.0.0_*.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
+    # e2e only needs the built binary; MVN_LICENSE_CHECK_ARGS="" skips all QA (convergence, license, structural) and the DEBUG shade logging, which run in the license_check job.
+    - script: MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/ci/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
