@@ -40,6 +40,7 @@ public final class UdfMetrics {
 
     private static final int HISTORY_SIZE = 128;
 
+    // Counted in invocations, not in time: one call out of every sampleInterval is timed.
     private final int sampleInterval;
     private final Histogram processingTime;
     private final Counter exceptionCount;
@@ -57,8 +58,8 @@ public final class UdfMetrics {
      * Registers the {@code udfProcessingTime} histogram and {@code udfExceptionCount} counter under
      * {@code <operatorMetricGroup>.udf.<udfName>}.
      *
-     * @param sampleInterval measure one invocation out of every {@code sampleInterval}; must be
-     *     {@code >= 1} ({@code 1} measures every invocation)
+     * @param sampleInterval a number of invocations, not a duration: one call out of every {@code
+     *     sampleInterval} is timed. Must be {@code >= 1} ({@code 1} measures every invocation).
      */
     public static UdfMetrics register(
             MetricGroup operatorMetricGroup, String udfName, int sampleInterval) {
