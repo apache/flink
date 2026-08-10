@@ -64,6 +64,16 @@ class StreamPhysicalIntervalJoin(
 
   override def requireWatermark: Boolean = windowBounds.isEventTime
 
+  /**
+   * Whether this interval join produces update changes because of the EARLY_FIRE hint. Only an
+   * outer join with a non-negative window can speculatively emit a padded row and later correct it;
+   * a negative-window join only ever emits inserts, so it must stay insert-only even with the hint
+   * set.
+   */
+  def produceEarlyFireUpdates: Boolean =
+    earlyFireDelay != null && getJoinType.isOuterJoin &&
+      windowBounds.getLeftUpperBound >= windowBounds.getLeftLowerBound
+
   override def copy(
       traitSet: RelTraitSet,
       conditionExpr: RexNode,
