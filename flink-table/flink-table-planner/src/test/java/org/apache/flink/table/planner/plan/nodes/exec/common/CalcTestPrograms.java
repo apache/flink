@@ -328,7 +328,8 @@ public class CalcTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("coalesce_sink")
                                     .addSchema("order_id_str STRING")
-                                    .consumedValues("+I[1]", "-D[1]", "+I[1]", "+I[2]")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[1]", "+I[2]")
                                     .build())
                     .runSql(
                             "INSERT INTO coalesce_sink "
