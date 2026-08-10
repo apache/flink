@@ -1907,10 +1907,16 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_FLATTEN)
                         .onFieldsWithData(
                                 new Integer[][] {new Integer[] {1, 2}, new Integer[] {3, 4}},
-                                new String[][] {new String[] {"a", "b"}, new String[] {"c"}})
+                                new String[][] {new String[] {"a", "b"}, new String[] {"c"}},
+                                null,
+                                new Integer[][] {new Integer[] {1, 2}, null, new Integer[] {3}},
+                                new Integer[][] {new Integer[] {1, null, 2}, new Integer[] {3}})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
-                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())))
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))
                         // Basic flattening
                         .testResult(
                                 call("ARRAY_FLATTEN", $("f0")),
@@ -1922,6 +1928,24 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 call("ARRAY_FLATTEN", $("f1")),
                                 "ARRAY_FLATTEN(f1)",
                                 new String[] {"a", "b", "c"},
-                                DataTypes.ARRAY(DataTypes.STRING())));
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // NULL input
+                        .testResult(
+                                call("ARRAY_FLATTEN", $("f2")),
+                                "ARRAY_FLATTEN(f2)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // NULL inner arrays - should be skipped
+                        .testResult(
+                                call("ARRAY_FLATTEN", $("f3")),
+                                "ARRAY_FLATTEN(f3)",
+                                new Integer[] {1, 2, 3},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // NULL elements - should be preserved
+                        .testResult(
+                                call("ARRAY_FLATTEN", $("f4")),
+                                "ARRAY_FLATTEN(f4)",
+                                new Integer[] {1, null, 2, 3},
+                                DataTypes.ARRAY(DataTypes.INT())));
     }
 }
