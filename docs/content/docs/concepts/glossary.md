@@ -198,7 +198,7 @@ Cluster](#flink-cluster).
 Producing the Job Graph is mainly a matter of chaining: consecutive [Operators](#operator) that are
 not separated by a repartitioning are merged into a single [Task](#task). The nodes of a Job Graph
 are therefore [Tasks](#task), each implementing one Operator or one [Operator
-Chain](#operator-chain), and its edges are [Logical Partitions](#partition).
+Chain](#operator-chain).
 
 The Job Graph is translated into a [Physical Graph](#physical-graph) for execution.
 
@@ -279,7 +279,7 @@ Job](#flink-job) scales horizontally. The Parallelism of an [Operator](#operator
 number of [Sub-Tasks](#sub-task) and of [Physical Partitions](#partition) it is executed with.
 
 The *Job Parallelism* is the default Parallelism of all Operators of a Job. The *Operator
-Parallelism* may override it for an individual Operator, but cannot exceed the Job Parallelism.
+Parallelism* may override it for an individual Operator.
 
 Parallelism is a property of the Job, independent of the number of [Flink
 TaskManagers](#flink-taskmanager) in the [Flink Cluster](#flink-cluster).
@@ -304,8 +304,7 @@ Graph](#physical-graph), across the [Sub-Tasks](#sub-task) that Flink executes i
 Sub-Task handles exactly one Physical Partition and holds only the State belonging to it, so the
 number of Physical Partitions equals the [Parallelism](#parallelism) of the [Operators](#operator)
 the Sub-Task implements. Physical Partitioning follows from Logical Partitioning: in a stream
-partitioned by key, each Physical Partition holds a fixed subset of the keys, determined by
-`hash(key) mod numberOfPhysicalPartitions`.
+partitioned by key, each Physical Partition holds a fixed subset of the keys.
 
 Note that the Flink documentation uses the word *partition* both for these internal Partitions and
 for the partitions of an external system, such as the Kafka partitions of a source topic. The
@@ -340,7 +339,7 @@ by key through sorting, so that Flink only has to hold the State of one key at a
 local disk when memory is insufficient.
 
 Note that a bounded data set can also be processed in `STREAMING` mode, for example by setting
-`scan.bounded.mode` on the Kafka Source.
+`scan.bounded.mode` on the Kafka Source (SQL and Table API) or `.setBounded()` in DataStream API.
 
 #### Savepoint
 
