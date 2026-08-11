@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.io.recovery.VirtualChannel;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannelRecordFilterFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -45,8 +46,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Filters recovered channel state buffers during the channel-state-unspilling phase, removing
@@ -63,7 +62,7 @@ public class ChannelStateFilteringHandler implements Closeable {
     private final GateFilterHandler<?>[] gateHandlers;
 
     ChannelStateFilteringHandler(GateFilterHandler<?>[] gateHandlers) {
-        this.gateHandlers = checkNotNull(gateHandlers);
+        this.gateHandlers = Preconditions.checkNotNull(gateHandlers);
     }
 
     /**
@@ -114,21 +113,7 @@ public class ChannelStateFilteringHandler implements Closeable {
             DataOutputSerializer outputSerializer)
             throws IOException {
 
-        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
-            throw new IllegalStateException(
-                    "Invalid gateIndex: "
-                            + gateIndex
-                            + ", number of gates: "
-                            + gateHandlers.length);
-        }
-
-        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
-        if (gateHandler == null) {
-            throw new IllegalStateException(
-                    "No handler for gateIndex "
-                            + gateIndex
-                            + ". This gate is not a network input and should not have recovered buffers.");
-        }
+        GateFilterHandler<?> gateHandler = getGateFilterHandler(gateIndex);
         gateHandler.filterAndRewrite(
                 oldSubtaskIndex, oldChannelIndex, sourceBuffer, outputSerializer);
     }
@@ -156,21 +141,7 @@ public class ChannelStateFilteringHandler implements Closeable {
             BufferSupplier bufferSupplier)
             throws IOException, InterruptedException {
 
-        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
-            throw new IllegalStateException(
-                    "Invalid gateIndex: "
-                            + gateIndex
-                            + ", number of gates: "
-                            + gateHandlers.length);
-        }
-
-        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
-        if (gateHandler == null) {
-            throw new IllegalStateException(
-                    "No handler for gateIndex "
-                            + gateIndex
-                            + ". This gate is not a network input and should not have recovered buffers.");
-        }
+        GateFilterHandler<?> gateHandler = getGateFilterHandler(gateIndex);
         return gateHandler.filterAndRewrite(
                 oldSubtaskIndex, oldChannelIndex, sourceBuffer, bufferSupplier);
     }
@@ -194,6 +165,25 @@ public class ChannelStateFilteringHandler implements Closeable {
         }
     }
 
+    private GateFilterHandler<?> getGateFilterHandler(int gateIndex) {
+        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
+            throw new IllegalStateException(
+                    "Invalid gateIndex: "
+                            + gateIndex
+                            + ", number of gates: "
+                            + gateHandlers.length);
+        }
+
+        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
+        if (gateHandler == null) {
+            throw new IllegalStateException(
+                    "No handler for gateIndex "
+                            + gateIndex
+                            + ". This gate is not a network input and should not have recovered buffers.");
+        }
+        return gateHandler;
+    }
+
     // -------------------------------------------------------------------------------------------
     // Private static helper methods
     // -------------------------------------------------------------------------------------------
@@ -210,12 +200,10 @@ public class ChannelStateFilteringHandler implements Closeable {
             InflightDataRescalingDescriptor rescalingDescriptor,
             int gateIndex) {
         RecordFilterContext.InputFilterConfig inputConfig = filterContext.getInputConfig(gateIndex);
-        if (inputConfig == null) {
-            throw new IllegalStateException(
-                    "No InputFilterConfig for gateIndex "
-                            + gateIndex
-                            + ". This indicates a bug in RecordFilterContext initialization.");
-        }
+        Preconditions.checkState(
+                inputConfig != null,
+                "No InputFilterConfig for gateIndex %s. This indicates a bug in RecordFilterContext initialization.",
+                gateIndex);
 
         InputGate gate = inputGates[gateIndex];
         int[] oldSubtaskIndexes = rescalingDescriptor.getOldSubtaskIndexes(gateIndex);
@@ -314,8 +302,8 @@ public class ChannelStateFilteringHandler implements Closeable {
         GateFilterHandler(
                 Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels,
                 StreamElementSerializer<T> serializer) {
-            this.virtualChannels = checkNotNull(virtualChannels);
-            this.serializer = checkNotNull(serializer);
+            this.virtualChannels = Preconditions.checkNotNull(virtualChannels);
+            this.serializer = Preconditions.checkNotNull(serializer);
             this.deserializationDelegate = new NonReusingDeserializationDelegate<>(serializer);
             this.outputSerializer = new DataOutputSerializer(128);
         }
@@ -334,16 +322,7 @@ public class ChannelStateFilteringHandler implements Closeable {
 
             boolean sourceBufferOwnershipTransferred = false;
             try {
-                SubtaskConnectionDescriptor key =
-                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
-                VirtualChannel<T> vc = virtualChannels.get(key);
-                if (vc == null) {
-                    throw new IllegalStateException(
-                            "No VirtualChannel found for key: "
-                                    + key
-                                    + "; known channels are "
-                                    + virtualChannels.keySet());
-                }
+                VirtualChannel<T> vc = getVirtualChannelBy(oldSubtaskIndex, oldChannelIndex);
 
                 vc.setNextBuffer(sourceBuffer);
                 sourceBufferOwnershipTransferred = true;
@@ -401,16 +380,7 @@ public class ChannelStateFilteringHandler implements Closeable {
             List<Buffer> resultBuffers = new ArrayList<>();
             Buffer currentBuffer = null;
             try {
-                SubtaskConnectionDescriptor key =
-                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
-                VirtualChannel<T> vc = virtualChannels.get(key);
-                if (vc == null) {
-                    throw new IllegalStateException(
-                            "No VirtualChannel found for key: "
-                                    + key
-                                    + "; known channels are "
-                                    + virtualChannels.keySet());
-                }
+                VirtualChannel<T> vc = getVirtualChannelBy(oldSubtaskIndex, oldChannelIndex);
 
                 vc.setNextBuffer(sourceBuffer);
                 sourceBufferOwnershipTransferred = true;
@@ -460,6 +430,20 @@ public class ChannelStateFilteringHandler implements Closeable {
                 resultBuffers.clear();
                 throw t;
             }
+        }
+
+        private VirtualChannel<T> getVirtualChannelBy(int oldSubtaskIndex, int oldChannelIndex) {
+            SubtaskConnectionDescriptor key =
+                    new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
+            VirtualChannel<T> vc = virtualChannels.get(key);
+            if (vc == null) {
+                throw new IllegalStateException(
+                        "No VirtualChannel found for key: "
+                                + key
+                                + "; known channels are "
+                                + virtualChannels.keySet());
+            }
+            return vc;
         }
 
         /**
