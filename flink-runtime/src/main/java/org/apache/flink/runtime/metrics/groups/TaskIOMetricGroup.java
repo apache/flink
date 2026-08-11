@@ -147,7 +147,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numFiredTimersRate =
                 meter(MetricNames.NUM_FIRED_TIMERS_RATE, new MeterView(numFiredTimers));
 
-        this.numMailsProcessed = new SimpleCounter();
+        this.numMailsProcessed = new SimpleMonotonicCounter();
         this.mailboxThroughput =
                 meter(MetricNames.MAILBOX_THROUGHPUT, new MeterView(numMailsProcessed));
         this.mailboxLatency =

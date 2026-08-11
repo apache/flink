@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.table.connector.source.lookup.LookupOptions.LookupCacheType;
@@ -65,7 +65,7 @@ public class LookupFullCache implements LookupCache {
             hitCounter = new ThreadSafeSimpleMonotonicCounter();
         }
         metricGroup.hitCounter(hitCounter);
-        metricGroup.missCounter(new SimpleCounter()); // always zero
+        metricGroup.missCounter(new SimpleMonotonicCounter()); // always zero
         cacheLoader.initializeMetrics(metricGroup);
 
         if (reloadTriggerContext == null) {
