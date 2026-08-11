@@ -152,10 +152,12 @@ class SerializedThrowableTest {
         SerializedThrowable serialized = new SerializedThrowable(parent);
         assertThat(serialized.getCause()).isNotNull();
 
+        // Copying a SerializedThrowable must preserve its already-correctly-formatted message
+        // verbatim, not recompute it as if `serialized` (a SerializedThrowable) were itself the
+        // original exception - that would stamp SerializedThrowable's own class name instead of
+        // the originally wrapped exception's.
         SerializedThrowable copy = new SerializedThrowable(serialized);
-        assertThat(copy)
-                .hasMessage(
-                        "org.apache.flink.util.SerializedThrowable: java.lang.Exception: parent message");
+        assertThat(copy.getMessage()).isEqualTo(serialized.getMessage());
         assertThat(copy.getCause()).isNotNull().hasMessage("java.lang.Exception: original message");
     }
 
