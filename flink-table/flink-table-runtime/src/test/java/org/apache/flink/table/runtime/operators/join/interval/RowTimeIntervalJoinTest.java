@@ -637,7 +637,7 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
-    /** Full outer: both sides early-fire; only the side that later matches is retracted. */
+    /** Full outer: both sides early-fire and both are retracted once their match arrives. */
     @Test
     void testRowTimeFullOuterEarlyFireOneMatches() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
@@ -647,7 +647,7 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                 createTestHarness(joinProcessFunc);
         testHarness.open();
 
-        // Left row at 10 (will match later), right row at 40 (stays unmatched).
+        // Left row at 10 and right row at 40, each matched later by a row from the other side.
         testHarness.processElement1(insertRecord(10L, "k1"));
         testHarness.processElement2(insertRecord(40L, "k1"));
         testHarness.processWatermark1(new Watermark(13));
@@ -656,9 +656,14 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         // Match the left row.
         testHarness.processElement2(insertRecord(12L, "k1"));
 
-        // Fire the right row's early-fire timer (43) and then close everything.
+        // Fire the right row's early-fire timer (43).
         testHarness.processWatermark1(new Watermark(43));
         testHarness.processWatermark2(new Watermark(43));
+
+        // A left row in window (40 in [45 - 9, 45 + 5]) matches the early-fired right row.
+        testHarness.processElement1(insertRecord(45L, "k1"));
+
+        // Close everything.
         testHarness.processWatermark1(new Watermark(60));
         testHarness.processWatermark2(new Watermark(60));
 
@@ -669,6 +674,8 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         expectedOutput.add(updateAfterRecord(10L, "k1", 12L, "k1"));
         expectedOutput.add(insertRecord(null, null, 40L, "k1"));
         expectedOutput.add(new Watermark(43 - 9));
+        expectedOutput.add(updateBeforeRecord(null, null, 40L, "k1"));
+        expectedOutput.add(updateAfterRecord(45L, "k1", 40L, "k1"));
         expectedOutput.add(new Watermark(60 - 9));
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();

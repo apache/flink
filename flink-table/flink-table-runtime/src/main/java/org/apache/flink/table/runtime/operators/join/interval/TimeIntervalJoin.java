@@ -226,7 +226,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                         && rightTime <= rightQualifiedUpperBound) {
                     List<Tuple2<RowData, Boolean>> rightRows = rightEntry.getValue();
                     List<Boolean> rightFired =
-                            earlyFireEnabled
+                            earlyFireEnabled && joinType.isRightOuter()
                                     ? firedBits(rightFiredState, rightTime, rightRows)
                                     : null;
                     boolean entryUpdated = false;
@@ -342,7 +342,9 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 if (leftTime >= leftQualifiedLowerBound && leftTime <= leftQualifiedUpperBound) {
                     List<Tuple2<RowData, Boolean>> leftRows = leftEntry.getValue();
                     List<Boolean> leftFired =
-                            earlyFireEnabled ? firedBits(leftFiredState, leftTime, leftRows) : null;
+                            earlyFireEnabled && joinType.isLeftOuter()
+                                    ? firedBits(leftFiredState, leftTime, leftRows)
+                                    : null;
                     boolean entryUpdated = false;
                     for (int i = 0; i < leftRows.size(); i++) {
                         Tuple2<RowData, Boolean> tuple = leftRows.get(i);
