@@ -20,52 +20,26 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.Internal;
 
-/** A simple low-overhead {@link org.apache.flink.metrics.UpDownCounter} that is not thread-safe. */
+import java.util.concurrent.atomic.LongAdder;
+
+/** A simple low-overhead {@link MonotonicCounter} that is thread-safe. */
 @Internal
-public class SimpleCounter implements UpDownCounter {
+public class ThreadSafeSimpleMonotonicCounter implements MonotonicCounter {
 
-    /** the current count. */
-    private long count;
+    private final LongAdder longAdder = new LongAdder();
 
-    /** Increment the current count by 1. */
     @Override
     public void inc() {
-        count++;
+        longAdder.increment();
     }
 
-    /**
-     * Increment the current count by the given value.
-     *
-     * @param n value to increment the current count by
-     */
     @Override
     public void inc(long n) {
-        count += n;
+        longAdder.add(n);
     }
 
-    /** Decrement the current count by 1. */
-    @Override
-    public void dec() {
-        count--;
-    }
-
-    /**
-     * Decrement the current count by the given value.
-     *
-     * @param n value to decrement the current count by
-     */
-    @Override
-    public void dec(long n) {
-        count -= n;
-    }
-
-    /**
-     * Returns the current count.
-     *
-     * @return current count
-     */
     @Override
     public long getCount() {
-        return count;
+        return longAdder.longValue();
     }
 }

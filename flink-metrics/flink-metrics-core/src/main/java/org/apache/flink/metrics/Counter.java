@@ -34,14 +34,31 @@ public interface Counter extends Metric {
      */
     void inc(long n);
 
-    /** Decrement the current count by 1. */
+    /**
+     * Decrement the current count by 1.
+     *
+     * <p>This is an <i>optional operation</i>: implementations whose count is meant to only ever
+     * increase (see {@link MonotonicCounter}) may refuse to support it and throw {@link
+     * UnsupportedOperationException} instead.
+     *
+     * @throws UnsupportedOperationException if this counter does not support decrementing
+     * @deprecated Please use {@link UpDownCounter}, where decrementing remains fully supported.
+     */
+    @Deprecated
     void dec();
 
     /**
      * Decrement the current count by the given value.
      *
+     * <p>This is an <i>optional operation</i>: implementations whose count is meant to only ever
+     * increase (see {@link MonotonicCounter}) may refuse to support it and throw {@link
+     * UnsupportedOperationException} instead.
+     *
      * @param n value to decrement the current count by
+     * @throws UnsupportedOperationException if this counter does not support decrementing
+     * @deprecated Please use {@link UpDownCounter}, where decrementing remains fully supported.
      */
+    @Deprecated
     void dec(long n);
 
     /**

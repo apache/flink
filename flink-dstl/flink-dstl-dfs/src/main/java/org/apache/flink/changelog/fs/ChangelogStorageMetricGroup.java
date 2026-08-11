@@ -21,7 +21,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
 
@@ -46,7 +46,9 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
     public ChangelogStorageMetricGroup(MetricGroup parent) {
         super(parent);
         this.uploadsCounter =
-                counter(CHANGELOG_STORAGE_NUM_UPLOAD_REQUESTS, new ThreadSafeSimpleCounter());
+                counter(
+                        CHANGELOG_STORAGE_NUM_UPLOAD_REQUESTS,
+                        new ThreadSafeSimpleMonotonicCounter());
         this.uploadBatchSizes =
                 histogram(
                         CHANGELOG_STORAGE_UPLOAD_BATCH_SIZES,
@@ -68,7 +70,9 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
                         CHANGELOG_STORAGE_UPLOAD_LATENCIES_NANOS,
                         new DescriptiveStatisticsHistogram(WINDOW_SIZE));
         this.uploadFailuresCounter =
-                counter(CHANGELOG_STORAGE_NUM_UPLOAD_FAILURES, new ThreadSafeSimpleCounter());
+                counter(
+                        CHANGELOG_STORAGE_NUM_UPLOAD_FAILURES,
+                        new ThreadSafeSimpleMonotonicCounter());
     }
 
     public Counter getUploadsCounter() {

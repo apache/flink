@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -107,7 +108,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numRecordsOutRate =
                 meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
 
-        this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
+        this.numBuffersOut = monotonicCounter(MetricNames.IO_NUM_BUFFERS_OUT);
         this.numBuffersOutRate =
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
@@ -142,7 +143,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.accumulatedIdleTime =
                 gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
 
-        this.numFiredTimers = counter(MetricNames.NUM_FIRED_TIMERS, new SimpleCounter());
+        this.numFiredTimers = monotonicCounter(MetricNames.NUM_FIRED_TIMERS);
         this.numFiredTimersRate =
                 meter(MetricNames.NUM_FIRED_TIMERS_RATE, new MeterView(numFiredTimers));
 
@@ -356,7 +357,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
      * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link
      * SumCounter#getCount()} returns the sum of this counters and all contained counters.
      */
-    private static class SumCounter extends SimpleCounter {
+    private static class SumCounter extends SimpleMonotonicCounter {
         private final List<Counter> internalCounters = new ArrayList<>();
 
         SumCounter() {}

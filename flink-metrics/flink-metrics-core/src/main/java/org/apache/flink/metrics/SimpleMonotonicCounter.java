@@ -20,9 +20,15 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.Internal;
 
-/** A simple low-overhead {@link org.apache.flink.metrics.UpDownCounter} that is not thread-safe. */
+/**
+ * A simple low-overhead {@link MonotonicCounter} that is not thread-safe.
+ *
+ * <p>It behaves like {@link SimpleCounter} for {@link #inc()} / {@link #inc(long)} / {@link
+ * #getCount()}, and rejects {@link #dec()} / {@link #dec(long)} per the {@link MonotonicCounter}
+ * contract.
+ */
 @Internal
-public class SimpleCounter implements UpDownCounter {
+public class SimpleMonotonicCounter implements MonotonicCounter {
 
     /** the current count. */
     private long count;
@@ -41,22 +47,6 @@ public class SimpleCounter implements UpDownCounter {
     @Override
     public void inc(long n) {
         count += n;
-    }
-
-    /** Decrement the current count by 1. */
-    @Override
-    public void dec() {
-        count--;
-    }
-
-    /**
-     * Decrement the current count by the given value.
-     *
-     * @param n value to decrement the current count by
-     */
-    @Override
-    public void dec(long n) {
-        count -= n;
     }
 
     /**
