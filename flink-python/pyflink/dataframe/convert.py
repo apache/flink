@@ -65,6 +65,41 @@ class _WatermarkSpec(NamedTuple):
     column: str
     expression: str
 
+    @classmethod
+    def parse(cls, watermark: Optional[Tuple[str, str]]) -> Optional["_WatermarkSpec"]:
+        if watermark is None:
+            return None
+        if not isinstance(watermark, tuple) or len(watermark) != 2:
+            raise TypeError("watermark must be a tuple of (column, expression)")
+        if any(not isinstance(value, str) or not value.strip() for value in watermark):
+            raise TypeError(
+                "watermark column and expression must be non-empty strings"
+            )
+        return cls(*watermark)
+
+    def normalize_row_type(self, row_type: RowType) -> RowType:
+        matching_fields = [
+            field for field in row_type.fields if field.name == self.column
+        ]
+        if not matching_fields:
+            raise ValueError(
+                f"watermark column {self.column!r} is not present in data"
+            )
+
+        watermark_type = matching_fields[0].data_type
+        if not isinstance(watermark_type, (TimestampType, LocalZonedTimestampType)):
+            raise ValueError(
+                f"watermark column {self.column!r} must have a timestamp type"
+            )
+
+        fields = []
+        for field in row_type.fields:
+            data_type = field.data_type
+            if field.name == self.column and data_type.precision != 3:
+                data_type = type(data_type)(3, data_type._nullable)
+            fields.append(RowField(field.name, data_type, field.description))
+        return RowType(fields, row_type._nullable)
+
 
 class _RecordType(Enum):
     NAMED_TUPLE = "named_tuple"
@@ -165,62 +200,22 @@ def _resolve_column_names(
     return column_names
 
 
-def _parse_watermark(
-    watermark: Optional[Tuple[str, str]],
-) -> Optional[_WatermarkSpec]:
-    if watermark is None:
-        return None
-    if not isinstance(watermark, tuple) or len(watermark) != 2:
-        raise TypeError("watermark must be a tuple of (column, expression)")
-    if any(not isinstance(value, str) or not value.strip() for value in watermark):
-        raise TypeError("watermark column and expression must be non-empty strings")
-    return _WatermarkSpec(*watermark)
-
-
-def _normalize_watermark_row_type(row_type: RowType, watermark: _WatermarkSpec) -> RowType:
-    column_name = watermark.column
-    matching_fields = [field for field in row_type.fields if field.name == column_name]
-    if not matching_fields:
-        raise ValueError(f"watermark column {column_name!r} is not present in data")
-
-    watermark_type = matching_fields[0].data_type
-    if not isinstance(watermark_type, (TimestampType, LocalZonedTimestampType)):
-        raise ValueError(
-            f"watermark column {column_name!r} must have a timestamp type"
-        )
-
-    fields = []
-    for field in row_type.fields:
-        data_type = field.data_type
-        if field.name == column_name and data_type.precision != 3:
-            data_type = type(data_type)(3, data_type._nullable)
-        fields.append(RowField(field.name, data_type, field.description))
-    return RowType(fields, row_type._nullable)
-
-
-def _resolve_watermark_schema(
-    row_type: RowType, watermark: Optional[_WatermarkSpec]
-) -> Tuple[RowType, Optional[Schema]]:
-    if watermark is None:
-        return row_type, None
-
-    row_type = _normalize_watermark_row_type(row_type, watermark)
-    table_schema = (
-        Schema.new_builder()
-        .from_row_data_type(row_type)
-        .watermark(watermark.column, watermark.expression)
-        .build()
-    )
-    return row_type, table_schema
-
-
 def _infer_schema_and_create_dataframe(
     rows: Sequence[Sequence[Any]],
     column_names: List[str],
     watermark: Optional[_WatermarkSpec] = None,
 ) -> DataFrame:
     row_type = _infer_schema_from_data(rows, names=column_names)
-    row_type, table_schema = _resolve_watermark_schema(row_type, watermark)
+    if watermark is None:
+        table_schema = None
+    else:
+        row_type = watermark.normalize_row_type(row_type)
+        table_schema = (
+            Schema.new_builder()
+            .from_row_data_type(row_type)
+            .watermark(*watermark)
+            .build()
+        )
     converter = _create_converter(row_type)
     verify_row = _create_type_verifier(row_type)
     sql_rows = []
@@ -233,15 +228,6 @@ def _infer_schema_and_create_dataframe(
         sql_rows, row_type, table_schema
     )
     return DataFrame(table)
-
-
-def _row_type_from_arrow_schema(arrow_schema: Any, names: List[str]) -> RowType:
-    return RowType(
-        [
-            RowField(name, from_arrow_type(arrow_field.type, arrow_field.nullable))
-            for name, arrow_field in zip(names, arrow_schema)
-        ]
-    )
 
 
 @PublicEvolving()
@@ -364,14 +350,26 @@ def from_arrow(
         raise TypeError(
             f"data must be a pyarrow.Table, but was {type(table).__name__}"
         )
-    watermark_spec = _parse_watermark(watermark)
+    watermark_spec = _WatermarkSpec.parse(watermark)
     names = _resolve_column_names(table.column_names, schema)
-    row_type = _row_type_from_arrow_schema(table.schema, names)
-    resolved_row_type, table_schema = _resolve_watermark_schema(
-        row_type, watermark_spec
+    row_type = RowType(
+        [
+            RowField(name, from_arrow_type(field.type, field.nullable))
+            for name, field in zip(names, table.schema)
+        ]
     )
+    if watermark_spec is None:
+        table_schema = None
+    else:
+        row_type = watermark_spec.normalize_row_type(row_type)
+        table_schema = (
+            Schema.new_builder()
+            .from_row_data_type(row_type)
+            .watermark(*watermark_spec)
+            .build()
+        )
     result = get_or_create_table_environment()._from_arrow(
-        table, resolved_row_type, table_schema
+        table, row_type, table_schema
     )
     return DataFrame(result)
 
@@ -439,7 +437,7 @@ def from_records(
         )
     if not data:
         raise ValueError("data must not be empty")
-    watermark_spec = _parse_watermark(watermark)
+    watermark_spec = _WatermarkSpec.parse(watermark)
 
     first_record = data[0]
     try:
@@ -514,7 +512,7 @@ def from_dict(
         raise TypeError("data must be a mapping")
     if not data:
         raise ValueError("data must not be empty")
-    watermark_spec = _parse_watermark(watermark)
+    watermark_spec = _WatermarkSpec.parse(watermark)
     if schema is None:
         schema = list(data.keys())
     _validate_schema(schema)

@@ -233,12 +233,19 @@ class FromDictTests(unittest.TestCase):
 
 class CreationValidationTests(unittest.TestCase):
     def test_parses_watermark_into_semantic_specification(self):
-        watermark = dataframe_convert._parse_watermark(
+        watermark = dataframe_convert._WatermarkSpec.parse(
             ("ts", "ts - INTERVAL '5' SECOND")
         )
 
         self.assertEqual(watermark.column, "ts")
         self.assertEqual(watermark.expression, "ts - INTERVAL '5' SECOND")
+
+    def test_watermark_spec_unpacks_column_before_expression(self):
+        watermark = dataframe_convert._WatermarkSpec(
+            "ts", "ts - INTERVAL '5' SECOND"
+        )
+
+        self.assertEqual(tuple(watermark), ("ts", "ts - INTERVAL '5' SECOND"))
 
     def test_rejects_invalid_watermarks(self):
         invalid_watermarks = [
