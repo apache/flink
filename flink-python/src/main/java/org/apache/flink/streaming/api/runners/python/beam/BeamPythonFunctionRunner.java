@@ -194,6 +194,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
+    /** Prevents duplicate teardown from explicit close and the JVM shutdown hook. */
+    private transient boolean closed;
+
     private transient Thread shutdownHook;
 
     private transient Environment environment;
@@ -333,7 +336,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
+        if (closed) {
+            return;
+        }
+        closed = true;
+
         try {
             try {
                 // A managed-memory JobBundleFactory can be shared by multiple runners. Finish this
