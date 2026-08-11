@@ -42,7 +42,8 @@ public interface Counter extends Metric {
      * UnsupportedOperationException} instead.
      *
      * @throws UnsupportedOperationException if this counter does not support decrementing
-     * @deprecated Please use {@link UpDownCounter}, where decrementing remains fully supported.
+     * @deprecated If you need a counter that can decrement, please migrate to {@link
+     *     UpDownCounter}, where decrementing is guaranteed to be fully supported.
      */
     @Deprecated
     void dec();
@@ -56,7 +57,8 @@ public interface Counter extends Metric {
      *
      * @param n value to decrement the current count by
      * @throws UnsupportedOperationException if this counter does not support decrementing
-     * @deprecated Please use {@link UpDownCounter}, where decrementing remains fully supported.
+     * @deprecated If you need a counter that can decrement, please migrate to {@link
+     *     UpDownCounter}, where decrementing is guaranteed to be fully supported.
      */
     @Deprecated
     void dec(long n);
