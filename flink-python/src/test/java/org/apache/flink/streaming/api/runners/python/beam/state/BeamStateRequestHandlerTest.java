@@ -30,8 +30,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,15 +95,16 @@ class BeamStateRequestHandlerTest {
             assertThat(stateAccessStarted.await(10, TimeUnit.SECONDS)).isTrue();
 
             final CountDownLatch closeStarted = new CountDownLatch(1);
+            final AtomicReference<Thread> closeThread = new AtomicReference<>();
             final Future<?> closeFuture =
                     executor.submit(
                             () -> {
+                                closeThread.set(Thread.currentThread());
                                 closeStarted.countDown();
                                 handler.close();
                             });
             assertThat(closeStarted.await(10, TimeUnit.SECONDS)).isTrue();
-            assertThatThrownBy(() -> closeFuture.get(100, TimeUnit.MILLISECONDS))
-                    .isInstanceOf(TimeoutException.class);
+            assertCloseWaitsForInFlightRequest(closeThread.get(), closeFuture);
 
             releaseStateAccess.countDown();
             requestFuture.get(10, TimeUnit.SECONDS);
@@ -111,6 +113,22 @@ class BeamStateRequestHandlerTest {
             releaseStateAccess.countDown();
             executor.shutdownNow();
         }
+    }
+
+    private static void assertCloseWaitsForInFlightRequest(
+            Thread closeThread, Future<?> closeFuture) {
+        final long timeoutNanos = TimeUnit.SECONDS.toNanos(10);
+        final long deadlineNanos = System.nanoTime() + timeoutNanos;
+        while (System.nanoTime() < deadlineNanos) {
+            if (closeFuture.isDone()) {
+                assertThat(closeFuture.isDone()).isFalse();
+            }
+            if (closeThread.getState() == Thread.State.WAITING) {
+                return;
+            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertThat(closeThread.getState()).isEqualTo(Thread.State.WAITING);
     }
 
     private static BeamStateRequestHandler createHandler(BeamStateStore keyedStateStore) {
