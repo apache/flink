@@ -275,7 +275,7 @@ class JsonParseReuseTest {
     void testSingleJsonTypeCall() {
         final String sql = "SELECT JSON_TYPE(json_data) FROM json_src";
         final List<Row> rows = collect(sql);
-        assertThat(rows).containsExactlyInAnyOrder(Row.of("OBJECT"), Row.of("OBJECT"));
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("object"), Row.of("object"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("A single JSON_TYPE call should parse once")
                 .isOne();
@@ -286,7 +286,7 @@ class JsonParseReuseTest {
         final String sql = "SELECT JSON_TYPE(json_data), JSON_TYPE(json_data) FROM json_src";
         final List<Row> rows = collect(sql);
         assertThat(rows)
-                .containsExactlyInAnyOrder(Row.of("OBJECT", "OBJECT"), Row.of("OBJECT", "OBJECT"));
+                .containsExactlyInAnyOrder(Row.of("object", "object"), Row.of("object", "object"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("Identical JSON_TYPE calls are one expression, so they parse once")
                 .isOne();
@@ -298,7 +298,7 @@ class JsonParseReuseTest {
                 "SELECT JSON_VALUE(json_data, '$.type'), JSON_TYPE(json_data) FROM json_src";
         final List<Row> rows = collect(sql);
         assertThat(rows)
-                .containsExactlyInAnyOrder(Row.of("account", "OBJECT"), Row.of("admin", "OBJECT"));
+                .containsExactlyInAnyOrder(Row.of("account", "object"), Row.of("admin", "object"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_VALUE + JSON_TYPE on the same input should parse once")
                 .isOne();
@@ -313,8 +313,8 @@ class JsonParseReuseTest {
         final List<Row> rows = collect(sql);
         assertThat(rows)
                 .containsExactlyInAnyOrder(
-                        Row.of("account", "{\"city\":\"Munich\"}", "OBJECT"),
-                        Row.of("admin", "{\"city\":\"Berlin\"}", "OBJECT"));
+                        Row.of("account", "{\"city\":\"Munich\"}", "object"),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_VALUE + JSON_QUERY + JSON_TYPE on the same input should parse once")
                 .isOne();
