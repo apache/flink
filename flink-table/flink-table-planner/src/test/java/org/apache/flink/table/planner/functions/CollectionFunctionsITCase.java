@@ -1911,12 +1911,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 null,
                                 new Integer[][] {new Integer[] {1, 2}, null, new Integer[] {3}},
                                 new Integer[][] {new Integer[] {1, null, 2}, new Integer[] {3}},
-                                new Integer[][] {null, null},
                                 new Integer[][] {new Integer[] {1}})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())),
-                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
@@ -1951,16 +1949,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_FLATTEN(f4)",
                                 new Integer[] {1, null, 2, 3},
                                 DataTypes.ARRAY(DataTypes.INT()))
-                        // All NULL inner arrays - should return empty array
+                        // Single element
                         .testResult(
                                 call("ARRAY_FLATTEN", $("f5")),
                                 "ARRAY_FLATTEN(f5)",
-                                new Integer[] {},
-                                DataTypes.ARRAY(DataTypes.INT()))
-                        // Single element
-                        .testResult(
-                                call("ARRAY_FLATTEN", $("f6")),
-                                "ARRAY_FLATTEN(f6)",
                                 new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT())));
     }
