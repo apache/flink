@@ -32,13 +32,13 @@ import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.TimerReference;
 import org.apache.beam.sdk.values.KV;
 import org.junit.jupiter.api.Test;
 
@@ -85,7 +85,7 @@ class BeamPythonFunctionRunnerTest {
         runner.close();
 
         assertThat(stateAccessedDuringFactoryClose).isTrue();
-        assertThat(remoteBundleClosed).isFalse();
+        assertThat(remoteBundleClosed).isTrue();
         assertStateHandlerClosed(stateRequestHandler);
     }
 
@@ -150,6 +150,70 @@ class BeamPythonFunctionRunnerTest {
     }
 
     @Test
+    void testCloseWaitsForConcurrentOwnedBundleFlush() throws Exception {
+        final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
+        final AtomicBoolean ownedFactoryClosed = new AtomicBoolean();
+        final AtomicInteger remoteBundleCloseCalls = new AtomicInteger();
+        final AtomicReference<Thread> closeThread = new AtomicReference<>();
+        final CountDownLatch firstBundleCloseStarted = new CountDownLatch(1);
+        final CountDownLatch releaseFirstBundleClose = new CountDownLatch(1);
+        final CountDownLatch closeStarted = new CountDownLatch(1);
+        final BeamStateRequestHandler stateRequestHandler =
+                createStateRequestHandler(stateAccessedDuringBundleClose);
+        final TestingBeamPythonFunctionRunner runner =
+                new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+        setField(runner, "jobBundleFactory", new TrackingJobBundleFactory(ownedFactoryClosed));
+        setField(runner, "stateRequestHandler", stateRequestHandler);
+        setField(
+                runner,
+                "remoteBundle",
+                new BlockingTestingRemoteBundle(
+                        stateRequestHandler,
+                        remoteBundleCloseCalls,
+                        firstBundleCloseStarted,
+                        releaseFirstBundleClose));
+        setField(runner, "bundleStarted", true);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            final Future<?> flushFuture =
+                    executor.submit(
+                            () -> {
+                                runner.flush();
+                                return null;
+                            });
+            assertThat(firstBundleCloseStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            final Future<?> closeFuture =
+                    executor.submit(
+                            () -> {
+                                closeThread.set(Thread.currentThread());
+                                closeStarted.countDown();
+                                runner.close();
+                                return null;
+                            });
+            assertThat(closeStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThreadIsWaitingForBundleClose(
+                    closeThread.get(), remoteBundleCloseCalls, closeFuture);
+            assertThat(closeFuture.isDone()).isFalse();
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(ownedFactoryClosed).isFalse();
+
+            releaseFirstBundleClose.countDown();
+            flushFuture.get(10, TimeUnit.SECONDS);
+            closeFuture.get(10, TimeUnit.SECONDS);
+
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(ownedFactoryClosed).isTrue();
+            assertThat(stateAccessedDuringBundleClose).isTrue();
+            assertStateHandlerClosed(stateRequestHandler);
+        } finally {
+            releaseFirstBundleClose.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void testCloseWaitsForConcurrentManagedBundleFlush() throws Exception {
         final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
         final AtomicBoolean sharedFactoryClosed = new AtomicBoolean();
@@ -199,7 +263,8 @@ class BeamPythonFunctionRunnerTest {
                                 return null;
                             });
             assertThat(closeStarted.await(10, TimeUnit.SECONDS)).isTrue();
-            assertCloseThreadIsBlocked(closeThread.get(), remoteBundleCloseCalls, closeFuture);
+            assertThreadIsWaitingForBundleClose(
+                    closeThread.get(), remoteBundleCloseCalls, closeFuture);
             assertThat(closeFuture.isDone()).isFalse();
             assertThat(remoteBundleCloseCalls).hasValue(1);
             assertThat(sharedFactoryClosed).isFalse();
@@ -215,6 +280,128 @@ class BeamPythonFunctionRunnerTest {
         } finally {
             releaseFirstBundleClose.countDown();
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testCancelDoesNotWaitForConcurrentManagedBundleFlush() throws Exception {
+        final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
+        final AtomicBoolean sharedFactoryClosed = new AtomicBoolean();
+        final AtomicInteger remoteBundleCloseCalls = new AtomicInteger();
+        final CountDownLatch firstBundleCloseStarted = new CountDownLatch(1);
+        final CountDownLatch releaseFirstBundleClose = new CountDownLatch(1);
+        final BeamStateRequestHandler stateRequestHandler =
+                createStateRequestHandler(stateAccessedDuringBundleClose);
+        final PythonSharedResources pythonSharedResources =
+                new PythonSharedResources(
+                        new TrackingJobBundleFactory(sharedFactoryClosed),
+                        RunnerApi.Environment.getDefaultInstance());
+        final OpaqueMemoryResource<PythonSharedResources> sharedResources =
+                new OpaqueMemoryResource<>(pythonSharedResources, 1L, pythonSharedResources::close);
+        final TestingBeamPythonFunctionRunner runner =
+                new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+        setField(runner, "stateRequestHandler", stateRequestHandler);
+        setField(
+                runner,
+                "remoteBundle",
+                new BlockingTestingRemoteBundle(
+                        stateRequestHandler,
+                        remoteBundleCloseCalls,
+                        firstBundleCloseStarted,
+                        releaseFirstBundleClose));
+        setField(runner, "bundleStarted", true);
+        setField(runner, "sharedResources", sharedResources);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            final Future<?> flushFuture =
+                    executor.submit(
+                            () -> {
+                                runner.flush();
+                                return null;
+                            });
+            assertThat(firstBundleCloseStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            final Future<?> cancelFuture =
+                    executor.submit(
+                            () -> {
+                                runner.cancel();
+                                return null;
+                            });
+            cancelFuture.get(10, TimeUnit.SECONDS);
+
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(sharedFactoryClosed).isTrue();
+            assertThat(stateAccessedDuringBundleClose).isFalse();
+            assertStateHandlerClosed(stateRequestHandler);
+
+            releaseFirstBundleClose.countDown();
+            assertThatThrownBy(() -> flushFuture.get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(IllegalStateException.class);
+            assertThat(sharedFactoryClosed).isTrue();
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(stateAccessedDuringBundleClose).isFalse();
+        } finally {
+            releaseFirstBundleClose.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testCancelRetainsUnclaimedManagedBundleCleanupOwnership() throws Exception {
+        final AtomicBoolean stateAccessedDuringBundleClose = new AtomicBoolean();
+        final AtomicBoolean sharedFactoryClosed = new AtomicBoolean();
+        final AtomicInteger remoteBundleCloseCalls = new AtomicInteger();
+        final CountDownLatch bundleCloseStarted = new CountDownLatch(1);
+        final CountDownLatch releaseBundleClose = new CountDownLatch(1);
+        final CountDownLatch bundleCloseFinished = new CountDownLatch(1);
+        final BeamStateRequestHandler stateRequestHandler =
+                createStateRequestHandler(stateAccessedDuringBundleClose);
+        final PythonSharedResources pythonSharedResources =
+                new PythonSharedResources(
+                        new TrackingJobBundleFactory(sharedFactoryClosed),
+                        RunnerApi.Environment.getDefaultInstance());
+        final AtomicInteger sharedResourceLeases = new AtomicInteger(2);
+        final OpaqueMemoryResource<PythonSharedResources> sharedResources =
+                createSharedResourceLease(pythonSharedResources, sharedResourceLeases);
+        final OpaqueMemoryResource<PythonSharedResources> remainingSharedResourceLease =
+                createSharedResourceLease(pythonSharedResources, sharedResourceLeases);
+        final TestingBeamPythonFunctionRunner runner =
+                new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+        setField(runner, "stateRequestHandler", stateRequestHandler);
+        setField(
+                runner,
+                "remoteBundle",
+                new BlockingTestingRemoteBundle(
+                        stateRequestHandler,
+                        remoteBundleCloseCalls,
+                        bundleCloseStarted,
+                        releaseBundleClose,
+                        bundleCloseFinished));
+        setField(runner, "bundleStarted", true);
+        setField(runner, "sharedResources", sharedResources);
+
+        try {
+            runner.cancel();
+            assertThat(bundleCloseStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            runner.flush();
+
+            assertThat(remoteBundleCloseCalls).hasValue(1);
+            assertThat(sharedFactoryClosed).isFalse();
+            assertStateHandlerClosed(stateRequestHandler);
+
+            releaseBundleClose.countDown();
+            assertThat(bundleCloseFinished.await(10, TimeUnit.SECONDS)).isTrue();
+            assertRemainingSharedResourceLeases(sharedResourceLeases, 1);
+            assertThat(stateAccessedDuringBundleClose).isFalse();
+            assertThat(sharedFactoryClosed).isFalse();
+
+            remainingSharedResourceLease.close();
+
+            assertThat(sharedFactoryClosed).isTrue();
+        } finally {
+            releaseBundleClose.countDown();
+            remainingSharedResourceLease.close();
         }
     }
 
@@ -267,7 +454,7 @@ class BeamPythonFunctionRunnerTest {
                                 return null;
                             });
             assertThat(secondCloseStarted.await(10, TimeUnit.SECONDS)).isTrue();
-            assertCloseThreadIsBlocked(
+            assertThreadIsWaitingForBundleClose(
                     secondCloseThread.get(), stateHandlerCloseCalls, secondCloseFuture);
             assertThat(secondCloseFuture.isDone()).isFalse();
             assertThat(stateHandlerCloseCalls).hasValue(1);
@@ -287,7 +474,7 @@ class BeamPythonFunctionRunnerTest {
         }
     }
 
-    private static void assertCloseThreadIsBlocked(
+    private static void assertThreadIsWaitingForBundleClose(
             Thread closeThread, AtomicInteger concurrentCloseCalls, Future<?> closeFuture) {
         final long timeoutNanos = TimeUnit.SECONDS.toNanos(10);
         final long deadlineNanos = System.nanoTime() + timeoutNanos;
@@ -298,12 +485,24 @@ class BeamPythonFunctionRunnerTest {
             if (concurrentCloseCalls.get() > 1) {
                 assertThat(concurrentCloseCalls).hasValue(1);
             }
-            if (closeThread.getState() == Thread.State.BLOCKED) {
+            if (closeThread.getState() == Thread.State.WAITING) {
                 return;
             }
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         }
-        assertThat(closeThread.getState()).isEqualTo(Thread.State.BLOCKED);
+        assertThat(closeThread.getState()).isEqualTo(Thread.State.WAITING);
+    }
+
+    private static void assertRemainingSharedResourceLeases(
+            AtomicInteger remainingLeases, int expectedLeases) {
+        final long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadlineNanos) {
+            if (remainingLeases.get() == expectedLeases) {
+                return;
+            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertThat(remainingLeases).hasValue(expectedLeases);
     }
 
     private static OpaqueMemoryResource<PythonSharedResources> createSharedResourceLease(
@@ -436,26 +635,61 @@ class BeamPythonFunctionRunnerTest {
         private final AtomicInteger closeCalls;
         private final CountDownLatch firstCloseStarted;
         private final CountDownLatch releaseFirstClose;
+        private final CountDownLatch closeFinished;
 
         private BlockingTestingRemoteBundle(
                 BeamStateRequestHandler stateRequestHandler,
                 AtomicInteger closeCalls,
                 CountDownLatch firstCloseStarted,
                 CountDownLatch releaseFirstClose) {
+            this(
+                    stateRequestHandler,
+                    closeCalls,
+                    firstCloseStarted,
+                    releaseFirstClose,
+                    new CountDownLatch(0));
+        }
+
+        private BlockingTestingRemoteBundle(
+                BeamStateRequestHandler stateRequestHandler,
+                AtomicInteger closeCalls,
+                CountDownLatch firstCloseStarted,
+                CountDownLatch releaseFirstClose,
+                CountDownLatch closeFinished) {
             super(stateRequestHandler, new AtomicBoolean());
             this.stateRequestHandler = stateRequestHandler;
             this.closeCalls = closeCalls;
             this.firstCloseStarted = firstCloseStarted;
             this.releaseFirstClose = releaseFirstClose;
+            this.closeFinished = closeFinished;
         }
 
         @Override
         public void close() throws Exception {
-            if (closeCalls.incrementAndGet() == 1) {
-                firstCloseStarted.countDown();
-                releaseFirstClose.await();
+            try {
+                if (closeCalls.incrementAndGet() == 1) {
+                    firstCloseStarted.countDown();
+                    awaitUninterruptibly(releaseFirstClose);
+                }
+                stateRequestHandler.handle(createBagUserStateRequest());
+            } finally {
+                closeFinished.countDown();
             }
-            stateRequestHandler.handle(createBagUserStateRequest());
+        }
+
+        private static void awaitUninterruptibly(CountDownLatch latch) {
+            boolean interrupted = false;
+            while (true) {
+                try {
+                    latch.await();
+                    break;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
