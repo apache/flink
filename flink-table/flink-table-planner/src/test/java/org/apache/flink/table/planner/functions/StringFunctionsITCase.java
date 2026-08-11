@@ -207,6 +207,11 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "java",
                                 DataTypes.VARCHAR(5))
                         .testResult(
+                                $("f4").elt($("f3"), $("f2")),
+                                "ELT(f4, f3, f2)",
+                                null,
+                                DataTypes.BYTES())
+                        .testResult(
                                 lit(2).elt($("f2"), $("f3"), $("f3")),
                                 "ELT(2, f2, f3, f3)",
                                 new byte[] {1, 2, 3},
