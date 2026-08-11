@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import javax.annotation.Nullable;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -199,6 +201,37 @@ public class SerializedThrowable extends Exception implements Serializable {
         } else {
             return serThrowable;
         }
+    }
+
+    /**
+     * Constructs a SerializedThrowable directly from its already-serialized wire representation
+     * (see {@code SerializedThrowableDeserializer}), without deserializing {@code
+     * serializedException} - that only happens lazily, on an explicit {@link #deserializeError}
+     * call. Used when reconstructing a SerializedThrowable that arrived over a channel this
+     * process does not fully control (e.g. a REST response), where serializedException should
+     * not be deserialized automatically.
+     *
+     * @param message the message to report via {@link #getMessage()}, normally {@code "<class>:
+     *     <original message>"} to match {@link #SerializedThrowable(Throwable)}
+     * @param originalErrorClassName name of the original exception's class
+     * @param fullStringifiedStackTrace the original exception's stringified stack trace
+     * @param serializedException the original exception in serialized form, or {@code null} if
+     *     unavailable; not touched by this constructor
+     */
+    public SerializedThrowable(
+            @Nullable String message,
+            String originalErrorClassName,
+            String fullStringifiedStackTrace,
+            @Nullable byte[] serializedException) {
+        super(message);
+        this.originalErrorClassName = originalErrorClassName;
+        this.fullStringifiedStackTrace = fullStringifiedStackTrace;
+        this.serializedException = serializedException;
+        this.cachedException = null;
+        // super(message) fills in this constructor's own call stack by default; the original
+        // exception's stack trace is only available as text, in fullStringifiedStackTrace, so
+        // there is nothing meaningful to put here structurally.
+        setStackTrace(new StackTraceElement[0]);
     }
 
     private static String getClassNameAndMessageOrError(Throwable error) {
