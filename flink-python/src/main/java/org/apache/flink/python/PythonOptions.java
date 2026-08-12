@@ -156,7 +156,7 @@ public class PythonOptions {
     public static final ConfigOption<String> PYTHON_EXECUTABLE =
             ConfigOptions.key("python.executable")
                     .stringType()
-                    .defaultValue("python")
+                    .defaultValue("python3")
                     .withDescription(
                             "Specify the path of the python interpreter used to execute the python "
                                     + "UDF worker. The python UDF worker depends on Python 3.9+, Apache Beam "
@@ -167,7 +167,7 @@ public class PythonOptions {
     public static final ConfigOption<String> PYTHON_CLIENT_EXECUTABLE =
             ConfigOptions.key("python.client.executable")
                     .stringType()
-                    .defaultValue("python")
+                    .defaultValue("python3")
                     .withDescription(
                             Description.builder()
                                     .text(

@@ -97,7 +97,7 @@ final class PythonEnvUtils {
 
         String archivesDirectory;
 
-        String pythonExec = OperatingSystem.isWindows() ? "python.exe" : "python";
+        String pythonExec = OperatingSystem.isWindows() ? "python.exe" : "python3";
 
         String pythonPath;
 

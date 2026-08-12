@@ -28,7 +28,7 @@ FLINK_CLASSPATH=`constructFlinkClassPath`
 PYTHON_JAR_PATH=`echo "$FLINK_OPT_DIR"/flink-python*.jar`
 
 
-PYFLINK_PYTHON="${PYFLINK_PYTHON:-"python"}"
+PYFLINK_PYTHON="${PYFLINK_PYTHON:-"python3"}"
 
 # So that python can find out Flink's Jars
 export FLINK_BIN_DIR=$FLINK_BIN_DIR

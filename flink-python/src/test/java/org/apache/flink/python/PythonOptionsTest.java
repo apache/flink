@@ -146,6 +146,7 @@ class PythonOptionsTest {
         final Optional<String> defaultPythonExecutable =
                 configuration.getOptional(PythonOptions.PYTHON_EXECUTABLE);
         assertThat(defaultPythonExecutable).isEmpty();
+        assertThat(configuration.get(PythonOptions.PYTHON_EXECUTABLE)).isEqualTo("python3");
 
         final String expectedPythonExecutable = "venv/py37/bin/python";
         configuration.set(PythonOptions.PYTHON_EXECUTABLE, expectedPythonExecutable);
@@ -160,6 +161,7 @@ class PythonOptionsTest {
         final Optional<String> defaultPythonClientExecutable =
                 configuration.getOptional(PythonOptions.PYTHON_CLIENT_EXECUTABLE);
         assertThat(defaultPythonClientExecutable).isEmpty();
+        assertThat(configuration.get(PythonOptions.PYTHON_CLIENT_EXECUTABLE)).isEqualTo("python3");
 
         final String expectedPythonClientExecutable = "tmp_dir/test1.py,tmp_dir/test2.py";
         configuration.set(PythonOptions.PYTHON_CLIENT_EXECUTABLE, expectedPythonClientExecutable);
