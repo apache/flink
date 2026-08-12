@@ -512,23 +512,40 @@ class DataFrameAggregationTests(PyFlinkDataFrameUTTestCase):
             ],
         )
 
-    def test_aggregation_python_contract_validation(self):
+    def test_group_by_requires_grouping_key(self):
         with self.assertRaisesRegex(ValueError, "requires at least one grouping key"):
             self.dataframe.group_by()
-        with self.assertRaisesRegex(TypeError, "grouping keys must be strings"):
+
+    def test_group_by_rejects_unsupported_key_type(self):
+        with self.assertRaisesRegex(
+            TypeError, "grouping keys must be strings or expressions"
+        ):
             self.dataframe.group_by(42)
+
+    def test_global_aggregation_requires_aggregation(self):
         with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
             self.dataframe.agg()
+
+    def test_global_aggregation_rejects_unsupported_positional_type(self):
         with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
             self.dataframe.agg(42)
+
+    def test_global_aggregation_rejects_unsupported_named_type(self):
         with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
             self.dataframe.agg(total=42)
 
+    def test_grouped_aggregation_requires_aggregation(self):
         grouped = self.dataframe.group_by("department")
         with self.assertRaisesRegex(ValueError, "requires at least one aggregation"):
             grouped.agg()
+
+    def test_grouped_aggregation_rejects_unsupported_positional_type(self):
+        grouped = self.dataframe.group_by("department")
         with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
             grouped.agg(42)
+
+    def test_grouped_aggregation_rejects_unsupported_named_type(self):
+        grouped = self.dataframe.group_by("department")
         with self.assertRaisesRegex(TypeError, "aggregations must be expressions"):
             grouped.agg(total=42)
 

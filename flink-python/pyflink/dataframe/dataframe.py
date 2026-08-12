@@ -317,7 +317,7 @@ class DataFrame:
                 grouping_keys.append(column)
             else:
                 raise TypeError(
-                    "group_by() grouping keys must be strings or Expression instances"
+                    "group_by() grouping keys must be strings or expressions"
                 )
         return GroupedDataFrame(self, grouping_keys)
 
