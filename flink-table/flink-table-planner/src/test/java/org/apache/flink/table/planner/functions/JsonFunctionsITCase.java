@@ -530,9 +530,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         List.of("account", "42"),
                         List.of(STRING(), STRING()))
                 .testSqlResult(
-                        "JSON_VALUE(f1, '$.type'), JSON_VALUE(f2, '$.type')",
-                        Arrays.asList(null, null),
-                        List.of(STRING(), STRING()));
+                        "JSON_VALUE(f1, '$.type'), "
+                                + "JSON_VALUE(f2, '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS INT), '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS DATE), '$.type')",
+                        Arrays.asList(null, null, null, null),
+                        List.of(STRING(), STRING(), STRING(), STRING()));
     }
 
     private static List<TestSetSpec> isJsonSpec() {
