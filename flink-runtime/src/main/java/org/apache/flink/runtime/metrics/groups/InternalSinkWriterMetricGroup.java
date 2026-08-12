@@ -46,7 +46,7 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
         numRecordsOutErrors =
                 parentMetricGroup.monotonicCounter(MetricNames.NUM_RECORDS_OUT_ERRORS);
         numRecordsSendErrors =
-                parentMetricGroup.monotonicCounter(MetricNames.NUM_RECORDS_SEND_ERRORS);
+                parentMetricGroup.counter(MetricNames.NUM_RECORDS_SEND_ERRORS, numRecordsOutErrors);
         numRecordsWritten =
                 parentMetricGroup.counter(
                         MetricNames.NUM_RECORDS_SEND,
