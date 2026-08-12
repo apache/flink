@@ -32,7 +32,7 @@ from pyflink.table import (
     TableEnvironment,
 )
 from pyflink.table.expression import Expression
-from pyflink.table.types import LocalZonedTimestampType, TimestampType
+from pyflink.table.types import LocalZonedTimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkITTestCase,
@@ -245,6 +245,16 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                 dataframe = creator(data, schema=["id", "ts"])
                 self.assert_dataframe_schema(dataframe, ["id", "ts"])
 
+        duplicate_pdf = pd.DataFrame(
+            [[1, "Alice"], [2, "Bob"]], columns=["value", "value"]
+        )
+        dataframe = pf.from_pandas(duplicate_pdf, schema=["id", "name"])
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
     def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
         inputs = [
             (
@@ -311,6 +321,9 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             table_schema.get_column_data_types(),
             dataframe_schema.get_column_data_types(),
         )
+        self.assertIsInstance(
+            dataframe_schema.get_column_data_types()[2], LocalZonedTimestampType
+        )
 
         empty_pdf = pd.DataFrame(
             {
@@ -349,10 +362,17 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             ),
             (
                 lambda: pf.from_pandas(
-                    pd.DataFrame({"ts": [timestamp]}),
+                    pd.DataFrame(
+                        {
+                            "ts": pd.Series(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                dtype="datetime64[us, UTC]",
+                            )
+                        }
+                    ),
                     watermark=("ts", "ts - INTERVAL '1' SECOND"),
                 ),
-                TimestampType,
+                LocalZonedTimestampType,
             ),
             (
                 lambda: pf.from_arrow(
@@ -366,7 +386,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     ),
                     watermark=("ts", "ts - INTERVAL '1' SECOND"),
                 ),
-                TimestampType,
+                LocalZonedTimestampType,
             ),
         ]
         for creator, expected_type in creators:
@@ -778,27 +798,42 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
         )
 
     def test_pandas_to_pandas_round_trip(self):
-        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123000)
-        pdf = pd.DataFrame(
-            {
-                "id": [0, 1, 2],
-                "ts": pd.Series([None, timestamp, None], dtype="datetime64[ms]"),
-            }
-        )
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("America/New_York")
+        try:
+            first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
+            second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
+            pdf = pd.DataFrame(
+                {
+                    "id": [0, 1, 2, 3],
+                    "ts": pd.Series(
+                        [None, first_fold, second_fold, None],
+                        dtype="datetime64[ms, UTC]",
+                    ),
+                }
+            )
 
-        result = (
-            pf.from_pandas(pdf)
-            .filter(pf.col("id") > 0)
-            .with_column("id_plus_one", pf.col("id") + 1)
-            .select("id", "id_plus_one", "ts")
-            .to_pandas()
-        )
+            result = (
+                pf.from_pandas(pdf)
+                .filter(pf.col("id") > 0)
+                .with_column("id_plus_one", pf.col("id") + 1)
+                .select("id", "id_plus_one", "ts")
+                .to_pandas()
+            )
 
-        self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
-        self.assertEqual(result["id"].tolist(), [1, 2])
-        self.assertEqual(result["id_plus_one"].tolist(), [2, 3])
-        self.assertEqual(result["ts"].isna().tolist(), [False, True])
-        self.assertEqual(result.loc[0, "ts"].to_pydatetime(), timestamp)
+            self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
+            self.assertEqual(result["id"].tolist(), [1, 2, 3])
+            self.assertEqual(result["id_plus_one"].tolist(), [2, 3, 4])
+            self.assertEqual(result["ts"].isna().tolist(), [False, False, True])
+            self.assertEqual(
+                result["ts"].tolist()[:2],
+                [
+                    first_fold.tz_convert("America/New_York"),
+                    second_fold.tz_convert("America/New_York"),
+                ],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
 
     def test_basic_functionality(self):
         df = pf.from_dict(

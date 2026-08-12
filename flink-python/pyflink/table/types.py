@@ -2263,14 +2263,19 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         else:
             return TimeType(9, nullable)
     elif types.is_timestamp(arrow_type):
+        timestamp_type = (
+            LocalZonedTimestampType
+            if arrow_type.tz is not None
+            else TimestampType
+        )
         if arrow_type.unit == 's':
-            return TimestampType(0, nullable)
+            return timestamp_type(0, nullable)
         elif arrow_type.unit == 'ms':
-            return TimestampType(3, nullable)
+            return timestamp_type(3, nullable)
         elif arrow_type.unit == 'us':
-            return TimestampType(6, nullable)
+            return timestamp_type(6, nullable)
         else:
-            return TimestampType(9, nullable)
+            return timestamp_type(9, nullable)
     elif types.is_map(arrow_type):
         return MapType(from_arrow_type(arrow_type.key_type),
                        from_arrow_type(arrow_type.item_type),

@@ -82,7 +82,7 @@ def tz_convert_from_internal(s, t: DataType, local_tz):
     returns a converted series.
     """
     if type(t) == LocalZonedTimestampType:
-        return s.dt.tz_localize(local_tz)
+        return s.dt.tz_localize(datetime.timezone.utc).dt.tz_convert(local_tz)
     else:
         return s
 
@@ -95,9 +95,11 @@ def tz_convert_to_internal(s, t: DataType, local_tz):
     if type(t) == LocalZonedTimestampType:
         from pandas.api.types import is_datetime64_dtype, is_datetime64tz_dtype
         if is_datetime64_dtype(s.dtype):
-            return s.dt.tz_localize(None)
+            return s.dt.tz_localize(local_tz).dt.tz_convert(
+                datetime.timezone.utc
+            ).dt.tz_localize(None)
         elif is_datetime64tz_dtype(s.dtype):
-            return s.dt.tz_convert(local_tz).dt.tz_localize(None)
+            return s.dt.tz_convert(datetime.timezone.utc).dt.tz_localize(None)
     return s
 
 

@@ -280,6 +280,42 @@ class CreationValidationTests(unittest.TestCase):
                     with self.assertRaisesRegex(error_type, message):
                         creator(data, schema=schema)
 
+    def test_pandas_rejects_duplicate_columns_without_schema(self):
+        pdf = pd.DataFrame([[1, 2]], columns=["value", "value"])
+
+        with self.assertRaisesRegex(ValueError, "schema field names must be unique"):
+            pf.from_pandas(pdf)
+
+    def test_rejects_columnar_fields_containing_null_type(self):
+        inputs = [
+            (
+                lambda: pf.from_pandas(pd.DataFrame({"value": [None]})),
+                "columns with Arrow null types: 'value'",
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table({"left": pa.nulls(1), "right": pa.nulls(1)})
+                ),
+                "columns with Arrow null types: 'left', 'right'",
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "value": pa.array(
+                                [[None]], type=pa.list_(pa.null())
+                            )
+                        }
+                    )
+                ),
+                "columns with Arrow null types: 'value'",
+            ),
+        ]
+        for creator, message in inputs:
+            with self.subTest(creator=creator):
+                with self.assertRaisesRegex(TypeError, message):
+                    creator()
+
     def test_rejects_invalid_table_and_columnar_inputs(self):
         invalid_inputs = [
             (pf.from_table, object(), "pyflink.table.Table"),

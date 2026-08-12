@@ -24,6 +24,8 @@ import sys
 import tempfile
 import unittest
 
+import pyarrow as pa
+
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 
@@ -35,7 +37,8 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _from_java_data_type, ZonedTimestampType,
-                                 LocalZonedTimestampType, _to_java_data_type)
+                                 LocalZonedTimestampType, TimestampType, _to_java_data_type,
+                                 from_arrow_type)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -124,6 +127,25 @@ class UTCOffsetTimezone(datetime.tzinfo):
 
     def dst(self, dt):
         return self.OFFSET
+
+
+class ArrowTypeConversionTests(unittest.TestCase):
+
+    def test_timestamp_type_mapping(self):
+        units_and_precisions = [("s", 0), ("ms", 3), ("us", 6), ("ns", 9)]
+        for timezone_id, expected_type in [
+            (None, TimestampType),
+            ("Asia/Shanghai", LocalZonedTimestampType),
+        ]:
+            for unit, precision in units_and_precisions:
+                with self.subTest(timezone_id=timezone_id, unit=unit):
+                    data_type = from_arrow_type(
+                        pa.timestamp(unit, tz=timezone_id), nullable=False
+                    )
+
+                    self.assertIsInstance(data_type, expected_type)
+                    self.assertEqual(data_type.precision, precision)
+                    self.assertFalse(data_type._nullable)
 
 
 class TypesTests(PyFlinkTestCase):

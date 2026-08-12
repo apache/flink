@@ -37,6 +37,7 @@ from pyflink.table import Schema, Table
 from pyflink.table.types import (
     _create_converter,
     _create_type_verifier,
+    _has_nulltype,
     _infer_schema_from_data,
     DataTypes,
     LocalZonedTimestampType,
@@ -266,6 +267,8 @@ def from_pandas(
     Types are inferred from the Arrow representation of the pandas columns. An explicit ``schema``
     renames columns positionally and must contain exactly one unique, non-empty name per input
     column. Empty inputs are supported when their pandas dtypes can be converted to Flink types.
+    Timezone-aware timestamps are represented as ``TIMESTAMP_LTZ`` in the TableEnvironment's
+    configured local timezone; timezone-naive timestamps are represented as ``TIMESTAMP``.
 
     ``watermark`` declares an event-time column and its SQL watermark expression. The selected
     column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
@@ -300,9 +303,15 @@ def from_pandas(
 
     import pyarrow as pa
 
+    input_names = list(pdf.columns)
+    arrow_pdf = pdf.copy(deep=False)
+    arrow_pdf.columns = [
+        f"__pyflink_dataframe_column_{index}"
+        for index in builtins.range(len(input_names))
+    ]
     return from_arrow(
-        pa.Table.from_pandas(pdf, preserve_index=False),
-        schema=schema,
+        pa.Table.from_pandas(arrow_pdf, preserve_index=False),
+        schema=input_names if schema is None else schema,
         watermark=watermark,
     )
 
@@ -358,6 +367,15 @@ def from_arrow(
             for name, field in zip(names, table.schema)
         ]
     )
+    null_field_names = [
+        field.name for field in row_type.fields if _has_nulltype(field.data_type)
+    ]
+    if null_field_names:
+        columns = ", ".join(repr(name) for name in null_field_names)
+        raise TypeError(
+            f"Cannot infer Flink data types for columns with Arrow null types: {columns}. "
+            "Use explicit pandas or Arrow dtypes for these columns."
+        )
     if watermark_spec is None:
         table_schema = None
     else:
@@ -500,10 +518,15 @@ def from_dict(
 
     Example::
 
+        >>> from datetime import datetime
         >>> import pyflink.dataframe as pf
         >>> users = pf.from_dict(
         ...     {"name": ["Alice", "Bob"], "id": [1, 2]},
         ...     schema=["id", "name"],
+        ... )
+        >>> events = pf.from_dict(
+        ...     {"id": [1], "ts": [datetime(2026, 1, 1)]},
+        ...     watermark=("ts", "ts - INTERVAL '5' SECOND"),
         ... )
 
     .. versionadded:: 2.4.0
