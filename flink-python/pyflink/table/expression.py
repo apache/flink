@@ -1984,6 +1984,22 @@ class Expression(Generic[T]):
         """
         return _unary_op("mapFromEntries")(self)
 
+    def map_contains_key(self, key) -> 'Expression':
+        """
+        Returns whether the given key exists in the map.
+
+        Checking for a None key is supported: the function returns True if the map contains a
+        None key. If the map itself is None, the function returns None. The given key is cast
+        implicitly to the map's key type if necessary.
+
+        Examples:
+        ::
+
+            >>> map_("a", 1, "b", 2).map_contains_key("a") # True
+            >>> map_("a", 1, "b", 2).map_contains_key("z") # False
+        """
+        return _binary_op("mapContainsKey")(self, key)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property
