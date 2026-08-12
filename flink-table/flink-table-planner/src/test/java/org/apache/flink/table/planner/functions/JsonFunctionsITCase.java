@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -407,8 +408,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     private static TestSetSpec jsonValueSpec() {
         final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
-                .onFieldsWithData(jsonValue)
-                .andDataTypes(STRING())
+                .onFieldsWithData(jsonValue, jsonValue.getBytes(StandardCharsets.UTF_8), Row.of(jsonValue))
+                .andDataTypes(STRING(), VARBINARY(Integer.MAX_VALUE), ROW(FIELD("json", STRING())))
 
                 // NULL and invalid types
                 .testResult(
@@ -525,6 +526,10 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult(
                         "JSON_VALUE(f0, '$.type'), JSON_VALUE(f0, '$.age')",
                         List.of("account", "42"),
+                        List.of(STRING(), STRING()))
+                .testSqlResult(
+                        "JSON_VALUE(f1, '$.type'), JSON_VALUE(f2, '$.type')",
+                        Arrays.asList(null, null),
                         List.of(STRING(), STRING()));
     }
 
