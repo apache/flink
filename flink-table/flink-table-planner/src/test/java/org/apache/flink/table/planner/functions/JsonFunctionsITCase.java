@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -407,8 +409,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     private static TestSetSpec jsonValueSpec() {
         final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
-                .onFieldsWithData(jsonValue)
-                .andDataTypes(STRING())
+                .onFieldsWithData(
+                        jsonValue, jsonValue.getBytes(StandardCharsets.UTF_8), Row.of(jsonValue))
+                .andDataTypes(STRING(), BYTES(), ROW(FIELD("json", STRING())))
 
                 // NULL and invalid types
                 .testResult(
@@ -525,7 +528,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult(
                         "JSON_VALUE(f0, '$.type'), JSON_VALUE(f0, '$.age')",
                         List.of("account", "42"),
-                        List.of(STRING(), STRING()));
+                        List.of(STRING(), STRING()))
+                .testSqlResult(
+                        "JSON_VALUE(f1, '$.type'), "
+                                + "JSON_VALUE(f2, '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS INT), '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS DATE), '$.type')",
+                        Arrays.asList(null, null, null, null),
+                        List.of(STRING(), STRING(), STRING(), STRING()));
     }
 
     private static List<TestSetSpec> isJsonSpec() {
