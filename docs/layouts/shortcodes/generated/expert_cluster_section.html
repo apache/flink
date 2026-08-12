@@ -62,5 +62,11 @@
             <td>String</td>
             <td>Local working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
         </tr>
+        <tr>
+            <td><h5>shuffle-service-factory.class</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.runtime.io.network.NettyShuffleServiceFactory"</td>
+            <td>String</td>
+            <td>The full class name of the shuffle service factory implementation to be used by the cluster. The default implementation uses Netty for network communication and local memory as well disk space to store results on a TaskExecutor.</td>
+        </tr>
     </tbody>
 </table>

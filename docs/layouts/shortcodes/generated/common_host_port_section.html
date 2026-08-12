@@ -69,6 +69,12 @@
             <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port. Attention: This option is respected only if the high-availability configuration is NONE.</td>
         </tr>
         <tr>
+            <td><h5>rest.url-prefix</h5></td>
+            <td style="word-wrap: break-word;">"/"</td>
+            <td>String</td>
+            <td>The url prefix that should be used by clients to construct the full target url, must start and end with '/'. This will be added between the address and version prefix. For example, if the option is set to '/foo/', the overview query URL will be transformed to 'localhost:8081/foo/v1/overview'. Attention: This option is respected only if the high-availability configuration is NONE.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.bind-host</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
