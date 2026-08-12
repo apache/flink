@@ -41,7 +41,7 @@ public final class JsonPathInputTypeStrategy implements InputTypeStrategy {
     private static final int ARG_PATH = 1;
 
     private static final Pattern PATH_MODE_PREFIX =
-            Pattern.compile("\\s*(strict|lax)\\s+.+", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            Pattern.compile("\\s*(strict|lax)\\s+\\$.*", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     private final InputTypeStrategy signatures;
 

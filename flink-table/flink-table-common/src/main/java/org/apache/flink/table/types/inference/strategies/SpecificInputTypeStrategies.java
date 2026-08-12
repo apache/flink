@@ -97,7 +97,7 @@ public final class SpecificInputTypeStrategies {
             new JsonQueryOnErrorEmptyArgumentTypeStrategy();
 
     /** See {@link JsonPathInputTypeStrategy}. */
-    public static InputTypeStrategy jsonWithOptionalPath(final InputTypeStrategy signatures) {
+    public static InputTypeStrategy plainJsonPath(final InputTypeStrategy signatures) {
         return new JsonPathInputTypeStrategy(signatures);
     }
 
