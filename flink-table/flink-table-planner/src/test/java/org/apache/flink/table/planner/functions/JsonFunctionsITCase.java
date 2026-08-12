@@ -51,6 +51,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -408,8 +409,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     private static TestSetSpec jsonValueSpec() {
         final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
-                .onFieldsWithData(jsonValue, jsonValue.getBytes(StandardCharsets.UTF_8), Row.of(jsonValue))
-                .andDataTypes(STRING(), VARBINARY(Integer.MAX_VALUE), ROW(FIELD("json", STRING())))
+                .onFieldsWithData(
+                        jsonValue, jsonValue.getBytes(StandardCharsets.UTF_8), Row.of(jsonValue))
+                .andDataTypes(STRING(), BYTES(), ROW(FIELD("json", STRING())))
 
                 // NULL and invalid types
                 .testResult(
