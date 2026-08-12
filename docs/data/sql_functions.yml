@@ -925,6 +925,21 @@ collection:
   - sql: MAP_ENTRIES(map)
     table: MAP.mapEntries()
     description: Returns an array of all entries in the given map. No order guaranteed.
+  - sql: MAP_CONTAINS_KEY(map, key)
+    table: map.mapContainsKey(key)
+    description: |
+      Returns whether the given key exists in the map. Checking for a null key is supported: the
+      function returns TRUE if the map contains a null key. If the map itself is null, the function
+      returns null. The given key is cast implicitly to the map's key type if necessary.
+      eg.
+        -- TRUE
+        MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')
+
+        -- FALSE
+        MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'z')
+
+        -- TRUE
+        MAP_CONTAINS_KEY(MAP[CAST(NULL AS STRING), 1], CAST(NULL AS STRING))
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
