@@ -2341,8 +2341,8 @@ class Expression(Generic[T]):
 
         Returns None if the input is None or is not valid JSON.
 
-        If `path` is given, the type is read at that location instead of the root. A wildcard
-        path that resolves to more than one value returns None.
+        If `path` is given, the type is read at that location instead of the root. A path that
+        does not resolve to exactly one value returns None.
 
         Examples:
         ::

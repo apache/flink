@@ -2524,7 +2524,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>Every number is reported as number, whatever its magnitude or precision.
      *
-     * <p>Returns NULL if the input is NULL or is not valid JSON.
+     * <p>Returns SQL NULL if the input is NULL or is not valid JSON.
      *
      * <p>Examples:
      *
@@ -2544,7 +2544,8 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root.
+     * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root. A path that
+     * does not resolve to exactly one value returns SQL NULL.
      *
      * <pre>{@code
      * lit("{\"a\": [1, 2]}").jsonType("$.a") // "array"

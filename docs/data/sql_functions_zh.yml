@@ -1357,8 +1357,8 @@ json:
     table: jsonType(jsonValue[, path])
     description: |
       Returns a string value indicating the type of jsonValue, optionally at the given JSON
-      `path`. Returns `NULL` if jsonValue is `NULL`, is not valid JSON, or the path does not
-      resolve to exactly one value.
+      `path`. Returns SQL `NULL` if jsonValue is SQL `NULL`, is not valid JSON, or the path
+      does not resolve to exactly one value.
 
       The possible results are `object`, `array`, `string`, `number`, `boolean` and `null` for
       the JSON null literal.

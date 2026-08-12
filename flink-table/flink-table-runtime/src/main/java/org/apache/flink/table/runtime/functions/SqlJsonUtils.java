@@ -564,23 +564,12 @@ public class SqlJsonUtils {
 
     /**
      * Returns the JSON type flag at {@code path}, or {@code null} if the path doesn't resolve to
-     * exactly one value. The {@code lax}/{@code strict} prefix is not supported: there's no {@code
-     * ON ERROR} clause here for it to matter. {@code definite} is computed at plan time by {@link
-     * #isPathDefinite}.
+     * exactly one value. {@code definite} is computed at plan time by {@link #isPathDefinite}.
      */
     public static String jsonType(
             final JsonValueContext parsedInput, final String path, final boolean definite) {
         if (parsedInput == null || parsedInput.hasException() || path.isEmpty()) {
             return null;
-        }
-
-        if (JSON_PATH_BASE.matcher(path).matches()) {
-            throw new TableRuntimeException(
-                    String.format(
-                            "JSON_TYPE does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
-                                    + "Use a plain path such as '$.a.b'. To check path existence or handle "
-                                    + "invalid input, use JSON_EXISTS or IS JSON.",
-                            path));
         }
 
         if (parsedInput.obj == null) {

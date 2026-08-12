@@ -1513,20 +1513,18 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "number",
                                 STRING().nullable()),
 
-                // The 'lax'/'strict' path mode prefix is rejected.
+                // The 'lax'/'strict' path mode prefix is rejected at planning time.
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
                         .onFieldsWithData("{\"a\": 1}")
                         .andDataTypes(STRING())
-                        .testSqlRuntimeError(
+                        .testSqlValidationError(
                                 "JSON_TYPE(f0, 'lax $.a')",
-                                TableRuntimeException.class,
                                 "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
                                         + "(got: 'lax $.a'). Use a plain path such as '$.a.b'. To "
                                         + "check path existence or handle invalid input, use "
                                         + "JSON_EXISTS or IS JSON.")
-                        .testTableApiRuntimeError(
+                        .testTableApiValidationError(
                                 $("f0").jsonType("strict $.a"),
-                                TableRuntimeException.class,
                                 "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
                                         + "(got: 'strict $.a'). Use a plain path such as '$.a.b'. "
                                         + "To check path existence or handle invalid input, use "

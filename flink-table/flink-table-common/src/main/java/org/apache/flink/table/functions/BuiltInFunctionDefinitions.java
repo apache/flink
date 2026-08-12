@@ -117,6 +117,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.jsonWithOptionalPath;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
@@ -3109,13 +3110,16 @@ public final class BuiltInFunctionDefinitions {
                     .name("JSON_TYPE")
                     .kind(SCALAR)
                     .inputTypeStrategy(
-                            or(
-                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            and(
+                            jsonWithOptionalPath(
+                                    or(
+                                            sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            sequence(
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    LITERAL))))
+                                                    and(
+                                                            logical(
+                                                                    LogicalTypeFamily
+                                                                            .CHARACTER_STRING),
+                                                            LITERAL)))))
                     .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .runtimeProvided()
                     .build();
