@@ -29,7 +29,68 @@ from pyflink.table.types import _array_type_mappings
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
 
+# Keep the fold test independent of the system's IANA time zone database.
+class _FoldAwareTimezone(datetime.tzinfo):
+    def utcoffset(self, value):
+        return datetime.timedelta(hours=-4 if value.fold == 0 else -5)
+
+    def dst(self, value):
+        return datetime.timedelta(hours=1 if value.fold == 0 else 0)
+
+
 class LiteralITTests(PyFlinkBatchTableTestCase):
+    def test_timezone_aware_datetime_literals_preserve_instant(self):
+        source = self.t_env.from_elements([(1,)], ["id"])
+        same_instant_with_different_offsets = (
+            datetime.datetime(
+                2026, 8, 3, 12, tzinfo=datetime.timezone(datetime.timedelta(hours=8))
+            ),
+            datetime.datetime(2026, 8, 3, 4, tzinfo=datetime.timezone.utc),
+        )
+        fractional_offset_instant = (
+            datetime.datetime(
+                1970,
+                1,
+                1,
+                0,
+                0,
+                0,
+                100000,
+                tzinfo=datetime.timezone(datetime.timedelta(microseconds=500000)),
+            ),
+            datetime.datetime(
+                1969, 12, 31, 23, 59, 59, 600000, tzinfo=datetime.timezone.utc
+            ),
+        )
+        ambiguous_local_time = datetime.datetime(
+            2026, 11, 1, 1, 30, tzinfo=_FoldAwareTimezone()
+        )
+
+        result = source.select(
+            lit(same_instant_with_different_offsets[0])
+            == lit(same_instant_with_different_offsets[1]),
+            lit(fractional_offset_instant[0]) == lit(fractional_offset_instant[1]),
+            lit(
+                fractional_offset_instant[0],
+                DataTypes.TIMESTAMP_LTZ(6).not_null(),
+            )
+            == lit(
+                fractional_offset_instant[1],
+                DataTypes.TIMESTAMP_LTZ(6).not_null(),
+            ),
+            lit(ambiguous_local_time.replace(fold=0))
+            == lit(datetime.datetime(2026, 11, 1, 5, 30, tzinfo=datetime.timezone.utc)),
+            lit(ambiguous_local_time.replace(fold=1))
+            == lit(datetime.datetime(2026, 11, 1, 6, 30, tzinfo=datetime.timezone.utc)),
+            lit(ambiguous_local_time.replace(fold=0))
+            != lit(ambiguous_local_time.replace(fold=1)),
+        )
+
+        self.assertEqual(
+            list(result.execute().collect()),
+            [Row(True, True, True, True, True, True)],
+        )
+
     def test_scalar_literals_can_be_executed(self):
         source = self.t_env.from_elements([(1,)], ["id"])
 

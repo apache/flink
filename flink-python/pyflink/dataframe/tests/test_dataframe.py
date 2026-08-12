@@ -674,7 +674,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
                 TableDataTypes.DATE().not_null(),
                 TableDataTypes.TIME().not_null(),
                 TableDataTypes.TIMESTAMP(0).not_null(),
-                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.TIMESTAMP_LTZ(0).not_null(),
                 TableDataTypes.INTERVAL(
                     TableDataTypes.DAY(1), TableDataTypes.SECOND(3)
                 ),

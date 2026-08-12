@@ -412,6 +412,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
             (datetime.time(1, 2, 3, 4000), "TIME(3) NOT NULL"),
             (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
              "TIMESTAMP(3) NOT NULL"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000, datetime.timezone.utc),
+             "TIMESTAMP_LTZ(3) NOT NULL"),
             (datetime.timedelta(days=1, seconds=2, microseconds=3000),
              "INTERVAL DAY(1) TO SECOND(3) NOT NULL"),
         ]
@@ -420,6 +422,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
             with self.subTest(value=value):
                 literal = lit(value)._j_expr.toExpr()
                 self.assertEqual(expected_data_type, str(literal.getOutputDataType()))
+
+    def test_lit_rejects_unsupported_data_type_before_value_conversion(self):
+        with self.assertRaisesRegex(TypeError, "Unsupported data type: INT"):
+            lit(1, "INT")
 
     def test_lit_rejects_out_of_range_integer_values(self):
         for value, data_type in [

@@ -16,9 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-import calendar
 import datetime
-import time
 from array import array
 
 from pyflink.common import Row
@@ -56,6 +54,8 @@ def _to_java_inferred_literal_value(value):
     gateway = get_gateway()
     jvm = gateway.jvm
     if isinstance(value, datetime.datetime):
+        if value.utcoffset() is not None:
+            return _to_java_typed_literal_value(value, LocalZonedTimestampType())
         return _to_java_typed_literal_value(value, TimestampType())
     elif isinstance(value, datetime.date):
         return _to_java_typed_literal_value(value, DateType())
@@ -112,12 +112,16 @@ def _to_java_typed_literal_value(value, data_type: DataType):
     elif isinstance(data_type, LocalZonedTimestampType) and isinstance(
         value, datetime.datetime
     ):
-        seconds = (
-            calendar.timegm(value.utctimetuple())
-            if value.tzinfo
-            else int(time.mktime(value.timetuple()))
+        if value.utcoffset() is None:
+            value = value.astimezone()
+        utc_value = value.astimezone(datetime.timezone.utc)
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+        delta = utc_value - epoch
+        # Avoid floating-point timestamp conversion for pre-epoch and subsecond values.
+        seconds = delta.days * 86400 + delta.seconds
+        return jvm.java.time.Instant.ofEpochSecond(
+            seconds, utc_value.microsecond * 1000
         )
-        return jvm.java.time.Instant.ofEpochSecond(seconds, value.microsecond * 1000)
     elif isinstance(data_type, ZonedTimestampType) and isinstance(value, datetime.datetime):
         if value.tzinfo is None:
             value = value.astimezone()
