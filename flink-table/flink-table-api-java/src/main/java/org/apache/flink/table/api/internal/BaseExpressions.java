@@ -2536,7 +2536,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * lit("\"2015-01-01\"").jsonType() // "string"
      * lit("66").jsonType() // "number"
      * lit("11.1").jsonType() // "number"
-     * lit("68s").jsonType() // null, not valid JSON
+     * lit("68s").jsonType() // SQL NULL, not valid JSON
      * }</pre>
      */
     public OutType jsonType() {

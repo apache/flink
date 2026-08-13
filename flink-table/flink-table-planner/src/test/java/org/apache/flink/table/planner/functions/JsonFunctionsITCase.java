@@ -1513,10 +1513,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "number",
                                 STRING().nullable()),
 
-                // The 'lax'/'strict' path mode prefix is rejected at planning time.
+                // The 'lax'/'strict' path mode prefix is rejected at planning time, but a field of
+                // that name is addressed like any other.
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
-                        .onFieldsWithData("{\"a\": 1}")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData(
+                                "{\"a\": 1}", "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
+                        .andDataTypes(STRING(), STRING())
                         .testSqlValidationError(
                                 "JSON_TYPE(f0, 'lax $.a')",
                                 "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
@@ -1528,7 +1530,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
                                         + "(got: 'strict $.a'). Use a plain path such as '$.a.b'. "
                                         + "To check path existence or handle invalid input, use "
-                                        + "JSON_EXISTS or IS JSON."),
+                                        + "JSON_EXISTS or IS JSON.")
+                        .testResult(
+                                $("f1").jsonType("$.lax.strict"),
+                                "JSON_TYPE(f1, '$.lax.strict')",
+                                "number",
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$[\"strict value\"]"),
+                                "JSON_TYPE(f1, '$[\"strict value\"]')",
+                                "number",
+                                STRING().nullable()),
 
                 // Only CHARACTER_STRING casts implicitly to VARCHAR, so a non-string is rejected
                 // rather than coerced. A path argument must be a literal.
