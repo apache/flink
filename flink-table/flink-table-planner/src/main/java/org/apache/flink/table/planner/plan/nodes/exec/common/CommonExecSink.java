@@ -36,6 +36,8 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TransformationWithLineage;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
+import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -83,6 +85,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -146,7 +150,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
             boolean upsertMaterialize,
-            int[] inputUpsertKey) {
+            int[] inputUpsertKey,
+            @Nullable InsertConflictStrategy conflictStrategy) {
         final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
                 tableSink.getSinkRuntimeProvider(
@@ -187,6 +192,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Optional<LineageVertex> lineageVertexOpt =
                 TableLineageUtils.extractLineageDataset(outputObject);
 
+        // only add materialization if input has changes, unless the conflict strategy has to
+        // compare every insert against the row stored under the same primary key
+        final boolean needMaterialization =
+                upsertMaterialize && (!inputInsertOnly || detectsDuplicateKeys(conflictStrategy));
+
         Transformation<RowData> sinkTransform =
                 applyConstraintValidations(inputTransform, config, persistedRowType);
 
@@ -199,10 +209,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             primaryKeys,
                             sinkParallelism,
                             inputParallelism,
-                            upsertMaterialize);
+                            needMaterialization);
         }
 
-        if (upsertMaterialize) {
+        if (needMaterialization) {
             sinkTransform =
                     applyUpsertMaterialize(
                             sinkTransform,
@@ -244,6 +254,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                     .setLineageVertex(sinkLineageVertex);
         }
         return transformation;
+    }
+
+    /** Whether the conflict strategy has to detect rows that share a primary key. */
+    protected static boolean detectsDuplicateKeys(
+            @Nullable InsertConflictStrategy conflictStrategy) {
+        return conflictStrategy != null
+                && (conflictStrategy.getBehavior() == ConflictBehavior.ERROR
+                        || conflictStrategy.getBehavior() == ConflictBehavior.NOTHING);
     }
 
     /**
