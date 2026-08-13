@@ -926,7 +926,7 @@ public final class OperationTreeBuilder {
         @Override
         public Void visit(UnresolvedCallExpression call) {
             FunctionDefinition functionDefinition = call.getFunctionDefinition();
-            if (BuiltInFunctionDefinitions.WINDOW_PROPERTIES.contains(functionDefinition)) {
+            if (OperationExpressionsUtils.WINDOW_PROPERTIES.contains(functionDefinition)) {
                 throw new ValidationException(exceptionMessage);
             }
             call.getChildren().forEach(expr -> expr.accept(this));
