@@ -30,12 +30,14 @@ import org.apache.flink.table.runtime.util.EqualityAndHashcodeProvider;
 import org.apache.flink.table.runtime.util.ObjectContainer;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nullable;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}. */
 @Internal
@@ -46,6 +48,9 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
     private final RowData.FieldGetter valueFieldGetter;
 
     private final EqualityAndHashcodeProvider keyEqualityAndHashcodeProvider;
+
+    private transient BiFunction<Object, Object, Boolean> keyEquality;
+    private transient Function<Object, Integer> keyHashcode;
 
     public MapFromEntriesFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, context);
@@ -66,6 +71,8 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         keyEqualityAndHashcodeProvider.open(context);
+        keyEquality = keyEqualityAndHashcodeProvider::equals;
+        keyHashcode = keyEqualityAndHashcodeProvider::hashCode;
     }
 
     public @Nullable MapData eval(@Nullable ArrayData input) {
@@ -73,9 +80,11 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
             return null;
         }
 
+        final int size = input.size();
         // a duplicate key keeps the position of its first occurrence and the last value wins
-        final Map<ObjectContainer, Object> entries = new LinkedHashMap<>();
-        for (int pos = 0; pos < input.size(); pos++) {
+        final Map<ObjectContainer, Object> entries =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(size);
+        for (int pos = 0; pos < size; pos++) {
             final RowData entry = (RowData) entryElementGetter.getElementOrNull(input, pos);
             if (entry == null) {
                 return null;
@@ -84,12 +93,19 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
                     wrapKey(keyFieldGetter.getFieldOrNull(entry)),
                     valueFieldGetter.getFieldOrNull(entry));
         }
+        final int distinctKeyCount = entries.size();
+
+        final Object[] keys = new Object[distinctKeyCount];
+        final Object[] values = new Object[distinctKeyCount];
+        int pos = 0;
+        for (Map.Entry<ObjectContainer, Object> entry : entries.entrySet()) {
+            final ObjectContainer key = entry.getKey();
+            keys[pos] = key == null ? null : key.getObject();
+            values[pos] = entry.getValue();
+            pos++;
+        }
         return new MapDataForMapFromEntries(
-                new GenericArrayData(
-                        entries.keySet().stream()
-                                .map(key -> key == null ? null : key.getObject())
-                                .toArray()),
-                new GenericArrayData(entries.values().toArray()));
+                new GenericArrayData(keys), new GenericArrayData(values));
     }
 
     /**
@@ -101,10 +117,7 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
         if (key == null) {
             return null;
         }
-        return new ObjectContainer(
-                key,
-                keyEqualityAndHashcodeProvider::equals,
-                keyEqualityAndHashcodeProvider::hashCode);
+        return new ObjectContainer(key, keyEquality, keyHashcode);
     }
 
     @Override
