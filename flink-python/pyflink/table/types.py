@@ -2344,13 +2344,13 @@ def to_arrow_type(data_type: DataType):
     elif isinstance(data_type, MapType):
         return pa.map_(to_arrow_type(data_type.key_type), to_arrow_type(data_type.value_type))
     elif isinstance(data_type, ArrayType):
-        if isinstance(data_type.element_type, RowType):
+        if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
                              data_type.element_type)
         return pa.list_(to_arrow_type(data_type.element_type))
     elif isinstance(data_type, RowType):
         for field in data_type:
-            if isinstance(field.data_type, RowType):
+            if type(field.data_type) in [LocalZonedTimestampType, RowType]:
                 raise TypeError("%s is not supported to be used as the field type of RowType" %
                                 field.data_type)
         fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)

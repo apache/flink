@@ -38,7 +38,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _from_java_data_type, ZonedTimestampType,
                                  LocalZonedTimestampType, TimestampType, _to_java_data_type,
-                                 from_arrow_type, to_arrow_type)
+                                 from_arrow_type)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -146,20 +146,6 @@ class ArrowTypeConversionTests(unittest.TestCase):
                     self.assertIsInstance(data_type, expected_type)
                     self.assertEqual(data_type.precision, precision)
                     self.assertFalse(data_type._nullable)
-
-    def test_nested_local_zoned_timestamp_type_mapping(self):
-        timestamp_type = pa.timestamp("ms", tz="UTC")
-
-        self.assertEqual(
-            to_arrow_type(from_arrow_type(pa.list_(timestamp_type))),
-            pa.list_(pa.timestamp("ms")),
-        )
-        self.assertEqual(
-            to_arrow_type(
-                from_arrow_type(pa.struct([pa.field("ts", timestamp_type)]))
-            ),
-            pa.struct([pa.field("ts", pa.timestamp("ms"))]),
-        )
 
 
 class TypesTests(PyFlinkTestCase):

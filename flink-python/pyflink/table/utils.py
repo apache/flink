@@ -134,11 +134,6 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
             return field_type.from_sql_type(data)
         elif isinstance(field_type, TimestampType):
             return field_type.from_sql_type(int(data.timestamp() * 10**6))
-        elif isinstance(field_type, LocalZonedTimestampType):
-            seconds, nanoseconds = data
-            return datetime.datetime.fromtimestamp(
-                seconds, datetime.timezone.utc
-            ).replace(microsecond=nanoseconds // 1000)
         elif isinstance(field_type, MapType):
             key_type = field_type.key_type
             value_type = field_type.value_type
