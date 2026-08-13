@@ -1364,7 +1364,7 @@ json:
       the JSON null literal.
 
       Every number is reported as `number`,whatever its magnitude or precision.
-      Anything quoted is a `string`,including dates and date-times.
+      Anything quoted is a `string`, including dates and date-times.
 
       ```sql
       -- object
