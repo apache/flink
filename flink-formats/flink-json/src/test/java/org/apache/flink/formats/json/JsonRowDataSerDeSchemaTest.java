@@ -36,6 +36,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -87,6 +88,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -237,6 +239,113 @@ public class JsonRowDataSerDeSchemaTest {
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
         assertThat(serializedJson).containsExactly(actualBytes);
+    }
+
+    @TestTemplate
+    void testVariantScalarsAndNestedTypes() throws Exception {
+        String json =
+                "{\"string\":\"Flink\",\"boolean\":true,\"integer\":42,\"decimal\":3.14,"
+                        + "\"array\":[1,{\"nested\":\"value\"}],\"nestedArray\":[\"array\"],"
+                        + "\"nestedMap\":{\"key\":\"map\"},\"nestedRow\":{\"field\":\"row\"}}";
+        DataType dataType =
+                ROW(
+                        FIELD("string", VARIANT()),
+                        FIELD("boolean", VARIANT()),
+                        FIELD("integer", VARIANT()),
+                        FIELD("decimal", VARIANT()),
+                        FIELD("array", VARIANT()),
+                        FIELD("nestedArray", ARRAY(VARIANT())),
+                        FIELD("nestedMap", MAP(STRING(), VARIANT())),
+                        FIELD("nestedRow", ROW(FIELD("field", VARIANT()))));
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        RowData rowData = deserializationSchema.deserialize(json.getBytes());
+        assertThat(rowData.getVariant(0).toJson()).isEqualTo("\"Flink\"");
+        assertThat(rowData.getVariant(1).toJson()).isEqualTo("true");
+        assertThat(rowData.getVariant(2).toJson()).isEqualTo("42");
+        assertThat(rowData.getVariant(3).toJson()).isEqualTo("3.14");
+        assertThat(rowData.getVariant(4).toJson()).isEqualTo("[1,{\"nested\":\"value\"}]");
+        assertThat(rowData.getArray(5).getVariant(0).toJson()).isEqualTo("\"array\"");
+        assertThat(rowData.getMap(6).valueArray().getVariant(0).toJson()).isEqualTo("\"map\"");
+        assertThat(rowData.getRow(7, 1).getVariant(0).toJson()).isEqualTo("\"row\"");
+
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true,
+                        false);
+        open(serializationSchema);
+
+        assertThat(OBJECT_MAPPER.readTree(serializationSchema.serialize(rowData)))
+                .isEqualTo(OBJECT_MAPPER.readTree(json));
+    }
+
+    @TestTemplate
+    void testVariantDuplicateKeysUseLastValue() throws Exception {
+        byte[] json = "{\"variant\":{\"key\":1,\"key\":2}}".getBytes();
+        RowType rowType = (RowType) ROW(FIELD("variant", VARIANT())).getLogicalType();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+        assertThat(deserializationSchema.deserialize(json).getVariant(0).toJson())
+                .isEqualTo("{\"key\":2}");
+    }
+
+    @TestTemplate
+    void testVariantJsonNullIsDeserializedAsSqlNull() throws Exception {
+        byte[] json = "{\"variant\":null}".getBytes();
+        RowType rowType = (RowType) ROW(FIELD("variant", VARIANT())).getLogicalType();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+        assertThat(deserializationSchema.deserialize(json).isNullAt(0)).isTrue();
+
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true,
+                        false);
+        open(serializationSchema);
+        assertThat(
+                        serializationSchema.serialize(
+                                GenericRowData.of(new BinaryVariantBuilder().ofNull())))
+                .containsExactly(json);
+    }
+
+    @Test
+    void testVariantSerializationRejectsNonFiniteNumbers() {
+        RowType rowType = (RowType) ROW(FIELD("variant", VARIANT())).getLogicalType();
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true,
+                        false);
+        open(serializationSchema);
+
+        assertThatThrownBy(
+                        () ->
+                                serializationSchema.serialize(
+                                        GenericRowData.of(
+                                                new BinaryVariantBuilder().of(Double.NaN))))
+                .hasMessage("Non-finite value NaN cannot be serialized to JSON.");
     }
 
     @Test
