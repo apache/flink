@@ -950,6 +950,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private CompletableFuture<Void> recoverChannelsWithCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        LOG.info(
+                "Checkpointing during recovery is enabled, recovering the channel state of {} input gate(s).",
+                inputGates.length);
         if (inputGates.length == 0) {
             recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
             return FutureUtils.completedVoidFuture();
@@ -963,10 +966,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 .thenCompose(
                         drainerOpt -> {
                             if (drainerOpt.isEmpty()) {
+                                LOG.info("Channel state recovery finished, nothing to drain.");
                                 return setRecoveryCheckpointTrigger(
                                         RecoveryCheckpointTrigger.NO_OP);
                             }
                             FetchedChannelStateDrainer drainer = drainerOpt.get();
+                            // From here on a checkpoint triggered during recovery is served by the
+                            // drainer instead of being declined as TASK_NOT_READY.
+                            LOG.debug("Installing the drainer as the recovery checkpoint trigger.");
                             CompletableFuture<Void> triggerInstalled =
                                     setRecoveryCheckpointTrigger(drainer);
                             triggerInstalled
@@ -980,9 +987,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                                                                     ::getStateConsumedFuture)
                                                                     .collect(Collectors.toList())))
                                     .thenCompose(
-                                            ign ->
-                                                    setRecoveryCheckpointTrigger(
-                                                            RecoveryCheckpointTrigger.NO_OP))
+                                            ign -> {
+                                                LOG.info(
+                                                        "Channel state recovery finished, all recovered data has been consumed.");
+                                                return setRecoveryCheckpointTrigger(
+                                                        RecoveryCheckpointTrigger.NO_OP);
+                                            })
                                     .exceptionally(
                                             t -> {
                                                 asyncExceptionHandler.handleAsyncException(
@@ -1014,6 +1024,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private CompletableFuture<Void> recoverChannelsWithoutCheckpointing(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
+        LOG.info(
+                "Checkpointing during recovery is disabled, recovering the channel state of {} input gate(s).",
+                inputGates.length);
         recoveryCheckpointTrigger = RecoveryCheckpointTrigger.NO_OP;
         // Feed recovered channel state on the IO thread. This is intentionally NOT part of the
         // completion gate below: a gate's stateConsumedFuture only completes once the consumer (the
@@ -1047,11 +1060,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private void readInputChannelState(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
+            long readStartTs = SystemClock.getInstance().absoluteTimeMillis();
             checkState(reader.readInputData(inputGates, createRecordFilterContext()).isEmpty());
 
             for (IndexedInputGate gate : inputGates) {
                 gate.finishReadRecoveredState();
             }
+            LOG.info(
+                    "Fed the recovered channel state into the input channels in {} ms.",
+                    SystemClock.getInstance().absoluteTimeMillis() - readStartTs);
         } catch (Exception e) {
             asyncExceptionHandler.handleAsyncException(
                     "Unable to set up recovered channel state", e);
@@ -1061,7 +1078,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private Optional<FetchedChannelState> fetchChannelState(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
-            return reader.readInputData(inputGates, createRecordFilterContext());
+            Optional<FetchedChannelState> state =
+                    reader.readInputData(inputGates, createRecordFilterContext());
+            if (state.isPresent()) {
+                LOG.info(
+                        "Fetched and filtered the recovered channel state into {} spill file(s).",
+                        state.get().files().size());
+            } else {
+                LOG.info("There is no channel state to recover.");
+            }
+            return state;
         } catch (Throwable t) {
             asyncExceptionHandler.handleAsyncException(
                     "Unable to set up recovered channel state", t);
@@ -1072,7 +1098,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private void drain(FetchedChannelStateDrainer drainer) {
         try (FetchedChannelStateDrainer ignored = drainer) {
             try {
+                LOG.debug("Draining the recovered channel state into the input channels.");
+                long drainStartTs = SystemClock.getInstance().absoluteTimeMillis();
                 drainer.drain();
+                LOG.info(
+                        "Drained the recovered channel state in {} ms.",
+                        SystemClock.getInstance().absoluteTimeMillis() - drainStartTs);
             } catch (Throwable t) {
                 asyncExceptionHandler.handleAsyncException(
                         "Unable to drain recovered channel state", t);
