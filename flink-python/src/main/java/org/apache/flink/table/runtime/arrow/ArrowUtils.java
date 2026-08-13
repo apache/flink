@@ -445,9 +445,15 @@ public final class ArrowUtils {
                 || vector instanceof TimeMicroVector
                 || vector instanceof TimeNanoVector) {
             return new ArrowTimeColumnVector(vector);
-        } else if (vector instanceof TimeStampVector
-                && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-            return new ArrowTimestampColumnVector(vector);
+        } else if (vector instanceof TimeStampVector) {
+            String timezone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+            if (timezone != null && !(fieldType instanceof LocalZonedTimestampType)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Arrow timestamp with timezone '%s' cannot be read as %s.",
+                                timezone, fieldType));
+            }
+            return new ArrowTimestampColumnVector((TimeStampVector) vector);
         } else if (vector instanceof MapVector) {
             MapVector mapVector = (MapVector) vector;
             LogicalType keyType = ((MapType) fieldType).getKeyType();

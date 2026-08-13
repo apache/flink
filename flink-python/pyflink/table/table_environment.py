@@ -45,9 +45,9 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _create_type_verifier, RowType, DataType, \
-    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
-    _to_java_data_type
+from pyflink.table.types import _create_type_verifier, RowType, DataType, TimestampType, \
+    LocalZonedTimestampType, _infer_schema_from_data, _create_converter, from_arrow_type, \
+    RowField, create_arrow_schema, to_arrow_type, _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
@@ -1515,10 +1515,32 @@ class TableEnvironment(object):
         if splits_num <= 0:
             raise ValueError("splits_num must be greater than 0")
 
-        arrow_schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        field_names = row_type.field_names()
+        field_types = row_type.field_types()
         try:
-            compatible_table = table.rename_columns(row_type.field_names()).cast(
-                arrow_schema, safe=False)
+            compatible_table = table.rename_columns(field_names)
+            for index, (field, data_type) in enumerate(zip(table.schema, field_types)):
+                if not isinstance(
+                    data_type, (TimestampType, LocalZonedTimestampType)
+                ):
+                    continue
+                target_type = to_arrow_type(data_type)
+                if isinstance(data_type, LocalZonedTimestampType):
+                    timezone = field.type.tz if pa.types.is_timestamp(field.type) else None
+                    target_type = pa.timestamp(target_type.unit, tz=timezone)
+                if field.type == target_type:
+                    continue
+                target_field = pa.field(
+                    field_names[index],
+                    target_type,
+                    field.nullable,
+                    field.metadata,
+                )
+                compatible_table = compatible_table.set_column(
+                    index,
+                    target_field,
+                    compatible_table.column(index).cast(target_type, safe=False),
+                )
         except (pa.ArrowInvalid, pa.ArrowNotImplementedError, pa.ArrowTypeError, ValueError) as e:
             raise TypeError(
                 f"Could not convert pyarrow.Table to the inferred Flink schema: {row_type}"

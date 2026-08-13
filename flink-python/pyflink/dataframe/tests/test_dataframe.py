@@ -835,6 +835,31 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
         finally:
             self.t_env.get_config().set_local_timezone(original_timezone)
 
+    def test_collect_timezone_aware_arrow_timestamps(self):
+        first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
+        second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
+        arrow_type = pa.timestamp("ms", tz="America/New_York")
+        dataframe = pf.from_arrow(
+            pa.table(
+                {
+                    "timestamp": pa.array(
+                        [first_fold, second_fold], type=arrow_type
+                    ),
+                    "timestamps": pa.array(
+                        [[first_fold], [second_fold]], type=pa.list_(arrow_type)
+                    ),
+                }
+            )
+        )
+
+        self.assertEqual(
+            dataframe.collect(),
+            [
+                Row(first_fold.to_pydatetime(), [first_fold.to_pydatetime()]),
+                Row(second_fold.to_pydatetime(), [second_fold.to_pydatetime()]),
+            ],
+        )
+
     def test_basic_functionality(self):
         df = pf.from_dict(
             {

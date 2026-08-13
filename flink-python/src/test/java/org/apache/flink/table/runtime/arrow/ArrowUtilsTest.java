@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
@@ -74,6 +75,8 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.TimeStampMilliTZVector;
+import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.DateUnit;
@@ -81,6 +84,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -89,11 +93,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ArrowUtils}. */
 class ArrowUtilsTest {
@@ -349,6 +356,98 @@ class ArrowUtilsTest {
         ColumnVector[] columnVectors = reader.getColumnVectors();
         for (int i = 0; i < columnVectors.length; i++) {
             assertThat(columnVectors[i].getClass()).isEqualTo(testFields.get(i).f4);
+        }
+    }
+
+    @Test
+    void testCreateArrowReaderForTimezoneAwareLocalZonedTimestamps() {
+        ArrowType.Timestamp timestampType =
+                new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/New_York");
+        Field timestampField = new Field("timestamp", FieldType.nullable(timestampType), null);
+        Field timestampsField =
+                new Field(
+                        "timestamps",
+                        FieldType.nullable(ArrowType.List.INSTANCE),
+                        Collections.singletonList(
+                                new Field("element", FieldType.nullable(timestampType), null)));
+        RowType timestampRowType =
+                RowType.of(
+                        new LocalZonedTimestampType(3),
+                        new ArrayType(new LocalZonedTimestampType(3)));
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Arrays.asList(timestampField, timestampsField)), allocator)) {
+            TimeStampMilliTZVector timestampVector =
+                    (TimeStampMilliTZVector) root.getVector("timestamp");
+            long firstFold = Instant.parse("2026-11-01T05:30:00.123Z").toEpochMilli();
+            long secondFold = Instant.parse("2026-11-01T06:30:00.123Z").toEpochMilli();
+            timestampVector.setSafe(0, firstFold);
+            timestampVector.setSafe(1, secondFold);
+            timestampVector.setValueCount(2);
+            root.setRowCount(2);
+
+            ArrowReader reader = ArrowUtils.createArrowReader(root, timestampRowType);
+
+            assertThat(reader.getColumnVectors()[0]).isInstanceOf(ArrowTimestampColumnVector.class);
+            assertThat(reader.getColumnVectors()[1]).isInstanceOf(ArrowArrayColumnVector.class);
+            assertThat(reader.read(0).getTimestamp(0, 3).getMillisecond()).isEqualTo(firstFold);
+            assertThat(reader.read(1).getTimestamp(0, 3).getMillisecond()).isEqualTo(secondFold);
+        }
+    }
+
+    @Test
+    void testCreateArrowReaderForPreEpochSubMillisecondTimestamps() {
+        List<Field> fields =
+                Arrays.asList(
+                        new Field(
+                                "micros",
+                                FieldType.nullable(
+                                        new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
+                                null),
+                        new Field(
+                                "nanos",
+                                FieldType.nullable(
+                                        new ArrowType.Timestamp(TimeUnit.NANOSECOND, null)),
+                                null));
+        RowType timestampRowType = RowType.of(new TimestampType(6), new TimestampType(9));
+
+        try (VectorSchemaRoot root = VectorSchemaRoot.create(new Schema(fields), allocator)) {
+            TimeStampVector micros = (TimeStampVector) root.getVector("micros");
+            TimeStampVector nanos = (TimeStampVector) root.getVector("nanos");
+            micros.setSafe(0, -1);
+            nanos.setSafe(0, -1);
+            micros.setValueCount(1);
+            nanos.setValueCount(1);
+            root.setRowCount(1);
+
+            RowData row = ArrowUtils.createArrowReader(root, timestampRowType).read(0);
+
+            assertThat(row.getTimestamp(0, 6))
+                    .isEqualTo(TimestampData.fromEpochMillis(-1, 999_000));
+            assertThat(row.getTimestamp(1, 9))
+                    .isEqualTo(TimestampData.fromEpochMillis(-1, 999_999));
+        }
+    }
+
+    @Test
+    void testCreateArrowReaderRejectsTimezoneAwareTimestamp() {
+        Field timestampField =
+                new Field(
+                        "timestamp",
+                        FieldType.nullable(
+                                new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/New_York")),
+                        null);
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Collections.singletonList(timestampField)), allocator)) {
+            assertThatThrownBy(
+                            () ->
+                                    ArrowUtils.createArrowReader(
+                                            root, RowType.of(new TimestampType(3))))
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("cannot be read as TIMESTAMP(3)");
         }
     }
 
