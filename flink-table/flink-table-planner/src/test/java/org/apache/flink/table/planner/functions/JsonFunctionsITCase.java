@@ -1532,9 +1532,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "To check path existence or handle invalid input, use "
                                         + "JSON_EXISTS or IS JSON.")
                         .testResult(
-                                $("f1").jsonType("$.lax.strict"),
-                                "JSON_TYPE(f1, '$.lax.strict')",
-                                "number",
+                                $("f1").jsonType("lax"),
+                                "JSON_TYPE(f1, 'lax')",
+                                "object",
                                 STRING().nullable())
                         .testResult(
                                 $("f1").jsonType("$[\"strict value\"]"),
