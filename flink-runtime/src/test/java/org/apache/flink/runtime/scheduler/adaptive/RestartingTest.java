@@ -65,7 +65,7 @@ class RestartingTest {
     public void testTransitionToSubsequentStateWhenCancellationComplete(
             Optional<VertexParallelism> restartWithParallelism) throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            restartWithParallelism.ifPresent(ctx::setAvailableVertexParallelism);
+            restartWithParallelism.ifPresent(ctx::setAchievableVertexParallelism);
             Restarting restarting = createRestartingState(ctx, restartWithParallelism.orElse(null));
 
             if (restartWithParallelism.isPresent()) {
@@ -83,12 +83,15 @@ class RestartingTest {
             throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             JobVertexID jobVertexId = new JobVertexID();
-            VertexParallelism availableParallelism =
+            // Only 1 slot is genuinely free (e.g. the slot backing the just-cancelled execution
+            // has not been released yet), even though the restart target is 2: must not shortcut
+            // straight to CreatingExecutionGraph.
+            VertexParallelism parallelismBasedOnFreeSlots =
                     new VertexParallelism(singletonMap(jobVertexId, 1));
             VertexParallelism requiredParallelismForForcedRestart =
                     new VertexParallelism(singletonMap(jobVertexId, 2));
 
-            ctx.setAvailableVertexParallelism(availableParallelism);
+            ctx.setAchievableVertexParallelism(parallelismBasedOnFreeSlots);
             ctx.setHasDesiredResources(hasDesiredResources);
             Restarting restarting = createRestartingState(ctx, requiredParallelismForForcedRestart);
             if (hasDesiredResources) {
@@ -153,7 +156,7 @@ class RestartingTest {
     public void testStateDoesNotExposeGloballyTerminalExecutionGraph(
             Optional<VertexParallelism> restartWithParallelism) throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            restartWithParallelism.ifPresent(ctx::setAvailableVertexParallelism);
+            restartWithParallelism.ifPresent(ctx::setAchievableVertexParallelism);
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
             Restarting restarting =
