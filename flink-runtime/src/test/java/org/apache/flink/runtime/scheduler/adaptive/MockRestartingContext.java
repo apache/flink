@@ -44,13 +44,13 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
             new StateValidator<>("Cancelling");
 
-    private final StateValidator<ExecutionGraph> waitingForResourcesStateValidator =
+    private final StateValidator<WaitingForResourcesArguments> waitingForResourcesStateValidator =
             new StateValidator<>("WaitingForResources");
 
     private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
             new StateValidator<>("CreatingExecutionGraph");
 
-    @Nullable private VertexParallelism availableVertexParallelism;
+    @Nullable private VertexParallelism achievableVertexParallelism;
 
     private boolean hasDesiredResources = false;
 
@@ -66,9 +66,9 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
         creatingExecutionGraphStateValidator.expectInput(assertNonNull());
     }
 
-    public void setAvailableVertexParallelism(
-            @Nullable VertexParallelism availableVertexParallelism) {
-        this.availableVertexParallelism = availableVertexParallelism;
+    public void setAchievableVertexParallelism(
+            @Nullable VertexParallelism achievableVertexParallelism) {
+        this.achievableVertexParallelism = achievableVertexParallelism;
     }
 
     public void setHasDesiredResources(boolean hasDesiredResources) {
@@ -101,8 +101,11 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     }
 
     @Override
-    public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
-        waitingForResourcesStateValidator.validateInput(previousExecutionGraph);
+    public void goToWaitingForResources(
+            @Nullable ExecutionGraph previousExecutionGraph,
+            @Nullable VertexParallelism restartWithParallelism) {
+        waitingForResourcesStateValidator.validateInput(
+                new WaitingForResourcesArguments(previousExecutionGraph, restartWithParallelism));
         hadStateTransition = true;
     }
 
@@ -121,8 +124,8 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     }
 
     @Override
-    public Optional<VertexParallelism> getAvailableVertexParallelism() {
-        return Optional.ofNullable(availableVertexParallelism);
+    public Optional<VertexParallelism> getFreeSlotVertexParallelism() {
+        return Optional.ofNullable(achievableVertexParallelism);
     }
 
     @Override
@@ -131,5 +134,28 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
         cancellingStateValidator.close();
         waitingForResourcesStateValidator.close();
         creatingExecutionGraphStateValidator.close();
+    }
+
+    /** Arguments passed to {@link #goToWaitingForResources}. */
+    static class WaitingForResourcesArguments {
+        @Nullable private final ExecutionGraph executionGraph;
+        @Nullable private final VertexParallelism restartWithParallelism;
+
+        WaitingForResourcesArguments(
+                @Nullable ExecutionGraph executionGraph,
+                @Nullable VertexParallelism restartWithParallelism) {
+            this.executionGraph = executionGraph;
+            this.restartWithParallelism = restartWithParallelism;
+        }
+
+        @Nullable
+        public ExecutionGraph getExecutionGraph() {
+            return executionGraph;
+        }
+
+        @Nullable
+        public VertexParallelism getRestartWithParallelism() {
+            return restartWithParallelism;
+        }
     }
 }

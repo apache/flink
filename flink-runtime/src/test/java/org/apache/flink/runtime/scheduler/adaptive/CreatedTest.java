@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,9 @@ class CreatedTest {
         }
 
         @Override
-        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
+        public void goToWaitingForResources(
+                @Nullable ExecutionGraph previousExecutionGraph,
+                @Nullable VertexParallelism restartWithParallelism) {
             waitingForResourcesStateValidator.validateInput(null);
         }
 

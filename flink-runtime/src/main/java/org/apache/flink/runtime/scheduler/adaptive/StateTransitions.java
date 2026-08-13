@@ -173,6 +173,8 @@ public interface StateTransitions {
     interface ToWaitingForResources extends StateTransitions {
 
         /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph);
+        void goToWaitingForResources(
+                @Nullable ExecutionGraph previousExecutionGraph,
+                @Nullable VertexParallelism restartWithParallelism);
     }
 }
