@@ -1824,6 +1824,14 @@ under the License.
 							<includes>
 								<include>${test.unit.pattern}</include>
 							</includes>
+							<excludes>
+								<!-- Overrides surefire's default excludes, which drop **/*$* and
+								     thereby hide every nested test class. The include pattern above
+								     is name-based, so only nested classes ending in Test/Tests are
+								     picked up. Keep this list non-empty; an empty list restores the
+								     defaults. -->
+								<exclude>**/*$*$*.class</exclude>
+							</excludes>
 							<forkCount>${flink.forkCountUnitTest}</forkCount>
 							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
