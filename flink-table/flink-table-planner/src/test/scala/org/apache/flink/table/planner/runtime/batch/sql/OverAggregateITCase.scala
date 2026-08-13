@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE_TIME => LOCAL_DATE_TIME_TYPE_INFO}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.DataTypes
@@ -35,6 +36,7 @@ import org.apache.flink.types.Row
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
+import java.time.Instant
 import java.util.{Collections, Optional}
 
 import scala.util.Random
@@ -2358,6 +2360,51 @@ class OverAggregateITCase extends BatchTestBase {
         row(4),
         row(4)
       )
+    )
+  }
+
+  // Regression test for FLINK-25802 / FLINK-30499: RANGE OVER with TIMESTAMP ORDER BY.
+  // Row 3 is 10s+1ms after row 1, so row 1 falls just outside row 3's 10-second window.
+  @Test
+  def testRangeOverWithTimestamp(): Unit = {
+    val data = Seq(
+      row(localDateTime("2021-01-01 00:00:00.000000"), 1),
+      row(localDateTime("2021-01-01 00:00:05.000000"), 2),
+      row(localDateTime("2021-01-01 00:00:10.001"), 3)
+    )
+    registerCollection(
+      "TimestampRangeTable",
+      data,
+      new RowTypeInfo(LOCAL_DATE_TIME_TYPE_INFO, INT_TYPE_INFO),
+      "ts, val",
+      Array(false, false))
+    checkResult(
+      "SELECT val, COUNT(val) OVER (ORDER BY ts RANGE BETWEEN INTERVAL '10' SECOND" +
+        " PRECEDING AND CURRENT ROW) FROM TimestampRangeTable",
+      Seq(row(1, 1L), row(2, 2L), row(3, 2L))
+    )
+  }
+
+  @Test
+  def testRangeOverWithTimestampLtz(): Unit = {
+    val epoch = localDateTime("2021-01-01 00:00:00.000000")
+      .atZone(java.time.ZoneOffset.UTC)
+      .toInstant
+    val data = Seq(
+      row(epoch, 1),
+      row(epoch.plusSeconds(5), 2),
+      row(epoch.plusSeconds(10).plusNanos(1000000), 3)
+    )
+    registerCollection(
+      "TimestampLtzRangeTable",
+      data,
+      new RowTypeInfo(INSTANT_TYPE_INFO, INT_TYPE_INFO),
+      "ts, val",
+      Array(false, false))
+    checkResult(
+      "SELECT val, COUNT(val) OVER (ORDER BY ts RANGE BETWEEN INTERVAL '10' SECOND" +
+        " PRECEDING AND CURRENT ROW) FROM TimestampLtzRangeTable",
+      Seq(row(1, 1L), row(2, 2L), row(3, 2L))
     )
   }
 
