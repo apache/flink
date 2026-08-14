@@ -20,9 +20,11 @@ package org.apache.flink.fs.s3native.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,16 +41,21 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
     @TempDir Path tmp;
 
+    InMemoryNativeS3Operations s3;
+    String uploadId;
+    NativeS3RecoverableFsDataOutputStream stream;
+
+    @BeforeEach
+    void setUp() throws IOException {
+        s3 = new InMemoryNativeS3Operations();
+        uploadId = s3.startMultiPartUpload(KEY);
+        stream = newStream(s3, uploadId);
+        stream.write(bytes('A', 5), 0, 5); // < MIN_PART_SIZE, so it is uploaded during commit
+    }
+
     @Test
     void closeForCommitAbortsMultipartUploadWhenPartUploadFails() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
         s3.failUploadPart = true;
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        assertThat(s3.openMultipartUploads).containsKey(uploadId);
-
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5); // < MIN_PART_SIZE, so it is uploaded during commit
 
         assertThatThrownBy(stream::closeForCommit)
                 .isInstanceOf(IOException.class)
@@ -65,13 +72,8 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
     @Test
     void closeForCommitSurfacesAbortFailureWhenBothUploadAndAbortFail() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
         s3.failUploadPart = true;
         s3.failAbortMultiPartUpload = true;
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5);
 
         assertThatThrownBy(stream::closeForCommit)
                 .isInstanceOf(IOException.class)
@@ -91,12 +93,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
     @Test
     void closeSurfacesAbortFailureInsteadOfSwallowingIt() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
         s3.failAbortMultiPartUpload = true;
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5);
 
         assertThatThrownBy(stream::close)
                 .isInstanceOf(IOException.class)
@@ -111,12 +108,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     /** An abnormal {@code close()} aborts the upload and releases local state. */
     @Test
     void closeAbortsMultipartUploadOnAbnormalClose() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5);
-
         stream.close();
 
         assertThat(s3.abortAttempts).isEqualTo(1);
@@ -125,13 +116,21 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     }
 
     @Test
+    void closeSurfacesTempFileDeletionFailure() throws Exception {
+        NativeS3RecoverableFsDataOutputStream failingStream = newFailingDeleteStream();
+        failingStream.write(bytes('A', 5), 0, 5);
+
+        assertThatThrownBy(failingStream::close)
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("injected temp-file delete failure");
+
+        assertThat(s3.abortAttempts)
+                .as("abort is still attempted despite delete failure")
+                .isEqualTo(1);
+    }
+
+    @Test
     void closeForCommitDoesNotAbortOnSuccess() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5);
-
         RecoverableFsDataOutputStream.Committer committer = stream.closeForCommit();
 
         assertThat(s3.abortAttempts).as("a successful commit must not abort the upload").isZero();
@@ -147,12 +146,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
     @Test
     void closeAfterSuccessfulCloseForCommitIsNoOp() throws Exception {
-        InMemoryNativeS3Operations s3 = new InMemoryNativeS3Operations();
-
-        String uploadId = s3.startMultiPartUpload(KEY);
-        NativeS3RecoverableFsDataOutputStream stream = newStream(s3, uploadId);
-        stream.write(bytes('A', 5), 0, 5);
-
         RecoverableFsDataOutputStream.Committer committer = stream.closeForCommit();
         stream.close();
 
@@ -166,9 +159,20 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     }
 
     private NativeS3RecoverableFsDataOutputStream newStream(
-            InMemoryNativeS3Operations s3, String uploadId) throws IOException {
+            InMemoryNativeS3Operations ops, String uid) throws IOException {
         return new NativeS3RecoverableFsDataOutputStream(
-                s3, KEY, uploadId, tmp.toString(), MIN_PART_SIZE);
+                ops, KEY, uid, tmp.toString(), MIN_PART_SIZE);
+    }
+
+    private NativeS3RecoverableFsDataOutputStream newFailingDeleteStream() throws IOException {
+        String uid = s3.startMultiPartUpload(KEY);
+        return new NativeS3RecoverableFsDataOutputStream(
+                s3, KEY, uid, tmp.toString(), MIN_PART_SIZE) {
+            @Override
+            protected void deleteTempFile(File file) throws IOException {
+                throw new IOException("injected temp-file delete failure");
+            }
+        };
     }
 
     private static long countLocalFilesIn(Path dir) throws IOException {

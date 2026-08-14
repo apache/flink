@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
@@ -26,7 +27,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -96,7 +96,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long minPartSize,
             List<PartETag> existingParts,
             long numBytesInParts,
-            @Nullable File incompleteTailFile)
+            File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -236,7 +236,12 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 // The commit failed after the multipart upload had been created and parts may
                 // already have been uploaded. Abort it so it does not leak as an orphan upload.
                 closed = true;
-                throw abortUploadAndReleaseResources(e);
+                try {
+                    tryAbortUploadAndReleaseResources();
+                } catch (IOException cleanup) {
+                    e.addSuppressed(cleanup);
+                }
+                throw e;
             }
 
             closed = true;
@@ -280,10 +285,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         try {
             if (!closed) {
                 closed = true;
-                IOException cleanupException = abortUploadAndReleaseResources(null);
-                if (cleanupException != null) {
-                    throw cleanupException;
-                }
+                tryAbortUploadAndReleaseResources();
             }
         } finally {
             unlock();
@@ -291,9 +293,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
     }
 
     /** Aborts the multipart upload and releases local resources on the best effort basis. */
-    @Nullable
-    private IOException abortUploadAndReleaseResources(@Nullable IOException primary) {
-        IOException collected = primary;
+    private void tryAbortUploadAndReleaseResources() throws IOException {
+        IOException collected = null;
         if (currentOutputStream != null) {
             try {
                 currentOutputStream.close();
@@ -303,7 +304,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         }
         if (currentTempFile != null && currentTempFile.exists()) {
             try {
-                Files.delete(currentTempFile.toPath());
+                deleteTempFile(currentTempFile);
             } catch (IOException e) {
                 collected = ExceptionUtils.firstOrSuppressed(e, collected);
             }
@@ -319,7 +320,14 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                     e);
             collected = ExceptionUtils.firstOrSuppressed(e, collected);
         }
-        return collected;
+        if (collected != null) {
+            throw collected;
+        }
+    }
+
+    @VisibleForTesting
+    protected void deleteTempFile(File file) throws IOException {
+        Files.delete(file.toPath());
     }
 
     private void lock() throws IOException {
