@@ -1189,11 +1189,7 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
-    /**
-     * Testing function whose table argument declares a non-default conversion class ({@link
-     * RowData}). The conversion class must be preserved so that {@code eval()} receives {@link
-     * RowData} instead of {@link Row}.
-     */
+    /** Testing function with non default conversion class. */
     public static class RowDataRowSemanticTableFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) RowData input) {
             collectObjects("Hello " + input.getString(0) + "!");
