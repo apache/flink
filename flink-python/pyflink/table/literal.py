@@ -34,7 +34,6 @@ from pyflink.table.types import (
     RowType,
     TimeType,
     TimestampType,
-    ZonedTimestampType,
 )
 from pyflink.util.api_stability_decorators import Internal
 
@@ -93,6 +92,12 @@ def _to_java_instant(value, jvm):
     return jvm.java.time.Instant.ofEpochSecond(seconds, utc_value.microsecond * 1000)
 
 
+def _to_java_local_datetime(value, jvm):
+    return jvm.java.time.LocalDateTime.ofInstant(
+        _to_java_instant(value, jvm), jvm.java.time.ZoneId.systemDefault()
+    )
+
+
 def _to_java_typed_literal_value(value, data_type: DataType):
     if value is None or data_type._conversion_cls:
         return value
@@ -103,6 +108,11 @@ def _to_java_typed_literal_value(value, data_type: DataType):
     if isinstance(data_type, DateType) and isinstance(value, datetime.date):
         return jvm.java.time.LocalDate.of(value.year, value.month, value.day)
     elif isinstance(data_type, TimeType) and isinstance(value, datetime.time):
+        if value.utcoffset() is not None:
+            # TIME has no date. Use the Unix epoch date to match PyFlink's existing transport
+            # conversion when rendering an offset time in the client JVM's local time zone.
+            date_time = datetime.datetime.combine(datetime.date(1970, 1, 1), value)
+            return _to_java_local_datetime(date_time, jvm).toLocalTime()
         return jvm.java.time.LocalTime.of(
             value.hour, value.minute, value.second, value.microsecond * 1000
         )
@@ -110,9 +120,7 @@ def _to_java_typed_literal_value(value, data_type: DataType):
         if value.utcoffset() is not None:
             # Match PyFlink's TIMESTAMP transport conversion by rendering the instant in the
             # client JVM's local time zone before dropping the zone information.
-            return jvm.java.time.LocalDateTime.ofInstant(
-                _to_java_instant(value, jvm), jvm.java.time.ZoneId.systemDefault()
-            )
+            return _to_java_local_datetime(value, jvm)
         return jvm.java.time.LocalDateTime.of(
             value.year,
             value.month,
@@ -128,23 +136,6 @@ def _to_java_typed_literal_value(value, data_type: DataType):
         if value.utcoffset() is None:
             value = value.astimezone()
         return _to_java_instant(value, jvm)
-    elif isinstance(data_type, ZonedTimestampType) and isinstance(value, datetime.datetime):
-        if value.tzinfo is None:
-            value = value.astimezone()
-        offset = value.utcoffset()
-        if offset is None or offset.microseconds != 0:
-            return value
-        j_offset = jvm.java.time.ZoneOffset.ofTotalSeconds(int(offset.total_seconds()))
-        return jvm.java.time.OffsetDateTime.of(
-            value.year,
-            value.month,
-            value.day,
-            value.hour,
-            value.minute,
-            value.second,
-            value.microsecond * 1000,
-            j_offset,
-        )
     elif isinstance(data_type, DayTimeIntervalType) and isinstance(
         value, datetime.timedelta
     ):

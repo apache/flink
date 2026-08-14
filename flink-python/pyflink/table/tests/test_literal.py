@@ -23,6 +23,7 @@ import decimal
 from py4j.protocol import Py4JJavaError
 
 from pyflink.common import Row
+from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes
 from pyflink.table.expressions import lit
 from pyflink.table.types import _array_type_mappings
@@ -116,6 +117,40 @@ class LiteralITTests(PyFlinkBatchTableTestCase):
             list(result.execute().collect()),
             [Row(True, True, True, True, True, True, True)],
         )
+
+    def test_aware_temporal_literals_use_client_timezone(self):
+        jvm = get_gateway().jvm
+        original_timezone = jvm.java.util.TimeZone.getDefault()
+        try:
+            jvm.java.util.TimeZone.setDefault(
+                jvm.java.util.TimeZone.getTimeZone("Asia/Shanghai")
+            )
+            source = self.t_env.from_elements([(1,)], ["id"])
+            aware_time = datetime.time(4, tzinfo=datetime.timezone.utc)
+            aware_timestamp = datetime.datetime(
+                2026, 8, 3, 4, tzinfo=datetime.timezone.utc
+            )
+
+            result = source.select(
+                lit(aware_time),
+                lit(aware_time, DataTypes.TIME().not_null()),
+                lit(aware_timestamp),
+                lit(aware_timestamp, DataTypes.TIMESTAMP().not_null()),
+            )
+
+            self.assertEqual(
+                list(result.execute().collect()),
+                [
+                    Row(
+                        datetime.time(12),
+                        datetime.time(12),
+                        datetime.datetime(2026, 8, 3, 12),
+                        datetime.datetime(2026, 8, 3, 12),
+                    )
+                ],
+            )
+        finally:
+            jvm.java.util.TimeZone.setDefault(original_timezone)
 
     def test_scalar_literals_can_be_executed(self):
         source = self.t_env.from_elements([(1,)], ["id"])
