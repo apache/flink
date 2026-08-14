@@ -133,4 +133,48 @@ class GroupByOrdinalTest {
                                         .collect())
                 .hasMessageContaining("Aggregate expression is illegal in GROUP BY clause");
     }
+
+    /**
+     * A view is stored as its expanded query, so a {@code GROUP BY} ordinal must be resolved to the
+     * column it designates at CREATE VIEW time. Were the ordinal stored verbatim, the view would
+     * change meaning when {@code table.group-by-ordinal-enabled} is later turned off: {@code GROUP
+     * BY 1} would revert to grouping by the constant 1.
+     */
+    @Test
+    void testViewWithGroupByOrdinalKeepsMeaningWhenOptionIsDisabled() {
+        tEnv.executeSql(
+                "CREATE VIEW v AS "
+                        + "SELECT city, COUNT(*) AS cnt "
+                        + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                        + "GROUP BY 1");
+
+        assertThat(CollectionUtil.iteratorToList(tEnv.executeSql("SELECT * FROM v").collect()))
+                .containsExactlyInAnyOrder(Row.of("Beijing", 2L), Row.of("Shanghai", 1L));
+
+        // Turning the option off must not change what the stored view means.
+        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, false);
+        assertThat(CollectionUtil.iteratorToList(tEnv.executeSql("SELECT * FROM v").collect()))
+                .containsExactlyInAnyOrder(Row.of("Beijing", 2L), Row.of("Shanghai", 1L));
+    }
+
+    /**
+     * The mirror case: a view created while the option is off groups by the constant 1, i.e. a
+     * single group. Turning the option on afterwards must not silently re-read that as a position.
+     */
+    @Test
+    void testViewCreatedWithOptionDisabledIsUnaffectedWhenOptionIsEnabled() {
+        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, false);
+        tEnv.executeSql(
+                "CREATE VIEW v AS "
+                        + "SELECT COUNT(*) AS cnt "
+                        + "FROM (VALUES ('Beijing'), ('Shanghai'), ('Beijing')) AS t(city) "
+                        + "GROUP BY 1");
+
+        assertThat(CollectionUtil.iteratorToList(tEnv.executeSql("SELECT * FROM v").collect()))
+                .containsExactlyInAnyOrder(Row.of(3L));
+
+        tEnv.getConfig().set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, true);
+        assertThat(CollectionUtil.iteratorToList(tEnv.executeSql("SELECT * FROM v").collect()))
+                .containsExactlyInAnyOrder(Row.of(3L));
+    }
 }

@@ -74,7 +74,6 @@ import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
 import org.apache.calcite.sql.validate.SelectScope;
-import org.apache.calcite.sql.validate.SqlDelegatingConformance;
 import org.apache.calcite.sql.validate.SqlQualified;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
@@ -130,7 +129,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                 opTab,
                 catalogReader,
                 typeFactory,
-                enableGroupByOrdinalIfConfigured(config, relOptCluster),
+                config,
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
                         .get(TableConfigOptions.LEGACY_NESTED_ROW_NULLABILITY));
         this.relOptCluster = relOptCluster;
@@ -139,23 +138,6 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         this.columnExpansionStrategies =
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
                         .get(TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY);
-    }
-
-    private static SqlValidator.Config enableGroupByOrdinalIfConfigured(
-            SqlValidator.Config config, RelOptCluster relOptCluster) {
-        final boolean enabled =
-                ShortcutUtils.unwrapTableConfig(relOptCluster)
-                        .get(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED);
-        if (!enabled) {
-            return config;
-        }
-        return config.withConformance(
-                new SqlDelegatingConformance(config.conformance()) {
-                    @Override
-                    public boolean isGroupByOrdinal() {
-                        return true;
-                    }
-                });
     }
 
     @Override
