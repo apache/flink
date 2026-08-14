@@ -41,6 +41,7 @@ under the License.
 		<suppress files="NFAITCase.java" checks="FileLength"/>
 		<suppress files="HyperLogLogPlusPlus.java" checks="FileLength"/>
 		<suppress files="BuiltInFunctionDefinitions.java" checks="FileLength"/>
+		<suppress files="BaseExpressions.java" checks="FileLength"/>
 		<suppress files="ProcessTableFunctionTestHarnessTest.java" checks="FileLength"/>
 
 		<!-- Legacy mockito usages -->

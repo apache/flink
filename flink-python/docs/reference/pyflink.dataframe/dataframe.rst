@@ -104,6 +104,19 @@ Joins
 
     DataFrame.join
 
+Missing-Value Handling
+----------------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.drop_null
+    DataFrame.drop_nan
+    DataFrame.fill_null
+    DataFrame.fill_nan
+
 Aggregations
 ------------
 

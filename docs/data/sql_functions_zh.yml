@@ -40,6 +40,12 @@ comparison:
   - sql: value IS NOT NULL
     table: value.isNotNull
     description: 如果值不为 `NULL` 返回 `TRUE`。
+  - sql: IS_NAN(value)
+    table: value.isNan
+    description: 如果值为 `NaN` 返回 `TRUE`；如果值是非 `NaN` 的数值返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
+  - sql: IS_NOT_NAN(value)
+    table: value.isNotNan
+    description: 如果值是非 `NaN` 的数值返回 `TRUE`；如果值为 `NaN` 返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
   - sql: value1 IS DISTINCT FROM value2
     description: |
       A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
