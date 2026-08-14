@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.serialization;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.configuration.PipelineOptions;
@@ -70,6 +71,21 @@ public interface SerializerConfig extends Serializable {
 
     /** Returns whether forces Flink to register Apache Avro classes in Kryo serializer. */
     TernaryBoolean isForceKryoAvroEnabled();
+
+    /**
+     * Whether state schema evolution for {@code RowData} state is enabled. When enabled, a {@code
+     * RowData} state value serializer admits a backward-compatible schema change and migrates the
+     * stored values when state is restored, instead of the restore failing.
+     *
+     * <p>This is a runtime hook rather than user-facing configuration. The option itself is owned
+     * by {@code ExecutionConfigOptions.TABLE_EXEC_STATE_SCHEMA_EVOLUTION_ENABLED} and only mirrored
+     * here by key, because this module cannot depend on the table API. Set the option there, not
+     * through this method.
+     */
+    @Internal
+    default boolean isStateSchemaEvolutionEnabled() {
+        return false;
+    }
 
     /**
      * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
