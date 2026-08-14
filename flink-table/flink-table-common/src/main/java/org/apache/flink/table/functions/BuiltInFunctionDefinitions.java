@@ -3086,19 +3086,24 @@ public final class BuiltInFunctionDefinitions {
                     .name("JSON_LENGTH")
                     .kind(SCALAR)
                     .inputTypeStrategy(
-                            or(
-                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    sequence(logical(LogicalTypeRoot.VARIANT)),
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            and(
+                            plainJsonPath(
+                                    or(
+                                            sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            sequence(logical(LogicalTypeRoot.VARIANT)),
+                                            sequence(
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    LITERAL)),
-                                    sequence(
-                                            logical(LogicalTypeRoot.VARIANT),
-                                            and(
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    LITERAL))))
+                                                    and(
+                                                            logical(
+                                                                    LogicalTypeFamily
+                                                                            .CHARACTER_STRING),
+                                                            LITERAL)),
+                                            sequence(
+                                                    logical(LogicalTypeRoot.VARIANT),
+                                                    and(
+                                                            logical(
+                                                                    LogicalTypeFamily
+                                                                            .CHARACTER_STRING),
+                                                            LITERAL)))))
                     .outputTypeStrategy(explicit(DataTypes.INT().nullable()))
                     .runtimeProvided()
                     .build();

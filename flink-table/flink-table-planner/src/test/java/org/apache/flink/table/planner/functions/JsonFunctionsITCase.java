@@ -310,19 +310,25 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         null,
                         INT().nullable())
 
-                // lax/strict path modes are not supported and are rejected at runtime
-                .testSqlRuntimeError(
+                // lax/strict path modes are not supported and are rejected at planning time
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'strict $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').")
-                .testSqlRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'lax $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'lax $.type').")
-                .testTableApiRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'lax $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testTableApiValidationError(
                         $("f0").jsonLength("strict $.type"),
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').");
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.");
     }
 
     private static TestSetSpec jsonExistsSpec() {
