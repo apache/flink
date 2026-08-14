@@ -44,11 +44,12 @@ from pyflink.dataframe.context import (
     get_table_environment,
     set_table_environment,
 )
-from pyflink.dataframe.dataframe import DataFrame, col, lit
+from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.datatype import DataType
 
 __all__ = [
     "DataFrame",
+    "GroupedDataFrame",
     "DataType",
     "col",
     "lit",
