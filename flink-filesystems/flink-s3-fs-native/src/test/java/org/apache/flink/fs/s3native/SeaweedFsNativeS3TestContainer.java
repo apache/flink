@@ -39,7 +39,8 @@ import java.util.List;
 import java.util.Locale;
 
 /** Provides a SeaweedFS S3-compatible test instance for the native S3 filesystem. */
-public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
+public class SeaweedFsNativeS3TestContainer
+        extends GenericContainer<SeaweedFsNativeS3TestContainer> {
 
     private static final int DEFAULT_PORT = 8333;
     private static final String DEFAULT_STORAGE_DIRECTORY = "/data";
@@ -53,16 +54,16 @@ public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContai
 
     private S3Client client;
 
-    public SeaweedFsTestContainer() {
+    public SeaweedFsNativeS3TestContainer() {
         this(randomString("bucket", 6));
     }
 
-    public SeaweedFsTestContainer(String defaultBucketName) {
+    public SeaweedFsNativeS3TestContainer(String defaultBucketName) {
         super(DockerImageVersions.SEAWEEDFS);
 
         this.accessKey = randomString("accessKey", 10);
         // secrets must have at least 8 characters
-        this.secretKey = randomString("secret", 10);
+        this.secretKey = randomString("secretKey", 10);
         this.defaultBucketName = Preconditions.checkNotNull(defaultBucketName);
 
         withNetworkAliases(randomString("seaweedfs", 6));
@@ -115,7 +116,7 @@ public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContai
      * Sets the config required to reach this instance from the native S3 filesystem. SeaweedFS
      * supports neither AWS chunked encoding nor trailing checksums, so both are disabled.
      */
-    void setS3ConfigOptions(Configuration config) {
+    public void setS3ConfigOptions(Configuration config) {
         config.set(NativeS3FileSystemFactory.ENDPOINT, getHttpEndpoint());
         config.set(NativeS3FileSystemFactory.REGION, Region.US_EAST_1.id());
         config.set(NativeS3FileSystemFactory.ACCESS_KEY, accessKey);
@@ -125,7 +126,7 @@ public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContai
         config.set(NativeS3FileSystemFactory.CHECKSUM_VALIDATION_ENABLED, false);
     }
 
-    void initializeFileSystem(Configuration config) {
+    public void initializeFileSystem(Configuration config) {
         Preconditions.checkArgument(
                 config.containsKey(NativeS3FileSystemFactory.ENDPOINT.key()),
                 NativeS3FileSystemFactory.ENDPOINT.key()
@@ -138,17 +139,17 @@ public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContai
         return defaultBucketName;
     }
 
-    String getS3UriForDefaultBucket() {
+    public String getS3UriForDefaultBucket() {
         return "s3://" + defaultBucketName;
     }
 
-    List<S3Object> listObjects(String prefix) {
+    public List<S3Object> listObjects(String prefix) {
         return getClient()
                 .listObjectsV2(b -> b.bucket(defaultBucketName).prefix(prefix))
                 .contents();
     }
 
-    String getObjectAsString(String key) {
+    public String getObjectAsString(String key) {
         return getClient()
                 .getObjectAsBytes(b -> b.bucket(defaultBucketName).key(key))
                 .asUtf8String();

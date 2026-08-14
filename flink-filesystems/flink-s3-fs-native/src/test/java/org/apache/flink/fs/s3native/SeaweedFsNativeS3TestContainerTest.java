@@ -30,19 +30,19 @@ import software.amazon.awssdk.services.s3.model.Bucket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Basic tests for {@link SeaweedFsTestContainer}. */
-class SeaweedFsTestContainerTest {
+/** Basic tests for {@link SeaweedFsNativeS3TestContainer}. */
+class SeaweedFsNativeS3TestContainerTest {
 
     private static final String DEFAULT_BUCKET_NAME = "test-bucket";
 
     @RegisterExtension
-    private static final EachCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final EachCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new EachCallbackWrapper<>(
                             new TestContainerExtension<>(
-                                    () -> new SeaweedFsTestContainer(DEFAULT_BUCKET_NAME)));
+                                    () -> new SeaweedFsNativeS3TestContainer(DEFAULT_BUCKET_NAME)));
 
-    private static SeaweedFsTestContainer getTestContainer() {
+    private static SeaweedFsNativeS3TestContainer getTestContainer() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
@@ -74,12 +74,15 @@ class SeaweedFsTestContainerTest {
         final Configuration config = new Configuration();
         getTestContainer().setS3ConfigOptions(config);
 
-        assertThat(config.containsKey("s3.endpoint")).isTrue();
-        assertThat(config.containsKey("s3.path-style-access")).isTrue();
-        assertThat(config.containsKey("s3.access-key")).isTrue();
-        assertThat(config.containsKey("s3.secret-key")).isTrue();
-        assertThat(config.containsKey("s3.chunked-encoding.enabled")).isTrue();
-        assertThat(config.containsKey("s3.checksum-validation.enabled")).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.ENDPOINT.key())).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.REGION.key())).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.ACCESS_KEY.key())).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.SECRET_KEY.key())).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.PATH_STYLE_ACCESS.key())).isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.CHUNKED_ENCODING_ENABLED.key()))
+                .isTrue();
+        assertThat(config.containsKey(NativeS3FileSystemFactory.CHECKSUM_VALIDATION_ENABLED.key()))
+                .isTrue();
     }
 
     @Test
