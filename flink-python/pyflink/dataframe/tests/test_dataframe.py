@@ -554,6 +554,179 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
         )
 
 
+class DataFrameDropNullTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+                {"id": 4, "name": None, "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+        self.expected_schema = [
+            TableDataTypes.BIGINT(),
+            TableDataTypes.STRING(),
+            TableDataTypes.BIGINT(),
+        ]
+
+    def test_drop_null_without_subset_checks_all_columns(self):
+        result = self.dataframe.drop_null()
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_single_column_subset(self):
+        result = self.dataframe.drop_null(subset=["age"])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_multiple_column_subset(self):
+        result = self.dataframe.drop_null(subset=["name", "age"])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+
+    def test_drop_null_with_empty_subset_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_null(subset=[])
+        self.assertIn("subset cannot be empty", str(context.exception))
+
+    def test_drop_null_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_null(subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_drop_null_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.drop_null(subset="age")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameDropNanTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+        self.expected_schema = [TableDataTypes.BIGINT(), TableDataTypes.DOUBLE()]
+
+    def test_drop_nan_without_subset_checks_all_columns(self):
+        result = self.dataframe.drop_nan()
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_subset(self):
+        result = self.dataframe.drop_nan(subset=["score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_multiple_column_subset(self):
+        result = self.dataframe.drop_nan(subset=["id", "score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_drop_nan_with_empty_subset_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_nan(subset=[])
+        self.assertIn("subset cannot be empty", str(context.exception))
+
+    def test_drop_nan_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.drop_nan(subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_drop_nan_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.drop_nan(subset="score")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameFillNullTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "quantity": 10},
+                {"id": 2, "name": None, "quantity": None},
+                {"id": 3, "name": "Bob", "quantity": 5},
+            ],
+            schema=["id", "name", "quantity"],
+        )
+        self.expected_schema = [
+            TableDataTypes.BIGINT(),
+            TableDataTypes.STRING(),
+            TableDataTypes.BIGINT(),
+        ]
+
+    def test_fill_null_with_numeric_value(self):
+        result = self.dataframe.fill_null(0, subset=["quantity"])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_with_string_value(self):
+        result = self.dataframe.fill_null("unknown", subset=["name"])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_without_subset_fills_all_columns(self):
+        result = self.dataframe.fill_null(0)
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+
+    def test_fill_null_with_empty_subset_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_null(0, subset=[])
+        self.assertIn("subset cannot be empty", str(context.exception))
+
+    def test_fill_null_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_null(0, subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_fill_null_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.fill_null(0, subset="quantity")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
+class DataFrameFillNanTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+        self.expected_schema = [TableDataTypes.BIGINT(), TableDataTypes.DOUBLE()]
+
+    def test_fill_nan_with_numeric_value(self):
+        result = self.dataframe.fill_nan(0.0, subset=["score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_without_subset_fills_all_columns(self):
+        result = self.dataframe.fill_nan(0.0)
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_with_multiple_column_subset(self):
+        result = self.dataframe.fill_nan(0.0, subset=["id", "score"])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+
+    def test_fill_nan_with_empty_subset_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_nan(0.0, subset=[])
+        self.assertIn("subset cannot be empty", str(context.exception))
+
+    def test_fill_nan_with_invalid_column_raises_error(self):
+        with self.assertRaises(ValueError) as context:
+            self.dataframe.fill_nan(0.0, subset=["invalid_column"])
+        self.assertIn("Columns not found in DataFrame", str(context.exception))
+
+    def test_fill_nan_with_non_list_subset_raises_error(self):
+        with self.assertRaises(TypeError) as context:
+            self.dataframe.fill_nan(0.0, subset="score")
+        self.assertIn("subset must be a list of strings", str(context.exception))
+
+
 class DataFrameBatchITTests(PyFlinkITTestCase):
     def setUp(self):
         previous_environment = pf.get_table_environment()
@@ -569,6 +742,113 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         ).filter(pf.col("id") > 1)
 
         self.assertEqual(result.collect(), [Row(2, "Bob")])
+
+
+class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
+    def test_drop_null_removes_rows_with_null_values(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+                {"id": 4, "name": None, "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+
+        result = df.drop_null().collect()
+        self.assertEqual(result, [Row(1, "Alice", 30)])
+
+    def test_drop_null_with_subset_removes_rows_with_null_in_specified_columns(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "age": 30},
+                {"id": 2, "name": None, "age": 25},
+                {"id": 3, "name": "Bob", "age": None},
+            ],
+            schema=["id", "name", "age"],
+        )
+
+        result = df.drop_null(subset=["age"]).collect()
+        self.assertEqual(result, [Row(1, "Alice", 30), Row(2, None, 25)])
+
+    def test_drop_nan_removes_rows_with_nan_values(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.drop_nan().collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 3)
+        self.assertAlmostEqual(result[1][1], 0.85)
+
+    def test_drop_nan_with_subset_removes_rows_with_nan_in_specified_columns(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95, "rating": 4.5},
+                {"id": 2, "score": float('nan'), "rating": 3.0},
+                {"id": 3, "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "score", "rating"],
+        )
+
+        result = df.drop_nan(subset=["score"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 3)
+        self.assertAlmostEqual(result[1][1], 0.85)
+
+    def test_fill_null_replaces_null_with_specified_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "quantity": 10},
+                {"id": 2, "name": None, "quantity": None},
+                {"id": 3, "name": "Bob", "quantity": 5},
+            ],
+            schema=["id", "name", "quantity"],
+        )
+
+        result = df.fill_null(0, subset=["quantity"]).collect()
+        self.assertEqual(result, [Row(1, "Alice", 10), Row(2, None, 0), Row(3, "Bob", 5)])
+
+    def test_fill_null_with_string_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice"},
+                {"id": 2, "name": None},
+            ],
+            schema=["id", "name"],
+        )
+
+        result = df.fill_null("unknown", subset=["name"]).collect()
+        self.assertEqual(result, [Row(1, "Alice"), Row(2, "unknown")])
+
+    def test_fill_nan_replaces_nan_with_specified_value(self):
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": float('nan')},
+                {"id": 3, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.fill_nan(0.0, subset=["score"]).collect()
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 2)
+        self.assertAlmostEqual(result[1][1], 0.0)
+        self.assertEqual(result[2][0], 3)
+        self.assertAlmostEqual(result[2][1], 0.85)
 
 
 if __name__ == "__main__":

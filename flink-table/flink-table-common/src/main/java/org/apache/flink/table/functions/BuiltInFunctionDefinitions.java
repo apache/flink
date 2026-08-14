@@ -2378,6 +2378,28 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition IS_NAN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("isNan")
+                    .sqlName("IS_NAN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IsNanFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition IS_NOT_NAN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("isNotNan")
+                    .sqlName("IS_NOT_NAN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.IsNotNanFunction")
+                    .build();
+
     // Catalog functions
     // --------------------------------------------------------------------------------------------
 

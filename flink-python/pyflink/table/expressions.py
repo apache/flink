@@ -25,8 +25,8 @@ from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, load_java_class
 
-__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
-           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
+__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'is_nan', 'is_not_nan',
+           'UNBOUNDED_ROW', 'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
            'current_date', 'current_time', 'current_timestamp',
            'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
@@ -178,6 +178,28 @@ def not_(expression: Expression[bool]) -> Expression[bool]:
         >>> not_(lit(None, DataTypes.BOOLEAN())) # None
     """
     return _unary_op("not", expression)
+
+
+@PublicEvolving()
+def is_nan(expr) -> Expression[bool]:
+    """
+    Returns true if the given numeric expression is NaN (Not-a-Number).
+
+    This method supports a three-valued logic by preserving NULL. This means if the
+    input expression is NULL, the result will also be NULL.
+    """
+    return _unary_op("isNan", expr)
+
+
+@PublicEvolving()
+def is_not_nan(expr) -> Expression[bool]:
+    """
+    Returns true if the given numeric expression is not NaN (Not-a-Number).
+
+    This method supports a three-valued logic by preserving NULL. This means if the
+    input expression is NULL, the result will also be NULL.
+    """
+    return _unary_op("isNotNan", expr)
 
 
 """

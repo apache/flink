@@ -224,6 +224,26 @@ public final class Expressions {
     }
 
     /**
+     * Returns true if the given numeric expression is NaN (Not-a-Number).
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     */
+    public static ApiExpression isNan(Object expression) {
+        return apiCall(BuiltInFunctionDefinitions.IS_NAN, expression);
+    }
+
+    /**
+     * Returns true if the given numeric expression is not NaN (Not-a-Number).
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     */
+    public static ApiExpression isNotNan(Object expression) {
+        return apiCall(BuiltInFunctionDefinitions.IS_NOT_NAN, expression);
+    }
+
+    /**
      * Offset constant to be used in the {@code preceding} clause of unbounded {@code Over} windows.
      * Use this constant for a time interval. Unbounded over windows start with the first row of a
      * partition.
