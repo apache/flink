@@ -1971,11 +1971,12 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns whether the given key exists in the map.
+     * Returns {@code TRUE} if the given key exists in the map, {@code FALSE} otherwise. Returns
+     * {@code NULL} if the map is {@code NULL}.
      *
-     * <p>Checking for a null key is supported: the function returns {@code TRUE} if the map
-     * contains a null key. If the map itself is null, the function returns null. The given key is
-     * cast implicitly to the map's key type if necessary.
+     * <p>A {@code NULL} key matches a {@code NULL} key in the map. The given key is cast implicitly
+     * to the map's key type where Flink's implicit casting rules allow it; otherwise the call fails
+     * validation.
      *
      * <p>Examples:
      *
