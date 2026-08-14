@@ -50,6 +50,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -889,7 +890,56 @@ class TypeInferenceExtractorTest {
                                 "Logical type 'BITMAP' does not support a conversion from or to class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$CustomBitmap'."),
                 TestSpec.forScalarFunction("Custom Bitmap", InvalidCustomBitmapTypeFunction2.class)
                         .expectErrorMessage(
-                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."));
+                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."),
+                // ---
+                TestSpec.forScalarFunction("Variant in scalar function", VariantTypeFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "array", DataTypes.ARRAY(DataTypes.VARIANT()), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "map",
+                                        DataTypes.MAP(DataTypes.INT(), DataTypes.VARIANT()),
+                                        false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "row",
+                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.VARIANT())),
+                                        false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
+                // ---
+                TestSpec.forAsyncScalarFunction(
+                                "Variant in async scalar function", VariantTypeAsyncFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
+                // ---
+                TestSpec.forAggregateFunction(
+                                "Variant in aggregate function", VariantTypeAggFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectAccumulator(TypeStrategies.explicit(VariantState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
+                // ---
+                TestSpec.forTableFunction(
+                                "Variant in table function", VariantTypeTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectOutput(
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("v", DataTypes.VARIANT())))),
+                // ---
+                TestSpec.forProcessTableFunction(VariantProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectState("s", TypeStrategies.explicit(VariantState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
+                // ---
+                TestSpec.forProcessTableFunction(InvalidVariantStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "State entries must use a mutable, composite data type. But was: VARIANT"));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -2721,6 +2771,55 @@ class TypeInferenceExtractorTest {
         public Bitmap[] call(Object procedureContext, Bitmap bitmap) {
             return null;
         }
+    }
+
+    @FunctionHint(output = @DataTypeHint("VARIANT"))
+    private static class VariantTypeFunction extends ScalarFunction {
+        public Variant eval(
+                Variant v,
+                Variant[] array,
+                Map<Integer, Variant> map,
+                @DataTypeHint("ROW<a VARIANT>") Row row) {
+            return null;
+        }
+    }
+
+    private static class VariantTypeAsyncFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Variant> f, Variant v) {}
+    }
+
+    private static class VariantTypeAggFunction extends AggregateFunction<Variant, VariantState> {
+        public void accumulate(VariantState accumulator, Variant v) {}
+
+        @Override
+        public VariantState createAccumulator() {
+            return null;
+        }
+
+        @Override
+        public Variant getValue(VariantState accumulator) {
+            return null;
+        }
+    }
+
+    @FunctionHint(output = @DataTypeHint("ROW<v VARIANT>"))
+    private static class VariantTypeTableFunction extends TableFunction<Row> {
+        public void eval(Variant v) {}
+    }
+
+    private static class VariantProcessTableFunction extends ProcessTableFunction<Variant> {
+        public void eval(@StateHint VariantState s, Variant v) {}
+    }
+
+    private static class InvalidVariantStateProcessTableFunction
+            extends ProcessTableFunction<Variant> {
+        public void eval(@StateHint Variant s, Variant v) {}
+    }
+
+    public static class VariantState {
+        static final DataType TYPE =
+                DataTypes.STRUCTURED(VariantState.class, DataTypes.FIELD("v", DataTypes.VARIANT()));
+        public Variant v;
     }
 
     @FunctionHint(input = @DataTypeHint(value = "BITMAP", bridgedTo = CustomBitmap.class))
