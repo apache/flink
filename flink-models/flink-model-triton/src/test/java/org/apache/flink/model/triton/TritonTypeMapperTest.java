@@ -17,17 +17,22 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -310,5 +315,48 @@ class TritonTypeMapperTest {
         assertThat(result.getInt(0)).isEqualTo(1);
         assertThat(result.getInt(1)).isEqualTo(2);
         assertThat(result.getInt(2)).isEqualTo(3);
+    }
+
+    @Test
+    void testNullableArrayKeepsConcreteComponentType() throws Exception {
+        // GenericArrayData requires a boxed array to carry its concrete component type; a plain
+        // Object[] backing array is not a valid representation of ARRAY<INT>.
+        assertThat(deserializeArray("[1, null, 3]", new IntType()).toObjectArray())
+                .isInstanceOf(Integer[].class);
+        assertThat(deserializeArray("[1, null]", new BigIntType()).toObjectArray())
+                .isInstanceOf(Long[].class);
+        assertThat(deserializeArray("[1, null]", new TinyIntType()).toObjectArray())
+                .isInstanceOf(Byte[].class);
+        assertThat(deserializeArray("[1, null]", new SmallIntType()).toObjectArray())
+                .isInstanceOf(Short[].class);
+        assertThat(deserializeArray("[1.5, null]", new FloatType()).toObjectArray())
+                .isInstanceOf(Float[].class);
+        assertThat(deserializeArray("[1.5, null]", new DoubleType()).toObjectArray())
+                .isInstanceOf(Double[].class);
+        assertThat(deserializeArray("[true, null]", new BooleanType()).toObjectArray())
+                .isInstanceOf(Boolean[].class);
+        assertThat(deserializeArray("[\"a\", null]", new VarCharType()).toObjectArray())
+                .isInstanceOf(StringData[].class);
+    }
+
+    @Test
+    void testNullableArraySurvivesExternalConversion() throws Exception {
+        // ArrayObjectArrayConverter#toExternal returns the backing array of a GenericArrayData
+        // directly, so an Object[] backing array would fail the cast to Integer[] below.
+        ArrayData ints = deserializeArray("[1, null, 3]", new IntType());
+
+        DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(DataTypes.ARRAY(DataTypes.INT()));
+        converter.open(TritonTypeMapperTest.class.getClassLoader());
+
+        Integer[] external = (Integer[]) converter.toExternal(ints);
+        assertThat(external).containsExactly(1, null, 3);
+    }
+
+    private GenericArrayData deserializeArray(String json, LogicalType elementType)
+            throws Exception {
+        return (GenericArrayData)
+                TritonTypeMapper.deserializeFromJson(
+                        objectMapper.readTree(json), new ArrayType(elementType));
     }
 }

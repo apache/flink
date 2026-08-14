@@ -32,10 +32,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+
+import java.lang.reflect.Array;
 
 /** Utility class for mapping between Flink logical types and Triton data types. */
 public class TritonTypeMapper {
@@ -300,8 +303,12 @@ public class TritonTypeMapper {
      */
     private static ArrayData deserializeNullableArrayFromJson(
             JsonNode dataNode, LogicalType elementType, int size) {
-        // Nested arrays are not supported by the non-null path above either; reject them here so
-        // that the presence of a null element cannot change which element types are accepted.
+        // Reject element types the module does not support before allocating anything, mirroring
+        // the trailing else branch of the primitive path above.
+        toTritonDataType(elementType);
+        // toTritonDataType recurses into an ArrayType rather than rejecting it, and the primitive
+        // path above does not support nested arrays; reject them explicitly so that the presence
+        // of a null element cannot change which element types are accepted.
         Preconditions.checkArgument(
                 !(elementType instanceof ArrayType),
                 "Unsupported array element type: %s",
@@ -313,7 +320,13 @@ public class TritonTypeMapper {
                 "Received a null array element but the declared element type is NOT NULL: %s",
                 elementType);
 
-        Object[] array = new Object[size];
+        // GenericArrayData requires a boxed array of the concrete component type: a plain Object[]
+        // would break ArrayObjectArrayConverter#toExternal, whose fast path returns the underlying
+        // array straight to the caller, where it is cast to e.g. Integer[].
+        Object[] array =
+                (Object[])
+                        Array.newInstance(
+                                LogicalTypeUtils.toInternalConversionClass(elementType), size);
         int i = 0;
         for (JsonNode element : dataNode) {
             // deserializeFromJson maps a JSON null to a Java null and already covers every
