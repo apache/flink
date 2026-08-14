@@ -434,6 +434,47 @@ class DataFrame:
         with self._table.execute().collect() as rows:
             return list(rows)
 
+    # ======================== I/O ========================
+
+    @PublicEvolving()
+    def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
+        """
+        Write this DataFrame using a connector and its raw Table connector options.
+
+        The connector must be available through Flink's factory discovery mechanism. The write is
+        submitted immediately and waits for completion when using local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's output schema.
+
+        :param connector: Factory identifier used as the ``connector`` Table option.
+        :param options: Connector options, excluding the reserved ``connector`` option.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the connector or an option key is empty, or if ``options`` contains
+            the reserved ``connector`` key.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_generic(
+            ...     "filesystem",
+            ...     options={
+            ...         "path": "file:///tmp/events",
+            ...         "format": "csv",
+            ...     },
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import _build_generic_descriptor
+
+        descriptor = _build_generic_descriptor(connector, options)
+        result = self._table.execute_insert(descriptor)
+        execution_target = self._table._t_env.get_config().get(
+            "execution.target", None
+        )
+        if execution_target in ("local", "minicluster"):
+            result.wait()
+
 
 @PublicEvolving()
 class GroupedDataFrame:
