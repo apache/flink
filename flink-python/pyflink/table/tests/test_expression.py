@@ -413,7 +413,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
             (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
              "TIMESTAMP(3) NOT NULL"),
             (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000, datetime.timezone.utc),
-             "TIMESTAMP_LTZ(3) NOT NULL"),
+             "TIMESTAMP(3) NOT NULL"),
             (datetime.timedelta(days=1, seconds=2, microseconds=3000),
              "INTERVAL DAY(1) TO SECOND(3) NOT NULL"),
         ]

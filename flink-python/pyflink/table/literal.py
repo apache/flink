@@ -54,8 +54,6 @@ def _to_java_inferred_literal_value(value):
     gateway = get_gateway()
     jvm = gateway.jvm
     if isinstance(value, datetime.datetime):
-        if value.utcoffset() is not None:
-            return _to_java_typed_literal_value(value, LocalZonedTimestampType())
         return _to_java_typed_literal_value(value, TimestampType())
     elif isinstance(value, datetime.date):
         return _to_java_typed_literal_value(value, DateType())
@@ -86,6 +84,15 @@ def _to_java_inferred_literal_value(value):
     return value
 
 
+def _to_java_instant(value, jvm):
+    utc_value = value.astimezone(datetime.timezone.utc)
+    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    delta = utc_value - epoch
+    # Avoid floating-point timestamp conversion for pre-epoch and subsecond values.
+    seconds = delta.days * 86400 + delta.seconds
+    return jvm.java.time.Instant.ofEpochSecond(seconds, utc_value.microsecond * 1000)
+
+
 def _to_java_typed_literal_value(value, data_type: DataType):
     if value is None or data_type._conversion_cls:
         return value
@@ -100,6 +107,12 @@ def _to_java_typed_literal_value(value, data_type: DataType):
             value.hour, value.minute, value.second, value.microsecond * 1000
         )
     elif isinstance(data_type, TimestampType) and isinstance(value, datetime.datetime):
+        if value.utcoffset() is not None:
+            # Match PyFlink's TIMESTAMP transport conversion by rendering the instant in the
+            # client JVM's local time zone before dropping the zone information.
+            return jvm.java.time.LocalDateTime.ofInstant(
+                _to_java_instant(value, jvm), jvm.java.time.ZoneId.systemDefault()
+            )
         return jvm.java.time.LocalDateTime.of(
             value.year,
             value.month,
@@ -114,14 +127,7 @@ def _to_java_typed_literal_value(value, data_type: DataType):
     ):
         if value.utcoffset() is None:
             value = value.astimezone()
-        utc_value = value.astimezone(datetime.timezone.utc)
-        epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-        delta = utc_value - epoch
-        # Avoid floating-point timestamp conversion for pre-epoch and subsecond values.
-        seconds = delta.days * 86400 + delta.seconds
-        return jvm.java.time.Instant.ofEpochSecond(
-            seconds, utc_value.microsecond * 1000
-        )
+        return _to_java_instant(value, jvm)
     elif isinstance(data_type, ZonedTimestampType) and isinstance(value, datetime.datetime):
         if value.tzinfo is None:
             value = value.astimezone()
