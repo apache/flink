@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -38,18 +39,23 @@ import org.apache.flink.table.data.binary.NestedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 /** Serializer for {@link RowData}. */
 @Internal
-public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
+public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
+        implements StateSchemaEvolvingSerializer<RowData> {
     private static final long serialVersionUID = 1L;
 
     private BinaryRowDataSerializer binarySerializer;
@@ -57,6 +63,16 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     private final @Nullable String[] fieldNames;
     private final TypeSerializer[] fieldSerializers;
     private final RowData.FieldGetter[] fieldGetters;
+
+    /** Whether the job configuration opted in to state schema evolution. */
+    private final transient boolean schemaEvolutionAllowed;
+
+    /**
+     * Whether this serializer is the value serializer of a state whose backend migrates restored
+     * values, and may therefore admit a backward-compatible schema change. This is the bit the
+     * snapshot carries into a compatibility check.
+     */
+    private final transient boolean stateSchemaEvolutionEnabled;
 
     private transient BinaryRowData reuseRow;
     private transient BinaryRowWriter reuseWriter;
@@ -86,9 +102,20 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             LogicalType[] types,
             TypeSerializer<?>[] fieldSerializers,
             @Nullable String[] fieldNames) {
+        this(types, fieldSerializers, fieldNames, false, false);
+    }
+
+    private RowDataSerializer(
+            LogicalType[] types,
+            TypeSerializer<?>[] fieldSerializers,
+            @Nullable String[] fieldNames,
+            boolean schemaEvolutionAllowed,
+            boolean stateSchemaEvolutionEnabled) {
         this.types = types;
         this.fieldNames = fieldNames;
         this.fieldSerializers = fieldSerializers;
+        this.schemaEvolutionAllowed = schemaEvolutionAllowed;
+        this.stateSchemaEvolutionEnabled = stateSchemaEvolutionEnabled;
         this.binarySerializer = new BinaryRowDataSerializer(types.length);
         this.fieldGetters =
                 IntStream.range(0, types.length)
@@ -107,13 +134,69 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         return fieldSerializers;
     }
 
+    @VisibleForTesting
+    boolean isSchemaEvolutionAllowed() {
+        return schemaEvolutionAllowed;
+    }
+
+    @VisibleForTesting
+    boolean isStateSchemaEvolutionEnabled() {
+        return stateSchemaEvolutionEnabled;
+    }
+
+    /** Returns a copy that records the job configuration having opted in to schema evolution. */
+    RowDataSerializer withSchemaEvolutionAllowed() {
+        return new RowDataSerializer(
+                types, fieldSerializers, fieldNames, true, stateSchemaEvolutionEnabled);
+    }
+
+    @Override
+    public TypeSerializer<RowData> withStateSchemaEvolution() {
+        return schemaEvolutionAllowed ? enableStateSchemaEvolution() : this;
+    }
+
+    /**
+     * Returns a copy that admits a backward-compatible schema change, recursing down the nested
+     * {@code ROW} spine.
+     *
+     * <p>The opt-in is checked once, by the caller, and never again below: nested field serializers
+     * are built by {@link InternalSerializers} inside this class's constructor, so they never carry
+     * the opt-in flag. Re-checking it one level down would silently no-op and short-circuit every
+     * nested {@code ROW} evolution to incompatible, because an unarmed nested snapshot rejects the
+     * change and that rejection propagates to the whole row.
+     *
+     * <p>The descent stops at anything that is not a {@code ROW}: the migration remap does not
+     * reach inside an ARRAY, MAP, MULTISET, RAW or structured value, so an evolved one is rejected
+     * by the leaf type-equality check instead. A structured type's serializer is a {@code
+     * RowDataSerializer} too, but its type root is not {@code ROW}, so the guard excludes it.
+     */
+    private RowDataSerializer enableStateSchemaEvolution() {
+        TypeSerializer<?>[] evolvingFieldSerializers = new TypeSerializer[fieldSerializers.length];
+        for (int i = 0; i < fieldSerializers.length; i++) {
+            evolvingFieldSerializers[i] =
+                    types[i].getTypeRoot() == LogicalTypeRoot.ROW
+                                    && fieldSerializers[i] instanceof RowDataSerializer
+                            ? ((RowDataSerializer) fieldSerializers[i]).enableStateSchemaEvolution()
+                            : fieldSerializers[i];
+        }
+        return new RowDataSerializer(
+                types, evolvingFieldSerializers, fieldNames, schemaEvolutionAllowed, true);
+    }
+
     @Override
     public TypeSerializer<RowData> duplicate() {
         TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
         for (int i = 0; i < fieldSerializers.length; i++) {
             duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
         }
-        return new RowDataSerializer(types, duplicateFieldSerializers, fieldNames);
+        // Both evolution flags travel with the copy: a state backend registers a duplicate of the
+        // serializer, so a flag dropped here would never reach the snapshot.
+        return new RowDataSerializer(
+                types,
+                duplicateFieldSerializers,
+                fieldNames,
+                schemaEvolutionAllowed,
+                stateSchemaEvolutionEnabled);
     }
 
     @Override
@@ -298,7 +381,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
     @Override
     public TypeSerializerSnapshot<RowData> snapshotConfiguration() {
-        return new RowDataSerializerSnapshot(types, fieldSerializers, fieldNames);
+        return new RowDataSerializerSnapshot(
+                types, fieldSerializers, fieldNames, stateSchemaEvolutionEnabled);
     }
 
     /** {@link TypeSerializerSnapshot} for {@link BinaryRowDataSerializer}. */
@@ -309,15 +393,27 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         private @Nullable String[] fieldNames;
         private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
+        /**
+         * Whether the serializer this snapshot was taken from admits a backward-compatible schema
+         * change. It is deliberately not part of the snapshot format: a snapshot read back from
+         * bytes describes stored state, not a running job's configuration, so it always resolves
+         * with evolution off.
+         */
+        private boolean stateSchemaEvolutionEnabled;
+
         @SuppressWarnings("unused")
         public RowDataSerializerSnapshot() {
             // this constructor is used when restoring from a checkpoint/savepoint.
         }
 
         RowDataSerializerSnapshot(
-                LogicalType[] types, TypeSerializer[] serializers, @Nullable String[] fieldNames) {
+                LogicalType[] types,
+                TypeSerializer[] serializers,
+                @Nullable String[] fieldNames,
+                boolean stateSchemaEvolutionEnabled) {
             this.types = types;
             this.fieldNames = fieldNames;
+            this.stateSchemaEvolutionEnabled = stateSchemaEvolutionEnabled;
             this.nestedSerializersSnapshotDelegate =
                     new NestedSerializersSnapshotDelegate(serializers);
         }
@@ -387,25 +483,224 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!Arrays.equals(types, oldRowDataSerializerSnapshot.types)) {
+            // A side that carries no names cannot disagree with anything: without names a reorder
+            // is undetectable, so identical types keep meaning "compatible as is" there, exactly as
+            // they do unarmed.
+            boolean namesDisagree =
+                    stateSchemaEvolutionEnabled
+                            && fieldNames != null
+                            && oldRowDataSerializerSnapshot.fieldNames != null
+                            && !Arrays.equals(fieldNames, oldRowDataSerializerSnapshot.fieldNames);
+
+            // Identical positional layout: the nested composite path. Equal types at equal
+            // positions say nothing about which field is which, so an armed resolution has to see
+            // the names agree as well before it can treat the layout as unchanged -- otherwise a
+            // reorder or a rename among same-typed fields resolves here as needing no migration
+            // and leaves every value sitting under a neighbour's name.
+            if (Arrays.equals(types, oldRowDataSerializerSnapshot.types) && !namesDisagree) {
+                CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData>
+                        intermediateResult =
+                                CompositeTypeSerializerUtil
+                                        .constructIntermediateCompatibilityResult(
+                                                nestedSerializersSnapshotDelegate
+                                                        .getNestedSerializerSnapshots(),
+                                                oldRowDataSerializerSnapshot
+                                                        .nestedSerializersSnapshotDelegate
+                                                        .getNestedSerializerSnapshots());
+
+                if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
+                    RowDataSerializer reconfiguredCompositeSerializer = restoreSerializer();
+                    return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                            reconfiguredCompositeSerializer);
+                }
+
+                return intermediateResult.getFinalResult();
+            }
+
+            if (!stateSchemaEvolutionEnabled) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData>
-                    intermediateResult =
-                            CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
-                                    nestedSerializersSnapshotDelegate
-                                            .getNestedSerializerSnapshots(),
-                                    oldRowDataSerializerSnapshot.nestedSerializersSnapshotDelegate
-                                            .getNestedSerializerSnapshots());
-
-            if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
-                RowDataSerializer reconfiguredCompositeSerializer = restoreSerializer();
-                return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
-                        reconfiguredCompositeSerializer);
+            // The new side must carry field names. A name-less new serializer is reachable -- a
+            // structured type resolves to one -- and admitting it would open a permanent name-less
+            // evolution channel rather than a ramp for savepoints taken before names were stored.
+            if (fieldNames == null) {
+                return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            return intermediateResult.getFinalResult();
+            return oldRowDataSerializerSnapshot.fieldNames != null
+                    ? checkNameBasedEvolution(oldRowDataSerializerSnapshot)
+                    : checkPositionalEvolution(oldRowDataSerializerSnapshot);
+        }
+
+        private TypeSerializerSchemaCompatibility<RowData> checkNameBasedEvolution(
+                RowDataSerializerSnapshot oldSnapshot) {
+            int[] oldToNew = buildNameMapping(oldSnapshot.fieldNames, this.fieldNames);
+            int[] newToOld = buildNameMapping(this.fieldNames, oldSnapshot.fieldNames);
+
+            // (A) Every new-only field (no matching old field) must be nullable.
+            for (int newPos = 0; newPos < newToOld.length; newPos++) {
+                if (newToOld[newPos] == -1 && !types[newPos].isNullable()) {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            }
+
+            // (B) Every old field must survive with a compatible type, and nested snapshots are
+            //     aligned old->new so nested ROW evolution can recurse. Leaf (non-ROW) fields
+            //     require an exactly equal type; ROW fields defer to the nested recursion in (C).
+            TypeSerializerSnapshot<?>[] newNested =
+                    nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots();
+            TypeSerializerSnapshot<?>[] alignedNewNested =
+                    new TypeSerializerSnapshot<?>[oldSnapshot.types.length];
+            for (int oldPos = 0; oldPos < oldToNew.length; oldPos++) {
+                int newPos = oldToNew[oldPos];
+                if (newPos == -1) {
+                    return TypeSerializerSchemaCompatibility.incompatible(); // field removed
+                }
+                LogicalType oldType = oldSnapshot.types[oldPos];
+                LogicalType newType = types[newPos];
+                if (!bothRow(oldType, newType) && !oldType.equals(newType)) {
+                    return TypeSerializerSchemaCompatibility.incompatible(); // leaf type changed
+                }
+                alignedNewNested[oldPos] = newNested[newPos];
+            }
+
+            // (C) Recurse into the aligned nested snapshot pairs.
+            return resolveAlignedNested(alignedNewNested, oldSnapshot);
+        }
+
+        /**
+         * Resolves against a prior snapshot that carries no field names, matching fields by
+         * position.
+         *
+         * <p>Position is a stable identity only for an append. An insertion in the middle is
+         * indistinguishable from a retype plus an append, and the two demand opposite migrations,
+         * so the old layout has to be a prefix of the new one.
+         */
+        private TypeSerializerSchemaCompatibility<RowData> checkPositionalEvolution(
+                RowDataSerializerSnapshot oldSnapshot) {
+            if (types.length < oldSnapshot.types.length) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
+            for (int i = 0; i < oldSnapshot.types.length; i++) {
+                LogicalType oldType = oldSnapshot.types[i];
+                LogicalType newType = types[i];
+                if (!bothRow(oldType, newType) && !oldType.equals(newType)) {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            }
+            for (int i = oldSnapshot.types.length; i < types.length; i++) {
+                if (!types[i].isNullable()) {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            }
+
+            // constructIntermediateCompatibilityResult requires both arrays to have the same
+            // length, so only the prefix the old layout covers is handed to it.
+            TypeSerializerSnapshot<?>[] alignedNewNested =
+                    Arrays.copyOf(
+                            nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots(),
+                            oldSnapshot.types.length);
+            return resolveAlignedNested(alignedNewNested, oldSnapshot);
+        }
+
+        private TypeSerializerSchemaCompatibility<RowData> resolveAlignedNested(
+                TypeSerializerSnapshot<?>[] alignedNewNested,
+                RowDataSerializerSnapshot oldSnapshot) {
+            CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData> nested =
+                    CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
+                            alignedNewNested,
+                            oldSnapshot.nestedSerializersSnapshotDelegate
+                                    .getNestedSerializerSnapshots());
+            // A reconfigured nested serializer is deliberately not propagated here, unlike on the
+            // identical-layout path. Reconfiguration exists so a new serializer can read old bytes;
+            // once the values have been remapped there are no old bytes left, because the migrated
+            // row is re-encoded by the state's own new serializer.
+            return nested.isIncompatible()
+                    ? TypeSerializerSchemaCompatibility.incompatible()
+                    : TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+        }
+
+        private static boolean bothRow(LogicalType oldType, LogicalType newType) {
+            return oldType.getTypeRoot() == LogicalTypeRoot.ROW
+                    && newType.getTypeRoot() == LogicalTypeRoot.ROW;
+        }
+
+        @Override
+        public RowData migrate(
+                TypeSerializerSnapshot<RowData> oldSerializerSnapshot, RowData value) {
+            if (value == null) {
+                return null;
+            }
+            // Runs once per restored entry, so a mismatch would otherwise surface as a bare
+            // ClassCastException from deep inside a migration loop.
+            Preconditions.checkArgument(
+                    oldSerializerSnapshot instanceof RowDataSerializerSnapshot,
+                    "Cannot migrate RowData state from %s.",
+                    oldSerializerSnapshot.getClass().getName());
+            RowDataSerializerSnapshot oldSnapshot =
+                    (RowDataSerializerSnapshot) oldSerializerSnapshot;
+            return getNewRowData(value, oldSnapshot.restoreSerializer(), restoreSerializer());
+        }
+
+        // Remaps oldData into the new layout. Name-based when both serializers carry field names;
+        // otherwise positions map 1:1 up to the common field count. RowKind preserved; added
+        // fields and null sources become null; nested ROW values are remapped recursively.
+        private static GenericRowData getNewRowData(
+                RowData oldData, RowDataSerializer oldSerializer, RowDataSerializer newSerializer) {
+            GenericRowData newData = new GenericRowData(newSerializer.getArity());
+            newData.setRowKind(oldData.getRowKind());
+            int[] positions = buildPositionMapping(oldSerializer, newSerializer);
+            for (int newPos = 0; newPos < newSerializer.getArity(); newPos++) {
+                int oldPos = positions[newPos];
+                if (oldPos != -1 && !oldData.isNullAt(oldPos)) {
+                    Object fieldValue = oldSerializer.fieldGetters[oldPos].getFieldOrNull(oldData);
+                    if (fieldValue instanceof RowData) {
+                        fieldValue =
+                                getNewRowData(
+                                        (RowData) fieldValue,
+                                        (RowDataSerializer) oldSerializer.fieldSerializers[oldPos],
+                                        (RowDataSerializer) newSerializer.fieldSerializers[newPos]);
+                    }
+                    newData.setField(newPos, fieldValue);
+                } else {
+                    newData.setField(newPos, null);
+                }
+            }
+            return newData;
+        }
+
+        // positions[newPos] = matching old position, or -1 for an added field.
+        private static int[] buildPositionMapping(
+                RowDataSerializer oldSerializer, RowDataSerializer newSerializer) {
+            if (oldSerializer.getFieldNames() != null && newSerializer.getFieldNames() != null) {
+                // Already indexed by new position, one entry per new field.
+                return buildNameMapping(
+                        newSerializer.getFieldNames(), oldSerializer.getFieldNames());
+            }
+            // The old arity comes from the serializer, not from the record: the compatibility rule
+            // is a statement about the snapshot's layout, and reading it off the record would make
+            // the remap follow whatever turned up instead. Under the prefix bound the two agree,
+            // which is exactly what would make a divergence invisible.
+            int[] positions = new int[newSerializer.getArity()];
+            int commonFields = Math.min(oldSerializer.getArity(), newSerializer.getArity());
+            for (int i = 0; i < newSerializer.getArity(); i++) {
+                positions[i] = i < commonFields ? i : -1;
+            }
+            return positions;
+        }
+
+        // mapping[i] = index in toNames of the field named fromNames[i], or -1 if absent.
+        private static int[] buildNameMapping(String[] fromNames, String[] toNames) {
+            Map<String, Integer> toIndex = new HashMap<>(toNames.length);
+            for (int i = 0; i < toNames.length; i++) {
+                toIndex.put(toNames[i], i);
+            }
+            int[] mapping = new int[fromNames.length];
+            for (int i = 0; i < fromNames.length; i++) {
+                mapping[i] = toIndex.getOrDefault(fromNames[i], -1);
+            }
+            return mapping;
         }
 
         /** Returns the logical types stored in this snapshot. */

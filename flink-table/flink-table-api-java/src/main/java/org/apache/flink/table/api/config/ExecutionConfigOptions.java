@@ -46,6 +46,23 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_STATE_SCHEMA_EVOLUTION_ENABLED =
+            key("table.exec.state.schema-evolution.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When enabled, a RowData keyed-state value whose schema changed in a "
+                                    + "backward-compatible way (adding nullable fields, reordering "
+                                    + "fields by name, evolving a nested ROW) is migrated when "
+                                    + "state is restored, instead of the restore failing. Only a "
+                                    + "state's own value serializer is covered: a RowData nested "
+                                    + "below a composite serializer, or a state whose serializer "
+                                    + "the operator pre-builds, is still rejected. Takes effect "
+                                    + "only on a state backend that migrates restored values at "
+                                    + "the object level, currently RocksDB; on other backends the "
+                                    + "restore still fails. Disabled by default.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> IDLE_STATE_RETENTION =
             key("table.exec.state.ttl")
                     .durationType()
