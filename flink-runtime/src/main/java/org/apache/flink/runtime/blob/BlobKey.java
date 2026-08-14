@@ -159,9 +159,11 @@ public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
     /**
      * Returns the hash component of this key.
      *
-     * @return a 20 bit hash of the contents the key refers to
+     * <p>Unlike {@link #equals(Object)}, this excludes the random component of the key, so two keys
+     * referring to the same content share the same hash.
+     *
+     * @return a 20 byte hash of the contents the key refers to
      */
-    @VisibleForTesting
     public byte[] getHash() {
         return key;
     }
