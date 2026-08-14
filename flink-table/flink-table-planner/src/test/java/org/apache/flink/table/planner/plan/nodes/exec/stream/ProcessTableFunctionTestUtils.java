@@ -1195,26 +1195,7 @@ public class ProcessTableFunctionTestUtils {
      * RowData} instead of {@link Row}.
      */
     public static class RowDataRowSemanticTableFunction extends AppendProcessTableFunctionBase {
-        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-            return TypeInference.newBuilder()
-                    .staticArguments(
-                            StaticArgument.table(
-                                    "input",
-                                    RowData.class,
-                                    false,
-                                    EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
-                    .outputTypeStrategy(
-                            callContext ->
-                                    Optional.of(
-                                            DataTypes.ROW(
-                                                            DataTypes.FIELD(
-                                                                    "out",
-                                                                    DataTypes.STRING().notNull()))
-                                                    .notNull()))
-                    .build();
-        }
-
-        public void eval(RowData input) {
+        public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) RowData input) {
             collectObjects("Hello " + input.getString(0) + "!");
         }
     }
