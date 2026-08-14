@@ -765,6 +765,24 @@ class Expression(Generic[T]):
         return _unary_op("isNotFalse")(self)
 
     @property
+    def is_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_not_nan`
+        """
+        return _unary_op("isNan")(self)
+
+    @property
+    def is_not_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is not NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_nan`
+        """
+        return _unary_op("isNotNan")(self)
+
+    @property
     def distinct(self) -> 'Expression':
         """
         Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
