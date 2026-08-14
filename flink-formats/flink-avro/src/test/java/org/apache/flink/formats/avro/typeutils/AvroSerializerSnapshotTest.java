@@ -28,6 +28,7 @@ import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
+import org.apache.avro.AvroTypeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
@@ -46,6 +47,7 @@ import static org.apache.flink.api.common.typeutils.TypeSerializerConditions.isC
 import static org.apache.flink.api.common.typeutils.TypeSerializerConditions.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerConditions.isIncompatible;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link AvroSerializerSnapshot}. */
 class AvroSerializerSnapshotTest {
@@ -253,6 +255,21 @@ class AvroSerializerSnapshotTest {
                 new AvroSerializer<>(GenericRecord.class, NULL_OR_FIRST_NAME);
 
         assertThat(deserialize(serializer, serialize(serializer, null))).isNull();
+    }
+
+    @Test
+    void incompatibleGenericRecordSchemaShouldFailWithSchemaContext() {
+        final AvroSerializer<GenericRecord> serializer =
+                new AvroSerializer<>(GenericRecord.class, BOTH_REQUIRED);
+        final GenericRecord oldRecord =
+                new GenericRecordBuilder(FIRST_NAME).set("first", "Flink").build();
+
+        assertThatThrownBy(() -> serialize(serializer, oldRecord))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Failed to resolve GenericRecord from writer schema")
+                .hasMessageContaining(FIRST_NAME.toString())
+                .hasMessageContaining(BOTH_REQUIRED.toString())
+                .hasCauseInstanceOf(AvroTypeException.class);
     }
 
     @Test

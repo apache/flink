@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -346,17 +347,26 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
             return value;
         }
 
-        final DataOutputSerializer output = new DataOutputSerializer(128);
-        final DataOutputEncoder outputEncoder = new DataOutputEncoder();
-        outputEncoder.setOut(output);
-        new GenericDatumWriter<GenericRecord>(recordSchema, avroData).write(record, outputEncoder);
+        try {
+            final DataOutputSerializer output = new DataOutputSerializer(128);
+            final DataOutputEncoder outputEncoder = new DataOutputEncoder();
+            outputEncoder.setOut(output);
+            new GenericDatumWriter<GenericRecord>(recordSchema, avroData)
+                    .write(record, outputEncoder);
 
-        final DataInputDecoder inputDecoder = new DataInputDecoder();
-        inputDecoder.setIn(new DataInputDeserializer(output.wrapAsByteBuffer()));
-        final GenericRecord resolvedRecord =
-                new GenericDatumReader<GenericRecord>(recordSchema, runtimeSchema, avroData)
-                        .read(null, inputDecoder);
-        return type.cast(resolvedRecord);
+            final DataInputDecoder inputDecoder = new DataInputDecoder();
+            inputDecoder.setIn(new DataInputDeserializer(output.wrapAsByteBuffer()));
+            final GenericRecord resolvedRecord =
+                    new GenericDatumReader<GenericRecord>(recordSchema, runtimeSchema, avroData)
+                            .read(null, inputDecoder);
+            return type.cast(resolvedRecord);
+        } catch (IOException | AvroRuntimeException e) {
+            throw new IOException(
+                    String.format(
+                            "Failed to resolve GenericRecord from writer schema %s to reader schema %s",
+                            recordSchema, runtimeSchema),
+                    e);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
