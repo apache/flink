@@ -29,6 +29,7 @@ import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -1185,6 +1186,36 @@ public class ProcessTableFunctionTestUtils {
     public static class ImplicitCastingFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) CastingPojo p, long b) {
             collectObjects(p, b);
+        }
+    }
+
+    /**
+     * Testing function whose table argument declares a non-default conversion class ({@link
+     * RowData}). The conversion class must be preserved so that {@code eval()} receives {@link
+     * RowData} instead of {@link Row}.
+     */
+    public static class RowDataRowSemanticTableFunction extends AppendProcessTableFunctionBase {
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    RowData.class,
+                                    false,
+                                    EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                            DataTypes.FIELD(
+                                                                    "out",
+                                                                    DataTypes.STRING().notNull()))
+                                                    .notNull()))
+                    .build();
+        }
+
+        public void eval(RowData input) {
+            collectObjects("Hello " + input.getString(0) + "!");
         }
     }
 

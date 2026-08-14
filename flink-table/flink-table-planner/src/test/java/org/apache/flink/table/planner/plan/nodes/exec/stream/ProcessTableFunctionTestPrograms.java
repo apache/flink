@@ -52,6 +52,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowDataRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
@@ -2042,5 +2043,19 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f("
                                     + "r => TABLE v PARTITION BY (suite_name, test_name) ORDER BY (window_time ASC, c DESC), i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ROW_DATA_CONVERSION_TABLE =
+            TableTestProgram.of(
+                            "process-row-data-conversion",
+                            "table argument with a non-default RowData conversion class")
+                    .setupTemporarySystemFunction("f", RowDataRowSemanticTableFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{Hello Bob!}]", "+I[{Hello Alice!}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(input => TABLE t)")
                     .build();
 }
