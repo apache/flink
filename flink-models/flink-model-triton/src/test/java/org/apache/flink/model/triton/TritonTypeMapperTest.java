@@ -17,26 +17,33 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /** Test for {@link TritonTypeMapper}. */
@@ -183,5 +190,173 @@ class TritonTypeMapperTest {
 
         assertThat(jsonArray).hasSize(1);
         assertThat(jsonArray.get(0).isNull()).isTrue();
+    }
+
+    @Test
+    void testDeserializeArrayWithNullStringElement() throws Exception {
+        ArrayData result =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[\"a\", null, \"b\"]"),
+                                new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)));
+
+        assertThat(result.size()).isEqualTo(3);
+        assertThat(result.isNullAt(1)).isTrue();
+        assertThat(result.getString(0)).hasToString("a");
+        assertThat(result.getString(2)).hasToString("b");
+    }
+
+    @Test
+    void testDeserializeArrayWithNullNumericElements() throws Exception {
+        ArrayData ints =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1, null, 3]"),
+                                new ArrayType(new IntType()));
+        assertThat(ints.size()).isEqualTo(3);
+        assertThat(ints.isNullAt(1)).isTrue();
+        assertThat(ints.getInt(0)).isEqualTo(1);
+        assertThat(ints.getInt(2)).isEqualTo(3);
+
+        ArrayData longs =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1, null]"),
+                                new ArrayType(new BigIntType()));
+        assertThat(longs.isNullAt(1)).isTrue();
+
+        ArrayData doubles =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1.5, null]"),
+                                new ArrayType(new DoubleType()));
+        assertThat(doubles.isNullAt(1)).isTrue();
+
+        ArrayData floats =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1.5, null]"),
+                                new ArrayType(new FloatType()));
+        assertThat(floats.isNullAt(1)).isTrue();
+
+        ArrayData bytes =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1, null]"),
+                                new ArrayType(new TinyIntType()));
+        assertThat(bytes.isNullAt(1)).isTrue();
+
+        ArrayData shorts =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1, null]"),
+                                new ArrayType(new SmallIntType()));
+        assertThat(shorts.isNullAt(1)).isTrue();
+    }
+
+    @Test
+    void testDeserializeArrayWithNullBooleanElement() throws Exception {
+        ArrayData result =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[true, null, false]"),
+                                new ArrayType(new BooleanType()));
+
+        assertThat(result.size()).isEqualTo(3);
+        assertThat(result.isNullAt(1)).isTrue();
+        assertThat(result.getBoolean(0)).isTrue();
+        assertThat(result.getBoolean(2)).isFalse();
+    }
+
+    @Test
+    void testNullElementSurvivesSerializeDeserializeRoundTrip() throws Exception {
+        ArrayType arrayType = new ArrayType(new VarCharType(VarCharType.MAX_LENGTH));
+        RowData rowData =
+                GenericRowData.of(
+                        new GenericArrayData(
+                                new Object[] {
+                                    BinaryStringData.fromString("a"),
+                                    null,
+                                    BinaryStringData.fromString("b")
+                                }));
+
+        ArrayNode serialized = objectMapper.createArrayNode();
+        TritonTypeMapper.serializeToJsonArray(rowData, 0, arrayType, serialized);
+        assertThat(serialized.get(1).isNull()).isTrue();
+
+        ArrayData roundTripped =
+                (ArrayData) TritonTypeMapper.deserializeFromJson(serialized, arrayType);
+
+        assertThat(roundTripped.size()).isEqualTo(3);
+        assertThat(roundTripped.isNullAt(1)).isTrue();
+        assertThat(roundTripped.getString(0)).hasToString("a");
+        assertThat(roundTripped.getString(2)).hasToString("b");
+    }
+
+    @Test
+    void testDeserializeArrayRejectsNullForNotNullElementType() throws Exception {
+        JsonNode dataNode = objectMapper.readTree("[1, null]");
+        ArrayType notNullElements = new ArrayType(new IntType(false));
+
+        assertThatThrownBy(() -> TritonTypeMapper.deserializeFromJson(dataNode, notNullElements))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("NOT NULL");
+    }
+
+    @Test
+    void testDeserializeArrayWithoutNullsIsUnchanged() throws Exception {
+        ArrayData result =
+                (ArrayData)
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.readTree("[1, 2, 3]"), new ArrayType(new IntType()));
+
+        assertThat(result.size()).isEqualTo(3);
+        assertThat(result.isNullAt(0)).isFalse();
+        assertThat(result.getInt(0)).isEqualTo(1);
+        assertThat(result.getInt(1)).isEqualTo(2);
+        assertThat(result.getInt(2)).isEqualTo(3);
+    }
+
+    @Test
+    void testNullableArrayKeepsConcreteComponentType() throws Exception {
+        // GenericArrayData requires a boxed array to carry its concrete component type; a plain
+        // Object[] backing array is not a valid representation of ARRAY<INT>.
+        assertThat(deserializeArray("[1, null, 3]", new IntType()).toObjectArray())
+                .isInstanceOf(Integer[].class);
+        assertThat(deserializeArray("[1, null]", new BigIntType()).toObjectArray())
+                .isInstanceOf(Long[].class);
+        assertThat(deserializeArray("[1, null]", new TinyIntType()).toObjectArray())
+                .isInstanceOf(Byte[].class);
+        assertThat(deserializeArray("[1, null]", new SmallIntType()).toObjectArray())
+                .isInstanceOf(Short[].class);
+        assertThat(deserializeArray("[1.5, null]", new FloatType()).toObjectArray())
+                .isInstanceOf(Float[].class);
+        assertThat(deserializeArray("[1.5, null]", new DoubleType()).toObjectArray())
+                .isInstanceOf(Double[].class);
+        assertThat(deserializeArray("[true, null]", new BooleanType()).toObjectArray())
+                .isInstanceOf(Boolean[].class);
+        assertThat(deserializeArray("[\"a\", null]", new VarCharType()).toObjectArray())
+                .isInstanceOf(StringData[].class);
+    }
+
+    @Test
+    void testNullableArraySurvivesExternalConversion() throws Exception {
+        // ArrayObjectArrayConverter#toExternal returns the backing array of a GenericArrayData
+        // directly, so an Object[] backing array would fail the cast to Integer[] below.
+        ArrayData ints = deserializeArray("[1, null, 3]", new IntType());
+
+        DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(DataTypes.ARRAY(DataTypes.INT()));
+        converter.open(TritonTypeMapperTest.class.getClassLoader());
+
+        Integer[] external = (Integer[]) converter.toExternal(ints);
+        assertThat(external).containsExactly(1, null, 3);
+    }
+
+    private GenericArrayData deserializeArray(String json, LogicalType elementType)
+            throws Exception {
+        return (GenericArrayData)
+                TritonTypeMapper.deserializeFromJson(
+                        objectMapper.readTree(json), new ArrayType(elementType));
     }
 }
