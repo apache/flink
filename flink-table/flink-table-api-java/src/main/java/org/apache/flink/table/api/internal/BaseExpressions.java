@@ -143,6 +143,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_E
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_TYPE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
@@ -2505,6 +2506,53 @@ public abstract class BaseExpressions<InType, OutType> {
             JsonQueryOnEmptyOrError onEmpty,
             JsonQueryOnEmptyOrError onError) {
         return jsonQuery(path, DataTypes.STRING(), wrappingBehavior, onEmpty, onError);
+    }
+
+    /**
+     * Returns a string value indicating the type of the input.
+     *
+     * <p>Potential outputs are as following
+     *
+     * <ul>
+     *   <li>object
+     *   <li>array
+     *   <li>string
+     *   <li>number
+     *   <li>boolean
+     *   <li>null, for the JSON null literal
+     * </ul>
+     *
+     * <p>Every number is reported as number, whatever its magnitude or precision.
+     *
+     * <p>Returns SQL NULL if the input is NULL or is not valid JSON.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"a\": true}").jsonType() // "object"
+     * lit("[1, 2]").jsonType() // "array"
+     * lit("null").jsonType() // "null"
+     * lit("\"Hello, World!\"").jsonType() // "string"
+     * lit("\"2015-01-01\"").jsonType() // "string"
+     * lit("66").jsonType() // "number"
+     * lit("11.1").jsonType() // "number"
+     * lit("68s").jsonType() // SQL NULL, not valid JSON
+     * }</pre>
+     */
+    public OutType jsonType() {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr()));
+    }
+
+    /**
+     * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root. A path that
+     * does not resolve to exactly one value returns SQL NULL.
+     *
+     * <pre>{@code
+     * lit("{\"a\": [1, 2]}").jsonType("$.a") // "array"
+     * }</pre>
+     */
+    public OutType jsonType(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr(), valueLiteral(path)));
     }
 
     /**

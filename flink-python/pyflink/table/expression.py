@@ -2324,6 +2324,43 @@ class Expression(Generic[T]):
         else:
             return _binary_op("jsonLength")(self, path)
 
+    def json_type(self, path=None) -> 'Expression':
+        """
+        Returns a string value indicating the type of the input.
+
+        Potential outputs are as following
+
+        * `object`
+        * `array`
+        * `string`
+        * `number`
+        * `boolean`
+        * `null`, for the JSON null literal
+
+        Every number is reported as `number`, whatever its magnitude or precision.
+
+        Returns None if the input is None or is not valid JSON.
+
+        If `path` is given, the type is read at that location instead of the root. A path that
+        does not resolve to exactly one value returns None.
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_type() # 'object'
+            >>> lit('[1, 2]').json_type() # 'array'
+            >>> lit('null').json_type() # 'null'
+            >>> lit('"Hello, World!"').json_type() # 'string'
+            >>> lit('"2015-01-01"').json_type() # 'string'
+            >>> lit('66').json_type() # 'number'
+            >>> lit('11.1').json_type() # 'number'
+            >>> lit('68s').json_type() # None, not valid JSON
+            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'array'
+        """
+        if path is None:
+            return _unary_op("jsonType")(self)
+        else:
+            return _binary_op("jsonType")(self, path)
     # ---------------------------- value modification functions -----------------------------
 
     def object_update(self, *kv) -> "Expression":
