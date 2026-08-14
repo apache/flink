@@ -1968,11 +1968,12 @@ class Expression(Generic[T]):
 
     def map_contains_key(self, key) -> 'Expression':
         """
-        Returns whether the given key exists in the map.
+        Returns True if the given key exists in the map, False otherwise. Returns None if the map
+        is None.
 
-        Checking for a None key is supported: the function returns True if the map contains a
-        None key. If the map itself is None, the function returns None. The given key is cast
-        implicitly to the map's key type if necessary.
+        A None key matches a None key in the map. The given key is cast implicitly to the map's
+        key type where Flink's implicit casting rules allow it; otherwise the call fails
+        validation.
 
         Examples:
         ::
