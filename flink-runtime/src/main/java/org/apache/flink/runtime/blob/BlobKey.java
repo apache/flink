@@ -161,7 +161,6 @@ public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
      *
      * @return a 20 bit hash of the contents the key refers to
      */
-    @VisibleForTesting
     public byte[] getHash() {
         return key;
     }

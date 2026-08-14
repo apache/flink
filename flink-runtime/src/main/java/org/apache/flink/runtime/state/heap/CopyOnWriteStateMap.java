@@ -471,7 +471,6 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
      * Creates (combined) copy of the table arrays for a snapshot. This method must be called by the
      * same Thread that does modifications to the {@link CopyOnWriteStateMap}.
      */
-    @VisibleForTesting
     @SuppressWarnings("unchecked")
     StateMapEntry<K, N, S>[] snapshotMapArrays() {
 

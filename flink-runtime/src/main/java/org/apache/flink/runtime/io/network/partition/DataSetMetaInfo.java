@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
@@ -71,7 +70,6 @@ public final class DataSetMetaInfo implements Serializable {
         return new DataSetMetaInfo(UNKNOWN, numTotalPartitions);
     }
 
-    @VisibleForTesting
     public static DataSetMetaInfo withNumRegisteredPartitions(
             int numRegisteredPartitions, int numTotalPartitions) {
         Preconditions.checkArgument(numRegisteredPartitions > 0);
