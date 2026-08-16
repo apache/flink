@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 /** A filter based on a range with an injected comparator. */
 final class RangeKeyFilter<K> implements SavepointKeyFilter<K> {
 
-    private static final long serialVersionUID = 3L;
+    private static final long serialVersionUID = 4L;
 
     private final SerializableComparator<K> comparator;
     @Nullable private final K lower;

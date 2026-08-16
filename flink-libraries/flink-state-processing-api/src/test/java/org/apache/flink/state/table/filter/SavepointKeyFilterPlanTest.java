@@ -27,7 +27,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collections;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -133,7 +132,7 @@ class SavepointKeyFilterPlanTest {
         }
         Object deserialized;
         try (ObjectInputStream ois =
-                     new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()))) {
+                new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()))) {
             deserialized = ois.readObject();
         }
         assertThat(deserialized).isSameAs(SavepointKeyFilterPlan.empty());
@@ -151,5 +150,4 @@ class SavepointKeyFilterPlanTest {
         assertThat(filter.test(42L)).isTrue();
         assertThat(filter.test(43L)).isFalse();
     }
-
 }

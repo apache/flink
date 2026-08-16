@@ -232,6 +232,7 @@ class SavepointFilterTranslatorTest {
         CallExpression expr = and(eq(longKeyRef(), longLit(5L)), gt(longKeyRef(), longLit(3L)));
         assertThat(keyFilterOf(expr)).isNull();
     }
+
     // -------------------------------------------------------------------------
     //  Unsupported predicates
     // -------------------------------------------------------------------------

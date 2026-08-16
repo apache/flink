@@ -485,7 +485,8 @@ class SavepointDynamicTableSourceTest {
     //  Helpers
     // -------------------------------------------------------------------------
 
-    private static List<Long> collectKeys(StreamTableEnvironment tEnv, String sql) throws Exception {
+    private static List<Long> collectKeys(StreamTableEnvironment tEnv, String sql)
+            throws Exception {
         return tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100).stream()
                 .map(r -> (Long) r.getField("k"))
                 .collect(Collectors.toList());
