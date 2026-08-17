@@ -117,10 +117,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "$",
                         "{\"a\":[true, false, null]}",
                         "{}",
-                        "[]")
+                        "[]",
+                        "{\"a\": 1}",
+                        "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
                 .andDataTypes(
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
-                        STRING(), STRING(), STRING(), STRING())
+                        STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
                 // path exists but resolves to a JSON null literal -> scalar, length 1
                 .testResult(
                         $("f8").jsonLength("$.a[2]"),
@@ -328,7 +330,15 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
                                 + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
                                 + "To check path existence or handle invalid input, use "
-                                + "JSON_EXISTS or IS JSON.");
+                                + "JSON_EXISTS or IS JSON.")
+                .testResult(
+                        $("f12").jsonLength("lax"), "JSON_LENGTH(f12, 'lax')", 1, INT().nullable())
+                .testResult(
+                        $("f12").jsonLength("$[\"strict value\"]"),
+                        "JSON_LENGTH(f12, '$[\"strict value\"]')",
+                        1,
+                        INT().nullable())
+        ;
     }
 
     private static TestSetSpec jsonExistsSpec() {
