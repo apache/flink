@@ -155,25 +155,18 @@ class ArrowTypeConversionTests(unittest.TestCase):
 
     def test_timestamp_type_mapping(self):
         units_and_precisions = [("s", 0), ("ms", 3), ("us", 6), ("ns", 9)]
-        for timezone_id, use_timestamp_ltz, expected_type in [
-            (None, False, TimestampType),
-            (None, True, TimestampType),
-            ("Asia/Shanghai", False, TimestampType),
-            ("Asia/Shanghai", True, LocalZonedTimestampType),
-        ]:
+        for timezone_id in [None, "Asia/Shanghai"]:
             for unit, precision in units_and_precisions:
                 with self.subTest(
                     timezone_id=timezone_id,
-                    use_timestamp_ltz=use_timestamp_ltz,
                     unit=unit,
                 ):
                     data_type = from_arrow_type(
                         pa.timestamp(unit, tz=timezone_id),
                         nullable=False,
-                        use_timestamp_ltz=use_timestamp_ltz,
                     )
 
-                    self.assertIsInstance(data_type, expected_type)
+                    self.assertIsInstance(data_type, TimestampType)
                     self.assertEqual(data_type.precision, precision)
                     self.assertFalse(data_type._nullable)
 

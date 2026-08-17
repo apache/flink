@@ -36,12 +36,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -60,7 +58,6 @@ import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -196,9 +193,6 @@ public final class PythonBridgeUtils {
                 } else {
                     return pickler.dumps(obj);
                 }
-            } else if (dataType instanceof LocalZonedTimestampType) {
-                Instant instant = toInstant(obj);
-                return pickler.dumps(Arrays.asList(instant.getEpochSecond(), instant.getNano()));
             } else if (dataType instanceof RowType) {
                 Row tmpRow = (Row) obj;
                 LogicalType[] tmpRowFieldTypes =
@@ -242,24 +236,6 @@ public final class PythonBridgeUtils {
                 return pickler.dumps(obj);
             }
         }
-    }
-
-    private static Instant toInstant(Object value) {
-        if (value instanceof Instant) {
-            return (Instant) value;
-        } else if (value instanceof Integer) {
-            return Instant.ofEpochSecond(((Integer) value).longValue());
-        } else if (value instanceof Long) {
-            return Instant.ofEpochMilli((Long) value);
-        } else if (value instanceof TimestampData) {
-            return ((TimestampData) value).toInstant();
-        } else if (value instanceof Timestamp) {
-            return ((Timestamp) value).toInstant();
-        }
-        throw new IllegalArgumentException(
-                String.format(
-                        "Unsupported value class for TIMESTAMP_LTZ: %s",
-                        value.getClass().getName()));
     }
 
     public static Object getPickledBytesFromJavaObject(Object obj, TypeInformation<?> dataType)

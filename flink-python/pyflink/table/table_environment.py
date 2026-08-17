@@ -17,6 +17,7 @@
 ################################################################################
 import atexit
 import os
+import re
 import sys
 import tempfile
 from typing import Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
@@ -46,8 +47,8 @@ from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _create_type_verifier, RowType, DataType, TimestampType, \
-    LocalZonedTimestampType, _infer_schema_from_data, _create_converter, from_arrow_type, \
-    RowField, create_arrow_schema, to_arrow_type, _to_java_data_type
+    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
+    to_arrow_type, _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
@@ -59,6 +60,140 @@ __all__ = [
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
+
+
+_FIXED_OFFSET_TIMEZONE_PATTERN = re.compile(
+    r'^(?:(?:GMT|UTC|UT))?([+-])(\d{2}):(\d{2})(?::(\d{2}))?$')
+
+
+def _fixed_timezone_offset_seconds(timezone_id):
+    if timezone_id in ('GMT', 'UTC', 'UT', 'Z'):
+        return 0
+    match = _FIXED_OFFSET_TIMEZONE_PATTERN.fullmatch(timezone_id)
+    if match is None:
+        return None
+    sign, hours, minutes, seconds = match.groups()
+    offset = int(hours) * 3600 + int(minutes) * 60 + int(seconds or 0)
+    return offset if sign == '+' else -offset
+
+
+def _convert_arrow_timestamps_to_local(array, timezone_id):
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    if isinstance(array, pa.ChunkedArray):
+        if not array.chunks:
+            empty_array = _convert_arrow_timestamps_to_local(
+                pa.array([], type=array.type), timezone_id)
+            return pa.chunked_array([], type=empty_array.type)
+        chunks = []
+        changed = False
+        for chunk in array.chunks:
+            converted_chunk = _convert_arrow_timestamps_to_local(chunk, timezone_id)
+            chunks.append(converted_chunk)
+            changed = changed or converted_chunk is not chunk
+        if not changed:
+            return array
+        return pa.chunked_array(chunks, type=chunks[0].type)
+
+    arrow_type = array.type
+    if pa.types.is_timestamp(arrow_type):
+        if arrow_type.tz is None:
+            return array
+        target_type = pa.timestamp(arrow_type.unit)
+        fixed_offset = _fixed_timezone_offset_seconds(timezone_id)
+        if fixed_offset is not None:
+            units_per_second = {
+                's': 1,
+                'ms': 1_000,
+                'us': 1_000_000,
+                'ns': 1_000_000_000,
+            }
+            shifted = pc.add_checked(
+                array.view(pa.int64()),
+                fixed_offset * units_per_second[arrow_type.unit],
+            )
+            return shifted.view(target_type)
+        local_timestamp = getattr(pc, 'local_timestamp', None)
+        if local_timestamp is not None:
+            timestamp_in_local_timezone = array.view(
+                pa.timestamp(arrow_type.unit, tz=timezone_id))
+            return local_timestamp(timestamp_in_local_timezone)
+
+        utc_timestamps = array.view(
+            pa.timestamp(arrow_type.unit, tz='UTC')).to_pandas()
+        local_timestamps = utc_timestamps.dt.tz_convert(timezone_id).dt.tz_localize(None)
+        return pa.Array.from_pandas(local_timestamps, type=target_type)
+
+    if pa.types.is_struct(arrow_type):
+        fields = []
+        children = []
+        changed = False
+        for index, field in enumerate(arrow_type):
+            child = _convert_arrow_timestamps_to_local(array.field(index), timezone_id)
+            children.append(child)
+            fields.append(pa.field(
+                field.name, child.type, field.nullable, field.metadata))
+            changed = changed or child.type != field.type
+        if not changed:
+            return array
+        return pa.StructArray.from_arrays(
+            children, fields=fields, mask=array.is_null())
+
+    if pa.types.is_list(arrow_type):
+        values = _convert_arrow_timestamps_to_local(array.values, timezone_id)
+        if values.type == arrow_type.value_type:
+            return array
+        value_field = pa.field(
+            arrow_type.value_field.name,
+            values.type,
+            arrow_type.value_field.nullable,
+            arrow_type.value_field.metadata,
+        )
+        target_type = pa.list_(value_field)
+        return pa.Array.from_buffers(
+            target_type,
+            len(array),
+            array.buffers()[:2],
+            null_count=array.null_count,
+            offset=array.offset,
+            children=[values],
+        )
+
+    if pa.types.is_map(arrow_type):
+        keys = _convert_arrow_timestamps_to_local(array.keys, timezone_id)
+        items = _convert_arrow_timestamps_to_local(array.items, timezone_id)
+        if keys.type == arrow_type.key_type and items.type == arrow_type.item_type:
+            return array
+        key_field = pa.field(
+            arrow_type.key_field.name,
+            keys.type,
+            nullable=False,
+            metadata=arrow_type.key_field.metadata,
+        )
+        item_field = pa.field(
+            arrow_type.item_field.name,
+            items.type,
+            arrow_type.item_field.nullable,
+            arrow_type.item_field.metadata,
+        )
+        target_type = pa.map_(
+            key_field,
+            item_field,
+            keys_sorted=arrow_type.keys_sorted and keys.type == arrow_type.key_type,
+        )
+        entries = pa.StructArray.from_arrays(
+            [keys, items], fields=[target_type.key_field, target_type.item_field])
+        return pa.Array.from_buffers(
+            target_type,
+            len(array),
+            array.buffers()[:2],
+            null_count=array.null_count,
+            offset=array.offset,
+            children=[entries],
+        )
+
+    return array
 
 
 @PublicEvolving()
@@ -1519,16 +1654,17 @@ class TableEnvironment(object):
         field_types = row_type.field_types()
         try:
             compatible_table = table.rename_columns(field_names)
+            local_timezone = self.get_config().get_local_timezone()
             for index, (field, data_type) in enumerate(zip(table.schema, field_types)):
-                if not isinstance(
-                    data_type, (TimestampType, LocalZonedTimestampType)
-                ):
-                    continue
-                target_type = to_arrow_type(data_type)
-                if isinstance(data_type, LocalZonedTimestampType):
-                    timezone = field.type.tz if pa.types.is_timestamp(field.type) else None
-                    target_type = pa.timestamp(target_type.unit, tz=timezone)
-                if field.type == target_type:
+                source_column = compatible_table.column(index)
+                column = _convert_arrow_timestamps_to_local(
+                    source_column, local_timezone)
+                target_type = column.type
+                if isinstance(data_type, TimestampType):
+                    target_type = to_arrow_type(data_type)
+                if column.type != target_type:
+                    column = column.cast(target_type, safe=False)
+                if column is source_column:
                     continue
                 target_field = pa.field(
                     field_names[index],
@@ -1539,9 +1675,15 @@ class TableEnvironment(object):
                 compatible_table = compatible_table.set_column(
                     index,
                     target_field,
-                    compatible_table.column(index).cast(target_type, safe=False),
+                    column,
                 )
-        except (pa.ArrowInvalid, pa.ArrowNotImplementedError, pa.ArrowTypeError, ValueError) as e:
+        except (
+            pa.ArrowInvalid,
+            pa.ArrowNotImplementedError,
+            pa.ArrowTypeError,
+            TypeError,
+            ValueError,
+        ) as e:
             raise TypeError(
                 f"Could not convert pyarrow.Table to the inferred Flink schema: {row_type}"
             ) from e

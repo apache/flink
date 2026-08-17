@@ -308,14 +308,8 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             table_schema.get_column_names(), dataframe_schema.get_column_names()
         )
         self.assertEqual(
-            table_schema.get_column_data_types()[:2],
-            dataframe_schema.get_column_data_types()[:2],
-        )
-        self.assertIsInstance(
-            dataframe_schema.get_column_data_types()[2], LocalZonedTimestampType
-        )
-        self.assertIsInstance(
-            table_schema.get_column_data_types()[2], TimestampType
+            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
         )
 
         empty_pdf = pd.DataFrame(
@@ -365,7 +359,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     ),
                     watermark=("ts", "ts - INTERVAL '1' SECOND"),
                 ),
-                LocalZonedTimestampType,
+                TimestampType,
             ),
             (
                 lambda: pf.from_arrow(
@@ -379,7 +373,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     ),
                     watermark=("ts", "ts - INTERVAL '1' SECOND"),
                 ),
-                LocalZonedTimestampType,
+                TimestampType,
             ),
         ]
         for creator, expected_type in creators:
@@ -818,55 +812,13 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             self.assertEqual(result["id"].tolist(), [1, 2, 3])
             self.assertEqual(result["id_plus_one"].tolist(), [2, 3, 4])
             self.assertEqual(result["ts"].isna().tolist(), [False, False, True])
+            local_fold = pd.Timestamp("2026-11-01T01:30:00.123")
             self.assertEqual(
                 result["ts"].tolist()[:2],
-                [
-                    first_fold.tz_convert("America/New_York"),
-                    second_fold.tz_convert("America/New_York"),
-                ],
+                [local_fold, local_fold],
             )
         finally:
             self.t_env.get_config().set_local_timezone(original_timezone)
-
-    def test_collect_timezone_aware_arrow_timestamps(self):
-        first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
-        second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
-        arrow_type = pa.timestamp("ms", tz="America/New_York")
-        dataframe = pf.from_arrow(
-            pa.table(
-                {
-                    "timestamp": pa.array(
-                        [first_fold, second_fold], type=arrow_type
-                    ),
-                    "timestamps": pa.array(
-                        [[first_fold], [second_fold]], type=pa.list_(arrow_type)
-                    ),
-                    "timestamps_by_name": pa.array(
-                        [
-                            [("first", first_fold)],
-                            [("second", second_fold)],
-                        ],
-                        type=pa.map_(pa.string(), arrow_type),
-                    ),
-                }
-            )
-        )
-
-        self.assertEqual(
-            dataframe.collect(),
-            [
-                Row(
-                    first_fold.to_pydatetime(),
-                    [first_fold.to_pydatetime()],
-                    {"first": first_fold.to_pydatetime()},
-                ),
-                Row(
-                    second_fold.to_pydatetime(),
-                    [second_fold.to_pydatetime()],
-                    {"second": second_fold.to_pydatetime()},
-                ),
-            ],
-        )
 
     def test_basic_functionality(self):
         df = pf.from_dict(

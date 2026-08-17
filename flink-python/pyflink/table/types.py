@@ -2223,14 +2223,9 @@ def create_arrow_schema(field_names: List[str], field_types: List[DataType]):
     return pa.schema(fields)
 
 
-def from_arrow_type(
-        arrow_type,
-        nullable: bool = True,
-        *,
-        use_timestamp_ltz: bool = False) -> DataType:
+def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
     """
-    Convert Arrow type to Flink data type. Timezone-aware timestamps are converted to
-    LocalZonedTimestampType only when use_timestamp_ltz is enabled.
+    Convert Arrow type to Flink data type.
     """
     from pyarrow import types
     if types.is_boolean(arrow_type):
@@ -2276,29 +2271,17 @@ def from_arrow_type(
             precision = 6
         else:
             precision = 9
-        if use_timestamp_ltz and arrow_type.tz is not None:
-            return LocalZonedTimestampType(precision, nullable)
         return TimestampType(precision, nullable)
     elif types.is_map(arrow_type):
         item_field = getattr(arrow_type, 'item_field', None)
         item_nullable = item_field.nullable if item_field is not None else True
-        key_type = from_arrow_type(
-            arrow_type.key_type,
-            nullable=False,
-            use_timestamp_ltz=use_timestamp_ltz,
-        )
-        value_type = from_arrow_type(
-            arrow_type.item_type,
-            nullable=item_nullable,
-            use_timestamp_ltz=use_timestamp_ltz,
-        )
+        key_type = from_arrow_type(arrow_type.key_type, nullable=False)
+        value_type = from_arrow_type(arrow_type.item_type, nullable=item_nullable)
         return MapType(key_type, value_type, nullable)
     elif types.is_list(arrow_type):
         return ArrayType(
             from_arrow_type(
-                arrow_type.value_type,
-                nullable=arrow_type.value_field.nullable,
-                use_timestamp_ltz=use_timestamp_ltz,
+                arrow_type.value_type, nullable=arrow_type.value_field.nullable
             ),
             nullable,
         )
@@ -2309,11 +2292,7 @@ def from_arrow_type(
         return RowType([
             RowField(
                 field.name,
-                from_arrow_type(
-                    field.type,
-                    field.nullable,
-                    use_timestamp_ltz=use_timestamp_ltz,
-                ),
+                from_arrow_type(field.type, field.nullable),
             )
             for field in arrow_type
         ])

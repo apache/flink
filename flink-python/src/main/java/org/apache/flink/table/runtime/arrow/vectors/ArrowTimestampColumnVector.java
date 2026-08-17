@@ -23,8 +23,12 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.TimestampColumnVector;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.arrow.vector.TimeStampMicroVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeStampNanoVector;
+import org.apache.arrow.vector.TimeStampSecVector;
 import org.apache.arrow.vector.TimeStampVector;
-import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 /** Arrow column vector for Timestamp. */
@@ -32,28 +36,30 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 public final class ArrowTimestampColumnVector implements TimestampColumnVector {
 
     /** Container which is used to store the sequence of timestamp values of a column to read. */
-    private final TimeStampVector valueVector;
+    private final ValueVector valueVector;
 
-    private final TimeUnit timeUnit;
-
-    public ArrowTimestampColumnVector(TimeStampVector valueVector) {
+    public ArrowTimestampColumnVector(ValueVector valueVector) {
         this.valueVector = Preconditions.checkNotNull(valueVector);
-        this.timeUnit = ((ArrowType.Timestamp) valueVector.getField().getType()).getUnit();
+        Preconditions.checkState(
+                valueVector instanceof TimeStampVector
+                        && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone()
+                                == null);
     }
 
     @Override
     public TimestampData getTimestamp(int i, int precision) {
-        long value = valueVector.get(i);
-        if (timeUnit == TimeUnit.SECOND) {
-            return TimestampData.fromEpochMillis(value * 1000);
-        } else if (timeUnit == TimeUnit.MILLISECOND) {
-            return TimestampData.fromEpochMillis(value);
-        } else if (timeUnit == TimeUnit.MICROSECOND) {
+        if (valueVector instanceof TimeStampSecVector) {
+            return TimestampData.fromEpochMillis(((TimeStampSecVector) valueVector).get(i) * 1000);
+        } else if (valueVector instanceof TimeStampMilliVector) {
+            return TimestampData.fromEpochMillis(((TimeStampMilliVector) valueVector).get(i));
+        } else if (valueVector instanceof TimeStampMicroVector) {
+            long micros = ((TimeStampMicroVector) valueVector).get(i);
             return TimestampData.fromEpochMillis(
-                    Math.floorDiv(value, 1000), (int) Math.floorMod(value, 1000) * 1000);
+                    Math.floorDiv(micros, 1000), (int) Math.floorMod(micros, 1000) * 1000);
         } else {
+            long nanos = ((TimeStampNanoVector) valueVector).get(i);
             return TimestampData.fromEpochMillis(
-                    Math.floorDiv(value, 1_000_000), (int) Math.floorMod(value, 1_000_000));
+                    Math.floorDiv(nanos, 1_000_000), (int) Math.floorMod(nanos, 1_000_000));
         }
     }
 

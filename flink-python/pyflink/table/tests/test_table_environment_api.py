@@ -19,7 +19,9 @@ import datetime
 import decimal
 import sys
 import unittest
+from unittest.mock import patch
 
+import pyarrow as pa
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
@@ -38,12 +40,103 @@ from pyflink.table.catalog import ObjectPath, CatalogBaseTable, CatalogDescripto
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_environment import _convert_arrow_timestamps_to_local
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkUTTestCase,
                                              _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration
+
+
+class ArrowTimestampConversionTests(unittest.TestCase):
+
+    def test_converts_nested_timestamps_to_local_wall_time(self):
+        first_fold = datetime.datetime.fromisoformat(
+            '2026-11-01T05:30:00.123+00:00')
+        second_fold = datetime.datetime.fromisoformat(
+            '2026-11-01T06:30:00.123+00:00')
+        timestamp_type = pa.timestamp('ms', tz='UTC')
+        array = pa.array(
+            [
+                {
+                    'timestamp': first_fold,
+                    'timestamps': [first_fold],
+                    'timestamps_by_name': [('first', first_fold)],
+                },
+                None,
+                {
+                    'timestamp': second_fold,
+                    'timestamps': [second_fold],
+                    'timestamps_by_name': [('second', second_fold)],
+                },
+            ],
+            type=pa.struct([
+                pa.field('timestamp', timestamp_type),
+                pa.field(
+                    'timestamps',
+                    pa.list_(pa.field('element', timestamp_type, nullable=False)),
+                ),
+                pa.field(
+                    'timestamps_by_name',
+                    pa.map_(
+                        pa.string(),
+                        pa.field('value', timestamp_type, nullable=False),
+                    ),
+                ),
+            ]),
+        )
+
+        result = _convert_arrow_timestamps_to_local(
+            pa.chunked_array([array]), 'America/New_York')
+
+        local_timestamp = datetime.datetime.fromisoformat('2026-11-01T01:30:00.123')
+        self.assertEqual(
+            result.to_pylist(),
+            [
+                {
+                    'timestamp': local_timestamp,
+                    'timestamps': [local_timestamp],
+                    'timestamps_by_name': [('first', local_timestamp)],
+                },
+                None,
+                {
+                    'timestamp': local_timestamp,
+                    'timestamps': [local_timestamp],
+                    'timestamps_by_name': [('second', local_timestamp)],
+                },
+            ],
+        )
+        self.assertIsNone(result.type[0].type.tz)
+        self.assertFalse(result.type[1].type.value_field.nullable)
+        self.assertFalse(result.type[2].type.item_field.nullable)
+
+    def test_preserves_naive_timestamps_and_supports_fixed_offsets(self):
+        naive = pa.array([0], type=pa.timestamp('us'))
+        self.assertIs(
+            _convert_arrow_timestamps_to_local(naive, 'America/New_York'), naive)
+
+        aware = pa.array([0], type=pa.timestamp('us', tz='UTC'))
+        result = _convert_arrow_timestamps_to_local(aware, 'GMT-08:00')
+        self.assertEqual(
+            result.to_pylist(),
+            [datetime.datetime.fromisoformat('1969-12-31T16:00:00')],
+        )
+
+    def test_uses_pandas_fallback_without_arrow_local_timestamp(self):
+        array = pa.array(
+            [datetime.datetime.fromisoformat('2026-01-01T00:00:00+00:00')],
+            type=pa.timestamp('ms', tz='UTC'),
+        )
+
+        with patch('pyarrow.compute.local_timestamp', None):
+            result = _convert_arrow_timestamps_to_local(
+                array, 'America/New_York')
+
+        self.assertEqual(
+            result.to_pylist(),
+            [datetime.datetime.fromisoformat('2025-12-31T19:00:00')],
+        )
 
 
 class TableEnvironmentTest(PyFlinkUTTestCase):

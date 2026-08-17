@@ -283,12 +283,12 @@ def from_pandas(
     Types are inferred from the Arrow representation of the pandas columns. An explicit ``schema``
     renames columns positionally and must contain exactly one unique, non-empty name per input
     column. Empty inputs are supported when their pandas dtypes can be converted to Flink types.
-    Timezone-aware timestamps are represented as ``TIMESTAMP_LTZ`` in the TableEnvironment's
-    configured local timezone; timezone-naive timestamps are represented as ``TIMESTAMP``.
+    Timezone-aware timestamps are represented as ``TIMESTAMP`` in the TableEnvironment's
+    configured local timezone; timezone-naive timestamps are unchanged.
 
     ``watermark`` declares an event-time column and its SQL watermark expression. The selected
     column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
-    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+    values with finer precision are truncated to ``TIMESTAMP(3)``.
 
     :param pdf: pandas DataFrame to convert.
     :param schema: Optional list of positional result column names.
@@ -347,7 +347,7 @@ def from_arrow(
 
     ``watermark`` declares an event-time column and its SQL watermark expression. The selected
     column must have a timestamp-compatible type. Its precision is normalized to milliseconds;
-    values with finer precision are truncated to ``TIMESTAMP(3)`` or ``TIMESTAMP_LTZ(3)``.
+    values with finer precision are truncated to ``TIMESTAMP(3)``.
 
     :param table: PyArrow Table to convert.
     :param schema: Optional list of positional result column names.
@@ -381,11 +381,7 @@ def from_arrow(
         [
             RowField(
                 name,
-                from_arrow_type(
-                    field.type,
-                    field.nullable,
-                    use_timestamp_ltz=True,
-                ),
+                from_arrow_type(field.type, field.nullable),
             )
             for name, field in zip(names, table.schema)
         ]
