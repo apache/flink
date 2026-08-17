@@ -32,6 +32,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryFormat;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRawValueData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -144,7 +145,13 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
 
     @Override
     public void writeGeography(int pos, GeographyData geography) {
-        writeBinary(pos, geography.toBytes());
+        if (geography instanceof BinaryGeographyData) {
+            BinaryGeographyData binary = (BinaryGeographyData) geography;
+            writeSegmentsToVarLenPart(
+                    pos, binary.getSegments(), binary.getOffset(), binary.getSizeInBytes());
+        } else {
+            writeBinary(pos, geography.toBytes());
+        }
     }
 
     private DataOutputViewStreamWrapper getOutputView() {
