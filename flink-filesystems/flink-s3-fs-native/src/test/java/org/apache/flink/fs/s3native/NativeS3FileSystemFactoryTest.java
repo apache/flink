@@ -359,6 +359,19 @@ class NativeS3FileSystemFactoryTest {
                 .isEqualTo(Duration.ofSeconds(30));
     }
 
+    @Test
+    void testRetryCircuitBreakerEnabledDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().isRetryCircuitBreakerEnabled())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue());
+    }
+
+    @Test
+    void testRetryCircuitBreakerEnabledExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED, true);
+        assertThat(createFs(config).getClientProvider().isRetryCircuitBreakerEnabled()).isTrue();
+    }
+
     // --- Timeouts ---
 
     @Test

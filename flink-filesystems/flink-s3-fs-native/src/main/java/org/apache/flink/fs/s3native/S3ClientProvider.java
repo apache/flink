@@ -97,6 +97,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final Duration retryBaseDelay;
     private final Duration retryThrottleBaseDelay;
     private final Duration retryMaxBackoff;
+    private final boolean retryCircuitBreakerEnabled;
     @Nullable private final String region;
     @Nullable private final String endpoint;
     @Nullable private final String assumeRoleArn;
@@ -129,6 +130,7 @@ class S3ClientProvider implements AutoCloseableAsync {
             Duration retryBaseDelay,
             Duration retryThrottleBaseDelay,
             Duration retryMaxBackoff,
+            boolean retryCircuitBreakerEnabled,
             @Nullable String region,
             @Nullable String endpoint,
             @Nullable String assumeRoleArn,
@@ -172,6 +174,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                         retryThrottleBaseDelay, "retryThrottleBaseDelay must not be null");
         this.retryMaxBackoff =
                 Preconditions.checkNotNull(retryMaxBackoff, "retryMaxBackoff must not be null");
+        this.retryCircuitBreakerEnabled = retryCircuitBreakerEnabled;
         this.region = region;
         this.endpoint = endpoint;
         this.assumeRoleArn = assumeRoleArn;
@@ -268,6 +271,11 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     Duration getRetryMaxBackoff() {
         return retryMaxBackoff;
+    }
+
+    @VisibleForTesting
+    boolean isRetryCircuitBreakerEnabled() {
+        return retryCircuitBreakerEnabled;
     }
 
     @VisibleForTesting
@@ -427,6 +435,8 @@ class S3ClientProvider implements AutoCloseableAsync {
                 NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue();
         private Duration retryMaxBackoff =
                 NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue();
+        private boolean retryCircuitBreakerEnabled =
+                NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue();
         private Duration clientCloseTimeout =
                 NativeS3FileSystemFactory.CLIENT_CLOSE_TIMEOUT.defaultValue();
 
@@ -547,6 +557,11 @@ class S3ClientProvider implements AutoCloseableAsync {
                     "retryMaxBackoff must be positive, but was %s",
                     retryMaxBackoff);
             this.retryMaxBackoff = retryMaxBackoff;
+            return this;
+        }
+
+        public Builder retryCircuitBreakerEnabled(boolean retryCircuitBreakerEnabled) {
+            this.retryCircuitBreakerEnabled = retryCircuitBreakerEnabled;
             return this;
         }
 
@@ -671,6 +686,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                                                     BackoffStrategy.exponentialDelay(
                                                             retryThrottleBaseDelay,
                                                             retryMaxBackoff))
+                                            .circuitBreakerEnabled(retryCircuitBreakerEnabled)
                                             .build())
                             .build();
 
@@ -711,6 +727,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                     retryBaseDelay,
                     retryThrottleBaseDelay,
                     retryMaxBackoff,
+                    retryCircuitBreakerEnabled,
                     region,
                     endpoint,
                     assumeRoleArn,
