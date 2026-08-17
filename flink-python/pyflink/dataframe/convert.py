@@ -178,7 +178,7 @@ class _RecordType(Enum):
         return tuple(getattr(record, name) for name in schema)
 
 
-def _validate_schema(schema: Any) -> None:
+def _validate_schema(schema: List[str]) -> None:
     if not isinstance(schema, list) or any(not isinstance(name, str) for name in schema):
         raise TypeError("schema must be a list of strings")
     if not schema:

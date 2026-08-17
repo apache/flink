@@ -330,6 +330,23 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             empty_schema.get_column_data_types(),
         )
 
+    def test_timezone_aware_creation_supports_java_timezone_ids(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("SystemV/PST8PDT")
+        try:
+            dataframe = pf.from_arrow(
+                pa.table({
+                    "ts": pa.array([0], type=pa.timestamp("ms", tz="UTC")),
+                })
+            )
+            self.assert_dataframe_schema(
+                dataframe,
+                ["ts"],
+                [TableDataTypes.TIMESTAMP(3)],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
     def test_creators_attach_and_normalize_watermarks(self):
         timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
         creators = [
@@ -806,6 +823,8 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
                 .with_column("id_plus_one", pf.col("id") + 1)
                 .select("id", "id_plus_one", "ts")
                 .to_pandas()
+                .sort_values("id")
+                .reset_index(drop=True)
             )
 
             self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])

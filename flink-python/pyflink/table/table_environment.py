@@ -17,7 +17,6 @@
 ################################################################################
 import atexit
 import os
-import re
 import sys
 import tempfile
 from typing import Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
@@ -62,25 +61,12 @@ __all__ = [
 ]
 
 
-_FIXED_OFFSET_TIMEZONE_PATTERN = re.compile(
-    r'^(?:(?:GMT|UTC|UT))?([+-])(\d{2}):(\d{2})(?::(\d{2}))?$')
 _TIMESTAMP_UNITS_PER_SECOND = {
     's': 1,
     'ms': 1_000,
     'us': 1_000_000,
     'ns': 1_000_000_000,
 }
-
-
-def _fixed_timezone_offset_seconds(timezone_id):
-    if timezone_id in ('GMT', 'UTC', 'UT', 'Z'):
-        return 0
-    match = _FIXED_OFFSET_TIMEZONE_PATTERN.fullmatch(timezone_id)
-    if match is None:
-        return None
-    sign, hours, minutes, seconds = match.groups()
-    offset = int(hours) * 3600 + int(minutes) * 60 + int(seconds or 0)
-    return offset if sign == '+' else -offset
 
 
 def _cast_arrow_timestamp(array, target_type):
@@ -114,140 +100,23 @@ def _cast_arrow_timestamp(array, target_type):
     return values.view(target_type)
 
 
-def _convert_arrow_timestamps_to_local(array, timezone_id):
+def _contains_timezone_aware_timestamp(arrow_type):
     import pyarrow as pa
-    import pyarrow.compute as pc
 
-    if isinstance(array, pa.ChunkedArray):
-        if not array.chunks:
-            empty_array = _convert_arrow_timestamps_to_local(
-                pa.array([], type=array.type), timezone_id)
-            return pa.chunked_array([], type=empty_array.type)
-        chunks = []
-        changed = False
-        for chunk in array.chunks:
-            converted_chunk = _convert_arrow_timestamps_to_local(chunk, timezone_id)
-            chunks.append(converted_chunk)
-            changed = changed or converted_chunk is not chunk
-        if not changed:
-            return array
-        return pa.chunked_array(chunks, type=chunks[0].type)
-
-    arrow_type = array.type
     if pa.types.is_timestamp(arrow_type):
-        if arrow_type.tz is None:
-            return array
-        target_type = pa.timestamp(arrow_type.unit)
-        fixed_offset = _fixed_timezone_offset_seconds(timezone_id)
-        if fixed_offset is not None:
-            shifted = pc.add_checked(
-                array.view(pa.int64()),
-                fixed_offset * _TIMESTAMP_UNITS_PER_SECOND[arrow_type.unit],
-            )
-            return shifted.view(target_type)
-        local_timestamp = getattr(pc, 'local_timestamp', None)
-        if local_timestamp is not None:
-            timestamp_in_local_timezone = array.view(
-                pa.timestamp(arrow_type.unit, tz=timezone_id))
-            result = local_timestamp(timestamp_in_local_timezone)
-            # local_timestamp can wrap at the int64 limits instead of reporting overflow.
-            pc.subtract_checked(
-                result.view(pa.int64()), array.view(pa.int64()))
-            return result
-
-        utc_timestamps = array.view(
-            pa.timestamp(arrow_type.unit, tz='UTC')).to_pandas()
-        local_timestamps = utc_timestamps.dt.tz_convert(timezone_id).dt.tz_localize(None)
-        return pa.Array.from_pandas(local_timestamps, type=target_type)
-
+        return arrow_type.tz is not None
     if pa.types.is_struct(arrow_type):
-        fields = []
-        children = []
-        changed = False
-        for index, field in enumerate(arrow_type):
-            child = _convert_arrow_timestamps_to_local(array.field(index), timezone_id)
-            children.append(child)
-            fields.append(pa.field(
-                field.name, child.type, field.nullable, field.metadata))
-            changed = changed or child.type != field.type
-        if not changed:
-            return array
-        return pa.StructArray.from_arrays(
-            children, fields=fields, mask=array.is_null())
-
+        return any(
+            _contains_timezone_aware_timestamp(field.type) for field in arrow_type
+        )
     if pa.types.is_list(arrow_type):
-        values = _convert_arrow_timestamps_to_local(array.values, timezone_id)
-        if values.type == arrow_type.value_type:
-            return array
-        value_field = pa.field(
-            arrow_type.value_field.name,
-            values.type,
-            arrow_type.value_field.nullable,
-            arrow_type.value_field.metadata,
-        )
-        target_type = pa.list_(value_field)
-        return pa.Array.from_buffers(
-            target_type,
-            len(array),
-            array.buffers()[:2],
-            null_count=array.null_count,
-            offset=array.offset,
-            children=[values],
-        )
-
+        return _contains_timezone_aware_timestamp(arrow_type.value_type)
     if pa.types.is_map(arrow_type):
-        keys = _convert_arrow_timestamps_to_local(array.keys, timezone_id)
-        items = _convert_arrow_timestamps_to_local(array.items, timezone_id)
-        if keys.type == arrow_type.key_type and items.type == arrow_type.item_type:
-            return array
-        keys_sorted = (
-            getattr(arrow_type, 'keys_sorted', False)
-            and keys.type == arrow_type.key_type
+        return (
+            _contains_timezone_aware_timestamp(arrow_type.key_type)
+            or _contains_timezone_aware_timestamp(arrow_type.item_type)
         )
-        try:
-            source_key_field = arrow_type.key_field
-            source_item_field = arrow_type.item_field
-            key_field = pa.field(
-                source_key_field.name,
-                keys.type,
-                nullable=False,
-                metadata=source_key_field.metadata,
-            )
-            item_field = pa.field(
-                source_item_field.name,
-                items.type,
-                source_item_field.nullable,
-                source_item_field.metadata,
-            )
-            target_type = pa.map_(
-                key_field,
-                item_field,
-                keys_sorted=keys_sorted,
-            )
-            entry_fields = [target_type.key_field, target_type.item_field]
-        except (AttributeError, TypeError):
-            # Older PyArrow versions expose map children only as data types.
-            target_type = pa.map_(
-                keys.type,
-                items.type,
-                keys_sorted=keys_sorted,
-            )
-            entry_fields = [
-                pa.field('key', keys.type, nullable=False),
-                pa.field('value', items.type),
-            ]
-        entries = pa.StructArray.from_arrays(
-            [keys, items], fields=entry_fields)
-        return pa.Array.from_buffers(
-            target_type,
-            len(array),
-            array.buffers()[:2],
-            null_count=array.null_count,
-            offset=array.offset,
-            children=[entries],
-        )
-
-    return array
+    return False
 
 
 @PublicEvolving()
@@ -1708,14 +1577,15 @@ class TableEnvironment(object):
         field_types = row_type.field_types()
         try:
             compatible_table = table.rename_columns(field_names)
-            local_timezone = self.get_config().get_local_timezone()
             for index, (field, data_type) in enumerate(zip(table.schema, field_types)):
                 source_column = compatible_table.column(index)
-                column = _convert_arrow_timestamps_to_local(
-                    source_column, local_timezone)
+                column = source_column
                 target_type = column.type
                 if isinstance(data_type, TimestampType):
                     target_type = to_arrow_type(data_type)
+                    if column.type.tz is not None:
+                        target_type = pa.timestamp(
+                            target_type.unit, tz=column.type.tz)
                 if column.type != target_type:
                     if pa.types.is_timestamp(column.type):
                         column = _cast_arrow_timestamp(column, target_type)
@@ -1751,11 +1621,8 @@ class TableEnvironment(object):
                 with pa.ipc.new_stream(temp_file, compatible_table.schema) as writer:
                     if compatible_table.num_rows > 0:
                         max_chunksize = -(-compatible_table.num_rows // splits_num)
-                        for start in range(0, compatible_table.num_rows, max_chunksize):
-                            split = compatible_table.slice(start, max_chunksize)
-                            if any(column.num_chunks > 1 for column in split.columns):
-                                split = split.combine_chunks()
-                            writer.write_table(split)
+                        writer.write_table(
+                            compatible_table, max_chunksize=max_chunksize)
 
             jvm = get_gateway().jvm
             if table_schema is None:
@@ -1764,8 +1631,19 @@ class TableEnvironment(object):
                     load_java_class('org.apache.flink.table.data.RowData'))
             else:
                 source_schema = table_schema._j_schema
-            descriptor = jvm.org.apache.flink.table.runtime.arrow.ArrowUtils \
-                .createArrowTableSourceDesc(source_schema, temp_file.name)
+            create_descriptor = jvm.org.apache.flink.table.runtime.arrow.ArrowUtils \
+                .createArrowTableSourceDesc
+            if any(
+                _contains_timezone_aware_timestamp(field.type)
+                for field in compatible_table.schema
+            ):
+                descriptor = create_descriptor(
+                    source_schema,
+                    temp_file.name,
+                    self.get_config().get_local_timezone(),
+                )
+            else:
+                descriptor = create_descriptor(source_schema, temp_file.name)
             return Table(getattr(self._j_tenv, "from")(descriptor), self)
         finally:
             os.unlink(temp_file.name)

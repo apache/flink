@@ -77,6 +77,7 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
@@ -92,11 +93,16 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ArrowUtils}. */
 class ArrowUtilsTest {
@@ -386,6 +392,97 @@ class ArrowUtilsTest {
                     .isEqualTo(TimestampData.fromEpochMillis(-1, 999_000));
             assertThat(row.getTimestamp(1, 9))
                     .isEqualTo(TimestampData.fromEpochMillis(-1, 999_999));
+        }
+    }
+
+    @Test
+    void testConvertTimezoneAwareTimestampsUsingJavaZoneRules() {
+        Field timestampField =
+                new Field(
+                        "ts",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.SECOND, "UTC")),
+                        null);
+        Field nestedField =
+                new Field(
+                        "nested",
+                        FieldType.nullable(ArrowType.Struct.INSTANCE),
+                        Collections.singletonList(timestampField));
+        long instant = Instant.parse("2050-01-01T00:00:00Z").getEpochSecond();
+        ZoneId localTimeZone = ZoneId.of("America/Vancouver");
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Arrays.asList(timestampField, nestedField)), allocator)) {
+            root.allocateNew();
+            TimeStampVector timestamp = (TimeStampVector) root.getVector("ts");
+            timestamp.setSafe(0, instant);
+            timestamp.setValueCount(1);
+            StructVector nested = (StructVector) root.getVector("nested");
+            TimeStampVector nestedTimestamp = (TimeStampVector) nested.getChild("ts");
+            nestedTimestamp.setSafe(0, instant);
+            nestedTimestamp.setValueCount(1);
+            nested.setIndexDefined(0);
+            nested.setValueCount(1);
+            root.setRowCount(1);
+
+            ArrowUtils.convertTimezoneAwareTimestampsToLocalTime(root, localTimeZone);
+
+            long expected =
+                    Instant.ofEpochSecond(instant)
+                            .atZone(localTimeZone)
+                            .toLocalDateTime()
+                            .toEpochSecond(ZoneOffset.UTC);
+            assertThat(timestamp.get(0)).isEqualTo(expected);
+            assertThat(nestedTimestamp.get(0)).isEqualTo(expected);
+        }
+    }
+
+    @Test
+    void testConvertTimezoneAwareTimestampsWithJavaOnlyTimeZoneId() {
+        Field timestampField =
+                new Field(
+                        "ts",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
+                        null);
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Collections.singletonList(timestampField)), allocator)) {
+            root.allocateNew();
+            TimeStampVector timestamp = (TimeStampVector) root.getVector("ts");
+            timestamp.setSafe(0, 0);
+            timestamp.setValueCount(1);
+            root.setRowCount(1);
+
+            ArrowUtils.convertTimezoneAwareTimestampsToLocalTime(
+                    root, ZoneId.of("SystemV/PST8PDT"));
+
+            assertThat(timestamp.get(0)).isEqualTo(-8 * 60 * 60 * 1000L);
+        }
+    }
+
+    @Test
+    void testRejectTimezoneConversionOverflow() {
+        Field timestampField =
+                new Field(
+                        "ts",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC")),
+                        null);
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Collections.singletonList(timestampField)), allocator)) {
+            root.allocateNew();
+            TimeStampVector timestamp = (TimeStampVector) root.getVector("ts");
+            timestamp.setSafe(0, Long.MAX_VALUE);
+            timestamp.setValueCount(1);
+            root.setRowCount(1);
+
+            assertThatThrownBy(
+                            () ->
+                                    ArrowUtils.convertTimezoneAwareTimestampsToLocalTime(
+                                            root, ZoneId.of("Asia/Shanghai")))
+                    .isInstanceOf(ArithmeticException.class);
         }
     }
 

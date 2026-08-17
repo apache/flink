@@ -2264,14 +2264,13 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
             return TimeType(9, nullable)
     elif types.is_timestamp(arrow_type):
         if arrow_type.unit == 's':
-            precision = 0
+            return TimestampType(0, nullable)
         elif arrow_type.unit == 'ms':
-            precision = 3
+            return TimestampType(3, nullable)
         elif arrow_type.unit == 'us':
-            precision = 6
+            return TimestampType(6, nullable)
         else:
-            precision = 9
-        return TimestampType(precision, nullable)
+            return TimestampType(9, nullable)
     elif types.is_map(arrow_type):
         item_field = getattr(arrow_type, 'item_field', None)
         item_nullable = item_field.nullable if item_field is not None else True
@@ -2289,16 +2288,8 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         if any(types.is_struct(field.type) for field in arrow_type):
             raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
                             str(arrow_type))
-        return RowType(
-            [
-                RowField(
-                    field.name,
-                    from_arrow_type(field.type, field.nullable),
-                )
-                for field in arrow_type
-            ],
-            nullable,
-        )
+        return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
+                        for field in arrow_type], nullable)
     elif types.is_null(arrow_type):
         return NullType()
     else:

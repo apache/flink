@@ -40,10 +40,7 @@ from pyflink.table.catalog import ObjectPath, CatalogBaseTable, CatalogDescripto
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
-from pyflink.table.table_environment import (
-    _convert_arrow_timestamps_to_local,
-    TableEnvironment,
-)
+from pyflink.table.table_environment import TableEnvironment
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
@@ -54,20 +51,24 @@ from pyflink.util.java_utils import get_j_env_configuration
 
 class ArrowTimestampConversionTests(unittest.TestCase):
 
-    def _write_from_arrow(self, table, row_type, splits_num=1):
+    def _write_from_arrow(
+            self,
+            table,
+            row_type,
+            splits_num=1):
         table_environment = object.__new__(TableEnvironment)
-        table_environment.get_config = MagicMock()
-        table_environment.get_config.return_value.get_local_timezone.return_value = 'UTC'
         table_environment._j_tenv = MagicMock()
         setattr(table_environment._j_tenv, 'from', MagicMock(return_value=object()))
 
         batches = []
+        arrow_schemas = []
         gateway = MagicMock()
         descriptor_factory = gateway.jvm.org.apache.flink.table.runtime.arrow \
             .ArrowUtils.createArrowTableSourceDesc
 
-        def capture_batches(source_schema, file_name):
+        def capture_batches(source_schema, file_name, *args):
             with pa.ipc.open_stream(file_name) as reader:
+                arrow_schemas.append(reader.schema)
                 batches.extend(reader)
             return object()
 
@@ -81,145 +82,68 @@ class ArrowTimestampConversionTests(unittest.TestCase):
                 table_schema=MagicMock(),
                 splits_num=splits_num,
             )
-        return batches
+        return batches, arrow_schemas[0]
 
-    def test_converts_nested_timestamps_to_local_wall_time(self):
-        first_fold = datetime.datetime.fromisoformat(
-            '2026-11-01T05:30:00.123+00:00')
-        second_fold = datetime.datetime.fromisoformat(
-            '2026-11-01T06:30:00.123+00:00')
-        timestamp_type = pa.timestamp('ms', tz='UTC')
-        array = pa.array(
-            [
-                {
-                    'timestamp': first_fold,
-                    'timestamps': [first_fold],
-                    'timestamps_by_name': [('first', first_fold)],
-                },
-                None,
-                {
-                    'timestamp': second_fold,
-                    'timestamps': [second_fold],
-                    'timestamps_by_name': [('second', second_fold)],
-                },
-            ],
-            type=pa.struct([
-                pa.field('timestamp', timestamp_type),
-                pa.field(
-                    'timestamps',
-                    pa.list_(pa.field('element', timestamp_type, nullable=False)),
-                ),
-                pa.field(
-                    'timestamps_by_name',
-                    pa.map_(
-                        pa.string(),
-                        pa.field('value', timestamp_type, nullable=False),
-                    ),
-                ),
-            ]),
-        )
-
-        result = _convert_arrow_timestamps_to_local(
-            pa.chunked_array([array]), 'America/New_York')
-
-        local_timestamp = datetime.datetime.fromisoformat('2026-11-01T01:30:00.123')
-        self.assertEqual(
-            result.to_pylist(),
-            [
-                {
-                    'timestamp': local_timestamp,
-                    'timestamps': [local_timestamp],
-                    'timestamps_by_name': [('first', local_timestamp)],
-                },
-                None,
-                {
-                    'timestamp': local_timestamp,
-                    'timestamps': [local_timestamp],
-                    'timestamps_by_name': [('second', local_timestamp)],
-                },
-            ],
-        )
-        self.assertIsNone(result.type[0].type.tz)
-        self.assertFalse(result.type[1].type.value_field.nullable)
-        self.assertFalse(result.type[2].type.item_field.nullable)
-
-    def test_preserves_naive_timestamps_and_supports_fixed_offsets(self):
-        naive = pa.array([0], type=pa.timestamp('us'))
-        self.assertIs(
-            _convert_arrow_timestamps_to_local(naive, 'America/New_York'), naive)
-
-        aware = pa.array([0], type=pa.timestamp('us', tz='UTC'))
-        result = _convert_arrow_timestamps_to_local(aware, 'GMT-08:00')
-        self.assertEqual(
-            result.to_pylist(),
-            [datetime.datetime.fromisoformat('1969-12-31T16:00:00')],
-        )
-
-    def test_rejects_timestamp_timezone_conversion_overflow(self):
-        array = pa.array(
-            [(1 << 63) - 1],
-            type=pa.timestamp('ns', tz='UTC'),
-        )
-
-        with self.assertRaisesRegex(pa.ArrowInvalid, 'overflow'):
-            _convert_arrow_timestamps_to_local(array, 'Asia/Shanghai')
-
-    def test_supports_map_type_without_field_constructor(self):
-        timestamp = datetime.datetime.fromisoformat('2026-01-01T00:00:00+00:00')
-        array = pa.array(
-            [[('event', timestamp)]],
-            type=pa.map_(pa.string(), pa.timestamp('ms', tz='UTC')),
-        )
-        map_constructor = pa.map_
-
-        def legacy_map_constructor(key_type, item_type, keys_sorted=False):
-            if isinstance(key_type, pa.Field) or isinstance(item_type, pa.Field):
-                raise TypeError('PyArrow 5 only accepts data types')
-            return map_constructor(key_type, item_type, keys_sorted=keys_sorted)
-
-        with patch('pyarrow.map_', side_effect=legacy_map_constructor):
-            result = _convert_arrow_timestamps_to_local(array, 'Asia/Shanghai')
-
-        self.assertEqual(
-            result.to_pylist(),
-            [[('event', datetime.datetime.fromisoformat('2026-01-01T08:00:00'))]],
-        )
-
-    def test_uses_pandas_fallback_without_arrow_local_timestamp(self):
-        array = pa.array(
-            [datetime.datetime.fromisoformat('2026-01-01T00:00:00+00:00')],
-            type=pa.timestamp('ms', tz='UTC'),
-        )
-
-        with patch('pyarrow.compute.local_timestamp', None, create=True):
-            result = _convert_arrow_timestamps_to_local(
-                array, 'America/New_York')
-
-        self.assertEqual(
-            result.to_pylist(),
-            [datetime.datetime.fromisoformat('2025-12-31T19:00:00')],
-        )
-
-    def test_from_arrow_writes_requested_number_of_batches(self):
+    def test_from_arrow_preserves_existing_batches(self):
         table = pa.table({
             'id': pa.chunked_array(
                 [pa.array([value], type=pa.int64()) for value in range(4)]
             )
         })
         row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
-        batches = self._write_from_arrow(table, row_type, splits_num=2)
+        batches, _ = self._write_from_arrow(
+            table, row_type, splits_num=2)
 
-        self.assertEqual([batch.num_rows for batch in batches], [2, 2])
+        self.assertEqual([batch.num_rows for batch in batches], [1, 1, 1, 1])
+
+    def test_from_arrow_handles_split_boundaries(self):
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+        cases = [
+            (pa.table({'id': range(5)}), 2, [3, 2]),
+            (pa.table({'id': range(2)}), 5, [1, 1]),
+        ]
+        for table, splits_num, expected_batch_sizes in cases:
+            with self.subTest(splits_num=splits_num, rows=table.num_rows):
+                batches, _ = self._write_from_arrow(
+                    table, row_type, splits_num=splits_num)
+                self.assertEqual(
+                    [batch.num_rows for batch in batches], expected_batch_sizes)
+
+    def test_from_arrow_rejects_invalid_split_counts(self):
+        table = pa.table({'id': [1]})
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+        invalid_splits = [
+            (True, TypeError, 'must be an integer'),
+            (1.5, TypeError, 'must be an integer'),
+            (0, ValueError, 'must be greater than 0'),
+            (-1, ValueError, 'must be greater than 0'),
+        ]
+        for splits_num, error_type, message in invalid_splits:
+            with self.subTest(splits_num=splits_num):
+                with self.assertRaisesRegex(error_type, message):
+                    self._write_from_arrow(table, row_type, splits_num=splits_num)
+
+    def test_from_arrow_writes_schema_only_empty_stream(self):
+        table = pa.table({
+            'id': pa.array([], type=pa.int64()),
+        })
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+
+        batches, arrow_schema = self._write_from_arrow(
+            table, row_type, splits_num=5)
+
+        self.assertEqual(batches, [])
+        self.assertEqual(arrow_schema, table.schema)
 
     def test_from_arrow_floors_pre_epoch_timestamp_precision(self):
         table = pa.table({
-            'ts': pa.array([-1], type=pa.timestamp('us', tz='UTC')),
+            'ts': pa.array([-1], type=pa.timestamp('us')),
         })
         row_type = DataTypes.ROW([
             DataTypes.FIELD('ts', DataTypes.TIMESTAMP(3)),
         ])
 
-        batches = self._write_from_arrow(table, row_type)
+        batches, _ = self._write_from_arrow(table, row_type)
 
         self.assertEqual(
             batches[0].column(0).to_pylist(),
