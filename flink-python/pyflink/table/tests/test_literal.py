@@ -22,7 +22,7 @@ import decimal
 
 from py4j.protocol import Py4JJavaError
 
-from pyflink.common import Row
+from pyflink.common import Row, RowKind
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes
 from pyflink.table.expressions import lit
@@ -324,6 +324,12 @@ class LiteralITTests(PyFlinkBatchTableTestCase):
         with self.assertRaisesRegex(Py4JJavaError, "ROW literal has arity 2"):
             lit(
                 (1, 2),
+                DataTypes.ROW([DataTypes.FIELD("value", DataTypes.INT())]).not_null(),
+            )
+
+        with self.assertRaisesRegex(Py4JJavaError, "Unsupported kind 'DELETE'"):
+            lit(
+                Row.of_kind(RowKind.DELETE, 1),
                 DataTypes.ROW([DataTypes.FIELD("value", DataTypes.INT())]).not_null(),
             )
 

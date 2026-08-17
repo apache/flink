@@ -225,6 +225,14 @@ public final class PythonTableUtils {
                 // Delegate incompatible ROW representations to standard literal validation.
                 return Expressions.lit(value, dataType);
             }
+            if (value instanceof Row && ((Row) value).getKind() != RowKind.INSERT) {
+                final Row row = (Row) value;
+                throw new ValidationException(
+                        String.format(
+                                "Unsupported kind '%s' of a row [%s]. Only rows with 'INSERT' kind are supported when"
+                                        + " converting to an expression.",
+                                row.getKind(), row));
+            }
             final RowType rowType = (RowType) dataType.getLogicalType();
             final List<DataType> fieldDataTypes = dataType.getChildren();
             if (fieldDataTypes.isEmpty()) {

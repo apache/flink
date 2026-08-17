@@ -22,6 +22,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
@@ -106,6 +108,21 @@ class PythonTableUtilsTest {
                                                 .notNull()))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("ROW literal has arity 2 but the data type has arity 1.");
+    }
+
+    @Test
+    void testCreateLiteralRejectsNonInsertRow() {
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Row.ofKind(RowKind.DELETE, 1),
+                                        DataTypes.ROW(DataTypes.FIELD("value", DataTypes.INT()))
+                                                .notNull()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Unsupported kind 'DELETE' of a row [-D[1]]. "
+                                + "Only rows with 'INSERT' kind are supported when converting "
+                                + "to an expression.");
     }
 
     private static Object literalValue(final Object value, final DataType dataType) {
