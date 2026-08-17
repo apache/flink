@@ -396,6 +396,31 @@ class ArrowUtilsTest {
     }
 
     @Test
+    void testCreateArrowReaderRejectsSecondTimestampOverflow() {
+        Field timestampField =
+                new Field(
+                        "ts",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.SECOND, null)),
+                        null);
+        RowType timestampRowType = RowType.of(new TimestampType(0));
+
+        try (VectorSchemaRoot root =
+                VectorSchemaRoot.create(
+                        new Schema(Collections.singletonList(timestampField)), allocator)) {
+            TimeStampVector timestamp = (TimeStampVector) root.getVector("ts");
+            timestamp.setValueCount(1);
+            root.setRowCount(1);
+            ArrowReader reader = ArrowUtils.createArrowReader(root, timestampRowType);
+
+            for (long value : new long[] {Long.MIN_VALUE, Long.MAX_VALUE}) {
+                timestamp.setSafe(0, value);
+                assertThatThrownBy(() -> reader.read(0).getTimestamp(0, 0))
+                        .isInstanceOf(ArithmeticException.class);
+            }
+        }
+    }
+
+    @Test
     void testConvertTimezoneAwareTimestampsUsingJavaZoneRules() {
         Field timestampField =
                 new Field(

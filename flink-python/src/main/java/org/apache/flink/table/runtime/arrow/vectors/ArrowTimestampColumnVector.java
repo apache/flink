@@ -49,7 +49,8 @@ public final class ArrowTimestampColumnVector implements TimestampColumnVector {
     @Override
     public TimestampData getTimestamp(int i, int precision) {
         if (valueVector instanceof TimeStampSecVector) {
-            return TimestampData.fromEpochMillis(((TimeStampSecVector) valueVector).get(i) * 1000);
+            return TimestampData.fromEpochMillis(
+                    Math.multiplyExact(((TimeStampSecVector) valueVector).get(i), 1000));
         } else if (valueVector instanceof TimeStampMilliVector) {
             return TimestampData.fromEpochMillis(((TimeStampMilliVector) valueVector).get(i));
         } else if (valueVector instanceof TimeStampMicroVector) {
