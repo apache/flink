@@ -43,6 +43,8 @@ class BinaryGeographyDataTest {
     private static final int BIG_ENDIAN = 0;
     private static final int LITTLE_ENDIAN = 1;
     private static final byte[] POINT_WKB = pointWkb(LITTLE_ENDIAN);
+    private static final long UNSIGNED_INT_MAX = 4_294_967_295L;
+    private static final long MAX_COORDINATE_SEQUENCE_SIZE = UNSIGNED_INT_MAX * 16;
 
     @Test
     void testValidWkbRoundTrip() {
@@ -247,6 +249,61 @@ class BinaryGeographyDataTest {
                                         concat(pointWkb(LITTLE_ENDIAN), bytes(42))))
                 .isInstanceOf(TableRuntimeException.class)
                 .hasMessageContaining("trailing byte");
+    }
+
+    @Test
+    void testUnsignedPointCountUsesLongArithmetic() {
+        assertThatThrownBy(
+                        () ->
+                                BinaryGeographyData.fromBytes(
+                                        concat(
+                                                header(LITTLE_ENDIAN, GeographyData.LINE_STRING),
+                                                unsignedInt(LITTLE_ENDIAN, -1))))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Incomplete coordinate sequence")
+                .hasMessageContaining(String.valueOf(MAX_COORDINATE_SEQUENCE_SIZE));
+    }
+
+    @Test
+    void testFromAddressRejectsUnsupportedPositiveAddressRange() {
+        assertThatThrownBy(
+                        () ->
+                                BinaryGeographyData.fromAddress(
+                                        new MemorySegment[] {
+                                            MemorySegmentFactory.wrap(new byte[8])
+                                        },
+                                        Integer.MAX_VALUE - 1,
+                                        4))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Unsupported GEOGRAPHY binary address range");
+    }
+
+    @Test
+    void testFromAddressRejectsNegativeOffset() {
+        assertThatThrownBy(
+                        () ->
+                                BinaryGeographyData.fromAddress(
+                                        new MemorySegment[] {
+                                            MemorySegmentFactory.wrap(new byte[8])
+                                        },
+                                        -1,
+                                        POINT_WKB.length))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Unsupported GEOGRAPHY binary address range");
+    }
+
+    @Test
+    void testFromAddressRejectsNegativeSize() {
+        assertThatThrownBy(
+                        () ->
+                                BinaryGeographyData.fromAddress(
+                                        new MemorySegment[] {
+                                            MemorySegmentFactory.wrap(new byte[8])
+                                        },
+                                        0,
+                                        -1))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Unsupported GEOGRAPHY binary address range");
     }
 
     @Test
