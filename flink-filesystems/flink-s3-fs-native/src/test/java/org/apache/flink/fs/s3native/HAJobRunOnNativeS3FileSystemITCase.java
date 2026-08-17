@@ -47,10 +47,10 @@ class HAJobRunOnNativeS3FileSystemITCase extends AbstractHAJobRunITCase {
 
     @RegisterExtension
     @Order(2)
-    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
+                            new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
     @RegisterExtension
     @Order(3)
@@ -64,7 +64,7 @@ class HAJobRunOnNativeS3FileSystemITCase extends AbstractHAJobRunITCase {
                                 .build();
                     });
 
-    private static SeaweedFsTestContainer getSeaweedFsContainer() {
+    private static SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 

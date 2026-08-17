@@ -39,7 +39,8 @@ import java.util.List;
 import java.util.Locale;
 
 /** Provides a SeaweedFS S3-compatible test instance for the native S3 filesystem. */
-public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
+public class SeaweedFsNativeS3TestContainer
+        extends GenericContainer<SeaweedFsNativeS3TestContainer> {
 
     private static final int DEFAULT_PORT = 8333;
     private static final String DEFAULT_STORAGE_DIRECTORY = "/data";
@@ -53,11 +54,11 @@ public class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContai
 
     private S3Client client;
 
-    public SeaweedFsTestContainer() {
+    public SeaweedFsNativeS3TestContainer() {
         this(randomString("bucket", 6));
     }
 
-    public SeaweedFsTestContainer(String defaultBucketName) {
+    public SeaweedFsNativeS3TestContainer(String defaultBucketName) {
         super(DockerImageVersions.SEAWEEDFS);
 
         this.accessKey = randomString("accessKey", 10);

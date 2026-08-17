@@ -44,15 +44,15 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class NativeS3FileSystemITCase {
 
     @RegisterExtension
-    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
+                            new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
     private static FileSystem fs;
     private static String bucketUri;
 
-    private static SeaweedFsTestContainer container() {
+    private static SeaweedFsNativeS3TestContainer container() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 

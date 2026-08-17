@@ -50,10 +50,10 @@ class HAApplicationRunOnNativeS3FileSystemITCase extends AbstractHAApplicationRu
 
     @RegisterExtension
     @Order(2)
-    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
+                            new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
     @RegisterExtension
     @Order(3)
@@ -67,7 +67,7 @@ class HAApplicationRunOnNativeS3FileSystemITCase extends AbstractHAApplicationRu
                                 .build();
                     });
 
-    private static SeaweedFsTestContainer getSeaweedFsContainer() {
+    private static SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 

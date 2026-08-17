@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
-import org.apache.flink.fs.s3native.SeaweedFsTestContainer;
+import org.apache.flink.fs.s3native.SeaweedFsNativeS3TestContainer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,10 +50,10 @@ class NativeS3RecoverableWriterRecoveryITCase {
     private static final long MIN_PART_SIZE = PART;
 
     @RegisterExtension
-    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(SeaweedFsTestContainer::new));
+                            new TestContainerExtension<>(SeaweedFsNativeS3TestContainer::new));
 
     @TempDir java.nio.file.Path tmp;
 
@@ -68,7 +68,7 @@ class NativeS3RecoverableWriterRecoveryITCase {
         s3 = new SeaweedFsNativeS3Operations(getContainer().getClient(), bucket);
     }
 
-    private static SeaweedFsTestContainer getContainer() {
+    private static SeaweedFsNativeS3TestContainer getContainer() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 

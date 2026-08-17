@@ -30,19 +30,19 @@ import software.amazon.awssdk.services.s3.model.Bucket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Basic tests for {@link SeaweedFsTestContainer}. */
-class SeaweedFsTestContainerTest {
+/** Basic tests for {@link SeaweedFsNativeS3TestContainer}. */
+class SeaweedFsNativeS3TestContainerTest {
 
     private static final String DEFAULT_BUCKET_NAME = "test-bucket";
 
     @RegisterExtension
-    private static final EachCallbackWrapper<TestContainerExtension<SeaweedFsTestContainer>>
+    private static final EachCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>
             SEAWEEDFS_EXTENSION =
                     new EachCallbackWrapper<>(
                             new TestContainerExtension<>(
-                                    () -> new SeaweedFsTestContainer(DEFAULT_BUCKET_NAME)));
+                                    () -> new SeaweedFsNativeS3TestContainer(DEFAULT_BUCKET_NAME)));
 
-    private static SeaweedFsTestContainer getTestContainer() {
+    private static SeaweedFsNativeS3TestContainer getTestContainer() {
         return SEAWEEDFS_EXTENSION.getCustomExtension().getTestContainer();
     }
 
