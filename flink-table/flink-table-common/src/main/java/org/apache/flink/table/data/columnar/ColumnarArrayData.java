@@ -27,6 +27,7 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.TypedSetters;
 import org.apache.flink.table.data.columnar.vector.ArrayColumnVector;
 import org.apache.flink.table.data.columnar.vector.BooleanColumnVector;
@@ -151,7 +152,8 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
     @Override
     public GeographyData getGeography(int pos) {
         BytesColumnVector.Bytes byteArray = getByteArray(pos);
-        return GeographyData.fromBytes(byteArray.data, byteArray.offset, byteArray.len);
+        return BinaryGeographyData.fromTrustedBytes(
+                byteArray.data, byteArray.offset, byteArray.len);
     }
 
     @Override
