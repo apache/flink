@@ -89,6 +89,63 @@ class PythonTableUtilsTest {
     }
 
     @Test
+    void testCreateLiteralInfersNestedArraysFromSiblings() {
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(Arrays.asList(1), Collections.emptyList()), null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(Collections.emptyList(), Arrays.asList(1)), null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(Arrays.asList(1), Collections.singletonList(null)),
+                                null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList(Collections.singletonList(1)),
+                                        Collections.singletonList(Collections.emptyList())),
+                                null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.<Object>asList(new Integer[] {1}, Collections.emptyList()),
+                                null))
+                .isNotNull();
+    }
+
+    @Test
+    void testCreateLiteralRejectsArraysWithoutCommonSiblingType() {
+        assertThatThrownBy(
+                        () -> PythonTableUtils.createLiteral(Collections.singletonList(null), null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.asList(
+                                                Collections.emptyList(),
+                                                Collections.singletonList(null)),
+                                        null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.asList(
+                                                Collections.singletonList(1),
+                                                Collections.singletonList(1L)),
+                                        null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.asList(1, Collections.emptyList()), null))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
     void testCreateLiteralRejectsEmptyRow() {
         assertThatThrownBy(
                         () ->

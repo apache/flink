@@ -39,7 +39,7 @@ class _FoldAwareTimezone(datetime.tzinfo):
         return datetime.timedelta(hours=1 if value.fold == 0 else 0)
 
 
-class LiteralITTests(PyFlinkBatchTableTestCase):
+class LiteralITCase(PyFlinkBatchTableTestCase):
     def test_timezone_aware_datetime_literals(self):
         source = self.t_env.from_elements([(1,)], ["id"])
         same_instant_with_different_offsets = (
@@ -309,6 +309,32 @@ class LiteralITTests(PyFlinkBatchTableTestCase):
                     [1.0, 2.0],
                 )
             ],
+        )
+
+    def test_inferred_nested_arrays_use_sibling_types(self):
+        source = self.t_env.from_elements([(1,)], ["id"])
+        empty_inner_array = lit([[1], []])
+        null_only_inner_array = lit([[1], [None]])
+        nested_array_type = DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())).not_null()
+
+        literal_table = source.select(empty_inner_array, null_only_inner_array)
+        self.assertEqual(
+            literal_table.get_resolved_schema().get_column_data_types(),
+            [nested_array_type, nested_array_type],
+        )
+        self.assertIsInstance(literal_table.explain(), str)
+
+        result = source.select(
+            empty_inner_array.cardinality,
+            empty_inner_array.at(1).cardinality,
+            empty_inner_array.at(2).cardinality,
+            empty_inner_array.at(1).at(1),
+            null_only_inner_array.at(2).cardinality,
+            null_only_inner_array.at(2).at(1).is_null,
+        )
+        self.assertEqual(
+            list(result.execute().collect()),
+            [Row(2, 1, 0, 1, 1, True)],
         )
 
     def test_unsupported_constructed_literals_are_rejected(self):

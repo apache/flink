@@ -317,31 +317,142 @@ public final class PythonTableUtils {
             return value;
         }
 
-        final List<?> values = (List<?>) value;
+        return materializeInferredArray((List<?>) value, null).getArray();
+    }
+
+    private static InferredArrayMaterialization materializeInferredArray(
+            final List<?> values, @Nullable final Class<?> expectedArrayClass) {
         final Object[] convertedValues = new Object[values.size()];
+        final InferredArrayMaterialization[] nestedArrays =
+                new InferredArrayMaterialization[values.size()];
         Class<?> componentClass = null;
-        boolean hasCommonComponentClass = true;
+        boolean compatible = true;
+
         for (int pos = 0; pos < values.size(); pos++) {
-            final Object convertedValue = materializeInferredArrays(values.get(pos));
-            convertedValues[pos] = convertedValue;
-            if (convertedValue == null) {
-                continue;
+            final Object value = values.get(pos);
+            final Class<?> valueClass;
+            if (value instanceof List) {
+                final InferredArrayMaterialization nestedArray =
+                        materializeInferredArray((List<?>) value, null);
+                nestedArrays[pos] = nestedArray;
+                convertedValues[pos] = nestedArray.getArray();
+                if (nestedArray.getState() == InferredArrayState.INCOMPATIBLE) {
+                    compatible = false;
+                    continue;
+                } else if (nestedArray.getState() == InferredArrayState.WILDCARD) {
+                    continue;
+                }
+                valueClass = nestedArray.getArray().getClass();
+            } else {
+                convertedValues[pos] = value;
+                if (value == null) {
+                    continue;
+                }
+                valueClass = value.getClass();
             }
+
             if (componentClass == null) {
-                componentClass = convertedValue.getClass();
-            } else if (componentClass != convertedValue.getClass()) {
-                hasCommonComponentClass = false;
+                componentClass = valueClass;
+            } else if (componentClass != valueClass) {
+                compatible = false;
             }
         }
 
-        if (!hasCommonComponentClass || componentClass == null) {
-            return convertedValues;
+        if (expectedArrayClass != null) {
+            if (!expectedArrayClass.isArray()) {
+                compatible = false;
+            } else {
+                final Class<?> expectedComponentClass = expectedArrayClass.getComponentType();
+                if (componentClass != null && componentClass != expectedComponentClass) {
+                    compatible = false;
+                }
+                componentClass = expectedComponentClass;
+            }
         }
+
+        if (!compatible) {
+            return InferredArrayMaterialization.incompatible(convertedValues);
+        }
+        if (componentClass == null) {
+            return InferredArrayMaterialization.wildcard(convertedValues, values);
+        }
+
+        // Empty and null-only nested lists need an informative sibling's array class to preserve
+        // their position in the nested array shape.
+        for (int pos = 0; pos < nestedArrays.length; pos++) {
+            final InferredArrayMaterialization nestedArray = nestedArrays[pos];
+            if (nestedArray == null || nestedArray.getState() != InferredArrayState.WILDCARD) {
+                continue;
+            }
+            if (!componentClass.isArray()) {
+                return InferredArrayMaterialization.incompatible(convertedValues);
+            }
+            final InferredArrayMaterialization convertedNestedArray =
+                    materializeInferredArray(nestedArray.getWildcardValues(), componentClass);
+            convertedValues[pos] = convertedNestedArray.getArray();
+            if (convertedNestedArray.getState() != InferredArrayState.CONCRETE) {
+                return InferredArrayMaterialization.incompatible(convertedValues);
+            }
+        }
+
         final Object convertedArray = Array.newInstance(componentClass, convertedValues.length);
         for (int pos = 0; pos < convertedValues.length; pos++) {
+            if (convertedValues[pos] == null && componentClass.isPrimitive()) {
+                return InferredArrayMaterialization.incompatible(convertedValues);
+            }
             Array.set(convertedArray, pos, convertedValues[pos]);
         }
-        return convertedArray;
+        return InferredArrayMaterialization.concrete(convertedArray);
+    }
+
+    private enum InferredArrayState {
+        CONCRETE,
+        WILDCARD,
+        INCOMPATIBLE
+    }
+
+    private static final class InferredArrayMaterialization {
+
+        private final InferredArrayState state;
+        private final Object array;
+        private final @Nullable List<?> wildcardValues;
+
+        private InferredArrayMaterialization(
+                final InferredArrayState state,
+                final Object array,
+                @Nullable final List<?> wildcardValues) {
+            this.state = state;
+            this.array = array;
+            this.wildcardValues = wildcardValues;
+        }
+
+        private static InferredArrayMaterialization concrete(final Object array) {
+            return new InferredArrayMaterialization(InferredArrayState.CONCRETE, array, null);
+        }
+
+        private static InferredArrayMaterialization wildcard(
+                final Object array, final List<?> values) {
+            return new InferredArrayMaterialization(InferredArrayState.WILDCARD, array, values);
+        }
+
+        private static InferredArrayMaterialization incompatible(final Object array) {
+            return new InferredArrayMaterialization(InferredArrayState.INCOMPATIBLE, array, null);
+        }
+
+        private InferredArrayState getState() {
+            return state;
+        }
+
+        private Object getArray() {
+            return array;
+        }
+
+        private List<?> getWildcardValues() {
+            if (wildcardValues == null) {
+                throw new IllegalStateException("Only wildcard arrays retain their source values.");
+            }
+            return wildcardValues;
+        }
     }
 
     private static int getLiteralArrayLength(final Object value) {
