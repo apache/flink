@@ -35,12 +35,14 @@ import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
@@ -160,6 +162,10 @@ public class DataFormatConverters {
 
         t2C.put(DataTypes.BITMAP().bridgedTo(Bitmap.class), BitmapConverter.INSTANCE);
         t2C.put(DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class), BitmapConverter.INSTANCE);
+        t2C.put(DataTypes.GEOGRAPHY().bridgedTo(GeographyData.class), GeographyConverter.INSTANCE);
+        t2C.put(
+                DataTypes.GEOGRAPHY().bridgedTo(BinaryGeographyData.class),
+                GeographyConverter.INSTANCE);
 
         TYPE_TO_CONVERTER = Collections.unmodifiableMap(t2C);
     }
@@ -770,6 +776,20 @@ public class DataFormatConverters {
         @Override
         Bitmap toExternalImpl(RowData row, int column) {
             return row.getBitmap(column);
+        }
+    }
+
+    public static final class GeographyConverter extends IdentityConverter<GeographyData> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final GeographyConverter INSTANCE = new GeographyConverter();
+
+        private GeographyConverter() {}
+
+        @Override
+        GeographyData toExternalImpl(RowData row, int column) {
+            return row.getGeography(column);
         }
     }
 
