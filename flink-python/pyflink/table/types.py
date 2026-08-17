@@ -2223,9 +2223,14 @@ def create_arrow_schema(field_names: List[str], field_types: List[DataType]):
     return pa.schema(fields)
 
 
-def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
+def from_arrow_type(
+        arrow_type,
+        nullable: bool = True,
+        *,
+        use_timestamp_ltz: bool = False) -> DataType:
     """
-    Convert Arrow type to Flink data type.
+    Convert Arrow type to Flink data type. Timezone-aware timestamps are converted to
+    LocalZonedTimestampType only when use_timestamp_ltz is enabled.
     """
     from pyarrow import types
     if types.is_boolean(arrow_type):
@@ -2263,31 +2268,55 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         else:
             return TimeType(9, nullable)
     elif types.is_timestamp(arrow_type):
-        timestamp_type = (
-            LocalZonedTimestampType
-            if arrow_type.tz is not None
-            else TimestampType
-        )
         if arrow_type.unit == 's':
-            return timestamp_type(0, nullable)
+            precision = 0
         elif arrow_type.unit == 'ms':
-            return timestamp_type(3, nullable)
+            precision = 3
         elif arrow_type.unit == 'us':
-            return timestamp_type(6, nullable)
+            precision = 6
         else:
-            return timestamp_type(9, nullable)
+            precision = 9
+        if use_timestamp_ltz and arrow_type.tz is not None:
+            return LocalZonedTimestampType(precision, nullable)
+        return TimestampType(precision, nullable)
     elif types.is_map(arrow_type):
-        return MapType(from_arrow_type(arrow_type.key_type),
-                       from_arrow_type(arrow_type.item_type),
-                       nullable)
+        item_field = getattr(arrow_type, 'item_field', None)
+        item_nullable = item_field.nullable if item_field is not None else True
+        key_type = from_arrow_type(
+            arrow_type.key_type,
+            nullable=False,
+            use_timestamp_ltz=use_timestamp_ltz,
+        )
+        value_type = from_arrow_type(
+            arrow_type.item_type,
+            nullable=item_nullable,
+            use_timestamp_ltz=use_timestamp_ltz,
+        )
+        return MapType(key_type, value_type, nullable)
     elif types.is_list(arrow_type):
-        return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
+        return ArrayType(
+            from_arrow_type(
+                arrow_type.value_type,
+                nullable=arrow_type.value_field.nullable,
+                use_timestamp_ltz=use_timestamp_ltz,
+            ),
+            nullable,
+        )
     elif types.is_struct(arrow_type):
         if any(types.is_struct(field.type) for field in arrow_type):
             raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
                             str(arrow_type))
-        return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
-                        for field in arrow_type])
+        return RowType([
+            RowField(
+                field.name,
+                from_arrow_type(
+                    field.type,
+                    field.nullable,
+                    use_timestamp_ltz=use_timestamp_ltz,
+                ),
+            )
+            for field in arrow_type
+        ])
     elif types.is_null(arrow_type):
         return NullType()
     else:

@@ -26,10 +26,15 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    TYPE_CHECKING,
     Tuple,
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    import pandas
+    import pyarrow
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
@@ -201,6 +206,17 @@ def _resolve_column_names(
     return column_names
 
 
+def _normalize_pandas_column_name(name: Any) -> str:
+    """Normalize a pandas column label to the corresponding Arrow field name."""
+    if isinstance(name, str):
+        return name
+    if isinstance(name, bytes):
+        return name.decode("utf-8")
+    if isinstance(name, tuple):
+        return str(tuple(_normalize_pandas_column_name(value) for value in name))
+    return str(name)
+
+
 def _infer_schema_and_create_dataframe(
     rows: Sequence[Sequence[Any]],
     column_names: List[str],
@@ -257,7 +273,7 @@ def from_table(table: Table) -> DataFrame:
 
 @PublicEvolving()
 def from_pandas(
-    pdf: Any,
+    pdf: "pandas.DataFrame",
     schema: Optional[List[str]] = None,
     watermark: Optional[Tuple[str, str]] = None,
 ) -> DataFrame:
@@ -303,7 +319,7 @@ def from_pandas(
 
     import pyarrow as pa
 
-    input_names = list(pdf.columns)
+    input_names = [_normalize_pandas_column_name(name) for name in pdf.columns]
     arrow_pdf = pdf.copy(deep=False)
     arrow_pdf.columns = [
         f"__pyflink_dataframe_column_{index}"
@@ -318,7 +334,7 @@ def from_pandas(
 
 @PublicEvolving()
 def from_arrow(
-    table: Any,
+    table: "pyarrow.Table",
     schema: Optional[List[str]] = None,
     watermark: Optional[Tuple[str, str]] = None,
 ) -> DataFrame:
@@ -363,7 +379,14 @@ def from_arrow(
     names = _resolve_column_names(table.column_names, schema)
     row_type = RowType(
         [
-            RowField(name, from_arrow_type(field.type, field.nullable))
+            RowField(
+                name,
+                from_arrow_type(
+                    field.type,
+                    field.nullable,
+                    use_timestamp_ltz=True,
+                ),
+            )
             for name, field in zip(names, table.schema)
         ]
     )

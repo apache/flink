@@ -131,16 +131,46 @@ class UTCOffsetTimezone(datetime.tzinfo):
 
 class ArrowTypeConversionTests(unittest.TestCase):
 
+    def test_nested_field_nullability(self):
+        try:
+            arrow_map_type = pa.map_(
+                pa.string(),
+                pa.field("value", pa.int64(), nullable=False),
+            )
+        except TypeError:
+            arrow_map_type = pa.map_(pa.string(), pa.int64())
+
+        map_type = from_arrow_type(arrow_map_type)
+        self.assertFalse(map_type.key_type._nullable)
+        item_field = getattr(arrow_map_type, "item_field", None)
+        expected_item_nullable = (
+            item_field.nullable if item_field is not None else True
+        )
+        self.assertEqual(expected_item_nullable, map_type.value_type._nullable)
+
+        array_type = from_arrow_type(
+            pa.list_(pa.field("item", pa.int64(), nullable=False))
+        )
+        self.assertFalse(array_type.element_type._nullable)
+
     def test_timestamp_type_mapping(self):
         units_and_precisions = [("s", 0), ("ms", 3), ("us", 6), ("ns", 9)]
-        for timezone_id, expected_type in [
-            (None, TimestampType),
-            ("Asia/Shanghai", LocalZonedTimestampType),
+        for timezone_id, use_timestamp_ltz, expected_type in [
+            (None, False, TimestampType),
+            (None, True, TimestampType),
+            ("Asia/Shanghai", False, TimestampType),
+            ("Asia/Shanghai", True, LocalZonedTimestampType),
         ]:
             for unit, precision in units_and_precisions:
-                with self.subTest(timezone_id=timezone_id, unit=unit):
+                with self.subTest(
+                    timezone_id=timezone_id,
+                    use_timestamp_ltz=use_timestamp_ltz,
+                    unit=unit,
+                ):
                     data_type = from_arrow_type(
-                        pa.timestamp(unit, tz=timezone_id), nullable=False
+                        pa.timestamp(unit, tz=timezone_id),
+                        nullable=False,
+                        use_timestamp_ltz=use_timestamp_ltz,
                     )
 
                     self.assertIsInstance(data_type, expected_type)

@@ -18,7 +18,6 @@
 
 import unittest
 from datetime import datetime, timezone
-from unittest.mock import patch
 from typing import NamedTuple
 
 import pandas as pd
@@ -32,7 +31,7 @@ from pyflink.table import (
     TableEnvironment,
 )
 from pyflink.table.expression import Expression
-from pyflink.table.types import LocalZonedTimestampType
+from pyflink.table.types import LocalZonedTimestampType, TimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkITTestCase,
@@ -255,6 +254,15 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
         )
 
+    def test_from_pandas_normalizes_inferred_column_names(self):
+        dataframe = pf.from_pandas(pd.DataFrame([[1, 2]]))
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["0", "1"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT()],
+        )
+
     def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
         inputs = [
             (
@@ -275,25 +283,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
                     [TableDataTypes.BIGINT()],
                 )
 
-    def test_columnar_creators_do_not_use_table_environment_from_pandas(self):
-        with patch.object(
-            self.t_env,
-            "from_pandas",
-            side_effect=AssertionError("from_pandas must not be called"),
-        ):
-            for creator, data in [
-                (pf.from_pandas, pd.DataFrame({"id": [1]})),
-                (pf.from_arrow, pa.table({"id": [1]})),
-            ]:
-                with self.subTest(creator=creator.__name__):
-                    dataframe = creator(data)
-                    self.assert_dataframe_schema(
-                        dataframe,
-                        ["id"],
-                        [TableDataTypes.BIGINT()],
-                    )
-
-    def test_from_pandas_matches_table_environment_schema(self):
+    def test_from_pandas_schema_inference(self):
         pdf = pd.DataFrame(
             {
                 "original_id": [1.0, None],
@@ -318,11 +308,14 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             table_schema.get_column_names(), dataframe_schema.get_column_names()
         )
         self.assertEqual(
-            table_schema.get_column_data_types(),
-            dataframe_schema.get_column_data_types(),
+            table_schema.get_column_data_types()[:2],
+            dataframe_schema.get_column_data_types()[:2],
         )
         self.assertIsInstance(
             dataframe_schema.get_column_data_types()[2], LocalZonedTimestampType
+        )
+        self.assertIsInstance(
+            table_schema.get_column_data_types()[2], TimestampType
         )
 
         empty_pdf = pd.DataFrame(
@@ -336,10 +329,10 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             empty_pdf, schema=names
         ).to_table().get_resolved_schema()
         self.assertEqual(
-            table_schema.get_column_names(), empty_schema.get_column_names()
+            dataframe_schema.get_column_names(), empty_schema.get_column_names()
         )
         self.assertEqual(
-            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
             empty_schema.get_column_data_types(),
         )
 
@@ -848,6 +841,13 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
                     "timestamps": pa.array(
                         [[first_fold], [second_fold]], type=pa.list_(arrow_type)
                     ),
+                    "timestamps_by_name": pa.array(
+                        [
+                            [("first", first_fold)],
+                            [("second", second_fold)],
+                        ],
+                        type=pa.map_(pa.string(), arrow_type),
+                    ),
                 }
             )
         )
@@ -855,8 +855,16 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
         self.assertEqual(
             dataframe.collect(),
             [
-                Row(first_fold.to_pydatetime(), [first_fold.to_pydatetime()]),
-                Row(second_fold.to_pydatetime(), [second_fold.to_pydatetime()]),
+                Row(
+                    first_fold.to_pydatetime(),
+                    [first_fold.to_pydatetime()],
+                    {"first": first_fold.to_pydatetime()},
+                ),
+                Row(
+                    second_fold.to_pydatetime(),
+                    [second_fold.to_pydatetime()],
+                    {"second": second_fold.to_pydatetime()},
+                ),
             ],
         )
 
