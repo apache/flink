@@ -1615,9 +1615,8 @@ class TableEnvironment(object):
                 f"Could not convert pyarrow.Table to the inferred Flink schema: {row_type}"
             ) from e
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
-        try:
-            with temp_file:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with tempfile.NamedTemporaryFile(delete=False, dir=temp_dir) as temp_file:
                 with pa.ipc.new_stream(temp_file, compatible_table.schema) as writer:
                     if compatible_table.num_rows > 0:
                         max_chunksize = -(-compatible_table.num_rows // splits_num)
@@ -1645,8 +1644,6 @@ class TableEnvironment(object):
             else:
                 descriptor = create_descriptor(source_schema, temp_file.name)
             return Table(getattr(self._j_tenv, "from")(descriptor), self)
-        finally:
-            os.unlink(temp_file.name)
 
     def from_pandas(self, pdf: 'pandas.DataFrame',
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],

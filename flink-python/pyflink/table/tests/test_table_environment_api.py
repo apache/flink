@@ -17,7 +17,9 @@
 ################################################################################
 import datetime
 import decimal
+import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -149,6 +151,16 @@ class ArrowTimestampConversionTests(unittest.TestCase):
             batches[0].column(0).to_pylist(),
             [datetime.datetime.fromisoformat('1969-12-31T23:59:59.999')],
         )
+
+    def test_from_arrow_cleans_temporary_directory(self):
+        table = pa.table({'id': [1]})
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+
+        with tempfile.TemporaryDirectory() as temp_root:
+            with patch('pyflink.table.table_environment.tempfile.tempdir', temp_root):
+                self._write_from_arrow(table, row_type)
+
+            self.assertEqual(os.listdir(temp_root), [])
 
 
 class TableEnvironmentTest(PyFlinkUTTestCase):
