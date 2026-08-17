@@ -159,9 +159,9 @@ public final class PythonTableUtils {
      * which does not preserve the boxed Java classes required by some {@link DataType}s. This
      * method adapts the value to the data type's external representation and creates the literal in
      * the same JVM call so that the adapted value is not converted by Py4J again. If {@code
-     * dataType} is absent, Java literal inference remains authoritative. Constructed values are
-     * represented by constructor expressions because raw constructed value literals cannot be
-     * planned.
+     * dataType} is absent, Java literal inference remains authoritative. Constructed values such as
+     * arrays, maps, and rows are represented as constructor calls because Calcite cannot plan them
+     * as single value literals.
      *
      * @param value the literal value received through Py4J
      * @param dataType the declared data type, or {@code null} for type inference

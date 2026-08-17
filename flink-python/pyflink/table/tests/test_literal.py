@@ -130,24 +130,36 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             aware_timestamp = datetime.datetime(
                 2026, 8, 3, 4, tzinfo=datetime.timezone.utc
             )
-
-            result = source.select(
-                lit(aware_time),
-                lit(aware_time, DataTypes.TIME().not_null()),
-                lit(aware_timestamp),
-                lit(aware_timestamp, DataTypes.TIMESTAMP().not_null()),
+            inferred_time = lit(aware_time)
+            explicit_time = lit(aware_time, DataTypes.TIME().not_null())
+            inferred_timestamp = lit(aware_timestamp)
+            explicit_timestamp = lit(
+                aware_timestamp, DataTypes.TIMESTAMP().not_null()
             )
 
+            local_time_class = jvm.java.lang.Class.forName("java.time.LocalTime")
+            local_datetime_class = jvm.java.lang.Class.forName(
+                "java.time.LocalDateTime"
+            )
+            expected_time = jvm.java.time.LocalTime.of(12, 0)
+            expected_timestamp = jvm.java.time.LocalDateTime.of(2026, 8, 3, 12, 0)
+            for expression in (inferred_time, explicit_time):
+                literal = expression._j_expr.toExpr()
+                self.assertEqual(expected_time, literal.getValueAs(local_time_class).get())
+            for expression in (inferred_timestamp, explicit_timestamp):
+                literal = expression._j_expr.toExpr()
+                self.assertEqual(
+                    expected_timestamp,
+                    literal.getValueAs(local_datetime_class).get(),
+                )
+
+            result = source.select(
+                inferred_time == explicit_time,
+                inferred_timestamp == explicit_timestamp,
+            )
             self.assertEqual(
                 list(result.execute().collect()),
-                [
-                    Row(
-                        datetime.time(12),
-                        datetime.time(12),
-                        datetime.datetime(2026, 8, 3, 12),
-                        datetime.datetime(2026, 8, 3, 12),
-                    )
-                ],
+                [Row(True, True)],
             )
         finally:
             jvm.java.util.TimeZone.setDefault(original_timezone)
