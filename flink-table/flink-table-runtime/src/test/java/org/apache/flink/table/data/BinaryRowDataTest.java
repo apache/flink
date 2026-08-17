@@ -35,6 +35,7 @@ import org.apache.flink.core.memory.RandomAccessInputView;
 import org.apache.flink.core.memory.RandomAccessOutputView;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
@@ -89,6 +90,39 @@ import static org.assertj.core.api.HamcrestCondition.matching;
 /** Test of {@link BinaryRowData} and {@link BinaryRowWriter}. */
 class BinaryRowDataTest {
 
+    private static final byte[] LITTLE_ENDIAN_POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
+
+    private static final byte[] BIG_ENDIAN_POINT_WKB =
+            new byte[] {
+                0,
+                0,
+                0,
+                0,
+                1,
+                0x3F,
+                (byte) 0xF0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0x40,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            };
+
     @Test
     void testBasic() {
         // consider header 1 byte.
@@ -139,7 +173,7 @@ class BinaryRowDataTest {
         writer.writeString(0, fromString("1"));
         writer.writeString(3, fromString("1234567"));
         writer.writeString(5, fromString("12345678"));
-        writer.writeString(9, fromString("啦啦啦啦啦我是快乐的粉刷匠"));
+        writer.writeString(9, fromString("å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ "));
 
         writer.writeBoolean(1, true);
         writer.writeByte(2, (byte) 99);
@@ -188,7 +222,7 @@ class BinaryRowDataTest {
 
         {
             // big byte[]
-            String str = "啦啦啦啦啦我是快乐的粉刷匠";
+            String str = "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ";
             BinaryRowData row = new BinaryRowData(2);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeString(0, fromString(str));
@@ -211,7 +245,9 @@ class BinaryRowDataTest {
 
         {
             // multi memorySegments
-            String str = "啦啦啦啦啦我是快乐的粉刷匠，啦啦啦啦啦我是快乐的粉刷匠，" + "啦啦啦啦啦我是快乐的粉刷匠。";
+            String str =
+                    "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ï¼Œå•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ï¼Œ"
+                            + "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ã€‚";
             BinaryRowData row = new BinaryRowData(1);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeString(0, fromString(str));
@@ -241,8 +277,10 @@ class BinaryRowDataTest {
 
         {
             // multi memorySegments
-            String str1 = "啦啦啦啦啦我是快乐的粉刷匠，啦啦啦啦啦我是快乐的粉刷匠，" + "啦啦啦啦啦我是快乐的粉刷匠。";
-            String str2 = "啦啦啦啦啦我是快乐的粉刷匠。";
+            String str1 =
+                    "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ï¼Œå•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ï¼Œ"
+                            + "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ã€‚";
+            String str2 = "å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ã€‚";
             BinaryRowData row = new BinaryRowData(2);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeString(0, fromString(str1));
@@ -288,8 +326,10 @@ class BinaryRowDataTest {
         assertThat(row.getBoolean(1)).isTrue();
         assertThat(row.getString(3).toString()).isEqualTo("1234567");
         assertThat(row.getString(5).toString()).isEqualTo("12345678");
-        assertThat(row.getString(9).toString()).isEqualTo("啦啦啦啦啦我是快乐的粉刷匠");
-        assertThat(row.getString(9).hashCode()).isEqualTo(fromString("啦啦啦啦啦我是快乐的粉刷匠").hashCode());
+        assertThat(row.getString(9).toString())
+                .isEqualTo("å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ");
+        assertThat(row.getString(9).hashCode())
+                .isEqualTo(fromString("å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ ").hashCode());
         assertThat(row.isNullAt(12)).isTrue();
     }
 
@@ -355,7 +395,7 @@ class BinaryRowDataTest {
             writer.writeString(0, fromString("" + rnd.nextInt()));
             writer.writeString(3, fromString("01234567"));
             writer.writeString(5, fromString("012345678"));
-            writer.writeString(9, fromString("啦啦啦啦啦我是快乐的粉刷匠"));
+            writer.writeString(9, fromString("å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ "));
             writer.writeBoolean(1, true);
             writer.writeByte(2, (byte) 99);
             writer.writeDouble(6, 87.1d);
@@ -382,7 +422,7 @@ class BinaryRowDataTest {
         writer = new BinaryRowWriter(row);
         for (int i = 0; i < count; i++) {
             writer.reset();
-            writer.writeString(0, fromString("啦啦啦啦啦我是快乐的粉刷匠" + i));
+            writer.writeString(0, fromString("å•¦å•¦å•¦å•¦å•¦æˆ‘æ˜¯å¿«ä¹çš„ç²‰åˆ·åŒ " + i));
             writer.complete();
             hashCodes.add(row.hashCode());
         }
@@ -1148,6 +1188,70 @@ class BinaryRowDataTest {
 
         assertThat(row.getVariant(0)).isEqualTo(v1);
         assertThat(row.getVariant(1)).isEqualTo(v2);
+    }
+
+    @Test
+    void testGeographyFastPathSingleSegmentAndOffset() {
+        BinaryRowData row = new BinaryRowData(1);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+
+        BinaryGeographyData singleSegment = wrapBinaryGeography(LITTLE_ENDIAN_POINT_WKB, 0);
+        int singleSegmentSubtype = singleSegment.subtypeId();
+        writer.writeGeography(0, singleSegment);
+        writer.complete();
+
+        assertThat(row.getGeography(0).toBytes()).isEqualTo(LITTLE_ENDIAN_POINT_WKB);
+        assertThat(row.getGeography(0).subtypeId()).isEqualTo(singleSegmentSubtype);
+
+        BinaryGeographyData offsetGeography = wrapBinaryGeography(BIG_ENDIAN_POINT_WKB, 3);
+        int offsetSubtype = offsetGeography.subtypeId();
+        writer.reset();
+        writer.writeGeography(0, offsetGeography);
+        writer.complete();
+
+        offsetGeography.getSegments()[0].put(offsetGeography.getOffset(), (byte) 0x7F);
+
+        assertThat(row.getGeography(0).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(row.getGeography(0).subtypeId()).isEqualTo(offsetSubtype);
+    }
+
+    @Test
+    void testGeographyFallbackUsesToBytes() {
+        int[] toBytesCalls = new int[1];
+        GeographyData geography =
+                new GeographyData() {
+                    @Override
+                    public int subtypeId() {
+                        return GeographyData.POINT;
+                    }
+
+                    @Override
+                    public int sizeInBytes() {
+                        return BIG_ENDIAN_POINT_WKB.length;
+                    }
+
+                    @Override
+                    public byte[] toBytes() {
+                        toBytesCalls[0]++;
+                        return Arrays.copyOf(BIG_ENDIAN_POINT_WKB, BIG_ENDIAN_POINT_WKB.length);
+                    }
+                };
+
+        BinaryRowData row = new BinaryRowData(1);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+        writer.writeGeography(0, geography);
+        writer.complete();
+
+        assertThat(toBytesCalls[0]).isEqualTo(1);
+        assertThat(row.getGeography(0).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(row.getGeography(0).subtypeId()).isEqualTo(GeographyData.POINT);
+    }
+
+    private static BinaryGeographyData wrapBinaryGeography(byte[] bytes, int baseOffset) {
+        MemorySegment segment = MemorySegmentFactory.wrap(new byte[baseOffset + bytes.length]);
+        segment.put(baseOffset, bytes, 0, bytes.length);
+        return BinaryGeographyData.fromAddress(
+                new MemorySegment[] {segment}, baseOffset, bytes.length);
     }
 
     @Test

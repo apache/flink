@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
@@ -51,6 +52,34 @@ import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test of {@link BinaryArrayData} and {@link BinaryArrayWriter}. */
 class BinaryArrayDataTest {
+
+    private static final byte[] BIG_ENDIAN_POINT_WKB =
+            new byte[] {
+                0,
+                0,
+                0,
+                0,
+                1,
+                0x3F,
+                (byte) 0xF0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0x40,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            };
 
     @Test
     void testArray() {
@@ -395,6 +424,63 @@ class BinaryArrayDataTest {
             assertThat(newArray.isNullAt(0)).isTrue();
             assertThat(newArray.getMap(1)).isEqualTo(BinaryMapData.valueOf(subArray, subArray));
         }
+    }
+
+    @Test
+    void testGeographyFastPathForArrayWriter() {
+        BinaryGeographyData geography =
+                BinaryGeographyData.fromAddress(
+                        splitBytes(BIG_ENDIAN_POINT_WKB, 2), 2, BIG_ENDIAN_POINT_WKB.length);
+        int expectedSubtype = geography.subtypeId();
+
+        BinaryArrayData array = new BinaryArrayData();
+        BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+        writer.setNullAt(0);
+        writer.writeGeography(1, geography);
+        writer.complete();
+
+        geography.getSegments()[0].put(geography.getOffset(), (byte) 0x7F);
+
+        assertThat(array.isNullAt(0)).isTrue();
+        assertThat(array.getGeography(1).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(array.getGeography(1).subtypeId()).isEqualTo(expectedSubtype);
+
+        BinaryArrayData splitArray = splitArray(array);
+        assertThat(splitArray.isNullAt(0)).isTrue();
+        assertThat(splitArray.getGeography(1).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(splitArray.getGeography(1).subtypeId()).isEqualTo(expectedSubtype);
+    }
+
+    @Test
+    void testGeographyFallbackForArrayWriter() {
+        int[] toBytesCalls = new int[1];
+        GeographyData geography =
+                new GeographyData() {
+                    @Override
+                    public int subtypeId() {
+                        return GeographyData.POINT;
+                    }
+
+                    @Override
+                    public int sizeInBytes() {
+                        return BIG_ENDIAN_POINT_WKB.length;
+                    }
+
+                    @Override
+                    public byte[] toBytes() {
+                        toBytesCalls[0]++;
+                        return BIG_ENDIAN_POINT_WKB.clone();
+                    }
+                };
+
+        BinaryArrayData array = new BinaryArrayData();
+        BinaryArrayWriter writer = new BinaryArrayWriter(array, 1, 8);
+        writer.writeGeography(0, geography);
+        writer.complete();
+
+        assertThat(toBytesCalls[0]).isEqualTo(1);
+        assertThat(array.getGeography(0).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(array.getGeography(0).subtypeId()).isEqualTo(GeographyData.POINT);
     }
 
     @Test
