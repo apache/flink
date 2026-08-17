@@ -46,6 +46,7 @@ from pyflink.dataframe.context import (
 )
 from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.io import read_generic
 
 __all__ = [
     "DataFrame",
@@ -55,6 +56,7 @@ __all__ = [
     "lit",
     "from_dict",
     "from_records",
+    "read_generic",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",

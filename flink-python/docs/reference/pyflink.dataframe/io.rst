@@ -16,17 +16,30 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataFrame
-==================
+==============
+Input / Output
+==============
 
-This page gives an overview of all public PyFlink DataFrame APIs.
+DataFrame I/O functions read from and write to external systems through Flink connectors.
+Connector-specific methods provide convenient interfaces for common systems, while generic
+methods expose the raw connector identifiers and string options used by Table connector factories.
 
-.. toctree::
-    :maxdepth: 1
+Readers
+-------
 
-    dataframe
-    creation
-    io
-    datatype
-    environment
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    read_generic
+
+Writers
+-------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.write_generic
