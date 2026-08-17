@@ -2289,13 +2289,16 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         if any(types.is_struct(field.type) for field in arrow_type):
             raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
                             str(arrow_type))
-        return RowType([
-            RowField(
-                field.name,
-                from_arrow_type(field.type, field.nullable),
-            )
-            for field in arrow_type
-        ])
+        return RowType(
+            [
+                RowField(
+                    field.name,
+                    from_arrow_type(field.type, field.nullable),
+                )
+                for field in arrow_type
+            ],
+            nullable,
+        )
     elif types.is_null(arrow_type):
         return NullType()
     else:

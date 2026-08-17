@@ -153,6 +153,11 @@ class ArrowTypeConversionTests(unittest.TestCase):
         )
         self.assertFalse(array_type.element_type._nullable)
 
+        row_type = from_arrow_type(
+            pa.struct([pa.field("value", pa.int64())]), nullable=False
+        )
+        self.assertFalse(row_type._nullable)
+
     def test_timestamp_type_mapping(self):
         units_and_precisions = [("s", 0), ("ms", 3), ("us", 6), ("ns", 9)]
         for timezone_id in [None, "Asia/Shanghai"]:
