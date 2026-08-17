@@ -60,6 +60,23 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
         return new BinaryGeographyData(segments, offset, numBytes);
     }
 
+    /**
+     * Creates a {@link BinaryGeographyData} view over a trusted internal ISO WKB byte range without
+     * validating the payload.
+     *
+     * <p>This method is zero-copy with respect to the WKB payload and aliases the provided backing
+     * array. It is intended only for trusted internal binary storage. Callers must keep the backing
+     * array unchanged for the lifetime of the returned value.
+     */
+    public static BinaryGeographyData fromTrustedBytes(byte[] bytes, int offset, int numBytes) {
+        if (bytes == null) {
+            return null;
+        }
+        checkRange(bytes, offset, numBytes);
+        return fromAddress(
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+    }
+
     /** Creates a {@link BinaryGeographyData} instance from the given ISO WKB bytes. */
     public static BinaryGeographyData fromBytes(byte[] bytes) {
         return bytes == null ? null : fromBytes(bytes, 0, bytes.length);
