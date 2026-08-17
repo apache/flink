@@ -19,16 +19,19 @@
 package org.apache.flink.table.data.columnar;
 
 import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryGeographyData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.heap.HeapBytesVector;
+import org.apache.flink.table.types.logical.GeographyType;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-class ColumnarArrayDataTest {
+class ColumnarRowDataTest {
 
     private static final byte[] LITTLE_ENDIAN_POINT_WKB =
             new byte[] {
@@ -66,58 +69,24 @@ class ColumnarArrayDataTest {
     private static final byte[] MALFORMED_POINT_HEADER = new byte[] {1, 1, 0, 0, 0};
 
     @Test
-    @DisplayName("getBinary() should work correctly for slices with position 0")
-    void testGetBinaryWhenOffsetIsZero() {
-        HeapBytesVector vector = new HeapBytesVector(2);
-        byte[] sourceData = new byte[] {10, 20, 30, 40, 50};
-
-        vector.appendBytes(0, sourceData, 0, 3);
-
-        ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 1);
-
-        byte[] actual = arrayData.getBinary(0);
-
-        byte[] expected = new byte[] {10, 20, 30};
-        assertThat(actual).isEqualTo(expected);
-    }
-
-    @Test
-    @DisplayName("getBinary() should return correct sub-array when slice position is non-zero")
-    void testGetBinaryWhenPositionNonZero() {
+    void testGetGeographyReturnsBinaryViewForRows() {
         HeapBytesVector vector = new HeapBytesVector(3);
-
-        byte[] dummyData = new byte[] {99, 99, 99, 99};
-        vector.appendBytes(0, dummyData, 0, 4);
-
-        byte[] sourceData1 = new byte[] {30, 40, 50, 60};
-        vector.appendBytes(1, sourceData1, 0, 4);
-
-        byte[] sourceData2 = new byte[] {70, 80, 90, 100};
-        vector.appendBytes(2, sourceData2, 0, 4);
-
-        ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 3);
-        assertThat(arrayData.getBinary(0)).isEqualTo(dummyData);
-        assertThat(arrayData.getBinary(1)).isEqualTo(sourceData1);
-        assertThat(arrayData.getBinary(2)).isEqualTo(sourceData2);
-    }
-
-    @Test
-    void testGetGeographyReturnsBinaryViewForExactSlice() {
-        HeapBytesVector vector = new HeapBytesVector(3);
-        vector.appendBytes(0, new byte[] {99}, 0, 1);
+        vector.appendBytes(0, new byte[] {42}, 0, 1);
         vector.appendBytes(1, LITTLE_ENDIAN_POINT_WKB, 0, LITTLE_ENDIAN_POINT_WKB.length);
         vector.appendBytes(2, BIG_ENDIAN_POINT_WKB, 0, BIG_ENDIAN_POINT_WKB.length);
 
-        ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 3);
+        VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[] {vector});
+        ColumnarRowData firstRow = new ColumnarRowData(batch, 1);
+        ColumnarRowData secondRow = new ColumnarRowData(batch, 2);
 
-        GeographyData littleEndian = arrayData.getGeography(1);
-        GeographyData bigEndian = arrayData.getGeography(2);
+        GeographyData first = firstRow.getGeography(0);
+        GeographyData second = secondRow.getGeography(0);
 
-        assertThat(littleEndian).isInstanceOf(BinaryGeographyData.class);
-        assertThat(bigEndian).isInstanceOf(BinaryGeographyData.class);
-        assertThat(littleEndian.toBytes()).isEqualTo(LITTLE_ENDIAN_POINT_WKB);
-        assertThat(bigEndian.toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
-        assertThat(arrayData.getGeography(2).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(first).isInstanceOf(BinaryGeographyData.class);
+        assertThat(second).isInstanceOf(BinaryGeographyData.class);
+        assertThat(first.toBytes()).isEqualTo(LITTLE_ENDIAN_POINT_WKB);
+        assertThat(second.toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
+        assertThat(secondRow.getGeography(0).toBytes()).isEqualTo(BIG_ENDIAN_POINT_WKB);
     }
 
     @Test
@@ -126,30 +95,34 @@ class ColumnarArrayDataTest {
         vector.appendBytes(0, MALFORMED_POINT_HEADER, 0, MALFORMED_POINT_HEADER.length);
         vector.appendBytes(1, LITTLE_ENDIAN_POINT_WKB, 0, LITTLE_ENDIAN_POINT_WKB.length);
 
-        ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 2);
+        VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[] {vector});
+        ColumnarRowData malformedRow = new ColumnarRowData(batch, 0);
+        ColumnarRowData pointRow = new ColumnarRowData(batch, 1);
 
-        assertThatCode(() -> arrayData.getGeography(0)).doesNotThrowAnyException();
-        GeographyData malformed = arrayData.getGeography(0);
+        assertThatCode(() -> malformedRow.getGeography(0)).doesNotThrowAnyException();
+        GeographyData malformed = malformedRow.getGeography(0);
         assertThat(malformed).isInstanceOf(BinaryGeographyData.class);
         assertThat(malformed.toBytes()).isEqualTo(MALFORMED_POINT_HEADER);
 
-        GeographyData point = arrayData.getGeography(1);
-        byte expectedByte = 0x55;
+        GeographyData point = pointRow.getGeography(0);
+        byte expectedByte = 0x33;
         vector.buffer[vector.start[1] + 5] = expectedByte;
 
         assertThat(point.toBytes()[5]).isEqualTo(expectedByte);
-        assertThat(arrayData.getGeography(1).toBytes()[5]).isEqualTo(expectedByte);
+        assertThat(pointRow.getGeography(0).toBytes()[5]).isEqualTo(expectedByte);
     }
 
     @Test
-    void testGetGeographyNullHandlingUsesArrayContract() {
+    void testGetGeographyNullHandlingUsesFieldGetterContract() {
         HeapBytesVector vector = new HeapBytesVector(2);
         vector.appendBytes(0, LITTLE_ENDIAN_POINT_WKB, 0, LITTLE_ENDIAN_POINT_WKB.length);
         vector.setNullAt(1);
 
-        ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 2);
+        VectorizedColumnBatch batch = new VectorizedColumnBatch(new ColumnVector[] {vector});
+        ColumnarRowData nullRow = new ColumnarRowData(batch, 1);
+        RowData.FieldGetter fieldGetter = RowData.createFieldGetter(new GeographyType(), 0);
 
-        assertThat(arrayData.isNullAt(0)).isFalse();
-        assertThat(arrayData.isNullAt(1)).isTrue();
+        assertThat(nullRow.isNullAt(0)).isTrue();
+        assertThat(fieldGetter.getFieldOrNull(nullRow)).isNull();
     }
 }
