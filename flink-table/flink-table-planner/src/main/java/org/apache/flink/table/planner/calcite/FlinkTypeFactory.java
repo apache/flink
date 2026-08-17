@@ -270,9 +270,8 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             return normalizeLeastRestrictive(resolved.get());
         }
 
-        if (containsFlinkExtensionType(types)) {
-            return normalizeLeastRestrictive(
-                    resolveCommonTypeForFlinkExtensions(types).orElse(null));
+        if (containsGeographyType(types)) {
+            return normalizeLeastRestrictive(resolveCommonTypeForGeography(types).orElse(null));
         }
 
         final RelDataType leastRestrictive = super.leastRestrictive(types);
@@ -287,7 +286,7 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
         return leastRestrictive;
     }
 
-    private Optional<RelDataType> resolveCommonTypeForFlinkExtensions(List<RelDataType> types) {
+    private Optional<RelDataType> resolveCommonTypeForGeography(List<RelDataType> types) {
         return LogicalTypeMerging.findCommonType(
                         types.stream()
                                 .map(FlinkTypeFactory::toLogicalType)
@@ -295,14 +294,8 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
                 .map(this::createFieldTypeFromLogicalType);
     }
 
-    private boolean containsFlinkExtensionType(List<RelDataType> types) {
-        return types.stream().anyMatch(FlinkTypeFactory::isFlinkExtensionType);
-    }
-
-    private static boolean isFlinkExtensionType(RelDataType type) {
-        return type instanceof RawRelDataType
-                || type instanceof BitmapRelDataType
-                || type instanceof GeographyRelDataType;
+    private boolean containsGeographyType(List<RelDataType> types) {
+        return types.stream().anyMatch(GeographyRelDataType.class::isInstance);
     }
 
     private Optional<RelDataType> resolveAllIdenticalTypes(List<RelDataType> types) {
