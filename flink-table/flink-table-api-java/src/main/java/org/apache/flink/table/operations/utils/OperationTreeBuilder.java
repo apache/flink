@@ -241,6 +241,10 @@ public final class OperationTreeBuilder {
 
         return project(finalFields, child, false);
     }
+    
+    public List<Expression> expandExpressions(List<Expression> expressions, QueryOperation child) {
+        return getResolver(child).resolveExpanding(expressions);
+    }
 
     public QueryOperation aggregate(
             List<Expression> groupingExpressions,
