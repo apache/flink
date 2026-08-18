@@ -72,6 +72,12 @@ def _to_java_inferred_literal_value(value):
         )
         for pos, element in enumerate(value):
             j_array[pos] = element
+        if not value:
+            array_data_type = ArrayType(_array_type_mappings[value.typecode]).not_null()
+            return (
+                jvm.org.apache.flink.table.utils.python.PythonTableUtils
+                .createInferredArrayValue(j_array, _to_java_data_type(array_data_type))
+            )
         return j_array
     elif isinstance(value, (list, tuple)):
         j_values = jvm.java.util.ArrayList()

@@ -149,6 +149,65 @@ class PythonTableUtilsTest {
                                         Collections.emptyList()),
                                 null))
                 .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList(new byte[] {1}),
+                                        Collections.emptyList()),
+                                null))
+                .isNotNull();
+    }
+
+    @Test
+    void testCreateLiteralSupportsPrimitiveArrays() {
+        for (final Object value :
+                Arrays.<Object>asList(
+                        new boolean[] {true},
+                        new short[] {1},
+                        new int[] {1},
+                        new long[] {1},
+                        new float[] {1},
+                        new double[] {1})) {
+            assertThat(PythonTableUtils.createLiteral(value, null)).isNotNull();
+        }
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(new int[] {1}, Collections.emptyList()), null))
+                .isNotNull();
+    }
+
+    @Test
+    void testCreateLiteralUsesInferredArrayTypeHint() {
+        final Object inferredArrayValue =
+                PythonTableUtils.createInferredArrayValue(
+                        new String[0], DataTypes.ARRAY(DataTypes.CHAR(4)).notNull());
+
+        assertThat(PythonTableUtils.createLiteral(inferredArrayValue, null)).isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(inferredArrayValue, Collections.emptyList()), null))
+                .isNotNull();
+    }
+
+    @Test
+    void testCreateInferredArrayValueValidatesCarrier() {
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createInferredArrayValue(
+                                        new String[] {"a"},
+                                        DataTypes.ARRAY(DataTypes.CHAR(1)).notNull()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "An inferred array value requires an empty array matching the ARRAY "
+                                + "conversion class.");
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createInferredArrayValue(
+                                        new String[0], DataTypes.ARRAY(DataTypes.INT()).notNull()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "An inferred array value requires an empty array matching the ARRAY "
+                                + "conversion class.");
     }
 
     @Test
@@ -184,6 +243,40 @@ class PythonTableUtilsTest {
                         () ->
                                 PythonTableUtils.createLiteral(
                                         Arrays.asList(1, Collections.emptyList()), null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.<Object>asList(
+                                                new byte[] {1}, Collections.emptyList()),
+                                        null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.asList(
+                                                Collections.singletonList(new byte[] {1}),
+                                                Collections.singletonList(Collections.emptyList())),
+                                        null))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testCreateLiteralRejectsBinaryAsConstructedValue() {
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        new byte[] {1},
+                                        DataTypes.ARRAY(DataTypes.TINYINT()).notNull()))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        new byte[] {1, 2},
+                                        DataTypes.ROW(
+                                                        DataTypes.FIELD("a", DataTypes.TINYINT()),
+                                                        DataTypes.FIELD("b", DataTypes.TINYINT()))
+                                                .notNull()))
                 .isInstanceOf(ValidationException.class);
     }
 

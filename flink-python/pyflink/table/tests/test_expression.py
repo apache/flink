@@ -427,6 +427,25 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         with self.assertRaisesRegex(TypeError, "Unsupported data type: INT"):
             lit(1, "INT")
 
+    def test_lit_rejects_binary_scalar_as_constructed_value(self):
+        array_type = DataTypes.ARRAY(DataTypes.TINYINT()).not_null()
+        row_type = DataTypes.ROW(
+            [
+                DataTypes.FIELD("a", DataTypes.TINYINT()),
+                DataTypes.FIELD("b", DataTypes.TINYINT()),
+            ]
+        ).not_null()
+        for value in [b"a", bytearray(b"a")]:
+            with self.subTest(value=value):
+                with self.assertRaises(Py4JJavaError):
+                    lit([value, []])
+                with self.assertRaises(Py4JJavaError):
+                    lit([[value], [[]]])
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, array_type)
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, row_type)
+
     def test_lit_rejects_out_of_range_integer_values(self):
         for value, data_type in [
             (128, DataTypes.TINYINT().not_null()),

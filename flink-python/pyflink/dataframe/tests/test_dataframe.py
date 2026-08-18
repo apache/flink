@@ -20,7 +20,7 @@ import array
 import datetime
 import decimal
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime as datetime_class, timezone
 from typing import NamedTuple
 
 import pandas as pd
@@ -231,13 +231,13 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
     def test_from_pandas_and_arrow_rename_columns_positionally(self):
         inputs = [
             pd.DataFrame(
-                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
+                {"original_id": [1], "original_ts": [datetime_class(2026, 1, 1)]}
             ),
             pa.table(
                 {
                     "original_id": pa.array([1], type=pa.int64()),
                     "original_ts": pa.array(
-                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
+                        [datetime_class(2026, 1, 1)], type=pa.timestamp("us")
                     ),
                 }
             ),
@@ -351,7 +351,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             self.t_env.get_config().set_local_timezone(original_timezone)
 
     def test_creators_attach_and_normalize_watermarks(self):
-        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
+        timestamp = datetime_class(2026, 1, 1, 0, 0, 0, 123456)
         creators = [
             (
                 lambda: pf.from_dict(
@@ -415,7 +415,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(watermark=watermark):
                 with self.assertRaisesRegex(ValueError, message):
                     pf.from_records(
-                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
+                        [{"id": 1, "ts": datetime_class(2026, 1, 1)}],
                         watermark=watermark,
                     )
 

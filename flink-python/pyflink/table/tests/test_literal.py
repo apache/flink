@@ -174,6 +174,8 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             lit("x"),
             lit(b"x"),
             lit(bytearray(b"y")),
+            lit(b"x", DataTypes.BINARY(1).not_null()),
+            lit(bytearray(b"y"), DataTypes.BINARY(1).not_null()),
             lit(decimal.Decimal("1.25")),
             lit(datetime.date(2026, 8, 3)),
             lit(datetime.time(1, 2, 3, 4000)),
@@ -237,6 +239,8 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                     "x",
                     b"x",
                     b"y",
+                    b"x",
+                    b"y",
                     decimal.Decimal("1.25"),
                     datetime.date(2026, 8, 3),
                     datetime.time(1, 2, 3, 4000),
@@ -286,6 +290,10 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             lit([[datetime.date(2026, 8, 3)]]),
             lit((1, 2)),
             lit([1, 2], DataTypes.ARRAY(DataTypes.SMALLINT()).not_null()),
+            lit(
+                [b"x"],
+                DataTypes.ARRAY(DataTypes.BINARY(1)).not_null(),
+            ),
             lit((1, 1.25), row_type),
             lit({1: 1.25}, map_type),
             lit([([1, 2], {3: 1.25})], nested_type),
@@ -307,6 +315,7 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                     [[datetime.date(2026, 8, 3)]],
                     [1, 2],
                     [1, 2],
+                    [b"x"],
                     Row(1, 1.25),
                     {1: 1.25},
                     [Row([1, 2], {3: 1.25})],
@@ -331,6 +340,7 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
         char_null_only_inner_array = lit([["a"], [None]])
         decimal_empty_inner_array = lit([[decimal.Decimal("1.20")], []])
         time_empty_inner_array = lit([[datetime.time(12, 0, 0, 123000)], []])
+        binary_empty_inner_array = lit([[b"a"], []])
         nested_array_type = DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())).not_null()
 
         literal_table = source.select(
@@ -340,6 +350,7 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             char_null_only_inner_array,
             decimal_empty_inner_array,
             time_empty_inner_array,
+            binary_empty_inner_array,
         )
         self.assertEqual(
             literal_table.get_resolved_schema().get_column_data_types(),
@@ -350,6 +361,7 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.CHAR(1))).not_null(),
                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.DECIMAL(3, 2))).not_null(),
                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.TIME(3))).not_null(),
+                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BINARY(1))).not_null(),
             ],
         )
         self.assertIsInstance(literal_table.explain(), str)
@@ -368,6 +380,8 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             decimal_empty_inner_array.at(2).cardinality,
             time_empty_inner_array.at(1).at(1),
             time_empty_inner_array.at(2).cardinality,
+            binary_empty_inner_array.at(1).at(1),
+            binary_empty_inner_array.at(2).cardinality,
         )
         self.assertEqual(
             list(result.execute().collect()),
@@ -385,6 +399,8 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                     decimal.Decimal("1.20"),
                     0,
                     datetime.time(12, 0, 0, 123000),
+                    0,
+                    b"a",
                     0,
                 )
             ],
@@ -412,8 +428,55 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                 DataTypes.ROW([DataTypes.FIELD("value", DataTypes.INT())]).not_null(),
             )
 
-    def test_empty_python_arrays_preserve_numeric_typecodes(self):
-        typecodes = sorted(set(_array_type_mappings) - {"u"})
+    def test_primitive_java_arrays_can_be_executed(self):
+        gateway = get_gateway()
+        jvm = gateway.jvm
+        primitive_values = [
+            (jvm.boolean, True, DataTypes.BOOLEAN().not_null()),
+            (jvm.short, 1, DataTypes.SMALLINT().not_null()),
+            (jvm.int, 1, DataTypes.INT().not_null()),
+            (jvm.long, 1, DataTypes.BIGINT().not_null()),
+            (jvm.float, 1.0, DataTypes.FLOAT().not_null()),
+            (jvm.double, 1.0, DataTypes.DOUBLE().not_null()),
+        ]
+        expressions = []
+        for primitive_class, value, _ in primitive_values:
+            j_array = gateway.new_array(primitive_class, 1)
+            j_array[0] = value
+            expressions.append(lit(j_array))
+
+        source = self.t_env.from_elements([(1,)], ["id"])
+        result = source.select(*expressions)
+        self.assertEqual(
+            result.get_resolved_schema().get_column_data_types(),
+            [
+                DataTypes.ARRAY(element_data_type).not_null()
+                for _, _, element_data_type in primitive_values
+            ],
+        )
+        self.assertIsInstance(result.explain(), str)
+        self.assertEqual(
+            list(result.execute().collect()),
+            [Row([True], [1], [1], [1], [1.0], [1.0])],
+        )
+
+        j_int_array = gateway.new_array(jvm.int, 1)
+        j_int_array[0] = 1
+        nested_expression = lit([j_int_array, []])
+        nested_result = source.select(
+            nested_expression.cardinality,
+            nested_expression.at(1).cardinality,
+            nested_expression.at(2).cardinality,
+            nested_expression.at(1).at(1),
+        )
+        self.assertIsInstance(nested_result.explain(), str)
+        self.assertEqual(
+            list(nested_result.execute().collect()),
+            [Row(2, 1, 0, 1)],
+        )
+
+    def test_empty_python_arrays_preserve_typecodes(self):
+        typecodes = sorted(_array_type_mappings)
         source = self.t_env.from_elements([(1,)], ["id"])
         result = source.select(*(lit(array.array(typecode)) for typecode in typecodes))
 
@@ -423,6 +486,35 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
         ]
         self.assertEqual(result.get_resolved_schema().get_column_data_types(), expected_types)
         self.assertEqual(list(result.execute().collect()), [Row(*([[]] * len(typecodes)))])
+
+    def test_empty_unicode_array_typecode_propagates_to_sibling(self):
+        if "u" not in _array_type_mappings:
+            self.skipTest("Unicode arrays are not supported on this Python version")
+
+        source = self.t_env.from_elements([(1,)], ["id"])
+        expression = lit([array.array("u"), []])
+        result = source.select(expression)
+
+        self.assertEqual(
+            result.get_resolved_schema().get_column_data_types(),
+            [
+                DataTypes.ARRAY(
+                    DataTypes.ARRAY(_array_type_mappings["u"])
+                ).not_null()
+            ],
+        )
+        self.assertIsInstance(result.explain(), str)
+        self.assertEqual(
+            list(
+                source.select(
+                    expression.at(1).cardinality,
+                    expression.at(2).cardinality,
+                )
+                .execute()
+                .collect()
+            ),
+            [Row(0, 0)],
+        )
 
     def test_unicode_python_array_can_be_executed(self):
         if "u" not in _array_type_mappings:
