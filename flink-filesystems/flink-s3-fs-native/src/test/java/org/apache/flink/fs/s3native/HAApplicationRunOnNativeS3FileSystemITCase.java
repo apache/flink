@@ -48,6 +48,8 @@ class HAApplicationRunOnNativeS3FileSystemITCase extends AbstractHAApplicationRu
     private static final String CLUSTER_ID = "test-cluster";
     private static final String APPLICATION_RESULT_STORE_FOLDER = "ars";
 
+    // AbstractHAApplicationRunITCase already registers its own extension at @Order(1), so this
+    // one (and the MiniClusterExtension below) must run after it.
     @RegisterExtension
     @Order(2)
     private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>

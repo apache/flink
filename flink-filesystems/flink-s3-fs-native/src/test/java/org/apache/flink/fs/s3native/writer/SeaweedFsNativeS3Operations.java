@@ -30,6 +30,11 @@ import java.util.stream.Collectors;
  * {@link NativeS3ObjectOperations} backed by a real (SeaweedFS) S3 endpoint, plus byte-level
  * helpers so writer/committer tests can inspect and tamper with the objects that actually landed in
  * S3.
+ *
+ * <p>A real endpoint reproduces the S3 behaviors the recovery
+ * tests actually depend on: the 5 MiB multipart minimum part size, real {@code NoSuchKeyException}
+ * semantics on {@code headObject}, and genuine network-level {@code GetObject}/{@code PutObject}
+ * responses.
  */
 final class SeaweedFsNativeS3Operations extends NativeS3ObjectOperations {
 

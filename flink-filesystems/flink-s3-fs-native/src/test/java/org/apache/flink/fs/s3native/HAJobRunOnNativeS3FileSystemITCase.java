@@ -45,6 +45,8 @@ class HAJobRunOnNativeS3FileSystemITCase extends AbstractHAJobRunITCase {
     private static final String CLUSTER_ID = "test-cluster";
     private static final String JOB_RESULT_STORE_FOLDER = "jrs";
 
+    // AbstractHAJobRunITCase already registers its own extension at @Order(1), so this one (and
+    // the MiniClusterExtension below) must run after it.
     @RegisterExtension
     @Order(2)
     private static final AllCallbackWrapper<TestContainerExtension<SeaweedFsNativeS3TestContainer>>

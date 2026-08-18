@@ -102,7 +102,9 @@ class NativeS3FileSystemITCase {
     }
 
     @Test
-    void testMkdirsDoesNotThrow() {
+    void testMkdirsDoesNotThrowOnObjectStore() {
+        // S3 has no real directories, so mkdirs() on an object store is a no-op that must not
+        // throw, even though nothing is actually created.
         assertThatCode(() -> fs.mkdirs(path("mkdir-" + UUID.randomUUID())))
                 .doesNotThrowAnyException();
     }
@@ -110,8 +112,10 @@ class NativeS3FileSystemITCase {
     @Test
     void testRecoverableWriterMultipartCommit() throws Exception {
         final Path file = path("recoverable-" + UUID.randomUUID() + ".bin");
-        // > s3.upload.min.part.size (5 MiB) so the commit exercises a real multipart upload.
-        final byte[] data = payload(6 * 1024 * 1024);
+        // Bigger than the S3 multipart minimum part size so the commit exercises a real
+        // multipart upload rather than a single-shot put.
+        final byte[] data =
+                payload((int) NativeS3FileSystemFactory.S3_MULTIPART_MIN_PART_SIZE + (1024 * 1024));
 
         final RecoverableWriter writer = fs.createRecoverableWriter();
         final RecoverableFsDataOutputStream out = writer.open(file);

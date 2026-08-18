@@ -43,6 +43,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * <p>SeaweedFS enforces the S3 5 MiB minimum part size on multipart-complete, so every scenario
  * writes one full {@value #PART}-byte first part (the only non-final part) followed by a small tail
  * that becomes the final part.
+ *
+ * <p>Terminology used below:
+ *
+ * <pre>
+ *   target object (the file the caller is writing, e.g. "out-&lt;uuid&gt;.txt")
+ *     +-- part 1: PART bytes, uploaded as a completed multipart upload part
+ *     +-- tail: any bytes written after part 1, not yet part of a completed multipart part
+ *
+ *   side object ("_&lt;name&gt;.incomplete.&lt;uuid&gt;", see #incompletePrefix())
+ *     - written by persist() only when there IS a tail, so that the tail bytes survive a
+ *       writer restart
+ *     - read back by recover(), which downloads it locally and appends it to the in-progress
+ *       multipart upload before returning a resumed output stream
+ *     - has no side object at all when persist() is called exactly on a part boundary
+ *       (see recoverWithoutIncompleteTailStillWorks)
+ * </pre>
  */
 class NativeS3RecoverableWriterRecoveryITCase {
 
@@ -89,19 +105,21 @@ class NativeS3RecoverableWriterRecoveryITCase {
 
     @Test
     void recoverWithoutIncompleteTailStillWorks() throws Exception {
-        NativeS3RecoverableWriter writer1 = writer();
+        final NativeS3RecoverableWriter writer1 = writer();
 
         // Write exactly one full part => currentPartSize=0, no side object on persist.
-        RecoverableFsDataOutputStream out = writer1.open(targetPath());
+        final RecoverableFsDataOutputStream out = writer1.open(targetPath());
         out.write(bytes('A', PART), 0, PART);
-        RecoverableWriter.ResumeRecoverable r = out.persist();
+        final RecoverableWriter.ResumeRecoverable r = out.persist();
         assertThat(((NativeS3Recoverable) r).incompleteObjectName())
                 .as("no tail => no side object")
                 .isNull();
+        // incompletePrefix() is derived from this test's own UUID-based key, so this listing is
+        // scoped to this test instance and safe regardless of other tests' concurrent execution.
         assertThat(s3.listKeys(incompletePrefix())).isEmpty();
 
-        NativeS3RecoverableWriter writer2 = writer();
-        RecoverableFsDataOutputStream resumed = writer2.recover(r);
+        final NativeS3RecoverableWriter writer2 = writer();
+        final RecoverableFsDataOutputStream resumed = writer2.recover(r);
         resumed.write(bytes('C', 10), 0, 10);
         resumed.closeForCommit().commit();
 
@@ -109,46 +127,73 @@ class NativeS3RecoverableWriterRecoveryITCase {
     }
 
     @Test
-    void recoverFailsCleanlyWhenSideObjectMissing() throws Exception {
-        NativeS3RecoverableWriter writer1 = writer();
-        RecoverableFsDataOutputStream out = writer1.open(targetPath());
+    void recoverWithNestedKeyStillWorks() throws Exception {
+        // Exercise a target key containing "/" path separators, not just a flat key.
+        key = "nested/path-" + UUID.randomUUID() + "/out.txt";
+        final NativeS3RecoverableWriter writer1 = writer();
+
+        final RecoverableFsDataOutputStream out = writer1.open(targetPath());
         out.write(bytes('A', PART), 0, PART);
         out.write(bytes('E', 5), 0, 5);
-        NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
-        String sideObjectKey = r.incompleteObjectName();
+        final NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
+        assertThat(r.incompleteObjectName()).as("tail written => side object expected").isNotNull();
+        assertThat(s3.listKeys(incompletePrefix())).containsExactly(r.incompleteObjectName());
+
+        final NativeS3RecoverableWriter writer2 = writer();
+        final RecoverableFsDataOutputStream resumed = writer2.recover(r);
+        resumed.write(bytes('C', 10), 0, 10);
+        resumed.closeForCommit().commit();
+
+        assertContentEquals(
+                s3.readObject(key), concat(bytes('A', PART), bytes('E', 5), bytes('C', 10)));
+    }
+
+    @Test
+    void recoverFailsCleanlyWhenSideObjectMissing() throws Exception {
+        final NativeS3Recoverable r = persistWithTail();
+        final String sideObjectKey = r.incompleteObjectName();
         assertThat(sideObjectKey).isNotNull();
 
         s3.removeObject(sideObjectKey);
-        long localFilesBefore = countLocalFilesIn(tmp);
-        NativeS3RecoverableWriter writer2 = writer();
 
-        assertThatThrownBy(() -> writer2.recover(r))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Failed to get object");
-
-        assertThat(countLocalFilesIn(tmp))
-                .as("partial download must be cleaned up on failure")
-                .isEqualTo(localFilesBefore);
+        assertRecoverFailsCleanly(r, "Failed to get object");
     }
 
     @Test
     void recoverFailsCleanlyOnLengthMismatch() throws Exception {
-        NativeS3RecoverableWriter writer1 = writer();
-        RecoverableFsDataOutputStream out = writer1.open(targetPath());
-        out.write(bytes('A', PART), 0, PART);
-        out.write(bytes('E', 5), 0, 5);
-        NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
-        String sideObjectKey = r.incompleteObjectName();
+        final NativeS3Recoverable r = persistWithTail();
+        final String sideObjectKey = r.incompleteObjectName();
 
-        // Corrupt the side object so its actual length disagrees with the metadata.
+        // Simulate the side object having been overwritten/corrupted out-of-band between
+        // persist() and recover() (e.g. a retried writer racing on the same side-object key, or
+        // an eventual-consistency edge case on a non-AWS S3 implementation): the side object's
+        // actual length no longer agrees with the length recorded in the recoverable's metadata.
         s3.writeObject(sideObjectKey, bytes('X', 99));
 
-        long localFilesBefore = countLocalFilesIn(tmp);
-        NativeS3RecoverableWriter writer2 = writer();
+        assertRecoverFailsCleanly(r, "unexpected length");
+    }
+
+    /** Writes one full part plus a small tail, forcing a side object to be created on persist. */
+    private NativeS3Recoverable persistWithTail() throws IOException {
+        final NativeS3RecoverableWriter writer1 = writer();
+        final RecoverableFsDataOutputStream out = writer1.open(targetPath());
+        out.write(bytes('A', PART), 0, PART);
+        out.write(bytes('E', 5), 0, 5);
+        return (NativeS3Recoverable) out.persist();
+    }
+
+    /**
+     * Asserts that recovering {@code r} fails with an {@link IOException} containing {@code
+     * expectedMessageFragment}, and that no partially-downloaded local file is left behind.
+     */
+    private void assertRecoverFailsCleanly(NativeS3Recoverable r, String expectedMessageFragment)
+            throws IOException {
+        final long localFilesBefore = countLocalFilesIn(tmp);
+        final NativeS3RecoverableWriter writer2 = writer();
 
         assertThatThrownBy(() -> writer2.recover(r))
                 .isInstanceOf(IOException.class)
-                .hasMessageContaining("unexpected length");
+                .hasMessageContaining(expectedMessageFragment);
 
         assertThat(countLocalFilesIn(tmp))
                 .as("partial download must be cleaned up on failure")
