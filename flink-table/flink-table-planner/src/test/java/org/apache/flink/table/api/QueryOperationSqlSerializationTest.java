@@ -46,6 +46,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -175,6 +176,19 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
         final Table result =
                 env.from("s").groupBy(key).aggregate($("a").count().as("n")).select(key, $("n"));
 
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testColumnFunctionGroupingKeepsExpandedFields() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        final Table result =
+                env.from("s")
+                        .groupBy(withColumns(1, 2))
+                        .select(withColumns(1, 2), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("a", "b", "n");
         assertGeneratedSqlCanBeParsed(env, result);
     }
 
