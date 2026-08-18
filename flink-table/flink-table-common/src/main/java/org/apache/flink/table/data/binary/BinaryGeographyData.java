@@ -32,6 +32,12 @@ import java.util.Arrays;
  * <p>GEOGRAPHY uses OGC:CRS84 by contract, but ISO WKB does not encode CRS or SRID metadata. This
  * container stores the raw ISO WKB payload only; CRS validation, CRS transformation, and EWKB/SRID
  * handling belong to constructors, functions, and connector schema mapping.
+ *
+ * <p>{@link #fromBytes(byte[], int, int)} is the validating, copying construction path. The
+ * internal {@link #fromAddress(MemorySegment[], int, int)} path creates a lazy view over trusted
+ * binary storage without validating the full WKB payload or taking ownership of the backing
+ * segments. Callers using the lazy path must preserve the backing storage for the lifetime of the
+ * view.
  */
 @Internal
 public final class BinaryGeographyData extends BinarySection implements GeographyData {
