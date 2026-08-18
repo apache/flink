@@ -785,7 +785,8 @@ public final class PythonTableUtils {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? TimestampData.fromInstant(
-                                    Instant.ofEpochMilli(((Number) c).longValue() / 1000))
+                                    Instant.ofEpochMilli(
+                                            Math.floorDiv(((Number) c).longValue(), 1000)))
                             : null;
         }
 

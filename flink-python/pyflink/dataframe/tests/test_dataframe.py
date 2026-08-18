@@ -17,10 +17,9 @@
 ################################################################################
 
 import array
-import datetime
 import decimal
 import unittest
-from datetime import datetime as datetime_class, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import NamedTuple
 
 import pandas as pd
@@ -231,13 +230,13 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
     def test_from_pandas_and_arrow_rename_columns_positionally(self):
         inputs = [
             pd.DataFrame(
-                {"original_id": [1], "original_ts": [datetime_class(2026, 1, 1)]}
+                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
             ),
             pa.table(
                 {
                     "original_id": pa.array([1], type=pa.int64()),
                     "original_ts": pa.array(
-                        [datetime_class(2026, 1, 1)], type=pa.timestamp("us")
+                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
                     ),
                 }
             ),
@@ -351,7 +350,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             self.t_env.get_config().set_local_timezone(original_timezone)
 
     def test_creators_attach_and_normalize_watermarks(self):
-        timestamp = datetime_class(2026, 1, 1, 0, 0, 0, 123456)
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
         creators = [
             (
                 lambda: pf.from_dict(
@@ -415,7 +414,7 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(watermark=watermark):
                 with self.assertRaisesRegex(ValueError, message):
                     pf.from_records(
-                        [{"id": 1, "ts": datetime_class(2026, 1, 1)}],
+                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
                         watermark=watermark,
                     )
 
@@ -643,15 +642,15 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             "inferred_bytes": b"x",
             "inferred_bytearray": bytearray(b"x"),
             "inferred_decimal": decimal.Decimal("1.25"),
-            "inferred_date": datetime.date(2026, 8, 3),
-            "inferred_time": datetime.time(1, 2, 3),
-            "inferred_timestamp": datetime.datetime(2026, 8, 3, 1, 2, 3),
-            "inferred_aware_timestamp": datetime.datetime(
-                2026, 8, 3, 1, 2, 3, tzinfo=datetime.timezone.utc
+            "inferred_date": date(2026, 8, 3),
+            "inferred_time": time(1, 2, 3),
+            "inferred_timestamp": datetime(2026, 8, 3, 1, 2, 3),
+            "inferred_aware_timestamp": datetime(
+                2026, 8, 3, 1, 2, 3, tzinfo=timezone.utc
             ),
-            "inferred_timedelta": datetime.timedelta(days=1, seconds=2, microseconds=3000),
+            "inferred_timedelta": timedelta(days=1, seconds=2, microseconds=3000),
             "inferred_list": ["abc"],
-            "inferred_nested_list": [[datetime.date(2026, 8, 3)]],
+            "inferred_nested_list": [[date(2026, 8, 3)]],
             "inferred_tuple": (1, 2),
             "inferred_array": array.array("h", [1, 2]),
         }
@@ -709,15 +708,15 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             explicit_fixed_string=pf.lit("y", pf.DataType.fixed_size_string(1)),
             explicit_binary=pf.lit(b"y", pf.DataType.binary()),
             explicit_fixed_binary=pf.lit(b"y", pf.DataType.fixed_size_binary(1)),
-            explicit_date=pf.lit(datetime.date(2026, 8, 3), pf.DataType.date()),
-            explicit_time=pf.lit(datetime.time(1, 2, 3, 4000), pf.DataType.time(6)),
+            explicit_date=pf.lit(date(2026, 8, 3), pf.DataType.date()),
+            explicit_time=pf.lit(time(1, 2, 3, 4000), pf.DataType.time(6)),
             explicit_timestamp=pf.lit(
-                datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
+                datetime(2026, 8, 3, 1, 2, 3, 4000),
                 pf.DataType.timestamp(6),
             ),
             explicit_timestamp_ltz=pf.lit(
-                datetime.datetime(
-                    2026, 8, 3, 1, 2, 3, 4000, tzinfo=datetime.timezone.utc
+                datetime(
+                    2026, 8, 3, 1, 2, 3, 4000, tzinfo=timezone.utc
                 ),
                 pf.DataType.timestamp_ltz(6),
             ),
@@ -938,6 +937,39 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             [Row(1, "Alice"), Row(2, "Bob")],
         )
 
+    def test_watermark_precision_normalization_floors_pre_epoch_timestamps(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("UTC")
+        try:
+            timestamp = datetime(1969, 12, 31, 23, 59, 59, 999999)
+            creators = [
+                (
+                    "from_dict",
+                    lambda: pf.from_dict(
+                        {"ts": [timestamp]},
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+                (
+                    "from_records",
+                    lambda: pf.from_records(
+                        [{"ts": timestamp}],
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+            ]
+
+            for name, creator in creators:
+                with self.subTest(creator=name):
+                    result = creator().select(
+                        ts=pf.col("ts").cast(TableDataTypes.STRING())
+                    )
+                    self.assertEqual(
+                        result.collect(), [Row("1969-12-31 23:59:59.999")]
+                    )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
     def test_pandas_to_pandas_round_trip(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
         self.t_env.get_config().set_local_timezone("America/New_York")
@@ -987,7 +1019,7 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
         )
 
         result = dataframe.select(
-            inferred_date=pf.lit(datetime.date(2026, 8, 3)),
+            inferred_date=pf.lit(date(2026, 8, 3)),
             inferred_list=pf.lit(["abc"]),
             explicit_small_int=pf.lit(1, pf.DataType.int16()),
             explicit_float=pf.lit(1.25, pf.DataType.float32()),
@@ -1003,7 +1035,7 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             result.collect(),
             [
                 Row(
-                    datetime.date(2026, 8, 3),
+                    date(2026, 8, 3),
                     ["abc"],
                     1,
                     1.25,
