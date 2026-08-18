@@ -420,6 +420,10 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                 DataTypes.ROW(
                         DataTypes.FIELD("key", DataTypes.STRING()),
                         DataTypes.FIELD("value", DataTypes.ARRAY(DataTypes.INT())));
+        final DataType rowKeyType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.INT()),
+                        DataTypes.FIELD("b", DataTypes.STRING()));
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, "Invalid input")
@@ -478,6 +482,56 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 "MAP_FROM_ENTRIES(f4)",
                                 Collections.singletonMap(null, "b"),
                                 DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // duplicate STRING keys use the generated equality; a NULL value is kept
+                        .testResult(
+                                array(
+                                                row("k", "a"),
+                                                row("k", "b"),
+                                                row("x", nullOf(DataTypes.STRING())))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW('k', 'a'), ROW('k', 'b'), ROW('x', CAST(NULL AS STRING))])",
+                                CollectionUtil.map(entry("k", "b"), entry("x", null)),
+                                DataTypes.MAP(DataTypes.CHAR(1).notNull(), DataTypes.STRING())
+                                        .notNull())
+                        // duplicate ROW keys use the generated equality; a NULL value is kept
+                        .testResult(
+                                array(
+                                                row(row(1, "a").cast(rowKeyType), "x"),
+                                                row(row(1, "a").cast(rowKeyType), "y"),
+                                                row(
+                                                        row(2, "b").cast(rowKeyType),
+                                                        nullOf(DataTypes.STRING())))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY["
+                                        + "ROW(CAST(ROW(1, 'a') AS ROW(a INT, b STRING)), 'x'), "
+                                        + "ROW(CAST(ROW(1, 'a') AS ROW(a INT, b STRING)), 'y'), "
+                                        + "ROW(CAST(ROW(2, 'b') AS ROW(a INT, b STRING)), CAST(NULL AS STRING))])",
+                                CollectionUtil.map(
+                                        entry(Row.of(1, "a"), "y"), entry(Row.of(2, "b"), null)),
+                                DataTypes.MAP(rowKeyType.notNull(), DataTypes.STRING()).notNull())
+                        // duplicate ARRAY keys collapse through the generated equality and the
+                        // last entry wins, keeping its NULL value; asserted via CARDINALITY and
+                        // MAP_VALUES because Map#equals cannot compare array-keyed maps
+                        .testResult(
+                                array(
+                                                row(array(1, 2), "x"),
+                                                row(array(1, 2), nullOf(DataTypes.STRING())))
+                                        .mapFromEntries()
+                                        .cardinality(),
+                                "CARDINALITY(MAP_FROM_ENTRIES("
+                                        + "ARRAY[ROW(ARRAY[1, 2], 'x'), ROW(ARRAY[1, 2], CAST(NULL AS STRING))]))",
+                                1,
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                array(
+                                                row(array(1, 2), "x"),
+                                                row(array(1, 2), nullOf(DataTypes.STRING())))
+                                        .mapFromEntries()
+                                        .mapValues(),
+                                "MAP_VALUES(MAP_FROM_ENTRIES("
+                                        + "ARRAY[ROW(ARRAY[1, 2], 'x'), ROW(ARRAY[1, 2], CAST(NULL AS STRING))]))",
+                                new String[] {null},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         // round trip with the inverse function
                         .testResult(
                                 $("f0").mapFromEntries().mapEntries(),
@@ -503,6 +557,15 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 DataTypes.MAP(
                                                 DataTypes.INT().notNull(),
                                                 DataTypes.CHAR(3).notNull())
+                                        .notNull())
+                        .testResult(
+                                array(
+                                                row(nullOf(DataTypes.INT()), "a"),
+                                                row(nullOf(DataTypes.INT()), "b"))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(CAST(NULL AS INT), 'a'), ROW(CAST(NULL AS INT), 'b')])",
+                                Collections.singletonMap(null, "b"),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.CHAR(1).notNull())
                                         .notNull())
                         .testResult(
                                 array(

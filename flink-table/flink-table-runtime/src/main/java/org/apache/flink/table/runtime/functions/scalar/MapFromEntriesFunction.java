@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.runtime.util.EqualityAndHashcodeProvider;
+import org.apache.flink.table.runtime.util.MapDataContainer;
 import org.apache.flink.table.runtime.util.ObjectContainer;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -36,8 +37,6 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}. */
 @Internal
@@ -48,9 +47,6 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
     private final RowData.FieldGetter valueFieldGetter;
 
     private final EqualityAndHashcodeProvider keyEqualityAndHashcodeProvider;
-
-    private transient BiFunction<Object, Object, Boolean> keyEquality;
-    private transient Function<Object, Integer> keyHashcode;
 
     public MapFromEntriesFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, context);
@@ -71,8 +67,6 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         keyEqualityAndHashcodeProvider.open(context);
-        keyEquality = keyEqualityAndHashcodeProvider::equals;
-        keyHashcode = keyEqualityAndHashcodeProvider::hashCode;
     }
 
     public @Nullable MapData eval(@Nullable ArrayData input) {
@@ -104,49 +98,26 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
             values[pos] = entry.getValue();
             pos++;
         }
-        return new MapDataForMapFromEntries(
-                new GenericArrayData(keys), new GenericArrayData(values));
+        return new MapDataContainer(new GenericArrayData(keys), new GenericArrayData(values));
     }
 
     /**
-     * Wraps the given key so that it is hashed and compared with the generated hashcode and
-     * equality of the key type, which implement SQL semantics for internal data structures unlike
-     * {@link Object#hashCode()} and {@link Object#equals(Object)}.
+     * Hashes and compares the key with SQL semantics instead of {@link Object#equals}. A {@code
+     * null} key is returned unwrapped, so all {@code null} keys are treated as equal and collapse
+     * into a single entry.
      */
     private @Nullable ObjectContainer wrapKey(@Nullable Object key) {
         if (key == null) {
             return null;
         }
-        return new ObjectContainer(key, keyEquality, keyHashcode);
+        return new ObjectContainer(
+                key,
+                keyEqualityAndHashcodeProvider::equals,
+                keyEqualityAndHashcodeProvider::hashCode);
     }
 
     @Override
     public void close() throws Exception {
         keyEqualityAndHashcodeProvider.close();
-    }
-
-    private static class MapDataForMapFromEntries implements MapData {
-        private final GenericArrayData keyArray;
-        private final GenericArrayData valueArray;
-
-        MapDataForMapFromEntries(GenericArrayData keyArray, GenericArrayData valueArray) {
-            this.keyArray = keyArray;
-            this.valueArray = valueArray;
-        }
-
-        @Override
-        public int size() {
-            return keyArray.size();
-        }
-
-        @Override
-        public ArrayData keyArray() {
-            return keyArray;
-        }
-
-        @Override
-        public ArrayData valueArray() {
-            return valueArray;
-        }
     }
 }
