@@ -42,6 +42,7 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
     private static final int BIG_ENDIAN = 0;
     private static final int LITTLE_ENDIAN = 1;
     private static final int UNKNOWN_SUBTYPE_ID = 0;
+    private static final long MAX_INT_ADDRESS_EXCLUSIVE = (long) Integer.MAX_VALUE + 1;
 
     private int subtypeId = UNKNOWN_SUBTYPE_ID;
 
@@ -55,7 +56,25 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
      */
     public static BinaryGeographyData fromAddress(
             MemorySegment[] segments, int offset, int numBytes) {
+        requireAddressableRange(offset, numBytes, (long) offset + numBytes, "GEOGRAPHY section");
         return new BinaryGeographyData(segments, offset, numBytes);
+    }
+
+    /**
+     * Creates a {@link BinaryGeographyData} view over a trusted internal ISO WKB byte range without
+     * validating the payload.
+     *
+     * <p>This method is zero-copy with respect to the WKB payload and aliases the provided backing
+     * array. It is intended only for trusted internal binary storage. Callers must keep the backing
+     * array unchanged for the lifetime of the returned value.
+     */
+    public static BinaryGeographyData fromTrustedBytes(byte[] bytes, int offset, int numBytes) {
+        if (bytes == null) {
+            return null;
+        }
+        checkRange(bytes, offset, numBytes);
+        return fromAddress(
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
     }
 
     /** Creates a {@link BinaryGeographyData} instance from the given ISO WKB bytes. */
@@ -105,6 +124,8 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
     }
 
     private static void validatePayload(MemorySegment[] segments, int offset, int sizeInBytes) {
+        // WKB stores unsigned 32-bit counts, so parser cursors stay long to avoid overflow. Flink's
+        // binary memory model is still addressed by signed ints at the actual read boundary.
         final long endOffset = (long) offset + sizeInBytes;
         final GeometryHeader header = readHeader(segments, offset, endOffset);
         final long consumedOffset = validateGeometry(segments, offset, endOffset, header);
@@ -215,9 +236,9 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
 
     private static GeometryHeader readHeader(
             MemorySegment[] segments, long offset, long endOffset) {
-        requireBytes(offset, MIN_WKB_HEADER_SIZE, endOffset, "WKB header");
+        final int address = checkedAddress(offset, MIN_WKB_HEADER_SIZE, endOffset, "WKB header");
 
-        final int byteOrder = BinarySegmentUtils.getByte(segments, (int) offset) & 0xFF;
+        final int byteOrder = BinarySegmentUtils.getByte(segments, address) & 0xFF;
         if (byteOrder != BIG_ENDIAN && byteOrder != LITTLE_ENDIAN) {
             throw new TableRuntimeException(
                     String.format(
@@ -242,18 +263,40 @@ public final class BinaryGeographyData extends BinarySection implements Geograph
             long endOffset,
             int byteOrder,
             String fieldName) {
-        requireBytes(offset, WKB_COUNT_SIZE, endOffset, fieldName);
+        final int address = checkedAddress(offset, WKB_COUNT_SIZE, endOffset, fieldName);
 
         if (byteOrder == LITTLE_ENDIAN) {
-            return (BinarySegmentUtils.getByte(segments, (int) offset) & 0xFFL)
-                    | ((BinarySegmentUtils.getByte(segments, (int) offset + 1) & 0xFFL) << 8)
-                    | ((BinarySegmentUtils.getByte(segments, (int) offset + 2) & 0xFFL) << 16)
-                    | ((BinarySegmentUtils.getByte(segments, (int) offset + 3) & 0xFFL) << 24);
+            return (BinarySegmentUtils.getByte(segments, address) & 0xFFL)
+                    | ((BinarySegmentUtils.getByte(segments, address + 1) & 0xFFL) << 8)
+                    | ((BinarySegmentUtils.getByte(segments, address + 2) & 0xFFL) << 16)
+                    | ((BinarySegmentUtils.getByte(segments, address + 3) & 0xFFL) << 24);
         }
-        return ((BinarySegmentUtils.getByte(segments, (int) offset) & 0xFFL) << 24)
-                | ((BinarySegmentUtils.getByte(segments, (int) offset + 1) & 0xFFL) << 16)
-                | ((BinarySegmentUtils.getByte(segments, (int) offset + 2) & 0xFFL) << 8)
-                | (BinarySegmentUtils.getByte(segments, (int) offset + 3) & 0xFFL);
+        return ((BinarySegmentUtils.getByte(segments, address) & 0xFFL) << 24)
+                | ((BinarySegmentUtils.getByte(segments, address + 1) & 0xFFL) << 16)
+                | ((BinarySegmentUtils.getByte(segments, address + 2) & 0xFFL) << 8)
+                | (BinarySegmentUtils.getByte(segments, address + 3) & 0xFFL);
+    }
+
+    private static int checkedAddress(
+            long offset, long numBytes, long endOffset, String componentName) {
+        requireAddressableRange(offset, numBytes, endOffset, componentName);
+        requireBytes(offset, numBytes, endOffset, componentName);
+        return (int) offset;
+    }
+
+    private static void requireAddressableRange(
+            long offset, long numBytes, long endOffset, String componentName) {
+        if (offset < 0
+                || numBytes < 0
+                || endOffset < 0
+                || offset > endOffset
+                || offset > Integer.MAX_VALUE
+                || endOffset > MAX_INT_ADDRESS_EXCLUSIVE) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Unsupported GEOGRAPHY binary address range for %s: offset %d, length %d, end %d exceeds Flink's signed int memory address space.",
+                            componentName, offset, numBytes, endOffset));
+        }
     }
 
     private static long requireBytes(

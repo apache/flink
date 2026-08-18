@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -165,6 +166,8 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                 return new VariantType(isNullable);
             case BITMAP:
                 return new BitmapType(isNullable);
+            case GEOGRAPHY:
+                return new GeographyType(isNullable);
             default:
                 throw new UnsupportedOperationException(
                         String.format(
