@@ -282,6 +282,20 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                             "Maximum delay cap for exponential backoff, applied to both "
                                     + "normal and throttle retry paths.");
 
+    public static final ConfigOption<Boolean> RETRY_CIRCUIT_BREAKER_ENABLED =
+            ConfigOptions.key("s3.retry.circuit-breaker.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether the AWS SDK's retry circuit breaker (token bucket) is enabled. "
+                                    + "The SDK stops retrying once a shared per-client token bucket is "
+                                    + "drained by recent failures, regardless of the retry/backoff settings "
+                                    + "above. Under a high volume of concurrent requests hitting S3 "
+                                    + "throttling (e.g. large incremental checkpoints), this bucket can drain "
+                                    + "within seconds, causing retries to be abandoned well before the "
+                                    + "configured backoff and retry count are exhausted. Disabled by default "
+                                    + "so the retry/backoff settings above fully govern retry behavior.");
+
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("s3.connection.timeout")
                     .durationType()
@@ -615,6 +629,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .retryBaseDelay(config.get(RETRY_BASE_DELAY))
                         .retryThrottleBaseDelay(config.get(RETRY_THROTTLE_BASE_DELAY))
                         .retryMaxBackoff(config.get(RETRY_MAX_BACKOFF))
+                        .retryCircuitBreakerEnabled(config.get(RETRY_CIRCUIT_BREAKER_ENABLED))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
                         .useCrt(crtEnabled);
