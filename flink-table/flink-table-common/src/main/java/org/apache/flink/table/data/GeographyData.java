@@ -22,29 +22,45 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.types.logical.GeographyType;
 
-/** An internal data structure representing data of {@link GeographyType}. */
+/**
+ * An internal data structure representing data of {@link GeographyType}.
+ *
+ * <p>The v1 runtime contract uses OGC:CRS84 and supports the seven standard 2D ISO WKB subtype
+ * codes defined by the OGC Simple Feature Access specification. Extended WKB variants such as Z,
+ * M, ZM, and EWKB are outside this contract. CRS and SRID metadata are not encoded in the ISO WKB
+ * payload and must be handled at the construction or connector boundary.
+ *
+ * <p>References:
+ *
+ * <ul>
+ *   <li><a href="https://www.ogc.org/standards/sfa">OGC Simple Feature Access</a>
+ *   <li><a href="https://www.opengis.net/def/crs/OGC/1.3/CRS84">OGC:CRS84 definition</a>
+ *   <li><a href="https://postgis.net/docs/using_postgis_dbmanagement.html#EWKB_EWKT">PostGIS
+ *       EWKB and EWKT documentation</a>
+ * </ul>
+ */
 @PublicEvolving
 public interface GeographyData {
 
-    /** ISO WKB subtype ID for Point geometries. */
+    /** Supported 2D ISO WKB subtype ID for Point geometries. */
     int POINT = 1;
 
-    /** ISO WKB subtype ID for LineString geometries. */
+    /** Supported 2D ISO WKB subtype ID for LineString geometries. */
     int LINE_STRING = 2;
 
-    /** ISO WKB subtype ID for Polygon geometries. */
+    /** Supported 2D ISO WKB subtype ID for Polygon geometries. */
     int POLYGON = 3;
 
-    /** ISO WKB subtype ID for MultiPoint geometries. */
+    /** Supported 2D ISO WKB subtype ID for MultiPoint geometries. */
     int MULTI_POINT = 4;
 
-    /** ISO WKB subtype ID for MultiLineString geometries. */
+    /** Supported 2D ISO WKB subtype ID for MultiLineString geometries. */
     int MULTI_LINE_STRING = 5;
 
-    /** ISO WKB subtype ID for MultiPolygon geometries. */
+    /** Supported 2D ISO WKB subtype ID for MultiPolygon geometries. */
     int MULTI_POLYGON = 6;
 
-    /** ISO WKB subtype ID for GeometryCollection geometries. */
+    /** Supported 2D ISO WKB subtype ID for GeometryCollection geometries. */
     int GEOMETRY_COLLECTION = 7;
 
     /**
@@ -54,7 +70,7 @@ public interface GeographyData {
      */
     byte[] toBytes();
 
-    /** Returns the ISO WKB subtype ID. */
+    /** Returns the supported 2D ISO WKB subtype ID. */
     int subtypeId();
 
     /** Returns the size in bytes of the ISO WKB payload. */
