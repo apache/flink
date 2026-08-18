@@ -587,7 +587,9 @@ public class TableImpl implements Table {
                         "Window properties can only be used on windowed tables.");
             }
 
-            List<Expression> groupingExpressions = table.preprocessExpressions(groupKeys);
+            List<Expression> groupingExpressions =
+                    table.operationTreeBuilder.expandExpressions(
+                            table.preprocessExpressions(groupKeys), table.operationTree);
             QueryOperation aggregateOperation =
                     table.operationTreeBuilder.aggregate(
                             groupingExpressions, extracted.getAggregations(), table.operationTree);
@@ -625,7 +627,9 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(Expression... fields) {
-            List<Expression> groupingExpressions = table.preprocessExpressions(groupKeys);
+            List<Expression> groupingExpressions =
+                    table.operationTreeBuilder.expandExpressions(
+                            table.preprocessExpressions(groupKeys), table.operationTree);
             QueryOperation aggregateOperation =
                     table.operationTreeBuilder.aggregate(
                             groupingExpressions, aggregateFunction, table.operationTree);
