@@ -20,9 +20,11 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Data type of geography data.
@@ -37,6 +39,9 @@ public final class GeographyType extends LogicalType {
     private static final String FORMAT = "GEOGRAPHY";
 
     private static final Class<?> INPUT_OUTPUT_CONVERSION = GeographyData.class;
+
+    private static final Set<String> INPUT_OUTPUT_CONVERSIONS =
+            conversionSet(GeographyData.class.getName(), BinaryGeographyData.class.getName());
 
     public GeographyType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.GEOGRAPHY);
@@ -58,12 +63,12 @@ public final class GeographyType extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.isAssignableFrom(clazz);
+        return INPUT_OUTPUT_CONVERSIONS.contains(clazz.getName());
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.isAssignableFrom(clazz);
+        return INPUT_OUTPUT_CONVERSIONS.contains(clazz.getName());
     }
 
     @Override
