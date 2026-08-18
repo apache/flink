@@ -210,6 +210,14 @@ def _to_java_row(value: Row, data_type: RowType = None):
             else:
                 field_value = _to_java_inferred_literal_value(field_value)
             j_row.setField(field_name, field_value)
+        if data_type is not None:
+            # Keep undeclared fields so Java validates the original Row arity.
+            for field_name in value._fields:
+                if field_name not in field_names:
+                    j_row.setField(
+                        field_name,
+                        _to_java_inferred_literal_value(value[field_name]),
+                    )
         return j_row
 
     j_row = jvm.org.apache.flink.types.Row.withPositions(

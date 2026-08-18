@@ -422,6 +422,12 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
                 DataTypes.ROW([DataTypes.FIELD("value", DataTypes.INT())]).not_null(),
             )
 
+        with self.assertRaisesRegex(Py4JJavaError, "ROW literal has arity 2"):
+            lit(
+                Row(a=1, b=2),
+                DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT())]).not_null(),
+            )
+
         with self.assertRaisesRegex(Py4JJavaError, "Unsupported kind 'DELETE'"):
             lit(
                 Row.of_kind(RowKind.DELETE, 1),
