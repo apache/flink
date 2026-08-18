@@ -1602,13 +1602,19 @@ DataTypes.BITMAP()
 
 Data type of geography data.
 
-`GEOGRAPHY` represents geospatial values in the OGC:CRS84 coordinate reference system.
+`GEOGRAPHY` represents geospatial values in the [OGC:CRS84](https://www.opengis.net/def/crs/OGC/1.3/CRS84)
+coordinate reference system. Here, CRS means *Coordinate Reference System* and SRID means
+*Spatial Reference Identifier*. OGC:CRS84 identifies the coordinate reference system and axis
+order used by this type; CRS and SRID metadata are not stored in the WKB payload.
+
+Flink represents geography payloads as [ISO WKB](https://www.ogc.org/standards/sfa), where WKB
+means *Well-Known Binary*. The v1 contract supports the standard 2D WKB geometry type codes.
+[EWKB](https://postgis.net/docs/using_postgis_dbmanagement.html#EWKB_EWKT), or *Extended
+Well-Known Binary*, is not part of this contract. CRS validation, CRS transformation, and
+EWKB/SRID handling belong to constructors, functions, or connector-specific schema mapping.
+
 The type itself does not define SQL constructors, accessors, or spatial predicate functions.
 Those functions are expected to be added separately.
-
-Flink represents geography payloads as ISO WKB bytes. ISO WKB does not encode CRS or SRID
-metadata, so CRS validation, CRS transformation, and EWKB/SRID handling belong to
-constructors, functions, or connector-specific schema mapping.
 
 The geography type is an extension to the SQL standard.
 
