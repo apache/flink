@@ -864,118 +864,240 @@ public class PythonTypeUtils {
     }
 
     /**
-     * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
-     * Long to internal Byte.
+     * Narrows any pemja-coerced {@link Number} to {@link Byte}.
+     *
+     * <p>The external generic is widened to {@link Number} (rather than the nominally-mapped
+     * {@link Long}) because pemja may hand us {@link Long} (Python int), {@link Double} (Python
+     * float), {@link Integer}, or other {@link Number} subtypes depending on source widening;
+     * keeping the generic broad avoids a bridge-method {@link ClassCastException} at the call
+     * site. The actual narrowing happens in {@link #toInternal(Number)}.
      */
-    public static final class ByteDataConverter extends DataConverter<Byte, Long> {
+    public static final class ByteDataConverter extends DataConverter<Byte, Number> {
 
         private static final long serialVersionUID = 1L;
 
         public static final ByteDataConverter INSTANCE = new ByteDataConverter();
 
         @Override
-        public Byte toInternal(Long value) {
+        public Byte toInternal(Number value) {
             if (value == null) {
                 return null;
             }
-
             return value.byteValue();
         }
 
         @Override
-        public Long toExternal(Byte value) {
+        public Number toExternal(Byte value) {
             if (value == null) {
                 return null;
             }
-
             return value.longValue();
         }
     }
 
     /**
-     * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
-     * Long to internal Short.
+     * Narrows any pemja-coerced {@link Number} to {@link Short}. See {@link ByteDataConverter} for
+     * rationale on the widened {@link Number} generic.
      */
-    public static final class ShortDataConverter extends DataConverter<Short, Long> {
+    public static final class ShortDataConverter extends DataConverter<Short, Number> {
 
         private static final long serialVersionUID = 1L;
 
         public static final ShortDataConverter INSTANCE = new ShortDataConverter();
 
         @Override
-        public Short toInternal(Long value) {
+        public Short toInternal(Number value) {
             if (value == null) {
                 return null;
             }
-
             return value.shortValue();
         }
 
         @Override
-        public Long toExternal(Short value) {
+        public Number toExternal(Short value) {
             if (value == null) {
                 return null;
             }
-
             return value.longValue();
         }
     }
 
     /**
-     * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
-     * Long to internal Integer.
+     * Narrows any pemja-coerced {@link Number} to {@link Integer}. See {@link ByteDataConverter}
+     * for rationale on the widened {@link Number} generic.
      */
-    public static final class IntDataConverter extends DataConverter<Integer, Long> {
+    public static final class IntDataConverter extends DataConverter<Integer, Number> {
 
         private static final long serialVersionUID = 1L;
 
         public static final IntDataConverter INSTANCE = new IntDataConverter();
 
         @Override
-        public Integer toInternal(Long value) {
+        public Integer toInternal(Number value) {
             if (value == null) {
                 return null;
             }
-
             return value.intValue();
         }
 
         @Override
-        public Long toExternal(Integer value) {
+        public Number toExternal(Integer value) {
             if (value == null) {
                 return null;
             }
-
             return value.longValue();
         }
     }
 
     /**
-     * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
-     * Java Double to internal Float.
+     * Narrows any pemja-coerced {@link Number} to {@link Float}. See {@link ByteDataConverter} for
+     * rationale on the widened {@link Number} generic.
      */
-    public static final class FloatDataConverter extends DataConverter<Float, Double> {
+    public static final class FloatDataConverter extends DataConverter<Float, Number> {
 
         private static final long serialVersionUID = 1L;
 
         public static final FloatDataConverter INSTANCE = new FloatDataConverter();
 
         @Override
-        public Float toInternal(Double value) {
+        public Float toInternal(Number value) {
             if (value == null) {
                 return null;
             }
-
             return value.floatValue();
         }
 
         @Override
-        public Double toExternal(Float value) {
+        public Number toExternal(Float value) {
             if (value == null) {
                 return null;
             }
-
             return value.doubleValue();
+        }
+    }
+
+    /**
+     * Converts between pemja's auto-converted {@link java.sql.Timestamp} and {@link
+     * LocalDateTime}.
+     *
+     * <p>Pemja maps Python {@code datetime} to {@link java.sql.Timestamp} on the Python→Java
+     * boundary. In thread mode the downstream {@link
+     * org.apache.flink.table.runtime.typeutils.ExternalSerializer} expects {@link LocalDateTime}
+     * (the default bridge class for TIMESTAMP columns). This converter bridges the mismatch.
+     */
+    public static final class LocalDateTimeDataConverter
+            extends DataConverter<LocalDateTime, Object> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final LocalDateTimeDataConverter INSTANCE = new LocalDateTimeDataConverter();
+
+        @Override
+        public LocalDateTime toInternal(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof LocalDateTime) {
+                return (LocalDateTime) value;
+            }
+            if (value instanceof Timestamp) {
+                return ((Timestamp) value).toLocalDateTime();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalDateTime or Timestamp but got: "
+                            + value.getClass().getName());
+        }
+
+        @Override
+        public Object toExternal(LocalDateTime value) {
+            return value;
+        }
+    }
+
+    /** Converts between pemja's auto-converted {@link Date} and {@link LocalDate}. */
+    public static final class LocalDateDataConverter extends DataConverter<LocalDate, Object> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final LocalDateDataConverter INSTANCE = new LocalDateDataConverter();
+
+        @Override
+        public LocalDate toInternal(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof LocalDate) {
+                return (LocalDate) value;
+            }
+            if (value instanceof Date) {
+                return ((Date) value).toLocalDate();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalDate or Date but got: " + value.getClass().getName());
+        }
+
+        @Override
+        public Object toExternal(LocalDate value) {
+            return value;
+        }
+    }
+
+    /** Converts between pemja's auto-converted {@link Time} and {@link LocalTime}. */
+    public static final class LocalTimeDataConverter extends DataConverter<LocalTime, Object> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final LocalTimeDataConverter INSTANCE = new LocalTimeDataConverter();
+
+        @Override
+        public LocalTime toInternal(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof LocalTime) {
+                return (LocalTime) value;
+            }
+            if (value instanceof Time) {
+                return ((Time) value).toLocalTime();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalTime or Time but got: " + value.getClass().getName());
+        }
+
+        @Override
+        public Object toExternal(LocalTime value) {
+            return value;
+        }
+    }
+
+    /**
+     * Converts between pemja's auto-converted {@link Timestamp} and {@link Instant} for
+     * TIMESTAMP_WITH_LOCAL_TIME_ZONE columns.
+     */
+    public static final class InstantDataConverter extends DataConverter<Instant, Object> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final InstantDataConverter INSTANCE = new InstantDataConverter();
+
+        @Override
+        public Instant toInternal(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof Instant) {
+                return (Instant) value;
+            }
+            if (value instanceof Timestamp) {
+                return ((Timestamp) value).toInstant();
+            }
+            throw new IllegalArgumentException(
+                    "Expected Instant or Timestamp but got: " + value.getClass().getName());
+        }
+
+        @Override
+        public Object toExternal(Instant value) {
+            return value;
         }
     }
 
@@ -988,16 +1110,9 @@ public class PythonTypeUtils {
         private static final long serialVersionUID = 1L;
 
         private final DataConverter[] fieldDataConverters;
-        private final Row reuseRow;
-        private final Object[] reuseExternalRow;
-        private final Object[] reuseExternalRowData;
 
         RowDataConverter(DataConverter[] dataConverters) {
             this.fieldDataConverters = dataConverters;
-            this.reuseRow = new Row(fieldDataConverters.length);
-            this.reuseExternalRowData = new Object[fieldDataConverters.length];
-            this.reuseExternalRow = new Object[2];
-            this.reuseExternalRow[1] = reuseExternalRowData;
         }
 
         @SuppressWarnings("unchecked")
@@ -1008,12 +1123,13 @@ public class PythonTypeUtils {
             }
 
             RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
-            reuseRow.setKind(rowKind);
             Object[] fieldValues = (Object[]) value[1];
+            Row row = new Row(fieldDataConverters.length);
+            row.setKind(rowKind);
             for (int i = 0; i < fieldValues.length; i++) {
-                reuseRow.setField(i, fieldDataConverters[i].toInternal(fieldValues[i]));
+                row.setField(i, fieldDataConverters[i].toInternal(fieldValues[i]));
             }
-            return reuseRow;
+            return row;
         }
 
         @SuppressWarnings("unchecked")
@@ -1023,11 +1139,12 @@ public class PythonTypeUtils {
                 return null;
             }
 
-            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            // Fresh allocation per call to avoid aliasing when used inside ArrayDataConverter.
+            Object[] fields = new Object[fieldDataConverters.length];
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalRowData[i] = fieldDataConverters[i].toExternal(value.getField(i));
+                fields[i] = fieldDataConverters[i].toExternal(value.getField(i));
             }
-            return reuseExternalRow;
+            return new Object[] {(long) value.getKind().toByteValue(), fields};
         }
 
         @Override
@@ -1101,13 +1218,9 @@ public class PythonTypeUtils {
     public static final class TupleDataConverter extends DataConverter<Tuple, Object[]> {
 
         private final DataConverter[] fieldDataConverters;
-        private final Tuple reuseTuple;
-        private final Object[] reuseExternalTuple;
 
         TupleDataConverter(DataConverter[] dataConverters) {
             this.fieldDataConverters = dataConverters;
-            this.reuseTuple = Tuple.newInstance(dataConverters.length);
-            this.reuseExternalTuple = new Object[dataConverters.length];
         }
 
         @SuppressWarnings("unchecked")
@@ -1117,10 +1230,12 @@ public class PythonTypeUtils {
                 return null;
             }
 
+            // Fresh allocation per call to avoid aliasing when used inside ArrayDataConverter.
+            Tuple tuple = Tuple.newInstance(fieldDataConverters.length);
             for (int i = 0; i < value.length; i++) {
-                reuseTuple.setField(fieldDataConverters[i].toInternal(value[i]), i);
+                tuple.setField(fieldDataConverters[i].toInternal(value[i]), i);
             }
-            return reuseTuple;
+            return tuple;
         }
 
         @SuppressWarnings("unchecked")
@@ -1130,10 +1245,11 @@ public class PythonTypeUtils {
                 return null;
             }
 
+            Object[] result = new Object[fieldDataConverters.length];
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalTuple[i] = fieldDataConverters[i].toExternal(value.getField(i));
+                result[i] = fieldDataConverters[i].toExternal(value.getField(i));
             }
-            return reuseExternalTuple;
+            return result;
         }
 
         @Override
@@ -1356,6 +1472,18 @@ public class PythonTypeUtils {
                     BasicTypeInfo.FLOAT_TYPE_INFO.getTypeClass(), FloatDataConverter.INSTANCE);
             typeInfoToDataConverterMap.put(
                     BasicTypeInfo.BYTE_TYPE_INFO.getTypeClass(), ByteDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE_TIME.getTypeClass(),
+                    LocalDateTimeDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE.getTypeClass(),
+                    LocalDateDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    LocalTimeTypeInfo.LOCAL_TIME.getTypeClass(),
+                    LocalTimeDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    BasicTypeInfo.INSTANT_TYPE_INFO.getTypeClass(),
+                    InstantDataConverter.INSTANCE);
         }
 
         @SuppressWarnings("unchecked")
