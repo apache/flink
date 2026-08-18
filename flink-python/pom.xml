@@ -35,7 +35,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<!-- Align with Beam ${beam.version} optional transitive. -->
+		<!-- Override Beam's optional transitive with a version that fixes CVE-2026-45292. -->
 		<opentelemetry.bundled.version>1.62.0</opentelemetry.bundled.version>
 		
 		<arrow.version>19.0.0</arrow.version>
@@ -751,6 +751,12 @@ under the License.
 										org.apache.flink.api.python.shaded.com.fasterxml.jackson
 									</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>io.opentelemetry</pattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.io.opentelemetry
+									</shadedPattern>
+								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
 								due to a bug in the Maven Shade plugin, which only relocates the content but not
@@ -794,6 +800,11 @@ under the License.
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/io/netty/</pattern>
 									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/io/netty/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/io/opentelemetry/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/api/python/shaded/io/opentelemetry/</shadedPattern>
 									<rawString>true</rawString>
 								</relocation>
 								<relocation>
