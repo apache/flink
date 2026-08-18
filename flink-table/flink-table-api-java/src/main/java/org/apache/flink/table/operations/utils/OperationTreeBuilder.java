@@ -247,8 +247,13 @@ public final class OperationTreeBuilder {
             List<Expression> aggregates,
             QueryOperation child) {
 
-        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
-        List<ResolvedExpression> resolvedGroupings = resolver.resolve(groupingExpressions);
+        // Computed grouping expressions need stable names for subsequent projections.
+        List<Expression> namedGroupingExpressions =
+                addAliasToTheCallInAggregate(
+                        child.getResolvedSchema().getColumnNames(), groupingExpressions);
+
+        ExpressionResolver resolver = getAggResolver(child, namedGroupingExpressions);
+        List<ResolvedExpression> resolvedGroupings = resolver.resolve(namedGroupingExpressions);
         List<ResolvedExpression> resolvedAggregates = resolver.resolve(aggregates);
 
         return aggregateOperationFactory.createAggregate(
