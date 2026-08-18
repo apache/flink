@@ -327,12 +327,30 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
         source = self.t_env.from_elements([(1,)], ["id"])
         empty_inner_array = lit([[1], []])
         null_only_inner_array = lit([[1], [None]])
+        char_empty_inner_array = lit([["a"], []])
+        char_null_only_inner_array = lit([["a"], [None]])
+        decimal_empty_inner_array = lit([[decimal.Decimal("1.20")], []])
+        time_empty_inner_array = lit([[datetime.time(12, 0, 0, 123000)], []])
         nested_array_type = DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())).not_null()
 
-        literal_table = source.select(empty_inner_array, null_only_inner_array)
+        literal_table = source.select(
+            empty_inner_array,
+            null_only_inner_array,
+            char_empty_inner_array,
+            char_null_only_inner_array,
+            decimal_empty_inner_array,
+            time_empty_inner_array,
+        )
         self.assertEqual(
             literal_table.get_resolved_schema().get_column_data_types(),
-            [nested_array_type, nested_array_type],
+            [
+                nested_array_type,
+                nested_array_type,
+                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.CHAR(1))).not_null(),
+                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.CHAR(1))).not_null(),
+                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.DECIMAL(3, 2))).not_null(),
+                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.TIME(3))).not_null(),
+            ],
         )
         self.assertIsInstance(literal_table.explain(), str)
 
@@ -343,10 +361,33 @@ class LiteralITCase(PyFlinkBatchTableTestCase):
             empty_inner_array.at(1).at(1),
             null_only_inner_array.at(2).cardinality,
             null_only_inner_array.at(2).at(1).is_null,
+            char_empty_inner_array.at(1).at(1),
+            char_empty_inner_array.at(2).cardinality,
+            char_null_only_inner_array.at(2).at(1).is_null,
+            decimal_empty_inner_array.at(1).at(1),
+            decimal_empty_inner_array.at(2).cardinality,
+            time_empty_inner_array.at(1).at(1),
+            time_empty_inner_array.at(2).cardinality,
         )
         self.assertEqual(
             list(result.execute().collect()),
-            [Row(2, 1, 0, 1, 1, True)],
+            [
+                Row(
+                    2,
+                    1,
+                    0,
+                    1,
+                    1,
+                    True,
+                    "a",
+                    0,
+                    True,
+                    decimal.Decimal("1.20"),
+                    0,
+                    datetime.time(12, 0, 0, 123000),
+                    0,
+                )
+            ],
         )
 
     def test_unsupported_constructed_literals_are_rejected(self):

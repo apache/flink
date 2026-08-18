@@ -27,6 +27,8 @@ import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.time.Period;
 import java.util.Arrays;
 import java.util.Collections;
@@ -118,6 +120,38 @@ class PythonTableUtilsTest {
     }
 
     @Test
+    void testCreateLiteralInfersValueDependentNestedArraysFromSiblings() {
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList("a"), Collections.emptyList()),
+                                null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList("a"),
+                                        Collections.singletonList(null)),
+                                null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList(new BigDecimal("1.20")),
+                                        Collections.emptyList()),
+                                null))
+                .isNotNull();
+        assertThat(
+                        PythonTableUtils.createLiteral(
+                                Arrays.asList(
+                                        Collections.singletonList(
+                                                LocalTime.of(12, 0, 0, 123_000_000)),
+                                        Collections.emptyList()),
+                                null))
+                .isNotNull();
+    }
+
+    @Test
     void testCreateLiteralRejectsArraysWithoutCommonSiblingType() {
         assertThatThrownBy(
                         () -> PythonTableUtils.createLiteral(Collections.singletonList(null), null))
@@ -136,6 +170,14 @@ class PythonTableUtilsTest {
                                         Arrays.asList(
                                                 Collections.singletonList(1),
                                                 Collections.singletonList(1L)),
+                                        null))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(
+                        () ->
+                                PythonTableUtils.createLiteral(
+                                        Arrays.asList(
+                                                Collections.singletonList("a"),
+                                                Collections.singletonList("bb")),
                                         null))
                 .isInstanceOf(ValidationException.class);
         assertThatThrownBy(

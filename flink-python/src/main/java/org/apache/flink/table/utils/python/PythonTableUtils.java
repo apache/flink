@@ -67,6 +67,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -174,14 +175,23 @@ public final class PythonTableUtils {
             return createTypedLiteral(value, dataType);
         }
 
-        final Object inferredValue = materializeInferredArrays(value);
-        final ApiExpression literal = Expressions.lit(inferredValue);
+        if (value instanceof List) {
+            final InferredArrayMaterialization materializedArray =
+                    materializeInferredArray((List<?>) value);
+            if (materializedArray.getState() == InferredArrayState.CONCRETE) {
+                return createTypedLiteral(
+                        materializedArray.getArray(), materializedArray.getDataType());
+            }
+            return Expressions.lit(materializedArray.getArray());
+        }
+
+        final ApiExpression literal = Expressions.lit(value);
         final DataType inferredDataType =
                 ((ValueLiteralExpression) literal.toExpr()).getOutputDataType();
         // Raw array literals can be inferred but not planned. Rebuild the array as a constructor
         // expression while preserving the data type inferred by Java.
         if (inferredDataType.getLogicalType() instanceof ArrayType) {
-            return createTypedLiteral(inferredValue, inferredDataType);
+            return createTypedLiteral(value, inferredDataType);
         }
         return literal;
     }
@@ -312,28 +322,21 @@ public final class PythonTableUtils {
         return createTypedLiteral(value, literalDataType);
     }
 
-    private static Object materializeInferredArrays(final Object value) {
-        if (!(value instanceof List)) {
-            return value;
-        }
-
-        return materializeInferredArray((List<?>) value, null).getArray();
-    }
-
-    private static InferredArrayMaterialization materializeInferredArray(
-            final List<?> values, @Nullable final Class<?> expectedArrayClass) {
+    private static InferredArrayMaterialization materializeInferredArray(final List<?> values) {
         final Object[] convertedValues = new Object[values.size()];
         final InferredArrayMaterialization[] nestedArrays =
                 new InferredArrayMaterialization[values.size()];
         Class<?> componentClass = null;
+        DataType elementDataType = null;
         boolean compatible = true;
 
         for (int pos = 0; pos < values.size(); pos++) {
             final Object value = values.get(pos);
             final Class<?> valueClass;
+            final Optional<DataType> possibleValueDataType;
             if (value instanceof List) {
                 final InferredArrayMaterialization nestedArray =
-                        materializeInferredArray((List<?>) value, null);
+                        materializeInferredArray((List<?>) value);
                 nestedArrays[pos] = nestedArray;
                 convertedValues[pos] = nestedArray.getArray();
                 if (nestedArray.getState() == InferredArrayState.INCOMPATIBLE) {
@@ -343,12 +346,14 @@ public final class PythonTableUtils {
                     continue;
                 }
                 valueClass = nestedArray.getArray().getClass();
+                possibleValueDataType = Optional.of(nestedArray.getDataType());
             } else {
                 convertedValues[pos] = value;
                 if (value == null) {
                     continue;
                 }
                 valueClass = value.getClass();
+                possibleValueDataType = ValueDataTypeConverter.extractDataType(value);
             }
 
             if (componentClass == null) {
@@ -356,29 +361,27 @@ public final class PythonTableUtils {
             } else if (componentClass != valueClass) {
                 compatible = false;
             }
-        }
-
-        if (expectedArrayClass != null) {
-            if (!expectedArrayClass.isArray()) {
+            if (!possibleValueDataType.isPresent()) {
                 compatible = false;
-            } else {
-                final Class<?> expectedComponentClass = expectedArrayClass.getComponentType();
-                if (componentClass != null && componentClass != expectedComponentClass) {
-                    compatible = false;
-                }
-                componentClass = expectedComponentClass;
+                continue;
+            }
+            final DataType valueDataType = possibleValueDataType.get().nullable();
+            if (elementDataType == null) {
+                elementDataType = valueDataType;
+            } else if (!elementDataType.equals(valueDataType)) {
+                compatible = false;
             }
         }
 
         if (!compatible) {
             return InferredArrayMaterialization.incompatible(convertedValues);
         }
-        if (componentClass == null) {
+        if (componentClass == null || elementDataType == null) {
             return InferredArrayMaterialization.wildcard(convertedValues, values);
         }
 
-        // Empty and null-only nested lists need an informative sibling's array class to preserve
-        // their position in the nested array shape.
+        // The sibling's array class preserves the shape of empty and null-only nested lists; its
+        // inferred data type above preserves value-dependent logical details.
         for (int pos = 0; pos < nestedArrays.length; pos++) {
             final InferredArrayMaterialization nestedArray = nestedArrays[pos];
             if (nestedArray == null || nestedArray.getState() != InferredArrayState.WILDCARD) {
@@ -387,12 +390,12 @@ public final class PythonTableUtils {
             if (!componentClass.isArray()) {
                 return InferredArrayMaterialization.incompatible(convertedValues);
             }
-            final InferredArrayMaterialization convertedNestedArray =
-                    materializeInferredArray(nestedArray.getWildcardValues(), componentClass);
-            convertedValues[pos] = convertedNestedArray.getArray();
-            if (convertedNestedArray.getState() != InferredArrayState.CONCRETE) {
+            final Object convertedNestedArray =
+                    materializeWildcardArray(nestedArray.getWildcardValues(), componentClass);
+            if (convertedNestedArray == null) {
                 return InferredArrayMaterialization.incompatible(convertedValues);
             }
+            convertedValues[pos] = convertedNestedArray;
         }
 
         final Object convertedArray = Array.newInstance(componentClass, convertedValues.length);
@@ -402,7 +405,36 @@ public final class PythonTableUtils {
             }
             Array.set(convertedArray, pos, convertedValues[pos]);
         }
-        return InferredArrayMaterialization.concrete(convertedArray);
+
+        final DataType inferredDataType =
+                DataTypes.ARRAY(elementDataType).notNull().bridgedTo(convertedArray.getClass());
+        return InferredArrayMaterialization.concrete(convertedArray, inferredDataType);
+    }
+
+    private static @Nullable Object materializeWildcardArray(
+            final List<?> values, final Class<?> expectedArrayClass) {
+        if (!expectedArrayClass.isArray()) {
+            return null;
+        }
+
+        final Class<?> componentClass = expectedArrayClass.getComponentType();
+        final Object convertedArray = Array.newInstance(componentClass, values.size());
+        for (int pos = 0; pos < values.size(); pos++) {
+            final Object value = values.get(pos);
+            final Object convertedValue;
+            if (value instanceof List) {
+                convertedValue = materializeWildcardArray((List<?>) value, componentClass);
+                if (convertedValue == null) {
+                    return null;
+                }
+            } else if (value == null && !componentClass.isPrimitive()) {
+                convertedValue = null;
+            } else {
+                return null;
+            }
+            Array.set(convertedArray, pos, convertedValue);
+        }
+        return convertedArray;
     }
 
     private enum InferredArrayState {
@@ -415,28 +447,35 @@ public final class PythonTableUtils {
 
         private final InferredArrayState state;
         private final Object array;
+        private final @Nullable DataType dataType;
         private final @Nullable List<?> wildcardValues;
 
         private InferredArrayMaterialization(
                 final InferredArrayState state,
                 final Object array,
+                @Nullable final DataType dataType,
                 @Nullable final List<?> wildcardValues) {
             this.state = state;
             this.array = array;
+            this.dataType = dataType;
             this.wildcardValues = wildcardValues;
         }
 
-        private static InferredArrayMaterialization concrete(final Object array) {
-            return new InferredArrayMaterialization(InferredArrayState.CONCRETE, array, null);
+        private static InferredArrayMaterialization concrete(
+                final Object array, final DataType dataType) {
+            return new InferredArrayMaterialization(
+                    InferredArrayState.CONCRETE, array, dataType, null);
         }
 
         private static InferredArrayMaterialization wildcard(
                 final Object array, final List<?> values) {
-            return new InferredArrayMaterialization(InferredArrayState.WILDCARD, array, values);
+            return new InferredArrayMaterialization(
+                    InferredArrayState.WILDCARD, array, null, values);
         }
 
         private static InferredArrayMaterialization incompatible(final Object array) {
-            return new InferredArrayMaterialization(InferredArrayState.INCOMPATIBLE, array, null);
+            return new InferredArrayMaterialization(
+                    InferredArrayState.INCOMPATIBLE, array, null, null);
         }
 
         private InferredArrayState getState() {
@@ -445,6 +484,13 @@ public final class PythonTableUtils {
 
         private Object getArray() {
             return array;
+        }
+
+        private DataType getDataType() {
+            if (dataType == null) {
+                throw new IllegalStateException("Only concrete arrays retain their data type.");
+            }
+            return dataType;
         }
 
         private List<?> getWildcardValues() {
