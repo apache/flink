@@ -2272,21 +2272,28 @@ def from_arrow_type(arrow_type, nullable: bool = True) -> DataType:
         else:
             return TimestampType(9, nullable)
     elif types.is_map(arrow_type):
-        return MapType(from_arrow_type(arrow_type.key_type),
-                       from_arrow_type(arrow_type.item_type),
-                       nullable)
+        item_field = getattr(arrow_type, 'item_field', None)
+        item_nullable = item_field.nullable if item_field is not None else True
+        key_type = from_arrow_type(arrow_type.key_type, nullable=False)
+        value_type = from_arrow_type(arrow_type.item_type, nullable=item_nullable)
+        return MapType(key_type, value_type, nullable)
     elif types.is_list(arrow_type):
-        return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
+        return ArrayType(
+            from_arrow_type(
+                arrow_type.value_type, nullable=arrow_type.value_field.nullable
+            ),
+            nullable,
+        )
     elif types.is_struct(arrow_type):
         if any(types.is_struct(field.type) for field in arrow_type):
             raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
                             str(arrow_type))
         return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
-                        for field in arrow_type])
+                        for field in arrow_type], nullable)
     elif types.is_null(arrow_type):
         return NullType()
     else:
-        raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
+        raise TypeError("Unsupported data type to convert from Arrow type: " + str(arrow_type))
 
 
 def to_arrow_type(data_type: DataType):

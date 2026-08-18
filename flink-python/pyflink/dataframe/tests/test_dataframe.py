@@ -17,8 +17,11 @@
 ################################################################################
 
 import unittest
+from datetime import datetime, timezone
 from typing import NamedTuple
 
+import pandas as pd
+import pyarrow as pa
 import pyflink.dataframe as pf
 from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
@@ -28,6 +31,7 @@ from pyflink.table import (
     TableEnvironment,
 )
 from pyflink.table.expression import Expression
+from pyflink.table.types import LocalZonedTimestampType, TimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkITTestCase,
@@ -77,6 +81,17 @@ class _Table:
         return _TableResult(self._iterator)
 
 
+class _PandasTable:
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+
+    def to_pandas(self):
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+
 class DataFrameCollectTests(unittest.TestCase):
     def test_collect_returns_all_rows_and_closes_iterator(self):
         iterator = _CloseableIterator([Row(1, "Alice")])
@@ -93,6 +108,24 @@ class DataFrameCollectTests(unittest.TestCase):
             dataframe.collect()
 
         self.assertTrue(iterator.closed)
+
+
+class DataFrameConversionTests(unittest.TestCase):
+    def test_to_table_returns_underlying_table(self):
+        table = _PandasTable()
+
+        self.assertIs(pf.DataFrame(table).to_table(), table)
+
+    def test_to_pandas_delegates_to_underlying_table(self):
+        expected = pd.DataFrame({"id": [1]})
+
+        self.assertIs(pf.DataFrame(_PandasTable(expected)).to_pandas(), expected)
+
+    def test_to_pandas_propagates_errors(self):
+        with self.assertRaisesRegex(RuntimeError, "conversion failed"):
+            pf.DataFrame(
+                _PandasTable(error=RuntimeError("conversion failed"))
+            ).to_pandas()
 
 
 class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
@@ -191,6 +224,202 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             ["y", "x"],
             [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
         )
+
+    def test_from_pandas_and_arrow_rename_columns_positionally(self):
+        inputs = [
+            pd.DataFrame(
+                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
+            ),
+            pa.table(
+                {
+                    "original_id": pa.array([1], type=pa.int64()),
+                    "original_ts": pa.array(
+                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
+                    ),
+                }
+            ),
+        ]
+        for creator, data in zip((pf.from_pandas, pf.from_arrow), inputs):
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data, schema=["id", "ts"])
+                self.assert_dataframe_schema(dataframe, ["id", "ts"])
+
+        duplicate_pdf = pd.DataFrame(
+            [[1, "Alice"], [2, "Bob"]], columns=["value", "value"]
+        )
+        dataframe = pf.from_pandas(duplicate_pdf, schema=["id", "name"])
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_pandas_normalizes_inferred_column_names(self):
+        dataframe = pf.from_pandas(pd.DataFrame([[1, 2]]))
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["0", "1"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT()],
+        )
+
+    def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
+        inputs = [
+            (
+                pf.from_pandas,
+                pd.DataFrame({"id": pd.Series([], dtype="int64")}),
+            ),
+            (
+                pf.from_arrow,
+                pa.table({"id": pa.array([], type=pa.int64())}),
+            ),
+        ]
+        for creator, data in inputs:
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data)
+                self.assert_dataframe_schema(
+                    dataframe,
+                    ["id"],
+                    [TableDataTypes.BIGINT()],
+                )
+
+    def test_from_pandas_schema_inference(self):
+        pdf = pd.DataFrame(
+            {
+                "original_id": [1.0, None],
+                "original_name": ["Alice", None],
+                "original_ts": pd.Series(
+                    pd.to_datetime(
+                        ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]
+                    )
+                ),
+            }
+        )
+        names = ["id", "name", "ts"]
+
+        dataframe_schema = (
+            pf.from_pandas(pdf, schema=names).to_table().get_resolved_schema()
+        )
+        table_schema = self.t_env.from_pandas(
+            pdf, schema=names
+        ).get_resolved_schema()
+
+        self.assertEqual(
+            table_schema.get_column_names(), dataframe_schema.get_column_names()
+        )
+        self.assertEqual(
+            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
+        )
+
+        empty_pdf = pd.DataFrame(
+            {
+                "original_id": pd.Series([], dtype="float64"),
+                "original_name": pd.Series([], dtype="string"),
+                "original_ts": pd.Series([], dtype="datetime64[ns, UTC]"),
+            }
+        )
+        empty_schema = pf.from_pandas(
+            empty_pdf, schema=names
+        ).to_table().get_resolved_schema()
+        self.assertEqual(
+            dataframe_schema.get_column_names(), empty_schema.get_column_names()
+        )
+        self.assertEqual(
+            dataframe_schema.get_column_data_types(),
+            empty_schema.get_column_data_types(),
+        )
+
+    def test_timezone_aware_creation_supports_java_timezone_ids(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("SystemV/PST8PDT")
+        try:
+            dataframe = pf.from_arrow(
+                pa.table({
+                    "ts": pa.array([0], type=pa.timestamp("ms", tz="UTC")),
+                })
+            )
+            self.assert_dataframe_schema(
+                dataframe,
+                ["ts"],
+                [TableDataTypes.TIMESTAMP(3)],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_creators_attach_and_normalize_watermarks(self):
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
+        creators = [
+            (
+                lambda: pf.from_dict(
+                    {"ts": [timestamp]},
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_records(
+                    [{"ts": timestamp}],
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_pandas(
+                    pd.DataFrame(
+                        {
+                            "ts": pd.Series(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                dtype="datetime64[us, UTC]",
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "ts": pa.array(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                type=pa.timestamp("us", tz="UTC"),
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+        ]
+        for creator, expected_type in creators:
+            with self.subTest(creator=creator):
+                resolved_schema = creator().to_table().get_resolved_schema()
+                timestamp_type = resolved_schema.get_column_data_types()[0]
+                self.assertIsInstance(timestamp_type, expected_type)
+                self.assertEqual(timestamp_type.precision, 3)
+                watermark_specs = resolved_schema.get_watermark_specs()
+                self.assertEqual(len(watermark_specs), 1)
+                self.assertEqual(watermark_specs[0].get_rowtime_attribute(), "ts")
+
+    def test_watermark_requires_existing_timestamp_column(self):
+        invalid_watermarks = [
+            (("missing", "ts"), "watermark column 'missing' is not present"),
+            (("id", "id"), "watermark column 'id' must have a timestamp type"),
+        ]
+        for watermark, message in invalid_watermarks:
+            with self.subTest(watermark=watermark):
+                with self.assertRaisesRegex(ValueError, message):
+                    pf.from_records(
+                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
+                        watermark=watermark,
+                    )
+
+    def test_from_table_and_to_table_preserve_identity(self):
+        table = self.t_env.from_elements([(1,)], ["id"])
+
+        self.assertIs(pf.from_table(table).to_table(), table)
 
 
 class DataFrameSelectTests(PyFlinkDataFrameUTTestCase):
@@ -571,6 +800,44 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             dataframe.collect(),
             [Row(1, "Alice"), Row(2, "Bob")],
         )
+
+    def test_pandas_to_pandas_round_trip(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("America/New_York")
+        try:
+            first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
+            second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
+            pdf = pd.DataFrame(
+                {
+                    "id": [0, 1, 2, 3],
+                    "ts": pd.Series(
+                        [None, first_fold, second_fold, None],
+                        dtype="datetime64[ms, UTC]",
+                    ),
+                }
+            )
+
+            result = (
+                pf.from_pandas(pdf)
+                .filter(pf.col("id") > 0)
+                .with_column("id_plus_one", pf.col("id") + 1)
+                .select("id", "id_plus_one", "ts")
+                .to_pandas()
+                .sort_values("id")
+                .reset_index(drop=True)
+            )
+
+            self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
+            self.assertEqual(result["id"].tolist(), [1, 2, 3])
+            self.assertEqual(result["id_plus_one"].tolist(), [2, 3, 4])
+            self.assertEqual(result["ts"].isna().tolist(), [False, False, True])
+            local_fold = pd.Timestamp("2026-11-01T01:30:00.123")
+            self.assertEqual(
+                result["ts"].tolist()[:2],
+                [local_fold, local_fold],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
 
     def test_basic_functionality(self):
         df = pf.from_dict(
