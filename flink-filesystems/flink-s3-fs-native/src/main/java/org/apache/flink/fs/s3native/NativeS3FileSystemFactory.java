@@ -294,8 +294,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "throttling (e.g. large incremental checkpoints), this bucket can drain "
                                     + "within seconds, causing retries to be abandoned well before the "
                                     + "configured backoff and retry count are exhausted. Disabled by default "
-                                    + "so the retry/backoff settings above fully govern retry behavior, "
-                                    + "matching the S3A plugin's behavior.");
+                                    + "so the retry/backoff settings above fully govern retry behavior.");
 
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("s3.connection.timeout")
