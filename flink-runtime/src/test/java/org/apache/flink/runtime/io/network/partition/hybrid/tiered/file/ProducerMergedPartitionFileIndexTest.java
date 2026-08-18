@@ -29,7 +29,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -108,7 +107,7 @@ class ProducerMergedPartitionFileIndexTest {
         for (int iteration = 0; iteration < numIterations; iteration++) {
             int bufferIndex = iteration % 2 * 2;
             index.addBuffers(
-                    Collections.singletonList(
+                    List.of(
                             new ProducerMergedPartitionFileIndex.FlushedBuffer(
                                     0, bufferIndex, iteration, 1)));
 
