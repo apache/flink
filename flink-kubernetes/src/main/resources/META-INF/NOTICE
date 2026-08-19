@@ -11,12 +11,9 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-databind:2.21.3
 - com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.3
 - com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.3
-- com.squareup.okhttp3:logging-interceptor:3.14.9
-- com.squareup.okhttp3:okhttp:3.14.9
-- com.squareup.okio:okio:1.17.2
 - io.fabric8:kubernetes-client:7.3.1
 - io.fabric8:kubernetes-client-api:7.3.1
-- io.fabric8:kubernetes-httpclient-okhttp:7.3.1
+- io.fabric8:kubernetes-httpclient-jdk:7.3.1
 - io.fabric8:kubernetes-model-admissionregistration:7.3.1
 - io.fabric8:kubernetes-model-apiextensions:7.3.1
 - io.fabric8:kubernetes-model-apps:7.3.1
