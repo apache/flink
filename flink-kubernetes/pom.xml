@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>7.3.1</kubernetes.client.version>
+		<kubernetes.client.version>7.8.0</kubernetes.client.version>
 		<!-- Fabric8 HTTP client adapter (FLIP-607). Only "jdk" is shaded, tested and tracked in the NOTICE file.
 			 Other adapters (okhttp, jetty, vertx, vertx-5; see
 			 https://github.com/fabric8io/kubernetes-client/blob/main/doc/FAQ.md#what-artifacts-should-my-project-depend-on)
