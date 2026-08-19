@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,11 +63,18 @@ public class ObjectUpdateTypeStrategy implements TypeStrategy {
         final List<LogicalType> existingFieldTypes =
                 LogicalTypeChecks.getFieldTypes(structuredType);
 
+        // A LinkedHashMap is required here: the inferred attribute order must match the
+        // declaration order of the input type, because the runtime writes updated values at the
+        // declared positions.
         final Map<String, LogicalType> fieldNameToTypeIndex =
                 IntStream.range(0, existingFieldNames.size())
                         .boxed()
                         .collect(
-                                Collectors.toMap(existingFieldNames::get, existingFieldTypes::get));
+                                Collectors.toMap(
+                                        existingFieldNames::get,
+                                        existingFieldTypes::get,
+                                        (left, right) -> left,
+                                        LinkedHashMap::new));
 
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
             final String fieldNameToBeUpdated =
