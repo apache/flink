@@ -163,7 +163,10 @@ under the License.
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.75.0</beam.version>
 		<protoc.version>4.32.1</protoc.version>
-		<okhttp.version>3.14.9</okhttp.version>
+		<okhttp.version>4.12.0</okhttp.version>
+		<!-- OkHttp 4.x pulls the Kotlin stdlib transitively; pin it so okhttp's and okio's differing
+			 kotlin-stdlib versions converge (matches flink-model-openai). -->
+		<kotlin.version>1.9.10</kotlin.version>
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<lz4.version>1.10.3</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
@@ -666,6 +669,33 @@ under the License.
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>logging-interceptor</artifactId>
 				<version>${okhttp.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk7</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<!-- Converge the Kotlin stdlib's org.jetbrains:annotations (13.0) with the newer version
+					 pulled by other dependencies such as testcontainers. -->
+				<groupId>org.jetbrains</groupId>
+				<artifactId>annotations</artifactId>
+				<version>17.0.0</version>
 			</dependency>
 
 			<dependency>
