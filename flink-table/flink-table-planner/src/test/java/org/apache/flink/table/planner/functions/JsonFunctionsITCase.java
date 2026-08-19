@@ -31,6 +31,8 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.io.IOUtils;
 
@@ -62,6 +64,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.json;
@@ -1034,7 +1037,31 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString(call("TRY_PARSE_JSON", $("f1"))),
                                 "JSON_STRING(TRY_PARSE_JSON(f1))",
                                 null,
-                                STRING()));
+                                STRING()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "VARIANT expression preceding another expression in a"
+                                        + " constant-folded projection")
+                        .onFieldsWithData("{\"a\": 1}")
+                        .andDataTypes(STRING().notNull())
+                        .withConstantFoldingEnabled()
+                        .testResult(
+                                resultSpec(
+                                        call("PARSE_JSON", $("f0")),
+                                        "PARSE_JSON(f0)",
+                                        getVariantForJson("{\"a\": 1}"),
+                                        VARIANT().notNull(),
+                                        VARIANT().notNull()),
+                                resultSpec(
+                                        jsonString(call("PARSE_JSON", $("f0"))),
+                                        "JSON_STRING(PARSE_JSON(f0))",
+                                        "{\"a\":1}",
+                                        STRING().notNull(),
+                                        STRING().notNull()))
+                        .testSqlResult(
+                                "PARSE_JSON(f0), JSON_STRING(PARSE_JSON(f0))",
+                                List.of(getVariantForJson("{\"a\": 1}"), "{\"a\":1}"),
+                                List.of(VARIANT().notNull(), STRING().notNull())));
     }
 
     private static List<TestSetSpec> jsonSpec() {
@@ -2238,6 +2265,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
         try {
             return IOUtils.toString(jsonResource, Charset.defaultCharset());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Variant getVariantForJson(String json) {
+        try {
+            return BinaryVariantInternalBuilder.parseJson(json, false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

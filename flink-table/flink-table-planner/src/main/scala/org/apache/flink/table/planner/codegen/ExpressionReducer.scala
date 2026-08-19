@@ -274,7 +274,7 @@ class ExpressionReducer(
         // we don't support object literals yet, we skip those constant expressions
         case (SqlTypeName.ANY, _) | (SqlTypeName.OTHER, _) | (SqlTypeName.ROW, _) |
             (SqlTypeName.STRUCTURED, _) | (SqlTypeName.ARRAY, _) | (SqlTypeName.MAP, _) |
-            (SqlTypeName.MULTISET, _) =>
+            (SqlTypeName.MULTISET, _) | (SqlTypeName.VARIANT, _) =>
           None
 
         case (_, call: RexCall) => {
