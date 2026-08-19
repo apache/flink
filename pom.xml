@@ -1955,6 +1955,29 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>forbid-eol-okhttp</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>com.squareup.okhttp3:*:(,4.0)</exclude>
+									</excludes>
+									<includes>
+										<!-- Legacy test-only dependency graphs may still pull EOL OkHttp 3.x; those
+											never reach the distribution, so allow them in test scope, as done for
+											snakeyaml above. (Hadoop's much older com.squareup.okhttp 2.x / okio 1.x are a
+											different groupId and out of scope here.) -->
+										<include>com.squareup.okhttp3:*:(,4.0):*:test</include>
+									</includes>
+									<message>End-of-life OkHttp 3.x is not allowed (no security patches). Use the built-in java.net.http (JDK) client on the core classpath, or a maintained OkHttp 4.x+ isolated to a plugin classloader or a standalone connector uber-JAR.</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>forbid-log4j-1</id>
 						<goals>
 							<goal>enforce</goal>

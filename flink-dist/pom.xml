@@ -593,6 +593,26 @@ under the License.
 							<skip>true</skip>
 						</configuration>
 					</execution>
+					<execution>
+						<!-- Keep OkHttp/okio off the core Flink distribution classpath. Metrics reporters that
+							 bundle OkHttp declare it as an optional (non-transitive) dependency and ship it shaded
+							 inside their plugin jar, so it never reaches this distribution tree. -->
+						<id>forbid-okhttp-on-core-classpath</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>com.squareup.okhttp3:*</exclude>
+										<exclude>com.squareup.okio:*</exclude>
+									</excludes>
+									<message>OkHttp/okio must not be on the core classpath or in the Flink distribution. Use the built-in java.net.http (JDK) client, or isolate OkHttp to a plugin classloader / standalone connector uber-JAR.</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
