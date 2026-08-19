@@ -30,6 +30,16 @@ This page lists which Java versions Flink supports and what limitations apply (i
 
 Support for Java 11 was added in 1.10.0.
 
+### Native Kubernetes minimum version
+
+Flink's native Kubernetes integration talks to the Kubernetes API server through the JDK built-in
+`java.net.http` HTTP client (via the Fabric8 Kubernetes client), including the WebSocket-based watches that back
+leader election and the pod / ConfigMap informers. Because of [JDK-8245245](https://bugs.openjdk.org/browse/JDK-8245245),
+WebSocket requests whose URL query contains percent-encoded characters are mishandled on Java 11 releases older
+than 11.0.19. Running native Kubernetes — in particular Kubernetes high availability — therefore requires
+**Java 11.0.19 or newer** (the fix was backported via [JDK-8299381](https://bugs.openjdk.org/browse/JDK-8299381)).
+Java 17 and later are unaffected.
+
 ### Untested Flink features
 
 The following Flink features have not been tested with Java 11:
