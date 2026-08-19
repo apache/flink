@@ -1038,10 +1038,6 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(TRY_PARSE_JSON(f1))",
                                 null,
                                 STRING()),
-                // Regression test for FLINK-40410: PARSE_JSON(f0) (VARIANT) precedes
-                // JSON_STRING(PARSE_JSON(f0)) (STRING) in a constant-folded projection. VARIANT
-                // is excluded from folding in ExpressionReducer, like ROW/ARRAY/MAP, and
-                // evaluated normally at runtime.
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.PARSE_JSON,
                                 "VARIANT expression preceding another expression in a"
