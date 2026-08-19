@@ -65,6 +65,7 @@ public class ShowCreateUtil {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
             DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
     private static final String PRINT_INDENT = "  ";
+    // Internal secret-store metadata must not be emitted in recreated connection SQL.
     private static final String CONNECTION_SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
 
     private ShowCreateUtil() {}
@@ -380,7 +381,8 @@ public class ShowCreateUtil {
                 : Optional.of(connection.getComment());
     }
 
-    static Map<String, String> withoutConnectionInternalOptions(Map<String, String> options) {
+    private static Map<String, String> withoutConnectionInternalOptions(
+            Map<String, String> options) {
         return options.entrySet().stream()
                 .filter(entry -> !CONNECTION_SECRET_REFERENCE_KEY.equals(entry.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
