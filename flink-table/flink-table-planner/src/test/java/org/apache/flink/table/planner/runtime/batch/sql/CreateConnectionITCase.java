@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.entry;
 /** IT case for CREATE CONNECTION statement. */
 class CreateConnectionITCase extends BatchTestBase {
 
+    private static final String CONNECTION_SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
+
     @Test
     void testCreateTemporaryConnection() {
         tEnv().executeSql(
@@ -84,6 +86,13 @@ class CreateConnectionITCase extends BatchTestBase {
                         "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
                                 + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
 
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
+                .hasValueSatisfying(
+                        connection ->
+                                assertThat(connection.getOptions())
+                                        .containsKeys("k", "type", CONNECTION_SECRET_REFERENCE_KEY)
+                                        .doesNotContainKey("password"));
+
         List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
 
         assertThat(rows).hasSize(1);
@@ -96,7 +105,7 @@ class CreateConnectionITCase extends BatchTestBase {
                 .contains("'type' = 'default'")
                 .doesNotContain("super-secret")
                 .doesNotContain("password")
-                .doesNotContain("__flink.encrypted-secret-key__");
+                .doesNotContain(CONNECTION_SECRET_REFERENCE_KEY);
     }
 
     private List<Row> collectRows(String sql) {
