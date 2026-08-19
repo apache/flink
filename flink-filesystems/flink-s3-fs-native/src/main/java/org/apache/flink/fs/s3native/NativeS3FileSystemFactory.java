@@ -27,6 +27,11 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.core.plugin.MetricsAware;
+import org.apache.flink.fs.s3native.metrics.AwsSdkMetricBridge;
+import org.apache.flink.fs.s3native.metrics.S3MetricRecorder;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.SlidingWindowHistogram;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -34,11 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -55,10 +62,11 @@ import java.util.Map;
  * @see org.apache.flink.core.fs.FileSystemFactory
  */
 @Experimental
-public class NativeS3FileSystemFactory implements FileSystemFactory {
+public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAware {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystemFactory.class);
 
+    private static final String CONFIGURATION_PREFIX = "s3";
     private static final String INVALID_ENTROPY_KEY_CHARS = "^.*[~#@*+%{}<>\\[\\]|\"\\\\].*$";
 
     public static final long S3_MULTIPART_MIN_PART_SIZE = 5L << 20;
@@ -410,8 +418,46 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "size here causes 'failed to acquire a connection' timeouts "
                                     + "under parallel checkpoint upload/restore. Defaults to 256.");
 
+    public static final ConfigOption<Boolean> METRICS_ENABLED =
+            ConfigOptions.key(CONFIGURATION_PREFIX + ".metrics.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Master switch for publishing S3 operation metrics to Flink's metric "
+                                    + "system.");
+
+    public static final ConfigOption<List<String>> METRICS_ALLOWLIST =
+            ConfigOptions.key(CONFIGURATION_PREFIX + ".metrics.allowlist")
+                    .stringType()
+                    .asList()
+                    .defaultValues(S3MetricRecorder.DEFAULT_ALLOWLIST.toArray(new String[0]))
+                    .withDescription(
+                            "Names of S3 metrics to register. Replaces the default list; use \"*\" "
+                                    + "to register every metric emitted by the plugin. An empty list "
+                                    + "is invalid. The iops metric is derived from api_call_count.");
+
+    public static final ConfigOption<Integer> METRICS_HISTOGRAM_WINDOW_SIZE =
+            ConfigOptions.key(CONFIGURATION_PREFIX + ".metrics.histogram.window-size")
+                    .intType()
+                    .defaultValue(SlidingWindowHistogram.DEFAULT_WINDOW_SIZE)
+                    .withDescription(
+                            "Number of recent values retained by S3 latency histograms. Must be "
+                                    + "positive.");
+
     @Nullable private Configuration flinkConfig;
     @Nullable private BucketConfigProvider bucketConfigProvider;
+
+    @GuardedBy("this")
+    @Nullable
+    private MetricGroup pluginMetrics;
+
+    @GuardedBy("this")
+    @Nullable
+    private MetricGroup attachedMetricGroup;
+
+    @GuardedBy("this")
+    @Nullable
+    private AwsSdkMetricBridge metricBridge;
 
     @Override
     public String getScheme() {
@@ -428,6 +474,40 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
     public void configure(Configuration config) {
         this.flinkConfig = config;
         this.bucketConfigProvider = new BucketConfigProvider(config);
+    }
+
+    @Override
+    public synchronized void setMetricGroup(MetricGroup metricGroup) {
+        if (metricGroup == attachedMetricGroup) {
+            return;
+        }
+        this.attachedMetricGroup = metricGroup;
+        this.pluginMetrics = metricGroup.addGroup("filesystem_type", getScheme());
+        if (metricBridge != null) {
+            metricBridge.setMetricGroup(pluginMetrics);
+        }
+    }
+
+    /**
+     * Returns the stable SDK metric publisher shared by all clients, or {@code null} when metrics
+     * are disabled. The publisher must be installed even before a metric group is available because
+     * runtime startup may cache a file system before attaching metrics.
+     */
+    @Nullable
+    private synchronized AwsSdkMetricBridge resolveMetricBridge(Configuration config) {
+        if (!config.get(METRICS_ENABLED)) {
+            return null;
+        }
+        if (metricBridge == null) {
+            metricBridge =
+                    new AwsSdkMetricBridge(
+                            config.get(METRICS_ALLOWLIST),
+                            config.get(METRICS_HISTOGRAM_WINDOW_SIZE));
+            if (pluginMetrics != null) {
+                metricBridge.setMetricGroup(pluginMetrics);
+            }
+        }
+        return metricBridge;
     }
 
     @Override
@@ -632,6 +712,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .retryCircuitBreakerEnabled(config.get(RETRY_CIRCUIT_BREAKER_ENABLED))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
+                        .metricPublisher(resolveMetricBridge(config))
                         .useCrt(crtEnabled);
 
         if (crtEnabled) {
