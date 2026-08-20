@@ -407,11 +407,13 @@ public class SqlJsonUtils {
     }
 
     /**
-     * Accepts a pre-parsed context from {@link #jsonParse}. {@code isPathDefinite} is computed at plan
-     * time by {@link #isPathDefinite}.
+     * Accepts a pre-parsed context from {@link #jsonParse}. {@code isPathDefinite} is computed at
+     * plan time by {@link #isPathDefinite}.
      */
     public static Integer jsonLength(
-            final JsonValueContext parsedInput, final String pathSpec, final boolean isPathDefinite) {
+            final JsonValueContext parsedInput,
+            final String pathSpec,
+            final boolean isPathDefinite) {
         // An empty path is ruled out up front because JsonPath rejects it with an
         // IllegalArgumentException instead of the InvalidPathException caught below.
         if (parsedInput == null || parsedInput.hasException() || pathSpec.isEmpty()) {

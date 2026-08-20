@@ -86,8 +86,8 @@ public final class JsonCodeGenUtils {
 
     /**
      * Builds the call against the shared parsed input: the whole-document overload, or the path
-     * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time
-     * via {@link SqlJsonUtils#isPathDefinite(String)}.
+     * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time via
+     * {@link SqlJsonUtils#isPathDefinite(String)}.
      *
      * @return the parse statement and the call expression
      */
