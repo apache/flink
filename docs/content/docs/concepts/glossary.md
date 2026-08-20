@@ -231,6 +231,17 @@ a finished Job. Each result contains the Job's identifier, final state, name, th
 belongs to, etc. These results are then used by Flink to determine whether Jobs should
 be subject to recovery in highly-available Clusters.
 
+#### Key Group
+
+A Key Group is the atomic unit of key distribution and state assignment across parallel
+[Sub-Tasks](#sub-task). Every key is mapped deterministically to a Key Group based on
+`keyGroupIndex = MathUtils.murmurHash(key.hashCode()) % maxParallelism`.
+This allows stateful [Operators](#operator) to rescale without rehashing individual keys.
+
+The total number of Key Groups is equal to the [Operator](#operator)'s `maxParallelism`.
+A contiguous range of Key Groups is assigned to each [Sub-Task](#sub-task), and Key Groups are evenly
+distributed across all [Sub-Tasks](#sub-task).
+
 #### Logical Graph
 
 A Logical Graph is a Directed Acyclic Graph (DAG) where the nodes are [Operators](#operator)
@@ -469,8 +480,9 @@ A Transformation is applied on one or more data streams or data sets and results
 output data streams or data sets. A Transformation might change a data stream or data set on a
 per-record basis, but might also only change its Partitioning or perform an aggregation. While
 [Operators](#operator) and [Functions](#function) are the "physical" parts of Flink's API,
-Transformations are only an API concept. Specifically, most Transformations are
-implemented by certain [Operators](#operator).
+Transformations are only an API concept. Most Transformations, like `map()` or `filter()` for
+example, are implemented by specific [Operators](#operator). Others, like `keyBy()` or `broadcast()`,
+correspond to repartitioning between [Operators](#operator).
 
 #### UID
 
@@ -498,9 +510,12 @@ therefore that no further records with a timestamp *t' <= t* are expected. This 
 [Operator](#operator) to decide that an event-time window can be closed, or that an event-time timer
 must fire. A record that arrives after the Watermark has already passed its timestamp is a *late* record.
 
-Watermarks are emitted at the Sources, based on a `WatermarkStrategy`. Each Source [Sub-Task](#sub-task) generates its own Watermarks independently. Event time advances independently in each [Physical Partition](#partition). When a Watermark reaches a Sub-Task, the Sub-Task advances its internal event-time clock and emits a new Watermark to its downstream Sub-Tasks.
-A Sub-Task with several input Channels takes the *minimum* of the event times of its
-active inputs, which means a single lagging input holds back event time for the whole downstream graph.
+Watermarks are emitted at the Sources, based on a `WatermarkStrategy`. Each Source [Sub-Task](#sub-task) 
+generates its own Watermarks independently. Event time advances independently in each 
+[Physical Partition](#partition). When a Watermark reaches a Sub-Task, the Sub-Task advances its internal 
+event-time clock and emits a new Watermark to its downstream Sub-Tasks. A Sub-Task with several input 
+Channels takes the *minimum* of the event times of its active inputs, which means a single lagging input 
+holds back event time for the whole downstream graph.
 
 An input that receives no records cannot advance its Watermark, and would otherwise stall event time
 downstream indefinitely. To prevent this, a `WatermarkStrategy` can declare an input *idle*, which
@@ -510,4 +525,5 @@ input when computing their minimum.
 Watermarks are only used in the `STREAMING` [Execution Mode](#runtime-execution-mode).
 
 See [Timely Stream Processing]({{< ref "docs/concepts/time" >}}#event-time-and-watermarks) for the
-concepts and [Generating Watermarks]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}) for how to configure them.
+concepts and [Generating Watermarks]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}) 
+for how to configure them.
