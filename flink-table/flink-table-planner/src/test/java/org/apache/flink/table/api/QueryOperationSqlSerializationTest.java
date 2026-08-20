@@ -31,6 +31,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -42,7 +43,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for serialization of {@link org.apache.flink.table.operations.QueryOperation}. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -64,6 +69,8 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.AGGREGATE_HAVING_QUERY_OPERATION,
                 QueryOperationTestPrograms.LIMIT_QUERY_OPERATION,
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
+                QueryOperationTestPrograms.WINDOW_AGGREGATE_ROWTIME_QUERY_OPERATION,
+                QueryOperationTestPrograms.WINDOW_AGGREGATE_PROCTIME_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
                 QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
                 QueryOperationTestPrograms.SQL_QUERY_OPERATION,
@@ -87,19 +94,9 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     void testSqlSerialization(TableTestProgram program) {
         final TableEnvironment env = setupEnv(program);
 
-        final TableApiTestStep tableApiStep =
-                (TableApiTestStep)
-                        program.runSteps.stream()
-                                .filter(s -> s instanceof TableApiTestStep)
-                                .findFirst()
-                                .get();
+        final TableApiTestStep tableApiStep = program.getRunTableApiTestStep();
+        final SqlTestStep sqlStep = program.getRunSqlTestStep();
 
-        final SqlTestStep sqlStep =
-                (SqlTestStep)
-                        program.runSteps.stream()
-                                .filter(s -> s instanceof SqlTestStep)
-                                .findFirst()
-                                .get();
         final Table table = tableApiStep.toTable(env);
         assertThat(table.getQueryOperation().asSerializableString(new InlineFunctionSqlFactory()))
                 .isEqualTo(sqlStep.sql);
@@ -110,19 +107,8 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     void testSqlAsJobNameForQueryOperation(TableTestProgram program) {
         final TableEnvironmentImpl env = (TableEnvironmentImpl) setupEnv(program);
 
-        final TableApiTestStep tableApiStep =
-                (TableApiTestStep)
-                        program.runSteps.stream()
-                                .filter(s -> s instanceof TableApiTestStep)
-                                .findFirst()
-                                .get();
-
-        final SqlTestStep sqlStep =
-                (SqlTestStep)
-                        program.runSteps.stream()
-                                .filter(s -> s instanceof SqlTestStep)
-                                .findFirst()
-                                .get();
+        final TableApiTestStep tableApiStep = program.getRunTableApiTestStep();
+        final SqlTestStep sqlStep = program.getRunSqlTestStep();
 
         final Table table = tableApiStep.toTable(env);
 
@@ -136,6 +122,46 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                         env.generatePipelineFromQueryOperation(queryOperation, transformations);
 
         assertThat(streamGraph.getJobName()).isEqualTo(sqlStep.sql);
+    }
+
+    @Test
+    void testProctimeWindowGeneratedSqlPlans() {
+        final TableTestProgram program =
+                QueryOperationTestPrograms.WINDOW_AGGREGATE_PROCTIME_QUERY_OPERATION;
+        final TableEnvironment env = setupEnv(program);
+        final Table tableApiTable = program.getRunTableApiTestStep().toTable(env);
+
+        final String generatedSql =
+                tableApiTable
+                        .getQueryOperation()
+                        .asSerializableString(new InlineFunctionSqlFactory());
+
+        final Table sqlTable = env.sqlQuery(generatedSql);
+
+        assertThat(sqlTable.getResolvedSchema().getColumnNames())
+                .isEqualTo(tableApiTable.getResolvedSchema().getColumnNames());
+        assertThatCode(sqlTable::explain).doesNotThrowAnyException();
+    }
+
+    @Test
+    void testProctimePropertyOfEventTimeWindowCannotBeExpressedInWindowingTvfSyntax() {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_ROWTIME_QUERY_OPERATION);
+
+        final Table table =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), $("b"))
+                        .select($("b"), $("w").proctime(), $("a").sum());
+
+        assertThatThrownBy(
+                        () ->
+                                table.getQueryOperation()
+                                        .asSerializableString(new InlineFunctionSqlFactory()))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "The processing-time property of the event-time group window 'w' cannot be "
+                                + "expressed in windowing-TVF syntax.");
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {

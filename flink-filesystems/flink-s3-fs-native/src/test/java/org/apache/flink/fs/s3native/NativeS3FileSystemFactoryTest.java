@@ -21,10 +21,12 @@ package org.apache.flink.fs.s3native;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.fs.s3native.metrics.AwsSdkMetricBridge;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.metrics.MetricPublisher;
 
 import java.io.IOException;
 import java.net.URI;
@@ -94,6 +96,48 @@ class NativeS3FileSystemFactoryTest {
     void testCreateFileSystemWithMinimalConfiguration() throws Exception {
         NativeS3FileSystem fs = createFs(baseConfig());
         assertThat(fs.getUri()).isEqualTo(URI.create("s3://test-bucket/"));
+    }
+
+    @Test
+    void testMetricsPublisherIsInstalledBeforeMetricGroupAttachment() throws Exception {
+        NativeS3FileSystem fs = createFs(baseConfig());
+        List<MetricPublisher> syncPublishers =
+                fs.getClientProvider()
+                        .getS3Client()
+                        .serviceClientConfiguration()
+                        .overrideConfiguration()
+                        .metricPublishers();
+        List<MetricPublisher> asyncPublishers =
+                fs.getClientProvider()
+                        .getAsyncClient()
+                        .serviceClientConfiguration()
+                        .overrideConfiguration()
+                        .metricPublishers();
+
+        assertThat(syncPublishers).singleElement().isInstanceOf(AwsSdkMetricBridge.class);
+        assertThat(asyncPublishers).containsExactly(syncPublishers.get(0));
+    }
+
+    @Test
+    void testMetricsPublisherIsNotInstalledWhenMetricsAreDisabled() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.METRICS_ENABLED, false);
+        NativeS3FileSystem fs = createFs(config);
+
+        assertThat(
+                        fs.getClientProvider()
+                                .getS3Client()
+                                .serviceClientConfiguration()
+                                .overrideConfiguration()
+                                .metricPublishers())
+                .isEmpty();
+        assertThat(
+                        fs.getClientProvider()
+                                .getAsyncClient()
+                                .serviceClientConfiguration()
+                                .overrideConfiguration()
+                                .metricPublishers())
+                .isEmpty();
     }
 
     @Test
@@ -357,6 +401,19 @@ class NativeS3FileSystemFactoryTest {
         config.set(NativeS3FileSystemFactory.RETRY_MAX_BACKOFF, Duration.ofSeconds(30));
         assertThat(createFs(config).getClientProvider().getRetryMaxBackoff())
                 .isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void testRetryCircuitBreakerEnabledDefault() throws Exception {
+        assertThat(createFs(baseConfig()).getClientProvider().isRetryCircuitBreakerEnabled())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue());
+    }
+
+    @Test
+    void testRetryCircuitBreakerEnabledExplicitlyConfigured() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED, true);
+        assertThat(createFs(config).getClientProvider().isRetryCircuitBreakerEnabled()).isTrue();
     }
 
     // --- Timeouts ---

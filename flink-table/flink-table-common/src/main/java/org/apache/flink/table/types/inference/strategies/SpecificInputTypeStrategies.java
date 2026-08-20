@@ -96,6 +96,11 @@ public final class SpecificInputTypeStrategies {
     public static final ArgumentTypeStrategy JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR =
             new JsonQueryOnErrorEmptyArgumentTypeStrategy();
 
+    /** See {@link JsonPathInputTypeStrategy}. */
+    public static InputTypeStrategy plainJsonPath(final InputTypeStrategy signatures) {
+        return new JsonPathInputTypeStrategy(signatures);
+    }
+
     /** Argument type derived from the array element type. */
     public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
             new ArrayElementArgumentTypeStrategy();

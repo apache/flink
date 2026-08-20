@@ -34,5 +34,25 @@ Example::
     :toctree: api/
 
     DataType
+    DataType.int8
+    DataType.int16
+    DataType.int32
     DataType.int64
+    DataType.float32
+    DataType.float64
+    DataType.decimal
     DataType.string
+    DataType.fixed_size_string
+    DataType.binary
+    DataType.fixed_size_binary
+    DataType.bool
+    DataType.null
+    DataType.date
+    DataType.time
+    DataType.timestamp
+    DataType.timestamp_ltz
+    DataType.list
+    DataType.map
+    DataType.struct
+    DataType.not_null
+    DataType.nullable

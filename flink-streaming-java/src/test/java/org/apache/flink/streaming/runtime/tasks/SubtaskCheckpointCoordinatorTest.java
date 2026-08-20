@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
@@ -73,6 +76,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -82,6 +86,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -95,6 +100,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Tests for {@link SubtaskCheckpointCoordinator}. */
 class SubtaskCheckpointCoordinatorTest {
     private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
+    private static final long DEFAULT_SYNC_PHASE_TIMEOUT = 200L;
 
     @Test
     void testInitCheckpoint() throws IOException, CheckpointException {
@@ -375,6 +381,99 @@ class SubtaskCheckpointCoordinatorTest {
             assertThat(stateManager.getReportedCheckpointId()).isEqualTo(-1);
             assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize()).isZero();
             assertThat(subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize()).isZero();
+        }
+    }
+
+    private StreamMockEnvironment getEnvWithCheckpointSyncTimeout() {
+        return new StreamMockEnvironment(
+                new Configuration(
+                        new Configuration()
+                                .set(
+                                        CheckpointingOptions.CHECKPOINTING_SYNC_PHASE_TIMEOUT,
+                                        Duration.ofMillis(DEFAULT_SYNC_PHASE_TIMEOUT))),
+                new Configuration(),
+                new ExecutionConfig(),
+                1L,
+                new MockInputSplitProvider(),
+                1,
+                new TestTaskStateManager());
+    }
+
+    @Test
+    void testSyncPhaseCompletedOnTime() throws Exception {
+        // Block for half the timeout so sync phase completes on time.
+        final long operatorBlockingUntil = DEFAULT_SYNC_PHASE_TIMEOUT / 2;
+        StreamMockEnvironment env = getEnvWithCheckpointSyncTimeout();
+        OneShotLatch unblockSnapshotLatch = new OneShotLatch();
+        BlockingCheckpointOperator operator =
+                new BlockingCheckpointOperator(unblockSnapshotLatch, operatorBlockingUntil);
+
+        try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
+                (SubtaskCheckpointCoordinatorImpl)
+                        new MockSubtaskCheckpointCoordinatorBuilder().setEnvironment(env).build()) {
+            final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
+                    operatorChain(operator);
+
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(
+                            CheckpointType.CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault(),
+                            CheckpointOptions.AlignmentType.ALIGNED,
+                            CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
+            subtaskCheckpointCoordinator.checkpointState(
+                    new CheckpointMetaData(13L, System.currentTimeMillis()),
+                    checkpointOptions,
+                    new CheckpointMetricsBuilder()
+                            .setAlignmentDurationNanos(0L)
+                            .setBytesProcessedDuringAlignment(0L),
+                    operatorChain,
+                    false,
+                    () -> true);
+        }
+    }
+
+    @Test
+    void testSyncPhaseWatchDogFailsStuckTask() throws Exception {
+        final long checkpointId = 13L;
+        // block for twice the timeout so sync phase times out
+        final long operatorBlockingUntil = DEFAULT_SYNC_PHASE_TIMEOUT * 2;
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        StreamMockEnvironment env = getEnvWithCheckpointSyncTimeout();
+        env.setExternalExceptionHandler(errorRef::set);
+        OneShotLatch unblockSnapshotLatch = new OneShotLatch();
+        BlockingCheckpointOperator operator =
+                new BlockingCheckpointOperator(unblockSnapshotLatch, operatorBlockingUntil);
+
+        try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
+                (SubtaskCheckpointCoordinatorImpl)
+                        new MockSubtaskCheckpointCoordinatorBuilder().setEnvironment(env).build()) {
+            final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
+                    operatorChain(operator);
+
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(
+                            CheckpointType.CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault(),
+                            CheckpointOptions.AlignmentType.ALIGNED,
+                            CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
+            subtaskCheckpointCoordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    checkpointOptions,
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+            assertThat(errorRef.get()).isNotNull();
+            assertThat(errorRef.get().getCause())
+                    .isInstanceOf(TimeoutException.class)
+                    .hasMessageContaining(
+                            "did not complete the synchronous phase of checkpoint "
+                                    + checkpointId
+                                    + " within "
+                                    + DEFAULT_SYNC_PHASE_TIMEOUT
+                                    + " ms.");
+        } finally {
+            unblockSnapshotLatch.trigger();
         }
     }
 
@@ -871,6 +970,33 @@ class SubtaskCheckpointCoordinatorTest {
 
         @Override
         public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
+    }
+
+    private static final class BlockingCheckpointOperator extends CheckpointOperator {
+
+        private final OneShotLatch unblockSnapshotLatch;
+        private final long waitFor;
+
+        BlockingCheckpointOperator(OneShotLatch unblockSnapshotLatch, long waitFor) {
+            super(new OperatorSnapshotFutures());
+            this.unblockSnapshotLatch = unblockSnapshotLatch;
+            this.waitFor = waitFor;
+        }
+
+        @Override
+        public OperatorSnapshotFutures snapshotState(
+                long checkpointId,
+                long timestamp,
+                CheckpointOptions checkpointOptions,
+                CheckpointStreamFactory storageLocation)
+                throws Exception {
+            try {
+                unblockSnapshotLatch.await(waitFor, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ignored) {
+
+            }
+            return super.snapshotState(checkpointId, timestamp, checkpointOptions, storageLocation);
+        }
     }
 
     private static SubtaskCheckpointCoordinator coordinator(ChannelStateWriter channelStateWriter)

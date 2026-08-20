@@ -22,13 +22,14 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,18 +42,18 @@ import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /** Tests for {@link Pattern#timesOrMore(int)}. */
-@RunWith(Parameterized.class)
-public class TimesOrMoreITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class TimesOrMoreITCase {
 
-    @Parameterized.Parameter public Duration time;
+    @Parameter public Duration time;
 
-    @Parameterized.Parameters(name = "Times Range Time: {0}")
+    @Parameters(name = "Times Range Time: {0}")
     public static Collection<Duration> parameters() {
         return Arrays.asList(null, Duration.ofMillis(3));
     }
 
-    @Test
-    public void testTimesOrMore() throws Exception {
+    @TestTemplate
+    void testTimesOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -91,8 +92,8 @@ public class TimesOrMoreITCase extends TestLogger {
                         Lists.newArrayList(startEvent, middleEvent1, middleEvent3, end1)));
     }
 
-    @Test
-    public void testTimesOrMoreNonStrict() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNonStrict() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -149,8 +150,8 @@ public class TimesOrMoreITCase extends TestLogger {
         comparePatterns(resultingPatterns, expectedPatterns);
     }
 
-    @Test
-    public void testTimesOrMoreStrict() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreStrict() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -186,8 +187,8 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreStrictOptional() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -225,8 +226,8 @@ public class TimesOrMoreITCase extends TestLogger {
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreStrictOptional2() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreStrictOptional2() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -268,8 +269,8 @@ public class TimesOrMoreITCase extends TestLogger {
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreNonStrictOptional() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNonStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -297,8 +298,8 @@ public class TimesOrMoreITCase extends TestLogger {
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreNonStrictOptional2() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNonStrictOptional2() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -356,8 +357,8 @@ public class TimesOrMoreITCase extends TestLogger {
         comparePatterns(resultingPatterns, expectedPatterns);
     }
 
-    @Test
-    public void testTimesOrMoreNonStrictOptional3() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNonStrictOptional3() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -405,8 +406,8 @@ public class TimesOrMoreITCase extends TestLogger {
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreNonStrictWithNext() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNonStrictWithNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -457,8 +458,8 @@ public class TimesOrMoreITCase extends TestLogger {
         comparePatterns(resultingPatterns, expectedPatterns);
     }
 
-    @Test
-    public void testTimesOrMoreNotStrictWithFollowedBy() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNotStrictWithFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
@@ -497,8 +498,8 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.end)));
     }
 
-    @Test
-    public void testTimesOrMoreNotStrictWithFollowedByAny() throws Exception {
+    @TestTemplate
+    void testTimesOrMoreNotStrictWithFollowedByAny() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));

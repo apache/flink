@@ -212,7 +212,7 @@ msgstr ""
 #: ../../user_guide/datastream/operators.rst:196
 msgid ""
 "You could also disable all the operator chaining via configuration "
-"``python.operator-chaining.enabled`` (see :doc:`../configuration`)."
+":confval:`python.operator-chaining.enabled`."
 msgstr ""
 
 #: ../../user_guide/datastream/operators.rst:200
@@ -223,11 +223,10 @@ msgstr ""
 msgid ""
 "To run Python functions in any non-local mode, it is strongly recommended"
 " bundling your Python functions definitions using the config option "
-"``python-files`` (see :doc:`../configuration`), if your Python functions "
-"live outside the file where the ``main()`` function is defined. "
-"Otherwise, you may run into ``ModuleNotFoundError: No module named "
-"'my_function'`` if you define Python functions in a file called "
-"``my_function.py``."
+":confval:`python.files`, if your Python functions live outside the file "
+"where the ``main()`` function is defined. Otherwise, you may run into "
+"``ModuleNotFoundError: No module named 'my_function'`` if you define "
+"Python functions in a file called ``my_function.py``."
 msgstr ""
 
 #: ../../user_guide/datastream/operators.rst:209

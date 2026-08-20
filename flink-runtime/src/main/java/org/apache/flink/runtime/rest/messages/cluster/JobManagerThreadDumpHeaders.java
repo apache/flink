@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
@@ -29,7 +28,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Headers for the {@link JobManagerThreadDumpHandler}. */
 public class JobManagerThreadDumpHeaders
-        implements RuntimeMessageHeaders<EmptyRequestBody, ThreadDumpInfo, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, ThreadDumpInfo, JobManagerThreadDumpMessageParameters> {
 
     private static final JobManagerThreadDumpHeaders INSTANCE = new JobManagerThreadDumpHeaders();
 
@@ -43,8 +43,8 @@ public class JobManagerThreadDumpHeaders
     }
 
     @Override
-    public EmptyMessageParameters getUnresolvedMessageParameters() {
-        return EmptyMessageParameters.getInstance();
+    public JobManagerThreadDumpMessageParameters getUnresolvedMessageParameters() {
+        return new JobManagerThreadDumpMessageParameters();
     }
 
     @Override

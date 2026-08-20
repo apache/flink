@@ -58,7 +58,7 @@ public enum ProtoUtils {
                         RunnerApi.FunctionSpec.newBuilder()
                                 .setUrn(FLINK_CODER_URN)
                                 .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf
+                                        org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf
                                                 .ByteString.copyFrom(
                                                 coderInfoDescriptor.toByteArray()))
                                 .build())

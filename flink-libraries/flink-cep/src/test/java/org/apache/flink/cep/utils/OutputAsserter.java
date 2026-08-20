@@ -24,9 +24,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import java.util.Queue;
 
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Asserter for output from {@link OneInputStreamOperatorTestHarness}. */
 public class OutputAsserter {
@@ -55,19 +53,19 @@ public class OutputAsserter {
             // This is in case we assert the main output
             actual = record;
         }
-        assertThat(actual, is(expected));
+        assertThat(actual).isEqualTo(expected);
         return this;
     }
 
     public void hasNoMoreElements() {
-        assertTrue(output.isEmpty());
+        assertThat(output).isEmpty();
     }
 
     public OutputAsserter watermarkEquals(long timestamp) {
         Object record = output.poll();
         if (record instanceof Watermark) {
             Watermark watermark = (Watermark) record;
-            assertThat(watermark.getTimestamp(), is(timestamp));
+            assertThat(watermark.getTimestamp()).isEqualTo(timestamp);
         } else {
             throw fail(record);
         }

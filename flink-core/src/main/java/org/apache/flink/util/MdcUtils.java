@@ -19,10 +19,14 @@
 package org.apache.flink.util;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MdcOptions;
 
 import org.slf4j.MDC;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,9 +39,31 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utility class to manage common Flink attributes in {@link MDC}. */
+@ThreadSafe
 public class MdcUtils {
 
     public static final String JOB_ID = "flink-job-id";
+
+    /**
+     * Longest job name embedded in a thread name; longer ones, such as generated SQL job names, are
+     * truncated. Matches the length of the hex {@link JobID} that follows it.
+     */
+    private static final int MAX_JOB_NAME_IN_THREAD_NAME = 32;
+
+    /**
+     * Number of trailing job name characters kept when a job name is truncated. Generated job names
+     * often share a long prefix and differ only near the end (e.g. {@code ...-v1} / {@code
+     * ...-v2}), so dropping the tail would make distinct jobs indistinguishable in a thread dump.
+     */
+    private static final int TRUNCATED_JOB_NAME_TAIL_LENGTH = 9;
+
+    private static final String TRUNCATION_MARKER = "...";
+
+    /** Chosen so that a truncated name is exactly {@link #MAX_JOB_NAME_IN_THREAD_NAME} long. */
+    private static final int TRUNCATED_JOB_NAME_HEAD_LENGTH =
+            MAX_JOB_NAME_IN_THREAD_NAME
+                    - TRUNCATION_MARKER.length()
+                    - TRUNCATED_JOB_NAME_TAIL_LENGTH;
 
     /**
      * Replace MDC contents with the provided one and return a closeable object that can be used to
@@ -138,9 +164,12 @@ public class MdcUtils {
                 jobConfiguration.get(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS);
         final Map<String, String> context = new HashMap<>();
         for (Map.Entry<String, String> entry : mdcKeyMapping.entrySet()) {
+            final String mdcKeyName = entry.getValue();
+            final String effectiveMdcKey =
+                    (mdcKeyName == null || mdcKeyName.isBlank()) ? entry.getKey() : mdcKeyName;
             final String value = jobConfiguration.getString(entry.getKey(), null);
             if (value != null && !value.isBlank()) {
-                context.put(entry.getValue(), value);
+                context.put(effectiveMdcKey, value);
             }
         }
         if (context.isEmpty()) {
@@ -148,5 +177,38 @@ public class MdcUtils {
         }
         context.put(JOB_ID, jobID.toHexString());
         return Collections.unmodifiableMap(context);
+    }
+
+    /**
+     * Build a thread-name suffix identifying the job, e.g. {@code " (job: my-job /
+     * 2f4b0e4a9cbb223e924f1e5d9e6a7c11)"}. The job name may be truncated; the hex job id never is,
+     * so it always matches the {@link #JOB_ID} MDC value and a thread dump can be lined up with the
+     * logs.
+     *
+     * @param jobInfo the job meta information
+     * @return a suffix to append to a thread name
+     */
+    public static String jobThreadNameSuffix(@Nonnull JobInfo jobInfo) {
+        final String hexJobId = jobInfo.getJobId().toHexString();
+        final String rawJobName = jobInfo.getJobName();
+        final String jobName = rawJobName == null ? "" : rawJobName.strip();
+        if (jobName.isEmpty()) {
+            return " (job: " + hexJobId + ")";
+        }
+        return " (job: " + truncateJobName(jobName) + " / " + hexJobId + ")";
+    }
+
+    /**
+     * Shorten a job name to {@link #MAX_JOB_NAME_IN_THREAD_NAME} characters by eliding its middle
+     * and keeping the last {@link #TRUNCATED_JOB_NAME_TAIL_LENGTH}, for the reason given on that
+     * constant.
+     */
+    private static String truncateJobName(String jobName) {
+        if (jobName.length() <= MAX_JOB_NAME_IN_THREAD_NAME) {
+            return jobName;
+        }
+        return jobName.substring(0, TRUNCATED_JOB_NAME_HEAD_LENGTH)
+                + TRUNCATION_MARKER
+                + jobName.substring(jobName.length() - TRUNCATED_JOB_NAME_TAIL_LENGTH);
     }
 }

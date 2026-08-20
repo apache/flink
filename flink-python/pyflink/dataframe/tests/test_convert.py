@@ -17,9 +17,15 @@
 ################################################################################
 
 import unittest
+from datetime import datetime
+from unittest.mock import Mock, patch
 from typing import NamedTuple
 
+import pandas as pd
+import pyarrow as pa
 import pyflink.dataframe as pf
+import pyflink.dataframe.convert as dataframe_convert
+from pyflink.table.types import BigIntType, RowType
 
 
 class _Point(NamedTuple):
@@ -223,6 +229,159 @@ class FromDictTests(unittest.TestCase):
     def test_rejects_duplicate_schema_field_names(self):
         with self.assertRaisesRegex(ValueError, "schema field names must be unique"):
             pf.from_dict({"id": [1]}, schema=["id", "id"])
+
+
+class CreationValidationTests(unittest.TestCase):
+    def test_parses_watermark_into_semantic_specification(self):
+        watermark = dataframe_convert._WatermarkSpec.parse(
+            ("ts", "ts - INTERVAL '5' SECOND")
+        )
+
+        self.assertEqual(watermark.column, "ts")
+        self.assertEqual(watermark.expression, "ts - INTERVAL '5' SECOND")
+
+    def test_watermark_spec_unpacks_column_before_expression(self):
+        watermark = dataframe_convert._WatermarkSpec(
+            "ts", "ts - INTERVAL '5' SECOND"
+        )
+
+        self.assertEqual(tuple(watermark), ("ts", "ts - INTERVAL '5' SECOND"))
+
+    def test_rejects_invalid_watermarks(self):
+        invalid_watermarks = [
+            ("ts", "watermark must be a tuple"),
+            (("ts",), "watermark must be a tuple"),
+            (("ts", "ts", "extra"), "watermark must be a tuple"),
+            (("", "ts"), "must be non-empty strings"),
+            (("ts", ""), "must be non-empty strings"),
+            ((1, "ts"), "must be non-empty strings"),
+        ]
+        for watermark, message in invalid_watermarks:
+            with self.subTest(watermark=watermark):
+                with self.assertRaisesRegex(TypeError, message):
+                    pf.from_dict(
+                        {"ts": [datetime(2026, 1, 1)]}, watermark=watermark
+                    )
+
+    def test_pandas_and_arrow_reject_invalid_positional_schemas(self):
+        inputs = [
+            (pf.from_pandas, pd.DataFrame({"left": [1], "right": [2]})),
+            (pf.from_arrow, pa.table({"left": [1], "right": [2]})),
+        ]
+        invalid_schemas = [
+            ("names", TypeError, "schema must be a list of strings"),
+            (["left", 2], TypeError, "schema must be a list of strings"),
+            (["left"], ValueError, "schema has 1 fields but data has 2 columns"),
+            (["left", "left"], ValueError, "schema field names must be unique"),
+        ]
+        for creator, data in inputs:
+            for schema, error_type, message in invalid_schemas:
+                with self.subTest(creator=creator.__name__, schema=schema):
+                    with self.assertRaisesRegex(error_type, message):
+                        creator(data, schema=schema)
+
+    def test_pandas_rejects_duplicate_columns_without_schema(self):
+        pdf = pd.DataFrame([[1, 2]], columns=["value", "value"])
+
+        with self.assertRaisesRegex(ValueError, "schema field names must be unique"):
+            pf.from_pandas(pdf)
+
+    def test_rejects_columnar_fields_containing_null_type(self):
+        inputs = [
+            (
+                lambda: pf.from_pandas(pd.DataFrame({"value": [None]})),
+                "columns with Arrow null types: 'value'",
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table({"left": pa.nulls(1), "right": pa.nulls(1)})
+                ),
+                "columns with Arrow null types: 'left', 'right'",
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "value": pa.array(
+                                [[None]], type=pa.list_(pa.null())
+                            )
+                        }
+                    )
+                ),
+                "columns with Arrow null types: 'value'",
+            ),
+        ]
+        for creator, message in inputs:
+            with self.subTest(creator=creator):
+                with self.assertRaisesRegex(TypeError, message):
+                    creator()
+
+    def test_rejects_invalid_table_and_columnar_inputs(self):
+        invalid_inputs = [
+            (pf.from_table, object(), "pyflink.table.Table"),
+            (pf.from_pandas, object(), "pandas.DataFrame"),
+            (pf.from_arrow, object(), "pyarrow.Table"),
+        ]
+        for creator, data, message in invalid_inputs:
+            with self.subTest(creator=creator.__name__):
+                with self.assertRaisesRegex(TypeError, message):
+                    creator(data)
+
+
+class RangeTests(unittest.TestCase):
+    def test_matches_python_range_and_preserves_bigint_schema_when_empty(self):
+        cases = [
+            ((4,), [(0,), (1,), (2,), (3,)]),
+            ((4, -1, -2), [(4,), (2,), (0,)]),
+            ((2, 2), []),
+            ((2**63 - 1, 2**63), [(2**63 - 1,)]),
+            ((-(2**63), -(2**63) + 1), [(-(2**63),)]),
+        ]
+        for arguments, expected_rows in cases:
+            table_environment = Mock()
+            table_environment._from_elements.return_value = object()
+            with self.subTest(arguments=arguments), patch(
+                "pyflink.dataframe.convert.get_or_create_table_environment",
+                return_value=table_environment,
+            ):
+                pf.range(*arguments)
+
+            rows, row_type = table_environment._from_elements.call_args.args[:2]
+            self.assertEqual([row[1:] for row in rows], expected_rows)
+            self.assertIsInstance(row_type, RowType)
+            self.assertEqual(row_type.field_names(), ["id"])
+            self.assertIsInstance(row_type.field_types()[0], BigIntType)
+
+    def test_rejects_values_outside_bigint_bounds(self):
+        invalid_ranges = [
+            (2**63, 2**63 + 1),
+            (2**63 - 1, 2**63 + 2),
+            (-(2**63) - 1, -(2**63) - 2, -1),
+            (-(2**63), -(2**63) - 3, -1),
+        ]
+        table_environment = Mock()
+        for arguments in invalid_ranges:
+            with self.subTest(arguments=arguments), patch(
+                "pyflink.dataframe.convert.get_or_create_table_environment",
+                return_value=table_environment,
+            ) as get_table_environment:
+                with self.assertRaisesRegex(
+                    ValueError, "range values must fit in signed BIGINT"
+                ):
+                    pf.range(*arguments)
+                get_table_environment.assert_not_called()
+
+    def test_rejects_invalid_arguments(self):
+        invalid_arguments = [
+            ((1.5,), TypeError, "start_or_end must be an integer"),
+            ((0, 1.5), TypeError, "end must be an integer"),
+            ((0, 1, 1.5), TypeError, "step must be an integer"),
+            ((0, 1, 0), ValueError, "step must not be zero"),
+        ]
+        for arguments, error_type, message in invalid_arguments:
+            with self.subTest(arguments=arguments):
+                with self.assertRaisesRegex(error_type, message):
+                    pf.range(*arguments)
 
 if __name__ == "__main__":
     unittest.main()

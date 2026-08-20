@@ -16,7 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Any, Callable, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, overload
+
+if TYPE_CHECKING:
+    import pandas
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
@@ -28,10 +31,9 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
-from pyflink.table.types import DataTypes as TableDataTypes
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["DataFrame", "col", "lit"]
+__all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
 
 
 @PublicEvolving()
@@ -81,16 +83,6 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
     table_data_type = data_type._to_table_data_type()
     if value is None:
         return table_lit(value, table_data_type)
-    if (
-        table_data_type.nullable() == TableDataTypes.BIGINT()
-        and isinstance(value, int)
-        and not isinstance(value, bool)
-        and -(1 << 31) <= value < (1 << 31)
-    ):
-        # Py4J sends Python integers in this range as java.lang.Integer, but a typed BIGINT
-        # literal requires java.lang.Long. Match BIGINT independently of its nullability, then
-        # cast a typed INT literal to the originally declared BIGINT type.
-        return table_lit(value, TableDataTypes.INT().not_null()).cast(table_data_type)
     return table_lit(value, table_data_type.not_null())
 
 
@@ -115,6 +107,8 @@ class DataFrame:
 
     def __init__(self, table: Table):
         self._table = table
+
+    # ======================== Core Operations ========================
 
     @PublicEvolving()
     def filter(
@@ -271,6 +265,87 @@ class DataFrame:
 
         return DataFrame(self._table.select(*expressions))
 
+    # ======================== Aggregation ========================
+
+    @PublicEvolving()
+    def group_by(self, *columns: Union[str, Expression]) -> "GroupedDataFrame":
+        """
+        Group rows by one or more columns for aggregation.
+
+        String column names are converted to column expressions. Grouping keys are retained in
+        their supplied order and are included first in the result of
+        :meth:`GroupedDataFrame.agg`.
+
+        :param columns: Column names or expressions used as grouping keys.
+        :return: A grouped DataFrame that can be aggregated.
+        :raises TypeError: If a grouping key is not a string or expression.
+        :raises ValueError: If no grouping keys are provided.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     ("engineering", 10),
+            ...     ("engineering", 20),
+            ...     ("sales", 5),
+            ... ], schema=["department", "amount"])
+            >>> totals = df.group_by("department").agg(
+            ...     pf.col("amount").sum.alias("total_amount"),
+            ...     row_count=pf.col("amount").count,
+            ... )
+            >>> # totals schema: [department: STRING, total_amount: BIGINT,
+            >>> #                 row_count: BIGINT NOT NULL]
+
+        .. versionadded:: 2.4.0
+        """
+        if not columns:
+            raise ValueError("group_by() requires at least one grouping key")
+
+        grouping_keys: List[Expression] = []
+        for column in columns:
+            if isinstance(column, str):
+                grouping_keys.append(table_col(column))
+            elif isinstance(column, Expression):
+                grouping_keys.append(column)
+            else:
+                raise TypeError(
+                    "group_by() grouping keys must be strings or expressions"
+                )
+        return GroupedDataFrame(self, grouping_keys)
+
+    @PublicEvolving()
+    def agg(self, *aggs: Expression, **named_aggs: Expression) -> "DataFrame":
+        """
+        Aggregate all rows in this DataFrame.
+
+        Positional aggregation expressions are followed by named aggregations in the result.
+        Each named aggregation is aliased to its keyword name.
+
+        :param aggs: Aggregation expressions.
+        :param named_aggs: Aggregation expressions keyed by their result column names.
+        :return: A DataFrame containing the global aggregation results.
+        :raises TypeError: If an aggregation is not an expression.
+        :raises ValueError: If no aggregations are provided.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     (1, 10), (2, 20)
+            ... ], schema=["order_id", "amount"])
+            >>> summary = df.agg(
+            ...     pf.col("order_id").count.alias("order_count"),
+            ...     total_amount=pf.col("amount").sum,
+            ... )
+            >>> # summary schema: [order_count: BIGINT NOT NULL, total_amount: BIGINT]
+
+        .. versionadded:: 2.4.0
+        """
+        aggregations = _normalize_aggregations(aggs, named_aggs)
+        return DataFrame(self._table.group_by().select(*aggregations))
+
+    # ======================== Special Methods ========================
+
     @overload
     def __getitem__(self, key: str) -> Expression:
         ...
@@ -329,6 +404,8 @@ class DataFrame:
             return self.filter(key)
         raise TypeError("key must be a string, list, tuple, or Expression")
 
+    # ======================== Conversion ========================
+
     @PublicEvolving()
     def collect(self) -> List[Row]:
         """
@@ -348,3 +425,156 @@ class DataFrame:
         """
         with self._table.execute().collect() as rows:
             return list(rows)
+
+    @PublicEvolving()
+    def to_table(self) -> Table:
+        """
+        Return the underlying PyFlink Table without copying or converting it.
+
+        This method does not trigger job execution.
+
+        :return: The exact Table wrapped by this DataFrame.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> table = table_env.from_elements([(1,)], ["id"])
+            >>> dataframe = pf.from_table(table)
+            >>> dataframe.to_table() is table
+            True
+
+        .. versionadded:: 2.4.0
+        """
+        return self._table
+
+    @PublicEvolving()
+    def to_pandas(self) -> "pandas.DataFrame":
+        """
+        Execute this DataFrame and collect its rows into a pandas DataFrame.
+
+        All results are transferred to the client and must fit in client memory.
+
+        :return: A pandas DataFrame containing all result rows.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> dataframe = pf.from_records([{"id": 1}, {"id": 2}])
+            >>> pdf = dataframe.to_pandas()
+
+        .. versionadded:: 2.4.0
+        """
+        return self._table.to_pandas()
+
+    # ======================== I/O ========================
+
+    @PublicEvolving()
+    def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
+        """
+        Write this DataFrame using a connector and its raw Table connector options.
+
+        The connector must be available through Flink's factory discovery mechanism. The write is
+        submitted immediately and waits for completion when using local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's output schema.
+
+        :param connector: Factory identifier used as the ``connector`` Table option.
+        :param options: Connector options, excluding the reserved ``connector`` option.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the connector or an option key is empty, or if ``options`` contains
+            the reserved ``connector`` key.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_generic(
+            ...     "filesystem",
+            ...     options={
+            ...         "path": "file:///tmp/events",
+            ...         "format": "csv",
+            ...     },
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import _build_generic_descriptor
+
+        descriptor = _build_generic_descriptor(connector, options)
+        result = self._table.execute_insert(descriptor)
+        execution_target = self._table._t_env.get_config().get(
+            "execution.target", None
+        )
+        if execution_target in ("local", "minicluster"):
+            result.wait()
+
+
+@PublicEvolving()
+class GroupedDataFrame:
+    """
+    A DataFrame grouped by one or more keys and ready for aggregation.
+
+    Instances are created by :meth:`DataFrame.group_by`.
+
+    .. versionadded:: 2.4.0
+    """
+
+    def __init__(self, dataframe: DataFrame, grouping_keys: List[Expression]):
+        self._dataframe = dataframe
+        self._grouping_keys = grouping_keys
+
+    @PublicEvolving()
+    def agg(self, *aggs: Expression, **named_aggs: Expression) -> DataFrame:
+        """
+        Aggregate the rows in each group.
+
+        Grouping keys are included first in their supplied order, followed by positional
+        aggregation expressions and then named aggregations. Each named aggregation is aliased to
+        its keyword name.
+
+        :param aggs: Aggregation expressions.
+        :param named_aggs: Aggregation expressions keyed by their result column names.
+        :return: A DataFrame containing the grouping keys and aggregation results.
+        :raises TypeError: If an aggregation is not an expression.
+        :raises ValueError: If no aggregations are provided.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     ("engineering", 10),
+            ...     ("engineering", 20),
+            ...     ("sales", 5),
+            ... ], schema=["department", "amount"])
+            >>> totals = df.group_by("department").agg(
+            ...     pf.col("amount").sum.alias("total_amount"),
+            ...     row_count=pf.col("amount").count,
+            ... )
+            >>> # totals schema: [department: STRING, total_amount: BIGINT,
+            >>> #                 row_count: BIGINT NOT NULL]
+
+        .. versionadded:: 2.4.0
+        """
+        aggregations = _normalize_aggregations(aggs, named_aggs)
+        grouped_table = self._dataframe._table.group_by(*self._grouping_keys)
+        return DataFrame(grouped_table.select(*self._grouping_keys, *aggregations))
+
+
+# ======================== Internal Helpers ========================
+
+
+def _normalize_aggregations(
+    aggs: Tuple[Expression, ...], named_aggs: Dict[str, Expression]
+) -> List[Expression]:
+    if not aggs and not named_aggs:
+        raise ValueError("agg() requires at least one aggregation")
+
+    aggregations: List[Expression] = []
+    for aggregation in aggs:
+        if not isinstance(aggregation, Expression):
+            raise TypeError("agg() aggregations must be expressions")
+        aggregations.append(aggregation)
+    for name, aggregation in named_aggs.items():
+        if not isinstance(aggregation, Expression):
+            raise TypeError("agg() aggregations must be expressions")
+        aggregations.append(aggregation.alias(name))
+    return aggregations

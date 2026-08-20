@@ -23,6 +23,8 @@ import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.JobPermanentBlobService;
@@ -1466,12 +1468,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
-        int stacktraceMaxDepth =
-                taskManagerConfiguration
-                        .getConfiguration()
-                        .get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
-        return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth));
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, Duration timeout) {
+        final Configuration config = taskManagerConfiguration.getConfiguration();
+        final int stacktraceMaxDepth = config.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
+        final ThreadDumpMode resolvedMode =
+                mode != null ? mode : config.get(ClusterOptions.THREAD_DUMP_DEFAULT_MODE);
+        return CompletableFuture.supplyAsync(
+                () -> ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth, resolvedMode), ioExecutor);
     }
 
     @Override

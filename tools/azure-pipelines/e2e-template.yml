@@ -31,11 +31,23 @@ jobs:
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
+  variables:
+    # Newline-separated git pathspec globs (GitHub Actions "paths-ignore" style); PRs touching only these skip e2e.
+    IGNORE_PATHS: |
+      docs/**
+      **/*.md
+      .idea/**
+      .asf.yaml
+      .editorconfig
+      .git-blame-ignore-revs
+      .gitignore
+      .gitattributes
+      .github/**
   steps:
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh
-        is_docs_only_pullrequest
+        is_ignored_pattern_pullrequest
         if [[ "$?" == 0 ]] ; then
           echo "##[debug]This is a documentation-only change. Skipping e2e execution."
           echo "##vso[task.setvariable variable=skip;]1"
@@ -128,7 +140,8 @@ jobs:
         sudo apt install ./libssl1.0.0_*.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
+    # e2e only needs the built binary; MVN_LICENSE_CHECK_ARGS="" skips all QA (convergence, license, structural) and the DEBUG shade logging, which run in the license_check job.
+    - script: MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/ci/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}

@@ -23,7 +23,7 @@ requires = [
     "wheel",
     "cython>=0.29.24,<3; sys_platform == 'darwin' and python_version == '3.8'",
     "fastavro==1.7.4; sys_platform == 'darwin' and python_version == '3.8'",
-    "apache-beam>=2.54.0,<=2.61.0",
+    "apache-beam>=2.69.0,<=2.75.0",
     "cython>=0.29.24"
 ]
 
@@ -32,7 +32,7 @@ dev = [
   "pip>=20.3",
   "setuptools>=75.3,<82",
   "wheel",
-  "apache-beam>=2.54.0,<=2.61.0",
+  "apache-beam>=2.69.0,<=2.75.0",
   "cython>=0.29.24",
   "py4j==0.10.9.7",
   "python-dateutil>=2.8.0,<3",
@@ -43,11 +43,12 @@ dev = [
   "pytz>=2018.3",
   "numpy>=1.22.4,<2.3.0",
   "fastavro>=1.1.0,!=1.8.0",
-  "grpcio>=1.29.0,<=1.71.0",
-  "grpcio-tools>=1.29.0,<=1.71.0",
+  "grpcio>=1.33.1,<2",
+  # Apache Beam 2.69 is the last version supporting Python 3.9 and requires grpcio<1.66.
+  "grpcio-tools==1.80.0; python_version >= '3.10'",
   "pemja>=0.5.7,<0.5.8; platform_system != 'Windows'",
   "httplib2>=0.19.0",
-  "protobuf~=4.25",
+  "protobuf>=6.31.1,<7.0.0.dev0",
   "pytest~=8.0",
   "ruamel.yaml>=0.18.4",
 ]
@@ -58,18 +59,11 @@ flake8 = [
     "flake8==7.2.0"
 ]
 sphinx = [
-    "Sphinx==4.5.0",
-    "importlib-metadata==4.4.0",
-    "Docutils==0.17.1",
-    "pydata_sphinx_theme==0.11.0",
-    "sphinx_mdinclude==0.5.3",
-    "Jinja2<3.1.0",
-    "sphinxcontrib-applehelp<1.0.8",
-    "sphinxcontrib.devhelp<1.0.6",
-    "sphinxcontrib.htmlhelp<2.0.5",
-    "sphinxcontrib-serializinghtml<1.1.10",
-    "sphinxcontrib-qthelp<1.0.7",
-    "sphinx-intl"
+    "Sphinx==7.4.7",
+    "Docutils==0.21.2",
+    "pydata_sphinx_theme==0.16.1",
+    "sphinx_mdinclude==0.6.2",
+    "sphinx-intl==2.3.2"
 ]
 mypy = [
     "mypy==1.5.1",

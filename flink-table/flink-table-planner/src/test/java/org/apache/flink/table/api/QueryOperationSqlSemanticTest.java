@@ -49,6 +49,7 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
                 QueryOperationTestPrograms.AGGREGATE_HAVING_QUERY_OPERATION,
                 QueryOperationTestPrograms.LIMIT_QUERY_OPERATION,
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
+                QueryOperationTestPrograms.WINDOW_AGGREGATE_ROWTIME_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
                 QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
                 QueryOperationTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME,

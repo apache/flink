@@ -19,6 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
@@ -31,7 +35,6 @@ import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.ExecNodeNa
 
 import org.apache.flink.shaded.guava33.com.google.common.reflect.ClassPath;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -43,22 +46,30 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.fail;
+
 /** Validate restore tests exists for Exec Nodes. */
-public class RestoreTestCompleteness {
+class RestoreTestCompletenessTest {
 
     private static final Set<Class<? extends ExecNode<?>>> SKIP_EXEC_NODES =
-            new HashSet<Class<? extends ExecNode<?>>>() {
-                {
-                    /** Ignoring python based exec nodes temporarily. */
-                    add(StreamExecPythonCalc.class);
-                    add(StreamExecPythonCorrelate.class);
-                    add(StreamExecPythonOverAggregate.class);
-                    add(StreamExecPythonGroupAggregate.class);
-                    add(StreamExecPythonGroupTableAggregate.class);
-                    add(StreamExecPythonGroupWindowAggregate.class);
-                    add(StreamExecPythonAsyncCalc.class);
-                }
-            };
+            Set.of(
+                    /* Ignoring python based exec nodes temporarily. */
+                    StreamExecPythonCalc.class,
+                    StreamExecPythonCorrelate.class,
+                    StreamExecPythonOverAggregate.class,
+                    StreamExecPythonGroupAggregate.class,
+                    StreamExecPythonGroupTableAggregate.class,
+                    StreamExecPythonGroupWindowAggregate.class,
+                    StreamExecPythonAsyncCalc.class,
+
+                    // Covered by tests in WindowAggregateEventTimeRestoreTest
+                    StreamExecLocalWindowAggregate.class,
+                    StreamExecGlobalWindowAggregate.class,
+
+                    // There is jira for these 2 batch tests
+                    // https://issues.apache.org/jira/browse/FLINK-40306
+                    BatchExecHashAggregate.class,
+                    BatchExecNestedLoopJoin.class);
 
     private Class<? extends ExecNode<?>> getExecNode(Class<?> restoreTest)
             throws NoSuchMethodException,
@@ -87,7 +98,7 @@ public class RestoreTestCompleteness {
     }
 
     @Test
-    public void testMissingRestoreTest()
+    void testMissingRestoreTest()
             throws IOException,
                     NoSuchMethodException,
                     InstantiationException,
@@ -97,12 +108,14 @@ public class RestoreTestCompleteness {
                 ExecNodeMetadataUtil.getVersionedExecNodes();
 
         Set<ClassPath.ClassInfo> classesInPackage =
-                ClassPath.from(this.getClass().getClassLoader())
-                        .getTopLevelClassesRecursive(
-                                "org.apache.flink.table.planner.plan.nodes.exec.stream")
-                        .stream()
-                        .filter(x -> RestoreTestBase.class.isAssignableFrom(x.load()))
-                        .collect(Collectors.toSet());
+                new HashSet<>(
+                        gatherClasses(
+                                RestoreTestBase.class,
+                                "org.apache.flink.table.planner.plan.nodes.exec.stream"));
+        classesInPackage.addAll(
+                gatherClasses(
+                        BatchRestoreTestBase.class,
+                        "org.apache.flink.table.planner.plan.nodes.exec.batch"));
 
         Set<Class<? extends ExecNode<?>>> execNodesWithRestoreTests = new HashSet<>();
 
@@ -118,18 +131,33 @@ public class RestoreTestCompleteness {
             }
         }
 
+        Set<Class<? extends ExecNode<?>>> productionExecNodes = ExecNodeMetadataUtil.execNodes();
         for (Map.Entry<ExecNodeNameVersion, Class<? extends ExecNode<?>>> entry :
                 versionedExecNodes.entrySet()) {
             ExecNodeNameVersion execNodeNameVersion = entry.getKey();
             Class<? extends ExecNode<?>> execNode = entry.getValue();
-            if (!SKIP_EXEC_NODES.contains(execNode)) {
-                final String msg =
+            // Ignore test-only nodes that other tests leak into the shared LOOKUP_MAP via
+            // addTestNode().
+            if (!productionExecNodes.contains(execNode)) {
+                continue;
+            }
+            if (!SKIP_EXEC_NODES.contains(execNode)
+                    && !execNodesWithRestoreTests.contains(execNode)) {
+                fail(
                         "Missing restore test for "
                                 + execNodeNameVersion
                                 + "\nPlease add a restore test for "
-                                + execNode.toString();
-                Assertions.assertTrue(execNodesWithRestoreTests.contains(execNode), msg);
+                                + execNode.toString());
             }
         }
+    }
+
+    private Set<ClassPath.ClassInfo> gatherClasses(Class<?> clazz, String packageName)
+            throws IOException {
+        return ClassPath.from(this.getClass().getClassLoader())
+                .getTopLevelClassesRecursive(packageName)
+                .stream()
+                .filter(x -> clazz.isAssignableFrom(x.load()))
+                .collect(Collectors.toSet());
     }
 }

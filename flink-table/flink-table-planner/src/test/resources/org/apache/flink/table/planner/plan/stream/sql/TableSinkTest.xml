@@ -16,6 +16,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testAppendOnlyInputWithoutOnConflict">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sinkWithPk], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sinkWithPk], fields=[a, b], changelogMode=[NONE])
++- Calc(select=[a, b], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAppendSink">
     <Resource name="ast">
       <![CDATA[
@@ -488,6 +504,179 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testForcedMaterializeWithAppendOnlyInput">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.forcedSink], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.forcedSink], fields=[a, b], upsertMaterialize=[true])
++- Calc(select=[a, b])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.forcedSink], fields=[a, b], upsertMaterialize=[true])
++- Calc(select=[a, b])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[a, b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[]",
+    "pact" : "Operator",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[a])]",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: forcedSink[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.forcedSink], fields=[a, b], upsertMaterialize=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testForcedMaterializeWithUpdatingInput">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.forcedSinkWithCount], fields=[c, EXPR$1])
++- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+   +- LogicalProject(c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.forcedSinkWithCount], fields=[c, EXPR$1], upsertMaterialize=[true])
++- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS EXPR$1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[c])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.forcedSinkWithCount], fields=[c, EXPR$1], upsertMaterialize=[true])
++- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS EXPR$1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[c])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[a, b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "GroupAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS EXPR$1])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[]",
+    "pact" : "Operator",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[c])]",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SinkMaterializer[]",
+    "pact" : "Operator",
+    "contents" : "[]:SinkMaterializer(pk=[c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: forcedSinkWithCount[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.forcedSinkWithCount], fields=[c, EXPR$1], upsertMaterialize=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInjectiveCastPreservesUpsertKey">
     <Resource name="ast">
       <![CDATA[
@@ -852,6 +1041,27 @@ Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person,
             +- GroupAggregate(groupBy=[person], select=[person, SUM(votes) AS sum_votes])
                +- Exchange(distribution=[hash[person]])
                   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[person, votes])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdatingInputWithoutOnConflict">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.updatingSinkWithPk], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], EXPR$1=[COUNT()])
+      +- LogicalProject(c=[$2], a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.updatingSinkWithPk], fields=[EXPR$0, EXPR$1], upsertMaterialize=[true], changelogMode=[NONE])
++- Calc(select=[EXPR$0, EXPR$1], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[c], select=[c, MAX(a) AS EXPR$0, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[c]], changelogMode=[I])
+         +- Calc(select=[c, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

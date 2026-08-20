@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.util.JvmUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -54,9 +55,11 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
         return new ThreadDumpInfo(threadInfos);
     }
 
-    public static ThreadDumpInfo dumpAndCreate(int stacktraceMaxDepth) {
+    /** Dumps all threads of the current JVM at the granularity indicated by {@code mode}. */
+    public static ThreadDumpInfo dumpAndCreate(int stacktraceMaxDepth, ThreadDumpMode mode) {
         return create(
-                JvmUtils.createThreadDump().stream()
+                JvmUtils.createThreadDump(mode.isLockedMonitors(), mode.isLockedSynchronizers())
+                        .stream()
                         .map(
                                 threadInfo ->
                                         ThreadDumpInfo.ThreadInfo.create(

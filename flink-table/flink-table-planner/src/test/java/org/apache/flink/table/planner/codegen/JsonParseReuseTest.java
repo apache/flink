@@ -272,6 +272,55 @@ class JsonParseReuseTest {
     }
 
     @Test
+    void testSingleJsonTypeCall() {
+        final String sql = "SELECT JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of("object"), Row.of("object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("A single JSON_TYPE call should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testTwoJsonTypeCalls() {
+        final String sql = "SELECT JSON_TYPE(json_data), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("object", "object"), Row.of("object", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Identical JSON_TYPE calls are one expression, so they parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of("account", "object"), Row.of("admin", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonTypeWithJsonValueAndJsonQuery() {
+        final String sql =
+                "SELECT JSON_VALUE(json_data, '$.type'), "
+                        + "JSON_QUERY(json_data, '$.address'), "
+                        + "JSON_TYPE(json_data) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of("account", "{\"city\":\"Munich\"}", "object"),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_VALUE + JSON_QUERY + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
     void testDifferentJsonInputs() {
         final String sql =
                 "SELECT JSON_VALUE(json_data, '$.type'), "
@@ -369,5 +418,40 @@ class JsonParseReuseTest {
         final List<Row> rows = new ArrayList<>();
         bEnv.executeSql(sql).collect().forEachRemaining(rows::add);
         assertThat(rows).containsExactlyInAnyOrder(Row.of("account", "42"), Row.of("admin", "30"));
+    }
+
+    @Test
+    void testTwoJsonLengthCalls() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_LENGTH(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, 1), Row.of(4, 1));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("Two JSON_LENGTH calls on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAndJsonValueMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_VALUE(json_data, '$.type') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(4, "account"), Row.of(4, "admin"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_VALUE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAndJsonQueryMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data), JSON_QUERY(json_data, '$.address') FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(
+                        Row.of(4, "{\"city\":\"Munich\"}"), Row.of(4, "{\"city\":\"Berlin\"}"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_QUERY on the same input should parse once")
+                .isOne();
     }
 }

@@ -58,11 +58,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -119,6 +117,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.plainJsonPath;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY;
@@ -3082,6 +3081,47 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_LENGTH =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_LENGTH")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(logical(LogicalTypeRoot.VARIANT)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.VARIANT),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL))))
+                    .outputTypeStrategy(explicit(DataTypes.INT().nullable()))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_TYPE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_TYPE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            plainJsonPath(
+                                    or(
+                                            sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            sequence(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    and(
+                                                            logical(
+                                                                    LogicalTypeFamily
+                                                                            .CHARACTER_STRING),
+                                                            LITERAL)))))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
+                    .runtimeProvided()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Variant functions
     // --------------------------------------------------------------------------------------------
@@ -3452,14 +3492,6 @@ public final class BuiltInFunctionDefinitions {
                     .kind(OTHER)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
-
-    public static final Set<FunctionDefinition> WINDOW_PROPERTIES =
-            new HashSet<>(Arrays.asList(WINDOW_START, WINDOW_END, PROCTIME, ROWTIME));
-
-    public static final Set<FunctionDefinition> TIME_ATTRIBUTES =
-            new HashSet<>(Arrays.asList(PROCTIME, ROWTIME));
-
-    public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
 
     /**
      * True when {@code key} appears among the {@code op_mapping} keys. Each map key may itself be a

@@ -24,7 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecSortAggregate}. */
-class SortAggregateBatchRestoreTest extends BatchRestoreTestBase {
+public class SortAggregateBatchRestoreTest extends BatchRestoreTestBase {
 
     public SortAggregateBatchRestoreTest() {
         super(BatchExecSortAggregate.class);

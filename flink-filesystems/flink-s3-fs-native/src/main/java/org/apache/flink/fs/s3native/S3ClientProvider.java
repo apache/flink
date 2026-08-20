@@ -36,6 +36,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
@@ -97,6 +98,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final Duration retryBaseDelay;
     private final Duration retryThrottleBaseDelay;
     private final Duration retryMaxBackoff;
+    private final boolean retryCircuitBreakerEnabled;
     @Nullable private final String region;
     @Nullable private final String endpoint;
     @Nullable private final String assumeRoleArn;
@@ -129,6 +131,7 @@ class S3ClientProvider implements AutoCloseableAsync {
             Duration retryBaseDelay,
             Duration retryThrottleBaseDelay,
             Duration retryMaxBackoff,
+            boolean retryCircuitBreakerEnabled,
             @Nullable String region,
             @Nullable String endpoint,
             @Nullable String assumeRoleArn,
@@ -172,6 +175,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                         retryThrottleBaseDelay, "retryThrottleBaseDelay must not be null");
         this.retryMaxBackoff =
                 Preconditions.checkNotNull(retryMaxBackoff, "retryMaxBackoff must not be null");
+        this.retryCircuitBreakerEnabled = retryCircuitBreakerEnabled;
         this.region = region;
         this.endpoint = endpoint;
         this.assumeRoleArn = assumeRoleArn;
@@ -268,6 +272,11 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     Duration getRetryMaxBackoff() {
         return retryMaxBackoff;
+    }
+
+    @VisibleForTesting
+    boolean isRetryCircuitBreakerEnabled() {
+        return retryCircuitBreakerEnabled;
     }
 
     @VisibleForTesting
@@ -427,6 +436,8 @@ class S3ClientProvider implements AutoCloseableAsync {
                 NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue();
         private Duration retryMaxBackoff =
                 NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue();
+        private boolean retryCircuitBreakerEnabled =
+                NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue();
         private Duration clientCloseTimeout =
                 NativeS3FileSystemFactory.CLIENT_CLOSE_TIMEOUT.defaultValue();
 
@@ -453,6 +464,10 @@ class S3ClientProvider implements AutoCloseableAsync {
         @Nullable private Long crtMaxNativeMemoryLimitInBytes = null;
         private long crtMinPartSizeInBytes =
                 NativeS3FileSystemFactory.PART_UPLOAD_MIN_SIZE.defaultValue();
+
+        // Optional AWS SDK metric publisher (e.g. the Flink metric bridge). Attached to both the
+        // sync and async clients via the shared ClientOverrideConfiguration. Null = no metrics.
+        @Nullable private MetricPublisher metricPublisher;
 
         public Builder accessKey(@Nullable String accessKey) {
             this.accessKey = accessKey;
@@ -550,6 +565,11 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder retryCircuitBreakerEnabled(boolean retryCircuitBreakerEnabled) {
+            this.retryCircuitBreakerEnabled = retryCircuitBreakerEnabled;
+            return this;
+        }
+
         public Builder assumeRoleArn(@Nullable String assumeRoleArn) {
             this.assumeRoleArn = assumeRoleArn;
             return this;
@@ -618,6 +638,11 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder metricPublisher(@Nullable MetricPublisher metricPublisher) {
+            this.metricPublisher = metricPublisher;
+            return this;
+        }
+
         S3ClientProvider build() {
             if (endpoint == null) {
                 endpoint = System.getProperty("s3.endpoint");
@@ -659,7 +684,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                     retryMaxBackoff,
                     retryThrottleBaseDelay);
 
-            ClientOverrideConfiguration overrideConfig =
+            ClientOverrideConfiguration.Builder overrideConfigBuilder =
                     ClientOverrideConfiguration.builder()
                             .retryStrategy(
                                     StandardRetryStrategy.builder()
@@ -671,8 +696,8 @@ class S3ClientProvider implements AutoCloseableAsync {
                                                     BackoffStrategy.exponentialDelay(
                                                             retryThrottleBaseDelay,
                                                             retryMaxBackoff))
-                                            .build())
-                            .build();
+                                            .circuitBreakerEnabled(retryCircuitBreakerEnabled)
+                                            .build());
 
             if (useCrt) {
                 LOG.info(
@@ -681,6 +706,11 @@ class S3ClientProvider implements AutoCloseableAsync {
                                 ? crtTargetThroughputGbps + " Gbps"
                                 : "(CRT runtime default)");
             }
+
+            if (metricPublisher != null) {
+                overrideConfigBuilder.addMetricPublisher(metricPublisher);
+            }
+            ClientOverrideConfiguration overrideConfig = overrideConfigBuilder.build();
 
             S3Client s3Client =
                     buildSyncClient(
@@ -711,6 +741,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                     retryBaseDelay,
                     retryThrottleBaseDelay,
                     retryMaxBackoff,
+                    retryCircuitBreakerEnabled,
                     region,
                     endpoint,
                     assumeRoleArn,

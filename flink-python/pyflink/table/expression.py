@@ -20,7 +20,12 @@ from typing import Union, TypeVar, Generic, Any
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.table.types import (
+    DataType,
+    DataTypes,
+    _TableDataTypeLike,
+    _to_java_data_type,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
@@ -886,7 +891,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("asArgument")(self, name)
 
-    def cast(self, data_type: DataType) -> 'Expression':
+    def cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
@@ -900,7 +905,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
-    def try_cast(self, data_type: DataType) -> 'Expression':
+    def try_cast(self, data_type: _TableDataTypeLike) -> 'Expression':
         """
         Like cast, but in case of error, returns NULL rather than failing the job.
 
@@ -2257,6 +2262,105 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonUnquote")(self)
 
+    def json_length(self, path=None) -> 'Expression':
+        """
+        Returns the number of elements in a JSON document, or the length of the value at the
+        specified path if one is provided.
+
+        The input can be a JSON STRING or a VARIANT. Returns None if the argument is None,
+        the json is invalid, or the path is empty, malformed or does not locate a value.
+
+        The path must be a plain path literal such as '$.a.b'. A path carrying a
+        'lax'/'strict' path mode prefix raises an error.
+
+        The length is determined as follows:
+
+        - Scalar values (number, string, boolean) have length 1.
+        - Arrays have a length equal to the number of their elements.
+        - Objects have a length equal to the number of their key-value pairs.
+
+        When provided with a path that uses a wildcard and resolves to 2 or more paths,
+        'json_length' resolves to None.
+
+        json_length also supports input of the VARIANT type; you can pass the output of
+        PARSE_JSON into json_length.
+
+        Because a None result can mean several different things (the input is not valid
+        JSON, the path does not match anything, or a wildcard path matched 2 or more
+        nodes), it is recommended to pair json_length with a helper function so invalid
+        input is handled explicitly rather than silently returning None:
+
+        - Without a path, guard the call with is_json to separate malformed input from a
+          real result.
+        - With a path, use json_exists to tell "the path is absent" apart from "the path
+          matched but was ambiguous / matched 2 or more nodes".
+
+        ::
+
+            # returns the length only for valid JSON, otherwise None means "invalid input"
+            >>> lit("[1,2]").is_json().then(lit("[1,2]").json_length(), null_of(DataTypes.INT()))
+
+            # path is present even when json_length is None due to a multi-match wildcard
+            >>> lit("{}").json_exists("$.items[*]")
+            >>> lit("{}").json_length("$.items[*]")
+
+        Examples:
+        ::
+
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length() # 2
+            >>> lit('[1,2,3,4,5]').json_length() # 5
+            >>> lit('"hello"').json_length() # 1
+
+            >>> lit('{"1": "hello", "2": "bye bye"}').json_length('$.1') # 1
+            >>> lit('{"1": [1,2,3], "2": "bye bye"}').json_length('$.1') # 3
+            >>> lit('[1,2,3,4,5]').json_length('$[3]') # 1
+
+            >>> lit('[1,2,3,4,5]').json_length('$[7]') # None
+            >>> lit('{"1": "bad", "2": "syntax here ->"').json_length('$.1') # None
+            >>> lit('[1,2,3,4,5]').json_length('$.[') # None
+        """
+        if path is None:
+            return _unary_op("jsonLength")(self)
+        else:
+            return _binary_op("jsonLength")(self, path)
+
+    def json_type(self, path=None) -> 'Expression':
+        """
+        Returns a string value indicating the type of the input.
+
+        Potential outputs are as following
+
+        * `object`
+        * `array`
+        * `string`
+        * `number`
+        * `boolean`
+        * `null`, for the JSON null literal
+
+        Every number is reported as `number`, whatever its magnitude or precision.
+
+        Returns None if the input is None or is not valid JSON.
+
+        If `path` is given, the type is read at that location instead of the root. A path that
+        does not resolve to exactly one value returns None.
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_type() # 'object'
+            >>> lit('[1, 2]').json_type() # 'array'
+            >>> lit('null').json_type() # 'null'
+            >>> lit('"Hello, World!"').json_type() # 'string'
+            >>> lit('"2015-01-01"').json_type() # 'string'
+            >>> lit('66').json_type() # 'number'
+            >>> lit('11.1').json_type() # 'number'
+            >>> lit('68s').json_type() # None, not valid JSON
+            >>> lit('{"a": [1, 2]}').json_type('$.a') # 'array'
+        """
+        if path is None:
+            return _unary_op("jsonType")(self)
+        else:
+            return _binary_op("jsonType")(self, path)
     # ---------------------------- value modification functions -----------------------------
 
     def object_update(self, *kv) -> "Expression":
