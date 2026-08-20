@@ -120,10 +120,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "$",
                         "{\"a\":[true, false, null]}",
                         "{}",
-                        "[]")
+                        "[]",
+                        "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
                 .andDataTypes(
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
-                        STRING(), STRING(), STRING(), STRING())
+                        STRING(), STRING(), STRING(), STRING(), STRING())
                 // path exists but resolves to a JSON null literal -> scalar, length 1
                 .testResult(
                         $("f8").jsonLength("$.a[2]"),
@@ -313,19 +314,32 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         null,
                         INT().nullable())
 
-                // lax/strict path modes are not supported and are rejected at runtime
-                .testSqlRuntimeError(
+                // lax/strict path modes are not supported and are rejected at planning time
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'strict $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').")
-                .testSqlRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'lax $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'lax $.type').")
-                .testTableApiRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'lax $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testTableApiValidationError(
                         $("f0").jsonLength("strict $.type"),
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').");
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testResult(
+                        $("f11").jsonLength("lax"), "JSON_LENGTH(f11, 'lax')", 1, INT().nullable())
+                .testResult(
+                        $("f11").jsonLength("$[\"strict value\"]"),
+                        "JSON_LENGTH(f11, '$[\"strict value\"]')",
+                        1,
+                        INT().nullable());
     }
 
     private static TestSetSpec jsonExistsSpec() {

@@ -22,6 +22,8 @@ import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.lang.reflect.Method;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.Seq;
@@ -39,7 +41,6 @@ public final class JsonCodeGenUtils {
      */
     public static GeneratedExpression generateJsonType(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
-        boolean hasPath = operands.length() == 2;
         return GenerateUtils.generateCallWithStmtIfArgsNotNull(
                 ctx,
                 returnType,
@@ -47,30 +48,74 @@ public final class JsonCodeGenUtils {
                 true,
                 false,
                 argTerms -> {
-                    ParsedJson parsed = getOrCreateParsedJson(ctx, argTerms.head() + ".toString()");
-                    String call;
-                    if (hasPath) {
-                        String pathSpec = operands.apply(1).literalValue().get().toString();
-                        boolean definite = SqlJsonUtils.isPathDefinite(pathSpec);
-                        call =
-                                CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE_PATH())
-                                        + "("
-                                        + parsed.varName
-                                        + ", "
-                                        + argTerms.apply(1)
-                                        + ".toString(), "
-                                        + definite
-                                        + ")";
-                    } else {
-                        call =
-                                CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_TYPE())
-                                        + "("
-                                        + parsed.varName
-                                        + ")";
-                    }
-                    String resultExpr = CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
-                    return new Tuple2<>(parsed.parseCode, resultExpr);
+                    Tuple2<String, String> parsedCall =
+                            generateCallOnParsedInput(
+                                    ctx,
+                                    operands,
+                                    argTerms,
+                                    BuiltInMethods.JSON_TYPE(),
+                                    BuiltInMethods.JSON_TYPE_PATH());
+                    String resultExpr =
+                            CodeGenUtils.BINARY_STRING() + ".fromString(" + parsedCall._2() + ")";
+                    return new Tuple2<>(parsedCall._1(), resultExpr);
                 });
+    }
+
+    /**
+     * Generates {@code JSON_LENGTH(jsonValue)} or {@code JSON_LENGTH(jsonValue, path)}.
+     *
+     * <p>The parsed context is shared with the other JSON functions over the same input, so the
+     * input is parsed only once per record.
+     */
+    public static GeneratedExpression generateJsonLength(
+            CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
+        return GenerateUtils.generateCallWithStmtIfArgsNotNull(
+                ctx,
+                returnType,
+                operands,
+                true,
+                false,
+                argTerms ->
+                        generateCallOnParsedInput(
+                                ctx,
+                                operands,
+                                argTerms,
+                                BuiltInMethods.JSON_LENGTH(),
+                                BuiltInMethods.JSON_LENGTH_PATH()));
+    }
+
+    /**
+     * Builds the call against the shared parsed input: the whole-document overload, or the path
+     * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time via
+     * {@link SqlJsonUtils#isPathDefinite(String)}.
+     *
+     * @return the parse statement and the call expression
+     */
+    private static Tuple2<String, String> generateCallOnParsedInput(
+            CodeGeneratorContext ctx,
+            Seq<GeneratedExpression> operands,
+            Seq<String> argTerms,
+            Method wholeDocument,
+            Method withPath) {
+        final ParsedJson parsed = getOrCreateParsedJson(ctx, argTerms.head() + ".toString()");
+        if (argTerms.length() == 1) {
+            return new Tuple2<>(
+                    parsed.parseCode,
+                    CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed.varName + ")");
+        }
+
+        final String pathSpec = operands.apply(1).literalValue().get().toString();
+        final boolean isPathDefinite = SqlJsonUtils.isPathDefinite(pathSpec);
+        return new Tuple2<>(
+                parsed.parseCode,
+                CodeGenUtils.qualifyMethod(withPath)
+                        + "("
+                        + parsed.varName
+                        + ", "
+                        + argTerms.apply(1)
+                        + ".toString(), "
+                        + isPathDefinite
+                        + ")");
     }
 
     /**

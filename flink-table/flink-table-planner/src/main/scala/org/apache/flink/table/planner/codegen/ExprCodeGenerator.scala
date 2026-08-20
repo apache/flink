@@ -937,7 +937,7 @@ class ExprCodeGenerator(
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.JSON_LENGTH =>
-            new JsonLengthCallGen().generate(ctx, operands, resultType)
+            JsonCodeGenUtils.generateJsonLength(ctx, resultType, operands)
 
           case BuiltInFunctionDefinitions.JSON_TYPE =>
             JsonCodeGenUtils.generateJsonType(ctx, resultType, operands)

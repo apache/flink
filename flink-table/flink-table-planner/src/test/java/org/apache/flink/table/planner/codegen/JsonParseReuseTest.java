@@ -454,4 +454,16 @@ class JsonParseReuseTest {
                 .as("JSON_LENGTH + JSON_QUERY on the same input should parse once")
                 .isOne();
     }
+
+    @Test
+    void testJsonLengthAndJsonTypeMixed() {
+        final String sql =
+                "SELECT JSON_LENGTH(json_data, '$.roles'), JSON_TYPE(json_data, '$.age') "
+                        + "FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "number"), Row.of(1, "number"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_LENGTH + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
 }
