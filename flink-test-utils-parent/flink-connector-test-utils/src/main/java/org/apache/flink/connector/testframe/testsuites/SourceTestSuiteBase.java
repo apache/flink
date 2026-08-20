@@ -333,7 +333,7 @@ public abstract class SourceTestSuiteBase<T> {
                     semantic,
                     getTestDataSize(testRecordCollections));
         } catch (Exception e) {
-            killJob(jobClient);
+            terminateJob(jobClient);
             throw e;
         }
         String savepointPath =
@@ -394,7 +394,7 @@ public abstract class SourceTestSuiteBase<T> {
                     getTestDataSize(newTestRecordCollections));
         } finally {
             // Clean up
-            killJob(restartJobClient);
+            terminateJob(restartJobClient);
             iterator.close();
         }
     }
@@ -469,7 +469,7 @@ public abstract class SourceTestSuiteBase<T> {
         } finally {
             // Clean up
             executorService.shutdown();
-            killJob(jobClient);
+            terminateJob(jobClient);
         }
     }
 
@@ -622,7 +622,6 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 8: Clean up
         terminateJob(jobClient);
-        waitForJobStatus(jobClient, singletonList(JobStatus.CANCELED));
         iterator.close();
     }
 
@@ -765,11 +764,6 @@ public abstract class SourceTestSuiteBase<T> {
                         MetricNames.IO_NUM_RECORDS_IN,
                         null);
         return Precision.equals(allRecordSize, sumNumRecordsIn);
-    }
-
-    private void killJob(JobClient jobClient) throws Exception {
-        terminateJob(jobClient);
-        waitForJobStatus(jobClient, singletonList(JobStatus.CANCELED));
     }
 
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */
