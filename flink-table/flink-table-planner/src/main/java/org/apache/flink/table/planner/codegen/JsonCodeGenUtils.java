@@ -86,7 +86,8 @@ public final class JsonCodeGenUtils {
 
     /**
      * Builds the call against the shared parsed input: the whole-document overload, or the path
-     * overload with the {@code definite} flag resolved from the path literal at plan time.
+     * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time
+     * via {@link SqlJsonUtils#isPathDefinite(String)}.
      *
      * @return the parse statement and the call expression
      */
@@ -104,7 +105,7 @@ public final class JsonCodeGenUtils {
         }
 
         final String pathSpec = operands.apply(1).literalValue().get().toString();
-        final boolean definite = SqlJsonUtils.isPathDefinite(pathSpec);
+        final boolean isPathDefinite = SqlJsonUtils.isPathDefinite(pathSpec);
         return new Tuple2<>(
                 parsed.parseCode,
                 CodeGenUtils.qualifyMethod(withPath)
@@ -113,7 +114,7 @@ public final class JsonCodeGenUtils {
                         + ", "
                         + argTerms.apply(1)
                         + ".toString(), "
-                        + definite
+                        + isPathDefinite
                         + ")");
     }
 
