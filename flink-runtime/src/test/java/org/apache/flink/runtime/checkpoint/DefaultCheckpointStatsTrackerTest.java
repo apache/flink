@@ -832,7 +832,7 @@ class DefaultCheckpointStatsTrackerTest {
                                 DefaultCheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC,
                                 DefaultCheckpointStatsTracker
                                         .LATEST_CHECKPOINT_COMPLETED_TIMESTAMP));
-        assertThat(registeredGaugeNames).hasSize(15);
+        assertThat(registeredGaugeNames).hasSize(14);
     }
 
     /**
@@ -861,7 +861,7 @@ class DefaultCheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new DefaultCheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertThat(registeredGauges).hasSize(15);
+        assertThat(registeredGauges).hasSize(14);
 
         // Check initial values
         Gauge<Long> numCheckpoints =
