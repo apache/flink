@@ -111,7 +111,7 @@ class UnalignedCheckpointRescaleSameUpstreamITCase {
                     CommonTestUtils.waitForCheckpointWithInflightBuffers(
                             initialJobGraph.getJobID(), miniCluster, CHECKPOINTS_TO_WAIT);
         } finally {
-            initialJobClient.cancel().get();
+            CommonTestUtils.terminateJob(initialJobClient);
         }
 
         final JobGraph restoredJobGraph =
@@ -177,7 +177,7 @@ class UnalignedCheckpointRescaleSameUpstreamITCase {
 
     private static void cancelIfRunning(JobClient jobClient) throws Exception {
         if (jobClient.getJobStatus().get() != JobStatus.FAILED) {
-            jobClient.cancel().get();
+            CommonTestUtils.terminateJob(jobClient);
         }
     }
 
