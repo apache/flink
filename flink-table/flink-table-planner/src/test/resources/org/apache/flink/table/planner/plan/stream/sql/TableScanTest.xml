@@ -391,12 +391,12 @@ LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UB,UA,D])
-+- Join(joinType=[InnerJoin], where=[AND(=(currency_id, currency_id0), =(currency_name, currency_name0))], select=[amount, currency_id, currency_name, currency_id0, currency_name0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UB,UA])
++- Join(joinType=[InnerJoin], where=[AND(=(currency_id, currency_id0), =(currency_name, currency_name0))], select=[amount, currency_id, currency_name, currency_id0, currency_name0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA])
    :- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I])
    :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency_id, currency_name], changelogMode=[I])
-   +- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I,UB,UA,D])
-      +- ChangelogNormalize(key=[currency_id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I,UB,UA])
+      +- ChangelogNormalize(key=[currency_id], changelogMode=[I,UB,UA])
          +- Exchange(distribution=[hash[currency_id]], changelogMode=[I,UA])
             +- DropUpdateBefore(changelogMode=[I,UA])
                +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency_id, currency_name, rate], changelogMode=[I,UB,UA])
@@ -560,10 +560,8 @@ LogicalProject(id1=[$1], a=[$2], b=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[id1, a, b], changelogMode=[I,UA,D])
-+- ChangelogNormalize(key=[id2, id1], changelogMode=[I,UA,D])
-   +- Exchange(distribution=[hash[id2, id1]], changelogMode=[UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id1, a, b, id2], metadata=[]]], fields=[id1, a, b, id2], changelogMode=[UA])
+Calc(select=[id1, a, b], changelogMode=[I,UA])
++- TableSourceScan(table=[[default_catalog, default_database, src, project=[id1, a, b, id2], metadata=[]]], fields=[id1, a, b, id2], changelogMode=[UA])
 ]]>
     </Resource>
   </TestCase>

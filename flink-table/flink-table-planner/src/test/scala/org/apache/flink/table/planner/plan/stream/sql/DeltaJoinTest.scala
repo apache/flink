@@ -852,8 +852,6 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testPKContainsJoinKeyAndSourceNoUBAndD(): Unit = {
-    // FLINK-38489 Currently, ChangelogNormalize will always generate changelog mode with D,
-    // and Join with D cannot be optimized into Delta Join
     replaceTable(
       "no_delete_src1",
       "no_delete_and_update_before_src1",

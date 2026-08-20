@@ -485,8 +485,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case normalize: StreamPhysicalChangelogNormalize =>
         // changelog normalize support update&delete input
         val children = visitChildren(normalize, ModifyKindSetTrait.ALL_CHANGES)
-        // changelog normalize will output all changes
-        val providedTrait = ModifyKindSetTrait.ALL_CHANGES
+        // A filter can turn an update into a delete when the updated row stops matching.
+        val inputModifyKindSet = getModifyKindSet(children.head)
+        val providedTrait =
+          if (
+            normalize.filterCondition == null && !inputModifyKindSet.contains(ModifyKind.DELETE)
+          ) {
+            new ModifyKindSetTrait(
+              ModifyKindSet
+                .newBuilder()
+                .addContainedKind(ModifyKind.INSERT)
+                .addContainedKind(ModifyKind.UPDATE)
+                .build())
+          } else {
+            ModifyKindSetTrait.ALL_CHANGES
+          }
         createNewNode(normalize, children, providedTrait, requiredTrait, requester)
 
       case ts: StreamPhysicalTableSourceScan =>
