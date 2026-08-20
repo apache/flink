@@ -291,7 +291,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         } catch (Exception e) {
             executorService.shutdown();
-            killJob(jobClient);
+            terminateJob(jobClient);
             throw e;
         }
 
@@ -330,7 +330,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                     externalContext.createSinkDataReader(sinkSettings), testRecords, semantic);
         } finally {
             executorService.shutdown();
-            killJob(restartJobClient);
+            terminateJob(restartJobClient);
             iterator.close();
         }
     }
@@ -408,7 +408,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
         } finally {
             // Clean up
             executorService.shutdown();
-            killJob(jobClient);
+            terminateJob(jobClient);
         }
     }
 
@@ -563,11 +563,6 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
 
     private TestingSinkSettings getTestingSinkSettings(CheckpointingMode checkpointingMode) {
         return TestingSinkSettings.builder().setCheckpointingMode(checkpointingMode).build();
-    }
-
-    private void killJob(JobClient jobClient) throws Exception {
-        terminateJob(jobClient);
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
     }
 
     private DataStreamSink<T> tryCreateSink(
