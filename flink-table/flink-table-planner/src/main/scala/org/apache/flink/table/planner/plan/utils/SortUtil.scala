@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
-import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.{RelCollation, RelFieldCollation}
@@ -73,6 +73,21 @@ object SortUtil {
     val idx = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(idx)
   }
+
+  /** Error message when the primary streaming sort key is not a time attribute. */
+  def sortKeyNotTimeAttributeMessage(column: String, tpe: LogicalType): String =
+    s"Streaming ORDER BY requires the primary sort key to be a time attribute in ascending " +
+      s"order, but '$column' is ${tpe.asSummaryString}. A time attribute is an event-time column " +
+      s"(a TIMESTAMP with a WATERMARK) or a processing-time column. Otherwise use LIMIT for " +
+      s"Top-N, sort within a window, or run in batch mode."
+
+  /**
+   * Error message when the primary streaming sort key is a time attribute but sorted descending.
+   */
+  def sortKeyTimeAttributeMustBeAscendingMessage(column: String): String =
+    s"Streaming ORDER BY on time attribute '$column' must be sorted in ascending order; " +
+      s"descending order is not supported. Otherwise use LIMIT for Top-N, sort within a window, " +
+      s"or run in batch mode."
 
   /** Returns the default null direction if not specified. */
   def getNullDefaultOrders(ascendings: Array[Boolean]): Array[Boolean] = {
