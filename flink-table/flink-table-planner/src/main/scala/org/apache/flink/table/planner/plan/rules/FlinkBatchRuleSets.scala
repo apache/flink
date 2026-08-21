@@ -391,6 +391,7 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
+    PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
