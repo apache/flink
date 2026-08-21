@@ -800,7 +800,7 @@ class TableSinkTest extends TableTestBase {
                      |)
                      |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable")
     util.verifyExecPlan(stmtSet)
   }
 

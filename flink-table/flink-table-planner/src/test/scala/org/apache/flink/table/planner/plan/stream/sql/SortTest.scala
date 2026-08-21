@@ -41,37 +41,10 @@ class SortTest extends TableTestBase {
   }
 
   @Test
-  def testSortProcessingTimeDesc(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY proctime desc, c")
+  def testSortOnRowTimeAlias(): Unit = {
+    util.verifyExecPlan("SELECT a, rowtime AS t FROM MyTable ORDER BY t, c")
   }
 
-  @Test
-  def testSortRowTimeDesc(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY rowtime desc, c")
-  }
-
-  @Test
-  def testSortProcessingTimeSecond(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, proctime")
-  }
-
-  @Test
-  def testSortRowTimeSecond(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, rowtime")
-  }
-
-  @Test
-  def testSortProcessingTimeSecondDesc(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, proctime desc")
-  }
-
-  @Test
-  def testSortRowTimeSecondDesc(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, rowtime desc")
-  }
-
-  @Test
-  def testSortWithoutTime(): Unit = {
-    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c")
-  }
+  // Non-temporal streaming sorts (first sort field is not an ascending time attribute) are now
+  // rejected during optimization; see SortValidationTest for the corresponding negative cases.
 }

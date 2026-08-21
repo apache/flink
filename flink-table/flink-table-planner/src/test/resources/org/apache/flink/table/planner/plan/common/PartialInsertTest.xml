@@ -315,29 +315,6 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartialInsertWithOrderBy[isBatch: false]">
-    <Resource name="sql">
-      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
-   +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g])
-   +- Sort(orderBy=[a ASC, e ASC, c ASC, d ASC])
-      +- Exchange(distribution=[single])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testPartialInsertWithOrderBy[isBatch: true]">
     <Resource name="sql">
       <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d]]>
