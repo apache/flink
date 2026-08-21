@@ -181,29 +181,33 @@ public class DescribeFunctionOperation implements Operation, ExecutableOperation
         return rows;
     }
 
+    /**
+     * Formats a single state entry as {@code type=<type>, ttl=<ttl>}.
+     *
+     * <p>No {@code CallContext} is available at DESCRIBE time. Many strategies (including TTL
+     * lookups in {@code DefaultStateTypeStrategy}) ignore the context, but {@code inferType}
+     * forwards it to the wrapped {@code TypeStrategy}, which may dereference it. Any failure is
+     * caught and degraded to {@code <unknown>} rather than failing the entire DESCRIBE for one
+     * strategy that needs a real {@code CallContext}. The cause is logged at DEBUG so an unexpected
+     * {@code <unknown>} is diagnosable.
+     */
     private static String formatStateEntry(StateTypeStrategy strategy) {
-        // We have no CallContext at DESCRIBE time. Many strategies (including TTL lookups in
-        // DefaultStateTypeStrategy) ignore the context, but inferType forwards it to the wrapped
-        // TypeStrategy which may dereference it. Catch and degrade to <unknown> rather than
-        // failing the entire DESCRIBE for one strategy that needs a real CallContext. Log at
-        // DEBUG so the cause is diagnosable when a user reports an unexpected <unknown>.
-        String typeStr;
+        final StringBuilder entry = new StringBuilder("type=");
         try {
-            typeStr = strategy.inferType(null).map(Object::toString).orElse("<unknown>");
+            entry.append(strategy.inferType(null).map(Object::toString).orElse("<unknown>"));
         } catch (Exception e) {
             LOG.debug(
                     "Could not infer state type for DESCRIBE FUNCTION; rendering as <unknown>.", e);
-            typeStr = "<unknown>";
+            entry.append("<unknown>");
         }
-        final Optional<Duration> ttl;
+        entry.append(", ttl=");
         try {
-            ttl = strategy.getTimeToLive(null);
+            entry.append(strategy.getTimeToLive(null).map(Duration::toString).orElse("<default>"));
         } catch (Exception e) {
             LOG.debug(
-                    "Could not resolve state TTL for DESCRIBE FUNCTION; rendering as <unknown>.",
-                    e);
-            return "type=" + typeStr + ", ttl=<unknown>";
+                    "Could not resolve state TTL for DESCRIBE FUNCTION; rendering as <unknown>.", e);
+            entry.append("<unknown>");
         }
-        return "type=" + typeStr + ", ttl=" + ttl.map(Duration::toString).orElse("<default>");
+        return entry.toString();
     }
 }
