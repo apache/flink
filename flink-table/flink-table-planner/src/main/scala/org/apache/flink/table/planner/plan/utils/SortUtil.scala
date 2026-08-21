@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
-import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.{RelCollation, RelFieldCollation}
@@ -73,6 +73,32 @@ object SortUtil {
     val idx = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(idx)
   }
+
+  /**
+   * Name pattern of the column a sort expression is projected into: `EXPR$n` by the SQL converter,
+   * `$fn` by the Table API's RelBuilder. Such names are meaningless to users.
+   */
+  private val GENERATED_SORT_KEY_NAME = "^(EXPR\\$|\\$f)\\d+$".r
+
+  private def describeSortKey(column: String): String =
+    if (GENERATED_SORT_KEY_NAME.findFirstIn(column).isDefined) "the sort key expression"
+    else s"'$column'"
+
+  /** Error message when the primary streaming sort key is not a time attribute. */
+  def sortKeyNotTimeAttributeMessage(column: String, tpe: LogicalType): String =
+    s"Streaming ORDER BY requires the primary sort key to be a time attribute in ascending " +
+      s"order, but ${describeSortKey(column)} is ${tpe.asSummaryString}. A time attribute is an " +
+      s"event-time column (a TIMESTAMP or TIMESTAMP_LTZ column with a WATERMARK) or a " +
+      s"processing-time column. Otherwise use LIMIT for Top-N, sort within a window, or run in " +
+      s"batch mode."
+
+  /**
+   * Error message when the primary streaming sort key is a time attribute but sorted descending.
+   */
+  def sortKeyTimeAttributeMustBeAscendingMessage(column: String): String =
+    s"Streaming ORDER BY on time attribute '$column' must be sorted in ascending order; " +
+      s"descending order is not supported. Otherwise use LIMIT for Top-N, sort within a window, " +
+      s"or run in batch mode."
 
   /** Returns the default null direction if not specified. */
   def getNullDefaultOrders(ascendings: Array[Boolean]): Array[Boolean] = {

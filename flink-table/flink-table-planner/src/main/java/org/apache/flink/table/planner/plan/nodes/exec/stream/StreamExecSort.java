@@ -33,11 +33,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -100,12 +103,25 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        if (!config.get(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
-            throw new TableException("Sort on a non-time-attribute field is not supported.");
-        }
-
         ExecEdge inputEdge = getInputEdges().get(0);
         RowType inputType = (RowType) inputEdge.getOutputType();
+        if (!config.get(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
+            // Backstop for compiled plans loaded without passing through StreamPhysicalSortRule.
+            if (sortSpec.getFieldSize() == 0) {
+                throw new TableException(
+                        "Compiled plan contains a streaming sort without sort keys.");
+            }
+            int firstSortField = sortSpec.getFieldIndices()[0];
+            String column = inputType.getFieldNames().get(firstSortField);
+            LogicalType type = inputType.getTypeAt(firstSortField);
+            if (LogicalTypeChecks.isTimeAttribute(type)
+                    && !sortSpec.getFieldSpecs()[0].getIsAscendingOrder()) {
+                throw new TableException(
+                        SortUtil.sortKeyTimeAttributeMustBeAscendingMessage(column));
+            }
+            throw new TableException(SortUtil.sortKeyNotTimeAttributeMessage(column, type));
+        }
+
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
