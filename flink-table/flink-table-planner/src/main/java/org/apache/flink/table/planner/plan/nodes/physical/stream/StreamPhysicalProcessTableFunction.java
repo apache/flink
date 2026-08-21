@@ -515,7 +515,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 // f(t1 PARTITION BY (k1, k2), t2 PARTITION BY (k3, k4))
                 // -> [k1, k2, k3, k4, function out...]
                 final List<Integer> partitionColumns =
-                        IntStream.range(pos, partitionKeyCount)
+                        IntStream.range(pos, pos + partitionKeyCount)
                                 .boxed()
                                 .collect(Collectors.toList());
                 pos += partitionKeyCount;
