@@ -34,6 +34,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -41,6 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,6 +119,39 @@ class CommonExecPythonCalcCseTest {
                         Arrays.asList(plusIntType, plusBigintType),
                         2,
                         new int[] {0, 1}));
+    }
+
+    @Test
+    void testRefMapResolvesStructurallyEqualSubExpressions() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        FlinkTypeFactory factory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
+        RexBuilder rb = new RexBuilder(factory);
+        RelDataType intTp =
+                factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.INTEGER), true);
+
+        RexNode ref0 = new RexInputRef(0, intTp);
+        RexNode ref1 = new RexInputRef(1, intTp);
+        RexNode ref2 = new RexInputRef(2, intTp);
+
+        // outerCall = PLUS(PLUS(ref0, ref1), ref2)
+        RexCall innerCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
+        RexCall outerCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, innerCall, ref2);
+        // standaloneCall is structurally equal to innerCall
+        RexCall standaloneCall = (RexCall) rb.makeCall(SqlStdOperatorTable.PLUS, ref0, ref1);
+
+        PythonCallCseResult result =
+                PythonCallDeduplicator.deduplicate(Arrays.asList(outerCall, standaloneCall));
+
+        // outerCall and standaloneCall are different top-level calls -> 2 unique
+        assertThat(result.getUniqueCalls()).hasSize(2);
+        assertThat(result.getOriginalToDedupMapping()).containsExactly(0, 1);
+
+        // refMap maps structurally-equal sub-expressions to the same index, so
+        // innerCall resolves to the same entry as standaloneCall
+        Map<RexCall, Integer> refMap = result.getRefMap();
+        assertThat(refMap.get(outerCall)).isEqualTo(0);
+        assertThat(refMap.get(standaloneCall)).isEqualTo(1);
+        assertThat(refMap.get(innerCall)).isEqualTo(1);
     }
 
     // -------------------------------------------------------------------------

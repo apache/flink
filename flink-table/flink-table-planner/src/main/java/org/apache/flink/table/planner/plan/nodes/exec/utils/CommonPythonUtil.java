@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
@@ -83,6 +84,7 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +124,20 @@ public class CommonPythonUtil {
 
     public static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall, Map<RexNode, Integer> inputNodes, ClassLoader classLoader) {
+        return createPythonFunctionInfo(
+                pythonRexCall, inputNodes, classLoader, Collections.emptyMap());
+    }
+
+    /**
+     * Creates a {@link PythonFunctionInfo} with optional refMap for cross-subtree CSE. When a
+     * nested operand is found in the refMap, a {@link PythonFunctionInfo.ResultRef} is emitted
+     * instead of a nested {@link PythonFunctionInfo}.
+     */
+    public static PythonFunctionInfo createPythonFunctionInfo(
+            RexCall pythonRexCall,
+            Map<RexNode, Integer> inputNodes,
+            ClassLoader classLoader,
+            Map<RexCall, Integer> refMap) {
         SqlOperator operator = pythonRexCall.getOperator();
         try {
             if (operator instanceof ScalarSqlFunction) {
@@ -129,19 +145,22 @@ public class CommonPythonUtil {
                         pythonRexCall,
                         inputNodes,
                         ((ScalarSqlFunction) operator).scalarFunction(),
-                        classLoader);
+                        classLoader,
+                        refMap);
             } else if (operator instanceof TableSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
                         ((TableSqlFunction) operator).udtf(),
-                        classLoader);
+                        classLoader,
+                        refMap);
             } else if (operator instanceof BridgingSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
                         ((BridgingSqlFunction) operator).getDefinition(),
-                        classLoader);
+                        classLoader,
+                        refMap);
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
             throw new TableException("Method pickleValue accessed failed. ", e);
@@ -428,12 +447,21 @@ public class CommonPythonUtil {
             RexCall pythonRexCall,
             Map<RexNode, Integer> inputNodes,
             FunctionDefinition functionDefinition,
-            ClassLoader classLoader)
+            ClassLoader classLoader,
+            Map<RexCall, Integer> refMap)
             throws InvocationTargetException, IllegalAccessException {
         ArrayList<Object> inputs = new ArrayList<>();
         for (RexNode operand : pythonRexCall.getOperands()) {
             if (operand instanceof RexCall) {
                 RexCall childPythonRexCall = (RexCall) operand;
+                // CSE: reference pre-computed result instead of creating nested info.
+                if (!refMap.isEmpty() && PythonUtil.isPythonCall(childPythonRexCall)) {
+                    Integer refIndex = refMap.get(childPythonRexCall);
+                    if (refIndex != null) {
+                        inputs.add(new PythonFunctionInfo.ResultRef(refIndex));
+                        continue;
+                    }
+                }
                 if (childPythonRexCall.getOperator() instanceof SqlCastFunction
                         && childPythonRexCall.getOperands().get(0) instanceof RexInputRef
                         && childPythonRexCall.getOperands().get(0).getType()
@@ -441,7 +469,8 @@ public class CommonPythonUtil {
                     operand = childPythonRexCall.getOperands().get(0);
                 } else {
                     PythonFunctionInfo argPythonInfo =
-                            createPythonFunctionInfo(childPythonRexCall, inputNodes, classLoader);
+                            createPythonFunctionInfo(
+                                    childPythonRexCall, inputNodes, classLoader, refMap);
                     inputs.add(argPythonInfo);
                     continue;
                 }

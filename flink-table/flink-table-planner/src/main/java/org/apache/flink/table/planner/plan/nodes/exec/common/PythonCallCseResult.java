@@ -23,12 +23,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.calcite.rex.RexCall;
 
 import java.util.List;
+import java.util.Map;
 
 /** Encapsulates the result of Python UDF call Common Sub-expression Elimination (CSE). */
 @Internal
 public class PythonCallCseResult {
 
-    /** Unique Python UDF call list after deduplication. */
+    /** Unique Python UDF call list after deduplication (flattened and deduplicated). */
     private final List<RexCall> uniqueCalls;
 
     /**
@@ -39,9 +40,26 @@ public class PythonCallCseResult {
      */
     private final int[] originalToDedupMapping;
 
-    public PythonCallCseResult(List<RexCall> uniqueCalls, int[] originalToDedupMapping) {
+    /**
+     * Sub-expression cross-reference map from unique RexCall to its index in uniqueCalls.
+     *
+     * <p>Used when building {@code PythonFunctionInfo} to allow nested Python UDF calls to reuse
+     * already-computed sub-expression results via reference instead of recomputation.
+     */
+    private final Map<RexCall, Integer> refMap;
+
+    /** Total number of flattened Python UDF calls across all call trees before deduplication. */
+    private final int flattenedCount;
+
+    public PythonCallCseResult(
+            List<RexCall> uniqueCalls,
+            int[] originalToDedupMapping,
+            Map<RexCall, Integer> refMap,
+            int flattenedCount) {
         this.uniqueCalls = uniqueCalls;
         this.originalToDedupMapping = originalToDedupMapping;
+        this.refMap = refMap;
+        this.flattenedCount = flattenedCount;
     }
 
     /** Returns the unique Python UDF call list after deduplication. */
@@ -54,13 +72,31 @@ public class PythonCallCseResult {
         return originalToDedupMapping;
     }
 
+    /** Returns the sub-expression cross-reference map. */
+    public Map<RexCall, Integer> getRefMap() {
+        return refMap;
+    }
+
     /** Returns whether an expansion projection is needed to restore the original output schema. */
     public boolean needsExpansionProjection() {
         return originalToDedupMapping.length != uniqueCalls.size();
     }
 
+    /**
+     * Returns the number of top-level Python UDF calls in the original projection (before
+     * deduplication). This equals the length of the originalToDedupMapping array.
+     */
+    public int getOriginalCount() {
+        return originalToDedupMapping.length;
+    }
+
     /** Returns the number of unique calls after deduplication. */
     public int getUniqueCount() {
         return uniqueCalls.size();
+    }
+
+    /** Returns the total number of flattened Python UDF calls before deduplication. */
+    public int getFlattenedCount() {
+        return flattenedCount;
     }
 }

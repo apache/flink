@@ -57,6 +57,26 @@ Calc(select=[f00 AS EXPR$0, f0 AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedUdfWithCseAnnotation">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(a, b), pyFunc1(pyFunc1(a, b), c), pyFunc1(pyFunc1(pyFunc1(a, b), c), a) FROM MyTable WHERE pyFunc1(a, b) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[pyFunc1(pyFunc1($0, $1), $2)], EXPR$2=[pyFunc1(pyFunc1(pyFunc1($0, $1), $2), $0)])
++- LogicalFilter(condition=[>(pyFunc1($0, $1), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, pyFunc1(f0, c) AS EXPR$1, pyFunc1(pyFunc1(f0, c), a) AS EXPR$2]) (CSE: EXPR$2->EXPR$1)
++- Calc(select=[f0, c, a], where=[(f0 > 0)])
+   +- PythonCalc(select=[a, b, c, pyFunc1(a, b) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSameUdfInConditionAndProjection">
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b) + 1, pyFunc1(a, b) + 2 FROM MyTable WHERE pyFunc1(a, b) > 0]]>

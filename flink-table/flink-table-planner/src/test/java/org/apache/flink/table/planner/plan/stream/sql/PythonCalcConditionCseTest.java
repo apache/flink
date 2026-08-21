@@ -68,4 +68,12 @@ class PythonCalcConditionCseTest extends TableTestBase {
         util.verifyExecPlan(
                 "SELECT pyFunc2(pyFunc1(a, b), c), pyFunc1(a, b) FROM MyTable WHERE pyFunc1(a, b) > 0");
     }
+
+    @Test
+    void testNestedUdfWithCseAnnotation() {
+        util.verifyExecPlan(
+                "SELECT pyFunc1(a, b), pyFunc1(pyFunc1(a, b), c), "
+                        + "pyFunc1(pyFunc1(pyFunc1(a, b), c), a) "
+                        + "FROM MyTable WHERE pyFunc1(a, b) > 0");
+    }
 }

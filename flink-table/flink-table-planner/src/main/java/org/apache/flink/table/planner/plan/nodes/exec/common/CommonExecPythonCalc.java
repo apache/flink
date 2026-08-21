@@ -63,6 +63,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -93,6 +94,18 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_PROJECTION)
     private final List<RexNode> projection;
+
+    /**
+     * Total number of flattened Python UDF calls across all projection trees (-1 = not yet
+     * computed).
+     */
+    private int cseFlattenedCount = -1;
+
+    /** Number of unique Python UDF calls after deduplication (-1 = not yet computed). */
+    private int cseDedupedCount = -1;
+
+    /** CSE annotation for plan description (null = not yet computed). */
+    private String cseAnnotation = null;
 
     public CommonExecPythonCalc(
             int id,
@@ -264,14 +277,29 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         LogicalType[] inputLogicalTypes =
                 ((InternalTypeInfo<RowData>) inputTransform.getOutputType()).toRowFieldTypes();
 
-        // Deduplicate identical deterministic Python function calls
+        // Deduplicate identical deterministic Python function calls (full-tree CSE)
         PythonCallCseResult cseResult = PythonCallDeduplicator.deduplicate(pythonRexCalls);
         List<RexCall> uniquePythonRexCalls = cseResult.getUniqueCalls();
         int[] originalToDedup = cseResult.getOriginalToDedupMapping();
+        Map<RexCall, Integer> refMap = cseResult.getRefMap();
         boolean needsExpansionProjection = cseResult.needsExpansionProjection();
 
+        // Record CSE statistics for plan description and logging
+        cseFlattenedCount = cseResult.getFlattenedCount();
+        cseDedupedCount = cseResult.getUniqueCount();
+        cseAnnotation = buildCseTopLevelAnnotation();
+        if (cseFlattenedCount > cseDedupedCount && LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Python CSE in {}: {} UDF calls flattened to {} unique ({} saved, {}% reduction)",
+                    getDescription(),
+                    cseFlattenedCount,
+                    cseDedupedCount,
+                    cseFlattenedCount - cseDedupedCount,
+                    (cseFlattenedCount - cseDedupedCount) * 100 / cseFlattenedCount);
+        }
+
         Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonScalarFunctionInfos(uniquePythonRexCalls, classLoader);
+                extractPythonScalarFunctionInfos(uniquePythonRexCalls, classLoader, refMap);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
         InternalTypeInfo<RowData> pythonOperatorInputTypeInfo =
@@ -326,14 +354,14 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(
-            List<RexCall> rexCalls, ClassLoader classLoader) {
+            List<RexCall> rexCalls, ClassLoader classLoader, Map<RexCall, Integer> refMap) {
         LinkedHashMap<RexNode, Integer> inputNodes = new LinkedHashMap<>();
         PythonFunctionInfo[] pythonFunctionInfos =
                 rexCalls.stream()
                         .map(
                                 x ->
                                         CommonPythonUtil.createPythonFunctionInfo(
-                                                x, inputNodes, classLoader))
+                                                x, inputNodes, classLoader, refMap))
                         .collect(Collectors.toList())
                         .toArray(new PythonFunctionInfo[rexCalls.size()]);
 
@@ -461,5 +489,52 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         } catch (Exception e) {
             throw new TableException("Python Scalar Function Operator constructed failed.", e);
         }
+    }
+
+    @Override
+    public String getDescription() {
+        ensureCseStatsComputed();
+        if (cseAnnotation != null && !cseAnnotation.isEmpty()) {
+            return super.getDescription() + cseAnnotation;
+        }
+        return super.getDescription();
+    }
+
+    /**
+     * Lazily computes CSE statistics for plan visualization. Called from {@link #getDescription()}
+     * which may be invoked before {@link #translateToPlanInternal}.
+     */
+    private void ensureCseStatsComputed() {
+        if (cseFlattenedCount >= 0) {
+            return;
+        }
+
+        List<RexCall> pythonCalls =
+                projection.stream()
+                        .filter(x -> x instanceof RexCall)
+                        .map(x -> (RexCall) x)
+                        .filter(PythonUtil::isPythonCall)
+                        .collect(Collectors.toList());
+
+        if (pythonCalls.isEmpty()) {
+            cseFlattenedCount = 0;
+            cseDedupedCount = 0;
+            cseAnnotation = "";
+            return;
+        }
+
+        PythonCallCseResult result = PythonCallDeduplicator.deduplicate(pythonCalls);
+        cseFlattenedCount = result.getFlattenedCount();
+        cseDedupedCount = result.getUniqueCount();
+        cseAnnotation = buildCseTopLevelAnnotation();
+    }
+
+    /**
+     * Builds a CSE annotation showing top-level reuse relationships. Example: {@code (CSE: $2->$1,
+     * $3->$2)} indicates $2 reuses $1 as a sub-expression.
+     */
+    private String buildCseTopLevelAnnotation() {
+        List<String> outputFieldNames = ((RowType) getOutputType()).getFieldNames();
+        return PythonCallDeduplicator.buildCseTopLevelAnnotation(projection, outputFieldNames);
     }
 }

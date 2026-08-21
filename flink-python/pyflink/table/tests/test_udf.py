@@ -987,6 +987,39 @@ class UserDefinedFunctionTests(object):
                     self.assertTrue(vals[2].startswith("HELLO_")),
                 ),
             ),
+            # --- Full-tree CSE: nested calls ---
+            (
+                "Nondet(Det(s)) - outer Nondet not reused, inner Det reused",
+                "SELECT Nondet(Det(s)), Nondet(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertNotEqual(vals[0], vals[1]),
+                    self.assertTrue(vals[2].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "Det(Nondet(s)) - nondet input disables reuse",
+                "SELECT Det(Nondet(s)), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertNotEqual(vals[0], vals[1]),
+                ),
+            ),
+            # --- Condition-projection CSE (WHERE + SELECT) ---
+            (
+                "Det(s) in both WHERE and SELECT - CSE across condition and projection",
+                "SELECT Det(s), Det(s) FROM SourceTable WHERE Det(s) IS NOT NULL",
+                all_equal,
+            ),
+            (
+                "Det(s) in WHERE and SELECT with expression - same UDF reused",
+                "SELECT Det(s), Det(s) || '_suffix' FROM SourceTable WHERE Det(s) IS NOT NULL",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                    self.assertEqual(vals[1], vals[0] + "_suffix"),
+                ),
+            ),
         ]
 
         for desc, sql, verify_fn in cases:
