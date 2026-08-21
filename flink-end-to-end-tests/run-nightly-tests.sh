@@ -187,8 +187,8 @@ function run_group_3 {
     run_test "File Sink end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh local" "skip_check_exceptions"
     run_test "File Sink s3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_file_sink.sh s3" "skip_check_exceptions"
 
-    run_test "Wordcount Hadoop S3 SeaweedFS read-write end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_seaweedfs"
-    run_test "Wordcount Presto S3 SeaweedFS read end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh presto_seaweedfs_read"
+    run_test "Wordcount native S3 SeaweedFS read-write end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh native_seaweedfs"
+    run_test "Wordcount native S3 SeaweedFS read end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh native_seaweedfs_read"
 
     run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
 
@@ -216,7 +216,7 @@ function run_group_4 {
 
     run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
 
-    run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
+    run_test "Native S3 with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh native_with_provider"
 
     run_test "Failure Enricher end-to-end test" "$END_TO_END_DIR/test-scripts/test_failure_enricher.sh" "skip_check_exceptions"
 

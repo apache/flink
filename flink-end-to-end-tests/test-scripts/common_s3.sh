@@ -61,20 +61,22 @@ S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/static/words"
 #   IT_CASE_S3_ACCESS_KEY
 #   IT_CASE_S3_SECRET_KEY
 # Arguments:
-#   $1 - s3 filesystem type (hadoop/presto)
+#   $1 - s3 filesystem type (defaults to native)
 # Returns:
 #   None
 ###################################
 function s3_setup {
-  add_optional_plugin "s3-fs-$1"
+  local filesystem_type="${1:-native}"
+  add_optional_plugin "s3-fs-$filesystem_type"
   set_config_key "s3.access-key" "$IT_CASE_S3_ACCESS_KEY"
   set_config_key "s3.secret-key" "$IT_CASE_S3_SECRET_KEY"
 }
 
 function s3_setup_with_provider {
-  add_optional_plugin "s3-fs-$1"
+  local filesystem_type="${1:-native}"
+  add_optional_plugin "s3-fs-$filesystem_type"
   # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+  set_config_key "$2" "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
 }
 
 source "$(dirname "$0")"/common_s3_operations.sh
