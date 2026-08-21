@@ -164,9 +164,7 @@ function run_group_2 {
     run_test "Running HA per-job cluster (hashmap, sync) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha_per_job_cluster_datastream.sh hashmap false false" "skip_check_exceptions"
     run_test "Running HA per-job cluster (rocks, non-incremental) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha_per_job_cluster_datastream.sh rocks true false" "skip_check_exceptions"
     run_test "Running HA per-job cluster (rocks, incremental) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha_per_job_cluster_datastream.sh rocks true true" "skip_check_exceptions"
-}
 
-function run_group_3 {
     ################################################################################
     # Miscellaneous
     ################################################################################
@@ -189,14 +187,12 @@ function run_group_3 {
 
     run_test "Wordcount Hadoop S3 SeaweedFS read-write end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_seaweedfs"
     run_test "Wordcount Presto S3 SeaweedFS read end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh presto_seaweedfs_read"
+}
 
-    run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
-
-    run_test "Netty shuffle direct memory consumption end-to-end test" "$END_TO_END_DIR/test-scripts/test_netty_shuffle_memory_control.sh"
-
-    run_test "Quickstarts Java nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_quickstarts.sh java"
-
-    run_test "Walkthrough DataStream Java nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_datastream_walkthroughs.sh java"
+function run_group_3 {
+    ################################################################################
+    # Miscellaneous
+    ################################################################################
 
     # Disable this test as 2.0 broke the compatibility of kafka sink writer. We should consider migrate this test to flink-connector-kafka repo.
     # See FLINK-36268.
@@ -211,6 +207,14 @@ function run_group_3 {
 }
 
 function run_group_4 {
+
+    run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
+
+    run_test "Netty shuffle direct memory consumption end-to-end test" "$END_TO_END_DIR/test-scripts/test_netty_shuffle_memory_control.sh"
+
+    run_test "Quickstarts Java nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_quickstarts.sh java"
+
+    run_test "Walkthrough DataStream Java nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_datastream_walkthroughs.sh java"
 
     run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
 
