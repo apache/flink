@@ -198,7 +198,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 upsertMaterialize && (!inputInsertOnly || detectsDuplicateKeys(conflictStrategy));
 
         Transformation<RowData> sinkTransform =
-                applyConstraintValidations(inputTransform, config, persistedRowType);
+                applyConstraintValidations(inputTransform, config, persistedRowType, primaryKeys);
 
         if (hasPk) {
             sinkTransform =
@@ -270,14 +270,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private Transformation<RowData> applyConstraintValidations(
             Transformation<RowData> inputTransform,
             ExecNodeConfig config,
-            RowType physicalRowType) {
+            RowType physicalRowType,
+            int[] primaryKeys) {
         final Optional<ConstraintEnforcerExecutor> enforcerExecutor =
                 ConstraintEnforcerExecutor.create(
                         physicalRowType,
                         config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER),
                         config.get(
-                                ExecutionConfigOptions.TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER));
+                                ExecutionConfigOptions.TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER),
+                        inputChangelogMode.keyOnlyDeletes(),
+                        primaryKeys);
 
         return enforcerExecutor
                 .map(
