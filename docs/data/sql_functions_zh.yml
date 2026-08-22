@@ -1052,6 +1052,21 @@ collection:
   - sql: MAP_ENTRIES(map)
     table: MAP.mapEntries()
     description: 以数组形式返回 map 中的所有 entry，不保证顺序。
+  - sql: MAP_CONTAINS_KEY(map, key)
+    table: MAP.mapContainsKey(key)
+    description: |
+      Returns TRUE if the given key exists in the map, FALSE otherwise. Returns NULL if the map is
+      NULL. A NULL key matches a NULL key in the map. The given key is cast implicitly to the map's
+      key type where Flink's implicit casting rules allow it; otherwise the call fails validation.
+      eg.
+        -- TRUE
+        MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')
+
+        -- FALSE
+        MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'z')
+
+        -- TRUE
+        MAP_CONTAINS_KEY(MAP[CAST(NULL AS STRING), 1], CAST(NULL AS STRING))
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: 返回由 key 的数组 keys 和 value 的数组 values 创建的 map。请注意两个数组的长度应该相等。
