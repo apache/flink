@@ -1399,6 +1399,69 @@ public class AsyncWaitOperatorTest {
         testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
     }
 
+    // timeout+retry with serialized async completions must still emit every timeout result
+    @Test
+    void reproSerializedCompletionsWithRetry() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        AsyncRetryStrategy exceptionRetryStrategy =
+                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
+                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+                        .build();
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new AlwaysTimeoutSingleThreadAsyncFunction(),
+                                        TIMEOUT,
+                                        10,
+                                        AsyncDataStream.OutputMode.UNORDERED,
+                                        exceptionRetryStrategy))
+                        .build()) {
+
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+
+            long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (testHarness.getOutput().size() < 2) {
+                testHarness.processAll();
+                if (System.nanoTime() > deadlineNanos) {
+                    throw new AssertionError(
+                            "REPRO CONFIRMED: operator produced only "
+                                    + testHarness.getOutput().size()
+                                    + "/2 outputs within 5s when async completions are serialized "
+                                    + "(single-thread executor). Timeout default value was dropped.");
+                }
+                //noinspection BusyWait
+                Thread.sleep(50);
+            }
+        }
+    }
+
+    private static class AlwaysTimeoutSingleThreadAsyncFunction
+            extends AlwaysTimeoutWithDefaultValueAsyncFunction {
+        private static final long serialVersionUID = 2L;
+        private static final ExecutorService POOL = Executors.newSingleThreadExecutor();
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(501L);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultFuture.completeExceptionally(new Exception("Dummy error"));
+                    },
+                    POOL);
+        }
+    }
+
     /**
      * Test the AsyncWaitOperator with an always-timeout async function under ordered mode and
      * processing time.

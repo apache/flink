@@ -484,6 +484,9 @@ public class AsyncWaitOperator<IN, OUT>
          */
         private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
 
+        // set once the timeout fired; makes the result terminal and bypass the retry path
+        private final AtomicBoolean timedOut = new AtomicBoolean(false);
+
         public RetryableResultHandlerDelegator(
                 StreamRecord<IN> inputRecord,
                 ResultFuture<OUT> resultFuture,
@@ -511,6 +514,9 @@ public class AsyncWaitOperator<IN, OUT>
                 // cancel delayed retry timer first
                 cancelRetryTimer();
 
+                // timeout result is terminal: route it straight to the handler, not the retry path
+                timedOut.set(true);
+
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
 
@@ -522,7 +528,9 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (!timedOut.get()
+                    && !retryDisabledOnFinish.get()
+                    && resultHandler.inputRecord.isRecord()) {
                 processRetryInMailBox(results, null);
             } else {
                 cancelRetryTimer();
@@ -533,7 +541,9 @@ public class AsyncWaitOperator<IN, OUT>
 
         @Override
         public void completeExceptionally(Throwable error) {
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (!timedOut.get()
+                    && !retryDisabledOnFinish.get()
+                    && resultHandler.inputRecord.isRecord()) {
                 processRetryInMailBox(null, error);
             } else {
                 cancelRetryTimer();
@@ -546,7 +556,9 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(CollectionSupplier<OUT> supplier) {
             Preconditions.checkNotNull(
                     supplier, "Runnable must not be null, return empty collection to emit nothing");
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (!timedOut.get()
+                    && !retryDisabledOnFinish.get()
+                    && resultHandler.inputRecord.isRecord()) {
                 mailboxExecutor.submit(
                         () -> {
                             try {
