@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
@@ -115,6 +116,8 @@ public final class LogicalTypeUtils {
                 return Variant.class;
             case BITMAP:
                 return Bitmap.class;
+            case GEOGRAPHY:
+                return GeographyData.class;
             case SYMBOL:
             case UNRESOLVED:
             default:

@@ -546,6 +546,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                 case DESCRIPTOR:
                 case BITMAP:
                 case VARIANT:
+                case GEOGRAPHY:
                     return true;
                 default:
                     // fall back to generic serialization

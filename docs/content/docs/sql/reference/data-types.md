@@ -219,6 +219,7 @@ The default planner supports the following set of SQL types:
 | Structured types | Only exposed in user-defined functions yet.        |
 | `VARIANT`        |                                                    |
 | `BITMAP`         |                                                    |
+| `GEOGRAPHY`      | Geography values in OGC:CRS84.                    |
 
 ### Character Strings
 
@@ -1596,6 +1597,53 @@ DataTypes.BITMAP()
 
 {{< /tab >}}
 {{< /tabs >}}
+
+#### `GEOGRAPHY`
+
+Data type of geography data.
+
+`GEOGRAPHY` represents geospatial values in the [OGC:CRS84](https://www.opengis.net/def/crs/OGC/1.3/CRS84)
+coordinate reference system. Here, CRS means *Coordinate Reference System* and SRID means
+*Spatial Reference Identifier*. OGC:CRS84 identifies the coordinate reference system and axis
+order used by this type; CRS and SRID metadata are not stored in the WKB payload.
+
+Flink represents geography payloads as [ISO WKB](https://www.ogc.org/standards/sfa), where WKB
+means *Well-Known Binary*. The v1 contract supports the standard 2D WKB geometry type codes.
+[EWKB](https://postgis.net/docs/using_postgis_dbmanagement.html#EWKB_EWKT), or *Extended
+Well-Known Binary*, is not part of this contract. CRS validation, CRS transformation, and
+EWKB/SRID handling belong to constructors, functions, or connector-specific schema mapping.
+
+The type itself does not define SQL constructors, accessors, or spatial predicate functions.
+Those functions are expected to be added separately.
+
+The geography type is an extension to the SQL standard.
+
+**Declaration**
+
+{{< tabs "9fef5895-3fa0-4b9b-9f92-9c94ba96ef1a" >}}
+{{< tab "SQL" >}}
+```text
+GEOGRAPHY
+```
+
+{{< /tab >}}
+{{< tab "Java/Scala" >}}
+```java
+DataTypes.GEOGRAPHY()
+```
+
+**Bridging to JVM Types**
+
+| Java Type                                      | Input | Output | Remarks   |
+|:-----------------------------------------------|:-----:|:------:|:----------|
+| `org.apache.flink.table.data.GeographyData`    |   X   |   X    | *Default* |
+
+{{< /tab >}}
+{{< /tabs >}}
+
+`GEOGRAPHY` values cannot be constructed with `CAST` from character or binary string
+types. Likewise, `GEOGRAPHY` values cannot be cast to character or binary string types.
+Use explicit geography functions for those conversions once such functions are available.
 
 #### `RAW`
 
