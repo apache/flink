@@ -88,6 +88,7 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_HEARTBEAT_RESOURCE_MANAGER_FUNCTION = ignored -> FutureUtils.completedVoidFuture();
     private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER =
             ignored -> {};
+    private static final Consumer<Exception> NOOP_FENCE_AND_STOP_CONSUMER = ignored -> {};
     private static final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>>
             NOOP_CANCEL_TASK_FUNCTION =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -156,6 +157,7 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_HEARTBEAT_RESOURCE_MANAGER_FUNCTION;
     private Consumer<Exception> disconnectResourceManagerConsumer =
             NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER;
+    private Consumer<Exception> fenceAndStopConsumer = NOOP_FENCE_AND_STOP_CONSUMER;
     private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction =
             NOOP_CANCEL_TASK_FUNCTION;
     private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier =
@@ -269,6 +271,12 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
+    public TestingTaskExecutorGatewayBuilder setFenceAndStopConsumer(
+            Consumer<Exception> fenceAndStopConsumer) {
+        this.fenceAndStopConsumer = fenceAndStopConsumer;
+        return this;
+    }
+
     public TestingTaskExecutorGatewayBuilder setCancelTaskFunction(
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction) {
         this.cancelTaskFunction = cancelTaskFunction;
@@ -358,6 +366,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 freeInactiveSlotsConsumer,
                 heartbeatResourceManagerFunction,
                 disconnectResourceManagerConsumer,
+                fenceAndStopConsumer,
                 cancelTaskFunction,
                 canBeReleasedSupplier,
                 releasePartitionsConsumer,
