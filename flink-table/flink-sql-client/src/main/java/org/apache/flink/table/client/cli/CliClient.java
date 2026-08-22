@@ -327,8 +327,18 @@ public class CliClient implements AutoCloseable {
     }
 
     private LineReader createLineReader(Terminal terminal, ExecutionMode mode) {
+        final SqlClientSyntaxHighlighter highlighter =
+                mode == ExecutionMode.INTERACTIVE_EXECUTION
+                        ? new SqlClientSyntaxHighlighter(executor)
+                        : null;
         SqlMultiLineParser parser =
-                new SqlMultiLineParser(new SqlCommandParserImpl(), executor, mode);
+                highlighter == null
+                        ? new SqlMultiLineParser(new SqlCommandParserImpl(), executor, mode)
+                        : new SqlMultiLineParser(
+                                new SqlCommandParserImpl(),
+                                executor,
+                                mode,
+                                highlighter::updateSessionConfig);
 
         // initialize line lineReader
         LineReaderBuilder builder =
@@ -339,7 +349,7 @@ public class CliClient implements AutoCloseable {
 
         if (mode == ExecutionMode.INTERACTIVE_EXECUTION) {
             builder.completer(new SqlCompleter(executor));
-            builder.highlighter(new SqlClientSyntaxHighlighter(executor));
+            builder.highlighter(highlighter);
         }
         LineReader lineReader = builder.build();
 
