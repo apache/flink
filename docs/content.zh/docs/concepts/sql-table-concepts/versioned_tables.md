@@ -248,7 +248,7 @@ currency_time currency   rate
 <span class="label label-danger">注意</span> 理论上讲任意都能用作时态表并在基于处理时间的时态表 Join 中使用，但当前支持作为时态表的普通表必须实现接口 `LookupableTableSource`。接口 `LookupableTableSource` 的实例只能作为时态表用于基于处理时间的时态 Join 。
 
 通过 `LookupableTableSource` 定义的表意味着该表具备了在运行时通过一个或多个 key 去查询外部存储系统的能力，当前支持在 基于处理时间的时态表 join 中使用的表包括
-[JDBC]({{< ref "docs/connectors/table/jdbc" >}}), [HBase]({{< ref "docs/connectors/table/hbase" >}}) 和 [Hive]({{< ref "docs/connectors/table/hive/hive_read_write" >}}#temporal-table-join)。
+[JDBC]({{< ref "docs/connectors/table/jdbc" >}}), [HBase]({{< ref "docs/connectors/table/hbase" >}}) 和 Hive。
 
 另请参阅 [LookupableTableSource]({{< ref "docs/dev/table/sourcesSinks" >}}#lookup-table-source)页面了解更多信息。
 
