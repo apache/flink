@@ -126,19 +126,53 @@ public class OperationExpressionsUtils {
         AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter();
         expressions.forEach(expr -> expr.accept(splitter));
 
+        Map<Expression, String> extractedExpressionToFieldName =
+                new LinkedHashMap<>(splitter.aggregates);
+        extractedExpressionToFieldName.putAll(splitter.properties);
+
         List<Expression> projections =
                 expressions.stream()
                         .map(
                                 expr ->
                                         expr.accept(
-                                                new AggregationAndPropertiesReplacer(
-                                                        splitter.aggregates, splitter.properties)))
+                                                new ExpressionReplacer(
+                                                        extractedExpressionToFieldName)))
                         .collect(Collectors.toList());
 
         List<Expression> aggregates = nameExpressions(splitter.aggregates);
         List<Expression> properties = nameExpressions(splitter.properties);
 
         return new CategorizedExpressions(projections, aggregates, properties);
+    }
+
+    /**
+     * Replaces grouping expressions in projections with references to the corresponding aggregate
+     * output fields.
+     *
+     * <p>Aggregate outputs place grouping fields before aggregate fields. Therefore, grouping
+     * expressions and output field names are matched by position.
+     */
+    public static List<Expression> replaceGroupingExpressions(
+            List<Expression> projections,
+            List<Expression> groupingExpressions,
+            List<String> aggregateOutputFieldNames) {
+        if (groupingExpressions.size() > aggregateOutputFieldNames.size()) {
+            throw new IllegalArgumentException(
+                    "The aggregate output does not contain all grouping expressions.");
+        }
+
+        Map<Expression, String> groupingExpressionToFieldName = new LinkedHashMap<>();
+        for (int i = 0; i < groupingExpressions.size(); i++) {
+            groupingExpressionToFieldName.put(
+                    groupingExpressions.get(i), aggregateOutputFieldNames.get(i));
+        }
+
+        return projections.stream()
+                .map(
+                        projection ->
+                                projection.accept(
+                                        new ExpressionReplacer(groupingExpressionToFieldName)))
+                .collect(Collectors.toList());
     }
 
     private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
@@ -179,16 +213,12 @@ public class OperationExpressionsUtils {
         }
     }
 
-    private static class AggregationAndPropertiesReplacer
-            extends ApiExpressionDefaultVisitor<Expression> {
+    private static class ExpressionReplacer extends ApiExpressionDefaultVisitor<Expression> {
 
-        private final Map<Expression, String> aggregates;
-        private final Map<Expression, String> properties;
+        private final Map<Expression, String> expressionToFieldName;
 
-        private AggregationAndPropertiesReplacer(
-                Map<Expression, String> aggregates, Map<Expression, String> properties) {
-            this.aggregates = aggregates;
-            this.properties = properties;
+        private ExpressionReplacer(Map<Expression, String> expressionToFieldName) {
+            this.expressionToFieldName = expressionToFieldName;
         }
 
         @Override
@@ -204,10 +234,9 @@ public class OperationExpressionsUtils {
 
         @Override
         public Expression visit(UnresolvedCallExpression unresolvedCall) {
-            if (aggregates.get(unresolvedCall) != null) {
-                return unresolvedRef(aggregates.get(unresolvedCall));
-            } else if (properties.get(unresolvedCall) != null) {
-                return unresolvedRef(properties.get(unresolvedCall));
+            String fieldName = expressionToFieldName.get(unresolvedCall);
+            if (fieldName != null) {
+                return unresolvedRef(fieldName);
             }
 
             final List<Expression> args =
@@ -219,7 +248,8 @@ public class OperationExpressionsUtils {
 
         @Override
         protected Expression defaultMethod(Expression expression) {
-            return expression;
+            String fieldName = expressionToFieldName.get(expression);
+            return fieldName == null ? expression : unresolvedRef(fieldName);
         }
     }
 
@@ -263,6 +293,17 @@ public class OperationExpressionsUtils {
      */
     public static Optional<String> extractName(Expression expression) {
         return expression.accept(extractNameVisitor);
+    }
+
+    /** Returns the underlying expression if the given expression declares an alias. */
+    public static ResolvedExpression unwrapAlias(ResolvedExpression expression) {
+        if (expression instanceof CallExpression) {
+            CallExpression call = (CallExpression) expression;
+            if (call.getFunctionDefinition() == AS) {
+                return call.getResolvedChildren().get(0);
+            }
+        }
+        return expression;
     }
 
     private static class ExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
