@@ -278,8 +278,12 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 - SQL Syntax
 
     ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
-    
+    -- Write the compiled plan to a file:
+    COMPILE PLAN '<plan_file_path>' [IF NOT EXISTS] FOR <insert_statement>|<statement_set>;
+
+    -- Or return the compiled plan inline as a single-row, single-column STRING result set:
+    COMPILE PLAN FOR <insert_statement>|<statement_set>;
+
     statement_set:
         EXECUTE STATEMENT SET
         BEGIN
@@ -287,11 +291,11 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
         ...
         insert_statement;
         END;
-    
+
     insert_statement:
         <insert_from_select>|<insert_from_values>
     ```
-    This will generate a JSON file at `/path/to/plan.json`.
+    The file form writes a JSON file at `<plan_file_path>`. `IF NOT EXISTS` skips compilation when the file already exists and is only valid in the file form. The inline form returns the same JSON as a result set, which is convenient for SQL Gateway / SQL Client / JDBC clients that do not share a filesystem with the executor.
 
 {{< hint info >}}
 `COMPILE PLAN` statement supports writing the plan to a remote [filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) scheme like `hdfs://` or `s3://`. 
