@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -44,6 +45,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -62,6 +64,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -127,6 +130,120 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         return ret;
     }
 
+    // -------------------------------------------------------------------------
+    //  Common Sub-expression Elimination for Python UDFs
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates a projection operator that expands deduplicated results back to the expected output
+     * schema. The Python operator produces [forwarded_fields..., unique_calls...], and this
+     * projection maps duplicated call positions back to their shared unique result.
+     */
+    private OneInputTransformation<RowData, RowData> createCseExpansionProjection(
+            OneInputTransformation<RowData, RowData> pythonTransformation,
+            int[] originalToDedup,
+            int forwardedCount,
+            InternalTypeInfo<RowData> pythonOperatorResultTypeInfo,
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
+        int[] expansionMapping =
+                IntStream.concat(
+                                IntStream.range(0, forwardedCount),
+                                IntStream.of(originalToDedup).map(idx -> idx + forwardedCount))
+                        .toArray();
+
+        RowType pythonOutputRowType = pythonOperatorResultTypeInfo.toRowType();
+        RowType finalOutputType = (RowType) getOutputType();
+
+        CodeGenOperatorFactory<RowData> projectionOperator =
+                ProjectionCodeGenerator.generateProjectionOperator(
+                        new CodeGeneratorContext(config, classLoader),
+                        pythonOutputRowType,
+                        finalOutputType,
+                        expansionMapping,
+                        "PythonCalcCseExpansionProjection");
+
+        String cseExpansionDetail = buildCseExpansionDetailName(originalToDedup, forwardedCount);
+
+        return ExecNodeUtil.createOneInputTransformation(
+                pythonTransformation,
+                createTransformationMeta(
+                        PYTHON_CALC_TRANSFORMATION + "-cse-expansion",
+                        cseExpansionDetail,
+                        "PythonCalcCseExpansion",
+                        config),
+                projectionOperator,
+                InternalTypeInfo.of(finalOutputType),
+                pythonTransformation.getParallelism(),
+                false);
+    }
+
+    /**
+     * Builds a human-readable detail name describing which Python UDF calls reuse earlier
+     * deduplicated results. Uses output column names (e.g. EXPR$1, EXPR$2) to identify calls. For
+     * example, {@code PythonCalcCseExpansion(EXPR$2=EXPR$1)} means EXPR$2 reuses the result of
+     * EXPR$1, since both represent the same deterministic expression.
+     */
+    @VisibleForTesting
+    String buildCseExpansionDetailName(int[] originalToDedup, int forwardedCount) {
+        List<String> fieldNames = ((RowType) getOutputType()).getFieldNames();
+        StringBuilder sb = new StringBuilder("PythonCalcCseExpansion");
+        List<String> reuseDescs = new ArrayList<>();
+        for (int i = 0; i < originalToDedup.length; i++) {
+            for (int j = 0; j < i; j++) {
+                if (originalToDedup[j] == originalToDedup[i]) {
+                    String reusedName = fieldNames.get(forwardedCount + j);
+                    String reuserName = fieldNames.get(forwardedCount + i);
+                    reuseDescs.add(String.format("%s=%s", reuserName, reusedName));
+                    break;
+                }
+            }
+        }
+        if (!reuseDescs.isEmpty()) {
+            sb.append("(");
+            sb.append(String.join(", ", reuseDescs));
+            sb.append(")");
+        }
+        return sb.toString();
+    }
+
+    /** Builds the output type info for the Python operator after call deduplication. */
+    private InternalTypeInfo<RowData> buildDedupOutputTypeInfo(
+            List<Integer> forwardedFields,
+            LogicalType[] inputLogicalTypes,
+            List<RexCall> uniquePythonRexCalls,
+            List<String> outputFieldNames) {
+        List<LogicalType> fieldTypes = new ArrayList<>();
+        List<String> fieldNames = new ArrayList<>();
+        for (int idx : forwardedFields) {
+            fieldTypes.add(inputLogicalTypes[idx]);
+        }
+        for (RexCall call : uniquePythonRexCalls) {
+            fieldTypes.add(FlinkTypeFactory.toLogicalType(call.getType()));
+        }
+        // Assign field names: use output field names for forwarded fields first,
+        // then for UDF results. When needsExpansionProjection is true, the unique
+        // call count may differ from the output field count; in that case the
+        // expansion projection handles the mapping, and the intermediate field
+        // names are derived from the output field names where possible.
+        int totalFields = fieldTypes.size();
+        int forwardedCount = forwardedFields.size();
+        for (int i = 0; i < totalFields && i < outputFieldNames.size(); i++) {
+            fieldNames.add(outputFieldNames.get(i));
+        }
+        // Fill remaining names (if unique calls count exceeds output names, e.g.
+        // flattened nested calls produce more fields than the output schema)
+        for (int i = fieldNames.size(); i < totalFields; i++) {
+            fieldNames.add("f" + i);
+        }
+        return InternalTypeInfo.ofFields(
+                fieldTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
+    }
+
+    // -------------------------------------------------------------------------
+    //  Core translation logic
+    // -------------------------------------------------------------------------
+
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
             ExecNodeConfig config,
@@ -144,51 +261,68 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         .map(x -> ((RexInputRef) x).getIndex())
                         .collect(Collectors.toList());
 
-        Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonScalarFunctionInfos(pythonRexCalls, classLoader);
-        int[] pythonUdfInputOffsets = extractResult.f0;
-        PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
         LogicalType[] inputLogicalTypes =
                 ((InternalTypeInfo<RowData>) inputTransform.getOutputType()).toRowFieldTypes();
+
+        // Deduplicate identical deterministic Python function calls
+        PythonCallCseResult cseResult = PythonCallDeduplicator.deduplicate(pythonRexCalls);
+        List<RexCall> uniquePythonRexCalls = cseResult.getUniqueCalls();
+        int[] originalToDedup = cseResult.getOriginalToDedupMapping();
+        boolean needsExpansionProjection = cseResult.needsExpansionProjection();
+
+        Tuple2<int[], PythonFunctionInfo[]> extractResult =
+                extractPythonScalarFunctionInfos(uniquePythonRexCalls, classLoader);
+        int[] pythonUdfInputOffsets = extractResult.f0;
+        PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
         InternalTypeInfo<RowData> pythonOperatorInputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
-        List<LogicalType> forwardedFieldsLogicalTypes =
-                forwardedFields.stream()
-                        .map(i -> inputLogicalTypes[i])
-                        .collect(Collectors.toList());
-        List<LogicalType> pythonCallLogicalTypes =
-                pythonRexCalls.stream()
-                        .map(node -> FlinkTypeFactory.toLogicalType(node.getType()))
-                        .collect(Collectors.toList());
-        List<LogicalType> fieldsLogicalTypes = new ArrayList<>();
-        fieldsLogicalTypes.addAll(forwardedFieldsLogicalTypes);
-        fieldsLogicalTypes.addAll(pythonCallLogicalTypes);
-        InternalTypeInfo<RowData> pythonOperatorResultTyeInfo =
-                InternalTypeInfo.ofFields(fieldsLogicalTypes.toArray(new LogicalType[0]));
+        // Build output type using deduplicated unique calls
+        RowType outputType = (RowType) getOutputType();
+        InternalTypeInfo<RowData> pythonOperatorResultTypeInfo =
+                buildDedupOutputTypeInfo(
+                        forwardedFields,
+                        inputLogicalTypes,
+                        uniquePythonRexCalls,
+                        outputType.getFieldNames());
+
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,
                         classLoader,
                         pythonConfig,
                         pythonOperatorInputTypeInfo,
-                        pythonOperatorResultTyeInfo,
+                        pythonOperatorResultTypeInfo,
                         pythonUdfInputOffsets,
                         pythonFunctionInfos,
                         forwardedFields.stream().mapToInt(x -> x).toArray(),
-                        pythonRexCalls.stream()
+                        uniquePythonRexCalls.stream()
                                 .anyMatch(
                                         x ->
                                                 PythonUtil.containsPythonCall(
                                                         x, PythonFunctionKind.PANDAS)));
 
-        return ExecNodeUtil.createOneInputTransformation(
-                inputTransform,
-                createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
-                pythonOperator,
-                pythonOperatorResultTyeInfo,
-                inputTransform.getParallelism(),
-                false);
+        OneInputTransformation<RowData, RowData> pythonTransformation =
+                ExecNodeUtil.createOneInputTransformation(
+                        inputTransform,
+                        createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
+                        pythonOperator,
+                        pythonOperatorResultTypeInfo,
+                        inputTransform.getParallelism(),
+                        false);
+
+        if (!needsExpansionProjection) {
+            return pythonTransformation;
+        }
+
+        // Append a CSE expansion projection to map deduplicated results back to expected schema
+        return createCseExpansionProjection(
+                pythonTransformation,
+                originalToDedup,
+                forwardedFields.size(),
+                pythonOperatorResultTypeInfo,
+                config,
+                classLoader);
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(
