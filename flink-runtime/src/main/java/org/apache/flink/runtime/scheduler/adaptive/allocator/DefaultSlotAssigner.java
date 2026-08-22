@@ -29,10 +29,10 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimumRequiredSlots;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getSlotsPerTaskExecutor;
@@ -106,18 +106,24 @@ public class DefaultSlotAssigner implements SlotAssigner {
      * @param slotsPerTaskExecutor The slots per task manager.
      * @return The ordered task manager that orders by the number of free slots descending.
      */
-    private Iterator<ResourceID> getSortedTaskExecutors(
+    private Stream<ResourceID> getSortedTaskExecutors(
             Map<ResourceID, Set<PhysicalSlot>> slotsPerTaskExecutor) {
         final Comparator<ResourceID> taskExecutorComparator =
                 (leftTm, rightTm) ->
                         Integer.compare(
                                 slotsPerTaskExecutor.get(rightTm).size(),
                                 slotsPerTaskExecutor.get(leftTm).size());
-        return slotsPerTaskExecutor.keySet().stream().sorted(taskExecutorComparator).iterator();
+        return slotsPerTaskExecutor.keySet().stream().sorted(taskExecutorComparator);
     }
 
     /**
      * Pick the target slots to assign with the requested groups.
+     *
+     * <p>TaskManagers are traversed in descending order of free-slot count and their slots are
+     * flattened into a single stream, from which only the first {@code requestedGroups} slots are
+     * kept. Because {@link Stream#limit} is lazy, slots on TaskManagers beyond the boundary one are
+     * never materialized. This minimizes both the number of involved TaskManagers and the residual
+     * fragmentation on the boundary TaskManager (which contributes only the slots still needed).
      *
      * @param slotsByTaskExecutor slots per task executor.
      * @param requestedGroups the number of the request execution slot sharing groups.
@@ -125,13 +131,9 @@ public class DefaultSlotAssigner implements SlotAssigner {
      */
     private Collection<PhysicalSlot> pickSlotsInMinimalTaskExecutors(
             Map<ResourceID, Set<PhysicalSlot>> slotsByTaskExecutor, int requestedGroups) {
-        final List<PhysicalSlot> pickedSlots = new ArrayList<>();
-        final Iterator<ResourceID> sortedTaskExecutors =
-                getSortedTaskExecutors(slotsByTaskExecutor);
-        while (pickedSlots.size() < requestedGroups) {
-            Set<PhysicalSlot> slotInfos = slotsByTaskExecutor.get(sortedTaskExecutors.next());
-            pickedSlots.addAll(slotInfos);
-        }
-        return pickedSlots;
+        return getSortedTaskExecutors(slotsByTaskExecutor)
+                .flatMap(taskExecutor -> slotsByTaskExecutor.get(taskExecutor).stream())
+                .limit(requestedGroups)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 }
