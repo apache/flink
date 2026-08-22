@@ -43,6 +43,12 @@ public interface StateTypeStrategy extends TypeStrategy {
      * <p>Returning {@code Optional.empty()} will fall back to default behavior. Returning a value
      * equal or greater than 0 means setting a custom TTL for this state entry and ignoring the
      * global defaults.
+     *
+     * <p>Note: {@code DESCRIBE FUNCTION EXTENDED} may invoke this method with a {@code null} {@link
+     * CallContext} to surface the TTL at definition time. Implementations that derive the TTL from
+     * call-time information should handle {@code null} defensively (e.g. return {@code
+     * Optional.empty()}); throwing will cause {@code DESCRIBE} to render the TTL as {@code
+     * <unknown>}.
      */
     Optional<Duration> getTimeToLive(CallContext callContext);
 }
