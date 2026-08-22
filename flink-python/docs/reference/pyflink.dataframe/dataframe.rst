@@ -51,7 +51,13 @@ Transformations
 
     DataFrame.select
     DataFrame.with_column
+    DataFrame.with_columns
+    DataFrame.drop_columns
+    DataFrame.drop
+    DataFrame.rename_columns
+    DataFrame.rename
     DataFrame.filter
+    DataFrame.where
     DataFrame.__getitem__
 
 Aggregations
@@ -66,6 +72,27 @@ Aggregations
     DataFrame.agg
     GroupedDataFrame
     GroupedDataFrame.agg
+
+Composition
+-----------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.pipe
+
+Properties
+----------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.schema
+    DataFrame.columns
 
 Results
 -------
