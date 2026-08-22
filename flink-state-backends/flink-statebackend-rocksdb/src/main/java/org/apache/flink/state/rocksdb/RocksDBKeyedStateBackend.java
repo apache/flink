@@ -886,9 +886,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
             throws Exception {
 
+        // The snapshot the state was written with. Preferred over one re-derived from the previous
+        // serializer, which is itself restored from this snapshot and does not always round trip.
+        TypeSerializerSnapshot<SV> previousSerializerSnapshot =
+                stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
+
         if (stateDesc.getType() == StateDescriptor.Type.MAP) {
-            TypeSerializerSnapshot<SV> previousSerializerSnapshot =
-                    stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
             checkState(
                     previousSerializerSnapshot != null,
                     "the previous serializer snapshot should exist.");
@@ -973,6 +976,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         serializedValueInput,
                         migratedSerializedValueOutput,
                         previousTtlAwareSerializer,
+                        previousSerializerSnapshot,
                         currentTtlAwareSerializer,
                         this.ttlTimeProvider);
 

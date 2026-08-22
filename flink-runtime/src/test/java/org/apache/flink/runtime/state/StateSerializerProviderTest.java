@@ -21,13 +21,18 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializerSnapshot;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -309,6 +314,42 @@ class StateSerializerProviderTest {
         // a serializer for the current schema will no longer be accessible
         assertThatThrownBy(testProvider::currentSchemaSerializer)
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    // --------------------------------------------------------------------------------
+    //  Tests for the ttl-aware wrapping of the previous serializer snapshot
+    // --------------------------------------------------------------------------------
+
+    /**
+     * Registering a new serializer replaces the nested snapshot of the previous snapshot in place,
+     * so the snapshot a caller still holds no longer reports what the checkpoint wrote: its nested
+     * snapshot becomes a {@link TtlAwareSerializerSnapshot} around the original. Anything that
+     * descends a restored composite snapshot has to expect that layer.
+     */
+    @Test
+    void testRegisterNewSerializerWrapsNestedSnapshotOfPreviousSnapshotInPlace() {
+        ListSerializerSnapshot<String> previousSnapshot =
+                (ListSerializerSnapshot<String>)
+                        new ListSerializer<>(StringSerializer.INSTANCE).snapshotConfiguration();
+        TypeSerializerSnapshot<String> elementSnapshotAsWritten =
+                previousSnapshot.getElementSerializerSnapshot();
+
+        StateSerializerProvider<List<String>> testProvider =
+                StateSerializerProvider.fromPreviousSerializerSnapshot(previousSnapshot);
+        testProvider.registerNewSerializerForRestoredState(
+                new ListSerializer<>(StringSerializer.INSTANCE));
+
+        // The same snapshot instance now reports a different element snapshot than it did above.
+        TypeSerializerSnapshot<String> elementSnapshotAfterRestore =
+                previousSnapshot.getElementSerializerSnapshot();
+        assertThat(elementSnapshotAfterRestore).isNotSameAs(elementSnapshotAsWritten);
+        assertThat(elementSnapshotAfterRestore).isInstanceOf(TtlAwareSerializerSnapshot.class);
+        // The original is carried inside the wrapper, not re-derived: a re-derived snapshot would
+        // be an equal instance of the same class but a different object.
+        assertThat(
+                        ((TtlAwareSerializerSnapshot<String>) elementSnapshotAfterRestore)
+                                .getOrinalTypeSerializerSnapshot())
+                .isSameAs(elementSnapshotAsWritten);
     }
 
     // --------------------------------------------------------------------------------

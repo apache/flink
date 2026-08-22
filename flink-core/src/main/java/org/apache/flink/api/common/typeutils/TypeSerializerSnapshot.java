@@ -134,6 +134,41 @@ public interface TypeSerializerSnapshot<T> {
     TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
             TypeSerializerSnapshot<T> oldSerializerSnapshot);
 
+    /**
+     * Migrates a single state value from the schema described by {@code oldSerializerSnapshot} to
+     * the schema described by this (new) snapshot. Like {@link
+     * #resolveSchemaCompatibility(TypeSerializerSnapshot)}, this is invoked on the new snapshot and
+     * receives the old snapshot as its argument.
+     *
+     * <p>The default implementation returns the value unchanged: a value already deserialized with
+     * the prior serializer is structurally compatible with the current serializer, so the caller
+     * can re-serialize it as-is. A serializer whose in-memory representation is coupled to its
+     * schema should override this to transform the value into the new layout -- for example by
+     * inserting nulls for added fields or reordering fields by name. An implementation may return
+     * the given value or a new instance.
+     *
+     * <p>The migration is not applied recursively to nested serializers. The snapshot of a
+     * composite type returns its value unchanged unless it overrides this method to decompose the
+     * value and migrate each part, so a caller that needs a nested value migrated must reach the
+     * nested snapshot itself. An implementation that does so should not assume that the old and the
+     * new snapshot expose nested snapshots of the same type: restoring may have replaced those of
+     * the old snapshot with decorators, so nested snapshots are best matched by position or name
+     * rather than by class.
+     *
+     * @param oldSerializerSnapshot snapshot of the serializer that wrote the value. A caller that
+     *     holds the snapshot persisted with the state should pass that one in preference to a
+     *     snapshot re-derived from a serializer restored from it, because that round trip does not
+     *     always reproduce the schema that was written.
+     * @param value the value, already deserialized with the prior serializer. It may be {@code
+     *     null} wherever the prior serializer can produce {@code null}. An implementation that
+     *     decomposes a composite value may likewise pass {@code null} to a nested snapshot for an
+     *     absent part, even where that part's serializer would reject {@code null} at top level.
+     * @return the value adapted to the schema of the current serializer.
+     */
+    default T migrate(TypeSerializerSnapshot<T> oldSerializerSnapshot, T value) {
+        return value;
+    }
+
     // ------------------------------------------------------------------------
     //  read / write utilities
     // ------------------------------------------------------------------------
