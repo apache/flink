@@ -26,7 +26,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -56,6 +59,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arraySliceTestCases(),
                         arrayMinTestCases(),
                         arraySortTestCases(),
+                        arraySortBigIntDuplicatesTestCases(),
                         arrayExceptTestCases(),
                         arrayIntersectTestCases(),
                         splitTestCases(),
@@ -1600,6 +1604,43 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     LocalDate.of(2012, 5, 16)
                                 },
                                 DataTypes.ARRAY(DataTypes.DATE())));
+    }
+
+    private Stream<TestSetSpec> arraySortBigIntDuplicatesTestCases() {
+        final int size = 64;
+        Long[] allEqual = new Long[size];
+        Arrays.fill(allEqual, 42L);
+
+        Long[] manyDuplicates = new Long[size];
+        for (int i = 0; i < size; i++) {
+            manyDuplicates[i] = (long) (i % 4);
+        }
+        Long[] manyDuplicatesSortedAsc = manyDuplicates.clone();
+        Arrays.sort(manyDuplicatesSortedAsc);
+        Long[] manyDuplicatesSortedDesc = manyDuplicatesSortedAsc.clone();
+        ArrayUtils.reverse(manyDuplicatesSortedDesc);
+
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_SORT)
+                        .onFieldsWithData(allEqual, manyDuplicates)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.BIGINT()),
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0")),
+                                "ARRAY_SORT(f0)",
+                                allEqual,
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f1")),
+                                "ARRAY_SORT(f1)",
+                                manyDuplicatesSortedAsc,
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f1"), false),
+                                "ARRAY_SORT(f1, false)",
+                                manyDuplicatesSortedDesc,
+                                DataTypes.ARRAY(DataTypes.BIGINT())));
     }
 
     private Stream<TestSetSpec> arrayExceptTestCases() {
