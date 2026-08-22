@@ -33,10 +33,12 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
@@ -54,6 +56,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -271,13 +274,37 @@ public final class TypeInfoDataTypeConverter {
         final String[] fieldNames = compositeType.getFieldNames();
         final Class<?> typeClass = compositeType.getTypeClass();
 
+        final Map<String, Field> hintedPojoFields;
+        if (compositeType instanceof PojoTypeInfo) {
+            final PojoTypeInfo<?> pojoTypeInfo = (PojoTypeInfo<?>) compositeType;
+            hintedPojoFields = new HashMap<>();
+            for (int pos = 0; pos < arity; pos++) {
+                final Field field = pojoTypeInfo.getPojoFieldAt(pos).getField();
+                if (field.isAnnotationPresent(DataTypeHint.class)) {
+                    hintedPojoFields.put(field.getName(), field);
+                }
+            }
+        } else {
+            hintedPojoFields = Collections.emptyMap();
+        }
+
         final Map<String, DataType> fieldDataTypes = new LinkedHashMap<>();
         IntStream.range(0, arity)
                 .forEachOrdered(
-                        pos ->
+                        pos -> {
+                            final String name = fieldNames[pos];
+                            final Field hintedField = hintedPojoFields.get(name);
+                            if (hintedField != null) {
                                 fieldDataTypes.put(
-                                        fieldNames[pos],
-                                        toDataType(dataTypeFactory, compositeType.getTypeAt(pos))));
+                                        name,
+                                        DataTypeExtractor.extractFromField(
+                                                dataTypeFactory, hintedField));
+                            } else {
+                                fieldDataTypes.put(
+                                        name,
+                                        toDataType(dataTypeFactory, compositeType.getTypeAt(pos)));
+                            }
+                        });
 
         final List<String> fieldNamesReordered;
         final boolean isNullable;
@@ -297,6 +324,10 @@ public final class TypeInfoDataTypeConverter {
             // therefore we need to check the reflective field for more details
             fieldDataTypes.replaceAll(
                     (name, dataType) -> {
+                        // hinted fields already resolved through DataTypeExtractor
+                        if (hintedPojoFields.containsKey(name)) {
+                            return dataType;
+                        }
                         final Class<?> fieldClass =
                                 pojoFields.stream()
                                         .filter(f -> f.getName().equals(name))

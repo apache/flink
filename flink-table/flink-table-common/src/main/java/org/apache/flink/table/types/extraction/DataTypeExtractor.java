@@ -247,6 +247,27 @@ public final class DataTypeExtractor {
     // Methods that extract a data type from a JVM Class with prior logical information
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * Extracts a data type from a reflective {@link Field}, honoring a {@link DataTypeHint} on the
+     * field if present and otherwise falling back to reflective extraction with default templates.
+     */
+    public static DataType extractFromField(DataTypeFactory typeFactory, Field field) {
+        final DataTypeHint hint = field.getAnnotation(DataTypeHint.class);
+        final DataTypeTemplate template =
+                hint != null
+                        ? DataTypeTemplate.fromDefaults()
+                                .mergeWithInnerAnnotation(typeFactory, hint)
+                        : DataTypeTemplate.fromDefaults();
+        return extractDataTypeWithClassContext(
+                typeFactory,
+                template,
+                field.getDeclaringClass(),
+                field.getGenericType(),
+                String.format(
+                        " in field '%s' of class '%s'",
+                        field.getName(), field.getDeclaringClass().getName()));
+    }
+
     public static DataType extractFromStructuredClass(
             DataTypeFactory typeFactory, Class<?> implementationClass) {
         final DataType dataType =
