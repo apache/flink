@@ -150,6 +150,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowJobs]
         || sqlNode.isInstanceOf[SqlDescribeJob]
         || sqlNode.isInstanceOf[SqlRichDescribeFunction]
+        || sqlNode.isInstanceOf[SqlRichDescribeConnection]
         || sqlNode.isInstanceOf[SqlRichDescribeModel]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]
