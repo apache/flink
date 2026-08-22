@@ -18,14 +18,21 @@
 
 package org.apache.flink.fs.s3hadoop.token;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.fs.s3.common.token.HadoopS3DelegationTokenProvider;
+import org.junit.jupiter.api.Test;
 
-/** Delegation token provider for S3 Hadoop filesystems using AWS SDK v2. */
-@Internal
-public class S3HadoopDelegationTokenProvider extends HadoopS3DelegationTokenProvider {
-    @Override
-    public String serviceName() {
-        return "s3-hadoop";
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Tests for {@link S3HadoopDelegationTokenProvider}. */
+class S3HadoopDelegationTokenProviderTest {
+
+    @Test
+    void serviceNameIsS3Hadoop() {
+        assertThat(new S3HadoopDelegationTokenProvider().serviceName()).isEqualTo("s3-hadoop");
+    }
+
+    @Test
+    void serviceConfigPrefixIsDerivedFromConfigPrefixAndServiceName() {
+        assertThat(new S3HadoopDelegationTokenProvider().serviceConfigPrefix())
+                .isEqualTo("security.delegation.token.provider.s3-hadoop");
     }
 }
