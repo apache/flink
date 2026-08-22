@@ -250,14 +250,9 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
 
         // ----------------------- Append -----------------------
         private int appendValue(BinaryRowData value) throws IOException {
+            // writePointer() validates offset and throws EOFException if it exceeds ~2GB limit
             final long offsetOfPointer = writePointer(valOutView, -1);
             valueSerializer.serializeToPages(value, valOutView);
-            if (offsetOfPointer > Integer.MAX_VALUE) {
-                LOG.warn(
-                        "We can't handle key area with more than Integer.MAX_VALUE bytes,"
-                                + " because the pointer is a integer.");
-                throw new EOFException();
-            }
             return (int) offsetOfPointer;
         }
 
@@ -284,7 +279,18 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
         @Override
         public int appendRecord(LookupInfo<K, Iterator<RowData>> lookupInfo, BinaryRowData value)
                 throws IOException {
-            int lastPosition = (int) keyOutView.getCurrentOffset();
+            long rawLastPosition = keyOutView.getCurrentOffset();
+
+            // Check offset before casting to int to prevent integer overflow
+            if (rawLastPosition > Integer.MAX_VALUE) {
+                LOG.warn(
+                        "Cannot append record: key area offset {} exceeds Integer.MAX_VALUE. "
+                                + "The record area has exceeded the maximum supported size (~2GB).",
+                        rawLastPosition);
+                throw new EOFException();
+            }
+
+            int lastPosition = (int) rawLastPosition;
             // write key to keyOutView
             int skip = keySerializer.serializeToPages(lookupInfo.key, keyOutView);
             int keyOffset = lastPosition + skip;
@@ -293,16 +299,11 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
             endPtrOffset = skipPointer(keyOutView);
 
             // write a value entry: a next-pointer and value data
+            // writePointer() validates offset and throws EOFException if it exceeds ~2GB limit
             long pointerOfEndValue = writePointer(keyOutView, -1);
             // write first value to keyOutView.
             valueSerializer.serializeToPages(value, keyOutView);
 
-            if (pointerOfEndValue > Integer.MAX_VALUE) {
-                LOG.warn(
-                        "We can't handle key area with more than Integer.MAX_VALUE bytes,"
-                                + " because the pointer is a integer.");
-                throw new EOFException();
-            }
             endPtr = (int) pointerOfEndValue;
             // update pointer to the tail value
             updateValuePointerInKeyArea(endPtr, endPtrOffset);
@@ -435,12 +436,24 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
 
     /** Write value into the output view, and return offset of the value. */
     private long writePointer(SimpleCollectingOutputView outputView, int value) throws IOException {
-        int oldPosition = (int) outputView.getCurrentOffset();
+        long rawOffset = outputView.getCurrentOffset();
         int skip = checkSkipWriteForPointer(outputView);
+
+        // Check offset before casting to int to prevent integer overflow
+        long totalOffset = rawOffset + skip;
+        if (totalOffset > Integer.MAX_VALUE) {
+            LOG.warn(
+                    "Cannot write pointer: offset {} exceeds Integer.MAX_VALUE. "
+                            + "The record area has exceeded the maximum supported size (~2GB).",
+                    totalOffset);
+            throw new EOFException();
+        }
+
+        int oldPosition = (int) rawOffset;
         outputView.getCurrentSegment().putInt(outputView.getCurrentPositionInSegment(), value);
         // advance position in segment
         outputView.skipBytesToWrite(ELEMENT_POINT_LENGTH);
-        return oldPosition + skip;
+        return totalOffset;
     }
 
     private int readPointer(AbstractPagedInputView inputView) throws IOException {
@@ -452,11 +465,22 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
     }
 
     private int skipPointer(SimpleCollectingOutputView outputView) throws IOException {
-        int oldPosition = (int) outputView.getCurrentOffset();
+        long rawOffset = outputView.getCurrentOffset();
         // skip 4 bytes for pointer to the tail value
         int skip = checkSkipWriteForPointer(outputView);
+
+        // Check offset before casting to int to prevent integer overflow
+        long totalOffset = rawOffset + skip;
+        if (totalOffset > Integer.MAX_VALUE) {
+            LOG.warn(
+                    "Cannot skip pointer: offset {} exceeds Integer.MAX_VALUE. "
+                            + "The record area has exceeded the maximum supported size (~2GB).",
+                    totalOffset);
+            throw new EOFException();
+        }
+
         outputView.skipBytesToWrite(ELEMENT_POINT_LENGTH);
-        return oldPosition + skip;
+        return (int) totalOffset;
     }
 
     private void skipPointer(AbstractPagedInputView inputView) throws IOException {
