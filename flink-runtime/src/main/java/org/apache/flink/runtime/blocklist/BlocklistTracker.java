@@ -62,4 +62,12 @@ public interface BlocklistTracker {
      * @return the removed nodes
      */
     Collection<BlockedNode> removeTimeoutNodes(long currentTimeMillis);
+
+    /**
+     * Remove blocked nodes by node IDs.
+     *
+     * @param nodeIds the node IDs to remove
+     * @return the removed nodes
+     */
+    Collection<BlockedNode> removeBlockedNodes(Collection<String> nodeIds);
 }
