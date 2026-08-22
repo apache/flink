@@ -84,12 +84,11 @@ public class OpenAIOptions {
                                     .build());
 
     @Documentation.Section({Documentation.Sections.MODEL_OPENAI_COMMON})
-    public static final ConfigOption<AbstractOpenAIModelFunction.ErrorHandlingStrategy>
-            ERROR_HANDLING_STRATEGY =
-                    ConfigOptions.key("error-handling-strategy")
-                            .enumType(AbstractOpenAIModelFunction.ErrorHandlingStrategy.class)
-                            .defaultValue(AbstractOpenAIModelFunction.ErrorHandlingStrategy.RETRY)
-                            .withDescription("Strategy for handling errors during model requests.");
+    public static final ConfigOption<ErrorHandlingStrategy> ERROR_HANDLING_STRATEGY =
+            ConfigOptions.key("error-handling-strategy")
+                    .enumType(ErrorHandlingStrategy.class)
+                    .defaultValue(ErrorHandlingStrategy.RETRY)
+                    .withDescription("Strategy for handling errors during model requests.");
 
     // The model service enforces rate-limiting constraints, necessitating retry mechanisms in
     // most operational scenarios.
@@ -101,15 +100,13 @@ public class OpenAIOptions {
                     .withDescription("Number of retry for OpenAI client requests.");
 
     @Documentation.Section({Documentation.Sections.MODEL_OPENAI_COMMON})
-    public static final ConfigOption<AbstractOpenAIModelFunction.RetryFallbackStrategy>
-            RETRY_FALLBACK_STRATEGY =
-                    ConfigOptions.key("retry-fallback-strategy")
-                            .enumType(AbstractOpenAIModelFunction.RetryFallbackStrategy.class)
-                            .defaultValue(
-                                    AbstractOpenAIModelFunction.RetryFallbackStrategy.FAILOVER)
-                            .withDescription(
-                                    "Fallback strategy to employ if the retry attempts are exhausted."
-                                            + " This strategy is applied when error-handling-strategy is set to retry.");
+    public static final ConfigOption<RetryFallbackStrategy> RETRY_FALLBACK_STRATEGY =
+            ConfigOptions.key("retry-fallback-strategy")
+                    .enumType(RetryFallbackStrategy.class)
+                    .defaultValue(RetryFallbackStrategy.FAILOVER)
+                    .withDescription(
+                            "Fallback strategy to employ if the retry attempts are exhausted."
+                                    + " This strategy is applied when error-handling-strategy is set to retry.");
 
     // ------------------------------------------------------------------------
     // Options for Chat Completion Model Functions
@@ -188,13 +185,11 @@ public class OpenAIOptions {
                                     + " Determinism is not guaranteed.");
 
     @Documentation.Section({Documentation.Sections.MODEL_OPENAI_CHAT})
-    public static final ConfigOption<OpenAIChatModelFunction.ChatModelResponseFormat>
-            RESPONSE_FORMAT =
-                    ConfigOptions.key("response-format")
-                            .enumType(OpenAIChatModelFunction.ChatModelResponseFormat.class)
-                            .noDefaultValue()
-                            .withDescription(
-                                    "The format of the response, e.g., 'text' or 'json_object'.");
+    public static final ConfigOption<OpenAIChatTask.ChatModelResponseFormat> RESPONSE_FORMAT =
+            ConfigOptions.key("response-format")
+                    .enumType(OpenAIChatTask.ChatModelResponseFormat.class)
+                    .noDefaultValue()
+                    .withDescription("The format of the response, e.g., 'text' or 'json_object'.");
 
     // ------------------------------------------------------------------------
     // Options for Embedding Model Functions

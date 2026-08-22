@@ -21,8 +21,10 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.AsyncPredictFunction;
+import org.apache.flink.table.functions.PredictFunction;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.ModelProvider;
+import org.apache.flink.table.ml.PredictRuntimeProvider;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -39,15 +41,18 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
         String endpoint = helper.getOptions().get(OpenAIOptions.ENDPOINT);
         endpoint = endpoint.replaceAll("/*$", "").toLowerCase();
 
-        AsyncPredictFunction function;
-        if (endpoint.endsWith(OpenAIEmbeddingModelFunction.ENDPOINT_SUFFIX)) {
-            function = new OpenAIEmbeddingModelFunction(context, helper.getOptions());
-        } else if (endpoint.endsWith(OpenAIChatModelFunction.ENDPOINT_SUFFIX)) {
-            function = new OpenAIChatModelFunction(context, helper.getOptions());
+        AbstractOpenAIAsyncModelFunction asyncFunction;
+        AbstractOpenAISyncModelFunction syncFunction;
+        if (endpoint.endsWith(OpenAIEmbeddingTask.ENDPOINT_SUFFIX)) {
+            asyncFunction = new OpenAIAsyncEmbeddingModelFunction(context, helper.getOptions());
+            syncFunction = new OpenAISyncEmbeddingModelFunction(context, helper.getOptions());
+        } else if (endpoint.endsWith(OpenAIChatTask.ENDPOINT_SUFFIX)) {
+            asyncFunction = new OpenAIAsyncChatModelFunction(context, helper.getOptions());
+            syncFunction = new OpenAISyncChatModelFunction(context, helper.getOptions());
         } else {
             throw new UnsupportedOperationException("Unsupported endpoint: " + endpoint);
         }
-        return new Provider(function);
+        return new Provider(asyncFunction, syncFunction);
     }
 
     @Override
@@ -85,22 +90,35 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
         return set;
     }
 
-    /** {@link ModelProvider} for openai model functions. */
-    public static class Provider implements AsyncPredictRuntimeProvider {
-        private final AsyncPredictFunction function;
+    /**
+     * {@link ModelProvider} for openai model functions. Implements both the async and sync
+     * runtime-provider interfaces; the planner picks one based on the {@code async} runtime config
+     * (see {@link org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions#ASYNC}).
+     */
+    public static class Provider implements AsyncPredictRuntimeProvider, PredictRuntimeProvider {
+        private final AbstractOpenAIAsyncModelFunction asyncFunction;
+        private final AbstractOpenAISyncModelFunction syncFunction;
 
-        public Provider(AsyncPredictFunction function) {
-            this.function = function;
+        public Provider(
+                AbstractOpenAIAsyncModelFunction asyncFunction,
+                AbstractOpenAISyncModelFunction syncFunction) {
+            this.asyncFunction = asyncFunction;
+            this.syncFunction = syncFunction;
         }
 
         @Override
         public AsyncPredictFunction createAsyncPredictFunction(Context context) {
-            return function;
+            return asyncFunction;
+        }
+
+        @Override
+        public PredictFunction createPredictFunction(Context context) {
+            return syncFunction;
         }
 
         @Override
         public ModelProvider copy() {
-            return new Provider(function);
+            return new Provider(asyncFunction, syncFunction);
         }
     }
 }
