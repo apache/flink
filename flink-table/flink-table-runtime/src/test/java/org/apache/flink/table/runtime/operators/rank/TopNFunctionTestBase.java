@@ -19,8 +19,15 @@
 package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -53,11 +60,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
@@ -425,4 +434,44 @@ abstract class TopNFunctionTestBase {
 
     /** TODO remove this method after all rank function support async state. */
     abstract boolean supportedAsyncState();
+
+    // shared helpers for verifying cache metrics in subclasses.
+
+    static final String CACHE_SIZE_METRIC = "topn.cache.size";
+    static final String CACHE_HIT_RATE_METRIC = "topn.cache.hitRate";
+
+    /** Creates a sync test harness that exposes the operator metric group for assertions. */
+    OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarnessWithMetrics(
+            AbstractTopNFunction rankFunction, InterceptingOperatorMetricGroup operatorMetricGroup)
+            throws Exception {
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(rankFunction);
+        rankFunction.setKeyContext(operator);
+        InterceptingTaskMetricGroup taskMetricGroup =
+                new InterceptingTaskMetricGroup() {
+                    @Override
+                    public InternalOperatorMetricGroup getOrAddOperator(
+                            OperatorID id, String name, Map<String, String> additionalVariables) {
+                        return operatorMetricGroup;
+                    }
+                };
+        MockEnvironment environment =
+                new MockEnvironmentBuilder().setMetricGroup(taskMetricGroup).build();
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                operator, keySelector, keySelector.getProducedType(), environment);
+    }
+
+    @SuppressWarnings("unchecked")
+    static long readCacheSizeMetric(InterceptingOperatorMetricGroup metricGroup) {
+        Gauge<Long> gauge = (Gauge<Long>) metricGroup.get(CACHE_SIZE_METRIC);
+        assertThat(gauge).as("topn.cache.size gauge should be registered").isNotNull();
+        return gauge.getValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    static double readCacheHitRateMetric(InterceptingOperatorMetricGroup metricGroup) {
+        Gauge<Double> gauge = (Gauge<Double>) metricGroup.get(CACHE_HIT_RATE_METRIC);
+        assertThat(gauge).as("topn.cache.hitRate gauge should be registered").isNotNull();
+        return gauge.getValue();
+    }
 }

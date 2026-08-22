@@ -70,7 +70,7 @@ public abstract class AppendOnlyTopNHelper extends AbstractTopNFunction.Abstract
     }
 
     public void registerMetric() {
-        registerMetric(kvSortedMap.size() * topNSize);
+        registerMetric(() -> kvSortedMap.size() * topNSize);
     }
 
     @Nullable

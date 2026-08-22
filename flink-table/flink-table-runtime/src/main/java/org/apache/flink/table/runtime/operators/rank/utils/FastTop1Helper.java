@@ -126,6 +126,6 @@ public abstract class FastTop1Helper extends AbstractTopNFunction.AbstractTopNHe
     public abstract void flushBufferToState(RowData currentKey, RowData value) throws Exception;
 
     public void registerMetric() {
-        registerMetric(kvCache.size() * topNSize);
+        registerMetric(() -> kvCache.size() * topNSize);
     }
 }

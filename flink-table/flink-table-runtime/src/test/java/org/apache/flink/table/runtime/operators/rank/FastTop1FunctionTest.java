@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.rank.async.AsyncStateFastTop1Function;
@@ -31,6 +32,8 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /** Tests for {@link FastTop1Function} and {@link AsyncStateFastTop1Function}. */
 public class FastTop1FunctionTest extends TopNFunctionTestBase {
@@ -375,5 +378,33 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
     @Override
     void testOutputRankNumberWithVariableRankRange() throws Exception {
         // skip
+    }
+
+    /**
+     * Verifies that {@code topn.cache.size} reflects the live cache state instead of staying at 0
+     * for {@link FastTop1Function}.
+     */
+    @TestTemplate
+    void testCacheMetricsReflectLiveState() throws Exception {
+        // async harness does not allow injecting a custom metric group; sync path covers the fix.
+        assumeFalse(enableAsyncState);
+        AbstractTopNFunction func =
+                createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), true, false);
+        InterceptingOperatorMetricGroup metricGroup = new InterceptingOperatorMetricGroup();
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarnessWithMetrics(func, metricGroup);
+        testHarness.open();
+        // no partition cached yet -> cache size is 0.
+        assertThat(readCacheSizeMetric(metricGroup)).isZero();
+        // no requests issued yet -> hit rate falls back to 1.0.
+        assertThat(readCacheHitRateMetric(metricGroup)).isEqualTo(1.0);
+
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("fruit", 4L, 33));
+        // 2 partitions cached -> live size = 2 * topN(1) = 2.
+        assertThat(readCacheSizeMetric(metricGroup)).isEqualTo(2L);
+        // hit rate is now driven by live counters and lies in [0.0, 1.0].
+        assertThat(readCacheHitRateMetric(metricGroup)).isBetween(0.0, 1.0);
+        testHarness.close();
     }
 }
