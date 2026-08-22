@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -82,7 +83,9 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -261,6 +264,18 @@ public class CheckpointCoordinator {
 
     private long triggerDelay;
 
+    /** Whether regional checkpoint is enabled. */
+    private final boolean regionalCheckpointEnabled;
+
+    /** Maximum ratio of regions that may fail within a single checkpoint. */
+    private final double regionalMaxFailureRatio;
+
+    /** Maximum consecutive checkpoints that may reference historical state. */
+    private final int regionalMaxConsecutiveFailures;
+
+    /** Handles regional checkpoint logic (FLIP-600). */
+    private final RegionalCheckpointHandler regionalCheckpointHandler;
+
     // --------------------------------------------------------------------------------------------
 
     public CheckpointCoordinator(
@@ -380,11 +395,39 @@ public class CheckpointCoordinator {
         this.vertexFinishedStateCheckerFactory = checkNotNull(vertexFinishedStateCheckerFactory);
         this.initialTriggeringDelay = chkConfig.getInitialTriggeringDelay();
         this.triggerDelay = initialTriggeringDelay;
+        this.regionalCheckpointEnabled = chkConfig.isRegionalCheckpointEnabled();
+        this.regionalMaxFailureRatio = chkConfig.getRegionalMaxFailureRatio();
+        this.regionalMaxConsecutiveFailures = chkConfig.getRegionalMaxConsecutiveFailures();
+        this.regionalCheckpointHandler =
+                new RegionalCheckpointHandler(
+                        this,
+                        lock,
+                        this.completedCheckpointStore,
+                        this.coordinatorsToCheckpoint,
+                        this.statsTracker,
+                        this.regionalCheckpointEnabled,
+                        this.regionalMaxFailureRatio,
+                        this.regionalMaxConsecutiveFailures);
     }
 
     // --------------------------------------------------------------------------------------------
     //  Configuration
     // --------------------------------------------------------------------------------------------
+
+    /** Returns whether regional checkpoint is enabled. */
+    public boolean isRegionalCheckpointEnabled() {
+        return regionalCheckpointHandler.isRegionalCheckpointEnabled();
+    }
+
+    /** Sets the region ID provider for regional checkpoint support. */
+    public void setRegionIdProvider(Function<ExecutionVertexID, Object> regionIdProvider) {
+        regionalCheckpointHandler.setRegionIdProvider(regionIdProvider);
+    }
+
+    /** Sets the all-sources-finished checker (FLIP-600 Section 9). */
+    public void setAllSourcesFinishedChecker(Supplier<Boolean> allSourcesFinishedChecker) {
+        regionalCheckpointHandler.setAllSourcesFinishedChecker(allSourcesFinishedChecker);
+    }
 
     /**
      * Adds the given master hook to the checkpoint coordinator. This method does nothing, if the
@@ -647,9 +690,9 @@ public class CheckpointCoordinator {
                             .thenApplyAsync(
                                     plan -> {
                                         try {
-                                            // this must happen outside the coordinator-wide lock,
-                                            // because it communicates with external services
-                                            // (in HA mode) and may block for a while.
+                                            regionalCheckpointHandler
+                                                    .checkAllSourcesFinishedAndForceGlobal(
+                                                            request.props);
                                             long checkpointID =
                                                     checkpointIdCounter.getAndIncrement();
                                             return new Tuple2<>(plan, checkpointID);
@@ -1164,8 +1207,17 @@ public class CheckpointCoordinator {
                         job,
                         taskManagerLocationInfo,
                         checkpointException.getCause());
-                abortPendingCheckpoint(
-                        checkpoint, checkpointException, message.getTaskExecutionId());
+
+                if (regionalCheckpointEnabled && !checkpoint.getProps().isSavepoint()) {
+                    checkpoint.recordDecline(message.getTaskExecutionId(), checkpointException);
+
+                    if (checkpoint.areAllTasksResponded()) {
+                        regionalCheckpointHandler.tryCompleteRegionalCheckpoint(checkpoint);
+                    }
+                } else {
+                    abortPendingCheckpoint(
+                            checkpoint, checkpointException, message.getTaskExecutionId());
+                }
             } else if (LOG.isDebugEnabled()) {
                 if (recentExpiredCheckpoints.contains(checkpointId)) {
                     // message is for an expired checkpoint
@@ -1260,6 +1312,10 @@ public class CheckpointCoordinator {
 
                         if (checkpoint.isFullyAcknowledged()) {
                             completePendingCheckpoint(checkpoint);
+                        } else if (regionalCheckpointEnabled
+                                && checkpoint.hasDeclines()
+                                && checkpoint.areAllTasksResponded()) {
+                            regionalCheckpointHandler.tryCompleteRegionalCheckpoint(checkpoint);
                         }
                         break;
                     case DUPLICATE:
@@ -1392,11 +1448,15 @@ public class CheckpointCoordinator {
             scheduleTriggerRequest();
         }
 
+        // A fully acknowledged checkpoint resets the consecutive regional counter and the
+        // force-global flag (per FLIP-600 two-tier max-consecutive-failures semantics).
+        regionalCheckpointHandler.resetOnGlobalSuccess();
+
         cleanupAfterCompletedCheckpoint(
                 pendingCheckpoint, checkpointId, completedCheckpoint, lastSubsumed, props);
     }
 
-    private void reportCompletedCheckpoint(CompletedCheckpoint completedCheckpoint) {
+    void reportCompletedCheckpoint(CompletedCheckpoint completedCheckpoint) {
         failureManager.handleCheckpointSuccess(completedCheckpoint.getCheckpointID());
         CompletedCheckpointStats completedCheckpointStats = completedCheckpoint.getStatistic();
         if (completedCheckpointStats != null) {
@@ -1439,7 +1499,7 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {
+    void logCheckpointInfo(CompletedCheckpoint completedCheckpoint) {
         LOG.info(
                 "Completed checkpoint {} for job {} ({} bytes, checkpointDuration={} ms, finalizationTime={} ms).",
                 completedCheckpoint.getCheckpointID(),
@@ -1492,7 +1552,7 @@ public class CheckpointCoordinator {
         }
     }
 
-    private long extractIdIfDiscardedOnSubsumed(CompletedCheckpoint lastSubsumed) {
+    long extractIdIfDiscardedOnSubsumed(CompletedCheckpoint lastSubsumed) {
         final long lastSubsumedCheckpointId;
         if (lastSubsumed != null && lastSubsumed.getProperties().discardOnSubsumed()) {
             lastSubsumedCheckpointId = lastSubsumed.getCheckpointID();
@@ -1502,7 +1562,7 @@ public class CheckpointCoordinator {
         return lastSubsumedCheckpointId;
     }
 
-    private CompletedCheckpoint addCompletedCheckpointToStoreAndSubsumeOldest(
+    CompletedCheckpoint addCompletedCheckpointToStoreAndSubsumeOldest(
             long checkpointId,
             CompletedCheckpoint completedCheckpoint,
             PendingCheckpoint pendingCheckpoint)
@@ -1628,7 +1688,7 @@ public class CheckpointCoordinator {
         recentExpiredCheckpoints.addLast(id);
     }
 
-    private void dropSubsumedCheckpoints(long checkpointId) {
+    void dropSubsumedCheckpoints(long checkpointId) {
         abortPendingCheckpoints(
                 checkpoint ->
                         checkpoint.getCheckpointID() < checkpointId && checkpoint.canBeSubsumed(),
@@ -1980,12 +2040,44 @@ public class CheckpointCoordinator {
         return recentExpiredCheckpoints;
     }
 
+    @VisibleForTesting
+    int getConsecutiveRegionalCheckpointCount() {
+        return regionalCheckpointHandler.getConsecutiveRegionalCheckpointCount();
+    }
+
+    @VisibleForTesting
+    boolean getForceGlobalNextCheckpoint() {
+        return regionalCheckpointHandler.getForceGlobalNextCheckpoint();
+    }
+
     public CheckpointStorageCoordinatorView getCheckpointStorage() {
         return checkpointStorageView;
     }
 
     public CompletedCheckpointStore getCheckpointStore() {
         return completedCheckpointStore;
+    }
+
+    // Package-private accessors for RegionalCheckpointHandler
+
+    CheckpointsCleaner getCheckpointsCleaner() {
+        return checkpointsCleaner;
+    }
+
+    Executor getExecutor() {
+        return executor;
+    }
+
+    Clock getClock() {
+        return clock;
+    }
+
+    void removePendingCheckpoint(long checkpointId) {
+        pendingCheckpoints.remove(checkpointId);
+    }
+
+    void setLastCheckpointCompletionRelativeTime(long time) {
+        lastCheckpointCompletionRelativeTime = time;
     }
 
     /**
@@ -2275,13 +2367,13 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void abortPendingCheckpoint(
+    void abortPendingCheckpoint(
             PendingCheckpoint pendingCheckpoint, CheckpointException exception) {
 
         abortPendingCheckpoint(pendingCheckpoint, exception, null);
     }
 
-    private void abortPendingCheckpoint(
+    void abortPendingCheckpoint(
             PendingCheckpoint pendingCheckpoint,
             CheckpointException exception,
             @Nullable final ExecutionAttemptID executionAttemptID) {
@@ -2356,17 +2448,32 @@ public class CheckpointCoordinator {
         @Override
         public void run() {
             synchronized (lock) {
-                // only do the work if the checkpoint is not discarded anyways
-                // note that checkpoint completion discards the pending checkpoint object
                 if (!pendingCheckpoint.isDisposed()) {
                     LOG.info(
                             "Checkpoint {} of job {} expired before completing.",
                             pendingCheckpoint.getCheckpointID(),
                             job);
-
-                    abortPendingCheckpoint(
-                            pendingCheckpoint,
-                            new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED));
+                    // Per FLIP-600 Per-Region Timeout Handling: when regional checkpoint is
+                    // enabled and this is not a savepoint, treat unacknowledged tasks as
+                    // failed regions and attempt regional checkpoint completion instead of
+                    // directly aborting.
+                    if (regionalCheckpointEnabled && !pendingCheckpoint.getProps().isSavepoint()) {
+                        final int marked =
+                                pendingCheckpoint.markUnacknowledgedTasksAsDeclined(
+                                        new CheckpointException(
+                                                CheckpointFailureReason.CHECKPOINT_EXPIRED));
+                        LOG.info(
+                                "Regional checkpoint {} timed out. Marked {} unacknowledged "
+                                        + "task(s) as failed for regional evaluation.",
+                                pendingCheckpoint.getCheckpointID(),
+                                marked);
+                        regionalCheckpointHandler.tryCompleteRegionalCheckpoint(pendingCheckpoint);
+                    } else {
+                        abortPendingCheckpoint(
+                                pendingCheckpoint,
+                                new CheckpointException(
+                                        CheckpointFailureReason.CHECKPOINT_EXPIRED));
+                    }
                 }
             }
         }

@@ -190,6 +190,12 @@ public class TaskStateStats implements Serializable {
         private StatsSummary alignmentDuration = new StatsSummary();
         private StatsSummary checkpointStartDelay = new StatsSummary();
 
+        /**
+         * The oldest (minimum) regional-checkpoint reference id across all subtasks of this task,
+         * or {@code null} if no subtask referenced a historical checkpoint.
+         */
+        private Long oldestRefCheckpointId = null;
+
         void updateSummary(SubtaskStateStats subtaskStats) {
             checkpointedSize.add(subtaskStats.getCheckpointedSize());
             stateSize.add(subtaskStats.getStateSize());
@@ -202,6 +208,14 @@ public class TaskStateStats implements Serializable {
             persistedData.add(subtaskStats.getPersistedData());
             alignmentDuration.add(subtaskStats.getAlignmentDuration());
             checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
+            subtaskStats
+                    .getRefCheckpointId()
+                    .ifPresent(
+                            refId ->
+                                    oldestRefCheckpointId =
+                                            oldestRefCheckpointId == null
+                                                    ? refId
+                                                    : Math.min(oldestRefCheckpointId, refId));
         }
 
         public StatsSummary getCheckpointedSize() {
@@ -238,6 +252,14 @@ public class TaskStateStats implements Serializable {
 
         public StatsSummary getCheckpointStartDelayStats() {
             return checkpointStartDelay;
+        }
+
+        /**
+         * Returns the oldest (minimum) regional-checkpoint reference id across all subtasks of this
+         * task, or {@code null} if no subtask referenced a historical checkpoint.
+         */
+        public Long getOldestRefCheckpointId() {
+            return oldestRefCheckpointId;
         }
     }
 }
