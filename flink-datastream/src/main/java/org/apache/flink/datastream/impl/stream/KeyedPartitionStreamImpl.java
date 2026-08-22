@@ -59,6 +59,7 @@ import org.apache.flink.util.OutputTag;
 import java.util.Collections;
 import java.util.HashSet;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -187,6 +188,13 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         transform,
                         newKeySelector,
                         TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType())));
+    }
+
+    @Override
+    public KeyedPartitionStream<K, V> returns(TypeInformation<V> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
+        transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override
