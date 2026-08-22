@@ -158,9 +158,18 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
 
   @TestTemplate
   def testPartialInsertWithOrderBy(): Unit = {
-    util.verifyRelPlanInsert(
+    val insert =
       "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
-        "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d")
+        "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d"
+    // ORDER BY on a non-time attribute is supported in batch but rejected during streaming
+    // optimization.
+    if (isBatch) {
+      util.verifyRelPlanInsert(insert)
+    } else {
+      assertThatThrownBy(() => util.verifyRelPlanInsert(insert))
+        .hasMessageContaining(
+          "requires the primary sort key to be a time attribute in ascending order")
+    }
   }
 
   @TestTemplate
