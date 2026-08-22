@@ -300,11 +300,16 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
 
     @Override
     public void close() throws Exception {
-        serverThread.close();
-        serverThread.join();
+        if (serverThread != null) {
+            serverThread.close();
+            serverThread.join();
+        }
     }
 
     public void accumulateFinalResults() throws Exception {
+        if (bufferLock == null) {
+            return;
+        }
         bufferLock.lock();
         try {
             // put results not consumed by the client into the accumulator
