@@ -89,8 +89,8 @@ public class FlinkSecurityManager extends SecurityManager {
 
         boolean haltOnSystemExit = configuration.get(ClusterOptions.HALT_ON_FATAL_ERROR);
 
-        // If no check is needed, return null so that caller can avoid setting security manager not
-        // to incur any runtime cost.
+        // If no check is needed, return null so that caller can avoid setting security manager and
+        // avoid any runtime overhead.
         if (userSystemExitMode == ClusterOptions.UserSystemExitMode.DISABLED && !haltOnSystemExit) {
             return null;
         }
