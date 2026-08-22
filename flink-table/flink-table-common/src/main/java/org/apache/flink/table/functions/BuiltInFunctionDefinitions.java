@@ -400,6 +400,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayConcatFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_FLATTEN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_FLATTEN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.ARRAY)))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY_FLATTEN))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayFlattenFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition ARRAY_MAX =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_MAX")
