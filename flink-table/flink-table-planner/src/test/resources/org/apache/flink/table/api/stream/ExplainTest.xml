@@ -424,6 +424,40 @@ Union(all=[true], union=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExplainWithWatermark[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(id=[$0], text=[$1], rowtime=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, WatermarkSource]])
+
+== Optimized Physical Plan ==
+WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL SECOND)])
++- TableSourceScan(table=[[default_catalog, default_database, WatermarkSource]], fields=[id, text, rowtime])
+
+== Optimized Execution Plan ==
+WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL SECOND)])
++- TableSourceScan(table=[[default_catalog, default_database, WatermarkSource]], fields=[id, text, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithWatermark[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(id=[$0], text=[$1], rowtime=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 0:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, WatermarkSource]])
+
+== Optimized Physical Plan ==
+WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL SECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- TableSourceScan(table=[[default_catalog, default_database, WatermarkSource]], fields=[id, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL SECOND)])
++- TableSourceScan(table=[[default_catalog, default_database, WatermarkSource]], fields=[id, text, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMiniBatchIntervalInfer[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
