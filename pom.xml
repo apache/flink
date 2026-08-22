@@ -163,7 +163,10 @@ under the License.
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.75.0</beam.version>
 		<protoc.version>4.32.1</protoc.version>
-		<okhttp.version>3.14.9</okhttp.version>
+		<okhttp.version>4.12.0</okhttp.version>
+		<!-- OkHttp 4.x pulls the Kotlin stdlib transitively; pin it so okhttp's and okio's differing
+			 kotlin-stdlib versions converge (matches flink-model-openai). -->
+		<kotlin.version>1.9.10</kotlin.version>
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<lz4.version>1.10.3</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
@@ -666,6 +669,33 @@ under the License.
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>logging-interceptor</artifactId>
 				<version>${okhttp.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk7</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<!-- Converge the Kotlin stdlib's org.jetbrains:annotations (13.0) with the newer version
+					 pulled by other dependencies such as testcontainers. -->
+				<groupId>org.jetbrains</groupId>
+				<artifactId>annotations</artifactId>
+				<version>17.0.0</version>
 			</dependency>
 
 			<dependency>
@@ -1920,6 +1950,29 @@ under the License.
 										<exclude>com.fasterxml.jackson*:*:(,2.14.0]</exclude>
 									</excludes>
 									<message>Older jackson versions are not allowed due to security vulnerabilities.</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>forbid-eol-okhttp</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>com.squareup.okhttp3:*:(,4.0)</exclude>
+									</excludes>
+									<includes>
+										<!-- Legacy test-only dependency graphs may still pull EOL OkHttp 3.x; those
+											never reach the distribution, so allow them in test scope, as done for
+											snakeyaml above. (Hadoop's much older com.squareup.okhttp 2.x / okio 1.x are a
+											different groupId and out of scope here.) -->
+										<include>com.squareup.okhttp3:*:(,4.0):*:test</include>
+									</includes>
+									<message>End-of-life OkHttp 3.x is not allowed (no security patches). Use the built-in java.net.http (JDK) client on the core classpath, or a maintained OkHttp 4.x+ isolated to a plugin classloader or a standalone connector uber-JAR.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
