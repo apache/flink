@@ -2071,6 +2071,14 @@ components:
           format: int64
         mode:
           $ref: "#/components/schemas/ProcessingMode"
+        regional_checkpoint_enabled:
+          type: boolean
+        regional_max_consecutive_failures:
+          type: integer
+          format: int32
+        regional_max_failure_ratio:
+          type: number
+          format: double
         state_backend:
           type: string
         state_changelog_enabled:
@@ -2139,6 +2147,9 @@ components:
         num_subtasks:
           type: integer
           format: int32
+        oldest_ref_checkpoint_id:
+          type: integer
+          format: int64
         persisted_data:
           type: integer
           format: int64
@@ -2299,6 +2310,9 @@ components:
             type: boolean
           aborted:
             type: boolean
+          ref_checkpoint_id:
+            type: integer
+            format: int64
     ConfigurationInfo:
       type: array
       items:
@@ -3655,6 +3669,9 @@ components:
         num_subtasks:
           type: integer
           format: int32
+        oldest_ref_checkpoint_id:
+          type: integer
+          format: int64
         persisted_data:
           type: integer
           format: int64
@@ -3690,6 +3707,9 @@ components:
         num_subtasks:
           type: integer
           format: int32
+        oldest_ref_checkpoint_id:
+          type: integer
+          format: int64
         persisted_data:
           type: integer
           format: int64

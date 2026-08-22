@@ -2109,6 +2109,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "num_subtasks" : {
             "type" : "integer"
           },
+          "oldest_ref_checkpoint_id" : {
+            "type" : "integer"
+          },
           "persisted_data" : {
             "type" : "integer"
           },
@@ -2180,6 +2183,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "num_subtasks" : {
               "type" : "integer"
             },
+            "oldest_ref_checkpoint_id" : {
+              "type" : "integer"
+            },
             "persisted_data" : {
               "type" : "integer"
             },
@@ -2221,6 +2227,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                     "type" : "integer"
                   },
                   "num_subtasks" : {
+                    "type" : "integer"
+                  },
+                  "oldest_ref_checkpoint_id" : {
                     "type" : "integer"
                   },
                   "persisted_data" : {
@@ -2280,6 +2289,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "type" : "integer"
             },
             "num_subtasks" : {
+              "type" : "integer"
+            },
+            "oldest_ref_checkpoint_id" : {
               "type" : "integer"
             },
             "persisted_data" : {
@@ -2538,6 +2550,15 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "mode" : {
       "type" : "any"
     },
+    "regional_checkpoint_enabled" : {
+      "type" : "boolean"
+    },
+    "regional_max_consecutive_failures" : {
+      "type" : "integer"
+    },
+    "regional_max_failure_ratio" : {
+      "type" : "number"
+    },
     "state_backend" : {
       "type" : "string"
     },
@@ -2629,6 +2650,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "num_subtasks" : {
       "type" : "integer"
     },
+    "oldest_ref_checkpoint_id" : {
+      "type" : "integer"
+    },
     "persisted_data" : {
       "type" : "integer"
     },
@@ -2670,6 +2694,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "integer"
           },
           "num_subtasks" : {
+            "type" : "integer"
+          },
+          "oldest_ref_checkpoint_id" : {
             "type" : "integer"
           },
           "persisted_data" : {
@@ -2759,6 +2786,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "integer"
     },
     "num_subtasks" : {
+      "type" : "integer"
+    },
+    "oldest_ref_checkpoint_id" : {
       "type" : "integer"
     },
     "persisted_data" : {
