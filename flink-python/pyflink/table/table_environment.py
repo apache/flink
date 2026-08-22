@@ -36,6 +36,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
+from pyflink.table.expression import _get_java_expression
 from pyflink.table.catalog import Catalog, CatalogDescriptor
 from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.compiled_plan import CompiledPlan
@@ -585,6 +586,23 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path), self)
+
+    def from_call(self, path: str, *arguments: Expression) -> Table:
+        """
+        Creates a table from a registered process table function call.
+
+        :param path: Path of the registered process table function.
+        :param arguments: Named arguments of the function.
+        :return: The result table.
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(path, str):
+            raise TypeError("Process table functions must be called by a registered name.")
+        gateway = get_gateway()
+        j_arguments = to_jarray(
+            gateway.jvm.Object, [_get_java_expression(argument) for argument in arguments])
+        return Table(self._j_tenv.fromCall(path, j_arguments), self)
 
     def from_descriptor(self, descriptor: TableDescriptor) -> Table:
         """
