@@ -29,6 +29,8 @@ under the License.
 
 # EXPLAIN 语句
 
+除了默认的执行计划，Flink 还支持通过 `ExplainDetail` 为 EXPLAIN 输出附加额外信息，包括优化器估算代价（`ESTIMATED_COST`）、各算子的 changelog 语义（`CHANGELOG_MODE`）、优化器建议（`PLAN_ADVICE`）以及 JSON 格式的执行计划（`JSON_EXECUTION_PLAN`）。这些 detail 都是显式启用的；当没有指定任何 detail 时，默认的 `EXPLAIN` 输出保持不变。
+
 EXPLAIN 语句用于解释 query 或 INSERT 语句的执行逻辑，也用于优化 query 语句的查询计划。
 
 <a name="run-an-explain-statement"></a>
@@ -345,13 +347,87 @@ TableSourceScan(..., cumulative cost ={1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 netw
 
 **CHANGELOG_MODE**
 
-指定 `CHANGELOG_MODE` 将使得优化器（optimizer）将 changelog mode 附加在每个物理节点上输出。
-关于 changelog mode 更多信息请参阅 [动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)。
+指定 `CHANGELOG_MODE` 将使得优化器（optimizer）为每个物理节点在输出中附加一个 `changelogMode=[...]` 标签。该选项仅对流式作业生效；批作业的计划会忽略该选项。
+
+*使用 EXPLAIN 查看 Changelog Mode*
+
+*changelog mode* 描述了一个流式算子（或表）能够产生哪些类型的行变更。Flink 在整个引擎中使用相同的四个 {{< javadoc file="org/apache/flink/types/RowKind.html" name="`RowKind`" >}} 枚举值，但在 EXPLAIN 输出中用简短的符号表示：
+
+| 符号   | `RowKind`       | 含义                                                 |
+|:-------|:----------------|:-----------------------------------------------------|
+| `I`    | `INSERT`        | 插入一行新记录。                                     |
+| `UB`   | `UPDATE_BEFORE` | 被更新行的旧值（更新前的 image）。                   |
+| `UA`   | `UPDATE_AFTER`  | 被更新行的新值（更新后的 image）。                   |
+| `D`    | `DELETE`        | 删除一行记录（携带完整行内容）。                     |
+| `PD`   | `DELETE`        | 仅携带主键的部分删除（partial / key-only delete），当算子能够仅凭主键唯一确定要删除的行时输出。 |
+
+了解每个算子的 changelog mode 在多种场景下都很有价值：
+
+- **Sink 兼容性**：若某 sink 仅声明接受 `ChangelogMode.insertOnly()`（如追加型连接器），则其无法消费根算子产出 `UB` / `UA` / `D` 的管道。通过 EXPLAIN 可以在运行前发现此类不兼容问题。
+- **Retract 与 Upsert 语义**：算子产出的是 `UB,UA`（retract 风格的更新）还是仅 `UA`（upsert 风格的更新），决定了下游算子是否需要主键，也显著影响算子状态大小与网络开销。
+- **排查非确定性更新问题**：更新类消息（`UB`、`UA`、`D`）与非确定性表达式结合时可能导致结果错误，参见 [持续查询中的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}) 以及上文中的 `PLAN_ADVICE` 所给出的相关告警。
+
+*语法*
+
+`CHANGELOG_MODE` 是 `ExplainDetail` 的一种，可以与其他 detail 组合使用，且在 SQL 和 Table API 中都可用：
+
+```sql
+-- SQL
+EXPLAIN CHANGELOG_MODE <query_or_insert_or_statement_set>;
+EXPLAIN CHANGELOG_MODE, ESTIMATED_COST <query_or_insert_or_statement_set>;
+```
+
+```java
+// Table API
+table.explain(ExplainDetail.CHANGELOG_MODE);
+tEnv.explainSql("SELECT ...", ExplainDetail.CHANGELOG_MODE);
+```
+
+*示例*
+
+```sql
+CREATE TABLE MyTable1 (a BIGINT, b INT, c VARCHAR)
+WITH ('connector' = 'datagen');
+
+EXPLAIN CHANGELOG_MODE
+SELECT a, COUNT(*) FROM MyTable1 GROUP BY a;
+```
+
+输出的 `== Optimized Physical Plan ==` 段落如下（*Abstract Syntax Tree* 与 *Optimized Execution Plan* 段落不变，此处省略）：
 
 ```text
 == Optimized Physical Plan ==
-GroupAggregate(..., changelogMode=[I,UA,D])
+Calc(select=[EXPR$0], changelogMode=[I,UA])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[a]], changelogMode=[I])
+      +- Calc(select=[a], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I])
 ```
+
+*如何解读输出*
+
+自底向上阅读 `changelogMode=[...]` 标签，可以看到 changelog 语义沿着管道如何演变：
+
+| 出现的符号                       | 语义解读                                                                                   |
+|:---------------------------------|:-------------------------------------------------------------------------------------------|
+| `[I]`                            | **追加流（append-only）**，可与任意 sink（包括仅接受插入的连接器）兼容。                  |
+| `[I,UA]`                         | **Upsert 风格的更新**（无撤回消息），下游算子需基于唯一键 / 主键解释这条流。              |
+| `[I,UB,UA]` 或 `[I,UB,UA,D]`     | **Retract 风格的更新**（完整 changelog），需要可接受撤回的 sink，或带主键的 upsert sink。 |
+| `[I,UA,D]`                       | Upsert 更新并带删除，常见于去重或基于 upsert source 的某些 Join 查询。                    |
+
+changelog mode 是逐算子推断的，因此计划中不同节点的标签可能不同：根算子上的标签即 sink 需要消费的语义；下层算子上的标签则说明了更新**从哪里**被引入（例如 `GroupAggregate` 通常会将 `[I]` 的输入转变为 `[I,UA]` 或 `[I,UA,D]`）。
+
+*与算子、连接器的关系*
+
+- **算子**：无状态的投影与过滤（`Calc`、`Exchange`）通常会原样透传输入的 changelog mode。有状态算子会改变该模式：普通 `GroupAggregate` / `Rank` / 常规 `Join` 通常会引入 `UA`（必要时还会引入 `UB` / `D`）；基于事件时间的窗口聚合产出追加型 `[I]`；去重算子通常产出 `[I,UA]`。
+- **连接器**：Source 连接器通过 `ScanTableSource#getChangelogMode` 声明自己产生的 changelog mode；Sink 连接器通过 `DynamicTableSink#getChangelogMode` 声明自己能接受的模式集合。只有当根算子的模式是 sink 声明集合的子集时，计划才被视为合法。关于追加流、撤回流与 upsert 流的概念背景请参阅 [Table 到 Stream 的转换]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)。
+
+*注意事项*
+
+- 默认的 `EXPLAIN` 输出**不会**包含 `changelogMode=[...]` 标签；必须显式请求 `CHANGELOG_MODE`（可与 `ESTIMATED_COST` / `PLAN_ADVICE` 等其他 detail 组合使用）。
+- `JSON_EXECUTION_PLAN` 输出的是算子转换图（transformation graph），**不会**显式包含 changelog mode；如需该信息请使用 `CHANGELOG_MODE`。
+- 该标签仅附加在流式物理节点上，批作业的计划不会携带 changelog mode。
+- 当优化器无法推断某节点的 changelog mode（较罕见的边界情形）时，该标签可能被省略或渲染为 `changelogMode=[NONE]`。
 
 **PLAN_ADVICE**
 {{< hint info >}}
