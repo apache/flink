@@ -158,10 +158,116 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         assertThat(s3.committedObjects.get(KEY)).containsExactly(bytes('A', 5));
     }
 
+    @Test
+    void closeForCommitDeletesTempFileOnSuccess() throws Exception {
+        assertThat(countLocalFilesIn(tmp))
+                .as("the pending part is buffered in a temp file")
+                .isOne();
+
+        stream.closeForCommit();
+
+        assertThat(s3.openMultipartUploads.get(uploadId))
+                .as("the commit must upload the pending part")
+                .containsOnlyKeys(1);
+        assertThat(countLocalFilesIn(tmp)).as("a successful commit deletes the temp file").isZero();
+    }
+
+    @Test
+    void closeForCommitDeletesAlreadyRemovedTempFile() throws Exception {
+        Path dir = tmp.resolve("empty-commit");
+        String uid = s3.startMultiPartUpload(KEY);
+        // No write(), so there is no pending part and closeForCommit() only deletes the temp file.
+        NativeS3RecoverableFsDataOutputStream emptyStream =
+                new NativeS3RecoverableFsDataOutputStream(
+                        s3, KEY, uid, dir.toString(), MIN_PART_SIZE);
+        assertThat(countLocalFilesIn(dir)).as("the stream creates its temp file on open").isOne();
+
+        Files.delete(onlyFileIn(dir).toPath());
+
+        assertThat(emptyStream.closeForCommit()).as("the commit must still succeed").isNotNull();
+
+        assertThat(s3.abortAttempts).as("a healthy commit must not abort the upload").isZero();
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    @Test
+    void partUploadFailureLeavesTempFileForClose() throws Exception {
+        s3.failUploadPart = true;
+        assertThat(countLocalFilesIn(tmp))
+                .as("the pending part is buffered in a temp file")
+                .isOne();
+
+        // setUp() wrote 5 bytes; 5 more reach MIN_PART_SIZE and flush the part from write().
+        assertThatThrownBy(() -> stream.write(bytes('B', 5), 0, 5))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("injected uploadPart failure");
+
+        assertThat(countLocalFilesIn(tmp))
+                .as("a failed part upload keeps the temp file so the exception is not masked")
+                .isOne();
+
+        stream.close();
+
+        assertThat(countLocalFilesIn(tmp)).as("close() reclaims the temp file").isZero();
+    }
+
+    @Test
+    void partUploadDeletesAlreadyRemovedTempFile() throws Exception {
+        s3.deletePartFileAfterUpload = true;
+        File flushedFile = onlyFileIn(tmp);
+
+        stream.write(bytes('B', 5), 0, 5);
+
+        assertThat(s3.uploadPartAttempts).as("exactly one part was uploaded").isOne();
+        assertThat(flushedFile).as("the uploaded part file is gone").doesNotExist();
+        assertThat(onlyFileIn(tmp))
+                .as("write() rotated to a fresh temp file")
+                .isNotEqualTo(flushedFile);
+
+        stream.closeForCommit().commit();
+
+        assertThat(s3.committedObjects.get(KEY))
+                .as("the uploaded part is still committed")
+                .hasSize((int) MIN_PART_SIZE);
+        assertThat(countLocalFilesIn(tmp)).as("the commit deletes the rotated temp file").isZero();
+    }
+
+    @Test
+    void closeDeletesTempFileRemovedDuringCleanup() throws Exception {
+        Path dir = tmp.resolve("close-race");
+        String uid = s3.startMultiPartUpload(KEY);
+        // close() may run concurrently with the writer thread during cancellation, so the temp
+        // file may already be gone when close() deletes it.
+        NativeS3RecoverableFsDataOutputStream racingStream =
+                new NativeS3RecoverableFsDataOutputStream(
+                        s3, KEY, uid, dir.toString(), MIN_PART_SIZE) {
+                    @Override
+                    protected void deleteTempFile(File file) throws IOException {
+                        Files.delete(file.toPath());
+                        super.deleteTempFile(file);
+                    }
+                };
+        racingStream.write(bytes('A', 5), 0, 5);
+        assertThat(countLocalFilesIn(dir))
+                .as("the pending part is buffered in a temp file")
+                .isOne();
+
+        racingStream.close();
+
+        assertThat(s3.abortAttempts).isEqualTo(1);
+        assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
     private NativeS3RecoverableFsDataOutputStream newStream(
             InMemoryNativeS3Operations ops, String uid) throws IOException {
         return new NativeS3RecoverableFsDataOutputStream(
                 ops, KEY, uid, tmp.toString(), MIN_PART_SIZE);
+    }
+
+    private static File onlyFileIn(Path dir) {
+        File[] files = dir.toFile().listFiles();
+        assertThat(files).hasSize(1);
+        return files[0];
     }
 
     private NativeS3RecoverableFsDataOutputStream newFailingDeleteStream() throws IOException {

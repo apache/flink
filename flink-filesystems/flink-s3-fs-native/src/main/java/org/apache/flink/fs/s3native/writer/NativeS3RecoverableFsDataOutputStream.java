@@ -208,7 +208,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
         numBytesInParts += currentPartSize;
 
-        Files.delete(currentTempFile.toPath());
+        Files.deleteIfExists(currentTempFile.toPath());
     }
 
     @Override
@@ -226,7 +226,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 if (currentPartSize > 0) {
                     uploadCurrentPart();
                 } else {
-                    Files.delete(currentTempFile.toPath());
+                    Files.deleteIfExists(currentTempFile.toPath());
                 }
 
                 recoverable =
@@ -302,7 +302,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 collected = ExceptionUtils.firstOrSuppressed(e, collected);
             }
         }
-        if (currentTempFile != null && currentTempFile.exists()) {
+        if (currentTempFile != null) {
             try {
                 deleteTempFile(currentTempFile);
             } catch (IOException e) {
@@ -327,7 +327,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     @VisibleForTesting
     protected void deleteTempFile(File file) throws IOException {
-        Files.delete(file.toPath());
+        Files.deleteIfExists(file.toPath());
     }
 
     private void lock() throws IOException {
