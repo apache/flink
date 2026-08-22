@@ -23,13 +23,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.state.rocksdb.iterator.RocksStatesPerKeyGroupMergeIterator;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.NativeLibraryLoader;
@@ -38,54 +37,58 @@ import org.rocksdb.RocksDB;
 
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for the RocksStatesPerKeyGroupMergeIterator. */
-public class RocksKeyGroupsRocksSingleStateIteratorTest {
+class RocksKeyGroupsRocksSingleStateIteratorTest {
 
     private static final int NUM_KEY_VAL_STATES = 50;
     private static final int MAX_NUM_KEYS = 20;
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path tempFolder;
 
-    @Before
-    public void before() throws Exception {
-        NativeLibraryLoader.getInstance().loadLibrary(tempFolder.newFolder().getAbsolutePath());
+    @BeforeEach
+    void before() throws Exception {
+        NativeLibraryLoader.getInstance()
+                .loadLibrary(TempDirUtils.newFolder(tempFolder).getAbsolutePath());
     }
 
     @Test
-    public void testEmptyMergeIterator() throws Exception {
+    void testEmptyMergeIterator() throws Exception {
         RocksStatesPerKeyGroupMergeIterator emptyIterator =
                 new RocksStatesPerKeyGroupMergeIterator(
                         new CloseableRegistry(),
                         Collections.emptyList(),
                         Collections.emptyList(),
                         2);
-        Assert.assertFalse(emptyIterator.isValid());
+        assertThat(emptyIterator.isValid()).isFalse();
     }
 
     @Test
-    public void testMergeIteratorByte() throws Exception {
-        Assert.assertTrue(MAX_NUM_KEYS <= Byte.MAX_VALUE);
+    void testMergeIteratorByte() throws Exception {
+        assertThat(MAX_NUM_KEYS).isLessThanOrEqualTo(Byte.MAX_VALUE);
 
         testMergeIterator(Byte.MAX_VALUE);
     }
 
     @Test
-    public void testMergeIteratorShort() throws Exception {
-        Assert.assertTrue(MAX_NUM_KEYS <= Byte.MAX_VALUE);
+    void testMergeIteratorShort() throws Exception {
+        assertThat(MAX_NUM_KEYS).isLessThanOrEqualTo(Byte.MAX_VALUE);
 
         testMergeIterator(Short.MAX_VALUE);
     }
 
-    public void testMergeIterator(int maxParallelism) throws Exception {
+    void testMergeIterator(int maxParallelism) throws Exception {
         Random random = new Random(1234);
 
         try (ReadOptions readOptions = new ReadOptions();
-                RocksDB rocksDB = RocksDB.open(tempFolder.getRoot().getAbsolutePath())) {
+                RocksDB rocksDB = RocksDB.open(tempFolder.toFile().getAbsolutePath())) {
             List<Tuple2<RocksIteratorWrapper, Integer>> rocksIteratorsWithKVStateId =
                     new ArrayList<>();
             List<Tuple2<ColumnFamilyHandle, Integer>> columnFamilyHandlesWithKeyCount =
@@ -151,12 +154,11 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
                     int keyGroup = maxParallelism > Byte.MAX_VALUE ? bb.getShort() : bb.get();
                     int key = bb.getInt();
 
-                    Assert.assertTrue(keyGroup >= prevKeyGroup);
-                    Assert.assertTrue(key >= prevKey);
-                    Assert.assertEquals(prevKeyGroup != keyGroup, mergeIterator.isNewKeyGroup());
-                    Assert.assertEquals(
-                            prevKVState != mergeIterator.kvStateId(),
-                            mergeIterator.isNewKeyValueState());
+                    assertThat(keyGroup).isGreaterThanOrEqualTo(prevKeyGroup);
+                    assertThat(key).isGreaterThanOrEqualTo(prevKey);
+                    assertThat(mergeIterator.isNewKeyGroup()).isEqualTo(prevKeyGroup != keyGroup);
+                    assertThat(mergeIterator.isNewKeyValueState())
+                            .isEqualTo(prevKVState != mergeIterator.kvStateId());
 
                     prevKeyGroup = keyGroup;
                     prevKVState = mergeIterator.kvStateId();
@@ -165,7 +167,7 @@ public class RocksKeyGroupsRocksSingleStateIteratorTest {
                     ++totalKeysActual;
                 }
 
-                Assert.assertEquals(totalKeysExpected, totalKeysActual);
+                assertThat(totalKeysActual).isEqualTo(totalKeysExpected);
             }
 
             IOUtils.closeQuietly(rocksDB.getDefaultColumnFamily());
