@@ -533,6 +533,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                                 false,
                                                 true,
                                                 false,
+                                                false,
                                                 false);
                         throw new TableException(errorMsg);
                     }
@@ -1134,6 +1135,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 false,
                                 true,
                                 false,
+                                false,
                                 false);
 
         throw new TableException(errorMsg);
@@ -1176,6 +1178,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 true,
                                 false,
                                 true,
+                                false,
                                 false,
                                 false));
 
