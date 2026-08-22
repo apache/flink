@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
+import java.util.function.Function;
 
 /** {@link MetricReporterFactory} for {@link DatadogHttpReporter}. */
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
@@ -32,6 +34,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
     private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporterFactory.class);
 
     private static final String API_KEY = "apikey";
+    private static final String API_KEY_ENV_VAR = "DD_API_KEY";
     private static final String PROXY_HOST = "proxyHost";
     private static final String PROXY_PORT = "proxyPort";
     private static final String DATA_CENTER = "dataCenter";
@@ -41,7 +44,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
     @Override
     public MetricReporter createMetricReporter(Properties config) {
-        final String apiKey = config.getProperty(API_KEY, null);
+        final String apiKey = getApiKey(config, System::getenv);
         final String proxyHost = config.getProperty(PROXY_HOST, null);
         final int proxyPort = Integer.valueOf(config.getProperty(PROXY_PORT, "8080"));
         final String rawDataCenter = config.getProperty(DATA_CENTER, "US");
@@ -64,5 +67,32 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
                 dataCenter,
                 tags,
                 useLogicalIdentifier);
+    }
+
+    /**
+     * Retrieves the Datadog API key from environment variable or configuration.
+     *
+     * <p>The API key is resolved in the following order:
+     *
+     * <ol>
+     *   <li>Environment variable "DD_API_KEY"
+     *   <li>Configuration property "apikey"
+     * </ol>
+     *
+     * @param config the configuration properties
+     * @param envLookup function used to read environment variables (injectable for tests)
+     * @return the Datadog API key, or null if not found in either location
+     */
+    @VisibleForTesting
+    String getApiKey(Properties config, Function<String, String> envLookup) {
+        final String envApiKey = envLookup.apply(API_KEY_ENV_VAR);
+        if (envApiKey != null && !envApiKey.isEmpty()) {
+            return envApiKey;
+        }
+        String apiKey = config.getProperty(API_KEY, null);
+        if (apiKey != null && !apiKey.isEmpty()) {
+            return apiKey;
+        }
+        return null;
     }
 }
