@@ -431,6 +431,302 @@ class StatusWatermarkValveTest {
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
+    /**
+     * Tests that FINISHED channels are excluded from min watermark calculation, allowing remaining
+     * channels to advance the watermark.
+     */
+    @Test
+    void testFinishedChannelExcludedFromMinWatermark() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(2);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermark(new Watermark(5), 0, valveOutput);
+        valve.inputWatermark(new Watermark(10), 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(5));
+
+        // Mark channel 0's subpartition as FINISHED - should exclude it from min calculation
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(new Watermark(10)); // Now min is 10, not 5
+
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests that FINISHED channels are excluded from max watermark calculation when all other
+     * channels become IDLE.
+     */
+    @Test
+    void testFinishedExcludedFromIdleMaxCalculation() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(20), 1, valveOutput);
+        valve.inputWatermark(new Watermark(5), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(5));
+
+        // Mark channel 1's subpartition (watermark 20) as FINISHED
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 1, valveOutput);
+        // No watermark change since min of remaining subpartitions (10,5) is still 5
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Mark remaining subpartitions as IDLE
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+
+        // Should emit max of non-FINISHED subpartitions (10,5) = 10, not including FINISHED
+        // subpartition (20)
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(new Watermark(10)); // max(10,5) = 10, excludes 20
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Comprehensive test for FINISHED channels.
+     *
+     * <ol>
+     *   <li>Reject non-MAX_VALUE watermarks
+     *   <li>Accept MAX_VALUE
+     *   <li>Aggregate across channels to emit Long.MAX_VALUE once when all FINISHED channels
+     *       receive it
+     *   <li>Prevent duplicate emissions
+     * </ol>
+     */
+    @Test
+    void testFinishedChannelWatermarkHandling() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(2);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        // Setup: both channels active with watermarks
+        valve.inputWatermark(new Watermark(100), 0, valveOutput);
+        valve.inputWatermark(new Watermark(200), 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(100));
+
+        // Mark both channels as FINISHED
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 0, valveOutput);
+        // FINISHED status does NOT change watermark - remains at 200
+        // FINISHED status should NOT modify the channel's watermark
+        // Watermark remains unchanged until Long.MAX_VALUE flows from upstream
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(200));
+        // Channel should be marked as unaligned
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned).isFalse();
+
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.FINISHED);
+        // No watermark emitted. Long.MAX_VALUE will come via inputWatermark() to preserve message
+        // ordering
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // FINISHED channels ignore non-MAX_VALUE watermarks (preserve message ordering)
+        valve.inputWatermark(new Watermark(150), 0, valveOutput);
+        valve.inputWatermark(new Watermark(250), 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // Both ignored
+        assertThat(valve.getSubpartitionStatus(0).watermark).isEqualTo(100L); // Unchanged
+        assertThat(valve.getSubpartitionStatus(1).watermark).isEqualTo(200L); // Unchanged
+
+        // Channel 0 receives Long.MAX_VALUE from upstream
+        valve.inputWatermark(new Watermark(Long.MAX_VALUE), 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).watermark).isEqualTo(Long.MAX_VALUE);
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // Not all channels have it yet
+
+        // Channel 1 receives Long.MAX_VALUE from upstream
+        valve.inputWatermark(new Watermark(Long.MAX_VALUE), 1, valveOutput);
+        assertThat(valve.getSubpartitionStatus(1).watermark).isEqualTo(Long.MAX_VALUE);
+
+        // Now ALL FINISHED channels have Long.MAX_VALUE - emit once
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(Long.MAX_VALUE));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Duplicate Long.MAX_VALUE should NOT emit again
+        valve.inputWatermark(new Watermark(Long.MAX_VALUE), 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests that FINISHED is a terminal state and channels cannot transition from FINISHED back to
+     * ACTIVE or IDLE.
+     */
+    @Test
+    void testFinishedIsTerminalState() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(1);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.FINISHED);
+
+        // Attempt FINISHED -> ACTIVE (should be ignored)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).watermarkStatus.isFinished()).isTrue();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Attempt FINISHED -> IDLE (should be ignored)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).watermarkStatus.isFinished()).isTrue();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests ACTIVE to IDLE and ACTIVE to FINISHED transitions in various configurations, including
+     * global status changes.
+     *
+     * <ol>
+     *   <li>ACTIVE → IDLE when other ACTIVE channels exist (global stays ACTIVE)
+     *   <li>ACTIVE → FINISHED when other ACTIVE channels exist (global stays ACTIVE)
+     *   <li>Last ACTIVE → IDLE (global becomes IDLE)
+     *   <li>Last ACTIVE → FINISHED when IDLE channels exist (global becomes IDLE)
+     *   <li>All IDLE → FINISHED (global becomes FINISHED)
+     * </ol>
+     */
+    @Test
+    void testActiveTransitions() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(4);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(20), 1, valveOutput);
+        valve.inputWatermark(new Watermark(15), 2, valveOutput);
+        valve.inputWatermark(new Watermark(12), 3, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+
+        // Case 1: ACTIVE → IDLE when other ACTIVE channels exist (global stays ACTIVE)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(12));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Case 2: ACTIVE → FINISHED when other ACTIVE channels exist (global stays ACTIVE)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 3, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(15));
+        assertThat(valve.getSubpartitionStatus(3).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Case 3: Last ACTIVE → IDLE (global becomes IDLE)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(20));
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+
+        // Setup for next case: bring one channel back to ACTIVE
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.ACTIVE);
+
+        // Case 4: Last ACTIVE → FINISHED when IDLE channels exist (global becomes IDLE)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned).isFalse();
+
+        // Case 5: All IDLE → FINISHED (global becomes FINISHED)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.FINISHED);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
+     * Tests IDLE to ACTIVE transitions with both aligned and unaligned watermarks, verifying
+     * realignment behavior.
+     *
+     * <ol>
+     *   <li>IDLE → ACTIVE when already caught up (watermark >= lastOutput)
+     *   <li>IDLE → ACTIVE when behind (watermark < lastOutput)
+     * </ol>
+     */
+    @Test
+    void testIdleToActiveTransition() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(20), 1, valveOutput);
+        valve.inputWatermark(new Watermark(15), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+
+        // All channels go IDLE
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(new Watermark(15)); // min of remaining active (Ch1=20, Ch2=15)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(20)); // max of all idle
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+
+        // Case 1: IDLE -> ACTIVE when already caught up (watermark >= lastOutput)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(WatermarkStatus.ACTIVE); // Global becomes ACTIVE
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned)
+                .isTrue(); // 20 >= 20, aligned immediately
+
+        // Case 2: IDLE -> ACTIVE when behind (watermark < lastOutput)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // No status change (already ACTIVE)
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned)
+                .isFalse(); // 10 < 20, unaligned
+
+        // Verify unaligned channel doesn't affect min watermark
+        valve.inputWatermark(new Watermark(25), 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(new Watermark(25)); // Only Ch1 aligned
+
+        // Ch0 catches up and becomes aligned (but min doesn't change, so no watermark emission)
+        valve.inputWatermark(new Watermark(26), 0, valveOutput);
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned).isTrue();
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // min still 25, no progression
+    }
+
+    /**
+     * Tests IDLE to FINISHED transitions in various configurations, verifying global status changes
+     * and watermark progression.
+     *
+     * <ol>
+     *   <li>IDLE → FINISHED when ACTIVE channels exist (global stays ACTIVE)
+     *   <li>IDLE → FINISHED when other IDLE channels exist (global stays IDLE)
+     *   <li>IDLE → FINISHED as last channel (global becomes FINISHED)
+     * </ol>
+     */
+    @Test
+    void testIdleToFinishedTransition() throws Exception {
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+
+        valve.inputWatermark(new Watermark(10), 0, valveOutput);
+        valve.inputWatermark(new Watermark(15), 1, valveOutput);
+        valve.inputWatermark(new Watermark(12), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+
+        // Ch0 goes IDLE
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(12));
+
+        // Case 1: IDLE -> FINISHED when ACTIVE channels exist (global stays ACTIVE)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // No watermark, no status change
+        assertThat(valve.getSubpartitionStatus(0).watermarkStatus.isFinished()).isTrue();
+        assertThat(valve.getSubpartitionStatus(0).isWatermarkAligned).isFalse();
+
+        // Ch1 goes IDLE (no watermark change since Ch2 still has min=12)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // Ch2 goes IDLE (all non-FINISHED are IDLE, emit max of idle channels, then global becomes
+        // IDLE)
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput())
+                .isEqualTo(new Watermark(15)); // max of idle (Ch1=15, Ch2=12)
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+
+        // Case 2: IDLE -> FINISHED when other IDLE channels exist (global stays IDLE)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull(); // Global stays IDLE (Ch2 still IDLE)
+
+        // Case 3: IDLE -> FINISHED as last channel (global becomes FINISHED)
+        valve.inputWatermarkStatus(WatermarkStatus.FINISHED, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.FINISHED);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
     private static class StatusWatermarkOutput implements PushingAsyncDataInput.DataOutput {
 
         private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
