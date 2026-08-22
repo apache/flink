@@ -76,6 +76,10 @@ class BridgingSqlFunctionCallGen(call: RexCall, rexProgram: RexProgram) extends 
       callContext,
       udf,
       function.toString,
-      skipIfArgsNull = false)
+      skipIfArgsNull = false,
+      // Only the true user-UDF entry opts into metrics; lookup/ML/vector reuse the same util with
+      // the default None and stay un-instrumented.
+      udfMetricName = Some(function.getName)
+    )
   }
 }
