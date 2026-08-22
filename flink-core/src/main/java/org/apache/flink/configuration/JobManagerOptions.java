@@ -724,7 +724,9 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint. "
+                                                    + "Only failures that count against the tolerable checkpoint-failure threshold (e.g. IO errors, async failures, expirations, declines, finalization errors) advance this counter; "
+                                                    + "other failures such as tasks not being fully running, coordinator shutdown, or checkpoint subsumption are ignored to avoid spurious rescales during startup or recovery.")
                                     .build());
 
     @Documentation.Section({

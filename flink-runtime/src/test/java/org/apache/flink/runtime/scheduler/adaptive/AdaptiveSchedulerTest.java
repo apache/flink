@@ -2306,7 +2306,9 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
     @Test
     void testOnFailedCheckpointIsHandledInMainThread() throws Exception {
         testCheckpointStatsEventBeingExecutedInTheMainThread(
-                CheckpointStatsListener::onFailedCheckpoint, 2, 2);
+                listener -> listener.onFailedCheckpoint(CheckpointFailureReason.IO_EXCEPTION),
+                2,
+                2);
     }
 
     private void testCheckpointStatsEventBeingExecutedInTheMainThread(
