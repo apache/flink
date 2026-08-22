@@ -302,6 +302,14 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
         "ON v.bd_name <> 'debug'")
   }
 
+  @Test
+  def testLateralProjectionFromUnnest(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    util.verifyRelPlan(
+      "SELECT a, doubled FROM MyTable, " +
+        "LATERAL (SELECT s * 2 FROM UNNEST(MyTable.b) AS T(s)) AS R(doubled)")
+  }
+
   def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)
