@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -78,6 +79,25 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     protected transient ScheduledExecutorService retryScheduler;
 
+    /**
+     * Monotonically increasing counter for sequence ID auto-increment strategy. Combined with
+     * {@link #subtaskIndex} it guarantees sequence isolation across Flink job restarts, failovers
+     * and parallel instances. Only initialized when {@link
+     * TritonOptions#SEQUENCE_ID_AUTO_INCREMENT} is enabled.
+     */
+    protected transient AtomicLong sequenceCounter;
+
+    /**
+     * Index of this parallel subtask. Captured unconditionally in {@link #open(FunctionContext)}
+     * and consumed by two independent code paths: (1) the retry scheduler thread name — {@code
+     * triton-retry-scheduler-<model>-<subtask>} — so thread dumps from a parallelism&gt;1
+     * deployment can be attributed to a specific subtask instead of aliasing every instance under
+     * the same name; and (2) the auto-increment sequence ID generator, where it is combined with
+     * {@link #sequenceCounter} to produce unique IDs of the form {@code {base}-{subtask}-{counter}}
+     * across parallel instances.
+     */
+    protected transient int subtaskIndex;
+
     private final String endpoint;
 
     /**
@@ -105,6 +125,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     private final String sequenceId;
 
+    private final boolean sequenceIdAutoIncrement;
+    private final TritonOptions.SequenceIdCounterInitStrategy sequenceIdCounterInitStrategy;
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
     private final String compression;
@@ -133,6 +155,9 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.flattenBatchDim = config.get(TritonOptions.FLATTEN_BATCH_DIM);
         this.priority = config.get(TritonOptions.PRIORITY);
         this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
+        this.sequenceIdAutoIncrement = config.get(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT);
+        this.sequenceIdCounterInitStrategy =
+                config.get(TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY);
         this.sequenceStart = config.get(TritonOptions.SEQUENCE_START);
         this.sequenceEnd = config.get(TritonOptions.SEQUENCE_END);
         this.compression = config.get(TritonOptions.COMPRESSION);
@@ -185,6 +210,26 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.circuitBreakerHalfOpenRequests =
                 config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
 
+        if (this.sequenceIdAutoIncrement && this.sequenceId == null) {
+            throw new IllegalArgumentException(
+                    "sequence-id-auto-increment requires sequence-id to be configured. "
+                            + "Please provide a base sequence-id value.");
+        }
+
+        // Auto-increment turns every record into a one-shot sequence, so both flags must be true:
+        // a missing `end` leaks the per-sequence slot on Triton's batcher (no close ever arrives),
+        // and a missing `start` routes the request to uninitialized model state.
+        if (this.sequenceIdAutoIncrement && !(this.sequenceStart && this.sequenceEnd)) {
+            throw new IllegalArgumentException(
+                    "sequence-id-auto-increment requires both sequence-start=true and "
+                            + "sequence-end=true, because each generated sequence ID represents a "
+                            + "single one-shot stateful request. Got sequence-start="
+                            + this.sequenceStart
+                            + ", sequence-end="
+                            + this.sequenceEnd
+                            + ".");
+        }
+
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
     }
@@ -194,6 +239,10 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+
+        // Cache subtask index — used by both the retry scheduler thread name and the
+        // auto-increment ID generator. See field javadoc.
+        this.subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
 
         // Provision a private single-thread scheduler for delayed retries so that retry tasks are
         // bound to this operator's lifecycle. Previously CompletableFuture.delayedExecutor was
@@ -206,7 +255,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // included so that thread dumps from a parallelism>1 deployment can be attributed
             // to a specific subtask rather than aliasing every parallel instance under the same
             // "triton-retry-scheduler-<model>" name.
-            final int subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
             final String threadName = "triton-retry-scheduler-" + modelName + "-" + subtaskIndex;
             this.retryScheduler =
                     Executors.newSingleThreadScheduledExecutor(
@@ -270,6 +318,32 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // Start periodic health checking. The scheduler uses an initial delay equal to
             // checkInterval so it does not duplicate the eager checkNow() above.
             healthChecker.start();
+        }
+
+        // Allocate the auto-increment counter last so a failure in the (already-completed) health
+        // checker startup cannot leave it half-initialized. See SequenceIdCounterInitStrategy for
+        // the seeding trade-offs.
+        if (sequenceIdAutoIncrement) {
+            final long counterSeed;
+            switch (sequenceIdCounterInitStrategy) {
+                case NANO_TIME:
+                    counterSeed = System.nanoTime();
+                    break;
+                case EPOCH_MILLIS:
+                    counterSeed = System.currentTimeMillis();
+                    break;
+                case ZERO:
+                default:
+                    counterSeed = 0L;
+                    break;
+            }
+            this.sequenceCounter = new AtomicLong(counterSeed);
+            LOG.info(
+                    "Initialized sequence ID auto-increment for subtask {}: base={}, strategy={}, seed={}",
+                    subtaskIndex,
+                    sequenceId,
+                    sequenceIdCounterInitStrategy,
+                    counterSeed);
         }
     }
 
@@ -543,6 +617,37 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected String getSequenceId() {
         return sequenceId;
+    }
+
+    protected boolean isSequenceIdAutoIncrement() {
+        return sequenceIdAutoIncrement;
+    }
+
+    /**
+     * Returns the sequence ID to embed in a single inference request: under auto-increment, {@code
+     * {base}-{subtask}-{counter}} with a freshly incremented counter; otherwise the configured base
+     * sequence ID verbatim (possibly {@code null}).
+     *
+     * <p><b>Call exactly once per logical record</b>, at the entry point of the predict call —
+     * never again on a retry. Each call consumes a new ID, and with {@code sequence-start=true &
+     * sequence-end=true} every ID owns a distinct server-side slot on Triton's sequence batcher.
+     * Regenerating per retry would open N slots while only ever closing the last one, leaking the
+     * other N&minus;1.
+     *
+     * <p>{@code final} to keep this contract enforceable: a memoizing or call-counting override
+     * would silently weaken it. Subclasses needing different ID composition should read the
+     * underlying fields ({@link #sequenceId}, {@link #sequenceCounter}, {@link #subtaskIndex})
+     * directly.
+     */
+    protected final String nextEffectiveSequenceId() {
+        if (sequenceId == null) {
+            return null;
+        }
+        if (!sequenceIdAutoIncrement) {
+            return sequenceId;
+        }
+        final long counter = sequenceCounter.getAndIncrement();
+        return sequenceId + "-" + subtaskIndex + "-" + counter;
     }
 
     protected boolean isSequenceStart() {
