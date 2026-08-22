@@ -130,6 +130,28 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testWindowTVFMaterializesOriginalRowtime(): Unit = {
+    // FLINK-39899: after applying a window TVF, the original rowtime attribute is materialized to
+    // a regular timestamp and only window_time stays a time attribute. Hence applying another
+    // window TVF on the original time column is no longer allowed.
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW windowed AS
+        |SELECT a, rowtime
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin)
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE windowed, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(new ValidationException(
+        "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3)."))
+  }
+
+  @Test
   def testConflictingFieldNames(): Unit = {
     util.tableEnv.executeSql("""
                                |CREATE VIEW v1 AS
