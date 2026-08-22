@@ -21,6 +21,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.Preconditions;
 
@@ -29,6 +31,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Function;
 
@@ -45,6 +48,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
     @Nullable private final ExecutionGraph previousExecutionGraph;
 
     private final StateTransitionManager stateTransitionManager;
+    @Nullable private final VertexParallelism targetVertexParallelism;
 
     @VisibleForTesting
     WaitingForResources(
@@ -53,7 +57,13 @@ class WaitingForResources extends StateWithoutExecutionGraph
             Duration submissionResourceWaitTimeout,
             Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory) {
-        this(context, log, submissionResourceWaitTimeout, null, stateTransitionManagerFactory);
+        this(
+                context,
+                log,
+                submissionResourceWaitTimeout,
+                null,
+                stateTransitionManagerFactory,
+                null);
     }
 
     WaitingForResources(
@@ -62,10 +72,12 @@ class WaitingForResources extends StateWithoutExecutionGraph
             Duration submissionResourceWaitTimeout,
             @Nullable ExecutionGraph previousExecutionGraph,
             Function<StateTransitionManager.Context, StateTransitionManager>
-                    stateTransitionManagerFactory) {
+                    stateTransitionManagerFactory,
+            @Nullable VertexParallelism targetVertexParallelism) {
         super(context, log);
         this.context = Preconditions.checkNotNull(context);
         Preconditions.checkNotNull(submissionResourceWaitTimeout);
+        this.targetVertexParallelism = targetVertexParallelism;
         this.stateTransitionManager = stateTransitionManagerFactory.apply(this);
 
         // since state transitions are not allowed in state constructors, schedule calls for later.
@@ -128,8 +140,15 @@ class WaitingForResources extends StateWithoutExecutionGraph
         return context.hasSufficientResources();
     }
 
+    // Only "desired" is gated on the target parallelism, not "sufficient": the stabilization phase
+    // machine (see StateTransitionManager) already waits for "desired" and falls back to
+    // "sufficient" once the stabilization timeout elapses, so gating "sufficient" on the target
+    // too would just make that fallback impossible to reach.
     @Override
     public boolean hasDesiredResources() {
+        if (targetVertexParallelism != null) {
+            return isParallelismBasedOnFreeSlotsAtLeast(targetVertexParallelism);
+        }
         return context.hasDesiredResources();
     }
 
@@ -141,6 +160,29 @@ class WaitingForResources extends StateWithoutExecutionGraph
     @Override
     public ScheduledFuture<?> scheduleOperation(Runnable callback, Duration delay) {
         return context.runIfState(this, callback, delay);
+    }
+
+    private boolean isParallelismBasedOnFreeSlotsAtLeast(VertexParallelism target) {
+        final Optional<VertexParallelism> maybeParallelismBasedOnFreeSlots =
+                context.getFreeSlotVertexParallelism();
+        if (maybeParallelismBasedOnFreeSlots.isEmpty()) {
+            return false;
+        }
+
+        final VertexParallelism parallelismBasedOnFreeSlots = maybeParallelismBasedOnFreeSlots.get();
+        return target.getVertices().stream()
+                .allMatch(
+                        vertex -> {
+                            // Concurrent resource requirements (e.g. a scale-down triggered while
+                            // still waiting to regain the pre-restart target) may have lowered
+                            // what's actually needed below the original target: cap the target so
+                            // this gate doesn't keep waiting for a level that's no longer relevant.
+                            final int cappedTarget =
+                                    Math.min(
+                                            target.getParallelism(vertex),
+                                            context.getUpperBoundParallelism(vertex));
+                            return cappedTarget <= parallelismBasedOnFreeSlots.getParallelism(vertex);
+                        });
     }
 
     /** Context of the {@link WaitingForResources} state. */
@@ -171,29 +213,44 @@ class WaitingForResources extends StateWithoutExecutionGraph
          * @return a ScheduledFuture representing pending completion of the task
          */
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
+
+        /**
+         * Returns the {@link VertexParallelism} that can be achieved with the currently free slots
+         * (excluding slots still reserved by the execution that is being cancelled).
+         */
+        Optional<VertexParallelism> getFreeSlotVertexParallelism();
+
+        /**
+         * Returns the parallelism upper bound currently allowed for the given vertex by the
+         * latest job resource requirements, independent of slot availability.
+         */
+        int getUpperBoundParallelism(JobVertexID jobVertexId);
     }
 
     static class Factory implements StateFactory<WaitingForResources> {
 
         private final Context context;
         private final Logger log;
-        private final Duration submissionResourceWaitTimeout;
+        private final Duration resourceWaitTimeout;
         @Nullable private final ExecutionGraph previousExecutionGraph;
         private final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory;
+        @Nullable private final VertexParallelism targetVertexParallelism;
 
         public Factory(
                 Context context,
                 Logger log,
-                Duration submissionResourceWaitTimeout,
+                Duration resourceWaitTimeout,
                 Function<StateTransitionManager.Context, StateTransitionManager>
                         stateTransitionManagerFactory,
-                @Nullable ExecutionGraph previousExecutionGraph) {
+                @Nullable ExecutionGraph previousExecutionGraph,
+                @Nullable VertexParallelism targetVertexParallelism) {
             this.context = context;
             this.log = log;
-            this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
+            this.resourceWaitTimeout = resourceWaitTimeout;
             this.previousExecutionGraph = previousExecutionGraph;
             this.stateTransitionManagerFactory = stateTransitionManagerFactory;
+            this.targetVertexParallelism = targetVertexParallelism;
         }
 
         public Class<WaitingForResources> getStateClass() {
@@ -204,9 +261,10 @@ class WaitingForResources extends StateWithoutExecutionGraph
             return new WaitingForResources(
                     context,
                     log,
-                    submissionResourceWaitTimeout,
+                    resourceWaitTimeout,
                     previousExecutionGraph,
-                    stateTransitionManagerFactory);
+                    stateTransitionManagerFactory,
+                    targetVertexParallelism);
         }
     }
 }

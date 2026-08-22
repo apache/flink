@@ -717,6 +717,33 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Duration> SCHEDULER_RESCALE_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.rescale.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(2))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait, after a restart triggered to change the job's parallelism, "
+                                                    + "for the parallelism that was determined as the target before triggering the rescale to be "
+                                                    + "available again. Once reached, the JobManager proceeds immediately. "
+                                                    + "Reaching the timeout would make the JobManager proceed with whatever sufficient resources "
+                                                    + "are available.")
+                                    .linebreak()
+                                    .text(
+                                            "This accounts for the fact that the slot used by the execution being restarted is not freed "
+                                                    + "synchronously with its cancellation being observed: e.g., if the cancellation does not "
+                                                    + "complete within %s, the TaskManager providing that slot is marked failed and has to be "
+                                                    + "reprovisioned before the slot is returned to the pool. This value should be configured high "
+                                                    + "enough to cover that delay across all restarted vertices, to avoid restarting with fewer "
+                                                    + "resources than were available right before the restart.",
+                                            code(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Integer> SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES =
             key("jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures")
                     .intType()
