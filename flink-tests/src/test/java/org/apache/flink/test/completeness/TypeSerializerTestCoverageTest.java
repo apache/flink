@@ -83,6 +83,7 @@ import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.DecimalDataSerializer;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
+import org.apache.flink.table.runtime.typeutils.GeographyDataSerializer;
 import org.apache.flink.table.runtime.typeutils.LinkedListSerializer;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
@@ -196,6 +197,7 @@ class TypeSerializerTestCoverageTest {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
+                        GeographyDataSerializer.class.getName(),
                         AvroSerializer.class.getName());
 
         //  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
@@ -258,6 +260,7 @@ class TypeSerializerTestCoverageTest {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
+                        GeographyDataSerializer.class.getName(),
                         AvroSerializer.class.getName(),
                         // KeyAndValueSerializer shouldn't be used to serialize data to state and
                         // doesn't need to ensure upgrade compatibility.
