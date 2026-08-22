@@ -243,7 +243,8 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                         .deployApplicationCluster(clusterSpecification, appConfig)
                         .getClusterClient();
 
-        final String address = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX + "." + NAMESPACE;
+        final String address =
+                CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX + "." + NAMESPACE + ".svc";
         final int port = flinkConfig.get(RestOptions.PORT);
         assertThat(clusterClient.getWebInterfaceURL())
                 .isEqualTo(String.format("http://%s:%d", address, port));
