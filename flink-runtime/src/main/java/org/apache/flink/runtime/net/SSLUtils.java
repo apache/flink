@@ -35,6 +35,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
@@ -42,6 +45,8 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import java.io.File;
@@ -49,6 +54,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -67,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Common utilities to manage SSL transport settings. */
 public class SSLUtils {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
+
     /**
      * Creates a factory for SSL Server Sockets from the given configuration. SSL Server Sockets are
      * always part of internal communication.
@@ -81,6 +89,9 @@ public class SSLUtils {
         String[] protocols = getEnabledProtocols(config);
         String[] cipherSuites = getEnabledCipherSuites(config);
 
+        debugSslProtocolAndCiphers(
+                "internal-server-socket", protocols, Arrays.asList(cipherSuites));
+
         SSLServerSocketFactory factory = sslContext.getServerSocketFactory();
         return new ConfiguringSSLServerSocketFactory(factory, protocols, cipherSuites);
     }
@@ -88,6 +99,9 @@ public class SSLUtils {
     /**
      * Creates a factory for SSL Client Sockets from the given configuration. SSL Client Sockets are
      * always part of internal communication.
+     *
+     * <p>The returned factory explicitly applies the configured protocols and cipher suites to
+     * every socket it creates, mirroring the server-side {@code ConfiguringSSLServerSocketFactory}.
      */
     public static SocketFactory createSSLClientSocketFactory(Configuration config)
             throws Exception {
@@ -96,7 +110,14 @@ public class SSLUtils {
             throw new IllegalConfigurationException("SSL is not enabled");
         }
 
-        return sslContext.getSocketFactory();
+        String[] protocols = getEnabledProtocols(config);
+        String[] cipherSuites = getEnabledCipherSuites(config);
+
+        debugSslProtocolAndCiphers(
+                "internal-client-socket", protocols, Arrays.asList(cipherSuites));
+
+        return new ConfiguringSSLClientSocketFactory(
+                sslContext.getSocketFactory(), protocols, cipherSuites);
     }
 
     /** Creates a SSLEngineFactory to be used by internal communication server endpoints. */
@@ -370,6 +391,8 @@ public class SSLUtils {
         Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, true);
         tmf.map(sslContextBuilder::trustManager);
 
+        debugSslProtocolAndCiphers("internal-netty-socket", sslProtocols, ciphers);
+
         return sslContextBuilder
                 .sslProvider(provider)
                 .protocols(sslProtocols)
@@ -425,6 +448,7 @@ public class SSLUtils {
         if (clientMode) {
             sslContextBuilder = SslContextBuilder.forClient();
             if (clientAuth != ClientAuth.NONE) {
+                // mutual TLS is enabled at client side
                 KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
                 sslContextBuilder.keyManager(kmf);
             }
@@ -435,20 +459,34 @@ public class SSLUtils {
             sslContextBuilder = SslContextBuilder.forServer(kmf);
         }
 
+        // Always apply operator-configured protocols and ciphers to both server and client
+        // contexts:
+        sslContextBuilder.protocols(sslProtocols).ciphers(ciphers);
+        debugSslProtocolAndCiphers("external-rest-socket", sslProtocols, ciphers);
+
         if (clientMode || clientAuth != ClientAuth.NONE) {
+            // mutual TLS is enabled at client side
             Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, false);
-            tmf.map(
-                    // Use specific ciphers and protocols if SSL is configured with self-signed
-                    // certificates (user-supplied truststore)
-                    tm ->
-                            sslContextBuilder
-                                    .trustManager(tm)
-                                    .protocols(sslProtocols)
-                                    .ciphers(ciphers)
-                                    .clientAuth(clientAuth));
+            tmf.map(tm -> sslContextBuilder.trustManager(tm).clientAuth(clientAuth));
         }
 
         return sslContextBuilder.sslProvider(provider).build();
+    }
+
+    private static void debugSslProtocolAndCiphers(
+            String sslContextName, String[] sslProtocols, List<String> ciphers) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "'{}' ssl context uses {}: {}",
+                    sslContextName,
+                    SecurityOptions.SSL_PROTOCOL.key(),
+                    Arrays.asList(sslProtocols));
+            LOG.debug(
+                    "'{}' ssl context uses {}: {}",
+                    sslContextName,
+                    SecurityOptions.SSL_ALGORITHMS.key(),
+                    ciphers);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -522,6 +560,62 @@ public class SSLUtils {
             socket.setEnabledProtocols(protocols);
             socket.setEnabledCipherSuites(cipherSuites);
             socket.setNeedClientAuth(true);
+        }
+    }
+
+    /**
+     * A {@link javax.net.SocketFactory} that applies operator-configured TLS protocols and cipher
+     * suites to every client socket it creates. This mirrors {@link
+     * ConfiguringSSLServerSocketFactory} for the client (BlobClient) side.
+     */
+    private static class ConfiguringSSLClientSocketFactory extends SocketFactory {
+
+        private final SSLSocketFactory sslSocketFactory;
+        private final String[] protocols;
+        private final String[] cipherSuites;
+
+        ConfiguringSSLClientSocketFactory(
+                SSLSocketFactory sslSocketFactory, String[] protocols, String[] cipherSuites) {
+            this.sslSocketFactory = sslSocketFactory;
+            this.protocols = protocols;
+            this.cipherSuites = cipherSuites;
+        }
+
+        @Override
+        public Socket createSocket() throws IOException {
+            return configureSocket((SSLSocket) sslSocketFactory.createSocket());
+        }
+
+        @Override
+        public Socket createSocket(String host, int port) throws IOException {
+            return configureSocket((SSLSocket) sslSocketFactory.createSocket(host, port));
+        }
+
+        @Override
+        public Socket createSocket(String host, int port, InetAddress localHost, int localPort)
+                throws IOException {
+            return configureSocket(
+                    (SSLSocket) sslSocketFactory.createSocket(host, port, localHost, localPort));
+        }
+
+        @Override
+        public Socket createSocket(InetAddress host, int port) throws IOException {
+            return configureSocket((SSLSocket) sslSocketFactory.createSocket(host, port));
+        }
+
+        @Override
+        public Socket createSocket(
+                InetAddress address, int port, InetAddress localAddress, int localPort)
+                throws IOException {
+            return configureSocket(
+                    (SSLSocket)
+                            sslSocketFactory.createSocket(address, port, localAddress, localPort));
+        }
+
+        private SSLSocket configureSocket(javax.net.ssl.SSLSocket socket) {
+            socket.setEnabledProtocols(protocols);
+            socket.setEnabledCipherSuites(cipherSuites);
+            return socket;
         }
     }
 }
