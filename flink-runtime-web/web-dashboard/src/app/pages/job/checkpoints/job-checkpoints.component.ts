@@ -26,6 +26,7 @@ import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { CheckpointConfig, CheckpointHistory, Checkpoint, JobDetailCorrect } from '@flink-runtime-web/interfaces';
 import { JobCheckpointsDetailComponent } from '@flink-runtime-web/pages/job/checkpoints/detail/job-checkpoints-detail.component';
+import { JobCheckpointsTimelineComponent } from '@flink-runtime-web/pages/job/checkpoints/timeline/job-checkpoints-timeline.component';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
@@ -59,7 +60,8 @@ import { JobLocalService } from '../job-local.service';
     NzButtonModule,
     NzEmptyModule,
     NzCollapseModule,
-    NzTooltipModule
+    NzTooltipModule,
+    JobCheckpointsTimelineComponent
   ]
 })
 export class JobCheckpointsComponent implements OnInit, OnDestroy {
