@@ -277,6 +277,16 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         "not.existing.clazz",
                                         DataTypes.FIELD("a", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("b", DataTypes.CHAR(5).notNull())))
+                        // Test that the attribute order of the structured type is preserved.
+                        // The attribute names are chosen such that their hash order differs from
+                        // their declaration order.
+                        .testSqlResult(
+                                "OBJECT_UPDATE(OBJECT_OF('not.existing.clazz', 'b', 'Bob', 'a', 42), 'a', 16)",
+                                Row.of("Bob", 16),
+                                DataTypes.STRUCTURED(
+                                        "not.existing.clazz",
+                                        DataTypes.FIELD("b", DataTypes.CHAR(3).notNull()),
+                                        DataTypes.FIELD("a", DataTypes.INT().notNull())))
                         // Test update field to null
                         .testResult(
                                 objectOf(Type1.class, "a", 42, "b", "Bob")
