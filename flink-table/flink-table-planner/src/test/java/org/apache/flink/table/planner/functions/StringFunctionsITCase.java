@@ -44,6 +44,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         concatenateTestCases(),
                         eltTestCases(),
                         endsWithTestCases(),
+                        lpadRpadTestCases(),
                         parseUrlTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
@@ -754,6 +755,74 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TRANSLATE(f0, '3', '5')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> lpadRpadTestCases() {
+        // U+1F600 GRINNING FACE, encoded in UTF-16 as the surrogate pair D83D DE00. Written as an
+        // escape rather than inline so that this file stays within the Basic Multilingual Plane.
+        final String grinningFace = "\uD83D\uDE00";
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.LPAD)
+                        .onFieldsWithData(grinningFace, "a", grinningFace + grinningFace)
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        // a supplementary-plane character counts as one character, so a length that
+                        // falls inside it must not split the surrogate pair
+                        .testResult(
+                                $("f0").lpad(1, "x"),
+                                "LPAD(f0, 1, 'x')",
+                                grinningFace,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").lpad(1, "x"),
+                                "LPAD(f2, 1, 'x')",
+                                grinningFace,
+                                DataTypes.STRING())
+                        // padding around a supplementary-plane base
+                        .testResult(
+                                $("f0").lpad(3, "x"),
+                                "LPAD(f0, 3, 'x')",
+                                "xx" + grinningFace,
+                                DataTypes.STRING())
+                        // the pad string itself must not be split mid-character
+                        .testResult(
+                                $("f1").lpad(3, $("f0")),
+                                "LPAD(f1, 3, f0)",
+                                grinningFace + grinningFace + "a",
+                                DataTypes.STRING())
+                        // behaviour for Basic Multilingual Plane input is unchanged
+                        .testResult(
+                                $("f1").lpad(3, "x"),
+                                "LPAD(f1, 3, 'x')",
+                                "xxa",
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.RPAD)
+                        .onFieldsWithData(grinningFace, "a", grinningFace + grinningFace)
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .testResult(
+                                $("f0").rpad(1, "x"),
+                                "RPAD(f0, 1, 'x')",
+                                grinningFace,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").rpad(1, "x"),
+                                "RPAD(f2, 1, 'x')",
+                                grinningFace,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").rpad(3, "x"),
+                                "RPAD(f0, 3, 'x')",
+                                grinningFace + "xx",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").rpad(4, $("f0")),
+                                "RPAD(f1, 4, f0)",
+                                "a" + grinningFace + grinningFace + grinningFace,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").rpad(3, "x"),
+                                "RPAD(f1, 3, 'x')",
+                                "axx",
+                                DataTypes.STRING()));
     }
 
     private Stream<TestSetSpec> parseUrlTestCases() {

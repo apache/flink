@@ -824,6 +824,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("lpad('ab', 5, '')", "NULL")
 
     testAllApis("äää".lpad(13, "12345"), "lpad('äää',13,'12345')", "1234512345äää")
+
+    // supplementary-plane characters count as one character and must not be split
+    testSqlApi("lpad('😀', 1, 'x')", "😀")
+    testSqlApi("lpad('😀', 3, 'x')", "xx😀")
+    testSqlApi("lpad('😀😀', 1, 'x')", "😀")
+    testSqlApi("lpad('a', 3, '😀')", "😀😀a")
   }
 
   @Test
@@ -846,6 +852,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("rpad('üö',1,'??')", "ü")
     testSqlApi("rpad('abcd', 5, '')", "NULL")
     testAllApis("äää".rpad(13, "12345"), "rpad('äää',13,'12345')", "äää1234512345")
+
+    // supplementary-plane characters count as one character and must not be split
+    testSqlApi("rpad('😀', 1, 'x')", "😀")
+    testSqlApi("rpad('😀', 3, 'x')", "😀xx")
+    testSqlApi("rpad('😀😀', 1, 'x')", "😀")
+    testSqlApi("rpad('a', 4, '😀')", "a😀😀😀")
   }
 
   @Test
