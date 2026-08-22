@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.GeographyData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -40,6 +42,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -627,6 +630,20 @@ public class LogicalTypesTest {
                                 new Class[] {Bitmap.class, RoaringBitmapData.class},
                                 new LogicalType[] {},
                                 new BitmapType(false)));
+    }
+
+    @Test
+    void testGeographyType() {
+        assertThat(new GeographyType())
+                .isJavaSerializable()
+                .satisfies(
+                        baseAssertions(
+                                "GEOGRAPHY",
+                                "GEOGRAPHY",
+                                new Class[] {GeographyData.class, BinaryGeographyData.class},
+                                new Class[] {GeographyData.class, BinaryGeographyData.class},
+                                new LogicalType[] {},
+                                new GeographyType(false)));
     }
 
     @Test
