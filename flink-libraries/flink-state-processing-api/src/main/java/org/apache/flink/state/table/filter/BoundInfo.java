@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.filter;
+package org.apache.flink.state.table.filter;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 
 /** Information about a bound in a range filter. */
-@Experimental
+@Internal
 public final class BoundInfo<K> implements Serializable {
     private static final long serialVersionUID = 4L;
 

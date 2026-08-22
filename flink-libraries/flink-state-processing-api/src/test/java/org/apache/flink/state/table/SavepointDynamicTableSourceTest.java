@@ -395,6 +395,32 @@ class SavepointDynamicTableSourceTest {
     }
 
     @Test
+    void testOrOfExactAndRangeOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
+        // The planner hands this over intact as or(equals(k, 1), greaterThan(k, 5)), but OR only
+        // merges finite key sets, so a range branch makes the whole disjunction non-pushable.
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k = 1 OR k > 5 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 6L, 7L, 8L, 9L);
+    }
+
+    @Test
+    void testOrOfTwoRangesOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
+        // Same limitation for "outside a range". This is also the shape the planner produces
+        // when it expands a Sarg, which is why a range combined with <> is not pushed either.
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k < 2 OR k > 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 8L, 9L);
+    }
+
+    @Test
     void testUnsupportedFilterIsNotPushedDownButReturnsCorrectResult() throws Exception {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
@@ -410,9 +436,61 @@ class SavepointDynamicTableSourceTest {
         assertThat(keys).containsExactly(0L, 2L, 4L, 6L, 8L);
     }
 
+    @Test
+    void testFilterPushDownUpperBoundReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k < 3 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 2L);
+    }
+
+    @Test
+    void testFilterPushDownStrictLowerBoundReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k > 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownIntersectingRangesReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k >= 3 AND k <= 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(3L, 4L, 5L, 6L);
+    }
+
+    @Test
+    void testFilterPushDownComparisonWithLiteralOnLeftSide() throws Exception {
+        // verify that "5 < k" (literal on the left) works the same as "k > 5".
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE 5 < k ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(6L, 7L, 8L, 9L);
+    }
+
     // -------------------------------------------------------------------------
     //  Helpers
     // -------------------------------------------------------------------------
+
+    private static List<Long> collectKeys(StreamTableEnvironment tEnv, String sql)
+            throws Exception {
+        return tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100).stream()
+                .map(r -> (Long) r.getField("k"))
+                .collect(Collectors.toList());
+    }
 
     private static StreamTableEnvironment createBatchTableEnv() {
         Configuration config = new Configuration();
