@@ -34,7 +34,8 @@ public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
             long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            IntervalJoinFunction genJoinFunc) {
+            IntervalJoinFunction genJoinFunc,
+            long earlyFireDelay) {
         super(
                 joinType,
                 leftLowerBound,
@@ -43,7 +44,10 @@ public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
                 minCleanUpInterval,
                 leftType,
                 rightType,
-                genJoinFunc);
+                genJoinFunc,
+                earlyFireDelay,
+                // A proctime join's early fire shares the cleanup domain; never cross-domain.
+                false);
     }
 
     @Override
