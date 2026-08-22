@@ -106,7 +106,14 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
             ((JsonDecoder) getDecoder()).configure(getInputStream());
         }
 
-        return datumReader.read(null, getDecoder());
+        try {
+            return datumReader.read(null, getDecoder());
+        } catch (IOException | RuntimeException e) {
+            // A failed decode leaves stale bytes in the BinaryDecoder's internal read-ahead
+            // buffer. Reset the decoder so the next message is not corrupted by those bytes.
+            resetDecoder();
+            throw e;
+        }
     }
 
     @Override
