@@ -56,6 +56,7 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
     private final int[] iteratorKeysToRemove;
     private K previousKey;
     private K nextKey;
+    private byte[] nextKeyBytes;
 
     public RocksMultiStateKeysIterator(
             List<RocksIteratorWrapper> iterators,
@@ -166,6 +167,7 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
                             byteArrayDataInputView.getPosition(),
                             namespaceBytes)
                     && !Objects.equals(previousKey, smallestIteratorKeyValue)) {
+                nextKeyBytes = smallestIteratorKey;
                 return smallestIteratorKeyValue;
             }
         }
@@ -183,6 +185,16 @@ public class RocksMultiStateKeysIterator<K> implements AutoCloseable, Iterator<K
         K tmpKey = nextKey;
         nextKey = null;
         return tmpKey;
+    }
+
+    /**
+     * Returns the key-group of the key most recently returned by {@link #next()}, decoded from that
+     * key's RocksDB byte prefix rather than recomputed from {@code hashCode()}. Only valid
+     * immediately after a call to {@link #next()}; the decoding happens here so that callers which
+     * never need the key-group pay nothing for it.
+     */
+    public int getKeyGroup() {
+        return CompositeKeySerializationUtils.extractKeyGroup(keyGroupPrefixBytes, nextKeyBytes);
     }
 
     @Override

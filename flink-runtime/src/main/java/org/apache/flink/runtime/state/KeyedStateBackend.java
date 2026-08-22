@@ -92,6 +92,22 @@ public interface KeyedStateBackend<K>
     <N> Stream<K> getKeys(List<String> states, N namespace);
 
     /**
+     * @return A stream of all keys for the multiple states and a given namespace, paired with the
+     *     key-group each key is actually stored under. Modifications to the states during iterating
+     *     over its keys are not supported.
+     *     <p>Unlike {@link #getKeys(List, Object)}, the key-group in the returned pair reflects how
+     *     the key was physically partitioned when it was written, rather than being recomputed from
+     *     {@code key.hashCode()}. Use this method instead of {@link #getKeys(List, Object)}
+     *     whenever the returned key's {@code hashCode()} is not guaranteed to match the hash of the
+     *     key that originally wrote the data; callers that need to restore the reading context for
+     *     such a key (e.g. via {@link #setCurrentKeyAndKeyGroup}) must use the returned key-group
+     *     rather than recomputing it from the key.
+     * @param states State variables for which existing keys will be returned.
+     * @param namespace Namespace for which existing keys will be returned.
+     */
+    <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace);
+
+    /**
      * @return A stream of all keys for the given state and namespace. Modifications to the state
      *     during iterating over it keys are not supported. Implementations go not make any ordering
      *     guarantees about the returned tupes. Two records with the same key or namespace may not

@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.table;
+package org.apache.flink.state.api;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 
-/** {@link TypeInformation} factory for decoding savepoint value data. */
-@Experimental
-public interface SavepointTypeInformationFactory {
-    /** Returns {@link TypeInformation} for data deserialization. */
-    TypeInformation<?> getTypeInformation();
+/** Runs {@link KeyedStateReadingITCase} against the embedded RocksDB state backend. */
+public class EmbeddedRocksDBKeyedStateReadingITCase extends KeyedStateReadingITCase {
+
+    @Override
+    protected Configuration getConfiguration() {
+        return new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+    }
 }

@@ -105,6 +105,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
     private static final long serialVersionUID = 1L;
 
+    /** Name of the internal list state that stores merging-window bookkeeping. */
+    public static final String MERGING_WINDOW_SET_STATE_NAME = "merging-window-set";
+
     // ------------------------------------------------------------------------
     // Configuration values and user functions
     // ------------------------------------------------------------------------
@@ -269,7 +272,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
                             typedTuple, new TypeSerializer[] {windowSerializer, windowSerializer});
 
             final ListStateDescriptor<Tuple2<W, W>> mergingSetsStateDescriptor =
-                    new ListStateDescriptor<>("merging-window-set", tupleSerializer);
+                    new ListStateDescriptor<>(MERGING_WINDOW_SET_STATE_NAME, tupleSerializer);
 
             // get the state that stores the merging sets
             mergingSetsState =
