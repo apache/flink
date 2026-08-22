@@ -543,6 +543,47 @@ revenue = orders \
 
 {{< top >}}
 
+#### Dynamic Table Options
+
+The Table API supports overriding a table's options at query time via `from(String, Map)`.
+This is the programmatic equivalent of the SQL `OPTIONS` hint.
+
+Use this when you want to temporarily change connector behavior (e.g., read from earliest offset,
+override a format setting) without modifying the table's DDL definition.
+
+{{< tabs "dynamic-table-options-example" >}}
+{{< tab "Java" >}}
+```java
+// Override scan.startup.mode for this query only
+Table orders = tableEnv.from("kafka_orders", Map.of(
+        "scan.startup.mode", "earliest-offset"
+));
+
+Table result = orders
+        .filter($("amount").isGreater(100))
+        .select($("orderId"), $("amount"));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+// Override scan.startup.mode for this query only
+val orders = tableEnv.from("kafka_orders", Map(
+        "scan.startup.mode" -> "earliest-offset"
+        ).asJava)
+
+val result = orders
+        .filter($"amount" > 100)
+        .select($"orderId", $"amount")
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Notes:**
+  - Dynamic options work for regular tables and materialized tables, but not views.
+  - The configuration option table.dynamic-table-options.enabled must be true (the default).
+  - Option validation happens at execution time, not when from() is called.
+  - For the SQL equivalent, see [Dynamic Table Options]({{< ref "docs/sql/reference/queries/hints">}} `dynamic-table-options`).
+
 ### SQL
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as regular Strings.
