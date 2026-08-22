@@ -27,6 +27,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -1018,6 +1019,29 @@ public class Execution
      */
     public void notifyCheckpointOnComplete(
             long completedCheckpointId, long completedTimestamp, long lastSubsumedCheckpointId) {
+        notifyCheckpointOnComplete(
+                completedCheckpointId,
+                completedTimestamp,
+                lastSubsumedCheckpointId,
+                CheckpointStoreUtil.INVALID_CHECKPOINT_ID);
+    }
+
+    /**
+     * Notify the task of this execution about a completed checkpoint, optionally indicating that
+     * this task's region fell back to a historical checkpoint.
+     *
+     * @param completedCheckpointId of the completed checkpoint
+     * @param completedTimestamp of the completed checkpoint
+     * @param lastSubsumedCheckpointId of the last subsumed checkpoint
+     * @param fallbackCheckpointId the historical checkpoint id this task fell back to, or {@link
+     *     org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID} for normal
+     *     completion
+     */
+    public void notifyCheckpointOnComplete(
+            long completedCheckpointId,
+            long completedTimestamp,
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {
         final LogicalSlot slot = assignedResource;
 
         if (slot != null) {
@@ -1028,7 +1052,8 @@ public class Execution
                     getVertex().getJobId(),
                     completedCheckpointId,
                     completedTimestamp,
-                    lastSubsumedCheckpointId);
+                    lastSubsumedCheckpointId,
+                    fallbackCheckpointId);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is "
