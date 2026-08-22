@@ -452,7 +452,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobmanager/thread-dump:
     get:
       description: Returns the thread dump of the JobManager.
@@ -518,7 +520,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /jobs/overview:
     get:
       description: Returns an overview over all jobs.
@@ -915,7 +919,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/plan:
     get:
       description: Returns the dataflow plan of a job.
@@ -1384,7 +1390,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1415,7 +1423,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/subtasks/accumulators:
     get:
       description: Returns all user-defined accumulators for all subtasks of a task.
@@ -1486,7 +1496,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /jobs/{jobid}/vertices/{vertexid}/subtasks/{subtaskindex}:
     get:
       description: Returns details of the current or latest execution attempt of a
@@ -1634,7 +1646,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/subtasktimes:
     get:
       description: Returns time-related information for all subtasks of a task.
@@ -1706,7 +1720,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /overview:
     get:
       description: Returns an overview over the Flink cluster.
@@ -1799,7 +1815,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /taskmanagers/{taskmanagerid}:
     get:
       description: Returns details for a task manager.
@@ -1860,7 +1878,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /taskmanagers/{taskmanagerid}/thread-dump:
     get:
       description: Returns the thread dump of the requested TaskManager.
@@ -1889,8 +1909,32 @@ paths:
                 $ref: "#/components/schemas/ThreadDumpInfo"
 components:
   schemas:
-    AggregatedMetricsResponseBody:
+    AggregatedMetric:
+      required:
+      - id
       type: object
+      properties:
+        avg:
+          type: number
+          format: double
+        id:
+          type: string
+        max:
+          type: number
+          format: double
+        min:
+          type: number
+          format: double
+        skew:
+          type: number
+          format: double
+        sum:
+          type: number
+          format: double
+    AggregatedMetricsResponseBody:
+      type: array
+      items:
+        $ref: "#/components/schemas/AggregatedMetric"
     AggregatedTaskDetailsInfo:
       type: object
       properties:
@@ -3135,12 +3179,9 @@ components:
         value:
           type: string
     MetricCollectionResponseBody:
-      type: object
-      properties:
-        metrics:
-          type: array
-          items:
-            $ref: "#/components/schemas/Metric"
+      type: array
+      items:
+        $ref: "#/components/schemas/Metric"
     MultipleApplicationsDetails:
       type: object
       properties:
@@ -3391,9 +3432,13 @@ components:
     SerializedThrowable:
       type: object
       properties:
+        class:
+          type: string
         serialized-throwable:
           type: string
-          format: binary
+          format: byte
+        stack-trace:
+          type: string
     SerializedValueOptionalFailureObject:
       type: object
       properties:
@@ -3411,17 +3456,8 @@ components:
         resource:
           $ref: "#/components/schemas/ResourceProfileInfo"
     SlotSharingGroupId:
-      type: object
-      properties:
-        bytes:
-          type: string
-          format: byte
-        lowerPart:
-          type: integer
-          format: int64
-        upperPart:
-          type: integer
-          format: int64
+      pattern: "[0-9a-f]{32}"
+      type: string
     SlotSharingGroupRescaleInfo:
       type: object
       properties:
