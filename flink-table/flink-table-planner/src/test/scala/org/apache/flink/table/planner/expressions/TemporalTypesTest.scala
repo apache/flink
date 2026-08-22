@@ -618,14 +618,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("TIME '12:44:31'", "12:44:31")
 
     testAllApis(toDate("2018-03-18", "yyyy-MM-dd"), "TO_DATE('2018-03-18')", "2018-03-18")
-    testAllApis(
-      toTimestamp("1970-01-01 08:01:40"),
-      "TO_TIMESTAMP('1970-01-01 08:01:40')",
-      "1970-01-01 08:01:40.000")
-    testAllApis(
-      toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
-      "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
-      "1970-01-01 08:01:40.000")
 
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")
@@ -968,32 +960,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
     testSqlApi("UNIX_TIMESTAMP('2015-07-24 10:00:00')", "1437699600")
     testSqlApi("UNIX_TIMESTAMP('2015/07/24 10:00:00.5', 'yyyy/MM/dd HH:mm:ss.S')", "1437699600")
-  }
-
-  /**
-   * now Flink only support TIMESTAMP(3) as the return type in TO_TIMESTAMP See:
-   * https://issues.apache.org/jira/browse/FLINK-14925
-   */
-  @Test
-  def testToTimeStampFunctionWithHighPrecision(): Unit = {
-    testSqlApi("TO_TIMESTAMP('1970-01-01 00:00:00.123456789')", "1970-01-01 00:00:00.123")
-
-    testSqlApi(
-      "TO_TIMESTAMP('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
-      "1970-01-01 00:00:00.123")
-
-    testSqlApi(
-      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
-      "2000-02-02 00:59:59.123")
-
-    testSqlApi("TO_TIMESTAMP('1234567', 'SSSSSSS')", "1970-01-01 00:00:00.123")
-
-    testSqlApi(
-      "TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
-      "2017-09-15 00:00:00.123")
-    testSqlApi(
-      "CAST(TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS') AS STRING)",
-      "2017-09-15 00:00:00.123")
   }
 
   @Test

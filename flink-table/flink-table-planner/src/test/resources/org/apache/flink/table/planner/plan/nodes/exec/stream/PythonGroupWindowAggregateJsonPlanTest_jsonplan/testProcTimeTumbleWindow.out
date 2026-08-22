@@ -31,7 +31,7 @@
                   } ],
                   "type" : "TIMESTAMP(3)"
                 },
-                "serializableString" : "TO_TIMESTAMP(`c`)"
+                "serializableString" : "`TO_TIMESTAMP`(`c`)"
               }
             }, {
               "name" : "proctime",
