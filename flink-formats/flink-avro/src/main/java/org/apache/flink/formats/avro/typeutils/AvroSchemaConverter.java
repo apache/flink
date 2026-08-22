@@ -192,6 +192,11 @@ public class AvroSchemaConverter {
                 }
                 return Types.INT;
             case LONG:
+                // Local timestamps are unambiguous per the Avro spec; honor in both mappings.
+                if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
+                        || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                    return Types.LOCAL_DATE_TIME;
+                }
                 if (legacyTimestampMapping) {
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
                             || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
@@ -201,13 +206,9 @@ public class AvroSchemaConverter {
                         return Types.SQL_TIME;
                     }
                 } else {
-                    // Avro logical timestamp types to Flink DataStream timestamp types
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
                             || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return Types.INSTANT;
-                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
-                            || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
-                        return Types.LOCAL_DATE_TIME;
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
                             || schema.getLogicalType() == LogicalTypes.timeMillis()) {
                         return Types.SQL_TIME;
@@ -333,8 +334,13 @@ public class AvroSchemaConverter {
                 }
                 return DataTypes.INT().notNull();
             case LONG:
+                // Local timestamps are unambiguous per the Avro spec; honor in both mappings.
+                if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
+                    return DataTypes.TIMESTAMP(3).notNull();
+                } else if (schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                    return DataTypes.TIMESTAMP(6).notNull();
+                }
                 if (legacyMapping) {
-                    // Avro logical timestamp types to Flink SQL timestamp types
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
                         return DataTypes.TIMESTAMP(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
@@ -345,7 +351,6 @@ public class AvroSchemaConverter {
                         return DataTypes.TIME(6).notNull();
                     }
                 } else {
-                    // Avro logical timestamp types to Flink SQL timestamp types
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
                         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
@@ -354,10 +359,6 @@ public class AvroSchemaConverter {
                         return DataTypes.TIME(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
                         return DataTypes.TIME(6).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
-                        return DataTypes.TIMESTAMP(3).notNull();
-                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
-                        return DataTypes.TIMESTAMP(6).notNull();
                     }
                 }
 
