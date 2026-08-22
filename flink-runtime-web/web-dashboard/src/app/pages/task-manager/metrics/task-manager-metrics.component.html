@@ -164,6 +164,56 @@
     </tbody>
   </nz-table>
 </nz-card>
+<nz-card nzTitle="Process Usage" nzSize="small" class="flink-memory-model">
+  <nz-table
+    nzBordered
+    [nzTemplateMode]="true"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzSize]="'small'"
+    class="no-border"
+    [nzWidthConfig]="['220px', null]"
+  >
+    <thead>
+      <tr>
+        <th>
+          Type
+          <i
+            class="header-icon"
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="Process resource usage is reported only when system resource metrics are enabled via metrics.system-resource: true. Otherwise these values stay empty."
+            nzType="info-circle"
+          ></i>
+        </th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>CPU Usage</strong></td>
+        <td>
+          {{
+            metrics['Process.CPU.Usage'] !== undefined
+              ? (metrics['Process.CPU.Usage'] | number: '1.0-6') + ' %'
+              : '-'
+          }}
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Memory (RSS)</strong></td>
+        <td>{{ metrics['Process.Memory.RSS'] | humanizeBytes }}</td>
+      </tr>
+      <tr>
+        <td><strong>I/O (Read / Write)</strong></td>
+        <td>
+          {{ metrics['Process.IO.Read'] | humanizeBytes }} /
+          {{ metrics['Process.IO.Write'] | humanizeBytes }}
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>
 <nz-card nzTitle="Advanced" nzSize="small" class="flink-memory-model">
   <div nz-row [nzGutter]="16">
     <div nz-col [nzSpan]="12">
