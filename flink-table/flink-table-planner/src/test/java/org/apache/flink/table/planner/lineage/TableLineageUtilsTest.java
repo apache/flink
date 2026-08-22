@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 
@@ -114,5 +115,39 @@ class TableLineageUtilsTest {
         TableLineageDatasetImpl tableLineageDataset = (TableLineageDatasetImpl) lineageDataset;
         assertThat(tableLineageDataset.catalogContext().getCatalogName()).isEmpty();
         assertThat(tableLineageDataset.name()).isEqualTo(objectIdentifier.asSummaryString());
+    }
+
+    @Test
+    void testTableLineageDatasetImplSerialization() throws Exception {
+        final ObjectIdentifier objectIdentifier =
+                ObjectIdentifier.of(DEFAULT_CATALOG, "my_db", "my_table");
+        final ContextResolvedTable resolvedTable =
+                ContextResolvedTable.permanent(
+                        objectIdentifier,
+                        CATALOG,
+                        new ResolvedCatalogTable(
+                                CatalogTable.newBuilder()
+                                        .schema(CATALOG_TABLE_SCHEMA)
+                                        .comment("my table")
+                                        .partitionKeys(Collections.emptyList())
+                                        .options(TABLE_OPTIONS)
+                                        .build(),
+                                CATALOG_TABLE_RESOLVED_SCHEMA));
+
+        TableLineageDatasetImpl original =
+                (TableLineageDatasetImpl)
+                        createTableLineageDataset(resolvedTable, Optional.empty());
+
+        TableLineageDatasetImpl cloned = InstantiationUtil.clone(original);
+
+        // Non-transient fields survive the round-trip.
+        assertThat(cloned.name()).isEqualTo(original.name());
+        assertThat(cloned.namespace()).isEqualTo(original.namespace());
+        assertThat(cloned.objectPath()).isEqualTo(original.objectPath());
+
+        // Transient catalog fields are null after deserialization — callers on the Dispatcher
+        // side must not rely on them.
+        assertThat(cloned.catalogContext()).isNull();
+        assertThat(cloned.table()).isNull();
     }
 }
