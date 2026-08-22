@@ -23,6 +23,7 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.AlterConnectionRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
 import org.junit.jupiter.api.Test;
@@ -120,5 +121,33 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
+    }
+
+    @Test
+    void testAlterConnectionRename() {
+        Operation operation = parse("ALTER CONNECTION my_conn RENAME TO new_conn");
+        assertThat(operation).isInstanceOf(AlterConnectionRenameOperation.class);
+        AlterConnectionRenameOperation op = (AlterConnectionRenameOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+        assertThat(op.getNewConnectionName()).isEqualTo("new_conn");
+        assertThat(op.ignoreIfNotExists()).isFalse();
+    }
+
+    @Test
+    void testAlterConnectionRenameIfExists() {
+        Operation operation = parse("ALTER CONNECTION IF EXISTS my_conn RENAME TO new_conn");
+        AlterConnectionRenameOperation op = (AlterConnectionRenameOperation) operation;
+        assertThat(op.ignoreIfNotExists()).isTrue();
+    }
+
+    @Test
+    void testAlterConnectionRenameWithFullyQualifiedName() {
+        Operation operation = parse("ALTER CONNECTION cat1.db1.my_conn RENAME TO new_conn");
+        AlterConnectionRenameOperation op = (AlterConnectionRenameOperation) operation;
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("cat1", "db1", "my_conn"));
+        assertThat(op.getNewConnectionName()).isEqualTo("new_conn");
     }
 }
