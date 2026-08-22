@@ -119,10 +119,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // these queries will not be converted to joinType=[semi]
     val sqlQuery = "SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b IN (SELECT e FROM z))"
 
-    assertThatThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
-      // correlate variable id is unstable, ignore here
-      .hasMessageContaining("unexpected correlate variable $cor")
-      .isInstanceOf[TableException]
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -838,10 +835,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "UNION " +
       "SELECT i FROM t WHERE i < 100)"
 
-    assertThatThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
-      // correlate variable id is unstable, ignore here
-      .hasMessageContaining("unexpected correlate variable $cor")
-      .isInstanceOf[TableException]
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -851,10 +845,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "UNION " +
       "SELECT i FROM t WHERE l.c = t.k AND i < 100)"
 
-    assertThatThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
-      // correlate variable id is unstable, ignore here
-      .hasMessageContaining("unexpected correlate variable $cor")
-      .isInstanceOf[TableException]
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1246,8 +1237,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
       "LEFT JOIN t ON s.f = t.k AND l.b = t.j)"
-    assertThatExceptionOfType(classOf[AssertionError])
-      .isThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1467,10 +1457,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE i < 100)"
-    assertThatThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
-      // correlate variable id is unstable, ignore here
-      .hasMessageContaining("unexpected correlate variable $cor")
-      .isInstanceOf[TableException]
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1479,10 +1466,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE l.c = t.k AND i < 100)"
-    assertThatThrownBy(() => util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]"))
-      // correlate variable id is unstable, ignore here
-      .hasMessageContaining("unexpected correlate variable $cor")
-      .isInstanceOf[TableException]
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
