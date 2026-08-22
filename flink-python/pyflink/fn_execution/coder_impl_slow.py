@@ -441,6 +441,26 @@ class BinaryCoderImpl(FieldCoderImpl):
         return in_stream.read_bytes()
 
 
+class GeographyCoderImpl(FieldCoderImpl):
+    """
+    A coder compatible with GeographyTypeSerializer's versioned WKB format.
+    """
+
+    FORMAT_VERSION = 1
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        out_stream.write_byte(self.FORMAT_VERSION)
+        out_stream.write_bytes(value, len(value))
+
+    def decode_from_stream(self, in_stream: InputStream, length=0):
+        format_version = in_stream.read_byte()
+        if format_version != self.FORMAT_VERSION:
+            raise ValueError(
+                "Unsupported GEOGRAPHY serializer format version %d. Expected %d."
+                % (format_version, self.FORMAT_VERSION))
+        return in_stream.read_bytes()
+
+
 class CharCoderImpl(FieldCoderImpl):
     """
     A coder for a str value.

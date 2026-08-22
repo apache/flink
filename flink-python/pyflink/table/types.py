@@ -236,6 +236,15 @@ class BinaryType(AtomicType):
     def __repr__(self):
         return "BinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
 
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, obj):
+        return bytearray(obj) if obj is not None else obj
+
+    def from_sql_type(self, obj):
+        return bytes(obj) if obj is not None else obj
+
 
 class VarBinaryType(AtomicType):
     """
@@ -254,6 +263,37 @@ class VarBinaryType(AtomicType):
 
     def __repr__(self):
         return "VarBinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, obj):
+        return bytearray(obj) if obj is not None else obj
+
+    def from_sql_type(self, obj):
+        return bytes(obj) if obj is not None else obj
+
+
+class GeographyType(AtomicType):
+    """
+    Geography data type. SQL GEOGRAPHY.
+
+    The Python representation uses WKB bytes.
+
+    :param nullable: boolean, whether the field can be null (None) or not.
+    """
+
+    def __init__(self, nullable=True):
+        super(GeographyType, self).__init__(nullable)
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, obj):
+        return bytearray(obj) if obj is not None else obj
+
+    def from_sql_type(self, obj):
+        return bytes(obj) if obj is not None else obj
 
 
 class BooleanType(AtomicType):
@@ -1394,6 +1434,7 @@ _type_mappings = {
     int: BigIntType(),
     float: DoubleType(),
     str: VarCharType(0x7fffffff),
+    bytes: VarBinaryType(0x7fffffff),
     bytearray: VarBinaryType(0x7fffffff),
     decimal.Decimal: DecimalType(38, 18),
     datetime.date: DateType(),
@@ -1709,6 +1750,8 @@ def _from_java_data_type(j_data_type):
             data_type = DataTypes.BINARY(logical_type.getLength(), logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.VarBinaryType):
             data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
+        elif is_instance_of(logical_type, gateway.jvm.GeographyType):
+            data_type = DataTypes.GEOGRAPHY(logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.DecimalType):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
                                           logical_type.getScale(),
@@ -1868,6 +1911,8 @@ def _to_java_data_type(data_type: _TableDataTypeLike):
         j_data_type = JDataTypes.VARBINARY(data_type.length)
     elif isinstance(data_type, BinaryType):
         j_data_type = JDataTypes.BINARY(data_type.length)
+    elif isinstance(data_type, GeographyType):
+        j_data_type = JDataTypes.GEOGRAPHY()
     elif isinstance(data_type, DecimalType):
         j_data_type = JDataTypes.DECIMAL(data_type.precision, data_type.scale)
     elif isinstance(data_type, DateType):
@@ -1971,8 +2016,9 @@ _acceptable_types = {
     DecimalType: (decimal.Decimal,),
     CharType: (str,),
     VarCharType: (str,),
-    BinaryType: (bytearray,),
-    VarBinaryType: (bytearray,),
+    BinaryType: (bytes, bytearray),
+    VarBinaryType: (bytes, bytearray),
+    GeographyType: (bytes, bytearray),
     DateType: (datetime.date, datetime.datetime),
     TimeType: (datetime.time,),
     TimestampType: (datetime.datetime,),
@@ -2319,6 +2365,8 @@ def to_arrow_type(data_type: DataType):
         return pa.utf8()
     elif isinstance(data_type, BinaryType):
         return pa.binary(data_type.length)
+    elif isinstance(data_type, GeographyType):
+        return pa.binary()
     elif isinstance(data_type, VarBinaryType):
         return pa.binary()
     elif isinstance(data_type, DecimalType):
@@ -2468,6 +2516,15 @@ class DataTypes(object):
         .. seealso:: :func:`~DataTypes.VARBINARY`
         """
         return DataTypes.VARBINARY(0x7fffffff, nullable)
+
+    @staticmethod
+    def GEOGRAPHY(nullable: bool = True) -> GeographyType:
+        """
+        Data type of geography data represented as WKB bytes in Python.
+
+        :param nullable: boolean, whether the type can be null (None) or not.
+        """
+        return GeographyType(nullable)
 
     @staticmethod
     def DECIMAL(precision: int, scale: int, nullable: bool = True) -> DecimalType:
