@@ -310,9 +310,9 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        int baseEnd = endOfCodePoints(base, len);
-        int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
-        char[] data = new char[padChars + baseEnd];
+        final int baseEnd = endOfCodePoints(base, len);
+        final int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        final char[] data = new char[padChars + baseEnd];
 
         writePad(data, 0, pad, padChars);
         base.getChars(0, baseEnd, data, padChars);
@@ -331,9 +331,9 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        int baseEnd = endOfCodePoints(base, len);
-        int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
-        char[] data = new char[baseEnd + padChars];
+        final int baseEnd = endOfCodePoints(base, len);
+        final int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        final char[] data = new char[baseEnd + padChars];
 
         base.getChars(0, baseEnd, data, 0);
         writePad(data, baseEnd, pad, padChars);
@@ -343,8 +343,9 @@ public class SqlFunctionUtils {
 
     /** Index just past the first count code points of str, or its end if str holds fewer. */
     private static int endOfCodePoints(String str, int count) {
+        final int length = str.length();
         int index = 0;
-        for (int i = 0; i < count && index < str.length(); i++) {
+        for (int i = 0; i < count && index < length; i++) {
             index += Character.charCount(str.codePointAt(index));
         }
         return index;
@@ -352,18 +353,27 @@ public class SqlFunctionUtils {
 
     /** Number of chars taken by count code points of pad repeated cyclically. */
     private static int padLength(String pad, int count) {
-        int cycle = pad.codePointCount(0, pad.length());
-        return (count / cycle) * pad.length() + endOfCodePoints(pad, count % cycle);
+        final int padLen = pad.length();
+        final int cycle = pad.codePointCount(0, padLen);
+        return (count / cycle) * padLen + endOfCodePoints(pad, count % cycle);
     }
 
     /** Writes chars characters into data at pos, repeating pad cyclically. */
     private static void writePad(char[] data, int pos, String pad, int chars) {
-        int end = pos + chars;
-        while (end - pos >= pad.length()) {
-            pad.getChars(0, pad.length(), data, pos);
-            pos += pad.length();
+        if (chars == 0) {
+            return;
         }
-        pad.getChars(0, end - pos, data, pos);
+
+        final int padLen = pad.length();
+        final int first = Math.min(padLen, chars);
+        pad.getChars(0, first, data, pos);
+
+        int written = first;
+        while (written < chars) {
+            final int next = Math.min(written, chars - written);
+            System.arraycopy(data, pos, data, pos + written, next);
+            written += next;
+        }
     }
 
     /** Returns a string that repeats the base string n times. */
