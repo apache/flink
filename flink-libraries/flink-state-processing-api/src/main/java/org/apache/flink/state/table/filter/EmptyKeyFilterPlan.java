@@ -16,33 +16,52 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.filter;
+package org.apache.flink.state.table.filter;
 
+import java.util.Collections;
 import java.util.Set;
 
-/** A filter that accepts a finite set of keys. */
-final class ExactKeyFilter<K> implements SavepointKeyFilter<K> {
+/** A filter that rejects every key. */
+final class EmptyKeyFilterPlan<K> implements SavepointKeyFilterPlan<K> {
 
-    private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 1L;
 
-    private final Set<K> keys;
+    @SuppressWarnings("rawtypes")
+    private static final EmptyKeyFilterPlan INSTANCE = new EmptyKeyFilterPlan<>();
 
-    ExactKeyFilter(Set<K> keys) {
-        this.keys = Set.copyOf(keys);
+    private EmptyKeyFilterPlan() {}
+
+    @SuppressWarnings("unchecked")
+    static <K> EmptyKeyFilterPlan<K> instance() {
+        return (EmptyKeyFilterPlan<K>) INSTANCE;
     }
 
     @Override
     public boolean test(K key) {
-        return keys.contains(key);
+        return false;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return true;
     }
 
     @Override
     public Set<K> getExactKeys() {
-        return keys;
+        return Collections.emptySet();
+    }
+
+    @Override
+    public SavepointKeyFilterPlan<K> intersect(SavepointKeyFilterPlan<K> other) {
+        return this;
+    }
+
+    private Object readResolve() {
+        return INSTANCE;
     }
 
     @Override
     public String toString() {
-        return "ExactKeyFilter" + keys;
+        return "EmptyKeyFilterPlan";
     }
 }
