@@ -758,69 +758,141 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private Stream<TestSetSpec> lpadRpadTestCases() {
-        // U+1F600 GRINNING FACE, encoded in UTF-16 as the surrogate pair D83D DE00. Written as an
-        // escape rather than inline so that this file stays within the Basic Multilingual Plane.
-        final String grinningFace = "\uD83D\uDE00";
+        // U+1F600 GRINNING FACE, a surrogate pair in UTF-16
+        final String e = "\uD83D\uDE00";
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.LPAD)
-                        .onFieldsWithData(grinningFace, "a", grinningFace + grinningFace)
-                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
-                        // a supplementary-plane character counts as one character, so a length that
-                        // falls inside it must not split the surrogate pair
+                        .onFieldsWithData(null, e, "a", e + e, e + "x", "", null)
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.INT())
+                        // null input
                         .testResult(
-                                $("f0").lpad(1, "x"),
-                                "LPAD(f0, 1, 'x')",
-                                grinningFace,
+                                $("f0").lpad(3, "x"), "LPAD(f0, 3, 'x')", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").lpad(3, $("f0")),
+                                "LPAD(f2, 3, f0)",
+                                null,
                                 DataTypes.STRING())
                         .testResult(
-                                $("f2").lpad(1, "x"),
-                                "LPAD(f2, 1, 'x')",
-                                grinningFace,
+                                $("f2").lpad($("f6"), "x"),
+                                "LPAD(f2, f6, 'x')",
+                                null,
                                 DataTypes.STRING())
-                        // padding around a supplementary-plane base
+                        // empty pad and negative length
                         .testResult(
-                                $("f0").lpad(3, "x"),
-                                "LPAD(f0, 3, 'x')",
-                                "xx" + grinningFace,
+                                $("f2").lpad(3, $("f5")),
+                                "LPAD(f2, 3, f5)",
+                                null,
                                 DataTypes.STRING())
-                        // the pad string itself must not be split mid-character
                         .testResult(
-                                $("f1").lpad(3, $("f0")),
-                                "LPAD(f1, 3, f0)",
-                                grinningFace + grinningFace + "a",
+                                $("f2").lpad(-1, "x"),
+                                "LPAD(f2, -1, 'x')",
+                                null,
                                 DataTypes.STRING())
-                        // behaviour for Basic Multilingual Plane input is unchanged
+                        // truncation on a character boundary
+                        .testResult($("f1").lpad(1, "x"), "LPAD(f1, 1, 'x')", e, DataTypes.STRING())
+                        .testResult($("f3").lpad(1, "x"), "LPAD(f3, 1, 'x')", e, DataTypes.STRING())
+                        // padding
                         .testResult(
                                 $("f1").lpad(3, "x"),
                                 "LPAD(f1, 3, 'x')",
+                                "xx" + e,
+                                DataTypes.STRING())
+                        // supplementary pad
+                        .testResult(
+                                $("f2").lpad(3, $("f1")),
+                                "LPAD(f2, 3, f1)",
+                                e + e + "a",
+                                DataTypes.STRING())
+                        // pad cycle split
+                        .testResult(
+                                $("f2").lpad(4, $("f4")),
+                                "LPAD(f2, 4, f4)",
+                                e + "x" + e + "a",
+                                DataTypes.STRING())
+                        // empty base
+                        .testResult(
+                                $("f5").lpad(2, $("f1")),
+                                "LPAD(f5, 2, f1)",
+                                e + e,
+                                DataTypes.STRING())
+                        // BMP unchanged
+                        .testResult(
+                                $("f2").lpad(3, "x"),
+                                "LPAD(f2, 3, 'x')",
                                 "xxa",
                                 DataTypes.STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RPAD)
-                        .onFieldsWithData(grinningFace, "a", grinningFace + grinningFace)
-                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .onFieldsWithData(null, e, "a", e + e, e + "x", "", null)
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.INT())
+                        // null input
                         .testResult(
-                                $("f0").rpad(1, "x"),
-                                "RPAD(f0, 1, 'x')",
-                                grinningFace,
+                                $("f0").rpad(3, "x"), "RPAD(f0, 3, 'x')", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").rpad(3, $("f0")),
+                                "RPAD(f2, 3, f0)",
+                                null,
                                 DataTypes.STRING())
                         .testResult(
-                                $("f2").rpad(1, "x"),
-                                "RPAD(f2, 1, 'x')",
-                                grinningFace,
+                                $("f2").rpad($("f6"), "x"),
+                                "RPAD(f2, f6, 'x')",
+                                null,
+                                DataTypes.STRING())
+                        // empty pad and negative length
+                        .testResult(
+                                $("f2").rpad(3, $("f5")),
+                                "RPAD(f2, 3, f5)",
+                                null,
                                 DataTypes.STRING())
                         .testResult(
-                                $("f0").rpad(3, "x"),
-                                "RPAD(f0, 3, 'x')",
-                                grinningFace + "xx",
+                                $("f2").rpad(-1, "x"),
+                                "RPAD(f2, -1, 'x')",
+                                null,
                                 DataTypes.STRING())
-                        .testResult(
-                                $("f1").rpad(4, $("f0")),
-                                "RPAD(f1, 4, f0)",
-                                "a" + grinningFace + grinningFace + grinningFace,
-                                DataTypes.STRING())
+                        // truncation on a character boundary
+                        .testResult($("f1").rpad(1, "x"), "RPAD(f1, 1, 'x')", e, DataTypes.STRING())
+                        .testResult($("f3").rpad(1, "x"), "RPAD(f3, 1, 'x')", e, DataTypes.STRING())
+                        // padding
                         .testResult(
                                 $("f1").rpad(3, "x"),
                                 "RPAD(f1, 3, 'x')",
+                                e + "xx",
+                                DataTypes.STRING())
+                        // supplementary pad
+                        .testResult(
+                                $("f2").rpad(4, $("f1")),
+                                "RPAD(f2, 4, f1)",
+                                "a" + e + e + e,
+                                DataTypes.STRING())
+                        // pad cycle split
+                        .testResult(
+                                $("f2").rpad(4, $("f4")),
+                                "RPAD(f2, 4, f4)",
+                                "a" + e + "x" + e,
+                                DataTypes.STRING())
+                        // empty base
+                        .testResult(
+                                $("f5").rpad(2, $("f1")),
+                                "RPAD(f5, 2, f1)",
+                                e + e,
+                                DataTypes.STRING())
+                        // BMP unchanged
+                        .testResult(
+                                $("f2").rpad(3, "x"),
+                                "RPAD(f2, 3, 'x')",
                                 "axx",
                                 DataTypes.STRING()));
     }

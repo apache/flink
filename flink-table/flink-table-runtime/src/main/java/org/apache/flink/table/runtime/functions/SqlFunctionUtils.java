@@ -310,18 +310,14 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        // Lengths are counted in characters (code points) rather than UTF-16 code units, so that a
-        // supplementary-plane character is never truncated into an unpaired surrogate.
-        final int keepEnd = endOfFirstCodePoints(base, len);
-        final int baseLen = base.codePointCount(0, keepEnd);
+        int baseEnd = endOfCodePoints(base, len);
+        int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        char[] data = new char[padChars + baseEnd];
 
-        final StringBuilder sb = new StringBuilder(len);
+        writePad(data, 0, pad, padChars);
+        base.getChars(0, baseEnd, data, padChars);
 
-        // copy the padding, then the base shortened to the remaining length
-        appendPadding(sb, pad, len - baseLen);
-        sb.append(base, 0, keepEnd);
-
-        return sb.toString();
+        return new String(data);
     }
 
     /**
@@ -335,26 +331,18 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        // Lengths are counted in characters (code points) rather than UTF-16 code units, so that a
-        // supplementary-plane character is never truncated into an unpaired surrogate.
-        final int keepEnd = endOfFirstCodePoints(base, len);
-        final int baseLen = base.codePointCount(0, keepEnd);
+        int baseEnd = endOfCodePoints(base, len);
+        int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        char[] data = new char[baseEnd + padChars];
 
-        final StringBuilder sb = new StringBuilder(len);
+        base.getChars(0, baseEnd, data, 0);
+        writePad(data, baseEnd, pad, padChars);
 
-        // copy the base shortened to len characters, then the padding
-        sb.append(base, 0, keepEnd);
-        appendPadding(sb, pad, len - baseLen);
-
-        return sb.toString();
+        return new String(data);
     }
 
-    /**
-     * Returns the index just past the first {@code count} characters (code points) of {@code str},
-     * or {@code str.length()} if it holds fewer than that. Scanning stops at {@code count} so that
-     * a base far longer than the requested length is not walked in full.
-     */
-    private static int endOfFirstCodePoints(String str, int count) {
+    /** Index just past the first count code points of str, or its end if str holds fewer. */
+    private static int endOfCodePoints(String str, int count) {
         int index = 0;
         for (int i = 0; i < count && index < str.length(); i++) {
             index += Character.charCount(str.codePointAt(index));
@@ -362,22 +350,20 @@ public class SqlFunctionUtils {
         return index;
     }
 
-    /**
-     * Appends {@code count} characters (code points) to {@code sb} by repeating {@code pad}
-     * cyclically, stopping mid-string only on a character boundary.
-     */
-    private static void appendPadding(StringBuilder sb, String pad, int count) {
-        if (count <= 0) {
-            return;
+    /** Number of chars taken by count code points of pad repeated cyclically. */
+    private static int padLength(String pad, int count) {
+        int cycle = pad.codePointCount(0, pad.length());
+        return (count / cycle) * pad.length() + endOfCodePoints(pad, count % cycle);
+    }
+
+    /** Writes chars characters into data at pos, repeating pad cyclically. */
+    private static void writePad(char[] data, int pos, String pad, int chars) {
+        int end = pos + chars;
+        while (end - pos >= pad.length()) {
+            pad.getChars(0, pad.length(), data, pos);
+            pos += pad.length();
         }
-        final int padLen = pad.codePointCount(0, pad.length());
-        for (int i = 0; i < count / padLen; i++) {
-            sb.append(pad);
-        }
-        final int remainder = count % padLen;
-        if (remainder > 0) {
-            sb.append(pad, 0, pad.offsetByCodePoints(0, remainder));
-        }
+        pad.getChars(0, end - pos, data, pos);
     }
 
     /** Returns a string that repeats the base string n times. */
