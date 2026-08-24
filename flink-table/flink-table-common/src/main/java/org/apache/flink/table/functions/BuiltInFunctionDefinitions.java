@@ -218,8 +218,8 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
-                                    Arrays.asList("map", "key"),
-                                    Arrays.asList(logical(LogicalTypeRoot.MAP), MAP_KEY_ARG)))
+                                    List.of("map", "key"),
+                                    List.of(logical(LogicalTypeRoot.MAP), MAP_KEY_ARG)))
                     .outputTypeStrategy(
                             nullableIfArgs(
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))

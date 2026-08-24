@@ -29,6 +29,7 @@ import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
@@ -42,10 +43,9 @@ class MapKeyArgumentTypeStrategy implements ArgumentTypeStrategy {
     @Override
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
-        final MapType mapType =
-                (MapType) callContext.getArgumentDataTypes().get(0).getLogicalType();
-        final LogicalType actualKeyType =
-                callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
+        List<DataType> argumentTypes = callContext.getArgumentDataTypes();
+        final MapType mapType = (MapType) argumentTypes.get(0).getLogicalType();
+        final LogicalType actualKeyType = argumentTypes.get(argumentPos).getLogicalType();
         LogicalType expectedKeyType = mapType.getKeyType();
 
         if (!expectedKeyType.isNullable() && actualKeyType.isNullable()) {
