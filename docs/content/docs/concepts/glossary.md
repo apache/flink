@@ -238,7 +238,8 @@ A Key Group is the atomic unit of key distribution and state assignment across p
 `keyGroupIndex = MathUtils.murmurHash(key.hashCode()) % maxParallelism`.
 This allows stateful [Operators](#operator) to rescale without rehashing individual keys.
 
-The total number of Key Groups is equal to the [Operator](#operator)'s `maxParallelism`.
+The total number of Key Groups is equal to the `maxParallelism` configuration, set at [Job](#flink-job)
+level or overridden at [Operator](#operator) level.
 A contiguous range of Key Groups is assigned to each [Sub-Task](#sub-task), and Key Groups are evenly
 distributed across all [Sub-Tasks](#sub-task).
 
