@@ -570,6 +570,13 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
+    public static class VariantTableArgFunction extends AppendProcessTableFunctionBase {
+        public void eval(@ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
+            collectObjects(r);
+        }
+    }
+
+    /** Testing function. */
     public static class RequiredTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({ArgumentTrait.ROW_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             collectObjects(r);

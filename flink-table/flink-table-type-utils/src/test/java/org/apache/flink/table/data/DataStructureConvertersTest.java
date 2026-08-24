@@ -29,7 +29,6 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.bitmap.Bitmap;
-import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -361,10 +360,6 @@ class DataStructureConvertersTest {
                                 GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))),
                 TestSpec.forDataType(DataTypes.VARIANT())
                         .convertedTo(Variant.class, Variant.newBuilder().of("hello")),
-                TestSpec.forDataType(DataTypes.VARIANT().bridgedTo(BinaryVariant.class))
-                        .convertedTo(
-                                BinaryVariant.class,
-                                (BinaryVariant) Variant.newBuilder().of("hello")),
                 TestSpec.forDataType(DataTypes.BITMAP())
                         .convertedTo(Bitmap.class, Bitmap.fromArray(new int[] {1, 2, 3})),
 

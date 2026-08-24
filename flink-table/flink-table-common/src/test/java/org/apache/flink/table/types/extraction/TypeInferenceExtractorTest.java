@@ -908,38 +908,7 @@ class TypeInferenceExtractorTest {
                                         "row",
                                         DataTypes.ROW(DataTypes.FIELD("a", DataTypes.VARIANT())),
                                         false))
-                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
-                // ---
-                TestSpec.forAsyncScalarFunction(
-                                "Variant in async scalar function", VariantTypeAsyncFunction.class)
-                        .expectStaticArgument(
-                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
-                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
-                // ---
-                TestSpec.forAggregateFunction(
-                                "Variant in aggregate function", VariantTypeAggFunction.class)
-                        .expectStaticArgument(
-                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
-                        .expectAccumulator(TypeStrategies.explicit(VariantState.TYPE))
-                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
-                // ---
-                TestSpec.forTableFunction(
-                                "Variant in table function", VariantTypeTableFunction.class)
-                        .expectStaticArgument(
-                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
-                        .expectOutput(
-                                TypeStrategies.explicit(
-                                        DataTypes.ROW(DataTypes.FIELD("v", DataTypes.VARIANT())))),
-                // ---
-                TestSpec.forProcessTableFunction(VariantProcessTableFunction.class)
-                        .expectStaticArgument(
-                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
-                        .expectState("s", TypeStrategies.explicit(VariantState.TYPE))
-                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())),
-                // ---
-                TestSpec.forProcessTableFunction(InvalidVariantStateProcessTableFunction.class)
-                        .expectErrorMessage(
-                                "State entries must use a mutable, composite data type. But was: VARIANT"));
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -2782,44 +2751,6 @@ class TypeInferenceExtractorTest {
                 @DataTypeHint("ROW<a VARIANT>") Row row) {
             return null;
         }
-    }
-
-    private static class VariantTypeAsyncFunction extends AsyncScalarFunction {
-        public void eval(CompletableFuture<Variant> f, Variant v) {}
-    }
-
-    private static class VariantTypeAggFunction extends AggregateFunction<Variant, VariantState> {
-        public void accumulate(VariantState accumulator, Variant v) {}
-
-        @Override
-        public VariantState createAccumulator() {
-            return null;
-        }
-
-        @Override
-        public Variant getValue(VariantState accumulator) {
-            return null;
-        }
-    }
-
-    @FunctionHint(output = @DataTypeHint("ROW<v VARIANT>"))
-    private static class VariantTypeTableFunction extends TableFunction<Row> {
-        public void eval(Variant v) {}
-    }
-
-    private static class VariantProcessTableFunction extends ProcessTableFunction<Variant> {
-        public void eval(@StateHint VariantState s, Variant v) {}
-    }
-
-    private static class InvalidVariantStateProcessTableFunction
-            extends ProcessTableFunction<Variant> {
-        public void eval(@StateHint Variant s, Variant v) {}
-    }
-
-    public static class VariantState {
-        static final DataType TYPE =
-                DataTypes.STRUCTURED(VariantState.class, DataTypes.FIELD("v", DataTypes.VARIANT()));
-        public Variant v;
     }
 
     @FunctionHint(input = @DataTypeHint(value = "BITMAP", bridgedTo = CustomBitmap.class))

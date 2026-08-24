@@ -75,6 +75,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantTableArgFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -946,6 +947,23 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f("
                                     + "variant1 => NULL, "
                                     + "variant3 => PARSE_JSON('{\"a\":[1,\"b\"]}'))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_TABLE_ARG =
+            TableTestProgram.of("process-variant-table-arg", "table argument with a VARIANT column")
+                    .setupTemporarySystemFunction("f", VariantTableArgFunction.class)
+                    .setupSql(
+                            "CREATE VIEW t AS SELECT * FROM "
+                                    + "(VALUES ('Bob', PARSE_JSON('{\"a\":1}')), "
+                                    + "('Alice', PARSE_JSON('[1,\"b\"]'))) AS T(name, v)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, {\"a\":1}]}]",
+                                            "+I[Alice, {+I[Alice, [1,\"b\"]]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
     public static final TableTestProgram PROCESS_VARIANT_STATE =
