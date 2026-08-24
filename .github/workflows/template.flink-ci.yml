@@ -242,7 +242,7 @@ jobs:
         if: matrix.module == 'python'
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: "Install Python header files"
         if: matrix.module == 'python'
@@ -391,7 +391,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+            python-version: '3.13'
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools zip &&
