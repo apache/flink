@@ -3847,6 +3847,61 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/subtasks/metrics/names",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "vertices",
+        "mandatory" : true
+      }, {
+        "key" : "regex",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/subtasks/metrics/values",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "vertices",
+        "mandatory" : true
+      }, {
+        "key" : "get",
+        "mandatory" : false
+      }, {
+        "key" : "agg",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid",
     "method" : "GET",
     "status-code" : "200 OK",
