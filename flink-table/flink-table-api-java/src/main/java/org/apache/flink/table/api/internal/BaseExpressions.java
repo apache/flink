@@ -1970,10 +1970,11 @@ public abstract class BaseExpressions<InType, OutType> {
 
     /**
      * Returns a map created from the given array of entries. Each entry must be a row with exactly
-     * two fields, where the first field becomes the key and the second one the value. If there are
-     * duplicate keys, the value of the last entry with that key wins; null keys are treated as
-     * equal and collapse into a single entry. If the array itself or any of its entries is null,
-     * null is returned.
+     * two fields, where the first field becomes the key and the second one the value.
+     *
+     * <p>If there are duplicate keys, the value of the last entry with that key wins; null keys are
+     * treated as equal and collapse into a single entry. If the array itself or any of its entries
+     * is null, null is returned.
      *
      * <p>Examples:
      *

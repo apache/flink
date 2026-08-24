@@ -431,7 +431,7 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()))
                         .testTableApiValidationError(
                                 $("f0").mapFromEntries(),
-                                "The input argument should be ARRAY<ROW<key, value>>")
+                                "The 'input' argument must be ARRAY<ROW<key, value>>")
                         .testSqlValidationError(
                                 "MAP_FROM_ENTRIES(ARRAY[ROW(1, 'a', true)])",
                                 "The element must be a ROW with exactly two fields."),

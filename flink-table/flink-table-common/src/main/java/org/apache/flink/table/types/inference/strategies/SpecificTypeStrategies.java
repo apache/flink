@@ -183,7 +183,7 @@ public final class SpecificTypeStrategies {
                 final DataType arrayDataType = callContext.getArgumentDataTypes().get(0);
                 final DataType entryDataType =
                         ((CollectionDataType) arrayDataType).getElementDataType();
-                final List<DataType> fieldDataTypes = entryDataType.getChildren();
+                final List<DataType> fieldDataTypes = DataType.getFieldDataTypes(entryDataType);
                 final DataType mapDataType =
                         DataTypes.MAP(fieldDataTypes.get(0), fieldDataTypes.get(1));
                 final boolean nullable =

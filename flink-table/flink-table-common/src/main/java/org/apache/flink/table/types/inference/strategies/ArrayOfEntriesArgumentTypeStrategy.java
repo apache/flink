@@ -46,7 +46,9 @@ public final class ArrayOfEntriesArgumentTypeStrategy implements ArgumentTypeStr
         final DataType actualType = callContext.getArgumentDataTypes().get(argumentPos);
         if (!actualType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
             return callContext.fail(
-                    throwOnFailure, "The input argument should be ARRAY<ROW<key, value>>");
+                    throwOnFailure,
+                    "The 'input' argument must be ARRAY<ROW<key, value>>, but actual type was '%s'.",
+                    actualType.getLogicalType().asSummaryString());
         }
 
         final LogicalType elementType =

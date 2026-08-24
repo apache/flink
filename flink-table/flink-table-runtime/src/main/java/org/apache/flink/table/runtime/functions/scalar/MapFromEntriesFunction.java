@@ -52,7 +52,7 @@ public class MapFromEntriesFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, context);
         final DataType arrayDataType = context.getCallContext().getArgumentDataTypes().get(0);
         final DataType entryDataType = ((CollectionDataType) arrayDataType).getElementDataType();
-        final List<DataType> fieldDataTypes = entryDataType.getChildren();
+        final List<DataType> fieldDataTypes = DataType.getFieldDataTypes(entryDataType);
         final DataType keyDataType = fieldDataTypes.get(0);
         final DataType valueDataType = fieldDataTypes.get(1);
 
