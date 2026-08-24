@@ -294,32 +294,42 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
                                 null,
                                 STRING())
-                        // Bounded CHAR/VARCHAR is strict on length.
-                        // VARCHAR(n) allows any length up to n;
-                        // CHAR(n) requires the exact length.
+                        // A bounded CHAR/VARCHAR target trims a longer value, and CHAR pads a
+                        // shorter one to its fixed width, the same as a regular cast into it.
                         .testResult(
                                 call("PARSE_JSON", "\"ab\"").cast(VARCHAR(3)),
                                 "CAST(PARSE_JSON('\"ab\"') AS VARCHAR(3))",
                                 "ab",
                                 VARCHAR(3).notNull())
-                        .testTableApiRuntimeError(
-                                call("PARSE_JSON", "\"foobar\"").cast(VARCHAR(3)), "does not fit")
+                        .testResult(
+                                call("PARSE_JSON", "\"foobar\"").cast(VARCHAR(3)),
+                                "CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
+                                "foo",
+                                VARCHAR(3).notNull())
                         .testResult(
                                 call("PARSE_JSON", "\"foobar\"").tryCast(VARCHAR(3)),
                                 "TRY_CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
-                                null,
+                                "foo",
                                 VARCHAR(3))
                         .testResult(
                                 call("PARSE_JSON", "\"abc\"").cast(CHAR(3)),
                                 "CAST(PARSE_JSON('\"abc\"') AS CHAR(3))",
                                 "abc",
                                 CHAR(3).notNull())
-                        .testTableApiRuntimeError(
-                                call("PARSE_JSON", "\"ab\"").cast(CHAR(5)), "does not fit")
+                        .testResult(
+                                call("PARSE_JSON", "\"abcdef\"").cast(CHAR(3)),
+                                "CAST(PARSE_JSON('\"abcdef\"') AS CHAR(3))",
+                                "abc",
+                                CHAR(3).notNull())
+                        .testResult(
+                                call("PARSE_JSON", "\"ab\"").cast(CHAR(5)),
+                                "CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
+                                "ab   ",
+                                CHAR(5).notNull())
                         .testResult(
                                 call("PARSE_JSON", "\"ab\"").tryCast(CHAR(5)),
                                 "TRY_CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
-                                null,
+                                "ab   ",
                                 CHAR(5))
                         // A variant holding a JSON null casts to SQL NULL, not to the text 'null'.
                         // The length of that text must not be checked against the target either.
