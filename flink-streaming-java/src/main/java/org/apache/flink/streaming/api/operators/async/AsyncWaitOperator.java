@@ -528,9 +528,7 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
-            if (!timedOut.get()
-                    && !retryDisabledOnFinish.get()
-                    && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 processRetryInMailBox(results, null);
             } else {
                 cancelRetryTimer();
@@ -541,9 +539,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         @Override
         public void completeExceptionally(Throwable error) {
-            if (!timedOut.get()
-                    && !retryDisabledOnFinish.get()
-                    && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 processRetryInMailBox(null, error);
             } else {
                 cancelRetryTimer();
@@ -556,9 +552,7 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(CollectionSupplier<OUT> supplier) {
             Preconditions.checkNotNull(
                     supplier, "Runnable must not be null, return empty collection to emit nothing");
-            if (!timedOut.get()
-                    && !retryDisabledOnFinish.get()
-                    && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 mailboxExecutor.submit(
                         () -> {
                             try {
@@ -573,6 +567,12 @@ public class AsyncWaitOperator<IN, OUT>
 
                 resultHandler.complete(supplier);
             }
+        }
+
+        private boolean shouldProcessResultForRetry() {
+            return !timedOut.get()
+                    && !retryDisabledOnFinish.get()
+                    && resultHandler.inputRecord.isRecord();
         }
 
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {

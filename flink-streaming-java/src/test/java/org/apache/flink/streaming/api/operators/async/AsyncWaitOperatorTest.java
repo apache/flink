@@ -1399,52 +1399,49 @@ public class AsyncWaitOperatorTest {
         testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
     }
 
-    // timeout+retry with serialized async completions must still emit every timeout result
+    /** A timeout firing while a retry is already queued must still emit its result. */
     @Test
-    void reproSerializedCompletionsWithRetry() throws Exception {
-        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+    void testTimeoutRaceWithRetry() throws Exception {
+        ControllableExceptionThenTimeoutFunction.releaseCompletion = new CountDownLatch(1);
+        ControllableExceptionThenTimeoutFunction.completionEnqueued = new CountDownLatch(1);
 
-        AsyncRetryStrategy exceptionRetryStrategy =
-                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
-                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
-                        .build();
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableExceptionThenTimeoutFunction(),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
 
-        try (StreamTaskMailboxTestHarness<Integer> testHarness =
-                builder.setupOutputForSingletonOperatorChain(
-                                new AsyncWaitOperatorFactory<>(
-                                        new AlwaysTimeoutSingleThreadAsyncFunction(),
-                                        TIMEOUT,
-                                        10,
-                                        AsyncDataStream.OutputMode.UNORDERED,
-                                        exceptionRetryStrategy))
-                        .build()) {
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
 
-            testHarness.processElement(new StreamRecord<>(1, 1L));
-            testHarness.processElement(new StreamRecord<>(2, 2L));
-
-            long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-            while (testHarness.getOutput().size() < 2) {
-                testHarness.processAll();
-                if (System.nanoTime() > deadlineNanos) {
-                    throw new AssertionError(
-                            "REPRO CONFIRMED: operator produced only "
-                                    + testHarness.getOutput().size()
-                                    + "/2 outputs within 5s when async completions are serialized "
-                                    + "(single-thread executor). Timeout default value was dropped.");
-                }
-                //noinspection BusyWait
-                Thread.sleep(50);
+            // start the async call; its timeout timer is now registered at TIMEOUT
+            synchronized (testHarness.getCheckpointLock()) {
+                testHarness.processElement(new StreamRecord<>(1, 1L));
             }
+
+            // let the async call complete exceptionally, then wait until the resulting retry mail
+            // is actually enqueued in the mailbox
+            ControllableExceptionThenTimeoutFunction.releaseCompletion.countDown();
+            ControllableExceptionThenTimeoutFunction.completionEnqueued.await();
+
+            // fire the timeout while the retry mail is still queued, then run both mails in order
+            testHarness.setProcessingTime(TIMEOUT + 1L);
+            drainMailbox(testHarness);
+
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
         }
     }
 
-    private static class AlwaysTimeoutSingleThreadAsyncFunction
+    private static class ControllableExceptionThenTimeoutFunction
             extends AlwaysTimeoutWithDefaultValueAsyncFunction {
         private static final long serialVersionUID = 2L;
-        private static final ExecutorService POOL = Executors.newSingleThreadExecutor();
+
+        // released by the test to let the async call complete exceptionally
+        static CountDownLatch releaseCompletion;
+        // counted down once the exceptional completion has been enqueued into the mailbox
+        static CountDownLatch completionEnqueued;
 
         @Override
         public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
@@ -1452,13 +1449,13 @@ public class AsyncWaitOperatorTest {
             CompletableFuture.runAsync(
                     () -> {
                         try {
-                            Thread.sleep(501L);
+                            releaseCompletion.await();
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
                         resultFuture.completeExceptionally(new Exception("Dummy error"));
-                    },
-                    POOL);
+                        completionEnqueued.countDown();
+                    });
         }
     }
 
