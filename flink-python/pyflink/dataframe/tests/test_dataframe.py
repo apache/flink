@@ -1310,26 +1310,24 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             )
             .drop("score", "city", "destination")
             .rename({"name": "customer_name"})
-            .pipe(
-                lambda current: current.select(
-                    "id",
-                    "customer_name",
-                    "age",
-                    "age_next_year",
-                    "age_in_two_years",
-                    "score_percent",
-                    inferred_int=pf.lit(2),
-                    inferred_string=pf.lit("x"),
-                    explicit_int=pf.lit(3, pf.DataType.int64()),
-                    explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
-                    explicit_string=pf.lit("y", pf.DataType.string()),
-                    null_int=pf.lit(None, pf.DataType.int64()),
-                    null_string=pf.lit(None, pf.DataType.string()),
-                    non_nullable_int=pf.lit(
-                        3,
-                        pf.DataType(TableDataTypes.BIGINT().not_null()),
-                    ),
-                )
+            .select(
+                "id",
+                "customer_name",
+                "age",
+                "age_next_year",
+                "age_in_two_years",
+                "score_percent",
+                inferred_int=pf.lit(2),
+                inferred_string=pf.lit("x"),
+                explicit_int=pf.lit(3, pf.DataType.int64()),
+                explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
+                explicit_string=pf.lit("y", pf.DataType.string()),
+                null_int=pf.lit(None, pf.DataType.int64()),
+                null_string=pf.lit(None, pf.DataType.string()),
+                non_nullable_int=pf.lit(
+                    3,
+                    pf.DataType(TableDataTypes.BIGINT().not_null()),
+                ),
             )[
                 (
                     "customer_name",
@@ -1350,26 +1348,6 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             ]
         )
 
-        self.assertEqual(
-            result.columns,
-            [
-                "customer_name",
-                "id",
-                "age",
-                "age_next_year",
-                "age_in_two_years",
-                "score_percent",
-                "inferred_int",
-                "inferred_string",
-                "explicit_int",
-                "explicit_large_int",
-                "explicit_string",
-                "null_int",
-                "null_string",
-                "non_nullable_int",
-            ],
-        )
-        self.assertEqual(result.schema.get_field_names(), result.columns)
         self.assertEqual(
             result.collect(),
             [

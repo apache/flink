@@ -249,9 +249,13 @@ class DataFrame:
 
             >>> import pyflink.dataframe as pf
             >>> df = pf.from_records([(2, 3)], schema=["left", "right"])
-            >>> result = df.with_columns(
-            ...     (pf.col("left") + 1).alias("left"),
-            ...     total=pf.col("left") + pf.col("right"),
+            >>> df.with_columns(
+            ...     (pf.col("left") + 1).alias("left_plus_one"),
+            ...     (pf.col("right") + 1).alias("right_plus_one"),
+            ... )
+            >>> df.with_columns(
+            ...     left_plus_one=pf.col("left") + 1,
+            ...     right_plus_one=pf.col("right") + 1,
             ... )
 
         .. versionadded:: 2.4.0
@@ -332,13 +336,19 @@ class DataFrame:
         """
         Rename one or more columns.
 
-        Supply a mapping or callable as the sole positional argument, use the ``mapping`` keyword,
-        or provide positional old/new name pairs. Mapping entries for columns that are not present
-        are ignored. A callable is applied to every current column name.
+        Use exactly one of the following forms:
 
-        :param args: A mapping, a callable, or positional old/new name pairs.
-        :param mapping: A mapping from old names to new names, or a callable that returns each new
-            name.
+        * A dictionary defines mappings from existing column names to new names. It can be supplied
+          as the only positional argument or through the keyword-only ``mapping`` parameter.
+          Entries whose existing column name is not present are ignored.
+        * An even number of positional string arguments is interpreted as alternating old and new
+          column name pairs.
+        * A function or lambda expression is applied to every current column name and must return
+          the new name as a string. It can be supplied as the only positional argument or through
+          ``mapping``.
+
+        :param args: One dictionary or callable, or an even number of alternating old/new names.
+        :param mapping: Keyword-only alternative for passing a dictionary or callable.
         :return: A new DataFrame with renamed columns, or this DataFrame if no names change.
         :raises TypeError: If the mapping, a name, or a callable result has an unsupported type.
         :raises ValueError: If positional pairs are incomplete or ``mapping`` is combined with
@@ -349,8 +359,10 @@ class DataFrame:
             >>> import pyflink.dataframe as pf
             >>> df = pf.from_records([(1, "Alice")], schema=["id", "name"])
             >>> by_mapping = df.rename_columns({"id": "user_id"})
-            >>> by_callable = df.rename(str.upper)
+            >>> by_keyword = df.rename_columns(mapping={"id": "user_id"})
             >>> by_pairs = df.rename("id", "user_id", "name", "user_name")
+            >>> by_function = df.rename(str.upper)
+            >>> by_lambda = df.rename(lambda name: name.upper())
 
         .. versionadded:: 2.4.0
         """
