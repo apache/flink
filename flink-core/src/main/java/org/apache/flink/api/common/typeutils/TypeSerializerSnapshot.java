@@ -134,6 +134,32 @@ public interface TypeSerializerSnapshot<T> {
     TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
             TypeSerializerSnapshot<T> oldSerializerSnapshot);
 
+    /**
+     * Migrates a single state value from the schema described by {@code oldSerializerSnapshot} to
+     * the schema described by this (new) snapshot. Like {@link
+     * #resolveSchemaCompatibility(TypeSerializerSnapshot)}, this is invoked on the new snapshot and
+     * receives the old snapshot as its argument.
+     *
+     * <p>The default implementation returns the value unchanged: a value already deserialized with
+     * the prior serializer is structurally compatible with the current serializer, so the caller
+     * can re-serialize it as-is. A serializer whose in-memory representation is coupled to its
+     * schema should override this to transform the value into the new layout -- for example by
+     * inserting nulls for added fields or reordering fields by name. An implementation may return
+     * the given value or a new instance.
+     *
+     * <p>The migration is not applied recursively to nested serializers. The snapshot of a
+     * composite type returns its value unchanged unless it overrides this method to decompose the
+     * value and migrate each part, so a caller that needs a nested value migrated must reach the
+     * nested snapshot itself.
+     *
+     * @param oldSerializerSnapshot snapshot of the serializer that wrote the value.
+     * @param value the value, already deserialized with the prior serializer.
+     * @return the value adapted to the schema of the current serializer.
+     */
+    default T migrate(TypeSerializerSnapshot<T> oldSerializerSnapshot, T value) {
+        return value;
+    }
+
     // ------------------------------------------------------------------------
     //  read / write utilities
     // ------------------------------------------------------------------------
