@@ -73,7 +73,7 @@ mypy = [
 
 
 [tool.cibuildwheel]
-build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
