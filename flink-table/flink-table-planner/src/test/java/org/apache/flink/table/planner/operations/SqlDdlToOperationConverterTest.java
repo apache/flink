@@ -717,6 +717,14 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     }
 
     @Test
+    void testCreateTableWithMultibyteConnectionName() {
+        final String sql = "CREATE TABLE derivedTable(a INT) USING CONNECTION `目录`.`Привет`.`café`";
+        CreateTableOperation op = (CreateTableOperation) parseAndConvert(sql);
+        assertThat(op.getCatalogTable().getConnection())
+                .hasValue(UnresolvedIdentifier.of("目录", "Привет", "café"));
+    }
+
+    @Test
     void testCreateTableInvalidDistribution() {
         final String sql =
                 "create table derivedTable(\n" + "  a int\n" + ")\n" + "DISTRIBUTED BY (f3)";
