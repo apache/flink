@@ -41,6 +41,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static java.nio.charset.StandardCharsets.UTF_16;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
@@ -63,14 +65,14 @@ class RawFormatFactoryTest {
         // test deserialization
         final RawFormatDeserializationSchema expectedDeser =
                 new RawFormatDeserializationSchema(
-                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-8", true);
+                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), UTF_8.name(), true);
         DeserializationSchema<RowData> actualDeser =
                 createDeserializationSchema(SCHEMA, tableOptions);
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test serialization
         final RawFormatSerializationSchema expectedSer =
-                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-8", true);
+                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), UTF_8.name(), true);
         SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
         assertThat(actualSer).isEqualTo(expectedSer);
     }
@@ -80,21 +82,21 @@ class RawFormatFactoryTest {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
                         options -> {
-                            options.put("raw.charset", "UTF-16");
+                            options.put("raw.charset", UTF_16.name());
                             options.put("raw.endianness", "little-endian");
                         });
 
         // test deserialization
         final RawFormatDeserializationSchema expectedDeser =
                 new RawFormatDeserializationSchema(
-                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-16", false);
+                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), UTF_16.name(), false);
         DeserializationSchema<RowData> actualDeser =
                 createDeserializationSchema(SCHEMA, tableOptions);
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test serialization
         final RawFormatSerializationSchema expectedSer =
-                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-16", false);
+                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), UTF_16.name(), false);
         SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
         assertThat(actualSer).isEqualTo(expectedSer);
     }
@@ -176,6 +178,28 @@ class RawFormatFactoryTest {
     }
 
     @Test
+    void testVariantSeDeSchema() {
+        final ResolvedSchema variantSchema =
+                ResolvedSchema.of(Column.physical("field1", DataTypes.VARIANT()));
+        final RowType variantRowType =
+                (RowType) variantSchema.toPhysicalRowDataType().getLogicalType();
+        final Map<String, String> tableOptions = getBasicOptions();
+
+        final RawFormatDeserializationSchema expectedDeser =
+                new RawFormatDeserializationSchema(
+                        variantRowType.getTypeAt(0),
+                        InternalTypeInfo.of(variantRowType),
+                        UTF_8.name(),
+                        true);
+        assertThat(createDeserializationSchema(variantSchema, tableOptions))
+                .isEqualTo(expectedDeser);
+
+        final RawFormatSerializationSchema expectedSer =
+                new RawFormatSerializationSchema(variantRowType.getTypeAt(0), UTF_8.name(), true);
+        assertThat(createSerializationSchema(variantSchema, tableOptions)).isEqualTo(expectedSer);
+    }
+
+    @Test
     void testLineDelimiterOption() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
@@ -186,14 +210,18 @@ class RawFormatFactoryTest {
         // test deserialization schema contains line delimiter
         final RawFormatDeserializationSchema expectedDeser =
                 new RawFormatDeserializationSchema(
-                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-8", true, "\n");
+                        ROW_TYPE.getTypeAt(0),
+                        InternalTypeInfo.of(ROW_TYPE),
+                        UTF_8.name(),
+                        true,
+                        "\n");
         DeserializationSchema<RowData> actualDeser =
                 createDeserializationSchema(SCHEMA, tableOptions);
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test serialization schema contains line delimiter
         final RawFormatSerializationSchema expectedSer =
-                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-8", true, "\n");
+                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), UTF_8.name(), true, "\n");
         SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
         assertThat(actualSer).isEqualTo(expectedSer);
     }
