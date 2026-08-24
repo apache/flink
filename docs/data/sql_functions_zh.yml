@@ -1056,8 +1056,9 @@ collection:
     table: MAP.mapContainsKey(key)
     description: |
       Returns TRUE if the given key exists in the map, FALSE otherwise. Returns NULL if the map is
-      NULL. A NULL key matches a NULL key in the map. The given key is cast implicitly to the map's
-      key type where Flink's implicit casting rules allow it; otherwise the call fails validation.
+      NULL. If the search key is NULL, the function returns TRUE when the map contains a NULL key.
+      The given key is cast implicitly to the map's key type where Flink's implicit casting rules
+      allow it; otherwise the call fails validation.
       eg.
         -- TRUE
         MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')

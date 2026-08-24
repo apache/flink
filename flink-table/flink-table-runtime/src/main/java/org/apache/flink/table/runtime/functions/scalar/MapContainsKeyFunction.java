@@ -69,14 +69,19 @@ public class MapContainsKeyFunction extends BuiltInScalarFunction {
         }
         final ArrayData keys = map.keyArray();
         final int size = map.size();
-        for (int pos = 0; pos < size; pos++) {
-            final Object key = keyElementGetter.getElementOrNull(keys, pos);
-            // NULL matches NULL here, unlike the SQL `NULL = NULL` the evaluator would apply
-            if (needle == null && key == null) {
-                return true;
+        if (needle == null) {
+            // A NULL needle matches a NULL key, unlike SQL `NULL = NULL` which yields UNKNOWN.
+            for (int pos = 0; pos < size; pos++) {
+                if (keyElementGetter.getElementOrNull(keys, pos) == null) {
+                    return true;
+                }
             }
-            if (needle != null && key != null && isEqual(key, needle)) {
-                return true;
+        } else {
+            for (int pos = 0; pos < size; pos++) {
+                final Object key = keyElementGetter.getElementOrNull(keys, pos);
+                if (key != null && isEqual(key, needle)) {
+                    return true;
+                }
             }
         }
         return false;

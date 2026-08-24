@@ -1989,9 +1989,9 @@ class Expression(Generic[T]):
         Returns True if the given key exists in the map, False otherwise. Returns None if the map
         is None.
 
-        A None key matches a None key in the map. The given key is cast implicitly to the map's
-        key type where Flink's implicit casting rules allow it; otherwise the call fails
-        validation.
+        If the search key is None, the function returns True when the map contains a None key.
+        The given key is cast implicitly to the map's key type where Flink's implicit casting
+        rules allow it; otherwise the call fails validation.
 
         Examples:
         ::
