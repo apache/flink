@@ -45,8 +45,20 @@ class DependencyParserCopyTest {
 
     @Test
     void testCopyParsing() {
+        assertCopyParsing(getTestDependencyCopy());
+    }
+
+    /** Maven 3.9+ logs plugins by their goal prefix instead of their artifactId. */
+    @Test
+    void testCopyParsingWithGoalPrefixedPluginName() {
+        assertCopyParsing(
+                getTestDependencyCopy()
+                        .map(line -> line.replace("maven-dependency-plugin:", "dependency:")));
+    }
+
+    private static void assertCopyParsing(Stream<String> lines) {
         final Map<String, Set<Dependency>> dependenciesByModule =
-                DependencyParser.parseDependencyCopyOutput(getTestDependencyCopy());
+                DependencyParser.parseDependencyCopyOutput(lines);
 
         assertThat(dependenciesByModule).containsOnlyKeys("m1", "m2");
         assertThat(dependenciesByModule.get("m1"))

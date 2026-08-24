@@ -103,7 +103,7 @@ Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
 * Git
-* Maven (we require version 3.8.6)
+* Maven (we require version 3.9.16)
 * Java (version 11, 17, or 21)
 
 ### Basic Build Instructions

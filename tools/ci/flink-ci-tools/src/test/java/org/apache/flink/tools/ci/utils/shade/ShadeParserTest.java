@@ -45,8 +45,19 @@ class ShadeParserTest {
 
     @Test
     void testParsing() {
+        assertParsing(getTestDependencyCopy());
+    }
+
+    /** Maven 3.9+ logs plugins by their goal prefix instead of their artifactId. */
+    @Test
+    void testParsingWithGoalPrefixedPluginName() {
+        assertParsing(
+                getTestDependencyCopy().map(line -> line.replace("maven-shade-plugin:", "shade:")));
+    }
+
+    private static void assertParsing(Stream<String> lines) {
         final Map<String, Set<Dependency>> dependenciesByModule =
-                ShadeParser.parseShadeOutput(getTestDependencyCopy());
+                ShadeParser.parseShadeOutput(lines);
 
         assertThat(dependenciesByModule).containsOnlyKeys("m1", "m2");
         assertThat(dependenciesByModule.get("m1"))
