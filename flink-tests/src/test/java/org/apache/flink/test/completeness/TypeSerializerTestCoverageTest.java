@@ -43,6 +43,7 @@ import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySeria
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
+import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -140,6 +141,7 @@ class TypeSerializerTestCoverageTest {
                         SingleThreadAccessCheckingTypeSerializer.class.getName(),
                         GenericArraySerializer.class.getName(),
                         NullValueSerializer.class.getName(),
+                        NullableSerializer.class.getName(),
                         Tuple0Serializer.class.getName(),
                         CopyableValueSerializer.class.getName(),
                         VoidSerializer.class.getName(),
