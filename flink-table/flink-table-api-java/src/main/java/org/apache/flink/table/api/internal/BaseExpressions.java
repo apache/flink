@@ -538,42 +538,12 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(IS_NOT_FALSE, toExpr()));
     }
 
-    /**
-     * Returns true if the given numeric expression is NaN (Not-a-Number).
-     *
-     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
-     * input expression is {@code NULL}, the result will also be {@code NULL}.
-     *
-     * <p>The resulting type is nullable if and only if the input type is nullable.
-     *
-     * <p>Examples:
-     *
-     * <pre>{@code
-     * lit(Double.NaN).isNan() // true
-     * lit(1.0).isNan() // false
-     * lit(null, DataTypes.DOUBLE()).isNan() // null
-     * }</pre>
-     */
+    /** Returns true if the given numeric expression is NaN (Not-a-Number). Null if null. */
     public OutType isNan() {
         return toApiSpecificExpression(unresolvedCall(IS_NAN, toExpr()));
     }
 
-    /**
-     * Returns true if the given numeric expression is not NaN (Not-a-Number).
-     *
-     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
-     * input expression is {@code NULL}, the result will also be {@code NULL}.
-     *
-     * <p>The resulting type is nullable if and only if the input type is nullable.
-     *
-     * <p>Examples:
-     *
-     * <pre>{@code
-     * lit(Double.NaN).isNotNan() // false
-     * lit(1.0).isNotNan() // true
-     * lit(null, DataTypes.DOUBLE()).isNotNan() // null
-     * }</pre>
-     */
+    /** Returns true if the given numeric expression is not NaN (Not-a-Number). Null if null. */
     public OutType isNotNan() {
         return toApiSpecificExpression(unresolvedCall(IS_NOT_NAN, toExpr()));
     }
