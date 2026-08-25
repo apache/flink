@@ -16,10 +16,22 @@
 # limitations under the License.
 ################################################################################
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 if TYPE_CHECKING:
     import pandas
+    from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
@@ -34,6 +46,8 @@ from pyflink.table.table import Table
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
+
+T = TypeVar("T")
 
 
 @PublicEvolving()
@@ -173,6 +187,8 @@ class DataFrame:
         condition = conditions[0] if len(conditions) == 1 else and_(*conditions)
         return DataFrame(self._table.filter(condition))
 
+    where = filter
+
     @PublicEvolving()
     def with_column(
         self,
@@ -211,6 +227,189 @@ class DataFrame:
         if not isinstance(expression, Expression):
             raise TypeError("expr must be an Expression")
         return DataFrame(self._table.add_or_replace_columns(expression.alias(name)))
+
+    @PublicEvolving()
+    def with_columns(
+        self,
+        *exprs: Expression,
+        **named_exprs: Expression,
+    ) -> "DataFrame":
+        """
+        Add or replace multiple columns in one call.
+
+        Positional expressions are applied first and must carry their desired output names. Named
+        expressions are appended afterward and are aliased to their keyword names.
+
+        :param exprs: Expressions to add or replace.
+        :param named_exprs: Expressions keyed by their output column names.
+        :return: A new DataFrame with the requested columns.
+        :raises TypeError: If a positional or named value is not an expression.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(2, 3)], schema=["left", "right"])
+            >>> df.with_columns(
+            ...     (pf.col("left") + 1).alias("left_plus_one"),
+            ...     (pf.col("right") + 1).alias("right_plus_one"),
+            ... )
+            >>> df.with_columns(
+            ...     left_plus_one=pf.col("left") + 1,
+            ...     right_plus_one=pf.col("right") + 1,
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        expressions: List[Expression] = []
+        for expression in exprs:
+            if not isinstance(expression, Expression):
+                raise TypeError("exprs must be expressions")
+            expressions.append(expression)
+
+        for name, expression in named_exprs.items():
+            if not isinstance(expression, Expression):
+                raise TypeError("named_exprs must be expressions")
+            expressions.append(expression.alias(name))
+
+        return DataFrame(self._table.add_or_replace_columns(*expressions))
+
+    @PublicEvolving()
+    def drop_columns(
+        self,
+        *columns: Union[str, Expression],
+        strict: bool = True,
+    ) -> "DataFrame":
+        """
+        Remove columns from this DataFrame.
+
+        String column names are checked against the current schema. When ``strict`` is ``False``,
+        names that are not present are ignored. Expression arguments are validated by the Table
+        API.
+
+        :param columns: Column names or expressions to remove.
+        :param strict: Whether a missing column name raises an error.
+        :return: A new DataFrame without the requested columns, or this DataFrame if no columns
+            remain to be dropped.
+        :raises TypeError: If ``strict`` is not a boolean or a column has an unsupported type.
+        :raises ValueError: If a named column is missing in strict mode.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "debug")], schema=["id", "temporary"])
+            >>> result = df.drop_columns("temporary")
+            >>> unchanged = df.drop("missing", strict=False)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(strict, bool):
+            raise TypeError("strict must be a boolean")
+
+        existing_columns = set(self.columns)
+        expressions: List[Expression] = []
+        for column in columns:
+            if isinstance(column, str):
+                if column not in existing_columns:
+                    if strict:
+                        raise ValueError(f"Column '{column}' not found in schema")
+                    continue
+                expressions.append(table_col(column))
+            elif isinstance(column, Expression):
+                expressions.append(column)
+            else:
+                raise TypeError("columns must be strings or expressions")
+
+        if not expressions:
+            return self
+        return DataFrame(self._table.drop_columns(*expressions))
+
+    drop = drop_columns
+
+    @PublicEvolving()
+    def rename_columns(
+        self,
+        *args: Any,
+        mapping: Optional[
+            Union[Dict[str, str], Callable[[str], str]]
+        ] = None,
+    ) -> "DataFrame":
+        """
+        Rename one or more columns.
+
+        Use exactly one of the following forms:
+
+        * A dictionary defines mappings from existing column names to new names. It can be supplied
+          as the only positional argument or through the keyword-only ``mapping`` parameter.
+          Entries whose existing column name is not present are ignored.
+        * An even number of positional string arguments is interpreted as alternating old and new
+          column name pairs.
+        * A function or lambda expression is applied to every current column name and must return
+          the new name as a string. It can be supplied as the only positional argument or through
+          ``mapping``.
+
+        :param args: One dictionary or callable, or an even number of alternating old/new names.
+        :param mapping: Keyword-only alternative for passing a dictionary or callable.
+        :return: A new DataFrame with renamed columns, or this DataFrame if no names change.
+        :raises TypeError: If the mapping, a name, or a callable result has an unsupported type.
+        :raises ValueError: If positional pairs are incomplete or ``mapping`` is combined with
+            positional arguments.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "Alice")], schema=["id", "name"])
+            >>> by_mapping = df.rename_columns({"id": "user_id"})
+            >>> by_keyword = df.rename_columns(mapping={"id": "user_id"})
+            >>> by_pairs = df.rename("id", "user_id", "name", "user_name")
+            >>> by_function = df.rename(str.upper)
+            >>> by_lambda = df.rename(lambda name: name.upper())
+
+        .. versionadded:: 2.4.0
+        """
+        if args and mapping is not None:
+            raise ValueError(
+                "rename_columns() accepts either positional arguments or mapping, not both"
+            )
+
+        rename_spec: Any = mapping
+        if len(args) == 1:
+            rename_spec = args[0]
+        elif args:
+            if len(args) % 2 != 0:
+                raise ValueError(
+                    "rename_columns() positional arguments must be old/new name pairs"
+                )
+            positional_mapping: Dict[str, str] = {}
+            for index in range(0, len(args), 2):
+                old_name, new_name = args[index], args[index + 1]
+                if not isinstance(old_name, str) or not isinstance(new_name, str):
+                    raise TypeError("column names must be strings")
+                positional_mapping[old_name] = new_name
+            rename_spec = positional_mapping
+
+        current_columns = self.columns
+        rename_expressions: List[Expression] = []
+        if isinstance(rename_spec, dict):
+            for old_name, new_name in rename_spec.items():
+                if not isinstance(old_name, str) or not isinstance(new_name, str):
+                    raise TypeError("mapping keys and values must be strings")
+                if old_name in current_columns and new_name != old_name:
+                    rename_expressions.append(table_col(old_name).alias(new_name))
+        elif callable(rename_spec):
+            for old_name in current_columns:
+                new_name = rename_spec(old_name)
+                if not isinstance(new_name, str):
+                    raise TypeError("rename_columns() callable must return a string")
+                if new_name != old_name:
+                    rename_expressions.append(table_col(old_name).alias(new_name))
+        else:
+            raise TypeError("mapping must be a dictionary or callable")
+
+        if not rename_expressions:
+            return self
+        return DataFrame(self._table.rename_columns(*rename_expressions))
+
+    rename = rename_columns
 
     @PublicEvolving()
     def select(
@@ -404,6 +603,41 @@ class DataFrame:
             return self.filter(key)
         raise TypeError("key must be a string, list, tuple, or Expression")
 
+    # ======================== Composition ========================
+
+    @PublicEvolving()
+    def pipe(
+        self,
+        func: Callable[..., T],
+        *args: Any,
+        **kwargs: Any,
+    ) -> T:
+        """
+        Apply a function to this DataFrame for reusable functional composition.
+
+        This DataFrame is passed as the first argument, followed by ``args`` and ``kwargs``. The
+        function's return value is returned unchanged.
+
+        :param func: Function whose first argument receives this DataFrame.
+        :param args: Additional positional arguments passed to ``func``.
+        :param kwargs: Additional keyword arguments passed to ``func``.
+        :return: The value returned by ``func``.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, 2)], schema=["left", "right"])
+            >>> result = df.pipe(
+            ...     lambda current, name: current.with_column(
+            ...         name, pf.col("left") + pf.col("right")
+            ...     ),
+            ...     "total",
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        return func(self, *args, **kwargs)
+
     # ======================== Conversion ========================
 
     @PublicEvolving()
@@ -465,6 +699,46 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         return self._table.to_pandas()
+
+    # ======================== Properties ========================
+
+    @property
+    @PublicEvolving()
+    def schema(self) -> "TableSchema":
+        """
+        Return this DataFrame's schema.
+
+        :return: The TableSchema exposed by the underlying Table.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "Alice")], schema=["id", "name"])
+            >>> df.schema.get_field_names()
+            ['id', 'name']
+
+        .. versionadded:: 2.4.0
+        """
+        return self._table.get_schema()
+
+    @property
+    @PublicEvolving()
+    def columns(self) -> List[str]:
+        """
+        Return this DataFrame's column names in schema order.
+
+        :return: A new list containing the column names.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "Alice")], schema=["id", "name"])
+            >>> df.columns
+            ['id', 'name']
+
+        .. versionadded:: 2.4.0
+        """
+        return list(self._table.get_resolved_schema().get_column_names())
 
     # ======================== I/O ========================
 
