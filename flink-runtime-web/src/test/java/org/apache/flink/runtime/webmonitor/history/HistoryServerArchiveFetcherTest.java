@@ -456,6 +456,46 @@ class HistoryServerArchiveFetcherTest {
     }
 
     @TestTemplate
+    void testTtlExpiredArchivesAreDeletedFromRemoteEvenWhenBeyondLimitIsKept() throws Exception {
+        JobID retainedJobId = JobID.generate();
+        JobID ttlExpiredJobId = JobID.generate();
+        Path ttlExpiredArchivePath = createJobArchive(remoteArchiveRootPath, ttlExpiredJobId, true);
+        createJobArchive(remoteArchiveRootPath, retainedJobId, true);
+
+        // reject the ttlExpiredJobId archive, but mark it as TTL-expired rather than beyond
+        // the count limit
+        org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy
+                ttlExpiringStrategy =
+                        new org.apache.flink.runtime.webmonitor.history.retaining
+                                .ArchiveRetainedStrategy() {
+                            @Override
+                            public boolean shouldRetain(
+                                    org.apache.flink.core.fs.FileStatus file, int index) {
+                                return file.getPath().getName().equals(retainedJobId.toString());
+                            }
+
+                            @Override
+                            public boolean isExpiredByTtl(
+                                    org.apache.flink.core.fs.FileStatus file) {
+                                return file.getPath().getName().equals(ttlExpiredJobId.toString());
+                            }
+                        };
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(
+                        remoteArchiveRootPath, true, archiveStorage, ttlExpiringStrategy, true);
+
+        fetcher.fetchArchives(EAGER);
+
+        // TTL-expired archives must be deleted remotely regardless of retainRemoteBeyondLocalLimit
+        assertThat(ttlExpiredArchivePath.getFileSystem().exists(ttlExpiredArchivePath))
+                .as(
+                        "TTL-expired archive must be deleted from remote even when "
+                                + "retainRemoteBeyondLocalLimit is enabled")
+                .isFalse();
+    }
+
+    @TestTemplate
     void testLazyFetchArchiveProactively() throws Exception {
         // with explicit path
         JobID jobId = JobID.generate();
