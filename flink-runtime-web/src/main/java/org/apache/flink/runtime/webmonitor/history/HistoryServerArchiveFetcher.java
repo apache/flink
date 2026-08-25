@@ -231,6 +231,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> archivesToRemove.put(path, new HashSet<>(archives)));
             Map<Path, Set<Path>> archivesBeyondRetainedLimit = new HashMap<>();
+            Map<Path, Set<Path>> archivesExpiredByTtl = new HashMap<>();
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -256,9 +257,17 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
                     fileOrderedIndexOnModifiedTime++;
                     if (!retainedStrategy.shouldRetain(archive, fileOrderedIndexOnModifiedTime)) {
-                        archivesBeyondRetainedLimit
-                                .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
-                                .add(archivePath);
+                        if (retainedStrategy.isExpiredByTtl(archive)) {
+                            // TTL expiry always applies remote deletion, regardless of
+                            // retainRemoteBeyondLocalLimit, which only concerns the count limit.
+                            archivesExpiredByTtl
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(archivePath);
+                        } else {
+                            archivesBeyondRetainedLimit
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(archivePath);
+                        }
                         continue;
                     }
 
@@ -272,6 +281,10 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             if (archivesToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredArchives(archivesToRemove));
+            }
+            if (!archivesExpiredByTtl.isEmpty()) {
+                // clean remote and local; TTL expiry is unaffected by retainRemoteBeyondLocalLimit
+                events.addAll(cleanupArchivesBeyondRetainedLimit(archivesExpiredByTtl));
             }
             if (!archivesBeyondRetainedLimit.isEmpty()) {
                 if (retainRemoteBeyondLocalLimit) {
