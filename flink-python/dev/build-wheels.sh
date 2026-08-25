@@ -31,10 +31,6 @@ done
 ## 3. build wheels
 for ((i=0;i<${#py_env[@]};i++)) do
     echo "Building wheel for environment: ${py_env[i]}"
-    if [[ "$(uname)" != "Darwin" ]]; then
-        # force the linker to use the older glibc version in Linux
-        export CFLAGS="-I. -include dev/glibc_version_fix.h"
-    fi
     ${PY_ENV_DIR}/${py_env[i]}/bin/python setup.py bdist_wheel
 done
 
