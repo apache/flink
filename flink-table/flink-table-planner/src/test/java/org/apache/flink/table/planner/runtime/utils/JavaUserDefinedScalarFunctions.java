@@ -175,6 +175,40 @@ public class JavaUserDefinedScalarFunctions {
         }
     }
 
+    /** Test for non-deterministic Python Scalar Function. */
+    public static class NonDeterministicPythonScalarFunction extends ScalarFunction
+            implements PythonFunction {
+        private final String name;
+
+        public NonDeterministicPythonScalarFunction(String name) {
+            this.name = name;
+        }
+
+        public int eval(Integer i, Integer j) {
+            return i + j;
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
+
+        @Override
+        public PythonEnv getPythonEnv() {
+            return new PythonEnv(PythonEnv.ExecType.PROCESS);
+        }
+    }
+
     /** Test for Python Scalar Function. */
     public static class BooleanPythonScalarFunction extends ScalarFunction
             implements PythonFunction {
