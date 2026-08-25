@@ -42,9 +42,23 @@ from pyflink.table.expressions import (
     col as table_col,
     if_then_else,
     is_nan,
+    is_not_nan,
     lit as table_lit,
+    or_,
 )
 from pyflink.table.table import Table
+from pyflink.table.types import (
+    DataTypes as TableDataTypes,
+    FloatType,
+    DoubleType,
+    AtomicType,
+    IntegralType,
+    FractionalType,
+    DecimalType,
+    CharType,
+    VarCharType,
+    BooleanType,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
@@ -648,7 +662,7 @@ class DataFrame:
 
         :param subset: Column names to validate, or None for all columns.
         :return: Validated list of column names.
-        :raises ValueError: If subset is empty or contains invalid column names.
+        :raises ValueError: If subset contains invalid column names.
         :raises TypeError: If subset is not a list of strings.
         """
         schema = self._table.get_schema()
@@ -660,8 +674,9 @@ class DataFrame:
         if not isinstance(subset, list):
             raise TypeError("subset must be a list of strings")
 
+        # Empty subset is allowed - it's a no-op
         if not subset:
-            raise ValueError("subset cannot be empty")
+            return []
 
         # Validate all column names exist
         all_columns_set = set(all_columns)
@@ -670,6 +685,35 @@ class DataFrame:
             raise ValueError(f"Columns not found in DataFrame: {sorted(invalid_columns)}")
 
         return subset
+
+    def _is_type_compatible(self, value: Any, col_type: DataType) -> bool:
+        """
+        Check if a value's type is compatible with a column's data type.
+
+        Only atomic (primitive) types are supported. Complex types (arrays, maps, rows)
+        are not compatible and will return False.
+
+        :param value: The value to check.
+        :param col_type: The column's Flink data type.
+        :return: True if types are compatible, False otherwise.
+        """
+        # Skip complex types
+        if not isinstance(col_type, AtomicType):
+            return False
+
+        # Map Python types to compatible Flink types
+        type_map = {
+            bool: (BooleanType,),
+            int: (IntegralType, FractionalType, DecimalType),
+            float: (FractionalType, DecimalType),
+            str: (CharType, VarCharType),
+        }
+
+        compatible_types = type_map.get(type(value))
+        if compatible_types is None:
+            return False
+
+        return isinstance(col_type, compatible_types)
 
     def _fill_values(
         self,
@@ -687,6 +731,11 @@ class DataFrame:
         :return: A new DataFrame with values replaced.
         """
         subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
         subset_set = set(subset)
 
         schema = self._table.get_schema()
@@ -697,13 +746,18 @@ class DataFrame:
             col_expr = table_col(col_name)
             if col_name in subset_set:
                 col_type = schema.get_field_data_type(col_name)
-                typed_value = table_lit(value).cast(col_type)
-                filled_expr = if_then_else(
-                    condition_fn(col_expr),
-                    typed_value,
-                    col_expr
-                ).alias(col_name)
-                expressions.append(filled_expr)
+
+                # Only fill type-compatible columns
+                if self._is_type_compatible(value, col_type):
+                    typed_value = table_lit(value).cast(col_type)
+                    filled_expr = if_then_else(
+                        condition_fn(col_expr),
+                        typed_value,
+                        col_expr
+                    ).alias(col_name)
+                    expressions.append(filled_expr)
+                else:
+                    expressions.append(col_expr)
             else:
                 expressions.append(col_expr)
 
@@ -737,6 +791,11 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
         conditions = [table_col(col_name).is_not_null for col_name in subset]
         condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
         return DataFrame(self._table.filter(condition))
@@ -767,8 +826,30 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
-        subset = self._validate_subset(subset)
-        conditions = [table_col(col_name).is_not_nan for col_name in subset]
+        schema = self._table.get_schema()
+        
+        if subset is None:
+            # Auto-filter to only floating-point columns
+            subset = [
+                col_name for col_name in schema.get_field_names()
+                if isinstance(schema.get_field_data_type(col_name), (FloatType, DoubleType))
+            ]
+            
+            # If no floating-point columns, return unchanged DataFrame
+            if not subset:
+                return self
+        else:
+            subset = self._validate_subset(subset)
+
+            # Empty subset is a no-op - return self unchanged
+            if not subset:
+                return self
+        
+        # Preserve NULL values: (is_not_nan(col) OR col IS NULL)
+        conditions = [
+            or_(is_not_nan(table_col(col_name)), table_col(col_name).is_null)
+            for col_name in subset
+        ]
         condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
         return DataFrame(self._table.filter(condition))
 
@@ -809,10 +890,13 @@ class DataFrame:
         This method uses three-valued logic: NaN values in the specified columns
         are replaced with the provided value, while non-NaN values are preserved.
         NULL values are preserved (not treated as NaN). The replacement value is
-        automatically cast to match each column's data type.
+        automatically cast to match each column's data type. If ``value`` is
+        ``None``, NaN values are converted to NULL.
 
-        :param value: The value to replace NaN with.
-        :param subset: Column names to fill. If None, fills all columns.
+        :param value: The value to replace NaN with. Can be ``None`` to convert
+            NaN values to NULL.
+        :param subset: Column names to fill. If None, fills all floating-point
+            columns.
         :return: A new DataFrame with NaN values replaced.
         :raises ValueError: If subset is empty or contains invalid column names.
         :raises TypeError: If subset is not a list of strings.
@@ -828,6 +912,19 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
+        schema = self._table.get_schema()
+        
+        if subset is None:
+            # Auto-filter to only floating-point columns
+            subset = [
+                col_name for col_name in schema.get_field_names()
+                if isinstance(schema.get_field_data_type(col_name), (FloatType, DoubleType))
+            ]
+            
+            # If no floating-point columns, return unchanged DataFrame
+            if not subset:
+                return self
+        
         return self._fill_values(value, subset, lambda col: is_nan(col))
 
     # ======================== Conversion ========================

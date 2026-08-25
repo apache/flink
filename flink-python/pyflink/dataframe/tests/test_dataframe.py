@@ -1401,10 +1401,11 @@ class DataFrameDropNullTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.drop_null(subset=["name", "age"])
         self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
 
-    def test_drop_null_with_empty_subset_raises_error(self):
-        with self.assertRaises(ValueError) as context:
-            self.dataframe.drop_null(subset=[])
-        self.assertIn("subset cannot be empty", str(context.exception))
+    def test_drop_null_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.drop_null(subset=[])
+        self.assert_dataframe_schema(result, ["id", "name", "age"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
 
     def test_drop_null_with_invalid_column_raises_error(self):
         with self.assertRaises(ValueError) as context:
@@ -1442,10 +1443,11 @@ class DataFrameDropNanTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.drop_nan(subset=["id", "score"])
         self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
 
-    def test_drop_nan_with_empty_subset_raises_error(self):
-        with self.assertRaises(ValueError) as context:
-            self.dataframe.drop_nan(subset=[])
-        self.assertIn("subset cannot be empty", str(context.exception))
+    def test_drop_nan_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.drop_nan(subset=[])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
 
     def test_drop_nan_with_invalid_column_raises_error(self):
         with self.assertRaises(ValueError) as context:
@@ -1487,10 +1489,11 @@ class DataFrameFillNullTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.fill_null(0)
         self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
 
-    def test_fill_null_with_empty_subset_raises_error(self):
-        with self.assertRaises(ValueError) as context:
-            self.dataframe.fill_null(0, subset=[])
-        self.assertIn("subset cannot be empty", str(context.exception))
+    def test_fill_null_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.fill_null(0, subset=[])
+        self.assert_dataframe_schema(result, ["id", "name", "quantity"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
 
     def test_fill_null_with_invalid_column_raises_error(self):
         with self.assertRaises(ValueError) as context:
@@ -1528,10 +1531,11 @@ class DataFrameFillNanTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.fill_nan(0.0, subset=["id", "score"])
         self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
 
-    def test_fill_nan_with_empty_subset_raises_error(self):
-        with self.assertRaises(ValueError) as context:
-            self.dataframe.fill_nan(0.0, subset=[])
-        self.assertIn("subset cannot be empty", str(context.exception))
+    def test_fill_nan_with_empty_subset_returns_unchanged(self):
+        result = self.dataframe.fill_nan(0.0, subset=[])
+        self.assert_dataframe_schema(result, ["id", "score"], self.expected_schema)
+        # Verify it's a no-op by checking the result is the same DataFrame
+        self.assertEqual(result._table, self.dataframe._table)
 
     def test_fill_nan_with_invalid_column_raises_error(self):
         with self.assertRaises(ValueError) as context:
@@ -1582,6 +1586,40 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
 
 
 class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
+    def test_fill_null_type_compatibility(self):
+        # Create DataFrame with mixed types
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95, "active": True},
+                {"id": None, "name": None, "score": None, "active": None},
+            ],
+            schema=["id", "name", "score", "active"],
+        )
+
+        # Fill with int - should only fill numeric columns (id, score)
+        result = df.fill_null(0)
+        rows = result.collect()
+        self.assertEqual(rows[1][0], 0)  # id filled
+        self.assertIsNone(rows[1][1])  # name not filled (type mismatch)
+        self.assertEqual(rows[1][2], 0.0)  # score filled
+        self.assertIsNone(rows[1][3])  # active not filled (type mismatch)
+
+        # Fill with string - should only fill string columns (name)
+        result = df.fill_null("unknown")
+        rows = result.collect()
+        self.assertIsNone(rows[1][0])  # id not filled (type mismatch)
+        self.assertEqual(rows[1][1], "unknown")  # name filled
+        self.assertIsNone(rows[1][2])  # score not filled (type mismatch)
+        self.assertIsNone(rows[1][3])  # active not filled (type mismatch)
+
+        # Fill with bool - should only fill boolean columns (active)
+        result = df.fill_null(False)
+        rows = result.collect()
+        self.assertIsNone(rows[1][0])  # id not filled (type mismatch)
+        self.assertIsNone(rows[1][1])  # name not filled (type mismatch)
+        self.assertIsNone(rows[1][2])  # score not filled (type mismatch)
+        self.assertEqual(rows[1][3], False)  # active filled
+
     def test_drop_null_removes_rows_with_null_values(self):
         df = pf.from_records(
             [
@@ -1642,6 +1680,146 @@ class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
         self.assertAlmostEqual(result[0][1], 0.95)
         self.assertEqual(result[1][0], 3)
         self.assertAlmostEqual(result[1][1], 0.85)
+
+    def test_drop_nan_preserves_null_values(self):
+        """Test that drop_nan preserves NULL values (critical bug fix)."""
+        df = pf.from_records(
+            [
+                {"id": 1, "score": 0.95},
+                {"id": 2, "score": None},  # NULL should be preserved
+                {"id": 3, "score": float('nan')},  # NaN should be dropped
+                {"id": 4, "score": 0.85},
+            ],
+            schema=["id", "score"],
+        )
+
+        result = df.drop_nan(subset=["score"]).collect()
+        # Should have 3 rows: id=1, id=2 (NULL preserved), id=4
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertAlmostEqual(result[0][1], 0.95)
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])  # NULL preserved
+        self.assertEqual(result[2][0], 4)
+        self.assertAlmostEqual(result[2][1], 0.85)
+
+
+    def test_drop_nan_with_mixed_schema_auto_filters_to_float_columns(self):
+        """Test that drop_nan with subset=None only checks FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95, "rating": 4.5},
+                {"id": 2, "name": "Bob", "score": float('nan'), "rating": 3.0},
+                {"id": 3, "name": "Charlie", "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "name", "score", "rating"],
+        )
+
+        # Should only check score and rating (FLOAT/DOUBLE), not id (INT) or name (STRING)
+        result = df.drop_nan().collect()
+        # Only row with id=1 has no NaN in float columns
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], "Alice")
+        self.assertAlmostEqual(result[0][2], 0.95)
+        self.assertAlmostEqual(result[0][3], 4.5)
+
+    def test_drop_nan_with_no_float_columns_returns_unchanged(self):
+        """Test that drop_nan with no FLOAT/DOUBLE columns returns unchanged DataFrame."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "active": True},
+                {"id": 2, "name": "Bob", "active": False},
+            ],
+            schema=["id", "name", "active"],
+        )
+
+        # No float columns, should return all rows unchanged
+        result = df.drop_nan().collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice", True))
+        self.assertEqual(result[1], Row(2, "Bob", False))
+
+
+
+
+    def test_fill_nan_with_mixed_schema_auto_filters_to_float_columns(self):
+        """Test that fill_nan with subset=None only fills FLOAT/DOUBLE columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "score": 0.95, "rating": 4.5},
+                {"id": 2, "name": "Bob", "score": float('nan'), "rating": 3.0},
+                {"id": 3, "name": "Charlie", "score": 0.85, "rating": float('nan')},
+            ],
+            schema=["id", "name", "score", "rating"],
+        )
+
+        # Should only fill score and rating (FLOAT/DOUBLE), not id (INT) or name (STRING)
+        result = df.fill_nan(0.0).collect()
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], "Alice")
+        self.assertAlmostEqual(result[0][2], 0.95)
+        self.assertAlmostEqual(result[0][3], 4.5)
+        self.assertEqual(result[1][0], 2)
+        self.assertEqual(result[1][1], "Bob")
+        self.assertAlmostEqual(result[1][2], 0.0)  # NaN filled
+        self.assertAlmostEqual(result[1][3], 3.0)
+        self.assertEqual(result[2][0], 3)
+        self.assertEqual(result[2][1], "Charlie")
+        self.assertAlmostEqual(result[2][2], 0.85)
+        self.assertAlmostEqual(result[2][3], 0.0)  # NaN filled
+
+    def test_fill_nan_with_no_float_columns_returns_unchanged(self):
+        """Test that fill_nan with no FLOAT/DOUBLE columns returns unchanged DataFrame."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice", "active": True},
+                {"id": 2, "name": "Bob", "active": False},
+            ],
+            schema=["id", "name", "active"],
+        )
+
+        # No float columns, should return all rows unchanged
+        result = df.fill_nan(0.0).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice", True))
+        self.assertEqual(result[1], Row(2, "Bob", False))
+
+    def test_fill_null_skips_incompatible_array_column(self):
+        """Test that fill_null with incompatible type (ARRAY) skips the column."""
+        df = pf.from_records(
+            [
+                {"id": 1, "tags": ["python", "flink"]},
+                {"id": 2, "tags": None},
+            ],
+            schema=["id", "tags"],
+        )
+
+        # Should skip ARRAY column when value is INT
+        result = df.fill_null(0).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[0][1], ["python", "flink"])
+        self.assertEqual(result[1][0], 2)
+        self.assertIsNone(result[1][1])  # Should remain NULL
+
+    def test_fill_null_skips_incompatible_string_column(self):
+        """Test that fill_null with numeric value skips STRING columns."""
+        df = pf.from_records(
+            [
+                {"id": 1, "name": "Alice"},
+                {"id": 2, "name": None},
+            ],
+            schema=["id", "name"],
+        )
+
+        # Numeric value should skip STRING column
+        result = df.fill_null(0, subset=["name"]).collect()
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], Row(1, "Alice"))
+        self.assertIsNone(result[1][1])  # Should remain NULL
+
 
     def test_fill_null_replaces_null_with_specified_value(self):
         df = pf.from_records(
