@@ -179,6 +179,34 @@ public class HistoryServerOptions {
                                     .build());
 
     /**
+     * If this option is enabled, job archives that fall outside {@link
+     * #HISTORY_SERVER_RETAINED_JOBS} are no longer processed/refreshed locally, but are kept in the
+     * remote archive directory instead of being deleted. They remain reachable on demand (e.g. by
+     * directly requesting {@code /jobs/&lt;jobId&gt;} in {@link HistoryServerArchiveLoadMode#LAZY}
+     * mode).
+     */
+    public static final ConfigOption<Boolean> HISTORY_SERVER_RETAIN_REMOTE_BEYOND_LOCAL_LIMIT =
+            key("historyserver.archive.retain-remote-beyond-local-limit")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether job archives beyond the limit configured by %s should still be "
+                                                    + "retained in the remote archive directory defined by %s, instead of being "
+                                                    + "deleted. ",
+                                            code(HISTORY_SERVER_RETAINED_JOBS_KEY),
+                                            code(HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .text(
+                                            "When enabled, such archives are no longer polled/processed locally, but remain "
+                                                    + "fetchable on demand when %s is set to %s. ",
+                                            code("historyserver.archive.load.mode"), code("LAZY"))
+                                    .text(
+                                            "This option has no effect unless %s is set to a value other than %s. ",
+                                            code(HISTORY_SERVER_RETAINED_JOBS_KEY), code("-1"))
+                                    .build());
+
+    /**
      * If this option is enabled then deleted application archives are also deleted from
      * HistoryServer.
      */

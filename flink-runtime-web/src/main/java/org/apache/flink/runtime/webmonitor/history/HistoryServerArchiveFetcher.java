@@ -135,6 +135,13 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     protected final ArchiveStorage<Entry> archiveStorage;
 
+    /**
+     * Whether archives beyond {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS} should be
+     * retained in the remote archive directory instead of being deleted. When {@code true}, such
+     * archives are only skipped for local processing, not deleted remotely.
+     */
+    private final boolean retainRemoteBeyondLocalLimit;
+
     /** Executor for loading archives. */
     private final ExecutorService commonFetchExecutor;
 
@@ -154,10 +161,36 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             int lazyFetchExecutorCommonPoolSize,
             int lazyFetchExecutorIndividualPoolSize)
             throws IOException {
+        this(
+                refreshDirs,
+                webDir,
+                archiveEventListener,
+                cleanupExpiredArchives,
+                retainedStrategy,
+                archiveStorage,
+                archiveMetaInfoCache,
+                lazyFetchExecutorCommonPoolSize,
+                lazyFetchExecutorIndividualPoolSize,
+                false);
+    }
+
+    HistoryServerArchiveFetcher(
+            List<HistoryServer.RefreshLocation> refreshDirs,
+            File webDir,
+            Consumer<ArchiveEvent> archiveEventListener,
+            boolean cleanupExpiredArchives,
+            ArchiveRetainedStrategy retainedStrategy,
+            ArchiveStorage<Entry> archiveStorage,
+            ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
+            int lazyFetchExecutorCommonPoolSize,
+            int lazyFetchExecutorIndividualPoolSize,
+            boolean retainRemoteBeyondLocalLimit)
+            throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.retainedStrategy = checkNotNull(retainedStrategy);
+        this.retainRemoteBeyondLocalLimit = retainRemoteBeyondLocalLimit;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
@@ -240,9 +273,16 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredArchives(archivesToRemove));
             }
-            // clean remote and local
             if (!archivesBeyondRetainedLimit.isEmpty()) {
-                events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+                if (retainRemoteBeyondLocalLimit) {
+                    // clean local only; the remote archive is left in place and remains
+                    // fetchable on demand (e.g. via LAZY archive load mode).
+                    events.addAll(
+                            cleanupLocalArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+                } else {
+                    // clean remote and local
+                    events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+                }
             }
             if (!events.isEmpty()) {
                 updateOverview();
@@ -361,6 +401,27 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 } catch (IOException ioe) {
                     LOG.warn("Could not delete old archive {}", archive, ioe);
                 }
+            }
+            allArchiveIdsToRemove.put(pathSetEntry.getKey(), archiveIdsToRemove);
+        }
+
+        return cleanupExpiredArchives(allArchiveIdsToRemove);
+    }
+
+    /**
+     * Cleans up archives beyond {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS} from the
+     * local cache only. Unlike {@link #cleanupArchivesBeyondRetainedLimit}, the remote archive is
+     * left untouched so that it remains fetchable on demand, e.g. via {@link
+     * HistoryServerOptions.HistoryServerArchiveLoadMode#LAZY} mode.
+     */
+    List<ArchiveEvent> cleanupLocalArchivesBeyondRetainedLimit(
+            Map<Path, Set<Path>> archivesToRemove) {
+        Map<Path, Set<String>> allArchiveIdsToRemove = new HashMap<>();
+
+        for (Map.Entry<Path, Set<Path>> pathSetEntry : archivesToRemove.entrySet()) {
+            HashSet<String> archiveIdsToRemove = new HashSet<>();
+            for (Path archive : pathSetEntry.getValue()) {
+                archiveIdsToRemove.add(archive.getName());
             }
             allArchiveIdsToRemove.put(pathSetEntry.getKey(), archiveIdsToRemove);
         }
