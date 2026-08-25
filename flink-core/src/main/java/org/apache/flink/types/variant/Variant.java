@@ -20,15 +20,21 @@ package org.apache.flink.types.variant;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Variant represent a semi-structured data. */
+/**
+ * Variant represent a semi-structured data.
+ *
+ * <p>Instances are serializable so that they can be held as member variables of user-defined
+ * functions or passed into their constructors.
+ */
 @PublicEvolving
-public interface Variant {
+public interface Variant extends Serializable {
 
     /** Returns true if the variant is a primitive typed value, such as INT, DOUBLE, STRING, etc. */
     boolean isPrimitive();

@@ -73,6 +73,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantTableArgFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -927,6 +930,57 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(a, b, c))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT =
+            TableTestProgram.of(
+                            "process-variant",
+                            "takes nullable, optional, and not nullable VARIANT arguments")
+                    .setupTemporarySystemFunction("f", VariantFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{null, null, {\"a\":[1,\"b\"]}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "variant1 => NULL, "
+                                    + "variant3 => PARSE_JSON('{\"a\":[1,\"b\"]}'))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_TABLE_ARG =
+            TableTestProgram.of("process-variant-table-arg", "table argument with a VARIANT column")
+                    .setupTemporarySystemFunction("f", VariantTableArgFunction.class)
+                    .setupSql(
+                            "CREATE VIEW t AS SELECT * FROM "
+                                    + "(VALUES ('Bob', PARSE_JSON('{\"a\":1}')), "
+                                    + "('Alice', PARSE_JSON('[1,\"b\"]'))) AS T(name, v)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, {\"a\":1}]}]",
+                                            "+I[Alice, {+I[Alice, [1,\"b\"]]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_STATE =
+            TableTestProgram.of("process-variant-state", "state entry with a VARIANT field")
+                    .setupTemporarySystemFunction("f", VariantStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {VariantScore(v=null), +I[Bob, 12]}]",
+                                            "+I[Alice, {VariantScore(v=null), +I[Alice, 42]}]",
+                                            "+I[Bob, {VariantScore(v=12), +I[Bob, 99]}]",
+                                            "+I[Bob, {VariantScore(v=99), +I[Bob, 100]}]",
+                                            "+I[Alice, {VariantScore(v=42), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
     public static final TableTestProgram PROCESS_TIME_CONVERSIONS =

@@ -18,6 +18,8 @@
 
 package org.apache.flink.types.variant;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -333,5 +335,20 @@ class BinaryVariantTest {
         assertThatThrownBy(variant::getDouble)
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessage("Expected type DOUBLE but got FLOAT");
+    }
+
+    @Test
+    void testJavaSerialization() throws Exception {
+        Variant variant =
+                builder.object()
+                        .add("i", builder.of(1))
+                        .add("nested", builder.array().add(builder.of("v")).build())
+                        .build();
+        assertThat(CommonTestUtils.createCopySerializable(variant)).isEqualTo(variant);
+
+        // a sub-variant is addressed by a position into the value binary of the enclosing document
+        Variant subVariant = variant.getField("nested");
+        assertThat(((BinaryVariant) subVariant).getPos()).isGreaterThan(0);
+        assertThat(CommonTestUtils.createCopySerializable(subVariant)).isEqualTo(subVariant);
     }
 }
