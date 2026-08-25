@@ -122,7 +122,7 @@ jobs:
       - name: "Install cibuildwheel"
         # Need to limit setuptools here in order to apply limitations for transitive dependencies
         run: |
-          python -m pip install cibuildwheel==2.16.5
+          python -m pip install cibuildwheel==4.2.0
           echo "setuptools<82" > /tmp/build-constraints.txt
       - name: "Build python wheels for ${{ matrix.os_name }}"
         run: python -m cibuildwheel --output-dir flink-python/dist flink-python
