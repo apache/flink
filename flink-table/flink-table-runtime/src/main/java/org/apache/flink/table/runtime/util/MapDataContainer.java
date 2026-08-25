@@ -21,16 +21,15 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.MapData;
 
 /** A {@link MapData} backed directly by a key array and a value array. */
 @Internal
 public class MapDataContainer implements MapData {
-    private final GenericArrayData keyArray;
-    private final GenericArrayData valueArray;
+    private final ArrayData keyArray;
+    private final ArrayData valueArray;
 
-    public MapDataContainer(GenericArrayData keyArray, GenericArrayData valueArray) {
+    public MapDataContainer(ArrayData keyArray, ArrayData valueArray) {
         this.keyArray = keyArray;
         this.valueArray = valueArray;
     }
