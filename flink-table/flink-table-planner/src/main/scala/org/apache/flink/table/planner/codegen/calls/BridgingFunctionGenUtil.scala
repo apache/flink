@@ -171,8 +171,8 @@ object BridgingFunctionGenUtil {
       udf,
       function.toString,
       skipIfArgsNull,
-      // This is the async table function correlate entry; opt it into metrics under the UDF name,
-      // mirroring BridgingSqlFunctionCallGen for the other UDF kinds.
+      // Async table function correlate entry; supplies the UDF name that instrumented call
+      // generators scope their metrics under, mirroring BridgingSqlFunctionCallGen.
       udfMetricName = Some(function.getName)
     )
   }

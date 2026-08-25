@@ -372,7 +372,7 @@ By default no operator is disabled.</td>
             <td><h5>table.exec.udf-metric.sample-interval</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
-            <td>When UDF metrics are enabled, udfProcessingTime is measured every N invocations (default 100). The non-sampled fast path is a single integer increment.</td>
+            <td>When UDF metrics are enabled, udfProcessingTime is measured once every N invocations (default 100). Must be at least 1; a value of 1 measures every invocation. The non-sampled fast path is a single integer increment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.uid.format</h5><br> <span class="label label-primary">Streaming</span></td>

@@ -109,7 +109,10 @@ class UdfMetricsITCase {
             try {
                 Thread.sleep(SLEEP_MILLIS);
             } catch (InterruptedException e) {
+                // Without the sleep the timing assertions would fail on an unrelated symptom, so
+                // surface the interruption instead.
                 Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while sleeping in SleepyDoubler", e);
             }
             return i == null ? null : i * 2;
         }

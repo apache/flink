@@ -718,8 +718,9 @@ public class ExecutionConfigOptions {
                     .intType()
                     .defaultValue(100)
                     .withDescription(
-                            "When UDF metrics are enabled, udfProcessingTime is measured every N "
-                                    + "invocations (default 100). The non-sampled fast path is a single integer increment.");
+                            "When UDF metrics are enabled, udfProcessingTime is measured once every N "
+                                    + "invocations (default 100). Must be at least 1; a value of 1 measures every "
+                                    + "invocation. The non-sampled fast path is a single integer increment.");
 
     // ------------------------------------------------------------------------
     //  Other Exec Options
