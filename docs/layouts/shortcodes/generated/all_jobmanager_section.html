@@ -87,6 +87,12 @@
             <td>Directory for JobManager to store the archives of completed jobs.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.archive.only-failed-jobs</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to only archive jobs that reached the <code class="highlighter-rouge">FAILED</code> terminal state to <code class="highlighter-rouge">jobmanager.archive.fs.dir</code>.When enabled, jobs that finished, were canceled, or were suspended are not archived to the history server, reducing the number of files written for large clusters running many short-lived batch jobs. This option has no effect unless <code class="highlighter-rouge">jobmanager.archive.fs.dir</code> is configured.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.bind-host</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

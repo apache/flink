@@ -33,6 +33,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.configuration.WebOptions;
@@ -2315,7 +2316,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         // do not create an archive for suspended jobs, as this would eventually lead to
         // multiple archive attempts which we currently do not support
         CompletableFuture<Acknowledge> archiveFuture =
-                archiveExecutionGraphToHistoryServer(executionGraphInfo);
+                shouldArchiveToHistoryServer(terminalJobStatus)
+                        ? archiveExecutionGraphToHistoryServer(executionGraphInfo)
+                        : CompletableFuture.completedFuture(Acknowledge.get());
 
         return archiveFuture.thenCompose(
                 ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
@@ -2411,6 +2414,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
      */
     private void writeToExecutionGraphInfoStore(ExecutionGraphInfo executionGraphInfo) {
         partialExecutionGraphInfoStore.put(executionGraphInfo.getJobId(), executionGraphInfo);
+    }
+
+    /**
+     * Checks whether a job that reached the given globally terminal state should be archived to the
+     * history server, honoring {@link JobManagerOptions#ARCHIVE_ON_FAILED_JOBS_ONLY}.
+     */
+    private boolean shouldArchiveToHistoryServer(JobStatus terminalJobStatus) {
+        return terminalJobStatus == JobStatus.FAILED
+                || !configuration.get(JobManagerOptions.ARCHIVE_ON_FAILED_JOBS_ONLY);
     }
 
     private CompletableFuture<Acknowledge> archiveExecutionGraphToHistoryServer(
