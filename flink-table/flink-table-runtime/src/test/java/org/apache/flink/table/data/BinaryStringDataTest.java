@@ -194,8 +194,8 @@ class BinaryStringDataTest {
         assertThat(s1.numChars()).isEqualTo(len);
         assertThat(s2.numChars()).isEqualTo(len);
 
-        assertThat(s1.toString()).isEqualTo(str);
-        assertThat(s2.toString()).isEqualTo(str);
+        assertThat(s1).hasToString(str);
+        assertThat(s2).hasToString(str);
         assertThat(s2).isEqualTo(s1);
 
         assertThat(s2.hashCode()).isEqualTo(s1.hashCode());
@@ -257,7 +257,7 @@ class BinaryStringDataTest {
             str.ensureMaterialized();
 
             // check reference same.
-            assertThat(javaStr).isSameAs(str.toString());
+            assertThat(str.toString()).isSameAs(javaStr);
         }
     }
 
@@ -315,22 +315,22 @@ class BinaryStringDataTest {
             // test go ahead both
             BinaryStringData binaryString1 = BinaryStringData.fromAddress(segments1, 5, 10);
             BinaryStringData binaryString2 = BinaryStringData.fromAddress(segments2, 0, 6);
-            assertThat(binaryString1.toString()).isEqualTo("abcdeaaaaa");
-            assertThat(binaryString2.toString()).isEqualTo("abcdeb");
+            assertThat(binaryString1).hasToString("abcdeaaaaa");
+            assertThat(binaryString2).hasToString("abcdeb");
             assertThat(binaryString1.compareTo(binaryString2)).isEqualTo(-1);
 
             // test needCompare == len
             binaryString1 = BinaryStringData.fromAddress(segments1, 5, 5);
             binaryString2 = BinaryStringData.fromAddress(segments2, 0, 5);
-            assertThat(binaryString1.toString()).isEqualTo("abcde");
-            assertThat(binaryString2.toString()).isEqualTo("abcde");
+            assertThat(binaryString1).hasToString("abcde");
+            assertThat(binaryString2).hasToString("abcde");
             assertThat(binaryString1.compareTo(binaryString2)).isZero();
 
             // test find the first segment of this string
             binaryString1 = BinaryStringData.fromAddress(segments1, 10, 5);
             binaryString2 = BinaryStringData.fromAddress(segments2, 0, 5);
-            assertThat(binaryString1.toString()).isEqualTo("aaaaa");
-            assertThat(binaryString2.toString()).isEqualTo("abcde");
+            assertThat(binaryString1).hasToString("aaaaa");
+            assertThat(binaryString2).hasToString("abcde");
             assertThat(binaryString1.compareTo(binaryString2)).isEqualTo(-1);
             assertThat(binaryString2.compareTo(binaryString1)).isEqualTo(1);
 
@@ -339,8 +339,8 @@ class BinaryStringDataTest {
             segments2[0].put(4, "abcdeb".getBytes(UTF_8), 0, 6);
             binaryString1 = BinaryStringData.fromAddress(segments1, 5, 10);
             binaryString2 = BinaryStringData.fromAddress(segments2, 4, 6);
-            assertThat(binaryString1.toString()).isEqualTo("abcdeaaaaa");
-            assertThat(binaryString2.toString()).isEqualTo("abcdeb");
+            assertThat(binaryString1).hasToString("abcdeaaaaa");
+            assertThat(binaryString2).hasToString("abcdeb");
             assertThat(binaryString1.compareTo(binaryString2)).isEqualTo(-1);
             assertThat(binaryString2.compareTo(binaryString1)).isEqualTo(1);
         }
