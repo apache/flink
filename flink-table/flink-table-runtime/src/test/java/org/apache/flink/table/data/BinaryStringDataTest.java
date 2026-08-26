@@ -49,6 +49,8 @@ import static org.apache.flink.table.data.binary.BinaryStringDataUtil.splitByWho
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.substringSQL;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toByte;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toDecimal;
+import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toDouble;
+import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toFloat;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toInt;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toLong;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toShort;
@@ -444,6 +446,28 @@ class BinaryStringDataTest {
         assertThatThrownBy(() -> toInt(fromString("1a3.456789")))
                 .isInstanceOf(NumberFormatException.class);
         assertThatThrownBy(() -> toInt(fromString("123.a56789")))
+                .isInstanceOf(NumberFormatException.class);
+
+        // Approximate numerics accept case-insensitive and abbreviated special values.
+        for (String infinity : new String[] {"Infinity", "infinity", "INF", "inf", "+inf"}) {
+            assertThat(toFloat(fromString(infinity))).isEqualTo(Float.POSITIVE_INFINITY);
+            assertThat(toDouble(fromString(infinity))).isEqualTo(Double.POSITIVE_INFINITY);
+        }
+        for (String negInfinity : new String[] {"-Infinity", "-infinity", "-INF", "  -inf  "}) {
+            assertThat(toFloat(fromString(negInfinity))).isEqualTo(Float.NEGATIVE_INFINITY);
+            assertThat(toDouble(fromString(negInfinity))).isEqualTo(Double.NEGATIVE_INFINITY);
+        }
+        for (String nan : new String[] {"NaN", "nan", "NAN"}) {
+            assertThat(toFloat(fromString(nan))).isNaN();
+            assertThat(toDouble(fromString(nan))).isNaN();
+        }
+        // Ordinary numbers are unaffected and signed NaN stays invalid.
+        assertThat(toDouble(fromString("1.5"))).isEqualTo(1.5);
+        assertThatThrownBy(() -> toFloat(fromString("-nan")))
+                .isInstanceOf(NumberFormatException.class);
+        // Only the trimmed token matches: surrounding whitespace is allowed, interior is not.
+        assertThat(toDouble(fromString("  -infinity  "))).isEqualTo(Double.NEGATIVE_INFINITY);
+        assertThatThrownBy(() -> toFloat(fromString("-   Infinity")))
                 .isInstanceOf(NumberFormatException.class);
 
         // Test composite in BinaryRowData.

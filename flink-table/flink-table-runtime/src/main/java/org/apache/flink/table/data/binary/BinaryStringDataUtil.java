@@ -35,6 +35,7 @@ import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -574,11 +575,50 @@ public class BinaryStringDataUtil {
     }
 
     public static double toDouble(BinaryStringData str) throws NumberFormatException {
-        return Double.parseDouble(str.toString());
+        final String s = str.toString();
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special;
+        }
     }
 
     public static float toFloat(BinaryStringData str) throws NumberFormatException {
-        return Float.parseFloat(str.toString());
+        final String s = str.toString();
+        try {
+            return Float.parseFloat(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special.floatValue();
+        }
+    }
+
+    /**
+     * Returns the value for a case-insensitive {@code nan}/{@code inf}/{@code infinity} spelling
+     * (optional sign on infinity), or {@code null} if the string is not one of those.
+     */
+    private static Double specialFloatingPointOrNull(String str) {
+        switch (str.trim().toLowerCase(Locale.ROOT)) {
+            case "inf":
+            case "+inf":
+            case "infinity":
+            case "+infinity":
+                return Double.POSITIVE_INFINITY;
+            case "-inf":
+            case "-infinity":
+                return Double.NEGATIVE_INFINITY;
+            case "nan":
+                return Double.NaN;
+            default:
+                return null;
+        }
     }
 
     private static NumberFormatException numberFormatExceptionFor(StringData input, String reason) {
