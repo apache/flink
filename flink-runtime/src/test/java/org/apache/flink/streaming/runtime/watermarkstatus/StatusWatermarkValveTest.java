@@ -337,6 +337,53 @@ class StatusWatermarkValveTest {
     }
 
     /**
+     * Tests that the max watermark across all channels is flushed once all inputs become idle, even
+     * when the last channel to become idle is unaligned, i.e. it went idle, resumed being active,
+     * and only partially caught up to the last output watermark. The eventual watermark advancement
+     * result must be independent of the order in which the inputs become idle (FLINK-7728).
+     */
+    @Test
+    void testMultipleInputFlushMaxWatermarkOnceAllInputsBecomeIdleWithUnalignedLastChannel()
+            throws Exception {
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+        StatusWatermarkValve valve = new StatusWatermarkValve(3);
+
+        valve.inputWatermark(new Watermark(100), 0, valveOutput);
+        valve.inputWatermark(new Watermark(50), 1, valveOutput);
+        valve.inputWatermark(new Watermark(70), 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(50));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 becomes idle; the new min watermark is computed from channels 0 and 2
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(70));
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 resumes being active, but stays unaligned since its watermark (50) has not
+        // caught up to the last output watermark (70)
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 1, valveOutput);
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // channel 1 partially catches up; its watermark is recorded but it remains unaligned
+        valve.inputWatermark(new Watermark(60), 1, valveOutput);
+        assertThat(valve.getSubpartitionStatus(1).watermark).isEqualTo(60);
+        assertThat(valve.getSubpartitionStatus(1).isWatermarkAligned).isFalse();
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // the unaligned channel 1 is the last channel to become idle; the max watermark across
+        // all channels must still be flushed
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(100));
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
+    /**
      * Tests that when idle channels become active again, they need to "catch up" with the latest
      * watermark before they are considered for min watermark computation again.
      */

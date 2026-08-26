@@ -221,23 +221,13 @@ public class StatusWatermarkValve {
             // if all subpartitions of the valve are now idle, we need to output an idle stream
             // status from the valve (this also marks the valve as idle)
             if (!SubpartitionStatus.hasActiveSubpartitions(subpartitionStatuses)) {
-
-                // now that all subpartitions are idle and no subpartitions will continue to advance
-                // its
-                // watermark,
-                // we should "flush" all watermarks across all subpartitions; effectively, this
-                // means
-                // emitting
-                // the max watermark across all subpartitions as the new watermark. Also, since we
-                // already try to advance
-                // the min watermark as subpartitions individually become IDLE, here we only need to
-                // perform the flush
-                // if the watermark of the last active subpartition that just became idle is the
-                // current
-                // min watermark.
-                if (subpartitionStatus.watermark == lastOutputWatermark) {
-                    findAndOutputMaxWatermarkAcrossAllSubpartitions(output);
-                }
+                // now that all subpartitions are idle and no subpartition will continue to advance
+                // its watermark, we should "flush" all watermarks across all subpartitions;
+                // effectively, this means emitting the max watermark across all subpartitions as
+                // the new watermark, so that the eventual watermark is independent of the order in
+                // which the subpartitions became idle. This also keeps the valve consistent with
+                // the unconditional flush in CombinedWatermarkStatus.
+                findAndOutputMaxWatermarkAcrossAllSubpartitions(output);
 
                 lastOutputWatermarkStatus = WatermarkStatus.IDLE;
                 output.emitWatermarkStatus(lastOutputWatermarkStatus);
