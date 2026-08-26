@@ -111,7 +111,7 @@ class SavepointFilterTranslator {
             int keyColumnIndex,
             RowType rowType,
             List<ResolvedExpression> filters,
-            Consumer<SavepointKeyFilter> keyFilterSetter) {
+            Consumer<SavepointKeyFilterPlan> keyFilterSetter) {
         Result result =
                 new SavepointFilterTranslator(
                                 keyColumnIndex,
