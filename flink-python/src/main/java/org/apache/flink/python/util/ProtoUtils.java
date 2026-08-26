@@ -39,9 +39,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
@@ -143,6 +145,29 @@ public enum ProtoUtils {
         for (PythonFunctionInfo userDefinedFunction : userDefinedFunctions) {
             builder.addUdfs(createUserDefinedFunctionProto(userDefinedFunction));
         }
+        // Flattening nested calls for CSE appends intermediate sub-expressions, which are consumed
+        // by reference and must not be emitted, and it preserves post-order, which can leave the
+        // projected results in a different order than the projection. Forward the mapping whenever
+        // the evaluated list is not already exactly the output in order, so the worker keeps its
+        // original behaviour when nothing was flattened.
+        int[] outputIndices =
+                IntStream.range(0, userDefinedFunctions.length)
+                        .filter(i -> userDefinedFunctions[i].getOutputPosition() >= 0)
+                        .boxed()
+                        .sorted(
+                                Comparator.comparingInt(
+                                        i -> userDefinedFunctions[i].getOutputPosition()))
+                        .mapToInt(Integer::intValue)
+                        .toArray();
+        boolean isIdentity = outputIndices.length == userDefinedFunctions.length;
+        for (int i = 0; isIdentity && i < outputIndices.length; i++) {
+            isIdentity = outputIndices[i] == i;
+        }
+        if (!isIdentity) {
+            for (int index : outputIndices) {
+                builder.addOutputIndices(index);
+            }
+        }
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
         builder.addAllJobParameters(
@@ -180,6 +205,8 @@ public enum ProtoUtils {
             FlinkFnApi.Input.Builder inputProto = FlinkFnApi.Input.newBuilder();
             if (input instanceof PythonFunctionInfo) {
                 inputProto.setUdf(createUserDefinedFunctionProto((PythonFunctionInfo) input));
+            } else if (input instanceof PythonFunctionInfo.ResultRef) {
+                inputProto.setRefIndex(((PythonFunctionInfo.ResultRef) input).index);
             } else if (input instanceof Integer) {
                 inputProto.setInputOffset((Integer) input);
             } else {

@@ -926,6 +926,135 @@ class UserDefinedFunctionTests(object):
         self.assertTrue('add_one_func' not in t_env.list_user_defined_functions())
         self.assertTrue('subtract_one_func' not in t_env.list_user_defined_functions())
 
+    def test_python_local_ref_reuse(self):
+        """
+        Parameterized test for Python UDF local reference reuse.
+        Each case specifies a SQL query and a result verifier.
+        Similar to FunctionITCase.inputForTestCalcLocalRefReuse in Java.
+
+        Deterministic UDF calls with same args are computed once and reused;
+        non-deterministic UDF calls are always executed independently.
+        The UUID suffix in UDF output proves whether calls were deduplicated.
+
+        Covers both the top-level / condition deduplication done by the logical rules and the
+        nested sub-expression sharing done inside the Python operator, so that a change to one
+        cannot silently alter the behaviour of the other.
+        """
+        @udf(result_type=DataTypes.STRING())
+        def Det(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        @udf(result_type=DataTypes.STRING(), deterministic=False)
+        def Nondet(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        self.t_env.create_temporary_system_function("Det", Det)
+        self.t_env.create_temporary_system_function("Nondet", Nondet)
+
+        source_t = self.t_env.from_elements([("hello",)], ['s'])
+        self.t_env.create_temporary_view("SourceTable", source_t)
+
+        # (description, sql, verify_fn)
+        cases = [
+            # --- Existing behaviour from the projection / condition CSE rules ---
+            # These guard the already-merged behaviour: introducing full-tree CSE for nested
+            # sub-expressions must not change how top-level duplicates are handled.
+            (
+                "top-level: identical Det calls are reused",
+                "SELECT Det(s), Det(s), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertEqual(len(set(vals)), 1,
+                                     f"expected one shared value, got {vals}"),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "top-level: Nondet calls are NOT reused",
+                "SELECT Nondet(s), Nondet(s), Nondet(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertEqual(len(set(vals)), 3,
+                                     f"expected three distinct values, got {vals}"),
+                ),
+            ),
+            (
+                "top-level: Det reused while Nondet stays independent",
+                "SELECT Det(s), Det(s), Nondet(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertEqual(vals[0], vals[1]),
+                    self.assertNotEqual(vals[0], vals[2]),
+                ),
+            ),
+            (
+                "condition + projection: Det(s) in WHERE and SELECT is shared",
+                "SELECT Det(s), Det(s) FROM SourceTable WHERE Det(s) IS NOT NULL",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertEqual(vals[0], vals[1]),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "condition + projection: Nondet in WHERE does not affect the projection",
+                "SELECT Det(s) FROM SourceTable WHERE Nondet(s) IS NOT NULL",
+                lambda vals: (
+                    self.assertEqual(len(vals), 1),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                ),
+            ),
+            # --- Full-tree CSE: nested calls ---
+            (
+                "Det(Det(s)) - inner Det shared with the standalone Det call",
+                "SELECT Det(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Det upper-cases its input, so the outer result must start with the
+                    # upper-cased inner value. That proves the outer call consumed the very
+                    # same result as the standalone Det(s) rather than recomputing it.
+                    self.assertTrue(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"outer={vals[0]} does not build on inner={vals[1]}"),
+                ),
+            ),
+            (
+                "Nondet(Det(s)) - outer Nondet not reused, inner Det reused",
+                "SELECT Nondet(Det(s)), Nondet(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertNotEqual(vals[0], vals[1]),
+                    self.assertTrue(vals[2].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "Det(Nondet(s)) - nondet input disables reuse",
+                "SELECT Det(Nondet(s)), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertNotEqual(vals[0], vals[1]),
+                ),
+            ),
+        ]
+
+        for desc, sql, verify_fn in cases:
+            with self.subTest(desc):
+                result = self.t_env.sql_query(sql)
+                col_count = len(result.get_schema().get_field_names())
+                cols = ", ".join([f"c{i} STRING" for i in range(col_count)])
+                sink_table = generate_random_table_name()
+                self.t_env.execute_sql(f"""
+                    CREATE TABLE {sink_table}({cols})
+                    WITH ('connector'='test-sink')
+                """)
+                result.execute_insert(sink_table).wait()
+                actual = source_sink_utils.results()
+                self.assertEqual(len(actual), 1)
+                vals = actual[0].replace("+I[", "").replace("]", "").split(", ")
+                verify_fn(vals)
+
 
 # decide whether two floats are equal
 def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):

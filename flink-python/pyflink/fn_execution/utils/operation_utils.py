@@ -134,6 +134,9 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
                 else:
                     # the input argument is a column of the input row
                     args_str.append("value[%s]" % arg.inputOffset)
+            elif arg.HasField("refIndex"):
+                # Reference to a previously computed UDF result (CSE).
+                args_str.append("results[%s]" % arg.refIndex)
             else:
                 # the input argument is a constant value
                 constant_value_name, parsed_constant_value = \
@@ -171,6 +174,11 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             # we need to merge these Pandas.Series into a Pandas.DataFrame
             variable_dict['wrap_input_series_as_dataframe'] = wrap_input_series_as_dataframe
             func_str = "%s(wrap_input_series_as_dataframe(%s))" % (func_name, func_args)
+        elif 'results[' in func_args:
+            # CSE: when args contain refIndex references (results[N]), the UDF
+            # receives a previously computed intermediate result rather than
+            # the original input row. We must use func_args instead of `value`.
+            func_str = "%s(%s)" % (func_name, func_args)
         else:
             # directly use `value` as input argument
             # e.g.
