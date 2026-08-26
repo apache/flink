@@ -191,11 +191,11 @@ class BinaryStringDataTest {
     private static void checkBasic(Mode mode, String str, int len) {
         BinaryStringData s1 = fromString(mode, str);
         BinaryStringData s2 = fromBytes(str.getBytes(StandardCharsets.UTF_8));
-        assertThat(len).isEqualTo(s1.numChars());
-        assertThat(len).isEqualTo(s2.numChars());
+        assertThat(s1.numChars()).isEqualTo(len);
+        assertThat(s2.numChars()).isEqualTo(len);
 
-        assertThat(str).isEqualTo(s1.toString());
-        assertThat(str).isEqualTo(s2.toString());
+        assertThat(s1.toString()).isEqualTo(str);
+        assertThat(s2.toString()).isEqualTo(str);
         assertThat(s2).isEqualTo(s1);
 
         assertThat(s2.hashCode()).isEqualTo(s1.hashCode());
@@ -873,7 +873,7 @@ class BinaryStringDataTest {
 
             for (int wrongFirstByte : wrongFirstBytes) {
                 c[0] = (byte) wrongFirstByte;
-                assertThat(1).isEqualTo(fromBytes(c).numChars());
+                assertThat(fromBytes(c).numChars()).isEqualTo(1);
             }
         }
     }
