@@ -70,8 +70,17 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     /** When {@code true}, {@link #uploadPart} throws to simulate a part-upload failure. */
     public boolean failUploadPart = false;
 
+    /**
+     * When {@code true}, {@link #uploadPart} deletes the local part file after reading it,
+     * simulating an external cleaner that reaps {@code io.tmp.dirs} while the part is in flight.
+     */
+    public boolean deletePartFileAfterUpload = false;
+
     /** When {@code true}, {@link #abortMultiPartUpload} throws to simulate an abort failure. */
     public boolean failAbortMultiPartUpload = false;
+
+    /** Number of times {@link #uploadPart} was invoked, including failed attempts. */
+    public int uploadPartAttempts = 0;
 
     /** Number of times {@link #abortMultiPartUpload} was invoked, including failed attempts. */
     public int abortAttempts = 0;
@@ -100,6 +109,7 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     public UploadPartResult uploadPart(
             String key, String uploadId, int partNumber, File file, long length)
             throws IOException {
+        uploadPartAttempts++;
         if (failUploadPart) {
             throw new IOException("injected uploadPart failure for uploadId: " + uploadId);
         }
@@ -113,6 +123,9 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
                     "part length mismatch: expected " + length + ", got " + data.length);
         }
         parts.put(partNumber, data);
+        if (deletePartFileAfterUpload) {
+            Files.delete(file.toPath());
+        }
         return new UploadPartResult(partNumber, "etag-" + uploadId + "-" + partNumber);
     }
 
