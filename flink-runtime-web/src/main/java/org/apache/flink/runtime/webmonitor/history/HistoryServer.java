@@ -261,6 +261,19 @@ public class HistoryServer {
         archiveLoadMode = config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_LOAD_MODE);
         HistoryServerOptions.HistoryServerArchiveStorageType archiveStorageType =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_STORAGE_TYPE);
+        LOG.info(
+                "HistoryServer effective configuration: storage-type={}, load-mode={}, "
+                        + "retained-jobs={}, retained-applications={}, retained-ttl={}, "
+                        + "clean-expired-jobs={}, clean-expired-applications={}.",
+                archiveStorageType,
+                archiveLoadMode,
+                config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS),
+                config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_APPLICATIONS),
+                config.getOptional(HistoryServerOptions.HISTORY_SERVER_RETAINED_TTL)
+                        .map(Object::toString)
+                        .orElse("unset"),
+                cleanupExpiredJobs,
+                cleanupExpiredApplications);
         AbstractHistoryServerHandler.HistoryServerHandlerFactory historyServerHandlerFactory;
         switch (archiveStorageType) {
             case FILE:
