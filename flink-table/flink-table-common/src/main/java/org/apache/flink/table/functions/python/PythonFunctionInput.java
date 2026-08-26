@@ -20,32 +20,14 @@ package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
 
+import java.io.Serializable;
+
 /**
- * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function,
- * such as: the actual Python aggregation function, the input arguments, the filter arg, the
- * distinct flag, etc.
+ * An argument of a Python function described by {@link PythonFunctionInfo}.
+ *
+ * <p>Implemented by {@link InputRef} for a column of the input row, {@link ConstantInput} for a
+ * literal, {@link ResultRef} for the result of an already evaluated function, and {@link
+ * PythonFunctionInfo} itself for a nested call.
  */
 @Internal
-public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
-
-    private final int filterArg;
-    private final boolean distinct;
-
-    public PythonAggregateFunctionInfo(
-            PythonFunction pythonFunction,
-            PythonFunctionInput[] inputs,
-            int filterArg,
-            boolean isDistinct) {
-        super(pythonFunction, inputs);
-        this.filterArg = filterArg;
-        this.distinct = isDistinct;
-    }
-
-    public boolean isDistinct() {
-        return distinct;
-    }
-
-    public int getFilterArg() {
-        return filterArg;
-    }
-}
+public interface PythonFunctionInput extends Serializable {}
