@@ -200,7 +200,7 @@ class BinaryStringDataTest {
 
         assertThat(s2.hashCode()).isEqualTo(s1.hashCode());
 
-        assertThat(s1.compareTo(s2)).isEqualTo(0);
+        assertThat(s1.compareTo(s2)).isZero();
 
         assertThat(s1.contains(s2)).isTrue();
         assertThat(s2.contains(s1)).isTrue();
@@ -234,20 +234,20 @@ class BinaryStringDataTest {
             BinaryStringData empty = fromString(mode, "");
             assertThat(fromString(mode, "")).isEqualTo(empty);
             assertThat(fromBytes(new byte[0])).isEqualTo(empty);
-            assertThat(empty.numChars()).isEqualTo(0);
-            assertThat(empty.getSizeInBytes()).isEqualTo(0);
+            assertThat(empty.numChars()).isZero();
+            assertThat(empty.getSizeInBytes()).isZero();
         }
 
         @ParameterizedTest(name = "{0}")
         @EnumSource(Mode.class)
         void testIsEmpty(Mode mode) {
-            assertThat(isEmpty(fromString(mode, ""))).isEqualTo(true);
-            assertThat(isEmpty(BinaryStringData.fromBytes(new byte[] {}))).isEqualTo(true);
-            assertThat(isEmpty(fromString(mode, "hello"))).isEqualTo(false);
-            assertThat(isEmpty(BinaryStringData.fromBytes("hello".getBytes()))).isEqualTo(false);
-            assertThat(isEmpty(fromString(mode, "中文"))).isEqualTo(false);
-            assertThat(isEmpty(BinaryStringData.fromBytes("中文".getBytes()))).isEqualTo(false);
-            assertThat(isEmpty(new BinaryStringData())).isEqualTo(true);
+            assertThat(isEmpty(fromString(mode, ""))).isTrue();
+            assertThat(isEmpty(BinaryStringData.fromBytes(new byte[] {}))).isTrue();
+            assertThat(isEmpty(fromString(mode, "hello"))).isFalse();
+            assertThat(isEmpty(BinaryStringData.fromBytes("hello".getBytes()))).isFalse();
+            assertThat(isEmpty(fromString(mode, "中文"))).isFalse();
+            assertThat(isEmpty(BinaryStringData.fromBytes("中文".getBytes()))).isFalse();
+            assertThat(isEmpty(new BinaryStringData())).isTrue();
         }
 
         @Test
@@ -268,13 +268,13 @@ class BinaryStringDataTest {
         @ParameterizedTest(name = "{0}")
         @EnumSource(Mode.class)
         void compareTo(Mode mode) {
-            assertThat(fromString(mode, "   ").compareTo(blankString(3))).isEqualTo(0);
+            assertThat(fromString(mode, "   ").compareTo(blankString(3))).isZero();
             assertThat(fromString(mode, "").compareTo(fromString(mode, "a"))).isLessThan(0);
             assertThat(fromString(mode, "abc").compareTo(fromString(mode, "ABC"))).isGreaterThan(0);
             assertThat(fromString(mode, "abc0").compareTo(fromString(mode, "abc")))
                     .isGreaterThan(0);
             assertThat(fromString(mode, "abcabcabc").compareTo(fromString(mode, "abcabcabc")))
-                    .isEqualTo(0);
+                    .isZero();
             assertThat(fromString(mode, "aBcabcabc").compareTo(fromString(mode, "Abcabcabc")))
                     .isGreaterThan(0);
             assertThat(fromString(mode, "Abcabcabc").compareTo(fromString(mode, "abcabcabC")))
@@ -324,7 +324,7 @@ class BinaryStringDataTest {
             binaryString2 = BinaryStringData.fromAddress(segments2, 0, 5);
             assertThat(binaryString1.toString()).isEqualTo("abcde");
             assertThat(binaryString2.toString()).isEqualTo("abcde");
-            assertThat(binaryString1.compareTo(binaryString2)).isEqualTo(0);
+            assertThat(binaryString1.compareTo(binaryString2)).isZero();
 
             // test find the first segment of this string
             binaryString1 = BinaryStringData.fromAddress(segments1, 10, 5);
@@ -360,8 +360,8 @@ class BinaryStringDataTest {
             assertThat(BinaryStringData.EMPTY_UTF8.compareTo(str2)).isLessThan(0);
             assertThat(str2.compareTo(BinaryStringData.EMPTY_UTF8)).isGreaterThan(0);
 
-            assertThat(BinaryStringData.EMPTY_UTF8.compareTo(str3)).isEqualTo(0);
-            assertThat(str3.compareTo(BinaryStringData.EMPTY_UTF8)).isEqualTo(0);
+            assertThat(BinaryStringData.EMPTY_UTF8.compareTo(str3)).isZero();
+            assertThat(str3.compareTo(BinaryStringData.EMPTY_UTF8)).isZero();
 
             assertThat(str2).isNotEqualTo(BinaryStringData.EMPTY_UTF8);
             assertThat(BinaryStringData.EMPTY_UTF8).isNotEqualTo(str2);
@@ -418,9 +418,9 @@ class BinaryStringDataTest {
         @EnumSource(Mode.class)
         void indexOf(Mode mode) {
             BinaryStringData empty = fromString(mode, "");
-            assertThat(empty.indexOf(empty, 0)).isEqualTo(0);
+            assertThat(empty.indexOf(empty, 0)).isZero();
             assertThat(empty.indexOf(fromString(mode, "l"), 0)).isEqualTo(-1);
-            assertThat(fromString(mode, "hello").indexOf(empty, 0)).isEqualTo(0);
+            assertThat(fromString(mode, "hello").indexOf(empty, 0)).isZero();
             assertThat(fromString(mode, "hello").indexOf(fromString(mode, "l"), 0)).isEqualTo(2);
             assertThat(fromString(mode, "hello").indexOf(fromString(mode, "l"), 3)).isEqualTo(3);
             assertThat(fromString(mode, "hello").indexOf(fromString(mode, "a"), 0)).isEqualTo(-1);
@@ -428,7 +428,7 @@ class BinaryStringDataTest {
             assertThat(fromString(mode, "hello").indexOf(fromString(mode, "ll"), 4)).isEqualTo(-1);
             assertThat(fromString(mode, "数据砖头").indexOf(fromString(mode, "据砖"), 0)).isEqualTo(1);
             assertThat(fromString(mode, "数据砖头").indexOf(fromString(mode, "数"), 3)).isEqualTo(-1);
-            assertThat(fromString(mode, "数据砖头").indexOf(fromString(mode, "数"), 0)).isEqualTo(0);
+            assertThat(fromString(mode, "数据砖头").indexOf(fromString(mode, "数"), 0)).isZero();
             assertThat(fromString(mode, "数据砖头").indexOf(fromString(mode, "头"), 0)).isEqualTo(3);
         }
     }
